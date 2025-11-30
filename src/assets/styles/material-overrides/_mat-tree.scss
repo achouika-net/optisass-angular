@@ -1,0 +1,14 @@
+mat-tree-node {
+  align-items: center;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  &:hover {
+    backdrop-filter: brightness(90%);
+  }
+  &.selected {
+    color: var(--mat-sys-primary);
+    backdrop-filter: brightness(90%);
+  }
+}

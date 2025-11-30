@@ -1,0 +1,23 @@
+<div
+  class="flex h-screen items-center bg-cover delay-100 duration-200 ease-linear"
+  [style.background-image]="currentBackground()"
+>
+  <div class="mx-auto max-w-md min-w-min align-middle">
+    <mat-card class="w-[24rem]">
+      <mat-card-content>
+        <div class="mb-5 flex items-center justify-center px-8">
+          <img
+            [ngSrc]="logoPath()"
+            alt="logo"
+            width="1229"
+            height="290"
+            priority
+            class="size-full"
+            type="image/webp"
+          />
+        </div>
+        <router-outlet />
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

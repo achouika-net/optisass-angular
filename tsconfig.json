@@ -3,17 +3,33 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
-    "strict": true,
-    "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "skipLibCheck": true,
-    "isolatedModules": true,
+    "baseUrl": "src",
+    "paths": {
+      "@app/services": ["app/shared/services/index.ts"],
+      "@app/components": ["app/shared/components/index.ts"],
+      "@app/directives": ["app/shared/directives/index.ts"],
+      "@app/pipes": ["app/shared/pipes/index.ts"],
+      "@app/models": ["app/shared/models/index.ts"],
+      "@app/enums": ["app/shared/enums/index.ts"],
+      "@app/helpers": ["app/shared/helpers/index.ts"],
+      "@app/types": ["app/shared/types/index.ts"],
+      "@app/config": ["app/config/index.ts"]
+    },
+    "module": "ESNext",
+    "outDir": "./dist/out-tsc",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "bundler",
+    "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "importHelpers": true,
+    "strictPropertyInitialization": false,
+    "strictNullChecks": false,
     "target": "ES2022",
-    "module": "preserve"
+    "strict": true,
+    "typeRoots": ["node_modules/@types"],
+    "lib": ["ESNext", "dom"],
+    "useDefineForClassFields": false,
+    "esModuleInterop": true
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,

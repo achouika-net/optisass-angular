@@ -1,0 +1,24 @@
+.mat-mdc-form-field {
+  width: 100%;
+
+  &.mat-form-field-disabled {
+    cursor: not-allowed;
+  }
+
+  .mdc-text-field--outlined.mdc-text-field--disabled {
+    background-color: var(--mat-sys-surface);
+    border-radius: var(--mat-sys-corner-extra-small);
+  }
+
+  &.mat-focused .mat-mdc-form-field-required-marker {
+    color: var(--mat-sys-error);
+  }
+
+  /* adjust height in case of error or hint */
+  .mat-mdc-form-field-subscript-wrapper:has(mat-error, mat-hint) {
+    min-height: 30px;
+  }
+  .mat-mdc-text-field-wrapper {
+    flex: none !important;
+  }
+}

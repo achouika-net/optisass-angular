@@ -1,0 +1,11 @@
+@use '@angular/material' as mat;
+
+@include mat.card-overrides(
+  (
+    elevated-container-color: var(--mat-sys-surface),
+  )
+);
+
+.mat-card-content {
+  padding: 10px;
+}

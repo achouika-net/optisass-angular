@@ -1,0 +1,54 @@
+<div class="bg-surface flex h-screen items-center justify-center">
+  <div class="w-full max-w-screen-sm px-4 py-8 text-center">
+    <!-- 404 -->
+    <h1
+      class="text-primary my-6 text-[120px] leading-none font-extrabold sm:text-[180px] sm:leading-none"
+    >
+      {{ code }}
+    </h1>
+
+    <!-- Texte -->
+    <p
+      class="mb-6 text-3xl font-medium tracking-wide text-gray-600 uppercase sm:text-4xl"
+    >
+      {{ message | translate }}
+    </p>
+
+    <!-- Actions -->
+    <div
+      class="xs:flex-row xs:gap-4 flex flex-col items-center justify-center gap-2"
+    >
+      @if (!isAuthenticated()) {
+        <button
+          mat-raised-button
+          color="primary"
+          (click)="goToLogin()"
+          class="w-full sm:w-auto"
+        >
+          <mat-icon class="mr-2" fontIcon="home"></mat-icon>
+          {{ 'authentication.goToLogin' | translate }}
+        </button>
+      }
+      @if (isAuthenticated()) {
+        <button
+          mat-raised-button
+          color="primary"
+          [routerLink]="['/p']"
+          class="w-full sm:w-auto"
+        >
+          <mat-icon class="mr-2" fontIcon="home"></mat-icon>
+          {{ 'authentication.goToHome' | translate }}
+        </button>
+        <button
+          mat-raised-button
+          color="primary"
+          (click)="logout()"
+          class="w-full sm:w-auto"
+        >
+          <mat-icon class="mr-2" fontIcon="logout"></mat-icon>
+          {{ 'authentication.logout' | translate }}
+        </button>
+      }
+    </div>
+  </div>
+</div>

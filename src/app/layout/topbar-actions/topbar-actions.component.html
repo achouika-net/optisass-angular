@@ -1,0 +1,36 @@
+<div class="flex items-center gap-1">
+  <button mat-icon-button><mat-icon>public</mat-icon></button>
+  <button mat-icon-button><mat-icon>delete</mat-icon></button>
+  <button mat-icon-button><mat-icon>calendar_month</mat-icon></button>
+  <button mat-icon-button><mat-icon>support_agent</mat-icon></button>
+  <button mat-button [matMenuTriggerFor]="userMenu">
+    <div class="flex items-center gap-1">
+      <mat-icon>person</mat-icon>
+      @if (!isMobile()) {
+        <span class="text-xs font-medium">Super Admin</span>
+      }
+      <mat-icon>expand_more</mat-icon>
+    </div>
+  </button>
+  @if (!isMobile()) {
+    <button mat-icon-button>
+      <mat-icon>open_in_full</mat-icon>
+    </button>
+  }
+</div>
+
+<mat-menu #userMenu="matMenu">
+  <button mat-menu-item>
+    <mat-icon>account_circle</mat-icon>
+    <span>Mon compte</span>
+  </button>
+  <button mat-menu-item>
+    <mat-icon>settings</mat-icon>
+    <span>Paramètres</span>
+  </button>
+  <mat-divider class="m-0 mx-5" />
+  <button mat-menu-item (click)="logout()">
+    <mat-icon>logout</mat-icon>
+    <span>Déconnexion</span>
+  </button>
+</mat-menu>

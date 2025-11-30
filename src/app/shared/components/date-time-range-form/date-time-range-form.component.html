@@ -1,0 +1,42 @@
+<div class="grid grid-cols-1 md:grid-cols-3 md:gap-x-5">
+  <!-- Day -->
+  <mat-form-field appFieldControlLabel>
+    <mat-label>{{ 'calendar.the' | translate }}</mat-label>
+    <input
+      matInput
+      [matDatepicker]="datepicker"
+      [(ngModel)]="day"
+      [ngModelOptions]="{ standalone: true }"
+      required
+    />
+    <mat-datepicker-toggle matIconSuffix [for]="datepicker" />
+    <mat-datepicker #datepicker />
+    <mat-error app-form-control-error [errors]="startDateControl().errors" />
+  </mat-form-field>
+
+  <!-- Start time -->
+  <mat-form-field appFieldControlLabel>
+    <mat-label>{{ 'calendar.from' | translate }}</mat-label>
+    <input
+      matInput
+      [matTimepicker]="startTimepicker"
+      [formControl]="startDateControl()"
+    />
+    <mat-timepicker-toggle [for]="startTimepicker" matSuffix />
+    <mat-timepicker #startTimepicker />
+    <mat-error app-form-control-error [errors]="startDateControl().errors" />
+  </mat-form-field>
+
+  <!-- End time -->
+  <mat-form-field appFieldControlLabel>
+    <mat-label>{{ 'calendar.to' | translate }}</mat-label>
+    <input
+      matInput
+      [matTimepicker]="endTimepicker"
+      [formControl]="endDateControl()"
+    />
+    <mat-timepicker-toggle [for]="endTimepicker" matSuffix />
+    <mat-timepicker #endTimepicker />
+    <mat-error app-form-control-error [errors]="endDateControl().errors" />
+  </mat-form-field>
+</div>

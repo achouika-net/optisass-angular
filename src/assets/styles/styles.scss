@@ -1,0 +1,17 @@
+@use 'global-vars';
+@use 'themes/default-theme';
+@use 'themes/custom-theme';
+
+//Matriel Overrides
+@forward './material-overrides/mat-card';
+@forward './material-overrides/mat-table';
+@forward './material-overrides/mat-toolbar';
+@forward './material-overrides/mat-form-field';
+@forward './material-overrides/mat-radio';
+@forward './material-overrides/mat-select';
+@forward './material-overrides/mat-chip';
+@forward './material-overrides/mat-button-toggle-group';
+@forward './material-overrides/mat-slide-toggle';
+@forward './material-overrides/mat-tree';
+@forward './material-overrides/mat-list';
+@forward './material-overrides/mat-expansion';

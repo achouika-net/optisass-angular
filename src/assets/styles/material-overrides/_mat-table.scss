@@ -1,0 +1,180 @@
+.editable-table {
+  .mat-mdc-cell {
+    padding: 0 10px; // Override default padding-x 16px of Angular Material.
+
+    .mat-mdc-form-field {
+      margin-top: 10px;
+    }
+
+    .mat-mdc-form-field-infix {
+      min-height: 44px !important;
+    }
+
+    .mat-mdc-form-field-subscript-wrapper,
+    .mat-mdc-form-field-bottom-align::before {
+      font-size: 10.5px;
+      line-height: 12px;
+      display: inline-flex;
+    }
+
+    .mat-mdc-form-field-hint-wrapper,
+    .mat-mdc-form-field-error-wrapper {
+      position: relative !important;
+      width: 100%;
+      padding: 0;
+    }
+  }
+
+  .mat-mdc-header-cell {
+    padding: 0 10px; // Override default padding-x 16px of Angular Material.
+  }
+}
+
+/* Center the content of mat-header-cell, mat-cell and mat-footer-cell */
+.mat-mdc-header-cell,
+.mat-sort-header-container,
+.mat-mdc-cell,
+.mat-mdc-footer-cell {
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.mat-mdc-table {
+  .mat-mdc-header-row {
+    background-color: var(--mat-sys-primary) !important;
+
+    .mat-mdc-header-cell,
+    .mat-sort-header-arrow {
+      color: var(--mat-sys-on-primary) !important;
+    }
+  }
+
+  .mat-mdc-row {
+    cursor: pointer;
+    /* For visual separation */
+    &:nth-child(even) {
+      background-color: var(--white);
+    }
+
+    /* Add hover effect on rows */
+    &:hover {
+      background-color: var(--mat-sys-surface-container-highest) !important;
+    }
+
+    /* Add focus table inside row */
+    .mat-mdc-header-row {
+      background-color: var(--mat-sys-secondary) !important;
+
+      .mat-mdc-header-cell,
+      .mat-sort-header-arrow {
+        color: var(--mat-sys-on-secondary) !important;
+      }
+    }
+  }
+}
+
+/**********************
+Overall Responsive table
+***********************/
+@mixin responsive-table-desktop {
+  overflow: auto;
+  justify-items: stretch;
+
+  .header-label {
+    display: none;
+  }
+
+  .mat-mdc-table {
+    overflow: auto;
+    max-height: 100%;
+
+    .mat-mdc-header-cell {
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .mat-mdc-cell {
+      text-align: center;
+      word-break: break-word;
+
+      &:last-of-type {
+        padding-right: 24px;
+      }
+    }
+
+    .mat-column-select,
+    .mat-column-expand {
+      flex: 0 0 5%;
+    }
+  }
+}
+
+@mixin responsive-table-tablette {
+  display: flex;
+  flex-direction: column;
+
+  /* Display label (display:none by default -see above-) */
+  .header-label {
+    display: inline-block;
+    font-weight: bold;
+    text-align: left;
+  }
+
+  /* Hide the header row */
+  .mat-mdc-header-row {
+    display: none;
+  }
+
+  /* Change the layout of the rows to stack vertically */
+  .mat-mdc-row,
+  .mat-mdc-footer-row {
+    padding: 8px 15px;
+    display: block;
+    height: 100%;
+  }
+
+  /* Adjust the layout and styling of the cells to display label-value in each row */
+  .mat-mdc-cell,
+  .mat-mdc-footer-cell {
+    display: grid;
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6 !important;
+
+    &:has(.header-label) {
+      grid-template-columns: 50% 50%;
+      text-align: right !important;
+    }
+
+    &:last-of-type {
+      border-bottom: none !important;
+      padding-right: 0.5rem !important;
+    }
+  }
+
+  .mat-mdc-table-sticky {
+    position: unset !important;
+  }
+
+  /* Action columns must be named (action or actions) */
+  .mat-column-expand,
+  .mat-column-action,
+  .mat-column-actions {
+    display: flex !important;
+    justify-content: flex-end !important;
+    padding-right: 0 !important;
+  }
+}
+
+.responsive-table {
+  @include responsive-table-desktop;
+}
+
+/* -- ==============================================================
+ Ipad & above all(breakpoint.sm)
+ ============================================================== */
+@media (width<= 959.98px) {
+  .responsive-table {
+    @include responsive-table-tablette;
+  }
+}

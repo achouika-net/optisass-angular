@@ -1,0 +1,18 @@
+<div class="grid place-items-center">
+  @if (data?.headerImg) {
+    <img [ngSrc]="data.headerImg" width="150" height="150" alt="refresh" />
+  }
+  <p mat-dialog-title class="text-center text-xl">{{ data.message }}</p>
+  <mat-dialog-actions>
+    @if (data.confirm) {
+      <button mat-flat-button class="primary" [mat-dialog-close]="true">
+        {{ data.confirm }}
+      </button>
+    }
+    @if (data.deny) {
+      <button mat-raised-button [mat-dialog-close]="false">
+        {{ data.deny }}
+      </button>
+    }
+  </mat-dialog-actions>
+</div>

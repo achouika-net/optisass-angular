@@ -1,0 +1,160 @@
+// Icônes spécifiques
+.icon-standard,
+.icon-favorite,
+.icon-remove-favorite {
+  font-size: 20px;
+  display: grid;
+  place-items: center;
+}
+
+.icon-standard {
+  font-size: 22px;
+}
+
+// Étoile (favori)
+.icon-favorite {
+  opacity: 0;
+  transition:
+    opacity 0.2s ease,
+    color 0.2s ease;
+
+  &.active {
+    color: var(--star-active-color) !important;
+    opacity: 1 !important;
+  }
+
+  &.inactive {
+    color: var(--sidebar-text);
+  }
+
+  &:hover {
+    color: var(--star-hover-color);
+  }
+}
+
+// 🗑️ Delete (supprimer un favori)
+.icon-remove-favorite {
+  color: var(--error) !important;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+// Éléments principaux (liens & sous-éléments)
+.sidebar-menu-item {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  transition: background-color 0.2s ease;
+  position: relative;
+
+  .mat-icon,
+  span {
+    color: var(--sidebar-text);
+  }
+
+  &:hover {
+    background-color: var(--sidebar-hover-bg);
+
+    // Affiche l'étoile seulement au hover
+    .icon-favorite.inactive {
+      opacity: 1;
+    }
+  }
+
+  .grid {
+    align-items: center;
+  }
+
+  &.selected {
+    background-color: var(--menu-selected-bg) !important;
+
+    .mat-icon:not(.icon-remove-favorite),
+    span {
+      color: var(--menu-selected-text) !important;
+      font-weight: 500;
+    }
+
+    .icon-favorite.active {
+      color: var(--star-active-color) !important;
+      opacity: 1 !important;
+    }
+  }
+}
+
+// Sous-menus
+.sidebar-sub-active {
+  background-color: var(--sub-active-bg) !important;
+  border-radius: var(--radius-md);
+
+  .mat-icon,
+  span {
+    color: var(--sub-active-text) !important;
+  }
+}
+
+.sidebar-sub-opened {
+  background-color: var(--sub-opened-bg);
+  border-radius: var(--radius-md);
+
+  .mat-icon,
+  span {
+    color: var(--sidebar-text);
+  }
+
+  &:hover {
+    background-color: var(--sidebar-hover-bg);
+  }
+}
+
+// Blocs subChild
+.sidebar-sub-items,
+.bg-subgroup {
+  background-color: var(--sub-opened-bg);
+  border-radius: var(--radius-md);
+}
+
+// Favoris (non-collapsed)
+.favorites-wrapper {
+  background-color: var(--favorites-bg);
+  border-radius: 0.5rem;
+}
+
+.favorite-item-wrapper {
+  margin-bottom: 4px;
+}
+
+.favorite-item {
+  background-color: transparent;
+  border-radius: var(--radius-md);
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: var(--sidebar-hover-bg);
+  }
+
+  .mat-icon,
+  span {
+    color: var(--sidebar-text);
+  }
+
+  &.selected .icon-remove-favorite {
+    color: var(--error) !important;
+
+    &:hover {
+      opacity: 0.9;
+    }
+  }
+}
+
+// Favoris (mode collapsed)
+.favorites-collapsed-wrapper {
+  background-color: var(--favorites-bg);
+  padding: 0.5rem 0.25rem;
+  margin-bottom: 0.5rem;
+  border-radius: var(--radius-md);
+
+  .mat-icon {
+    opacity: 0.7;
+  }
+}

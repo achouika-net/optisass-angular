@@ -1,0 +1,12 @@
+@use '@angular/material' as mat;
+
+@include mat.list-overrides(
+  (
+    list-item-label-text-color: var(--sidebar-text),
+    list-item-leading-icon-color: var(--sidebar-icons),
+    list-item-hover-state-layer-color: transparent,
+    list-item-hover-state-layer-opacity: 0,
+    list-item-focus-state-layer-color: transparent,
+    list-item-focus-state-layer-opacity: 0,
+  )
+);

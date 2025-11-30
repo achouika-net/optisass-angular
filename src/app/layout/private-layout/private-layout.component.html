@@ -1,0 +1,92 @@
+<mat-toolbar
+  class="fixed top-0 left-0 z-50 flex h-16 w-full items-center shadow"
+  [style.padding-left]="isCollapsed() ? '8px' : '16px'"
+>
+  <div class="flex w-full items-center gap-2">
+    @if (!isCollapsed() && !isMobile()) {
+      <img
+        [ngSrc]="logo()"
+        width="148"
+        height="45"
+        alt="homepage-logo"
+        [routerLink]="['/p']"
+        class="cursor-pointer"
+      />
+    } @else {
+      <img
+        [ngSrc]="circleLogo()"
+        width="45"
+        height="45"
+        alt="homepage-logo"
+        [routerLink]="['/p']"
+        class="cursor-pointer"
+      />
+    }
+
+    <button
+      mat-icon-button
+      class="flex size-12 items-center justify-center"
+      (click)="toggleSidenav(sidenav)"
+    >
+      <mat-icon class="text-[28px]">
+        {{
+          isMobile() ? 'menu' : isCollapsed() ? 'chevron_right' : 'chevron_left'
+        }}
+      </mat-icon>
+    </button>
+    <div class="flex-1"></div>
+    @if (currentCentre()?.name) {
+      <button
+        mat-stroked-button
+        class="mr-2 min-w-24 rounded-sm border-2 border-white text-center font-semibold text-white md:min-w-56"
+        [matMenuTriggerFor]="centersMenu"
+        [disabled]="centres().length === 1"
+      >
+        {{ currentCentre()?.name.toUpperCase() }}
+      </button>
+      <mat-menu #centersMenu="matMenu" class="min-w-56">
+        @for (centre of centres(); track centre.id) {
+          <button
+            class="text-center"
+            mat-menu-item
+            [disabled]="centre.id === currentCentre().id"
+            (click)="selectCenter(centre)"
+          >
+            <span class="font-semibold">
+              {{ centre?.name.toUpperCase() }}
+            </span>
+          </button>
+        }
+      </mat-menu>
+    }
+    <app-topbar-actions [isMobile]="isMobile()" />
+  </div>
+</mat-toolbar>
+
+<mat-sidenav-container
+  class="fixed top-16 left-0 z-10 h-[calc(100dvh-64px)] w-screen overflow-hidden"
+>
+  <mat-sidenav
+    #sidenav
+    [mode]="isMobile() ? 'over' : 'side'"
+    [opened]="!isMobile()"
+    [fixedInViewport]="true"
+    [fixedTopGap]="64"
+    [style.width.px]="isMobile() ? null : isCollapsed() ? 64 : 260"
+    class="overflow-y-auto rounded-none shadow-md transition-all duration-300 ease-in-out"
+  >
+    <app-sidebar [isMobile]="isMobile()" [isCollapsed]="isCollapsed()" />
+  </mat-sidenav>
+  <mat-sidenav-content
+    class="relative flex h-full flex-col overflow-hidden transition-all duration-300 ease-in-out"
+    [style.marginLeft.px]="!isMobile() ? (isCollapsed() ? 64 : 260) : 0"
+  >
+    <app-breadcrumb
+      class="sticky top-0 z-40 bg-white shadow-sm"
+      [isMobile]="isMobile()"
+    />
+    <main class="bg-bodycolor flex-1 overflow-y-auto px-6 py-6">
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

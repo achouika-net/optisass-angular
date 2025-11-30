@@ -1,0 +1,32 @@
+<mat-form-field appFieldControlLabel>
+  <mat-label>{{ label() }}</mat-label>
+  <input
+    [formControl]="addressControl"
+    [placeholder]="
+      addressControl.enabled && 'commun.enterAddressForSearch' | translate
+    "
+    (input)="input.set($any($event.target).value)"
+    appMarkRequiredFormControlAsDirty
+    [matAutocomplete]="auto"
+    matInput
+  />
+  <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayFn">
+    @if (addressResource.isLoading()) {
+      <mat-option disabled>
+        {{ 'commun.loading' | translate }}
+      </mat-option>
+    }
+    @for (address of addressResource.value(); track address.id) {
+      <mat-option [value]="address">
+        {{ displayFn(address) }}
+      </mat-option>
+    } @empty {
+      @if (!addressResource.isLoading()) {
+        <mat-option [value]="null">
+          {{ message() || 'commun.addressNotFound' | translate }}
+        </mat-option>
+      }
+    }
+  </mat-autocomplete>
+  <mat-error [errors]="addressControl.errors" app-form-control-error />
+</mat-form-field>
