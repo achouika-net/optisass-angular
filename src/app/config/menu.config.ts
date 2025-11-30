@@ -192,16 +192,16 @@ export const MENU: MenuItem[] = [
     roles: [4, 3],
   },
   {
-    label: 'Monétique adyen',
+    label: 'External Link 1',
     icon: 'credit_card',
     type: 'extLink',
-    externalUrl: 'https://essentials-live.adyen.com/',
+    externalUrl: 'https://www.youtube.com',
   },
   {
-    label: 'Autosur.fr',
+    label: 'External Link 2',
     icon: 'local_offer',
     type: 'extLink',
-    externalUrl: 'https://www.autosur.fr',
+    externalUrl: 'https://www.google.com',
   },
   {
     label: 'Mes préférences',

@@ -4,23 +4,23 @@
 >
   <div class="flex w-full items-center gap-2">
     @if (!isCollapsed() && !isMobile()) {
-      <img
-        [ngSrc]="logo()"
-        width="148"
-        height="45"
-        alt="homepage-logo"
-        [routerLink]="['/p']"
-        class="cursor-pointer"
-      />
+    <img
+      [ngSrc]="logo()"
+      width="1473"
+      height="369"
+      alt="homepage-logo"
+      [routerLink]="['/p']"
+      class="cursor-pointer w-[200px] h-full"
+    />
     } @else {
-      <img
-        [ngSrc]="circleLogo()"
-        width="45"
-        height="45"
-        alt="homepage-logo"
-        [routerLink]="['/p']"
-        class="cursor-pointer"
-      />
+    <img
+      [ngSrc]="circleLogo()"
+      width="45"
+      height="45"
+      alt="homepage-logo"
+      [routerLink]="['/p']"
+      class="cursor-pointer"
+    />
     }
 
     <button
@@ -29,35 +29,33 @@
       (click)="toggleSidenav(sidenav)"
     >
       <mat-icon class="text-[28px]">
-        {{
-          isMobile() ? 'menu' : isCollapsed() ? 'chevron_right' : 'chevron_left'
-        }}
+        {{ isMobile() ? 'menu' : isCollapsed() ? 'chevron_right' : 'chevron_left' }}
       </mat-icon>
     </button>
     <div class="flex-1"></div>
     @if (currentCentre()?.name) {
+    <button
+      mat-stroked-button
+      class="mr-2 min-w-24 rounded-sm border-2 border-white text-center font-semibold text-white md:min-w-56"
+      [matMenuTriggerFor]="centersMenu"
+      [disabled]="centres().length === 1"
+    >
+      {{ currentCentre()?.name.toUpperCase() }}
+    </button>
+    <mat-menu #centersMenu="matMenu" class="min-w-56">
+      @for (centre of centres(); track centre.id) {
       <button
-        mat-stroked-button
-        class="mr-2 min-w-24 rounded-sm border-2 border-white text-center font-semibold text-white md:min-w-56"
-        [matMenuTriggerFor]="centersMenu"
-        [disabled]="centres().length === 1"
+        class="text-center"
+        mat-menu-item
+        [disabled]="centre.id === currentCentre().id"
+        (click)="selectCenter(centre)"
       >
-        {{ currentCentre()?.name.toUpperCase() }}
+        <span class="font-semibold">
+          {{ centre?.name.toUpperCase() }}
+        </span>
       </button>
-      <mat-menu #centersMenu="matMenu" class="min-w-56">
-        @for (centre of centres(); track centre.id) {
-          <button
-            class="text-center"
-            mat-menu-item
-            [disabled]="centre.id === currentCentre().id"
-            (click)="selectCenter(centre)"
-          >
-            <span class="font-semibold">
-              {{ centre?.name.toUpperCase() }}
-            </span>
-          </button>
-        }
-      </mat-menu>
+      }
+    </mat-menu>
     }
     <app-topbar-actions [isMobile]="isMobile()" />
   </div>
@@ -81,10 +79,7 @@
     class="relative flex h-full flex-col overflow-hidden transition-all duration-300 ease-in-out"
     [style.marginLeft.px]="!isMobile() ? (isCollapsed() ? 64 : 260) : 0"
   >
-    <app-breadcrumb
-      class="sticky top-0 z-40 bg-white shadow-sm"
-      [isMobile]="isMobile()"
-    />
+    <app-breadcrumb class="sticky top-0 z-40 bg-white shadow-sm" [isMobile]="isMobile()" />
     <main class="bg-bodycolor flex-1 overflow-y-auto px-6 py-6">
       <router-outlet />
     </main>

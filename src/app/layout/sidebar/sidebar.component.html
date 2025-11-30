@@ -1,287 +1,243 @@
 @if (!isCollapsed()) {
-  <div
-    class="relative mb-2 min-h-[165px] rounded-none bg-[url('/background/login-bg-autosur02.webp')] bg-cover"
+<div
+  class="relative mb-2 min-h-[165px] rounded-none bg-[url('/background/auth-bg-2.jpg')] bg-cover"
+>
+  <button
+    class="absolute bottom-0 flex w-full justify-between border-0 bg-black/50 px-8 py-1.5 text-white backdrop-blur-xs"
   >
-    <button
-      class="absolute bottom-0 flex w-full justify-between border-0 bg-black/50 px-8 py-1.5 text-white backdrop-blur-xs"
-    >
-      <span class="text-sm font-medium">
-        {{ 'commun.welcome' | translate: { value: userName() } }}
-      </span>
-    </button>
-  </div>
+    <span class="text-sm font-medium">
+      {{ 'commun.welcome' | translate : { value: userName() } }}
+    </span>
+  </button>
+</div>
 }
 
 <!-- Wrapper principal -->
 <div [class]="isCollapsed() ? 'mx-0' : 'mx-2'">
   <!-- SECTION FAVORIS -->
-  @if (favorisItems().length) {
-    @if (!isCollapsed()) {
-      <div
-        mat-subheader
-        class="text-xs font-semibold tracking-wide text-gray-400 uppercase"
-      >
-        {{ 'commun.myFavorites' | translate }}
-      </div>
-    }
+  @if (favorisItems().length) { @if (!isCollapsed()) {
+  <div mat-subheader class="text-xs font-semibold tracking-wide text-gray-400 uppercase">
+    {{ 'commun.myFavorites' | translate }}
+  </div>
+  }
 
-    <mat-nav-list class="mb-2 p-0 pb-2">
-      @if (favoritesOpen() && !isCollapsed()) {
-        <div
-          class="favorites-wrapper px-2 pt-2 pb-2"
-          cdkDropList
-          (cdkDropListDropped)="dropFavorite($event)"
+  <mat-nav-list class="mb-2 p-0 pb-2">
+    @if (favoritesOpen() && !isCollapsed()) {
+    <div
+      class="favorites-wrapper px-2 pt-2 pb-2"
+      cdkDropList
+      (cdkDropListDropped)="dropFavorite($event)"
+    >
+      @for (item of favorisItems(); track item.label) {
+      <div class="favorite-item-wrapper" cdkDrag>
+        <a
+          mat-list-item
+          class="favorite-item sidebar-menu-item"
+          [routerLink]="`/p/${item.route}`"
+          routerLinkActive="selected"
         >
-          @for (item of favorisItems(); track item.label) {
-            <div class="favorite-item-wrapper" cdkDrag>
-              <a
-                mat-list-item
-                class="favorite-item sidebar-menu-item"
-                [routerLink]="`/p/${item.route}`"
-                routerLinkActive="selected"
-              >
-                <div
-                  class="grid w-full grid-cols-[auto_1fr_auto] items-center gap-2"
-                >
-                  <mat-icon class="icon-standard">
-                    {{ item.icon }}
-                  </mat-icon>
-                  <span class="font-medium">{{ item.label }}</span>
-                  <mat-icon
-                    class="icon-remove-favorite"
-                    (click)="removeFavorite(item.label)"
-                  >
-                    delete
-                  </mat-icon>
-                </div>
-              </a>
-            </div>
-          }
-        </div>
-      } @else if (isCollapsed()) {
-        <mat-nav-list class="favorites-collapsed-wrapper mt-2 rounded-md py-2">
-          <div class="mb-2 flex items-center justify-center">
-            <mat-icon class="icon-standard text-[18px] text-gray-400">
-              star
+          <div class="grid w-full grid-cols-[auto_1fr_auto] items-center gap-2">
+            <mat-icon class="icon-standard">
+              {{ item.icon }}
+            </mat-icon>
+            <span class="font-medium">{{ item.label }}</span>
+            <mat-icon class="icon-remove-favorite" (click)="removeFavorite(item.label)">
+              delete
             </mat-icon>
           </div>
-          @for (item of favorisItems(); track item.label) {
-            <a
-              mat-list-item
-              class="sidebar-menu-item flex items-center justify-center"
-              [routerLink]="`/p/${item.route}`"
-              routerLinkActive="selected"
-              [matTooltip]="isCollapsed() ? item.label : null"
-            >
-              <mat-icon class="icon-standard">{{ item.icon }}</mat-icon>
-            </a>
-          }
-        </mat-nav-list>
+        </a>
+      </div>
+      }
+    </div>
+    } @else if (isCollapsed()) {
+    <mat-nav-list class="favorites-collapsed-wrapper mt-2 rounded-md py-2">
+      <div class="mb-2 flex items-center justify-center">
+        <mat-icon class="icon-standard text-[18px] text-gray-400"> star </mat-icon>
+      </div>
+      @for (item of favorisItems(); track item.label) {
+      <a
+        mat-list-item
+        class="sidebar-menu-item flex items-center justify-center"
+        [routerLink]="`/p/${item.route}`"
+        routerLinkActive="selected"
+        [matTooltip]="isCollapsed() ? item.label : null"
+      >
+        <mat-icon class="icon-standard">{{ item.icon }}</mat-icon>
+      </a>
       }
     </mat-nav-list>
+    }
+  </mat-nav-list>
   }
 
   <!-- Séparation Favoris / Menu principal -->
   @if (favorisItems().length) {
-    <mat-divider class="my-2" />
+  <mat-divider class="my-2" />
   }
 
   <!-- TITRE Menu principal -->
   @if (!isCollapsed()) {
-    <div
-      mat-subheader
-      class="text-xs font-semibold tracking-wide text-gray-400 uppercase"
-    >
-      Menu principal
-    </div>
+  <div mat-subheader class="text-xs font-semibold tracking-wide text-gray-400 uppercase">
+    Menu principal
+  </div>
   }
 
   <!-- MENU PRINCIPAL -->
   <mat-nav-list>
-    @if (isCollapsed()) {
-      @for (item of flatMenuItemsForCollapsed(); track item.label) {
-        <a
-          mat-list-item
-          class="sidebar-menu-item"
-          [routerLink]="`/p/${item.route}`"
-          routerLinkActive="selected"
-          [routerLinkActiveOptions]="{ exact: true }"
-          [matTooltip]="item.label"
+    @if (isCollapsed()) { @for (item of flatMenuItemsForCollapsed(); track item.label) {
+    <a
+      mat-list-item
+      class="sidebar-menu-item"
+      [routerLink]="`/p/${item.route}`"
+      routerLinkActive="selected"
+      [routerLinkActiveOptions]="{ exact: true }"
+      [matTooltip]="item.label"
+    >
+      <div class="place-items-center">
+        <mat-icon class="icon-standard">
+          {{ item.icon }}
+        </mat-icon>
+      </div>
+    </a>
+    } } @else { @for (item of visibleMenuItems(); track item.label) { @switch (item.type) { @case
+    ('link') {
+    <a
+      mat-list-item
+      class="sidebar-menu-item"
+      [routerLink]="`/p/${item.route}`"
+      routerLinkActive="selected"
+    >
+      <div class="grid w-full grid-cols-[auto_1fr_auto] items-center gap-2">
+        <mat-icon class="icon-standard">
+          {{ item.icon }}
+        </mat-icon>
+        <span class="font-medium">{{ item.label }}</span>
+        <mat-icon
+          class="icon-favorite"
+          [class.active]="isFavorite(item.label)"
+          [class.inactive]="!isFavorite(item.label)"
+          (click)="handleFavorite(favorisItems(), item, $event)"
         >
-          <div class="place-items-center">
-            <mat-icon class="icon-standard">
-              {{ item.icon }}
-            </mat-icon>
-          </div>
-        </a>
-      }
-    } @else {
-      @for (item of visibleMenuItems(); track item.label) {
-        @switch (item.type) {
-          @case ('link') {
-            <a
-              mat-list-item
-              class="sidebar-menu-item"
-              [routerLink]="`/p/${item.route}`"
-              routerLinkActive="selected"
-            >
-              <div
-                class="grid w-full grid-cols-[auto_1fr_auto] items-center gap-2"
-              >
-                <mat-icon class="icon-standard">
-                  {{ item.icon }}
-                </mat-icon>
-                <span class="font-medium">{{ item.label }}</span>
-                <mat-icon
-                  class="icon-favorite"
-                  [class.active]="isFavorite(item.label)"
-                  [class.inactive]="!isFavorite(item.label)"
-                  (click)="handleFavorite(favorisItems(), item, $event)"
-                >
-                  star
-                </mat-icon>
-              </div>
-            </a>
-          }
-
-          @case ('sub') {
-            <div
-              class="flex flex-col overflow-hidden rounded-md transition-all"
-            >
-              <div
-                class="cursor-pointer px-3 py-2"
-                [class]="{
+          star
+        </mat-icon>
+      </div>
+    </a>
+    } @case ('sub') {
+    <div class="flex flex-col overflow-hidden rounded-md transition-all">
+      <div
+        class="cursor-pointer px-3 py-2"
+        [class]="{
                   'sidebar-sub-active': isSubActive(item.children),
                   'sidebar-sub-opened':
                     !isSubActive(item.children) && isSubMenuOpen(item.label),
                   'sidebar-menu-item':
                     !isSubMenuOpen(item.label) && !isSubActive(item.children),
                 }"
-                tabindex="0"
-                role="button"
-                (click)="toggleSubMenu(item.label)"
-              >
-                <div
-                  class="grid w-full grid-cols-[auto_1fr_auto_auto] items-center gap-2"
-                >
-                  <mat-icon class="icon-standard">
-                    {{ item.icon }}
-                  </mat-icon>
-                  <span class="font-medium">{{ item.label }}</span>
-                  <mat-icon class="icon-standard">
-                    {{
-                      openSubMenu() === item.label
-                        ? 'expand_less'
-                        : 'expand_more'
-                    }}
-                  </mat-icon>
-                </div>
-              </div>
+        tabindex="0"
+        role="button"
+        (click)="toggleSubMenu(item.label)"
+      >
+        <div class="grid w-full grid-cols-[auto_1fr_auto_auto] items-center gap-2">
+          <mat-icon class="icon-standard">
+            {{ item.icon }}
+          </mat-icon>
+          <span class="font-medium">{{ item.label }}</span>
+          <mat-icon class="icon-standard">
+            {{ openSubMenu() === item.label ? 'expand_less' : 'expand_more' }}
+          </mat-icon>
+        </div>
+      </div>
 
-              @if (isSubMenuOpen(item.label)) {
-                <div
-                  class="sidebar-sub-items bg-subgroup flex flex-col gap-1 px-1 pt-1 pb-1"
-                >
-                  @for (child of item.children ?? []; track child.label) {
-                    <a
-                      mat-list-item
-                      class="sidebar-menu-item"
-                      [routerLink]="`/p/${child.route}`"
-                      routerLinkActive="selected"
-                      [routerLinkActiveOptions]="{ exact: true }"
-                      [matTooltip]="child.label"
-                    >
-                      <div class="grid w-full grid-cols-[auto_1fr_auto] gap-2">
-                        <mat-icon class="icon-standard">
-                          {{ child.icon }}
-                        </mat-icon>
-                        <span>{{ child.label }}</span>
-                        <mat-icon
-                          class="icon-favorite"
-                          [class.active]="isFavorite(child.label)"
-                          [class.inactive]="!isFavorite(child.label)"
-                          (click)="
-                            handleFavorite(favorisItems(), child, $event)
-                          "
-                        >
-                          star
-                        </mat-icon>
-                      </div>
-                    </a>
-                  }
-                </div>
-              }
-            </div>
-          }
+      @if (isSubMenuOpen(item.label)) {
+      <div class="sidebar-sub-items bg-subgroup flex flex-col gap-1 px-1 pt-1 pb-1">
+        @for (child of item.children ?? []; track child.label) {
+        <a
+          mat-list-item
+          class="sidebar-menu-item"
+          [routerLink]="`/p/${child.route}`"
+          routerLinkActive="selected"
+          [routerLinkActiveOptions]="{ exact: true }"
+          [matTooltip]="child.label"
+        >
+          <div class="grid w-full grid-cols-[auto_1fr_auto] gap-2">
+            <mat-icon class="icon-standard">
+              {{ child.icon }}
+            </mat-icon>
+            <span>{{ child.label }}</span>
+            <mat-icon
+              class="icon-favorite"
+              [class.active]="isFavorite(child.label)"
+              [class.inactive]="!isFavorite(child.label)"
+              (click)="handleFavorite(favorisItems(), child, $event)"
+            >
+              star
+            </mat-icon>
+          </div>
+        </a>
         }
+      </div>
       }
-    }
+    </div>
+    } } } }
   </mat-nav-list>
 
   <!-- SECTION ACCÈS RAPIDE -->
   @if (extLinks().length) {
-    <mat-divider class="my-2" />
-    @if (!isCollapsed()) {
-      <div
-        mat-subheader
-        class="text-xs font-semibold tracking-wide text-gray-400 uppercase"
-      >
-        {{ 'commun.extLinks' | translate }}
-      </div>
-    }
+  <mat-divider class="my-2" />
+  @if (!isCollapsed()) {
+  <div mat-subheader class="text-xs font-semibold tracking-wide text-gray-400 uppercase">
+    {{ 'commun.extLinks' | translate }}
+  </div>
+  }
 
-    <mat-nav-list>
-      @for (item of extLinks(); track item.label) {
-        <a
-          mat-list-item
-          class="sidebar-menu-item"
-          [href]="item.externalUrl"
-          target="_blank"
-          [matTooltip]="isCollapsed() ? item.label : null"
-        >
-          <div
-            class="grid w-full gap-2"
-            [class]="
-              isCollapsed() ? 'place-items-center' : 'grid-cols-[auto_1fr]'
-            "
-          >
-            <mat-icon class="icon-standard">{{ item.icon }}</mat-icon>
-            @if (!isCollapsed()) {
-              <span class="font-medium">{{ item.label }}</span>
-            }
-          </div>
-        </a>
-      }
-    </mat-nav-list>
+  <mat-nav-list>
+    @for (item of extLinks(); track item.label) {
+    <a
+      mat-list-item
+      class="sidebar-menu-item"
+      [href]="item.externalUrl"
+      target="_blank"
+      [matTooltip]="isCollapsed() ? item.label : null"
+    >
+      <div
+        class="grid w-full gap-2"
+        [class]="isCollapsed() ? 'place-items-center' : 'grid-cols-[auto_1fr]'"
+      >
+        <mat-icon class="icon-standard">{{ item.icon }}</mat-icon>
+        @if (!isCollapsed()) {
+        <span class="font-medium">{{ item.label }}</span>
+        }
+      </div>
+    </a>
+    }
+  </mat-nav-list>
   }
 
   <!-- SECTION FOOTER -->
   @if (footerLinks().length) {
-    <mat-divider class="my-2" />
-    <mat-nav-list class="pb-4">
-      @for (item of footerLinks(); track item.label) {
-        <a
-          mat-list-item
-          class="sidebar-menu-item"
-          [routerLink]="`/p/${item.route}`"
-          routerLinkActive="selected"
-          [matTooltip]="isCollapsed() ? item.label : null"
-        >
-          <div
-            class="grid w-full gap-2"
-            [class]="
-              isCollapsed() ? 'place-items-center' : 'grid-cols-[auto_1fr]'
-            "
-          >
-            <mat-icon mat-list-icon class="icon-standard">
-              {{ item.icon }}
-            </mat-icon>
-            @if (!isCollapsed()) {
-              <div mat-line class="font-medium">{{ item.label }}</div>
-            }
-          </div>
-        </a>
-      }
-    </mat-nav-list>
+  <mat-divider class="my-2" />
+  <mat-nav-list class="pb-4">
+    @for (item of footerLinks(); track item.label) {
+    <a
+      mat-list-item
+      class="sidebar-menu-item"
+      [routerLink]="`/p/${item.route}`"
+      routerLinkActive="selected"
+      [matTooltip]="isCollapsed() ? item.label : null"
+    >
+      <div
+        class="grid w-full gap-2"
+        [class]="isCollapsed() ? 'place-items-center' : 'grid-cols-[auto_1fr]'"
+      >
+        <mat-icon mat-list-icon class="icon-standard">
+          {{ item.icon }}
+        </mat-icon>
+        @if (!isCollapsed()) {
+        <div mat-line class="font-medium">{{ item.label }}</div>
+        }
+      </div>
+    </a>
+    }
+  </mat-nav-list>
   }
 </div>

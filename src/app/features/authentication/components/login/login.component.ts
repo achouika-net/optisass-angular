@@ -1,21 +1,11 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  OnDestroy,
-} from '@angular/core';
-import {
-  FormBuilder,
-  FormGroup,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms';
+import { ChangeDetectionStrategy, Component, inject, OnDestroy } from '@angular/core';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatError, MatInput } from '@angular/material/input';
 import { MatButton } from '@angular/material/button';
 import { FieldControlLabelDirective } from '@app/directives';
 import { TranslateModule } from '@ngx-translate/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { LoginFormGroup } from './models/login-form-group.model';
 import { Login, ResetError } from '../../../../core/store/auth/auth.actions';
 import { Store } from '@ngrx/store';
@@ -46,23 +36,28 @@ export class LoginComponent implements OnDestroy {
   readonly #fb = inject(FormBuilder);
   readonly #authService = inject(AuthService);
   readonly #route = inject(ActivatedRoute);
+  readonly #router = inject(Router);
   protected loginForm: FormGroup<LoginFormGroup> = this.#fb.group({
     email: ['', [Validators.required, Validators.pattern(EMAIL_PATTERN)]],
     password: ['', Validators.required],
   });
 
-  protected errorMessage =
-    this.#store.selectSignal<IWsError>(UserErrorSelector);
+  protected errorMessage = this.#store.selectSignal<IWsError>(UserErrorSelector);
 
   /**
    * Récupération de du login et mot de passe et authentification de l'utilisateur
    */
   login() {
-    const request: ILoginRequest = {
-      email: this.loginForm.controls.email.value,
-      password: this.loginForm.controls.password.value,
-    };
-    this.#store.dispatch(Login({ request }));
+    // MOCK: Bypass authentication and navigate directly to private layout
+    console.log('🔓 MOCK LOGIN - Bypassing authentication');
+    void this.#router.navigate(['/p']);
+
+    // Real authentication (commented out)
+    // const request: ILoginRequest = {
+    //   email: this.loginForm.controls.email.value,
+    //   password: this.loginForm.controls.password.value,
+    // };
+    // this.#store.dispatch(Login({ request }));
   }
 
   gotToForgotPath() {

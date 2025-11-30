@@ -20,6 +20,7 @@ import { ResourcesEffects } from './core/store/resources/resources.effects';
 import { CustomRouterSerializer } from './core/store/router/custom-router-serializer';
 import { SettingsEffects } from './core/store/settings/settings.effects';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
+import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -61,6 +62,10 @@ export const appConfig: ApplicationConfig = {
     {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
       useValue: { appearance: 'outline' },
+    },
+    {
+      provide: MAT_ICON_DEFAULT_OPTIONS,
+      useValue: { fontSet: 'material-symbols-outlined' },
     },
   ],
 };

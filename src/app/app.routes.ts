@@ -12,24 +12,24 @@ export const routes: Routes = [
       },
     ],
   },
-  // {
-  //   path: 'p',
-  //   loadComponent: () => import('./layout/private-layout/private-layout.component'),
-  //   children: [
-  //     {
-  //       path: '',
-  //       redirectTo: 'agenda',
-  //       pathMatch: 'full',
-  //     },
-  //   ],
-  // },
-  // {
-  //   path: 'page-not-found',
-  //   loadComponent: () => import('./features/error-page/error-page.component'),
-  //   data: {
-  //     message: 'pageNotFound',
-  //   },
-  // },
+  {
+    path: 'p',
+    loadComponent: () => import('./layout/private-layout/private-layout.component'),
+    children: [
+      {
+        path: '',
+        redirectTo: 'dashboard',
+        pathMatch: 'full',
+      },
+    ],
+  },
+  {
+    path: 'page-not-found',
+    loadComponent: () => import('./features/error-page/error-page.component'),
+    data: {
+      message: 'pageNotFound',
+    },
+  },
   {
     path: '**',
     redirectTo: 'page-not-found',
