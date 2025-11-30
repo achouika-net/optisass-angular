@@ -13,32 +13,19 @@
     </mat-form-field>
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'commun.password' | translate }}</mat-label>
-      <input
-        matInput
-        type="password"
-        autocomplete="current-password"
-        formControlName="password"
-      />
-      <mat-error
-        app-form-control-error
-        [errors]="loginForm.controls.password.errors"
-      />
+      <input matInput type="password" autocomplete="current-password" formControlName="password" />
+      <mat-error app-form-control-error [errors]="loginForm.controls.password.errors" />
     </mat-form-field>
-    <button matButton (click)="gotToForgotPath()">
+    <button matButton (click)="gotToForgotPath()" type="button">
       {{ 'authentication.forgottenPassword' | translate }}
     </button>
-    <button
-      class="my-5"
-      matButton="filled"
-      [disabled]="loginForm.invalid"
-      type="submit"
-    >
+    <button class="my-5" matButton="filled" [disabled]="loginForm.invalid" type="submit">
       {{ 'authentication.connexion' | translate }}
     </button>
     @if (errorMessage()?.messageToShow; as messageToShow) {
-      <div class="bg-error rounded-md p-2 text-center text-white">
-        {{ messageToShow }}
-      </div>
+    <div class="bg-error rounded-md p-2 text-center text-white">
+      {{ messageToShow }}
+    </div>
     }
   </div>
 </form>
