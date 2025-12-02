@@ -1,0 +1,106 @@
+/* User Form Component Styles */
+.user-form-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.form-card {
+    margin-bottom: 24px;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .3), 0 1px 3px 1px rgba(60, 64, 67, .15);
+}
+
+/* Form Sections */
+.form-section {
+    margin-bottom: 20px;
+}
+
+.section-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #5f6368;
+    margin-bottom: 8px;
+}
+
+/* Status Radio Group */
+.status-radio-group {
+    display: flex;
+    gap: 24px;
+}
+
+.status-radio-group mat-radio-button {
+    margin-right: 16px;
+}
+
+/* Form Rows */
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.form-field {
+    width: 100%;
+}
+
+/* Centre-Role Section */
+.centre-roles-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 48px;
+    gap: 16px;
+    padding: 12px 0;
+    font-weight: 600;
+    color: #1e3a8a;
+    border-bottom: 2px solid #1e3a8a;
+    margin-bottom: 16px;
+}
+
+.header-col {
+    font-size: 14px;
+}
+
+.header-col-actions {
+    width: 48px;
+}
+
+.centre-role-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 48px;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.centre-field,
+.role-field {
+    width: 100%;
+}
+
+.add-role-btn {
+    margin-top: 16px;
+}
+
+/* Form Actions */
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+    margin-top: 24px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .centre-role-row {
+        grid-template-columns: 1fr;
+    }
+
+    .centre-roles-header {
+        display: none;
+    }
+}

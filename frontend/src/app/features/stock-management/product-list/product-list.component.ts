@@ -42,9 +42,9 @@ export class ProductListComponent implements OnInit {
     @ViewChild(MatSort) sort!: MatSort;
 
     filter: ProductFilters = {
-        typeArticle: undefined,
+        typeArticle: '' as any,
         marque: '',
-        statut: undefined,
+        statut: '' as any,
         search: ''
     };
 

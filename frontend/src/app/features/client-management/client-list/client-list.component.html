@@ -3,11 +3,11 @@
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold m-0">Gestion Dossier Client</h1>
         <div class="flex gap-2">
-            <button mat-stroked-button (click)="exportClients()">
+            <button mat-raised-button class="export-btn" (click)="exportClients()">
                 <mat-icon>download</mat-icon>
                 Exporter
             </button>
-            <button mat-stroked-button (click)="addClient()">
+            <button mat-raised-button class="add-btn" (click)="addClient()">
                 <mat-icon>add</mat-icon>
                 Ajouter un client
             </button>
@@ -53,7 +53,7 @@
                     <mat-form-field appearance="outline">
                         <mat-label>Type de client</mat-label>
                         <mat-select formControlName="typeClient">
-                            <mat-option value="">Tous</mat-option>
+                            <mat-option value="" class="text-black">Tous</mat-option>
                             @for (type of clientTypes; track type) {
                             <mat-option [value]="type">{{ type }}</mat-option>
                             }
@@ -63,7 +63,7 @@
                     <mat-form-field appearance="outline">
                         <mat-label>Statut</mat-label>
                         <mat-select formControlName="statut">
-                            <mat-option value="">Tous</mat-option>
+                            <mat-option value="" class="text-black">Tous</mat-option>
                             @for (statut of statuts; track statut) {
                             <mat-option [value]="statut">{{ statut }}</mat-option>
                             }
@@ -96,7 +96,7 @@
                     </mat-form-field>
 
                     <div class="search-button-wrapper">
-                        <button mat-stroked-button type="submit" class="w-full">
+                        <button mat-raised-button type="submit" class="w-full search-btn">
                             <mat-icon>search</mat-icon>
                             Rechercher
                         </button>

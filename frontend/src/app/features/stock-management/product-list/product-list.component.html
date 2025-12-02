@@ -3,11 +3,11 @@
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold m-0">Gestion du Stock</h1>
         <div class="flex gap-2">
-            <button mat-stroked-button (click)="exportXLS()">
+            <button mat-raised-button class="export-btn" (click)="exportXLS()">
                 <mat-icon>file_download</mat-icon>
                 Exporter
             </button>
-            <button mat-stroked-button routerLink="/p/stock/new">
+            <button mat-raised-button class="add-btn" routerLink="/p/stock/new">
                 <mat-icon>add</mat-icon>
                 Ajouter un produit
             </button>
@@ -50,7 +50,7 @@
                     <label class="filter-label">Type de produit</label>
                     <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
                         <mat-select [(ngModel)]="filter.typeArticle" (selectionChange)="applyFilter()">
-                            <mat-option [value]="undefined">Tous</mat-option>
+                            <mat-option value="">Tous</mat-option>
                             <mat-option *ngFor="let type of productTypes" [value]="type">
                                 {{ type | titlecase }}
                             </mat-option>
@@ -62,7 +62,7 @@
                     <label class="filter-label">Statut</label>
                     <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
                         <mat-select [(ngModel)]="filter.statut" (selectionChange)="applyFilter()">
-                            <mat-option [value]="undefined">Tous</mat-option>
+                            <mat-option value="">Tous</mat-option>
                             <mat-option *ngFor="let status of productStatuses" [value]="status">
                                 {{ status | titlecase }}
                             </mat-option>
@@ -89,7 +89,7 @@
 
             <!-- Search Button Row -->
             <div class="flex justify-end mt-4">
-                <button mat-stroked-button (click)="applyFilter()">
+                <button mat-raised-button class="search-btn" (click)="applyFilter()">
                     <mat-icon>search</mat-icon>
                     Rechercher
                 </button>

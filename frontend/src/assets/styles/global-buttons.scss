@@ -1,0 +1,31 @@
+/* Global Button Styles for OptiSass */
+
+/* Export Button - Green */
+.export-btn {
+    background-color: #4caf50 !important;
+    color: white !important;
+}
+
+.export-btn:hover {
+    background-color: #45a049 !important;
+}
+
+/* Search Button - Red */
+.search-btn {
+    background-color: #f44336 !important;
+    color: white !important;
+}
+
+.search-btn:hover {
+    background-color: #da190b !important;
+}
+
+/* Add Button - Blue (Primary) */
+.add-btn {
+    background-color: #1976d2 !important;
+    color: white !important;
+}
+
+.add-btn:hover {
+    background-color: #1565c0 !important;
+}
