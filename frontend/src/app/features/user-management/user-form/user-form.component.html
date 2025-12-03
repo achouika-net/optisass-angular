@@ -13,38 +13,64 @@
     <form [formGroup]="userForm" (ngSubmit)="onSubmit()">
         <mat-card class="form-card mb-4">
             <mat-card-content>
-                <!-- Status -->
-                <div class="form-section mb-4">
-                    <label class="section-label">Statut *</label>
-                    <mat-radio-group formControlName="statut" class="status-radio-group">
-                        <mat-radio-button [value]="'actif'">Actif</mat-radio-button>
-                        <mat-radio-button [value]="'inactif'">Inactif</mat-radio-button>
-                    </mat-radio-group>
-                </div>
+                <!-- Status and Photo Row -->
+                <div class="status-photo-row">
+                    <!-- Status Section -->
+                    <div class="status-section">
+                        <label class="section-label">Statut *</label>
+                        <mat-radio-group formControlName="statut" class="status-radio-group">
+                            <mat-radio-button [value]="'actif'">Actif</mat-radio-button>
+                            <mat-radio-button [value]="'inactif'">Inactif</mat-radio-button>
+                        </mat-radio-group>
+                    </div>
 
-                <!-- Photo de profil -->
-                <div class="form-section mb-4">
-                    <label class="section-label">Photo de profil</label>
-                    <div class="photo-upload-container">
-                        <div class="photo-preview" *ngIf="photoPreview || userForm.get('photoUrl')?.value">
-                            <img [src]="photoPreview || userForm.get('photoUrl')?.value" alt="Photo de profil" />
-                            <button mat-icon-button type="button" class="remove-photo-btn" (click)="removePhoto()"
-                                matTooltip="Supprimer la photo">
-                                <mat-icon>close</mat-icon>
-                            </button>
+                    <!-- Photo Section -->
+                    <div class="photo-section">
+                        <label class="section-label">Photo de profil</label>
+
+                        <!-- Camera View -->
+                        <div class="camera-container-compact" *ngIf="showCamera">
+                            <video #cameraVideo id="cameraVideo" autoplay playsinline
+                                class="camera-video-compact"></video>
+                            <div class="camera-controls-compact">
+                                <button mat-icon-button color="primary" type="button" (click)="capturePhoto()"
+                                    matTooltip="Capturer">
+                                    <mat-icon>camera</mat-icon>
+                                </button>
+                                <button mat-icon-button type="button" (click)="closeCamera()" matTooltip="Annuler">
+                                    <mat-icon>close</mat-icon>
+                                </button>
+                            </div>
                         </div>
-                        <div class="photo-upload-placeholder" *ngIf="!photoPreview && !userForm.get('photoUrl')?.value">
-                            <mat-icon>account_circle</mat-icon>
-                            <p>Aucune photo</p>
+
+                        <!-- Photo Preview or Placeholder -->
+                        <div class="photo-display" *ngIf="!showCamera">
+                            <div class="photo-preview-compact" *ngIf="photoPreview || userForm.get('photoUrl')?.value">
+                                <img [src]="photoPreview || userForm.get('photoUrl')?.value" alt="Photo de profil" />
+                                <button mat-icon-button type="button" class="remove-photo-btn-compact"
+                                    (click)="removePhoto()" matTooltip="Supprimer">
+                                    <mat-icon>close</mat-icon>
+                                </button>
+                            </div>
+                            <div class="photo-placeholder-compact"
+                                *ngIf="!photoPreview && !userForm.get('photoUrl')?.value">
+                                <mat-icon>account_circle</mat-icon>
+                            </div>
+
+                            <!-- Upload Buttons -->
+                            <div class="upload-buttons-compact">
+                                <input type="file" #photoInput accept="image/*" (change)="onPhotoSelected($event)"
+                                    style="display: none" />
+                                <button mat-icon-button color="accent" type="button" (click)="photoInput.click()"
+                                    matTooltip="Choisir fichier">
+                                    <mat-icon>upload</mat-icon>
+                                </button>
+                                <button mat-icon-button color="primary" type="button" (click)="openCamera()"
+                                    matTooltip="Prendre photo">
+                                    <mat-icon>photo_camera</mat-icon>
+                                </button>
+                            </div>
                         </div>
-                        <input type="file" #photoInput accept="image/*" (change)="onPhotoSelected($event)"
-                            style="display: none" />
-                        <button mat-raised-button type="button" color="accent" (click)="photoInput.click()"
-                            class="upload-btn">
-                            <mat-icon>upload</mat-icon>
-                            {{ photoPreview || userForm.get('photoUrl')?.value ? 'Changer la photo' : 'Ajouter une
-                            photo' }}
-                        </button>
                     </div>
                 </div>
 

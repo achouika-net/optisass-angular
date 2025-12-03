@@ -39,6 +39,7 @@ export class UserFormComponent implements OnInit {
     // Photo upload
     selectedPhoto: File | null = null;
     photoPreview: string | null = null;
+    showCamera = false; // Toggle camera view
 
     // Enums for dropdowns
     civilites = Object.values(Civilite);
@@ -225,13 +226,95 @@ export class UserFormComponent implements OnInit {
     removePhoto(): void {
         this.selectedPhoto = null;
         this.photoPreview = null;
+        this.showCamera = false;
         this.userForm.patchValue({ photoUrl: '' });
+    }
+
+    /**
+     * Open camera for photo capture
+     */
+    async openCamera(): Promise<void> {
+        this.showCamera = true;
+
+        // Wait for DOM to update
+        setTimeout(async () => {
+            try {
+                const video = document.getElementById('cameraVideo') as HTMLVideoElement;
+                if (video) {
+                    // Request camera access
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: 'user', // Front camera for selfies
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    });
+
+                    video.srcObject = stream;
+                }
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                alert('Impossible d\'accéder à la caméra. Veuillez vérifier les permissions.');
+                this.showCamera = false;
+            }
+        }, 100);
+    }
+
+    /**
+     * Capture photo from camera
+     */
+    async capturePhoto(): Promise<void> {
+        const video = document.getElementById('cameraVideo') as HTMLVideoElement;
+        const canvas = document.createElement('canvas');
+
+        if (video && video.videoWidth > 0) {
+            // Set canvas dimensions to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            // Draw current video frame to canvas
+            const context = canvas.getContext('2d');
+            if (context) {
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // Convert canvas to blob
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        // Create preview
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            this.photoPreview = e.target?.result as string;
+                            this.userForm.patchValue({ photoUrl: this.photoPreview });
+                            this.closeCamera();
+                        };
+                        reader.readAsDataURL(blob);
+
+                        // Store as file
+                        this.selectedPhoto = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
+                    }
+                }, 'image/jpeg', 0.9);
+            }
+        }
+    }
+
+    /**
+     * Close camera and stop stream
+     */
+    closeCamera(): void {
+        const video = document.getElementById('cameraVideo') as HTMLVideoElement;
+        if (video && video.srcObject) {
+            const stream = video.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+            video.srcObject = null;
+        }
+        this.showCamera = false;
     }
 
     /**
      * Cancel and go back
      */
     onCancel(): void {
+        this.closeCamera(); // Stop camera if active
         this.router.navigate(['/p/users']);
     }
 }
