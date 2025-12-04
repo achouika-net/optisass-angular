@@ -1,0 +1,351 @@
+<div class="fiche-container">
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <div class="icon-box">
+                <mat-icon>remove_red_eye</mat-icon>
+            </div>
+            <div class="title-section">
+                <h1>Fiche Lentilles</h1>
+                <p *ngIf="client">{{ clientName }}</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button mat-stroked-button (click)="goBack()">Annuler</button>
+            <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="ficheForm.invalid || loading">
+                <mat-icon>save</mat-icon>
+                {{ isEditMode ? 'Mettre à jour' : 'Enregistrer' }}
+            </button>
+        </div>
+    </div>
+
+    <form [formGroup]="ficheForm">
+        <mat-tab-group [(selectedIndex)]="activeTab" animationDuration="0ms" class="custom-tabs">
+
+            <!-- ONGLET 1: ORDONNANCE -->
+            <mat-tab>
+                <ng-template mat-tab-label>
+                    <mat-icon class="tab-icon">description</mat-icon>
+                    Ordonnance
+                </ng-template>
+
+                <div class="tab-content" formGroupName="ordonnance">
+                    <!-- Info Prescription -->
+                    <mat-card class="section-card mb-4">
+                        <mat-card-content class="grid-2">
+                            <mat-form-field appearance="outline">
+                                <mat-label>Date de prescription</mat-label>
+                                <input matInput [matDatepicker]="picker" formControlName="datePrescription">
+                                <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+                                <mat-datepicker #picker></mat-datepicker>
+                            </mat-form-field>
+                            <mat-form-field appearance="outline">
+                                <mat-label>Prescripteur</mat-label>
+                                <input matInput formControlName="prescripteur" placeholder="Dr. Ophtalmologue">
+                                <mat-icon matSuffix>person_medical</mat-icon>
+                            </mat-form-field>
+                        </mat-card-content>
+                    </mat-card>
+
+                    <div class="eyes-container">
+                        <!-- OD -->
+                        <mat-card class="eye-card od-card" formGroupName="od">
+                            <div class="eye-header">
+                                <span class="eye-badge">OD</span>
+                                <h3>Œil Droit</h3>
+                            </div>
+                            <mat-card-content>
+                                <div class="grid-3">
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Sphère</mat-label>
+                                        <input matInput formControlName="sphere" placeholder="+0.00">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Cylindre</mat-label>
+                                        <input matInput formControlName="cylindre" placeholder="-0.00">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Axe</mat-label>
+                                        <input matInput formControlName="axe" placeholder="0°">
+                                    </mat-form-field>
+                                </div>
+                                <div class="grid-3">
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Addition</mat-label>
+                                        <input matInput formControlName="addition" placeholder="+0.00">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field highlight-field">
+                                        <mat-label>K1 (mm)</mat-label>
+                                        <input matInput formControlName="k1" placeholder="7.80">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field highlight-field">
+                                        <mat-label>K2 (mm)</mat-label>
+                                        <input matInput formControlName="k2" placeholder="7.90">
+                                    </mat-form-field>
+                                </div>
+                            </mat-card-content>
+                        </mat-card>
+
+                        <!-- OG -->
+                        <mat-card class="eye-card og-card" formGroupName="og">
+                            <div class="eye-header">
+                                <span class="eye-badge">OG</span>
+                                <h3>Œil Gauche</h3>
+                            </div>
+                            <mat-card-content>
+                                <div class="grid-3">
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Sphère</mat-label>
+                                        <input matInput formControlName="sphere" placeholder="+0.00">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Cylindre</mat-label>
+                                        <input matInput formControlName="cylindre" placeholder="-0.00">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Axe</mat-label>
+                                        <input matInput formControlName="axe" placeholder="0°">
+                                    </mat-form-field>
+                                </div>
+                                <div class="grid-3">
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Addition</mat-label>
+                                        <input matInput formControlName="addition" placeholder="+0.00">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field highlight-field">
+                                        <mat-label>K1 (mm)</mat-label>
+                                        <input matInput formControlName="k1" placeholder="7.80">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field highlight-field">
+                                        <mat-label>K2 (mm)</mat-label>
+                                        <input matInput formControlName="k2" placeholder="7.90">
+                                    </mat-form-field>
+                                </div>
+                            </mat-card-content>
+                        </mat-card>
+                    </div>
+                </div>
+            </mat-tab>
+
+            <!-- ONGLET 2: SÉLECTION LENTILLES -->
+            <mat-tab>
+                <ng-template mat-tab-label>
+                    <mat-icon class="tab-icon">shopping_bag</mat-icon>
+                    Sélection Lentilles
+                </ng-template>
+
+                <div class="tab-content" formGroupName="lentilles">
+                    <!-- Type & Usage -->
+                    <mat-card class="section-card mb-4">
+                        <mat-card-content>
+                            <div class="grid-3 align-center">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Type de lentille</mat-label>
+                                    <mat-select formControlName="type">
+                                        <mat-option *ngFor="let type of lensTypes" [value]="type">{{ type
+                                            }}</mat-option>
+                                    </mat-select>
+                                </mat-form-field>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Usage</mat-label>
+                                    <mat-select formControlName="usage">
+                                        <mat-option *ngFor="let usage of lensUsages" [value]="usage">{{ usage
+                                            }}</mat-option>
+                                    </mat-select>
+                                </mat-form-field>
+                                <mat-checkbox formControlName="diffLentilles" color="primary">
+                                    Lentilles différentes OD/OG
+                                </mat-checkbox>
+                            </div>
+                        </mat-card-content>
+                    </mat-card>
+
+                    <div class="eyes-container">
+                        <!-- OD Selection -->
+                        <mat-card class="eye-card od-card" formGroupName="od">
+                            <div class="eye-header">
+                                <span class="eye-badge">OD</span>
+                                <h3>Lentille Droite</h3>
+                            </div>
+                            <mat-card-content>
+                                <div class="grid-2">
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Marque</mat-label>
+                                        <input matInput formControlName="marque" placeholder="Ex: Acuvue">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Modèle</mat-label>
+                                        <input matInput formControlName="modele" placeholder="Ex: Oasys">
+                                    </mat-form-field>
+                                </div>
+                                <div class="grid-2">
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Rayon (BC)</mat-label>
+                                        <input matInput formControlName="rayon" placeholder="8.4">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Diamètre (DIA)</mat-label>
+                                        <input matInput formControlName="diametre" placeholder="14.0">
+                                    </mat-form-field>
+                                </div>
+                                <mat-divider class="mb-3"></mat-divider>
+                                <div class="grid-3">
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Sphère</mat-label>
+                                        <input matInput formControlName="sphere" placeholder="+0.00">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Cylindre</mat-label>
+                                        <input matInput formControlName="cylindre" placeholder="-0.00">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Axe</mat-label>
+                                        <input matInput formControlName="axe" placeholder="0°">
+                                    </mat-form-field>
+                                </div>
+                            </mat-card-content>
+                        </mat-card>
+
+                        <!-- OG Selection (Conditional or Duplicate) -->
+                        <mat-card class="eye-card og-card" formGroupName="og" *ngIf="diffLentilles">
+                            <div class="eye-header">
+                                <span class="eye-badge">OG</span>
+                                <h3>Lentille Gauche</h3>
+                            </div>
+                            <mat-card-content>
+                                <div class="grid-2">
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Marque</mat-label>
+                                        <input matInput formControlName="marque" placeholder="Ex: Acuvue">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Modèle</mat-label>
+                                        <input matInput formControlName="modele" placeholder="Ex: Oasys">
+                                    </mat-form-field>
+                                </div>
+                                <div class="grid-2">
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Rayon (BC)</mat-label>
+                                        <input matInput formControlName="rayon" placeholder="8.4">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Diamètre (DIA)</mat-label>
+                                        <input matInput formControlName="diametre" placeholder="14.0">
+                                    </mat-form-field>
+                                </div>
+                                <mat-divider class="mb-3"></mat-divider>
+                                <div class="grid-3">
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Sphère</mat-label>
+                                        <input matInput formControlName="sphere" placeholder="+0.00">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Cylindre</mat-label>
+                                        <input matInput formControlName="cylindre" placeholder="-0.00">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Axe</mat-label>
+                                        <input matInput formControlName="axe" placeholder="0°">
+                                    </mat-form-field>
+                                </div>
+                            </mat-card-content>
+                        </mat-card>
+
+                        <!-- Placeholder if same lenses -->
+                        <div class="eye-card og-card opacity-50" *ngIf="!diffLentilles">
+                            <div class="eye-header">
+                                <span class="eye-badge">OG</span>
+                                <h3>Lentille Gauche</h3>
+                            </div>
+                            <mat-card-content class="flex-center">
+                                <p class="text-muted">Identique à l'œil droit</p>
+                            </mat-card-content>
+                        </div>
+                    </div>
+                </div>
+            </mat-tab>
+
+            <!-- ONGLET 3: ADAPTATION -->
+            <mat-tab>
+                <ng-template mat-tab-label>
+                    <mat-icon class="tab-icon">fact_check</mat-icon>
+                    Adaptation
+                </ng-template>
+
+                <div class="tab-content" formGroupName="adaptation">
+                    <mat-card class="section-card">
+                        <div class="card-header">
+                            <h3>Suivi d'adaptation</h3>
+                        </div>
+                        <mat-card-content>
+                            <div class="grid-2">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Date de pose</mat-label>
+                                    <input matInput [matDatepicker]="pickerEssai" formControlName="dateEssai">
+                                    <mat-datepicker-toggle matIconSuffix [for]="pickerEssai"></mat-datepicker-toggle>
+                                    <mat-datepicker #pickerEssai></mat-datepicker>
+                                </mat-form-field>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Date de contrôle</mat-label>
+                                    <input matInput [matDatepicker]="pickerControle" formControlName="dateControle">
+                                    <mat-datepicker-toggle matIconSuffix [for]="pickerControle"></mat-datepicker-toggle>
+                                    <mat-datepicker #pickerControle></mat-datepicker>
+                                </mat-form-field>
+                            </div>
+
+                            <div class="grid-2">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Acuité Visuelle OD</mat-label>
+                                    <input matInput formControlName="acuiteOD" placeholder="10/10">
+                                </mat-form-field>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Acuité Visuelle OG</mat-label>
+                                    <input matInput formControlName="acuiteOG" placeholder="10/10">
+                                </mat-form-field>
+                            </div>
+
+                            <div class="grid-3">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Confort</mat-label>
+                                    <mat-select formControlName="confort">
+                                        <mat-option value="Excellent">Excellent</mat-option>
+                                        <mat-option value="Bon">Bon</mat-option>
+                                        <mat-option value="Moyen">Moyen</mat-option>
+                                        <mat-option value="Mauvais">Mauvais</mat-option>
+                                    </mat-select>
+                                </mat-form-field>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Centrage</mat-label>
+                                    <mat-select formControlName="centrage">
+                                        <mat-option value="Centré">Centré</mat-option>
+                                        <mat-option value="Décentré sup">Décentré Sup.</mat-option>
+                                        <mat-option value="Décentré inf">Décentré Inf.</mat-option>
+                                    </mat-select>
+                                </mat-form-field>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Mobilité</mat-label>
+                                    <mat-select formControlName="mobilite">
+                                        <mat-option value="Normale">Normale</mat-option>
+                                        <mat-option value="Excessive">Excessive</mat-option>
+                                        <mat-option value="Insuffisante">Insuffisante</mat-option>
+                                    </mat-select>
+                                </mat-form-field>
+                            </div>
+
+                            <mat-form-field appearance="outline" class="full-width">
+                                <mat-label>Remarques / Observations</mat-label>
+                                <textarea matInput formControlName="remarques" rows="3"></textarea>
+                            </mat-form-field>
+
+                            <div class="validation-section">
+                                <mat-checkbox formControlName="validation" color="primary" class="large-checkbox">
+                                    Adaptation validée
+                                </mat-checkbox>
+                            </div>
+                        </mat-card-content>
+                    </mat-card>
+                </div>
+            </mat-tab>
+        </mat-tab-group>
+    </form>
+</div>
