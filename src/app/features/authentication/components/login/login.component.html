@@ -5,11 +5,7 @@
         {{ 'authentication.login' | translate }}
       </mat-label>
       <input matInput autocomplete="username" formControlName="email" />
-      <mat-error
-        app-form-control-error
-        [errors]="loginForm.controls.email.errors"
-        pattern="email"
-      />
+      <mat-error app-form-control-error [errors]="loginForm.controls.email.errors" pattern="email" />
     </mat-form-field>
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'commun.password' | translate }}</mat-label>

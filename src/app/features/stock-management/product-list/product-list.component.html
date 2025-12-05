@@ -1,0 +1,187 @@
+<div class="product-list-container p-6">
+    <!-- Header & Actions -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold m-0">Gestion du Stock</h1>
+        <div class="flex gap-2">
+            <button mat-raised-button class="export-btn" (click)="exportXLS()">
+                <mat-icon>file_download</mat-icon>
+                Exporter
+            </button>
+            <button mat-raised-button class="add-btn" routerLink="/p/stock/new">
+                <mat-icon>add</mat-icon>
+                Ajouter un produit
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid grid grid-cols-4 gap-4 mb-6">
+        <mat-card class="stat-card stat-card-orange">
+            <mat-card-content>
+                <div class="stat-value">{{ stats.totalProduits }}</div>
+                <div class="stat-label">Produits en stock</div>
+            </mat-card-content>
+        </mat-card>
+        <mat-card class="stat-card stat-card-green">
+            <mat-card-content>
+                <div class="stat-value">{{ stats.valeurStockTotal | number:'1.2-2' }} €</div>
+                <div class="stat-label">Valeur du stock</div>
+            </mat-card-content>
+        </mat-card>
+        <mat-card class="stat-card stat-card-yellow">
+            <mat-card-content>
+                <div class="stat-value">{{ stats.produitsStockBas }}</div>
+                <div class="stat-label">Stock bas</div>
+            </mat-card-content>
+        </mat-card>
+        <mat-card class="stat-card stat-card-red">
+            <mat-card-content>
+                <div class="stat-value">{{ stats.produitsRupture }}</div>
+                <div class="stat-label">Rupture de stock</div>
+            </mat-card-content>
+        </mat-card>
+    </div>
+
+    <!-- Filters -->
+    <mat-card class="filter-card mb-6">
+        <mat-card-content class="filter-content">
+            <div class="filter-row">
+                <div class="filter-field">
+                    <label class="filter-label">Type de produit</label>
+                    <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                        <mat-select [(ngModel)]="filter.typeArticle" (selectionChange)="applyFilter()">
+                            <mat-option value="">Tous</mat-option>
+                            <mat-option *ngFor="let type of productTypes" [value]="type">
+                                {{ type | titlecase }}
+                            </mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                </div>
+
+                <div class="filter-field">
+                    <label class="filter-label">Statut</label>
+                    <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                        <mat-select [(ngModel)]="filter.statut" (selectionChange)="applyFilter()">
+                            <mat-option value="">Tous</mat-option>
+                            <mat-option *ngFor="let status of productStatuses" [value]="status">
+                                {{ status | titlecase }}
+                            </mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                </div>
+
+                <div class="filter-field">
+                    <label class="filter-label">Marque</label>
+                    <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                        <input matInput [(ngModel)]="filter.marque" (keyup.enter)="applyFilter()"
+                            placeholder="Marque...">
+                    </mat-form-field>
+                </div>
+
+                <div class="filter-field">
+                    <label class="filter-label">Modèle</label>
+                    <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                        <input matInput [(ngModel)]="filter.search" (keyup.enter)="applyFilter()"
+                            placeholder="Code, désignation...">
+                    </mat-form-field>
+                </div>
+            </div>
+
+            <!-- Search Button Row -->
+            <div class="flex justify-end mt-4">
+                <button mat-raised-button class="search-btn" (click)="applyFilter()">
+                    <mat-icon>search</mat-icon>
+                    Rechercher
+                </button>
+            </div>
+        </mat-card-content>
+    </mat-card>
+
+    <!-- Data Table -->
+    <mat-card>
+        <mat-card-content>
+            <div class="table-container">
+                <table mat-table [dataSource]="dataSource" matSort class="products-table w-full">
+
+                    <!-- Code Column -->
+                    <ng-container matColumnDef="codeInterne">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header> Code </th>
+                        <td mat-cell *matCellDef="let row"> {{row.codeInterne}} </td>
+                    </ng-container>
+
+                    <!-- Designation Column -->
+                    <ng-container matColumnDef="designation">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header> Désignation </th>
+                        <td mat-cell *matCellDef="let row"> {{row.designation}} </td>
+                    </ng-container>
+
+                    <!-- Brand Column -->
+                    <ng-container matColumnDef="marque">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header> Marque </th>
+                        <td mat-cell *matCellDef="let row"> {{row.marque || '--'}} </td>
+                    </ng-container>
+
+                    <!-- Type Column -->
+                    <ng-container matColumnDef="typeArticle">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header> Type </th>
+                        <td mat-cell *matCellDef="let row"> {{row.typeArticle | titlecase}} </td>
+                    </ng-container>
+
+                    <!-- Stock Column -->
+                    <ng-container matColumnDef="quantiteActuelle">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header> Stock </th>
+                        <td mat-cell *matCellDef="let row">
+                            <span [ngClass]="getStockClass(row)">
+                                {{row.quantiteActuelle}}
+                            </span>
+                        </td>
+                    </ng-container>
+
+                    <!-- Price Column -->
+                    <ng-container matColumnDef="prixVenteHT">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header> Prix HT </th>
+                        <td mat-cell *matCellDef="let row"> {{formatPrice(row.prixVenteHT)}} </td>
+                    </ng-container>
+
+                    <!-- Status Column -->
+                    <ng-container matColumnDef="statut">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header> Statut </th>
+                        <td mat-cell *matCellDef="let row">
+                            <span class="status-badge" [ngClass]="getStatusClass(row.statut)">
+                                {{row.statut | titlecase}}
+                            </span>
+                        </td>
+                    </ng-container>
+
+                    <!-- Actions Column -->
+                    <ng-container matColumnDef="actions">
+                        <th mat-header-cell *matHeaderCellDef> Actions </th>
+                        <td mat-cell *matCellDef="let row">
+                            <button mat-icon-button color="primary" [routerLink]="['/p/stock', row.id]"
+                                matTooltip="Voir détails">
+                                <mat-icon>visibility</mat-icon>
+                            </button>
+                            <button mat-icon-button color="accent" [routerLink]="['/p/stock', row.id, 'edit']"
+                                matTooltip="Modifier">
+                                <mat-icon>edit</mat-icon>
+                            </button>
+                            <button mat-icon-button (click)="printBarcode(row)" matTooltip="Imprimer code-barres">
+                                <mat-icon>qr_code_2</mat-icon>
+                            </button>
+                        </td>
+                    </ng-container>
+
+                    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+
+                    <!-- Row shown when there is no matching data. -->
+                    <tr class="mat-row" *matNoDataRow>
+                        <td class="mat-cell" colspan="8">Aucun produit trouvé</td>
+                    </tr>
+                </table>
+            </div>
+
+            <mat-paginator [pageSizeOptions]="[10, 25, 50, 100]" aria-label="Select page of products"></mat-paginator>
+        </mat-card-content>
+    </mat-card>
+</div>

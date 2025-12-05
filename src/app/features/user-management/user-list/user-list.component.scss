@@ -1,0 +1,105 @@
+/* User List Component Styles */
+.user-list-container {
+    padding: 0;
+    background: transparent;
+}
+
+/* Filter Card */
+.filter-card {
+    margin-bottom: 24px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .3), 0 1px 3px 1px rgba(60, 64, 67, .15);
+}
+
+.filter-content {
+    padding: 20px;
+}
+
+.filter-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    align-items: end;
+}
+
+.filter-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.filter-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #5f6368;
+    margin-bottom: 6px;
+    min-height: 18px;
+}
+
+/* Buttons */
+.export-btn {
+    background-color: #4caf50 !important;
+    color: white !important;
+}
+
+.search-btn {
+    background-color: #f44336 !important;
+    color: white !important;
+}
+
+/* Table Container */
+.table-container {
+    overflow: hidden;
+}
+
+.users-table {
+    width: 100%;
+}
+
+th.mat-header-cell {
+    font-weight: 600;
+    color: var(--mat-sys-on-surface);
+    background-color: #1e3a8a;
+    color: white;
+}
+
+/* Status Indicator */
+.status-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.status-actif mat-icon {
+    color: #4caf50;
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+}
+
+.status-inactif mat-icon {
+    color: #f44336;
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .filter-row {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .filter-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .filter-row {
+        grid-template-columns: 1fr;
+    }
+}

@@ -33,17 +33,16 @@ export const MENU: MenuItem[] = [
     route: 'commercial',
     children: [
       {
-        label: 'Clients',
-        icon: 'person',
-        type: 'link',
-        route: 'commercial/client',
-        roles: [4, 3],
-      },
-      {
-        label: 'Prestations',
+        label: 'Gestion Clients',
         icon: 'edit_note',
         type: 'subchild',
-        route: 'commercial/prestation',
+        route: 'clients',
+      },
+      {
+        label: 'Gestion Stock',
+        icon: 'inventory_2',
+        type: 'subchild',
+        route: 'stock',
       },
       {
         label: 'Catégories',
@@ -148,9 +147,9 @@ export const MENU: MenuItem[] = [
     children: [
       {
         label: 'Gestion des utilisateurs',
-        icon: 'Person',
-        type: 'link',
-        route: 'settings/users',
+        icon: 'people',
+        type: 'subchild',
+        route: 'users',
       },
       {
         label: 'Agenda contrôleur',

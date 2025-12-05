@@ -1,0 +1,437 @@
+<div class="product-form-container">
+    <div class="form-header">
+        <h1 class="form-title">{{ isEditMode ? 'Modifier' : 'Nouveau' }} Produit</h1>
+        <button mat-button routerLink="/p/stock" class="back-btn">
+            <mat-icon>arrow_back</mat-icon> Retour
+        </button>
+    </div>
+
+    <form [formGroup]="productForm" (ngSubmit)="onSubmit()">
+        <mat-card class="form-card">
+            <mat-card-content class="form-content">
+
+                <!-- Type Selection -->
+                <div class="section">
+                    <h2 class="section-title">Type de Produit</h2>
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="field-label">Type *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select formControlName="typeArticle">
+                                    <mat-option *ngFor="let type of productTypes" [value]="type">
+                                        {{ type | titlecase }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- General Information -->
+                <div class="section">
+                    <h2 class="section-title">Informations Générales</h2>
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="field-label">Code Interne *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput formControlName="codeInterne" placeholder="MON001">
+                                <button mat-icon-button matSuffix type="button" (click)="generateInternalCode()"
+                                    matTooltip="Générer">
+                                    <mat-icon>refresh</mat-icon>
+                                </button>
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Code-Barres</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput formControlName="codeBarres" placeholder="2001234567890">
+                                <button mat-icon-button matSuffix type="button" (click)="generateBarcode()"
+                                    matTooltip="Générer">
+                                    <mat-icon>qr_code_2</mat-icon>
+                                </button>
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Référence Fournisseur</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput formControlName="referenceFournisseur">
+                            </mat-form-field>
+                        </div>
+                    </div>
+
+                    <!-- Désignation - Only for Monture -->
+                    <div class="form-row" *ngIf="productType === 'monture'">
+                        <div class="form-field form-field-large">
+                            <label class="field-label">Désignation *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput formControlName="designation" placeholder="Ray-Ban Aviator RB3025">
+                            </mat-form-field>
+                        </div>
+                    </div>
+
+                    <!-- Marque, Modèle, Couleur - Only for Monture -->
+                    <div class="form-row" *ngIf="productType === 'monture'">
+                        <div class="form-field">
+                            <label class="field-label">Marque</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput formControlName="marque" placeholder="Ray-Ban">
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Modèle</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput formControlName="modele" placeholder="RB3025">
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Couleur</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput formControlName="couleur" placeholder="Or">
+                            </mat-form-field>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Frame Specific Fields -->
+                <div class="section" *ngIf="productType === 'monture'">
+                    <h2 class="section-title">Caractéristiques Monture</h2>
+
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="field-label">Catégorie *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select formControlName="categorie">
+                                    <mat-option *ngFor="let cat of frameCategories" [value]="cat">
+                                        {{ cat | titlecase }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Genre</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select formControlName="genre">
+                                    <mat-option *ngFor="let g of genders" [value]="g">
+                                        {{ g | titlecase }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Forme *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select formControlName="forme">
+                                    <mat-option *ngFor="let shape of frameShapes" [value]="shape">
+                                        {{ shape | titlecase }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="field-label">Matière *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select formControlName="matiere">
+                                    <mat-option *ngFor="let mat of frameMaterials" [value]="mat">
+                                        {{ mat | titlecase }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Type Monture *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select formControlName="typeMonture">
+                                    <mat-option *ngFor="let type of frameTypes" [value]="type">
+                                        {{ type | titlecase }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Type Charnière</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select formControlName="typeCharniere">
+                                    <mat-option *ngFor="let hinge of hingeTypes" [value]="hinge">
+                                        {{ hinge | titlecase }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="field-label">Calibre (mm) *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput type="number" formControlName="calibre" placeholder="52">
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Pont (mm) *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput type="number" formControlName="pont" placeholder="18">
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Branche (mm) *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput type="number" formControlName="branche" placeholder="140">
+                            </mat-form-field>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="field-label">Couleur Monture</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput formControlName="couleurMonture" placeholder="Or">
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Couleur Branches</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput formControlName="couleurBranches" placeholder="Noir">
+                            </mat-form-field>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lens Specific Fields - SIMPLIFIED FOR STOCK MANAGEMENT -->
+                <div class="section" *ngIf="productType === 'verre'">
+                    <h2 class="section-title">Caractéristiques Verre</h2>
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="field-label">Type de Verre *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select formControlName="typeVerre">
+                                    <mat-option *ngFor="let type of lensTypes" [value]="type">
+                                        {{ type | titlecase }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Matériau *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select formControlName="materiau">
+                                    <mat-option *ngFor="let mat of lensMaterials" [value]="mat">
+                                        {{ mat | titlecase }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Indice de Réfraction *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select formControlName="indiceRefraction">
+                                    <mat-option *ngFor="let index of lensIndices" [value]="index">
+                                        {{ index }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Lens Specific Fields -->
+                <div class="section" *ngIf="productType === 'lentille'">
+                    <h2 class="section-title">Caractéristiques Lentille</h2>
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="field-label">Type de Lentille *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select formControlName="typeLentille">
+                                    <mat-option *ngFor="let type of contactLensTypes" [value]="type">
+                                        {{ type | titlecase }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Usage *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select formControlName="usage">
+                                    <mat-option *ngFor="let u of contactLensUsages" [value]="u">
+                                        {{ u | titlecase }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Laboratoire</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput formControlName="laboratoire">
+                            </mat-form-field>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="field-label">Rayon (BC)</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput type="number" step="0.1" formControlName="rayonCourbure"
+                                    placeholder="8.6">
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Diamètre (DIA)</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput type="number" step="0.1" formControlName="diametre" placeholder="14.2">
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Puissance (PWR)</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput type="number" step="0.25" formControlName="puissanceSph"
+                                    placeholder="-2.00">
+                            </mat-form-field>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="field-label">Date Péremption</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput type="date" formControlName="datePeremption">
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Numéro Lot</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput formControlName="numeroLot">
+                            </mat-form-field>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Accessory Specific Fields -->
+                <div class="section" *ngIf="productType === 'accessoire'">
+                    <h2 class="section-title">Caractéristiques Accessoire</h2>
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="field-label">Catégorie *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select formControlName="categorieAccessoire">
+                                    <mat-option *ngFor="let cat of accessoryCategories" [value]="cat">
+                                        {{ cat | titlecase }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Sous-Catégorie</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput formControlName="sousCategorie">
+                            </mat-form-field>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stock & Pricing -->
+                <div class="section">
+                    <h2 class="section-title">Stock et Prix</h2>
+
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="field-label">Quantité en Stock *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput type="number" formControlName="quantiteActuelle" placeholder="10">
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Seuil d'Alerte *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput type="number" formControlName="seuilAlerte" placeholder="2">
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Statut</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select formControlName="statut">
+                                    <mat-option *ngFor="let status of productStatuses" [value]="status">
+                                        {{ status | titlecase }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="field-label">Prix d'Achat HT (€) *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput type="number" step="0.01" formControlName="prixAchatHT"
+                                    placeholder="80.00">
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Coefficient *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput type="number" step="0.1" formControlName="coefficient"
+                                    placeholder="2.5">
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Taux TVA</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <input matInput type="number" step="0.01" formControlName="tauxTVA" placeholder="0.20">
+                            </mat-form-field>
+                        </div>
+                    </div>
+
+                    <div class="form-row price-display">
+                        <div class="price-card price-ht">
+                            <div class="price-label">Prix de Vente HT</div>
+                            <div class="price-value">{{ productForm.get('prixVenteHT')?.value |
+                                number:'1.2-2' }} €
+                            </div>
+                        </div>
+                        <div class="price-card price-ttc">
+                            <div class="price-label">Prix de Vente TTC</div>
+                            <div class="price-value">{{ productForm.get('prixVenteTTC')?.value |
+                                number:'1.2-2' }} €
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </mat-card-content>
+
+            <mat-card-actions align="end" class="form-actions">
+                <button mat-button type="button" (click)="onCancel()" class="cancel-btn">
+                    Annuler
+                </button>
+                <button mat-raised-button color="primary" type="submit" [disabled]="productForm.invalid"
+                    class="submit-btn">
+                    {{ isEditMode ? 'Mettre à jour' : 'Créer' }}
+                </button>
+            </mat-card-actions>
+        </mat-card>
+    </form>
+</div>

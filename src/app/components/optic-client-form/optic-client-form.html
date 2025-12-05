@@ -1,0 +1,43 @@
+<div class="container mx-auto p-6">
+    <mat-card class="max-w-4xl mx-auto">
+        <mat-card-header>
+            <mat-card-title>Fiche Client Optique</mat-card-title>
+            <mat-card-subtitle>Gestion des clients et ordonnances</mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+            <form [formGroup]="clientForm" (ngSubmit)="onSubmit()" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <mat-form-field appearance="outline" class="w-full">
+                        <mat-label>Nom</mat-label>
+                        <input matInput formControlName="nom" placeholder="Nom du client">
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="w-full">
+                        <mat-label>Prénom</mat-label>
+                        <input matInput formControlName="prenom" placeholder="Prénom du client">
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="w-full">
+                        <mat-label>Téléphone</mat-label>
+                        <input matInput formControlName="telephone" placeholder="06 12 34 56 78">
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="w-full">
+                        <mat-label>Email</mat-label>
+                        <input matInput type="email" formControlName="email" placeholder="email@example.com">
+                    </mat-form-field>
+                </div>
+
+                <div class="flex justify-end gap-4 mt-6">
+                    <button mat-stroked-button type="button" (click)="onCancel()">
+                        Annuler
+                    </button>
+                    <button mat-raised-button color="primary" type="submit">
+                        Enregistrer
+                    </button>
+                </div>
+            </form>
+        </mat-card-content>
+    </mat-card>
+</div>

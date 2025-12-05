@@ -1,0 +1,189 @@
+<div class="user-form-container p-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold m-0">
+            {{ isEditMode ? 'Modifier l\'utilisateur' : 'Ajouter un utilisateur' }}
+        </h1>
+        <button mat-icon-button (click)="onCancel()" matTooltip="Retour">
+            <mat-icon>arrow_back</mat-icon>
+        </button>
+    </div>
+
+    <!-- Form -->
+    <form [formGroup]="userForm" (ngSubmit)="onSubmit()">
+        <mat-card class="form-card mb-4">
+            <mat-card-content>
+                <!-- Status and Photo Row -->
+                <div class="status-photo-row">
+                    <!-- Status Section -->
+                    <div class="status-section">
+                        <label class="section-label">Statut *</label>
+                        <mat-radio-group formControlName="statut" class="status-radio-group">
+                            <mat-radio-button [value]="'actif'">Actif</mat-radio-button>
+                            <mat-radio-button [value]="'inactif'">Inactif</mat-radio-button>
+                        </mat-radio-group>
+                    </div>
+
+                    <!-- Photo Section -->
+                    <div class="photo-section">
+                        <label class="section-label">Photo de profil</label>
+
+                        <!-- Camera View -->
+                        <div class="camera-container-compact" *ngIf="showCamera">
+                            <video #cameraVideo id="cameraVideo" autoplay playsinline
+                                class="camera-video-compact"></video>
+                            <div class="camera-controls-compact">
+                                <button mat-icon-button color="primary" type="button" (click)="capturePhoto()"
+                                    matTooltip="Capturer">
+                                    <mat-icon>camera</mat-icon>
+                                </button>
+                                <button mat-icon-button type="button" (click)="closeCamera()" matTooltip="Annuler">
+                                    <mat-icon>close</mat-icon>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Photo Preview or Placeholder -->
+                        <div class="photo-display" *ngIf="!showCamera">
+                            <div class="photo-preview-compact" *ngIf="photoPreview || userForm.get('photoUrl')?.value">
+                                <img [src]="photoPreview || userForm.get('photoUrl')?.value" alt="Photo de profil" />
+                                <button mat-icon-button type="button" class="remove-photo-btn-compact"
+                                    (click)="removePhoto()" matTooltip="Supprimer">
+                                    <mat-icon>close</mat-icon>
+                                </button>
+                            </div>
+                            <div class="photo-placeholder-compact"
+                                *ngIf="!photoPreview && !userForm.get('photoUrl')?.value">
+                                <mat-icon>account_circle</mat-icon>
+                            </div>
+
+                            <!-- Upload Buttons -->
+                            <div class="upload-buttons-compact">
+                                <input type="file" #photoInput accept="image/*" (change)="onPhotoSelected($event)"
+                                    style="display: none" />
+                                <button mat-icon-button color="accent" type="button" (click)="photoInput.click()"
+                                    matTooltip="Choisir fichier">
+                                    <mat-icon>upload</mat-icon>
+                                </button>
+                                <button mat-icon-button color="primary" type="button" (click)="openCamera()"
+                                    matTooltip="Prendre photo">
+                                    <mat-icon>photo_camera</mat-icon>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Personal Information -->
+                <div class="form-row">
+                    <mat-form-field class="form-field">
+                        <mat-label>Nom *</mat-label>
+                        <input matInput formControlName="nom" placeholder="ABDOU">
+                        <mat-error *ngIf="userForm.get('nom')?.hasError('required')">
+                            Le nom est requis
+                        </mat-error>
+                    </mat-form-field>
+
+                    <mat-form-field class="form-field">
+                        <mat-label>Prénom *</mat-label>
+                        <input matInput formControlName="prenom" placeholder="Sounouhadji">
+                        <mat-error *ngIf="userForm.get('prenom')?.hasError('required')">
+                            Le prénom est requis
+                        </mat-error>
+                    </mat-form-field>
+                </div>
+
+                <div class="form-row">
+                    <mat-form-field class="form-field">
+                        <mat-label>Civilité *</mat-label>
+                        <mat-select formControlName="civilite">
+                            <mat-option *ngFor="let civilite of civilites" [value]="civilite">
+                                {{ civilite }}
+                            </mat-option>
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field class="form-field">
+                        <mat-label>Téléphone</mat-label>
+                        <input matInput formControlName="telephone" placeholder="0765448568">
+                    </mat-form-field>
+                </div>
+
+                <div class="form-row">
+                    <mat-form-field class="form-field">
+                        <mat-label>Email *</mat-label>
+                        <input matInput type="email" formControlName="email" placeholder="SECTA-DEV@autosur.com">
+                        <mat-error *ngIf="userForm.get('email')?.hasError('required')">
+                            L'email est requis
+                        </mat-error>
+                        <mat-error *ngIf="userForm.get('email')?.hasError('email')">
+                            Email invalide
+                        </mat-error>
+                    </mat-form-field>
+
+                    <mat-form-field class="form-field">
+                        <mat-label>Agrément</mat-label>
+                        <input matInput formControlName="agrement" placeholder="056D1240">
+                    </mat-form-field>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <!-- Centre-Role Associations -->
+        <mat-card class="form-card mb-4">
+            <mat-card-header>
+                <mat-card-title>Centres et Rôles</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="centre-roles-header">
+                    <div class="header-col">Centre</div>
+                    <div class="header-col">Rôle</div>
+                    <div class="header-col-actions"></div>
+                </div>
+
+                <div formArrayName="centreRoles">
+                    <div *ngFor="let centreRole of centreRoles.controls; let i = index" [formGroupName]="i"
+                        class="centre-role-row">
+
+                        <mat-form-field class="centre-field">
+                            <mat-label>Centre</mat-label>
+                            <mat-select formControlName="centreId" (selectionChange)="onCentreChange(i)">
+                                <mat-option *ngFor="let centre of centres" [value]="centre.id">
+                                    {{ centre.name }}
+                                </mat-option>
+                            </mat-select>
+                        </mat-form-field>
+
+                        <mat-form-field class="role-field">
+                            <mat-label>Rôle</mat-label>
+                            <mat-select formControlName="role">
+                                <mat-option *ngFor="let role of userRoles" [value]="role">
+                                    {{ role }}
+                                </mat-option>
+                            </mat-select>
+                        </mat-form-field>
+
+                        <button mat-icon-button type="button" color="warn" (click)="removeCentreRole(i)"
+                            [disabled]="centreRoles.length === 1" matTooltip="Supprimer">
+                            <mat-icon>delete</mat-icon>
+                        </button>
+                    </div>
+                </div>
+
+                <button mat-raised-button type="button" color="primary" (click)="addCentreRole()"
+                    class="add-role-btn mt-4">
+                    <mat-icon>add</mat-icon>
+                    Ajouter un rôle
+                </button>
+            </mat-card-content>
+        </mat-card>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+            <button mat-button type="button" (click)="onCancel()">Annuler</button>
+            <button mat-raised-button color="primary" type="submit" [disabled]="!userForm.valid">
+                {{ isEditMode ? 'Mettre à jour' : 'Enregistrer' }}
+            </button>
+        </div>
+    </form>
+</div>

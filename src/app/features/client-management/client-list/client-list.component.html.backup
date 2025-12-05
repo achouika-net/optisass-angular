@@ -1,0 +1,183 @@
+<div class="client-management-container p-6">
+    <!-- Header & Actions -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold m-0">Gestion Dossier Client</h1>
+        <div class="flex gap-2">
+            <button mat-stroked-button (click)="exportClients()">
+                <mat-icon>download</mat-icon>
+                Exporter
+            </button>
+            <button mat-stroked-button (click)="addClient()">
+                <mat-icon>add</mat-icon>
+                Ajouter un client
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid grid grid-cols-4 gap-4 mb-6">
+        <mat-card class="stat-card stat-card-blue">
+            <mat-card-content>
+                <div class="stat-number">{{ stats().actifs }}</div>
+                <div class="stat-label">Clients actifs</div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="stat-card stat-card-purple">
+            <mat-card-content>
+                <div class="stat-number">{{ stats().enCompte }}</div>
+                <div class="stat-label">Clients en compte</div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="stat-card stat-card-green">
+            <mat-card-content>
+                <div class="stat-number">{{ stats().passage }}</div>
+                <div class="stat-label">Clients de passage</div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="stat-card stat-card-orange">
+            <mat-card-content>
+                <div class="stat-number">{{ stats().inactifs }}</div>
+                <div class="stat-label">Clients inactifs</div>
+            </mat-card-content>
+        </mat-card>
+    </div>
+
+    <!-- Search Section -->
+    <mat-card class="search-card mb-6">
+        <mat-card-content>
+            <form [formGroup]="searchForm" (ngSubmit)="onSearch()" class="search-form">
+                <div class="grid grid-cols-4 gap-4 items-end">
+                    <mat-form-field appearance="outline">
+                        <mat-label>Type de client</mat-label>
+                        <mat-select formControlName="typeClient">
+                            <mat-option value="">Tous</mat-option>
+                            @for (type of clientTypes; track type) {
+                            <mat-option [value]="type">{{ type }}</mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                        <mat-label>Statut</mat-label>
+                        <mat-select formControlName="statut">
+                            <mat-option value="">Tous</mat-option>
+                            @for (statut of statuts; track statut) {
+                            <mat-option [value]="statut">{{ statut }}</mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                        <mat-label>Nom</mat-label>
+                        <input matInput formControlName="nom" placeholder="Rechercher...">
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                        <mat-label>Prénom</mat-label>
+                        <input matInput formControlName="prenom" placeholder="Prénom...">
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                        <mat-label>Téléphone</mat-label>
+                        <input matInput formControlName="telephone" placeholder="Téléphone...">
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                        <mat-label>CIN</mat-label>
+                        <input matInput formControlName="cin" placeholder="CIN...">
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                        <mat-label>Ville</mat-label>
+                        <input matInput formControlName="ville" placeholder="Ville...">
+                    </mat-form-field>
+
+                    <div class="search-button-wrapper">
+                        <button mat-stroked-button type="submit" class="w-full">
+                            <mat-icon>search</mat-icon>
+                            Rechercher
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </mat-card-content>
+    </mat-card>
+
+    <!-- Data Table -->
+    <mat-card>
+        <mat-card-content>
+            <div class="table-container">
+                <table mat-table [dataSource]="clients()" class="w-full">
+                    <!-- Type Column -->
+                    <ng-container matColumnDef="type">
+                        <th mat-header-cell *matHeaderCellDef>Type</th>
+                        <td mat-cell *matCellDef="let client">{{ client.type }}</td>
+                    </ng-container>
+
+                    <!-- Nom Column -->
+                    <ng-container matColumnDef="nom">
+                        <th mat-header-cell *matHeaderCellDef>Nom</th>
+                        <td mat-cell *matCellDef="let client">{{ client.nom }}</td>
+                    </ng-container>
+
+                    <!-- Prénom Column -->
+                    <ng-container matColumnDef="prenom">
+                        <th mat-header-cell *matHeaderCellDef>Prénom</th>
+                        <td mat-cell *matCellDef="let client">{{ client.prenom }}</td>
+                    </ng-container>
+
+                    <!-- Téléphone Column -->
+                    <ng-container matColumnDef="telephone">
+                        <th mat-header-cell *matHeaderCellDef>Téléphone</th>
+                        <td mat-cell *matCellDef="let client">{{ client.telephone }}</td>
+                    </ng-container>
+
+                    <!-- CIN Column -->
+                    <ng-container matColumnDef="cin">
+                        <th mat-header-cell *matHeaderCellDef>CIN</th>
+                        <td mat-cell *matCellDef="let client">{{ client.cin }}</td>
+                    </ng-container>
+
+                    <!-- Ville Column -->
+                    <ng-container matColumnDef="ville">
+                        <th mat-header-cell *matHeaderCellDef>Ville</th>
+                        <td mat-cell *matCellDef="let client">{{ client.ville }}</td>
+                    </ng-container>
+
+                    <!-- Statut Column -->
+                    <ng-container matColumnDef="statut">
+                        <th mat-header-cell *matHeaderCellDef>Statut</th>
+                        <td mat-cell *matCellDef="let client">
+                            <span class="status-badge" [class.status-actif]="client.statut === 'Actif'">
+                                {{ client.statut }}
+                            </span>
+                        </td>
+                    </ng-container>
+
+                    <!-- Actions Column -->
+                    <ng-container matColumnDef="actions">
+                        <th mat-header-cell *matHeaderCellDef>Actions</th>
+                        <td mat-cell *matCellDef="let client">
+                            <button mat-icon-button color="primary" (click)="viewClient(client)" title="Voir">
+                                <mat-icon>visibility</mat-icon>
+                            </button>
+                            <button mat-icon-button color="accent" (click)="editClient(client)" title="Éditer">
+                                <mat-icon>edit</mat-icon>
+                            </button>
+                        </td>
+                    </ng-container>
+
+                    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+                </table>
+            </div>
+
+            <mat-paginator [length]="totalItems" [pageSize]="pageSize" [pageSizeOptions]="[5, 10, 25, 50]"
+                (page)="onPageChange($event)" showFirstLastButtons>
+            </mat-paginator>
+        </mat-card-content>
+    </mat-card>
+</div>

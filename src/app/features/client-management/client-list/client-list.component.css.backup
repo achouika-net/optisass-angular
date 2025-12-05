@@ -1,0 +1,106 @@
+/* Statistics Cards */
+.stats-grid {
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    border-radius: 12px;
+    color: white;
+    transition: transform 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+}
+
+.stat-card mat-card-content {
+    padding: 1rem;
+    text-align: center;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    opacity: 0.9;
+}
+
+.stat-card-blue {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+.stat-card-purple {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+}
+
+.stat-card-green {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+}
+
+.stat-card-orange {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%) !important;
+}
+
+/* Search Form */
+.search-card {
+    margin-bottom: 1.5rem;
+}
+
+.search-form {
+    margin-top: 1rem;
+}
+
+.search-button-wrapper {
+    display: flex;
+    align-items: flex-end;
+    height: 56px;
+}
+
+.search-button-wrapper button {
+    height: 56px !important;
+    min-height: 56px !important;
+}
+
+/* Table */
+.table-container {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+}
+
+th.mat-header-cell {
+    font-weight: 600;
+    color: var(--mat-sys-on-surface);
+    background-color: #f8f9fa;
+    /* Gris très clair */
+}
+
+/* Status Badge */
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.status-actif {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .stat-number {
+        font-size: 2rem;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+    }
+}

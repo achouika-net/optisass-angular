@@ -1,0 +1,16 @@
+/* Optic Client Form Styles */
+.container {
+    min-height: calc(100vh - 200px);
+}
+
+mat-card {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+mat-card-header {
+    margin-bottom: 1.5rem;
+}
+
+.space-y-4>*+* {
+    margin-top: 1rem;
+}

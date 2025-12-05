@@ -1,0 +1,126 @@
+/* Product Detail Styles */
+.product-detail-container {
+    padding: 0;
+    background: #f8f9fa;
+}
+
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.detail-title {
+    font-size: 28px;
+    font-weight: 500;
+    color: #202124;
+    margin: 0;
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.back-btn {
+    color: #5f6368;
+}
+
+.detail-content {
+    display: grid;
+    gap: 24px;
+}
+
+.info-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .3), 0 1px 3px 1px rgba(60, 64, 67, .15);
+}
+
+.info-card mat-card-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: #fb8c00;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 16px;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.info-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #5f6368;
+}
+
+.info-value {
+    font-size: 15px;
+    color: #202124;
+}
+
+.stock-value {
+    font-weight: 600;
+    color: #00897b;
+}
+
+.price-highlight {
+    font-weight: 600;
+    color: #fb8c00;
+}
+
+.no-product {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+    text-align: center;
+}
+
+.no-product mat-icon {
+    font-size: 64px;
+    width: 64px;
+    height: 64px;
+    color: #9aa0a6;
+    margin-bottom: 16px;
+}
+
+.no-product p {
+    font-size: 18px;
+    color: #5f6368;
+    margin-bottom: 24px;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .info-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .detail-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .header-actions {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+}

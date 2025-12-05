@@ -1,0 +1,135 @@
+<div class="product-detail-container" *ngIf="product">
+    <div class="detail-header">
+        <h1 class="detail-title">{{ product.designation }}</h1>
+        <div class="header-actions">
+            <button mat-button (click)="goBack()" class="back-btn">
+                <mat-icon>arrow_back</mat-icon> Retour
+            </button>
+            <button mat-raised-button color="accent" (click)="editProduct()" class="edit-btn">
+                <mat-icon>edit</mat-icon> Modifier
+            </button>
+            <button mat-raised-button color="warn" (click)="deleteProduct()" class="delete-btn">
+                <mat-icon>delete</mat-icon> Supprimer
+            </button>
+        </div>
+    </div>
+
+    <div class="detail-content">
+        <!-- General Information -->
+        <mat-card class="info-card">
+            <mat-card-header>
+                <mat-card-title>Informations Générales</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Code Interne:</span>
+                        <span class="info-value">{{ product.codeInterne }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Code-Barres:</span>
+                        <span class="info-value">{{ product.codeBarres || '--' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Type:</span>
+                        <span class="info-value">{{ product.typeArticle | titlecase }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Marque:</span>
+                        <span class="info-value">{{ product.marque || '--' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Modèle:</span>
+                        <span class="info-value">{{ product.modele || '--' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Couleur:</span>
+                        <span class="info-value">{{ product.couleur || '--' }}</span>
+                    </div>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <!-- Frame Specific Info -->
+        <mat-card class="info-card" *ngIf="getFrameData() as frame">
+            <mat-card-header>
+                <mat-card-title>Caractéristiques Monture</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Catégorie:</span>
+                        <span class="info-value">{{ frame.categorie | titlecase }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Genre:</span>
+                        <span class="info-value">{{ frame.genre | titlecase }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Forme:</span>
+                        <span class="info-value">{{ frame.forme | titlecase }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Matière:</span>
+                        <span class="info-value">{{ frame.matiere | titlecase }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Type:</span>
+                        <span class="info-value">{{ frame.typeMonture | titlecase }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Dimensions:</span>
+                        <span class="info-value">{{ frame.calibre }}□{{ frame.pont }}-{{ frame.branche }}</span>
+                    </div>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <!-- Stock & Pricing -->
+        <mat-card class="info-card">
+            <mat-card-header>
+                <mat-card-title>Stock et Prix</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Quantité en Stock:</span>
+                        <span class="info-value stock-value">{{ product.quantiteActuelle }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Seuil d'Alerte:</span>
+                        <span class="info-value">{{ product.seuilAlerte }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Statut:</span>
+                        <span class="info-value">{{ product.statut | titlecase }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Prix d'Achat HT:</span>
+                        <span class="info-value">{{ formatPrice(product.prixAchatHT) }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Coefficient:</span>
+                        <span class="info-value">{{ product.coefficient }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Prix de Vente HT:</span>
+                        <span class="info-value price-highlight">{{ formatPrice(product.prixVenteHT) }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Prix de Vente TTC:</span>
+                        <span class="info-value price-highlight">{{ formatPrice(product.prixVenteTTC) }}</span>
+                    </div>
+                </div>
+            </mat-card-content>
+        </mat-card>
+    </div>
+</div>
+
+<div class="no-product" *ngIf="!product">
+    <mat-icon>inventory_2</mat-icon>
+    <p>Produit non trouvé</p>
+    <button mat-raised-button color="primary" routerLink="/p/stock">
+        Retour à la liste
+    </button>
+</div>

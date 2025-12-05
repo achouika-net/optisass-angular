@@ -21,6 +21,18 @@ export const routes: Routes = [
         redirectTo: 'dashboard',
         pathMatch: 'full',
       },
+      {
+        path: 'clients',
+        loadChildren: () => import('./features/client-management/client-management.routes').then(m => m.routes),
+      },
+      {
+        path: 'stock',
+        loadChildren: () => import('./features/stock-management/stock-management.routes').then(m => m.routes),
+      },
+      {
+        path: 'users',
+        loadChildren: () => import('./features/user-management/user-management.routes').then(m => m.userManagementRoutes),
+      },
     ],
   },
   {
