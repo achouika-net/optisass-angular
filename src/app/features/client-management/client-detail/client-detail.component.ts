@@ -9,7 +9,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatTabsModule } from '@angular/material/tabs';
 import { ClientService } from '../services/client.service';
 import { FicheService } from '../services/fiche.service';
-import { Client, TypeClient, ClientParticulier } from '../models/client.model';
+import { Client, TypeClient, ClientParticulier, ClientAnonyme } from '../models/client.model';
 import { FicheClient, StatutFiche, TypeFiche } from '../models/fiche-client.model';
 
 @Component({
@@ -59,6 +59,15 @@ export class ClientDetailComponent implements OnInit {
     this.clientId = this.route.snapshot.paramMap.get('id');
   }
 
+  isClientPro(): boolean {
+    return this.client?.typeClient === TypeClient.PROFESSIONNEL;
+  }
+
+  titleClient(): string {
+    if (!this.clientParticulier) return 'Client';
+    return `${this.clientParticulier.nom} ${this.clientParticulier.prenom}`;
+  }
+
   ngOnInit(): void {
     if (this.clientId) {
       this.loadClientData();
@@ -69,6 +78,10 @@ export class ClientDetailComponent implements OnInit {
 
   get clientParticulier(): ClientParticulier | null {
     return this.client && this.client.typeClient === TypeClient.PARTICULIER ? (this.client as ClientParticulier) : null;
+  }
+
+  get clientAnonyme(): ClientAnonyme | null {
+    return this.client && this.client.typeClient === TypeClient.ANONYME ? (this.client as ClientAnonyme) : null;
   }
 
   loadClientData(): void {

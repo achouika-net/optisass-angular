@@ -17,572 +17,65 @@
             <button type="button" class="btn-secondary" (click)="goBack()">Annuler</button>
             <button type="button" class="btn-primary" (click)="onSubmit()" [disabled]="ficheForm.invalid || loading">
                 Enregistrer
-            </button>
         </div>
     </div>
-
-    <!-- Tabs Navigation -->
-    <div class="tabs-nav">
-        <button type="button" class="tab-btn" [class.active]="activeTab === 0" (click)="setActiveTab(0)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                    d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
-            </svg>
-            Ordonnance
-        </button>
-        <button type="button" class="tab-btn" [class.active]="activeTab === 1" (click)="setActiveTab(1)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                    d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
-            </svg>
-            Monture & Verres
-        </button>
-        <button type="button" class="tab-btn" [class.active]="activeTab === 2" (click)="setActiveTab(2)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6z" />
-            </svg>
-            Fiche Montage
-        </button>
-        <button type="button" class="tab-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                    d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
-            </svg>
-            Facturation
-        </button>
-        <button type="button" class="tab-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                    d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
-            </svg>
-            Paiements
-        </button>
-        <button type="button" class="tab-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                    d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
-            </svg>
-            Notes
-        </button>
-    </div>
-
-    <form [formGroup]="ficheForm">
-        <!-- ONGLET 1: ORDONNANCE -->
-        <div class="tab-content" *ngIf="activeTab === 0" formGroupName="ordonnance">
-            <div class="tab-header">
-                <div class="icon-box">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
-                    </svg>
-                </div>
-                <div>
-                    <h3>Fiche Monture - Ordonnance</h3>
-                    <p>Saisir ou importer les données de prescription</p>
-                </div>
-                <div class="header-actions-inline">
-                    <button type="button" class="btn-icon-primary">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
-                        </svg>
-                        Mesurer EP (Tablette)
-                    </button>
-                    <button type="button" class="btn-icon-success" (click)="openFileUpload()">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                        </svg>
-                        Importer Files
-                    </button>
-                    <button type="button" class="btn-icon-camera" (click)="openCamera()">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M12 15.2c1.77 0 3.2-1.43 3.2-3.2s-1.43-3.2-3.2-3.2-3.2 1.43-3.2 3.2 1.43 3.2 3.2 3.2zm0-4.9c.94 0 1.7.76 1.7 1.7s-.76 1.7-1.7 1.7-1.7-.76-1.7-1.7.76-1.7 1.7-1.7zM20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h4.05l1.83-2h4.24l1.83 2H20v12z" />
-                        </svg>
-                        Prendre une photo
-                    </button>
-                    <input #fileInput type="file" accept="image/*,application/pdf" multiple style="display:none"
-                        (change)="onFilesSelected($event)">
-                </div>
-            </div>
-
-            <!-- Prescription Files Display -->
-            <div class="prescription-files" *ngIf="prescriptionFiles.length > 0">
-                <h4>Documents de prescription</h4>
-                <div class="files-list">
-                    <div class="file-item" *ngFor="let file of prescriptionFiles; let i = index">
-                        <div class="file-info">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="file-icon">
-                                <path *ngIf="file.type.startsWith('image/')"
-                                    d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
-                                <path *ngIf="file.type === 'application/pdf'"
-                                    d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z" />
-                            </svg>
-                            <a href="javascript:void(0)" (click)="viewFile(file)" class="file-link">
-                                {{ file.name }}
-                            </a>
-                            <span class="file-size">({{ formatFileSize(file.size) }})</span>
-                        </div>
-                        <div class="file-actions">
-                            <button type="button" class="btn-view" (click)="viewFile(file)" title="Visualiser">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path
-                                        d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
-                                </svg>
-                            </button>
-                            <button type="button" class="btn-delete" (click)="deleteFile(i)" title="Supprimer">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path
-                                        d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="eyes-container">
-                <!-- Œil Droit (OD) -->
-                <div class="eye-card od-card" formGroupName="od">
-                    <div class="eye-header">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
-                        </svg>
-                        <span>Œil Droit (OD)</span>
-                    </div>
-                    <div class="eye-content">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Sphère (SPH)</label>
-                                <input type="text" formControlName="sphere" placeholder="+/- 0.00"
-                                    (blur)="formatSphereValue('od', $event)">
-                            </div>
-                            <div class="form-group">
-                                <label>Cylindre (CYL)</label>
-                                <input type="text" formControlName="cylindre" (blur)="formatCylindreValue('od', $event)"
-                                    placeholder="+/- 0.00">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Axe (AXE)</label>
-                                <input type="text" formControlName="axe" placeholder="0°"
-                                    (blur)="formatAxeValue('od', $event)">
-                            </div>
-                            <div class="form-group">
-                                <label>Addition (ADD)</label>
-                                <input type="text" formControlName="addition" (blur)="formatAdditionValue('od', $event)"
-                                    placeholder="+0.00">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Prisme</label>
-                                <input type="text" formControlName="prisme" placeholder="0.00"
-                                    (blur)="formatPrismeValue('od', $event)">
-                            </div>
-                            <div class="form-group">
-                                <label>Base</label>
-                                <input type="text" formControlName="base" placeholder="H/B/Int/Ext"
-                                    (blur)="formatBaseValue('od', $event)">
-                            </div>
-                        </div>
-                        <div class="form-group full-width">
-                            <label>Écart Pupillaire (EP)</label>
-                            <input type="text" formControlName="ep" placeholder="32mm"
-                                (blur)="formatEPValue('od', $event)">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Œil Gauche (OG) -->
-                <div class="eye-card og-card" formGroupName="og">
-                    <div class="eye-header">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
-                        </svg>
-                        <span>Œil Gauche (OG)</span>
-                    </div>
-                    <div class="eye-content">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Sphère (SPH)</label>
-                                <input type="text" formControlName="sphere" placeholder="+/- 0.00"
-                                    (blur)="formatSphereValue('og', $event)">
-                            </div>
-                            <div class="form-group">
-                                <label>Cylindre (CYL)</label>
-                                <input type="text" formControlName="cylindre" (blur)="formatCylindreValue('og', $event)"
-                                    placeholder="+/- 0.00">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Axe (AXE)</label>
-                                <input type="text" formControlName="axe" placeholder="0°"
-                                    (blur)="formatAxeValue('og', $event)">
-                            </div>
-                            <div class="form-group">
-                                <label>Addition (ADD)</label>
-                                <input type="text" formControlName="addition" (blur)="formatAdditionValue('og', $event)"
-                                    placeholder="+0.00">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Prisme</label>
-                                <input type="text" formControlName="prisme" placeholder="0.00"
-                                    (blur)="formatPrismeValue('og', $event)">
-                            </div>
-                            <div class="form-group">
-                                <label>Base</label>
-                                <input type="text" formControlName="base" placeholder="H/B/Int/Ext"
-                                    (blur)="formatBaseValue('og', $event)">
-                            </div>
-                        </div>
-                        <div class="form-group full-width">
-                            <label>Écart Pupillaire (EP)</label>
-                            <input type="text" formControlName="ep" placeholder="32mm"
-                                (blur)="formatEPValue('og', $event)">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ONGLET 2: MONTURE & VERRES -->
-        <div class="tab-content" *ngIf="activeTab === 1">
-            <div class="tab-header">
-                <div class="icon-box">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
-                    </svg>
-                </div>
-                <div>
-                    <h3>Monture & Verres</h3>
-                    <p>Sélectionner les équipements pour le client</p>
-                </div>
-                <button type="button" class="btn-icon-primary">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                    </svg>
-                    Ajouter un équipement
-                </button>
-            </div>
-
-            <div class="equipment-selector" formGroupName="monture">
-                <div class="form-group">
-                    <label>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
-                        </svg>
-                    </label>
-                    <select formControlName="typeEquipement" class="equipment-select">
-                        <option *ngFor="let type of typesEquipement" [value]="type">{{ type }}</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Essayage Virtuel -->
-            <div class="virtual-try-on">
-                <div class="icon-box-purple">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M21 6h-2.81c-.45-.78-1.07-1.45-1.82-1.96L17 2.44 15.56 1l-1.97 1.97C12.96 2.36 12.49 2 12 2s-.96.36-1.59.97L8.44 1 7 2.44l.63 1.6C6.88 4.55 6.26 5.22 5.81 6H3v2h2.09c-.05.33-.09.66-.09 1v1H3v2h2v1c0 .34.04.67.09 1H3v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H19v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2V9c0-.34-.04-.67-.09-1H19V6z" />
-                    </svg>
-                </div>
-                <div>
-                    <h4>Essayage Virtuel</h4>
-                    <p>Testez les montures en stock</p>
-                </div>
-                <button type="button" class="btn-purple">Lancer</button>
-            </div>
-
-            <!-- Monture Section -->
-            <div class="section-card" formGroupName="monture">
-                <h4>Monture</h4>
-                <div class="form-row">
-                    <div class="form-group flex-2">
-                        <label>Référence / Code-barres *</label>
-                        <div class="input-with-button">
-                            <input type="text" formControlName="reference" placeholder="Scanner ou saisir">
-                            <button type="button" class="btn-scan">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                    <path
-                                        d="M9.5 6.5v3h-3v-3h3M11 5H5v6h6V5zm-1.5 9.5v3h-3v-3h3M11 13H5v6h6v-6zm6.5-6.5v3h-3v-3h3M19 5h-6v6h6V5zm-6 8h1.5v1.5H13V13zm1.5 1.5H16V16h-1.5v-1.5zM16 13h1.5v1.5H16V13zm-3 3h1.5v1.5H13V16zm1.5 1.5H16V19h-1.5v-1.5zM16 16h1.5v1.5H16V16zm1.5-1.5H19V16h-1.5v-1.5zm0 3H19V19h-1.5v-1.5zM22 7h-2V4h-3V2h5v5zm0 15v-5h-2v3h-3v2h5zM2 22h5v-2H4v-3H2v5zM2 2v5h2V4h3V2H2z" />
-                                </svg>
-                                Scan
-                            </button>
-                        </div>
-                    </div>
-                    <div class="form-group flex-2">
-                        <label>Marque</label>
-                        <input type="text" formControlName="marque" placeholder="Auto-complété par scan">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Couleur</label>
-                        <input type="text" formControlName="couleur" placeholder="Noir mat">
-                    </div>
-                    <div class="form-group">
-                        <label>Taille (L-P-B)</label>
-                        <input type="text" formControlName="taille" placeholder="52-18-145">
-                    </div>
-                    <div class="form-group">
-                        <label>Prix Monture (DH)</label>
-                        <input type="number" formControlName="prixMonture" placeholder="0.00">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Verres Section -->
-            <div class="section-card" formGroupName="verres">
-                <div class="section-header">
-                    <h4>Verres correcteurs</h4>
-                    <div class="section-actions">
-                        <button type="button" class="btn-suggestion" (click)="checkSuggestion()">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path
-                                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
-                            </svg>
-                            Suggestion
-                        </button>
-                        <label class="checkbox-label">
-                            <input type="checkbox" formControlName="differentODOG">
-                            <span>Différents OD/OG</span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Suggestions IA -->
-                <div class="suggestions-panel" *ngIf="showSuggestions">
-                    <div class="suggestion-item" *ngFor="let suggestion of suggestions"
-                        [class.suggestion-od]="suggestion.type === 'OD'"
-                        [class.suggestion-og]="suggestion.type === 'OG'">
-                        <div class="suggestion-icon">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                <path
-                                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
-                            </svg>
-                        </div>
-                        <div class="suggestion-content">
-                            <strong>[{{ suggestion.type }}] {{ suggestion.matiere }} (Indice {{ suggestion.indice
-                                }})</strong>
-                            <p>{{ suggestion.raison }} • {{ suggestion.epaisseur }}</p>
-                        </div>
-                        <button type="button" class="btn-apply" (click)="applySuggestion(suggestion)">
-                            Appliquer
-                        </button>
-                        <button type="button" class="btn-close-suggestion" (click)="closeSuggestions()">×</button>
-                    </div>
-                    <button type="button" class="btn-close-suggestions" (click)="closeSuggestions()">
-                        Fermer les suggestions ×
-                    </button>
-                </div>
-
-                <!-- Mode Simple -->
-                <div class="form-row" *ngIf="!ficheForm.get('verres.differentODOG')?.value">
-                    <div class="form-group">
-                        <label>Matière</label>
-                        <select formControlName="matiere">
-                            <option value="Organique (CR-39)">Organique (CR-39)</option>
-                            <option value="Polycarbonate">Polycarbonate</option>
-                            <option value="Trivex">Trivex</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Indice de réfraction</label>
-                        <select formControlName="indice">
-                            <option value="1.50 (Standard)">1.50 (Standard)</option>
-                            <option value="1.56">1.56</option>
-                            <option value="1.60">1.60</option>
-                            <option value="1.67">1.67</option>
-                            <option value="1.74">1.74</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Traitement</label>
-                        <select formControlName="traitement" multiple>
-                            <option value="Anti-reflet">Anti-reflet</option>
-                            <option value="Durci">Durci</option>
-                            <option value="Hydrophobe">Hydrophobe</option>
-                            <option value="Anti-rayure">Anti-rayure</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Mode Différent OD/OG -->
-                <div class="verres-split" *ngIf="ficheForm.get('verres.differentODOG')?.value">
-                    <!-- OD -->
-                    <div class="verre-od">
-                        <h4 class="eye-title-od">Œil Droit (OD)</h4>
-                        <div class="form-group">
-                            <label>Matière</label>
-                            <select formControlName="matiereOD">
-                                <option value="Organique (CR-39)">Organique (CR-39)</option>
-                                <option value="Polycarbonate">Polycarbonate</option>
-                                <option value="Trivex">Trivex</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Indice</label>
-                            <select formControlName="indiceOD">
-                                <option value="1.50 (Standard)">1.50 (Standard)</option>
-                                <option value="1.56">1.56</option>
-                                <option value="1.60">1.60</option>
-                                <option value="1.67">1.67</option>
-                                <option value="1.74">1.74</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Traitement</label>
-                            <select formControlName="traitementOD" multiple>
-                                <option value="Anti-reflet">Anti-reflet</option>
-                                <option value="Durci">Durci</option>
-                                <option value="Hydrophobe">Hydrophobe</option>
-                                <option value="Anti-rayure">Anti-rayure</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- OG -->
-                    <div class="verre-og">
-                        <h4 class="eye-title-og">Œil Gauche (OG)</h4>
-                        <div class="form-group">
-                            <label>Matière</label>
-                            <select formControlName="matiereOG">
-                                <option value="Organique (CR-39)">Organique (CR-39)</option>
-                                <option value="Polycarbonate">Polycarbonate</option>
-                                <option value="Trivex">Trivex</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Indice</label>
-                            <select formControlName="indiceOG">
-                                <option value="1.50 (Standard)">1.50 (Standard)</option>
-                                <option value="1.56">1.56</option>
-                                <option value="1.60">1.60</option>
-                                <option value="1.67">1.67</option>
-                                <option value="1.74">1.74</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Traitement</label>
-                            <select formControlName="traitementOG" multiple>
-                                <option value="Anti-reflet">Anti-reflet</option>
-                                <option value="Durci">Durci</option>
-                                <option value="Hydrophobe">Hydrophobe</option>
-                                <option value="Anti-rayure">Anti-rayure</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-group price-display">
-                    <label>Prix Verres (DH)</label>
-                    <div class="price-value">
-                        {{ ficheForm.get('verres.prixOD')?.value + ficheForm.get('verres.prixOG')?.value }}
-                        <span class="auto-badge">Auto</span>
-                    </div>
-                    <p class="price-note">Prix calculé automatiquement</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- ONGLET 3: FICHE MONTAGE (Placeholder) -->
-        <div class="tab-content" *ngIf="activeTab === 2">
-            <div class="tab-header">
-                <div class="icon-box">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6z" />
-                    </svg>
-                </div>
-                <div>
-                    <h3>Fiche Montage</h3>
-                    <p>Paramètres de centrage et montage</p>
-                </div>
-            </div>
-            <div class="placeholder-content">
-                <p>Contenu de la fiche montage à venir...</p>
-            </div>
-        </div>
     </form>
 
-    <!-- Footer Navigation -->
-    <div class="footer-nav">
-        <button type="button" class="btn-secondary" (click)="prevTab()" [disabled]="activeTab === 0">
-            ← Précédent
-        </button>
-        <button type="button" class="btn-primary" (click)="nextTab()" *ngIf="activeTab < 2">
-            Suivant →
-        </button>
-    </div>
+    <h3>{{ viewingFile.name }}</h3>
+    <button type="button" class="btn-close" (click)="closeViewer()">×</button>
+</div>
+<div class="modal-body">
+    <img *ngIf="viewingFile.type.startsWith('image/')" [src]="viewingFile.preview" alt="Prescription">
+    <iframe *ngIf="viewingFile.type === 'application/pdf'" [src]="viewingFile.preview" frameborder="0"></iframe>
+</div>
+</div>
+</div>
 
-    <!-- File Viewer Modal -->
-    <div class="file-viewer-modal" *ngIf="viewingFile" (click)="closeViewer()">
-        <div class="modal-content" (click)="$event.stopPropagation()">
-            <div class="modal-header">
-                <h3>{{ viewingFile.name }}</h3>
-                <button type="button" class="btn-close" (click)="closeViewer()">×</button>
+
+<!-- Camera Capture Modal -->
+<div class="camera-modal" *ngIf="showCameraModal" (click)="closeCamera()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <h3>Capturer une photo de prescription</h3>
+            <button type="button" class="btn-close" (click)="closeCamera()">×</button>
+        </div>
+
+        <div class="modal-body">
+            <!-- Video stream -->
+            <div class="camera-container" *ngIf="!capturedImage">
+                <video #videoElement autoplay playsinline></video>
             </div>
-            <div class="modal-body">
-                <img *ngIf="viewingFile.type.startsWith('image/')" [src]="viewingFile.preview" alt="Prescription">
-                <iframe *ngIf="viewingFile.type === 'application/pdf'" [src]="viewingFile.preview"
-                    frameborder="0"></iframe>
+
+            <!-- Captured photo preview -->
+            <div class="preview-container" *ngIf="capturedImage">
+                <img [src]="capturedImage" alt="Photo capturée">
             </div>
+
+            <!-- Hidden canvas for capture -->
+            <canvas #canvasElement style="display: none;"></canvas>
+        </div>
+
+        <div class="modal-footer">
+            <!-- Buttons before capture -->
+            <ng-container *ngIf="!capturedImage">
+                <button type="button" class="btn-secondary" (click)="closeCamera()">
+                    Annuler
+                </button>
+                <button type="button" class="btn-primary" (click)="capturePhoto()">
+                    📷 Capturer
+                </button>
+            </ng-container>
+
+            <!-- Buttons after capture -->
+            <ng-container *ngIf="capturedImage">
+                <button type="button" class="btn-secondary" (click)="retakePhoto()">
+                    ↺ Reprendre
+                </button>
+                <button type="button" class="btn-success" (click)="useCapture()">
+                    ✓ Utiliser cette photo
+                </button>
+            </ng-container>
         </div>
     </div>
-
-
-    <!-- Camera Capture Modal -->
-    <div class="camera-modal" *ngIf="showCameraModal" (click)="closeCamera()">
-        <div class="modal-content" (click)="$event.stopPropagation()">
-            <div class="modal-header">
-                <h3>Capturer une photo de prescription</h3>
-                <button type="button" class="btn-close" (click)="closeCamera()">×</button>
-            </div>
-
-            <div class="modal-body">
-                <!-- Video stream -->
-                <div class="camera-container" *ngIf="!capturedImage">
-                    <video #videoElement autoplay playsinline></video>
-                </div>
-
-                <!-- Captured photo preview -->
-                <div class="preview-container" *ngIf="capturedImage">
-                    <img [src]="capturedImage" alt="Photo capturée">
-                </div>
-
-                <!-- Hidden canvas for capture -->
-                <canvas #canvasElement style="display: none;"></canvas>
-            </div>
-
-            <div class="modal-footer">
-                <!-- Buttons before capture -->
-                <ng-container *ngIf="!capturedImage">
-                    <button type="button" class="btn-secondary" (click)="closeCamera()">
-                        Annuler
-                    </button>
-                    <button type="button" class="btn-primary" (click)="capturePhoto()">
-                        📷 Capturer
-                    </button>
-                </ng-container>
-
-                <!-- Buttons after capture -->
-                <ng-container *ngIf="capturedImage">
-                    <button type="button" class="btn-secondary" (click)="retakePhoto()">
-                        ↺ Reprendre
-                    </button>
-                    <button type="button" class="btn-success" (click)="useCapture()">
-                        ✓ Utiliser cette photo
-                    </button>
-                </ng-container>
-            </div>
-        </div>
-    </div>
+</div>
 </div>

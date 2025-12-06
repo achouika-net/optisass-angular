@@ -74,6 +74,12 @@ export class MontureFormComponent implements OnInit {
     cameraStream: MediaStream | null = null;
     capturedImage: string | null = null;
 
+    // UI States for Attachment-style display
+    montureAdded = false;
+    editingMonture = false;
+    verresAdded = false;
+    editingVerres = false;
+
     // Prix des verres (logique de calcul)
     private LENS_PRICES: Record<string, Record<string, number>> = {
         'Organique (CR-39)': {
@@ -456,7 +462,7 @@ export class MontureFormComponent implements OnInit {
     }
 
     nextTab(): void {
-        if (this.activeTab < 2) {
+        if (this.activeTab < 3) {
             this.activeTab++;
         }
     }

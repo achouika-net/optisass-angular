@@ -170,6 +170,8 @@ export interface ClientParticulier extends ClientBase {
 export interface ClientAnonyme extends ClientBase {
     typeClient: TypeClient.ANONYME;
     // Tous les champs sont facultatifs (hérités de ClientBase)
+    nom?: string;
+    prenom?: string;
 }
 
 // Client Professionnel
