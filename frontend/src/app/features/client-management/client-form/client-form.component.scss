@@ -1,0 +1,140 @@
+/* Client Form Professional Template (Simplified) */
+.client-form-container {
+    padding: 24px;
+    background-color: #f1f5f9;
+    /* Slate 100 */
+    min-height: 100vh;
+}
+
+.client-form-card {
+    max-width: 1400px;
+    margin: 0 auto;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+    background: white;
+    overflow: hidden;
+}
+
+/* Professional Header (Clean) */
+.client-card-header {
+    background: linear-gradient(to right, #f8fafc, #ffffff);
+    /* Slate 50 to White */
+    padding: 24px 32px !important;
+    border-bottom: 1px solid #e2e8f0;
+    /* Slate 200 */
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    text-align: left;
+}
+
+mat-card-title {
+    margin-bottom: 4px !important;
+    color: #1e293b;
+    /* Slate 800 */
+    font-family: 'Inter', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+mat-card-subtitle {
+    color: #64748b;
+    /* Slate 500 */
+}
+
+/* Form Content */
+mat-card-content {
+    padding: 32px !important;
+}
+
+/* Section Headers Professional */
+h3 {
+    color: #334155;
+    /* Slate 700 */
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 20px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+h3::before {
+    content: '';
+    display: block;
+    width: 4px;
+    height: 16px;
+    background-color: #3b82f6;
+    /* Blue 500 */
+    border-radius: 2px;
+}
+
+/* Form Fields */
+mat-form-field {
+    width: 100%;
+}
+
+/* Grid Layouts */
+.grid {
+    display: grid;
+    gap: 20px;
+}
+
+.grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.grid-cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.grid-cols-4 {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.col-span-2 {
+    grid-column: span 2;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+
+    .grid-cols-2,
+    .grid-cols-3,
+    .grid-cols-4 {
+        grid-template-columns: 1fr;
+    }
+
+    .client-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+}
+
+/* Radio & Checkboxes */
+mat-radio-group.flex {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+/* Tabs Override for Professional Look */
+::ng-deep .mat-mdc-tab-group {
+    font-family: 'Inter', sans-serif;
+}
+
+::ng-deep .mat-mdc-tab-header {
+    background-color: transparent;
+    border-bottom: 1px solid #e2e8f0;
+}

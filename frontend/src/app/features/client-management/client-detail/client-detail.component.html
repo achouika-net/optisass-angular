@@ -1,0 +1,214 @@
+<div class="dossier-client-container">
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <mat-icon class="header-icon">folder_open</mat-icon>
+            <h1>DOSSIER CLIENT</h1>
+        </div>
+        <button mat-icon-button (click)="goBack()" class="back-btn">
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+
+    <!-- Tabs -->
+    <mat-tab-group class="client-tabs">
+        <!-- Onglet Informations -->
+        <mat-tab label="Informations">
+            <div class="tab-content">
+                <div class="info-layout">
+                    <!-- Left: Client Info -->
+                    <div class="client-info-section">
+                        <div class="info-grid" *ngIf="client">
+                            <!-- Client Particulier -->
+                            <ng-container *ngIf="clientParticulier">
+                                <div class="info-item">
+                                    <label>TITRE</label>
+                                    <span>{{ clientParticulier.titre }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>NOM</label>
+                                    <span>{{ clientParticulier.nom }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>PRÉNOM</label>
+                                    <span>{{ clientParticulier.prenom }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>TYPE PIÈCE</label>
+                                    <span>{{ clientParticulier.typePieceIdentite }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>NUMÉRO PIÈCE</label>
+                                    <span>{{ clientParticulier.numeroPieceIdentite }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>DATE DE NAISSANCE</label>
+                                    <span>{{ clientParticulier.dateNaissance | date:'dd/MM/yyyy' }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>TÉLÉPHONE</label>
+                                    <span>{{ clientParticulier.telephone }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>EMAIL</label>
+                                    <span>{{ clientParticulier.email || '-' }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>VILLE</label>
+                                    <span>{{ clientParticulier.ville }}</span>
+                                </div>
+                                <div class="info-item full-width">
+                                    <label>ADRESSE</label>
+                                    <span>{{ clientParticulier.adresse || '-' }}</span>
+                                </div>
+                            </ng-container>
+
+                            <!-- Client Professionnel -->
+                            <ng-container *ngIf="client.typeClient === 'professionnel'">
+                                <div class="info-item">
+                                    <label>RAISON SOCIALE</label>
+                                    <span>{{ client.raisonSociale }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>ICE</label>
+                                    <span>{{ client.ice }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>IDENTIFIANT FISCAL</label>
+                                    <span>{{ client.identifiantFiscal }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>TÉLÉPHONE</label>
+                                    <span>{{ client.telephone }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>EMAIL</label>
+                                    <span>{{ client.email }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>VILLE</label>
+                                    <span>{{ client.ville }}</span>
+                                </div>
+                            </ng-container>
+
+                            <!-- Client Anonyme -->
+                            <ng-container *ngIf="client.typeClient === 'anonyme'">
+                                <div class="info-item">
+                                    <label>TYPE</label>
+                                    <span>Client Anonyme</span>
+                                </div>
+                                <div class="info-item" *ngIf="client.telephone">
+                                    <label>TÉLÉPHONE</label>
+                                    <span>{{ client.telephone }}</span>
+                                </div>
+                                <div class="info-item" *ngIf="client.ville">
+                                    <label>VILLE</label>
+                                    <span>{{ client.ville }}</span>
+                                </div>
+                            </ng-container>
+                        </div>
+                    </div>
+
+                    <!-- Right: Historique Compact -->
+                    <div class="historique-section">
+                        <h3>HISTORIQUE</h3>
+                        <div class="historique-list" *ngIf="fiches.length > 0">
+                            <div class="fiche-item" *ngFor="let fiche of fiches">
+                                <div class="fiche-info">
+                                    <div class="fiche-type">
+                                        <mat-icon>{{ getTypeIcon(fiche.type) }}</mat-icon>
+                                        <span>{{ fiche.type }}</span>
+                                    </div>
+                                    <div class="fiche-date">{{ fiche.dateCreation | date:'dd/MM/yyyy' }}</div>
+                                    <div class="fiche-id">ID: {{ fiche.id }}</div>
+                                </div>
+                                <div class="fiche-actions">
+                                    <button mat-icon-button (click)="viewFiche(fiche)" matTooltip="Voir">
+                                        <mat-icon>visibility</mat-icon>
+                                    </button>
+                                    <button mat-icon-button (click)="viewFiche(fiche)" matTooltip="Modifier">
+                                        <mat-icon>edit</mat-icon>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="empty-historique" *ngIf="fiches.length === 0">
+                            <mat-icon>inbox</mat-icon>
+                            <p>Aucune fiche</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </mat-tab>
+
+        <!-- Onglet Notes Médicales (uniquement pour Particulier) -->
+        <mat-tab label="Notes Médicales" *ngIf="clientParticulier?.dossierMedical">
+            <div class="tab-content medical-notes" *ngIf="clientParticulier?.dossierMedical as dossier">
+                <div class="medical-section">
+                    <h3><mat-icon>visibility</mat-icon> Antécédents Visuels</h3>
+                    <div class="info-grid">
+                        <div class="info-item" *ngIf="dossier.correctionActuelle">
+                            <label>Correction actuelle</label>
+                            <span>{{ dossier.correctionActuelle }}</span>
+                        </div>
+                        <div class="info-item" *ngIf="dossier.dureePort">
+                            <label>Durée de port</label>
+                            <span>{{ dossier.dureePort }}</span>
+                        </div>
+                    </div>
+                    <div class="checkbox-grid">
+                        <mat-chip-set>
+                            <mat-chip *ngIf="dossier.traumatisme" color="warn">Traumatisme</mat-chip>
+                            <mat-chip *ngIf="dossier.operation" color="warn">Opération</mat-chip>
+                            <mat-chip *ngIf="dossier.inflammation" color="warn">Inflammation</mat-chip>
+                            <mat-chip *ngIf="dossier.sensibiliteLumiere" color="warn">Sensibilité
+                                lumière</mat-chip>
+                            <mat-chip *ngIf="dossier.secheresse" color="warn">Sécheresse</mat-chip>
+                        </mat-chip-set>
+                    </div>
+                </div>
+
+                <div class="medical-section"
+                    *ngIf="dossier.maladiesChroniques?.actif || dossier.traitementMedicamenteux?.actif || dossier.allergies?.actif">
+                    <h3><mat-icon>local_hospital</mat-icon> Antécédents Médicaux</h3>
+                    <div class="info-item" *ngIf="dossier.maladiesChroniques?.actif">
+                        <label>Maladies chroniques</label>
+                        <p>{{ dossier.maladiesChroniques.details }}</p>
+                    </div>
+                    <div class="info-item" *ngIf="dossier.traitementMedicamenteux?.actif">
+                        <label>Traitements médicamenteux</label>
+                        <p>{{ dossier.traitementMedicamenteux.details }}</p>
+                    </div>
+                    <div class="info-item" *ngIf="dossier.allergies?.actif">
+                        <label>Allergies</label>
+                        <p>{{ dossier.allergies.details }}</p>
+                    </div>
+                </div>
+
+                <div class="medical-section" *ngIf="dossier.remarques">
+                    <h3><mat-icon>notes</mat-icon> Remarques</h3>
+                    <p class="remarques">{{ dossier.remarques }}</p>
+                </div>
+            </div>
+        </mat-tab>
+    </mat-tab-group>
+
+    <!-- Footer Actions -->
+    <div class="footer-actions">
+        <div class="action-buttons">
+            <button mat-raised-button color="primary" (click)="createFicheMonture()">
+                <mat-icon>visibility</mat-icon>
+                Nouveau Dossier Monture
+            </button>
+            <button mat-raised-button color="primary" (click)="createFicheLentilles()">
+                <mat-icon>remove_red_eye</mat-icon>
+                Nouveau Dossier Lentilles
+            </button>
+            <button mat-raised-button color="accent" (click)="createFicheProduit()">
+                <mat-icon>shopping_cart</mat-icon>
+                Nouveau Dossier Produit
+            </button>
+        </div>
+        <button mat-stroked-button (click)="goBack()">Fermer</button>
+    </div>
+</div>

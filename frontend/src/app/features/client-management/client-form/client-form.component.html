@@ -1,12 +1,14 @@
 <div class="client-form-container p-6">
     <mat-card class="client-form-card">
-        <mat-card-header class="mb-4">
-            <mat-card-title>
-                {{ isEditMode() ? 'Modifier un client' : 'Ajouter un client' }}
-            </mat-card-title>
-            <mat-card-subtitle>
-                Gestion des clients OptiSass
-            </mat-card-subtitle>
+        <mat-card-header class="client-card-header mb-6">
+            <div>
+                <mat-card-title>
+                    {{ isEditMode() ? 'Modifier un client' : 'Nouveau Dossier Client' }}
+                </mat-card-title>
+                <mat-card-subtitle>
+                    Gestion complète du dossier client
+                </mat-card-subtitle>
+            </div>
         </mat-card-header>
 
         <mat-card-content>
@@ -19,7 +21,7 @@
                             🧍 Particulier
                         </mat-radio-button>
                         <mat-radio-button [value]="TypeClient.ANONYME">
-                            👤 Anonyme
+                            👤 Client de passage
                         </mat-radio-button>
                         <mat-radio-button [value]="TypeClient.PROFESSIONNEL">
                             🏢 Professionnel
@@ -142,7 +144,7 @@
                                 <mat-form-field appearance="outline">
                                     <mat-label>Identifiant fiscal</mat-label>
                                     <input matInput formControlName="identifiantFiscal"
-                                        placeholder="Identifiant fiscal">
+                                        placeholder="Identifiant Fiscal (Patente)">
                                     @if (clientForm.get('identifiantFiscal')?.hasError('required') &&
                                     clientForm.get('identifiantFiscal')?.touched) {
                                     <mat-error>L'identifiant fiscal est obligatoire</mat-error>
@@ -168,6 +170,35 @@
                                     <mat-label>Patente</mat-label>
                                     <input matInput formControlName="patente" placeholder="Patente (facultatif)">
                                 </mat-form-field>
+
+                                <!-- TVA Block -->
+                                <div class="col-span-2 flex flex-row items-center gap-4 mt-2 mb-2">
+                                    <mat-checkbox formControlName="tvaAssujetti" color="primary">
+                                        Client exonéré de la TVA
+                                    </mat-checkbox>
+
+                                    <mat-form-field appearance="outline" *ngIf="clientForm.get('tvaAssujetti')?.value"
+                                        class="flex-1 -mb-5">
+                                        <mat-label>Numéro d'autorisation d'exonération</mat-label>
+                                        <input matInput formControlName="numeroAutorisation"
+                                            placeholder="Saisir le N° d'autorisation">
+                                        @if (clientForm.get('numeroAutorisation')?.hasError('required') &&
+                                        clientForm.get('numeroAutorisation')?.touched) {
+                                        <mat-error>Le numéro d'autorisation est obligatoire</mat-error>
+                                        }
+                                    </mat-form-field>
+                                </div>
+                            </div>
+                            }
+
+                            <!-- Client de passage Info -->
+                            @if (clientForm.get('typeClient')?.value === TypeClient.ANONYME) {
+                            <div class="bg-gray-50 p-6 rounded-lg mb-6">
+                                <p class="text-gray-600 mb-4">
+                                    <mat-icon class="align-middle mr-2">info</mat-icon>
+                                    Client de passage : utilisé pour les ventes ponctuelles. Aucun champ
+                                    obligatoire.
+                                </p>
                             </div>
                             }
 
@@ -430,7 +461,7 @@
                                     <div class="mb-4">
                                         <label class="block font-medium mb-2">Portez-vous actuellement</label>
                                         <mat-radio-group formControlName="correctionActuelle"
-                                            class="flex flex-col gap-2">
+                                            class="flex flex-row gap-4 flex-wrap">
                                             @for (correction of correctionsVisuelles; track correction) {
                                             <mat-radio-button [value]="correction">{{ correction }}</mat-radio-button>
                                             }
@@ -441,7 +472,8 @@
                                     <div class="mb-4">
                                         <label class="block font-medium mb-2">Depuis combien de temps portez-vous une
                                             correction visuelle ?</label>
-                                        <mat-radio-group formControlName="dureePort" class="flex flex-col gap-2">
+                                        <mat-radio-group formControlName="dureePort"
+                                            class="flex flex-row gap-4 flex-wrap">
                                             @for (duree of dureesPort; track duree) {
                                             <mat-radio-button [value]="duree">{{ duree }}</mat-radio-button>
                                             }

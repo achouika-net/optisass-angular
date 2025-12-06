@@ -170,20 +170,20 @@
                     </div>
                 </div>
 
-                <button mat-raised-button type="button" color="primary" (click)="addCentreRole()"
-                    class="add-role-btn mt-4">
-                    <mat-icon>add</mat-icon>
-                    Ajouter un rôle
-                </button>
+                <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
+                    <button mat-stroked-button type="button" color="primary" (click)="addCentreRole()">
+                        <mat-icon>add</mat-icon>
+                        Ajouter un rôle
+                    </button>
+
+                    <div class="flex gap-4">
+                        <button mat-button type="button" (click)="onCancel()">Annuler</button>
+                        <button mat-raised-button color="primary" type="submit" [disabled]="!userForm.valid">
+                            {{ isEditMode ? 'Mettre à jour' : 'Enregistrer' }}
+                        </button>
+                    </div>
+                </div>
             </mat-card-content>
         </mat-card>
-
-        <!-- Form Actions -->
-        <div class="form-actions">
-            <button mat-button type="button" (click)="onCancel()">Annuler</button>
-            <button mat-raised-button color="primary" type="submit" [disabled]="!userForm.valid">
-                {{ isEditMode ? 'Mettre à jour' : 'Enregistrer' }}
-            </button>
-        </div>
     </form>
 </div>

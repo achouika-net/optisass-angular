@@ -112,8 +112,8 @@ export class ClientService {
         const exists = this.clients.some(c =>
             c.id !== excludeId &&
             c.typeClient === TypeClient.PARTICULIER &&
-            'cin' in c &&
-            c.cin === cin
+            'numeroPieceIdentite' in c &&
+            c.numeroPieceIdentite === cin
         );
 
         return of(!exists).pipe(delay(200));
@@ -162,8 +162,8 @@ export class ClientService {
         if (filters.cin) {
             results = results.filter(c =>
                 c.typeClient === TypeClient.PARTICULIER &&
-                'cin' in c &&
-                c.cin.includes(filters.cin!)
+                'numeroPieceIdentite' in c &&
+                c.numeroPieceIdentite.toLowerCase().includes(filters.cin!.toLowerCase())
             );
         }
 

@@ -233,6 +233,8 @@ export interface ClientProfessionnel extends ClientBase {
     contacts: ContactProfessionnel[]; // Au moins un contact
     typePartenariat?: string;
     facturationGroupee?: boolean;
+    tvaAssujetti?: boolean;
+    numeroAutorisation?: string;
 }
 
 // Type union pour tous les clients

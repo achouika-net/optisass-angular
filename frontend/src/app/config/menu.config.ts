@@ -147,9 +147,9 @@ export const MENU: MenuItem[] = [
     children: [
       {
         label: 'Gestion des utilisateurs',
-        icon: 'Person',
-        type: 'link',
-        route: 'settings/users',
+        icon: 'people',
+        type: 'subchild',
+        route: 'users',
       },
       {
         label: 'Agenda contrôleur',

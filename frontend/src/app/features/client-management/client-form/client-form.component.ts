@@ -133,6 +133,18 @@ export class ClientFormComponent implements OnInit {
     this.clientForm.get('titre')?.valueChanges.subscribe(titre => {
       this.onTitreChange(titre);
     });
+
+    // Écouter les changements de TVA
+    this.clientForm.get('tvaAssujetti')?.valueChanges.subscribe(assujetti => {
+      const authControl = this.clientForm.get('numeroAutorisation');
+      if (assujetti) {
+        authControl?.setValidators([Validators.required]);
+      } else {
+        authControl?.clearValidators();
+        authControl?.setValue('');
+      }
+      authControl?.updateValueAndValidity();
+    });
   }
 
   private initForm(): void {
@@ -226,6 +238,8 @@ export class ClientFormComponent implements OnInit {
       patente: [''],
       typePartenariat: [''],
       facturationGroupee: [false],
+      tvaAssujetti: [false],
+      numeroAutorisation: [''],
       // Convention (pour Professionnels)
       convention: this.fb.group({
         actif: [false],
@@ -462,8 +476,16 @@ export class ClientFormComponent implements OnInit {
         patente: client.patente,
         typePartenariat: client.typePartenariat,
         facturationGroupee: client.facturationGroupee,
+        tvaAssujetti: client.tvaAssujetti,
+        numeroAutorisation: client.numeroAutorisation,
         email: client.email
       });
+
+      // Update validation for TVA manually if needed since we just patched
+      if (client.tvaAssujetti) {
+        this.clientForm.get('numeroAutorisation')?.setValidators([Validators.required]);
+        this.clientForm.get('numeroAutorisation')?.updateValueAndValidity();
+      }
 
       // Convention
       if (client.convention) {
@@ -565,6 +587,8 @@ export class ClientFormComponent implements OnInit {
         ville: formValue.ville,
         typePartenariat: formValue.typePartenariat || undefined,
         facturationGroupee: formValue.facturationGroupee,
+        tvaAssujetti: formValue.tvaAssujetti,
+        numeroAutorisation: formValue.numeroAutorisation || undefined,
         convention: formValue.convention,
         contacts: formValue.contacts || []
       };
