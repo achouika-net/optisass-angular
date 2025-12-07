@@ -54,6 +54,7 @@ export class MontureFormComponent implements OnInit {
     @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
     @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
     @ViewChild('canvasElement') canvasElement!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('centeringCanvas') centeringCanvas!: ElementRef<HTMLCanvasElement>;
 
     ficheForm: FormGroup;
     clientId: string | null = null;
@@ -280,10 +281,10 @@ export class MontureFormComponent implements OnInit {
             // Onglet 3: Fiche Montage
             montage: this.fb.group({
                 typeMontage: ['Cerclé (Complet)'],
-                ecartPupillaireOD: [32],
-                ecartPupillaireOG: [32],
-                hauteurOD: [20],
-                hauteurOG: [20],
+                ecartPupillaireOD: [32, [Validators.required, Validators.min(20), Validators.max(40)]],
+                ecartPupillaireOG: [32, [Validators.required, Validators.min(20), Validators.max(40)]],
+                hauteurOD: [20, [Validators.required, Validators.min(10), Validators.max(30)]],
+                hauteurOG: [20, [Validators.required, Validators.min(10), Validators.max(30)]],
                 diametreEffectif: ['65/70'],
                 remarques: ['']
             }),
@@ -998,5 +999,122 @@ export class MontureFormComponent implements OnInit {
                 this.cdr.markForCheck();
             }
         });
+    }
+
+    ngAfterViewInit(): void {
+        // Initialize canvas drawing
+        setTimeout(() => {
+            this.drawCenteringCanvas();
+        }, 100);
+
+        // Listen to montage form changes for real-time canvas updates
+        this.ficheForm.get('montage')?.valueChanges.subscribe(() => {
+            this.drawCenteringCanvas();
+        });
+    }
+
+    /**
+     * Draw centering canvas with OD/OG circles and crosshairs
+     */
+    drawCenteringCanvas(): void {
+        if (!this.centeringCanvas) return;
+
+        const canvas = this.centeringCanvas.nativeElement;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Get values from form
+        const pdOD = this.ficheForm.get('montage.ecartPupillaireOD')?.value || 32;
+        const pdOG = this.ficheForm.get('montage.ecartPupillaireOG')?.value || 32;
+        const hauteurOD = this.ficheForm.get('montage.hauteurOD')?.value || 20;
+        const hauteurOG = this.ficheForm.get('montage.hauteurOG')?.value || 20;
+
+        // Scale: 1mm = 4px
+        const scale = 4;
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        // Calculate positions
+        const odX = centerX - (pdOD * scale / 2);
+        const ogX = centerX + (pdOG * scale / 2);
+        const odY = centerY - (hauteurOD * scale / 2);
+        const ogY = centerY - (hauteurOG * scale / 2);
+
+        // Draw OD circle (blue)
+        ctx.strokeStyle = '#4f46e5';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(odX, odY, 30, 0, 2 * Math.PI);
+        ctx.stroke();
+
+        // Draw OD crosshair
+        ctx.strokeStyle = '#4f46e5';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(odX - 15, odY);
+        ctx.lineTo(odX + 15, odY);
+        ctx.moveTo(odX, odY - 15);
+        ctx.lineTo(odX, odY + 15);
+        ctx.stroke();
+
+        // Draw OG circle (green)
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(ogX, ogY, 30, 0, 2 * Math.PI);
+        ctx.stroke();
+
+        // Draw OG crosshair
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(ogX - 15, ogY);
+        ctx.lineTo(ogX + 15, ogY);
+        ctx.moveTo(ogX, ogY - 15);
+        ctx.lineTo(ogX, ogY + 15);
+        ctx.stroke();
+
+        // Draw labels
+        ctx.font = 'bold 14px Inter, sans-serif';
+        ctx.fillStyle = '#4f46e5';
+        ctx.fillText('OD', odX - 10, odY - 40);
+        ctx.fillStyle = '#10b981';
+        ctx.fillText('OG', ogX - 10, ogY - 40);
+
+        // Draw center reference line
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(centerX, 0);
+        ctx.lineTo(centerX, canvas.height);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Draw scale indicator
+        ctx.font = '12px Inter, sans-serif';
+        ctx.fillStyle = '#64748b';
+        ctx.fillText('Échelle: 1mm = 4px', 10, canvas.height - 10);
+    }
+
+    /**
+     * Open virtual centering modal (placeholder)
+     */
+    openVirtualCentering(): void {
+        // TODO: Integrate with existing PD measurement system or create modal
+        console.log('Virtual centering feature - to be implemented');
+        alert('Fonctionnalité de centrage virtuel à venir...');
+    }
+
+    /**
+     * Generate and download montage sheet PDF (placeholder)
+     */
+    generateMontageSheet(): void {
+        // TODO: Implement PDF generation with jsPDF or pdfmake
+        console.log('PDF generation feature - to be implemented');
+        alert('Génération PDF de la fiche de montage à venir...');
     }
 }
