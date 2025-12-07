@@ -30,6 +30,10 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
     faceWidth: number = 0; // Face width in pixels
     currentLandmarks: Point[] = [];
 
+    // Capture State
+    capturedImage: HTMLImageElement | null = null;
+    isCaptured = false;
+
     // Height Measurement (Bottom of frame lines)
     frameBottomLeftY: number = 0;
     frameBottomRightY: number = 0;
