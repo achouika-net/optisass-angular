@@ -308,12 +308,10 @@
                                         formControlName="taille">
                                 </div>
                                 <div class="form-group">
-                                    <mat-form-field appearance="outline" class="w-full">
-                                        <mat-label>Prix Monture</mat-label>
-                                        <input matInput type="text" formControlName="prixMonture"
-                                            (blur)="formatPrice(ficheForm.get('monture.prixMonture'), $event)">
-                                        <span matSuffix>DH</span>
-                                    </mat-form-field>
+                                    <label>Prix Monture</label>
+                                    <input type="text" formControlName="prixMonture"
+                                        (blur)="formatPrice(ficheForm.get('monture.prixMonture'), $event)"
+                                        placeholder="0.00 DH">
                                 </div>
 
                             </div>
@@ -528,12 +526,10 @@
                                     <div class="form-group"><label>Taille</label><input type="text"
                                             formControlName="taille"></div>
                                     <div class="form-group">
-                                        <mat-form-field appearance="outline" class="w-full">
-                                            <mat-label>Prix</mat-label>
-                                            <input matInput type="text" formControlName="prixMonture"
-                                                (blur)="formatPrice(getEquipmentGroup(i).get('monture.prixMonture'), $event)">
-                                            <span matSuffix>DH</span>
-                                        </mat-form-field>
+                                        <label>Prix</label>
+                                        <input type="text" formControlName="prixMonture"
+                                            (blur)="formatPrice(getEquipmentGroup(i).get('monture.prixMonture'), $event)"
+                                            placeholder="0.00 DH">
                                     </div>
                                 </div>
                             </div>
