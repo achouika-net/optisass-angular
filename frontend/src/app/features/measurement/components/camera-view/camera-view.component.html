@@ -1,0 +1,60 @@
+<div class="camera-container">
+    <div class="video-wrapper">
+        <video #videoElement autoplay playsinline muted class="video-element"></video>
+        <canvas #overlayCanvas width="1280" height="720" class="overlay-canvas"></canvas>
+
+        @if (!isReady) {
+        <div class="loading-overlay">
+            <div class="spinner"></div>
+            <p>Chargement du système de détection...</p>
+        </div>
+        }
+    </div>
+
+    <div class="controls-panel">
+        <div class="calibration-section">
+            <h3>📏 Calibration</h3>
+            <p class="instruction">Placez une carte bancaire (85.6 mm) bien visible dans le cadre</p>
+
+            <div class="input-group">
+                <label for="cardWidth">Largeur de la carte (pixels)</label>
+                <input type="number" id="cardWidth" [(ngModel)]="cardWidthPx" placeholder="ex: 450"
+                    class="form-control" />
+            </div>
+
+            <button (click)="calibrate()" [disabled]="!cardWidthPx || cardWidthPx <= 0" class="btn-calibrate">
+                Calibrer
+            </button>
+
+            @if (isCalibrated) {
+            <div class="calibration-status success">
+                ✓ Calibré: {{ pixelsPerMm?.toFixed(2) }} px/mm
+            </div>
+            } @else {
+            <div class="calibration-status warning">
+                ⚠ Non calibré - mesures indisponibles
+            </div>
+            }
+        </div>
+
+        <div class="measurements-section">
+            <h3>📊 Mesures</h3>
+            @if (latestMeasurement) {
+            <div class="measurement-item">
+                <span class="label">PD Total:</span>
+                <span class="value">{{ latestMeasurement.pdMm.toFixed(1) }} mm</span>
+            </div>
+            <div class="measurement-item">
+                <span class="label">PD Gauche:</span>
+                <span class="value">{{ latestMeasurement.pdLeftMm.toFixed(1) }} mm</span>
+            </div>
+            <div class="measurement-item">
+                <span class="label">PD Droit:</span>
+                <span class="value">{{ latestMeasurement.pdRightMm.toFixed(1) }} mm</span>
+            </div>
+            } @else {
+            <p class="no-data">Aucune mesure disponible</p>
+            }
+        </div>
+    </div>
+</div>
