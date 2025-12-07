@@ -14,44 +14,33 @@
     <div class="controls-panel">
         <div class="calibration-section">
             <h3>📏 Calibration</h3>
-            <p class="instruction">Placez une carte bancaire (85.6 mm) bien visible dans le cadre</p>
 
-            <!-- Auto-detection button -->
-            <button (click)="detectCardAutomatically()" [disabled]="isDetectingCard" class="btn-auto-detect">
-                @if (isDetectingCard) {
-                🔍 Détection en cours...
-                } @else {
-                🎯 Détecter Carte Automatiquement
-                }
+            @if (!isCalibrated) {
+            <div class="calibration-instructions">
+                <p class="instruction-title">🎯 Calibration Rapide</p>
+                <ol class="instruction-list">
+                    <li>Portez vos lunettes</li>
+                    <li>Regardez la caméra bien en face</li>
+                    <li>Entrez la largeur de votre monture (mm)</li>
+                    <li>Cliquez "Calibrer"</li>
+                </ol>
+            </div>
+
+            <div class="input-group">
+                <label for="frameWidth">Largeur monture (mm)</label>
+                <input type="number" id="frameWidth" [(ngModel)]="frameWidthMm" placeholder="ex: 140"
+                    class="form-control" />
+                <small class="help-text">Largeur totale de la monture (généralement 130-150mm)</small>
+            </div>
+
+            <button (click)="calibrateWithFrame()" [disabled]="!frameWidthMm || frameWidthMm <= 0"
+                class="btn-calibrate">
+                ✓ Calibrer avec Monture
             </button>
-
-            @if (detectedCard) {
-            <div class="calibration-status success">
-                ✓ Carte détectée: {{ detectedCard.width }} x {{ detectedCard.height }} px
-            </div>
-            }
-
-            <!-- Manual calibration -->
-            <div class="manual-calibration">
-                <p class="or-divider">ou calibration manuelle</p>
-                <div class="input-group">
-                    <label for="cardWidth">Largeur de la carte (pixels)</label>
-                    <input type="number" id="cardWidth" [(ngModel)]="cardWidthPx" placeholder="ex: 450"
-                        class="form-control" />
-                </div>
-
-                <button (click)="calibrate()" [disabled]="!cardWidthPx || cardWidthPx <= 0" class="btn-calibrate">
-                    Calibrer Manuellement
-                </button>
-            </div>
-
-            @if (isCalibrated) {
+            } @else {
             <div class="calibration-status success">
                 ✓ Calibré: {{ pixelsPerMm?.toFixed(2) }} px/mm
-            </div>
-            } @else {
-            <div class="calibration-status warning">
-                ⚠ Non calibré - mesures indisponibles
+                <button (click)="resetCalibration()" class="btn-reset">🔄 Recalibrer</button>
             </div>
             }
         </div>

@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MediaPipeEngineService } from '../../services/mediapipe-engine.service';
 import { CalibrationService } from '../../services/calibration.service';
-import { CardDetectionService } from '../../services/card-detection.service';
 import { ExpSmoother } from '../../utils/smoothing.util';
 import { Measurement, Point } from '../../models/measurement.model';
 
@@ -21,16 +20,15 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
 
     @Output() measurementChange = new EventEmitter<Measurement>();
 
-    cardWidthPx: number = 0;
+    frameWidthMm: number = 140; // Default frame width
     pixelsPerMm: number | null = null;
     isCalibrated = false;
     isReady = false;
     latestMeasurement: Measurement | null = null;
 
-    // Auto card detection
-    autoDetectCard = true;
-    detectedCard: { width: number; height: number; x: number; y: number } | null = null;
-    isDetectingCard = false;
+    // Face landmarks for calibration
+    faceWidth: number = 0; // Face width in pixels
+    currentLandmarks: Point[] = [];
 
     private smootherLeft = new ExpSmoother(0.35);
     private smootherRight = new ExpSmoother(0.35);
@@ -38,7 +36,6 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
     constructor(
         private mpEngine: MediaPipeEngineService,
         private calibrationService: CalibrationService,
-        private cardDetection: CardDetectionService,
         private cdr: ChangeDetectorRef
     ) { }
 
@@ -47,7 +44,6 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         const savedCalibration = this.calibrationService.loadCalibration();
         if (savedCalibration && this.calibrationService.isCalibrationValid()) {
             this.pixelsPerMm = savedCalibration.pixelsPerMm;
-            this.cardWidthPx = savedCalibration.cardWidthPx;
             this.isCalibrated = true;
         }
 
@@ -67,7 +63,6 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         // Wait for MediaPipe to be ready if not already
         if (!this.isReady) {
             console.log('Waiting for MediaPipe to initialize...');
-            // Wait up to 5 seconds for MediaPipe to initialize
             for (let i = 0; i < 50; i++) {
                 if (this.isReady) break;
                 await new Promise(resolve => setTimeout(resolve, 100));
@@ -118,6 +113,12 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
                     result.pupils.left = smoothedLeft;
                     result.pupils.right = smoothedRight;
 
+                    // Store landmarks for calibration
+                    if (result.landmarks) {
+                        this.currentLandmarks = result.landmarks;
+                        this.calculateFaceWidth();
+                    }
+
                     // Draw overlay
                     this.drawOverlay(result.pupils);
 
@@ -138,75 +139,65 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         }
     }
 
-    async detectCardAutomatically(): Promise<void> {
-        if (!this.autoDetectCard || this.isDetectingCard || this.isCalibrated) {
-            return;
-        }
+    /**
+     * Calculate face width using landmarks (temple to temple)
+     */
+    private calculateFaceWidth(): void {
+        if (!this.currentLandmarks || this.currentLandmarks.length < 454) return;
 
-        this.isDetectingCard = true;
+        // Use landmarks 234 (left temple) and 454 (right temple)
+        const leftTemple = this.currentLandmarks[234];
+        const rightTemple = this.currentLandmarks[454];
 
-        try {
-            if (this.videoElement && this.cardDetection.isReady()) {
-                const card = await this.cardDetection.detectCard(this.videoElement.nativeElement);
-
-                if (card) {
-                    console.log('Card detected:', card);
-                    this.detectedCard = card;
-
-                    // Auto-calibrate with detected card width
-                    this.cardWidthPx = card.width;
-                    this.pixelsPerMm = this.calibrationService.pixelsPerMmFromCardWidth(card.width);
-                    this.isCalibrated = true;
-
-                    // Save calibration
-                    this.calibrationService.saveCalibration({
-                        pixelsPerMm: this.pixelsPerMm,
-                        cardWidthPx: this.cardWidthPx,
-                        deviceId: navigator.userAgent,
-                        timestamp: Date.now()
-                    });
-
-                    console.log(`Auto-calibrated: ${this.pixelsPerMm.toFixed(2)} px/mm`);
-                    this.cdr.markForCheck();
-                } else {
-                    this.detectedCard = null;
-                }
-            }
-        } catch (error) {
-            console.error('Auto card detection error:', error);
-        } finally {
-            this.isDetectingCard = false;
-
-            // Try again in 2 seconds if not calibrated
-            if (!this.isCalibrated && this.autoDetectCard) {
-                setTimeout(() => this.detectCardAutomatically(), 2000);
-            }
+        if (leftTemple && rightTemple) {
+            this.faceWidth = Math.hypot(
+                rightTemple.x - leftTemple.x,
+                rightTemple.y - leftTemple.y
+            );
         }
     }
 
-    calibrate(): void {
-        if (!this.cardWidthPx || this.cardWidthPx <= 0) {
-            alert('Veuillez entrer une largeur de carte valide en pixels');
+    /**
+     * Calibrate using frame width
+     */
+    calibrateWithFrame(): void {
+        if (!this.frameWidthMm || this.frameWidthMm <= 0) {
+            alert('Veuillez entrer une largeur de monture valide');
+            return;
+        }
+
+        if (this.faceWidth <= 0) {
+            alert('Aucun visage détecté. Assurez-vous d\'être bien visible dans la caméra.');
             return;
         }
 
         try {
-            this.pixelsPerMm = this.calibrationService.pixelsPerMmFromCardWidth(this.cardWidthPx);
+            // Calculate pixels per mm based on face width
+            // Assuming frame width ≈ face width when wearing glasses
+            this.pixelsPerMm = this.faceWidth / this.frameWidthMm;
             this.isCalibrated = true;
 
             // Save calibration
             this.calibrationService.saveCalibration({
                 pixelsPerMm: this.pixelsPerMm,
-                cardWidthPx: this.cardWidthPx,
+                cardWidthPx: this.faceWidth, // Store face width as reference
                 deviceId: navigator.userAgent,
                 timestamp: Date.now()
             });
 
+            console.log(`Calibrated: ${this.pixelsPerMm.toFixed(2)} px/mm`);
             this.cdr.markForCheck();
         } catch (error) {
             console.error('Calibration error:', error);
             alert('Erreur de calibration');
         }
+    }
+
+    resetCalibration(): void {
+        this.isCalibrated = false;
+        this.pixelsPerMm = null;
+        localStorage.removeItem('calibration_data');
+        this.cdr.markForCheck();
     }
 
     private calculateMeasurement(pupils: { left: Point; right: Point }): Measurement {
@@ -242,23 +233,6 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         if (!ctx) return;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Draw detected card rectangle if available
-        if (this.detectedCard) {
-            ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(
-                this.detectedCard.x,
-                this.detectedCard.y,
-                this.detectedCard.width,
-                this.detectedCard.height
-            );
-
-            // Draw "CARTE DÉTECTÉE" label
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.9)';
-            ctx.font = 'bold 16px Inter, Arial';
-            ctx.fillText('✓ CARTE DÉTECTÉE', this.detectedCard.x, this.detectedCard.y - 10);
-        }
 
         // Draw pupils
         ctx.fillStyle = 'rgba(0, 200, 0, 0.9)';
