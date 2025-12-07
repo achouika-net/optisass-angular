@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MediaPipeEngineService } from '../../services/mediapipe-engine.service';
 import { CalibrationService } from '../../services/calibration.service';
+import { CardDetectionService } from '../../services/card-detection.service';
 import { ExpSmoother } from '../../utils/smoothing.util';
 import { Measurement, Point } from '../../models/measurement.model';
 
@@ -26,12 +27,18 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
     isReady = false;
     latestMeasurement: Measurement | null = null;
 
+    // Auto card detection
+    autoDetectCard = true;
+    detectedCard: { width: number; height: number; x: number; y: number } | null = null;
+    isDetectingCard = false;
+
     private smootherLeft = new ExpSmoother(0.35);
     private smootherRight = new ExpSmoother(0.35);
 
     constructor(
         private mpEngine: MediaPipeEngineService,
         private calibrationService: CalibrationService,
+        private cardDetection: CardDetectionService,
         private cdr: ChangeDetectorRef
     ) { }
 
@@ -131,6 +138,52 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         }
     }
 
+    async detectCardAutomatically(): Promise<void> {
+        if (!this.autoDetectCard || this.isDetectingCard || this.isCalibrated) {
+            return;
+        }
+
+        this.isDetectingCard = true;
+
+        try {
+            if (this.videoElement && this.cardDetection.isReady()) {
+                const card = await this.cardDetection.detectCard(this.videoElement.nativeElement);
+
+                if (card) {
+                    console.log('Card detected:', card);
+                    this.detectedCard = card;
+
+                    // Auto-calibrate with detected card width
+                    this.cardWidthPx = card.width;
+                    this.pixelsPerMm = this.calibrationService.pixelsPerMmFromCardWidth(card.width);
+                    this.isCalibrated = true;
+
+                    // Save calibration
+                    this.calibrationService.saveCalibration({
+                        pixelsPerMm: this.pixelsPerMm,
+                        cardWidthPx: this.cardWidthPx,
+                        deviceId: navigator.userAgent,
+                        timestamp: Date.now()
+                    });
+
+                    console.log(`Auto-calibrated: ${this.pixelsPerMm.toFixed(2)} px/mm`);
+                    this.cdr.markForCheck();
+                } else {
+                    this.detectedCard = null;
+                }
+            }
+        } catch (error) {
+            console.error('Auto card detection error:', error);
+        } finally {
+            this.isDetectingCard = false;
+
+            // Try again in 2 seconds if not calibrated
+            if (!this.isCalibrated && this.autoDetectCard) {
+                setTimeout(() => this.detectCardAutomatically(), 2000);
+            }
+        }
+    }
+
     calibrate(): void {
         if (!this.cardWidthPx || this.cardWidthPx <= 0) {
             alert('Veuillez entrer une largeur de carte valide en pixels');
@@ -189,6 +242,23 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         if (!ctx) return;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw detected card rectangle if available
+        if (this.detectedCard) {
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(
+                this.detectedCard.x,
+                this.detectedCard.y,
+                this.detectedCard.width,
+                this.detectedCard.height
+            );
+
+            // Draw "CARTE DÉTECTÉE" label
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.9)';
+            ctx.font = 'bold 16px Inter, Arial';
+            ctx.fillText('✓ CARTE DÉTECTÉE', this.detectedCard.x, this.detectedCard.y - 10);
+        }
 
         // Draw pupils
         ctx.fillStyle = 'rgba(0, 200, 0, 0.9)';
