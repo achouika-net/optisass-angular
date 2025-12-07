@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, Output, EventEmitter, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, ElementRef, Output, EventEmitter, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MediaPipeEngineService } from '../../services/mediapipe-engine.service';
@@ -14,7 +14,7 @@ import { Measurement, Point } from '../../models/measurement.model';
     styleUrls: ['./camera-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class CameraViewComponent implements OnInit, OnDestroy {
+export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
     @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
     @ViewChild('overlayCanvas') overlayCanvas!: ElementRef<HTMLCanvasElement>;
 
@@ -54,11 +54,26 @@ export class CameraViewComponent implements OnInit, OnDestroy {
         }
     }
 
-    ngAfterViewInit(): void {
+    async ngAfterViewInit(): Promise<void> {
+        console.log('CameraView ngAfterViewInit called');
+
+        // Wait for MediaPipe to be ready if not already
+        if (!this.isReady) {
+            console.log('Waiting for MediaPipe to initialize...');
+            // Wait up to 5 seconds for MediaPipe to initialize
+            for (let i = 0; i < 50; i++) {
+                if (this.isReady) break;
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+
         if (this.isReady && this.videoElement) {
+            console.log('Starting camera...');
             setTimeout(() => {
                 this.startCamera();
             }, 500);
+        } else {
+            console.error('MediaPipe not ready or video element not found');
         }
     }
 
@@ -66,30 +81,54 @@ export class CameraViewComponent implements OnInit, OnDestroy {
         this.mpEngine.stop();
     }
 
-    startCamera(): void {
-        if (!this.videoElement) return;
+    async startCamera(): Promise<void> {
+        console.log('startCamera called');
 
-        this.mpEngine.start(this.videoElement.nativeElement, (result) => {
-            if (result.pupils) {
-                // Apply smoothing
-                const smoothedLeft = this.smootherLeft.next(result.pupils.left);
-                const smoothedRight = this.smootherRight.next(result.pupils.right);
+        if (!this.videoElement) {
+            console.error('Video element not found');
+            return;
+        }
 
-                result.pupils.left = smoothedLeft;
-                result.pupils.right = smoothedRight;
+        try {
+            // Request camera permissions first
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user', width: 1280, height: 720 },
+                audio: false
+            });
 
-                // Draw overlay
-                this.drawOverlay(result.pupils);
+            console.log('Camera stream obtained:', stream);
 
-                // Calculate measurement if calibrated
-                if (this.pixelsPerMm) {
-                    const measurement = this.calculateMeasurement(result.pupils);
-                    this.latestMeasurement = measurement;
-                    this.measurementChange.emit(measurement);
-                    this.cdr.markForCheck();
+            // Set video source
+            this.videoElement.nativeElement.srcObject = stream;
+
+            // Start MediaPipe detection
+            this.mpEngine.start(this.videoElement.nativeElement, (result) => {
+                if (result.pupils) {
+                    // Apply smoothing
+                    const smoothedLeft = this.smootherLeft.next(result.pupils.left);
+                    const smoothedRight = this.smootherRight.next(result.pupils.right);
+
+                    result.pupils.left = smoothedLeft;
+                    result.pupils.right = smoothedRight;
+
+                    // Draw overlay
+                    this.drawOverlay(result.pupils);
+
+                    // Calculate measurement if calibrated
+                    if (this.pixelsPerMm) {
+                        const measurement = this.calculateMeasurement(result.pupils);
+                        this.latestMeasurement = measurement;
+                        this.measurementChange.emit(measurement);
+                        this.cdr.markForCheck();
+                    }
                 }
-            }
-        });
+            });
+
+            console.log('MediaPipe engine started');
+        } catch (error) {
+            console.error('Failed to start camera:', error);
+            alert('Impossible d\'accéder à la caméra. Vérifiez les permissions.');
+        }
     }
 
     calibrate(): void {
