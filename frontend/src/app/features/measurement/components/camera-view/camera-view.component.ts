@@ -30,10 +30,6 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
     faceWidth: number = 0; // Face width in pixels
     currentLandmarks: Point[] = [];
 
-    // Capture State
-    capturedImage: HTMLImageElement | null = null;
-    isCaptured = false;
-
     // Height Measurement (Bottom of frame lines)
     frameBottomLeftY: number = 0;
     frameBottomRightY: number = 0;
@@ -95,15 +91,6 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         }
         if (this.isDraggingRight) {
             this.frameBottomRightY = canvasY;
-        }
-
-        // If in captured mode/static image, we must manually trigger redraw when dragging
-        if (this.isCaptured && this.latestMeasurement?.pupils) {
-            this.drawOverlay(this.latestMeasurement.pupils);
-            // Also update measurement values live
-            const newMeasurement = this.calculateMeasurement(this.latestMeasurement.pupils);
-            this.latestMeasurement = newMeasurement;
-            this.measurementChange.emit(newMeasurement);
         }
     }
 
@@ -246,38 +233,6 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             console.error('Calibration error:', error);
             alert('Erreur de calibration');
         }
-    }
-
-    captureImage(): void {
-        if (!this.videoElement) return;
-        const video = this.videoElement.nativeElement;
-
-        // Create high-res canvas for capture
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-
-        if (ctx) {
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            this.capturedImage = new Image();
-            this.capturedImage.src = canvas.toDataURL('image/png');
-            this.capturedImage.onload = () => {
-                this.isCaptured = true;
-                this.cdr.markForCheck();
-                // Force a redraw with the LAST known pupils on the STATIC image
-                if (this.latestMeasurement?.pupils) {
-                    setTimeout(() => this.drawOverlay(this.latestMeasurement!.pupils!), 50);
-                }
-            };
-        }
-    }
-
-    retake(): void {
-        this.isCaptured = false;
-        this.capturedImage = null;
-        // MediaPipe loop will automatically resume updating overlay
-        this.cdr.markForCheck();
     }
 
     resetCalibration(): void {
