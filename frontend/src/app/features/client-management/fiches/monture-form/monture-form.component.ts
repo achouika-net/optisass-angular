@@ -1,6 +1,6 @@
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, AbstractControl, ReactiveFormsModule, Validators, FormArray, FormControl } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { MatCardModule } from '@angular/material/card';
@@ -58,12 +58,22 @@ export class MontureFormComponent implements OnInit {
     loading = false;
     isEditMode = false;
 
+    readonly TypeEquipement = TypeEquipement;
+
+    // Contrôle indépendant pour la sélection du type d'équipement (ajout dynamique)
+    selectedEquipmentType = new FormControl<TypeEquipement | null>(null);
+
     // Enums pour les dropdowns
     typesEquipement = Object.values(TypeEquipement);
+
+    // État d'expansion
+    mainEquipmentExpanded = true;
+    addedEquipmentsExpanded: boolean[] = [];
 
     // Suggestions IA
     suggestions: SuggestionIA[] = [];
     showSuggestions = false;
+    activeSuggestionIndex: number | null = null;
 
     // Fichiers prescription
     prescriptionFiles: PrescriptionFile[] = [];
@@ -118,7 +128,15 @@ export class MontureFormComponent implements OnInit {
             this.loadFiche();
         }
 
-        this.setupPriceListeners();
+        // Setup generic listeners for Main Equipment
+        this.setupLensListeners(this.ficheForm);
+
+        // Sync selectedEquipmentType with Main Equipment Type if no added equipments
+        this.selectedEquipmentType.valueChanges.subscribe(value => {
+            if (value && this.equipements.length === 0) {
+                this.ficheForm.get('monture.typeEquipement')?.setValue(value);
+            }
+        });
     }
 
     initForm(): FormGroup {
@@ -149,7 +167,7 @@ export class MontureFormComponent implements OnInit {
 
             // Onglet 2: Monture & Verres
             monture: this.fb.group({
-                typeEquipement: [TypeEquipement.VISION_LOIN, Validators.required],
+                typeEquipement: [TypeEquipement.MONTURE, Validators.required],
                 reference: [''],
                 codeBarres: [''],
                 marque: [''],
@@ -166,51 +184,68 @@ export class MontureFormComponent implements OnInit {
                 prixOG: [0],
                 differentODOG: [false],
 
-                // Champs OD (utilisés si differentODOG = true)
+                // Champs OD
                 matiereOD: ['Organique (CR-39)'],
                 indiceOD: ['1.50 (Standard)'],
                 traitementOD: [['Anti-reflet']],
 
-                // Champs OG (utilisés si differentODOG = true)
+                // Champs OG
                 matiereOG: ['Organique (CR-39)'],
                 indiceOG: ['1.50 (Standard)'],
                 traitementOG: [['Anti-reflet']]
-            })
+            }),
+
+            // Liste des équipements additionnels
+            equipements: this.fb.array([])
         });
     }
 
-    setupPriceListeners(): void {
-        // Écouter les changements pour calculer automatiquement les prix
-        this.ficheForm.get('verres.matiere')?.valueChanges.subscribe(() => this.calculateLensPrices());
-        this.ficheForm.get('verres.indice')?.valueChanges.subscribe(() => this.calculateLensPrices());
-        this.ficheForm.get('verres.traitement')?.valueChanges.subscribe(() => this.calculateLensPrices());
+    // Generic Listener Setup
+    setupLensListeners(group: AbstractControl): void {
+        const verresGroup = group.get('verres');
+        if (!verresGroup) return;
 
-        // Sync logic when switching to split view
-        this.ficheForm.get('verres.differentODOG')?.valueChanges.subscribe((isSplit: boolean) => {
+        const updatePrice = () => this.calculateLensPrices(group);
+
+        // Core Fields
+        verresGroup.get('matiere')?.valueChanges.subscribe(updatePrice);
+        verresGroup.get('indice')?.valueChanges.subscribe(updatePrice);
+        verresGroup.get('traitement')?.valueChanges.subscribe(updatePrice);
+
+        // Split Logic
+        verresGroup.get('differentODOG')?.valueChanges.subscribe((isSplit: boolean) => {
             if (isSplit) {
-                const verres = this.ficheForm.get('verres')?.value;
-                this.ficheForm.get('verres')?.patchValue({
-                    matiereOD: verres.matiere,
-                    indiceOD: verres.indice,
-                    traitementOD: verres.traitement,
-                    matiereOG: verres.matiere,
-                    indiceOG: verres.indice,
-                    traitementOG: verres.traitement
+                const currentVals = verresGroup.value;
+                verresGroup.patchValue({
+                    matiereOD: currentVals.matiere,
+                    indiceOD: currentVals.indice,
+                    traitementOD: currentVals.traitement,
+                    matiereOG: currentVals.matiere,
+                    indiceOG: currentVals.indice,
+                    traitementOG: currentVals.traitement
                 }, { emitEvent: false });
             }
-            this.calculateLensPrices();
+            updatePrice();
         });
 
-        this.ficheForm.get('verres.matiereOG')?.valueChanges.subscribe(() => this.calculateLensPrices());
-        this.ficheForm.get('verres.indiceOG')?.valueChanges.subscribe(() => this.calculateLensPrices());
-        this.ficheForm.get('verres.traitementOG')?.valueChanges.subscribe(() => this.calculateLensPrices());
-        this.ficheForm.get('verres.matiereOD')?.valueChanges.subscribe(() => this.calculateLensPrices());
-        this.ficheForm.get('verres.indiceOD')?.valueChanges.subscribe(() => this.calculateLensPrices());
-        this.ficheForm.get('verres.traitementOD')?.valueChanges.subscribe(() => this.calculateLensPrices());
+        // Split Fields
+        verresGroup.get('matiereOD')?.valueChanges.subscribe(updatePrice);
+        verresGroup.get('indiceOD')?.valueChanges.subscribe(updatePrice);
+        verresGroup.get('traitementOD')?.valueChanges.subscribe(updatePrice);
+        verresGroup.get('matiereOG')?.valueChanges.subscribe(updatePrice);
+        verresGroup.get('indiceOG')?.valueChanges.subscribe(updatePrice);
+        verresGroup.get('traitementOG')?.valueChanges.subscribe(updatePrice);
+
+        // Sync Price in Simple Mode
+        verresGroup.get('prixOD')?.valueChanges.subscribe((val) => {
+            if (!verresGroup.get('differentODOG')?.value) {
+                verresGroup.get('prixOG')?.setValue(val, { emitEvent: false });
+            }
+        });
     }
 
-    calculateLensPrices(): void {
-        const verresGroup = this.ficheForm.get('verres');
+    calculateLensPrices(group: AbstractControl = this.ficheForm): void {
+        const verresGroup = group.get('verres');
         if (!verresGroup) return;
 
         const differentODOG = verresGroup.get('differentODOG')?.value;
@@ -260,7 +295,8 @@ export class MontureFormComponent implements OnInit {
         this.cdr.markForCheck();
     }
 
-    checkSuggestion(): void {
+    checkSuggestion(index: number = -1): void {
+        this.activeSuggestionIndex = index;
         const od = this.ficheForm.get('ordonnance.od')?.value;
         const og = this.ficheForm.get('ordonnance.og')?.value;
 
@@ -308,12 +344,11 @@ export class MontureFormComponent implements OnInit {
         this.cdr.markForCheck();
     }
 
-    applySuggestion(suggestion: SuggestionIA): void {
-        const verresGroup = this.ficheForm.get('verres');
+    applySuggestion(suggestion: SuggestionIA, parentGroup: AbstractControl = this.ficheForm): void {
+        const verresGroup = parentGroup.get('verres');
         if (!verresGroup) return;
 
         if (suggestion.type === 'OD') {
-            // Update both common and OD specific fields
             verresGroup.patchValue({
                 matiere: suggestion.matiere,
                 indice: suggestion.indice,
@@ -321,14 +356,13 @@ export class MontureFormComponent implements OnInit {
                 indiceOD: suggestion.indice
             });
         } else {
-            // For OG, we must switch to split mode
             verresGroup.patchValue({
                 differentODOG: true,
                 matiereOG: suggestion.matiere,
                 indiceOG: suggestion.indice
             });
 
-            // Also ensure OD fields are populated with current common values if they weren't already
+            // Sync OD fields if needed
             const currentMatiere = verresGroup.get('matiere')?.value;
             const currentIndice = verresGroup.get('indice')?.value;
             if (currentMatiere) {
@@ -339,12 +373,107 @@ export class MontureFormComponent implements OnInit {
             }
         }
 
-        this.calculateLensPrices();
+        this.calculateLensPrices(parentGroup);
     }
 
     closeSuggestions(): void {
         this.showSuggestions = false;
+        this.activeSuggestionIndex = null;
         this.cdr.markForCheck();
+    }
+
+    // Scan Functionality
+    scanBarcode(fieldName: string, groupIndex: number = -1): void {
+        // Determine target group (Main vs Added)
+        const montureGroup = groupIndex === -1
+            ? this.ficheForm.get('monture')
+            : this.equipements.at(groupIndex)?.get('monture');
+
+        if (montureGroup) {
+            // Simulate scanning delay
+            // In a real app, this would open a barcode scanner
+            const mockBarcode = 'REF-' + Math.floor(100000 + Math.random() * 900000);
+            montureGroup.get(fieldName)?.setValue(mockBarcode);
+            this.cdr.markForCheck();
+        }
+    }
+
+    // Equipment Management
+    get equipements(): FormArray {
+        return this.ficheForm.get('equipements') as FormArray;
+    }
+
+    addEquipment(): void {
+        const typeEquipement = 'Monture';
+
+        const equipmentGroup = this.fb.group({
+            type: [typeEquipement],
+            dateAjout: [new Date()],
+            monture: this.fb.group({
+                reference: [''],
+                marque: [''],
+                couleur: [''],
+                taille: [''],
+                prixMonture: [0]
+            }),
+            verres: this.fb.group({
+                matiere: ['Organique (CR-39)'],
+                indice: ['1.50 (Standard)'],
+                traitement: [['Anti-reflet']],
+                prixOD: [0],
+                prixOG: [0],
+                differentODOG: [false],
+                matiereOD: ['Organique (CR-39)'],
+                indiceOD: ['1.50 (Standard)'],
+                traitementOD: [['Anti-reflet']],
+                matiereOG: ['Organique (CR-39)'],
+                indiceOG: ['1.50 (Standard)'],
+                traitementOG: [['Anti-reflet']]
+            })
+        });
+
+        // Setup listeners for this new equipment
+        this.setupLensListeners(equipmentGroup);
+
+        this.equipements.push(equipmentGroup);
+
+        // Expansion logic
+        this.addedEquipmentsExpanded = this.addedEquipmentsExpanded.map(() => false);
+        this.addedEquipmentsExpanded.push(true);
+        this.mainEquipmentExpanded = false;
+
+        this.cdr.markForCheck();
+    }
+
+    getEquipmentGroup(index: number): FormGroup {
+        return this.equipements.at(index) as FormGroup;
+    }
+
+    toggleMainEquipment(): void {
+        this.mainEquipmentExpanded = !this.mainEquipmentExpanded;
+    }
+
+    toggleAddedEquipment(index: number): void {
+        if (this.addedEquipmentsExpanded[index] === undefined) {
+            this.addedEquipmentsExpanded[index] = false;
+        }
+        this.addedEquipmentsExpanded[index] = !this.addedEquipmentsExpanded[index];
+    }
+
+    removeEquipment(index: number): void {
+        if (confirm('Supprimer cet équipement ?')) {
+            this.equipements.removeAt(index);
+            this.addedEquipmentsExpanded.splice(index, 1);
+            this.cdr.markForCheck();
+        }
+    }
+
+    goBack(): void {
+        if (this.clientId) {
+            this.router.navigate(['/clients', this.clientId]);
+        } else {
+            this.router.navigate(['/clients']);
+        }
     }
 
     // File Handling
@@ -357,7 +486,7 @@ export class MontureFormComponent implements OnInit {
         if (!input.files) return;
 
         Array.from(input.files).forEach(file => {
-            if (file.size > 10 * 1024 * 1024) { // 10MB limit
+            if (file.size > 10 * 1024 * 1024) {
                 alert(`Le fichier ${file.name} est trop volumineux (max 10MB)`);
                 return;
             }
@@ -377,18 +506,14 @@ export class MontureFormComponent implements OnInit {
                     uploadDate: new Date()
                 };
                 this.prescriptionFiles.push(prescriptionFile);
-
-                // Automatic OCR extraction for images
                 if (file.type.startsWith('image/')) {
                     this.extractData(prescriptionFile);
                 }
-
                 this.cdr.markForCheck();
             };
             reader.readAsDataURL(file);
         });
-
-        input.value = ''; // Reset input
+        input.value = '';
     }
 
     viewFile(file: PrescriptionFile): void {
@@ -409,15 +534,10 @@ export class MontureFormComponent implements OnInit {
     }
 
     extractData(file: PrescriptionFile): void {
-        // Automatic extraction without confirmation
         console.log(`Extraction automatique des données de ${file.name}...`);
-
-        // Simulate OCR extraction (replace with real OCR service)
         setTimeout(() => {
-            // Mock extracted data
             const odGroup = this.ficheForm.get('ordonnance.od');
             const ogGroup = this.ficheForm.get('ordonnance.og');
-
             if (odGroup && ogGroup) {
                 odGroup.patchValue({
                     sphere: '-1.25',
@@ -425,14 +545,12 @@ export class MontureFormComponent implements OnInit {
                     axe: '90°',
                     ep: '32'
                 });
-
                 ogGroup.patchValue({
                     sphere: '-1.00',
                     cylindre: '-0.25',
                     axe: '85°',
                     ep: '32'
                 });
-
                 console.log('Données extraites et injectées automatiquement');
                 this.cdr.markForCheck();
             }
@@ -467,11 +585,9 @@ export class MontureFormComponent implements OnInit {
         }
     }
 
-    // Formatage des champs de prescription
     formatSphereValue(eye: 'od' | 'og', event: Event): void {
         const input = event.target as HTMLInputElement;
         const value = parseFloat(input.value);
-
         if (!isNaN(value)) {
             const formatted = value >= 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
             this.ficheForm.get(`ordonnance.${eye}.sphere`)?.setValue(formatted, { emitEvent: false });
@@ -482,7 +598,6 @@ export class MontureFormComponent implements OnInit {
     formatCylindreValue(eye: 'od' | 'og', event: Event): void {
         const input = event.target as HTMLInputElement;
         const value = parseFloat(input.value);
-
         if (!isNaN(value)) {
             const formatted = value >= 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
             this.ficheForm.get(`ordonnance.${eye}.cylindre`)?.setValue(formatted, { emitEvent: false });
@@ -493,7 +608,6 @@ export class MontureFormComponent implements OnInit {
     formatAdditionValue(eye: 'od' | 'og', event: Event): void {
         const input = event.target as HTMLInputElement;
         const value = parseFloat(input.value);
-
         if (!isNaN(value)) {
             const formatted = value >= 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
             this.ficheForm.get(`ordonnance.${eye}.addition`)?.setValue(formatted, { emitEvent: false });
@@ -503,8 +617,7 @@ export class MontureFormComponent implements OnInit {
 
     formatAxeValue(eye: 'od' | 'og', event: Event): void {
         const input = event.target as HTMLInputElement;
-        const value = input.value.replace(/[^0-9]/g, ''); // Remove non-numeric characters
-
+        const value = input.value.replace(/[^0-9]/g, '');
         if (value) {
             const numValue = parseInt(value);
             if (!isNaN(numValue) && numValue >= 0 && numValue <= 180) {
@@ -518,9 +631,8 @@ export class MontureFormComponent implements OnInit {
     formatPrismeValue(eye: 'od' | 'og', event: Event): void {
         const input = event.target as HTMLInputElement;
         const value = parseFloat(input.value);
-
         if (!isNaN(value)) {
-            const formatted = value.toFixed(2); // Prisme usually doesn't need + sign, just decimals
+            const formatted = value.toFixed(2);
             this.ficheForm.get(`ordonnance.${eye}.prisme`)?.setValue(formatted, { emitEvent: false });
             input.value = formatted;
         }
@@ -528,14 +640,12 @@ export class MontureFormComponent implements OnInit {
 
     formatEPValue(eye: 'od' | 'og', event: Event): void {
         const input = event.target as HTMLInputElement;
-        // Remove 'mm' and spaces to parse the number
         const cleanValue = input.value.replace(/[^0-9.]/g, '');
         const value = parseFloat(cleanValue);
-
         if (!isNaN(value)) {
             const formatted = `${value.toFixed(2)} mm`;
-            this.ficheForm.get(`ordonnance.${eye}.ep`)?.setValue(value, { emitEvent: false }); // Keep number in model
-            input.value = formatted; // Show formatted in input
+            this.ficheForm.get(`ordonnance.${eye}.ep`)?.setValue(value, { emitEvent: false });
+            input.value = formatted;
         }
     }
 
@@ -548,15 +658,9 @@ export class MontureFormComponent implements OnInit {
 
     onSubmit(): void {
         if (this.ficheForm.invalid || !this.clientId) return;
-
         this.loading = true;
         const formValue = this.ficheForm.value;
-
-        const montantTotal =
-            formValue.monture.prixMonture +
-            formValue.verres.prixOD +
-            formValue.verres.prixOG;
-
+        const montantTotal = formValue.monture.prixMonture + formValue.verres.prixOD + formValue.verres.prixOG;
         const ficheData: FicheMontureCreate = {
             clientId: this.clientId,
             type: TypeFiche.MONTURE,
@@ -567,7 +671,6 @@ export class MontureFormComponent implements OnInit {
             montantTotal,
             montantPaye: 0
         };
-
         this.ficheService.createFicheMonture(ficheData).subscribe({
             next: () => {
                 this.loading = false;
@@ -586,16 +689,11 @@ export class MontureFormComponent implements OnInit {
         try {
             this.showCameraModal = true;
             this.cdr.markForCheck();
-
-            // Wait for modal to render
             await new Promise(resolve => setTimeout(resolve, 100));
-
-            // Start video stream
             this.cameraStream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' }, // Back camera on mobile
+                video: { facingMode: 'environment' },
                 audio: false
             });
-
             if (this.videoElement) {
                 this.videoElement.nativeElement.srcObject = this.cameraStream;
             }
@@ -608,21 +706,13 @@ export class MontureFormComponent implements OnInit {
 
     capturePhoto(): void {
         if (!this.videoElement || !this.canvasElement) return;
-
         const video = this.videoElement.nativeElement;
         const canvas = this.canvasElement.nativeElement;
         const context = canvas.getContext('2d');
-
         if (!context) return;
-
-        // Set canvas dimensions
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-
-        // Draw current video frame to canvas
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // Convert to data URL
         this.capturedImage = canvas.toDataURL('image/jpeg', 0.9);
         this.cdr.markForCheck();
     }
@@ -634,18 +724,11 @@ export class MontureFormComponent implements OnInit {
 
     useCapture(): void {
         if (!this.capturedImage) return;
-
-        // Convert data URL to Blob
         fetch(this.capturedImage)
             .then(res => res.blob())
             .then(blob => {
-                // Create file from Blob
                 const timestamp = new Date().getTime();
-                const file = new File([blob], `prescription_${timestamp}.jpg`, {
-                    type: 'image/jpeg'
-                });
-
-                // Create PrescriptionFile object
+                const file = new File([blob], `prescription_${timestamp}.jpg`, { type: 'image/jpeg' });
                 const prescriptionFile: PrescriptionFile = {
                     name: file.name,
                     type: file.type,
@@ -654,36 +737,20 @@ export class MontureFormComponent implements OnInit {
                     file: file,
                     uploadDate: new Date()
                 };
-
                 this.prescriptionFiles.push(prescriptionFile);
-
-                // Trigger automatic OCR extraction
                 this.extractData(prescriptionFile);
-
-                // Close modal
                 this.closeCamera();
                 this.cdr.markForCheck();
             });
     }
 
     closeCamera(): void {
-        // Stop all video tracks
         if (this.cameraStream) {
             this.cameraStream.getTracks().forEach(track => track.stop());
             this.cameraStream = null;
         }
-
         this.showCameraModal = false;
         this.capturedImage = null;
         this.cdr.markForCheck();
-    }
-
-
-    goBack(): void {
-        if (this.clientId) {
-            this.router.navigate(['/clients', this.clientId]);
-        } else {
-            this.router.navigate(['/clients']);
-        }
     }
 }

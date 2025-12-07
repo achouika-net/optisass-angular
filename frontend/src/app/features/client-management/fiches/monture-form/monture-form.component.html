@@ -66,7 +66,9 @@
         </button>
     </div>
 
-    <form [formGroup]="ficheForm">
+    <!-- Main Form -->
+    <form [formGroup]="ficheForm" (ngSubmit)="onSubmit()">
+
         <!-- ONGLET 1: ORDONNANCE -->
         <div class="tab-content" *ngIf="activeTab === 0" formGroupName="ordonnance">
             <div class="tab-header">
@@ -80,6 +82,7 @@
                     <h3>Fiche Monture - Ordonnance</h3>
                     <p>Saisir ou importer les données de prescription</p>
                 </div>
+                <!-- Actions -->
                 <div class="header-actions-inline">
                     <button type="button" class="btn-icon-primary">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -118,19 +121,19 @@
                                 <path *ngIf="file.type === 'application/pdf'"
                                     d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z" />
                             </svg>
-                            <a href="javascript:void(0)" (click)="viewFile(file)" class="file-link">
-                                {{ file.name }}
-                            </a>
+                            <a href="javascript:void(0)" (click)="viewFile(file)" class="file-link">{{ file.name }}</a>
                             <span class="file-size">({{ formatFileSize(file.size) }})</span>
                         </div>
                         <div class="file-actions">
-                            <button type="button" class="btn-view" (click)="viewFile(file)" title="Visualiser">
+                            <button type="button" class="btn-view" (click)="viewFile(file); $event.stopPropagation()"
+                                title="Visualiser">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                     <path
                                         d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
                                 </svg>
                             </button>
-                            <button type="button" class="btn-delete" (click)="deleteFile(i)" title="Supprimer">
+                            <button type="button" class="btn-delete" (click)="deleteFile(i); $event.stopPropagation()"
+                                title="Supprimer">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                     <path
                                         d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
@@ -142,7 +145,7 @@
             </div>
 
             <div class="eyes-container">
-                <!-- Œil Droit (OD) -->
+                <!-- OEIL DROIT -->
                 <div class="eye-card od-card" formGroupName="od">
                     <div class="eye-header">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -153,50 +156,32 @@
                     </div>
                     <div class="eye-content">
                         <div class="form-row">
-                            <div class="form-group">
-                                <label>Sphère (SPH)</label>
-                                <input type="text" formControlName="sphere" placeholder="+/- 0.00"
-                                    (blur)="formatSphereValue('od', $event)">
-                            </div>
-                            <div class="form-group">
-                                <label>Cylindre (CYL)</label>
-                                <input type="text" formControlName="cylindre" (blur)="formatCylindreValue('od', $event)"
-                                    placeholder="+/- 0.00">
-                            </div>
+                            <div class="form-group"><label>Sphère (SPH)</label><input type="text"
+                                    formControlName="sphere" placeholder="+/- 0.00"
+                                    (blur)="formatSphereValue('od', $event)"></div>
+                            <div class="form-group"><label>Cylindre (CYL)</label><input type="text"
+                                    formControlName="cylindre" (blur)="formatCylindreValue('od', $event)"
+                                    placeholder="+/- 0.00"></div>
                         </div>
                         <div class="form-row">
-                            <div class="form-group">
-                                <label>Axe (AXE)</label>
-                                <input type="text" formControlName="axe" placeholder="0°"
-                                    (blur)="formatAxeValue('od', $event)">
-                            </div>
-                            <div class="form-group">
-                                <label>Addition (ADD)</label>
-                                <input type="text" formControlName="addition" (blur)="formatAdditionValue('od', $event)"
-                                    placeholder="+0.00">
-                            </div>
+                            <div class="form-group"><label>Axe (AXE)</label><input type="text" formControlName="axe"
+                                    placeholder="0°" (blur)="formatAxeValue('od', $event)"></div>
+                            <div class="form-group"><label>Addition (ADD)</label><input type="text"
+                                    formControlName="addition" (blur)="formatAdditionValue('od', $event)"
+                                    placeholder="+0.00"></div>
                         </div>
                         <div class="form-row">
-                            <div class="form-group">
-                                <label>Prisme</label>
-                                <input type="text" formControlName="prisme" placeholder="0.00"
-                                    (blur)="formatPrismeValue('od', $event)">
-                            </div>
-                            <div class="form-group">
-                                <label>Base</label>
-                                <input type="text" formControlName="base" placeholder="H/B/Int/Ext"
-                                    (blur)="formatBaseValue('od', $event)">
-                            </div>
+                            <div class="form-group"><label>Prisme</label><input type="text" formControlName="prisme"
+                                    placeholder="0.00" (blur)="formatPrismeValue('od', $event)"></div>
+                            <div class="form-group"><label>Base</label><input type="text" formControlName="base"
+                                    placeholder="H/B/Int/Ext" (blur)="formatBaseValue('od', $event)"></div>
                         </div>
-                        <div class="form-group full-width">
-                            <label>Écart Pupillaire (EP)</label>
-                            <input type="text" formControlName="ep" placeholder="32mm"
-                                (blur)="formatEPValue('od', $event)">
-                        </div>
+                        <div class="form-group full-width"><label>Écart Pupillaire (EP)</label><input type="text"
+                                formControlName="ep" placeholder="32mm" (blur)="formatEPValue('od', $event)"></div>
                     </div>
                 </div>
 
-                <!-- Œil Gauche (OG) -->
+                <!-- OEIL GAUCHE -->
                 <div class="eye-card og-card" formGroupName="og">
                     <div class="eye-header">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -207,46 +192,28 @@
                     </div>
                     <div class="eye-content">
                         <div class="form-row">
-                            <div class="form-group">
-                                <label>Sphère (SPH)</label>
-                                <input type="text" formControlName="sphere" placeholder="+/- 0.00"
-                                    (blur)="formatSphereValue('og', $event)">
-                            </div>
-                            <div class="form-group">
-                                <label>Cylindre (CYL)</label>
-                                <input type="text" formControlName="cylindre" (blur)="formatCylindreValue('og', $event)"
-                                    placeholder="+/- 0.00">
-                            </div>
+                            <div class="form-group"><label>Sphère (SPH)</label><input type="text"
+                                    formControlName="sphere" placeholder="+/- 0.00"
+                                    (blur)="formatSphereValue('og', $event)"></div>
+                            <div class="form-group"><label>Cylindre (CYL)</label><input type="text"
+                                    formControlName="cylindre" (blur)="formatCylindreValue('og', $event)"
+                                    placeholder="+/- 0.00"></div>
                         </div>
                         <div class="form-row">
-                            <div class="form-group">
-                                <label>Axe (AXE)</label>
-                                <input type="text" formControlName="axe" placeholder="0°"
-                                    (blur)="formatAxeValue('og', $event)">
-                            </div>
-                            <div class="form-group">
-                                <label>Addition (ADD)</label>
-                                <input type="text" formControlName="addition" (blur)="formatAdditionValue('og', $event)"
-                                    placeholder="+0.00">
-                            </div>
+                            <div class="form-group"><label>Axe (AXE)</label><input type="text" formControlName="axe"
+                                    placeholder="0°" (blur)="formatAxeValue('og', $event)"></div>
+                            <div class="form-group"><label>Addition (ADD)</label><input type="text"
+                                    formControlName="addition" (blur)="formatAdditionValue('og', $event)"
+                                    placeholder="+0.00"></div>
                         </div>
                         <div class="form-row">
-                            <div class="form-group">
-                                <label>Prisme</label>
-                                <input type="text" formControlName="prisme" placeholder="0.00"
-                                    (blur)="formatPrismeValue('og', $event)">
-                            </div>
-                            <div class="form-group">
-                                <label>Base</label>
-                                <input type="text" formControlName="base" placeholder="H/B/Int/Ext"
-                                    (blur)="formatBaseValue('og', $event)">
-                            </div>
+                            <div class="form-group"><label>Prisme</label><input type="text" formControlName="prisme"
+                                    placeholder="0.00" (blur)="formatPrismeValue('og', $event)"></div>
+                            <div class="form-group"><label>Base</label><input type="text" formControlName="base"
+                                    placeholder="H/B/Int/Ext" (blur)="formatBaseValue('og', $event)"></div>
                         </div>
-                        <div class="form-group full-width">
-                            <label>Écart Pupillaire (EP)</label>
-                            <input type="text" formControlName="ep" placeholder="32mm"
-                                (blur)="formatEPValue('og', $event)">
-                        </div>
+                        <div class="form-group full-width"><label>Écart Pupillaire (EP)</label><input type="text"
+                                formControlName="ep" placeholder="32mm" (blur)="formatEPValue('og', $event)"></div>
                     </div>
                 </div>
             </div>
@@ -254,6 +221,7 @@
 
         <!-- ONGLET 2: MONTURE & VERRES -->
         <div class="tab-content" *ngIf="activeTab === 1">
+
             <div class="tab-header">
                 <div class="icon-box">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -265,29 +233,9 @@
                     <h3>Monture & Verres</h3>
                     <p>Sélectionner les équipements pour le client</p>
                 </div>
-                <button type="button" class="btn-icon-primary">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                    </svg>
-                    Ajouter un équipement
-                </button>
             </div>
 
-            <div class="equipment-selector" formGroupName="monture">
-                <div class="form-group">
-                    <label>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
-                        </svg>
-                    </label>
-                    <select formControlName="typeEquipement" class="equipment-select">
-                        <option *ngFor="let type of typesEquipement" [value]="type">{{ type }}</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Essayage Virtuel -->
+            <!-- 1. Essayage Virtuel (Top) -->
             <div class="virtual-try-on">
                 <div class="icon-box-purple">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -302,199 +250,372 @@
                 <button type="button" class="btn-purple">Lancer</button>
             </div>
 
-            <!-- Monture Section -->
-            <div class="section-card" formGroupName="monture">
-                <h4>Monture</h4>
-                <div class="form-row">
-                    <div class="form-group flex-2">
-                        <label>Référence / Code-barres *</label>
-                        <div class="input-with-button">
-                            <input type="text" formControlName="reference" placeholder="Scanner ou saisir">
-                            <button type="button" class="btn-scan">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                    <path
-                                        d="M9.5 6.5v3h-3v-3h3M11 5H5v6h6V5zm-1.5 9.5v3h-3v-3h3M11 13H5v6h6v-6zm6.5-6.5v3h-3v-3h3M19 5h-6v6h6V5zm-6 8h1.5v1.5H13V13zm1.5 1.5H16V16h-1.5v-1.5zM16 13h1.5v1.5H16V13zm-3 3h1.5v1.5H13V16zm1.5 1.5H16V19h-1.5v-1.5zM16 16h1.5v1.5H16V16zm1.5-1.5H19V16h-1.5v-1.5zm0 3H19V19h-1.5v-1.5zM22 7h-2V4h-3V2h5v5zm0 15v-5h-2v3h-3v2h5zM2 22h5v-2H4v-3H2v5zM2 2v5h2V4h3V2H2z" />
-                                </svg>
-                                Scan
-                            </button>
+            <!-- 2. Add Button Only -->
+            <div class="flex justify-end mb-6">
+                <button type="button" class="btn-icon-primary" (click)="addEquipment()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                    </svg>
+                    Ajouter un équipement
+                </button>
+            </div>
+
+            <!-- 3. Equipement Principal (Collapsible) -->
+            <div class="mb-6">
+                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-3">
+                            <select [formControl]="$any(ficheForm.get('monture.typeEquipement'))"
+                                class="header-select main"
+                                [style.pointer-events]="!mainEquipmentExpanded ? 'none' : 'auto'"
+                                [style.opacity]="!mainEquipmentExpanded ? '0.6' : '1'"
+                                aria-label="Type d'équipement principal">
+                                <option *ngFor="let type of typesEquipement" [value]="type">{{ type }}</option>
+                            </select>
                         </div>
+                        <button type="button" class="btn-toggle" (click)="toggleMainEquipment()">
+                            <span>{{ mainEquipmentExpanded ? 'Réduire' : 'Développer' }}</span>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"
+                                [style.transform]="mainEquipmentExpanded ? 'rotate(180deg)' : 'rotate(0deg)'">
+                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                            </svg>
+                        </button>
                     </div>
-                    <div class="form-group flex-2">
-                        <label>Marque</label>
-                        <input type="text" formControlName="marque" placeholder="Auto-complété par scan">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Couleur</label>
-                        <input type="text" formControlName="couleur" placeholder="Noir mat">
-                    </div>
-                    <div class="form-group">
-                        <label>Taille (L-P-B)</label>
-                        <input type="text" formControlName="taille" placeholder="52-18-145">
-                    </div>
-                    <div class="form-group">
-                        <label>Prix Monture (DH)</label>
-                        <input type="number" formControlName="prixMonture" placeholder="0.00">
+
+                    <div *ngIf="mainEquipmentExpanded">
+                        <!-- Content of main equipment -->
+
+                        <!-- Monture Details -->
+                        <div class="section-card mb-4" formGroupName="monture">
+                            <h4>Monture</h4>
+                            <div class="grid grid-cols-3 gap-4">
+                                <div class="form-group col-span-2">
+                                    <label>Référence / Code-barres *</label>
+                                    <div class="input-with-button">
+                                        <input type="text" formControlName="reference" placeholder="Scanner ou saisir">
+                                        <button type="button" class="btn-scan"
+                                            (click)="scanBarcode('reference', -1)">Scan</button>
+                                    </div>
+                                </div>
+                                <div class="form-group"><label>Marque</label><input type="text"
+                                        formControlName="marque"></div>
+                                <div class="form-group"><label>Couleur</label><input type="text"
+                                        formControlName="couleur"></div>
+                                <div class="form-group"><label>Taille</label><input type="text"
+                                        formControlName="taille"></div>
+                                <div class="form-group"><label>Prix Monture</label><input type="number"
+                                        formControlName="prixMonture"></div>
+
+                            </div>
+                        </div>
+
+                        <!-- Verres Details -->
+                        <div class="section-card" formGroupName="verres"
+                            *ngIf="ficheForm.get('monture.typeEquipement')?.value !== 'Solaire sans correction'">
+                            <div class="section-header">
+                                <h4>Verres correcteurs</h4>
+                                <div class="section-actions">
+                                    <button type="button" class="btn-suggestion"
+                                        (click)="checkSuggestion(-1)">Suggestion</button>
+                                    <label class="checkbox-label"><input type="checkbox"
+                                            formControlName="differentODOG"><span>Différents OD/OG</span></label>
+                                </div>
+                            </div>
+
+                            <!-- Suggestions -->
+                            <div class="suggestions-panel" *ngIf="showSuggestions && activeSuggestionIndex === -1">
+                                <div class="suggestion-item" *ngFor="let suggestion of suggestions">
+                                    <div class="suggestion-content">
+                                        <strong>[{{ suggestion.type }}] {{ suggestion.matiere }}</strong>
+                                        <p>{{ suggestion.raison }}</p>
+                                    </div>
+                                    <button type="button" class="btn-apply"
+                                        (click)="applySuggestion(suggestion)">Appliquer</button>
+                                </div>
+                                <button type="button" class="btn-close-suggestions"
+                                    (click)="closeSuggestions()">Fermer</button>
+                            </div>
+
+                            <!-- Single Mode -->
+                            <div class="verres-single" *ngIf="!ficheForm.get('verres.differentODOG')?.value">
+                                <div class="grid grid-cols-3 gap-4 mb-4">
+                                    <mat-form-field appearance="outline"
+                                        class="w-full"><mat-label>Matière</mat-label><mat-select
+                                            formControlName="matiere"><mat-option value="Organique (CR-39)">Organique
+                                                (CR-39)</mat-option><mat-option
+                                                value="Polycarbonate">Polycarbonate</mat-option><mat-option
+                                                value="Trivex">Trivex</mat-option></mat-select></mat-form-field>
+                                    <mat-form-field appearance="outline"
+                                        class="w-full"><mat-label>Indice</mat-label><mat-select
+                                            formControlName="indice"><mat-option
+                                                value="1.50 (Standard)">1.50</mat-option><mat-option
+                                                value="1.56">1.56</mat-option><mat-option
+                                                value="1.60">1.60</mat-option></mat-select></mat-form-field>
+                                    <mat-form-field appearance="outline"
+                                        class="w-full"><mat-label>Traitement</mat-label><mat-select
+                                            formControlName="traitement" multiple><mat-option
+                                                value="Anti-reflet">Anti-reflet</mat-option><mat-option
+                                                value="Durci">Durci</mat-option></mat-select></mat-form-field>
+                                </div>
+                                <div class="form-group full-width price-row">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Prix Unitaire
+                                        (DH)</label>
+                                    <div class="input-with-hint">
+                                        <input type="number" formControlName="prixOD"
+                                            class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white">
+                                        <span class="text-xs text-gray-500 mt-1">Le prix total sera calculé
+                                            automatiquement (x2)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Split Mode -->
+                            <div class="verres-split" *ngIf="ficheForm.get('verres.differentODOG')?.value">
+                                <div class="verre-od">
+                                    <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Droit (OD)</h4>
+                                    <mat-form-field appearance="outline"
+                                        class="w-full"><mat-label>Matière</mat-label><mat-select
+                                            formControlName="matiereOD"><mat-option value="Organique (CR-39)">Organique
+                                                (CR-39)</mat-option><mat-option
+                                                value="Polycarbonate">Polycarbonate</mat-option><mat-option
+                                                value="Trivex">Trivex</mat-option></mat-select></mat-form-field>
+                                    <mat-form-field appearance="outline"
+                                        class="w-full"><mat-label>Indice</mat-label><mat-select
+                                            formControlName="indiceOD"><mat-option
+                                                value="1.50 (Standard)">1.50</mat-option><mat-option
+                                                value="1.56">1.56</mat-option><mat-option
+                                                value="1.60">1.60</mat-option></mat-select></mat-form-field>
+                                    <mat-form-field appearance="outline"
+                                        class="w-full"><mat-label>Traitement</mat-label><mat-select
+                                            formControlName="traitementOD" multiple><mat-option
+                                                value="Anti-reflet">Anti-reflet</mat-option><mat-option
+                                                value="Durci">Durci</mat-option></mat-select></mat-form-field>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Prix Verre OD
+                                            (DH)</label>
+                                        <input type="number" formControlName="prixOD"
+                                            class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-sm">
+                                    </div>
+                                </div>
+                                <div class="verre-og">
+                                    <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Gauche (OG)</h4>
+                                    <mat-form-field appearance="outline"
+                                        class="w-full"><mat-label>Matière</mat-label><mat-select
+                                            formControlName="matiereOG"><mat-option value="Organique (CR-39)">Organique
+                                                (CR-39)</mat-option><mat-option
+                                                value="Polycarbonate">Polycarbonate</mat-option><mat-option
+                                                value="Trivex">Trivex</mat-option></mat-select></mat-form-field>
+                                    <mat-form-field appearance="outline"
+                                        class="w-full"><mat-label>Indice</mat-label><mat-select
+                                            formControlName="indiceOG"><mat-option
+                                                value="1.50 (Standard)">1.50</mat-option><mat-option
+                                                value="1.56">1.56</mat-option><mat-option
+                                                value="1.60">1.60</mat-option></mat-select></mat-form-field>
+                                    <mat-form-field appearance="outline"
+                                        class="w-full"><mat-label>Traitement</mat-label><mat-select
+                                            formControlName="traitementOG" multiple><mat-option
+                                                value="Anti-reflet">Anti-reflet</mat-option><mat-option
+                                                value="Durci">Durci</mat-option></mat-select></mat-form-field>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Prix Verre OG
+                                            (DH)</label>
+                                        <input type="number" formControlName="prixOG"
+                                            class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-sm">
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
                     </div>
                 </div>
             </div>
 
-            <!-- Verres Section -->
-            <div class="section-card" formGroupName="verres">
-                <div class="section-header">
-                    <h4>Verres correcteurs</h4>
-                    <div class="section-actions">
-                        <button type="button" class="btn-suggestion" (click)="checkSuggestion()">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path
-                                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
-                            </svg>
-                            Suggestion
-                        </button>
-                        <label class="checkbox-label">
-                            <input type="checkbox" formControlName="differentODOG">
-                            <span>Différents OD/OG</span>
-                        </label>
-                    </div>
-                </div>
+            <!-- 4. Added Equipments List -->
+            <div *ngIf="equipements.length > 0">
+                <h4 class="text-lg font-semibold mb-4 text-gray-800">Équipements ajoutés</h4>
+                <div *ngFor="let equipment of equipements.controls; let i = index" class="mb-6">
+                    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-6">
+                        <!-- Header -->
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-3">
+                                <select [formControl]="$any(equipment.get('type'))" class="header-select added"
+                                    [style.pointer-events]="!addedEquipmentsExpanded[i] ? 'none' : 'auto'"
+                                    [style.opacity]="!addedEquipmentsExpanded[i] ? '0.6' : '1'"
+                                    aria-label="Type d'équipement ajouté">
+                                    <option *ngFor="let type of typesEquipement" [value]="type">{{ type }}</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" class="btn-toggle" (click)="toggleAddedEquipment(i)">
+                                    <span>{{ addedEquipmentsExpanded[i] ? 'Réduire' : 'Développer' }}</span>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"
+                                        [style.transform]="addedEquipmentsExpanded[i] ? 'rotate(180deg)' : 'rotate(0deg)'">
+                                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                                    </svg>
+                                </button>
+                                <button type="button"
+                                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"
+                                    (click)="removeEquipment(i)">
+                                    Supprimer
+                                </button>
+                            </div>
+                        </div>
 
-                <!-- Suggestions IA -->
-                <div class="suggestions-panel" *ngIf="showSuggestions">
-                    <div class="suggestion-item" *ngFor="let suggestion of suggestions"
-                        [class.suggestion-od]="suggestion.type === 'OD'"
-                        [class.suggestion-og]="suggestion.type === 'OG'">
-                        <div class="suggestion-icon">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                <path
-                                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
-                            </svg>
-                        </div>
-                        <div class="suggestion-content">
-                            <strong>[{{ suggestion.type }}] {{ suggestion.matiere }} (Indice {{ suggestion.indice
-                                }})</strong>
-                            <p>{{ suggestion.raison }} • {{ suggestion.epaisseur }}</p>
-                        </div>
-                        <button type="button" class="btn-apply" (click)="applySuggestion(suggestion)">
-                            Appliquer
-                        </button>
-                        <button type="button" class="btn-close-suggestion" (click)="closeSuggestions()">×</button>
-                    </div>
-                    <button type="button" class="btn-close-suggestions" (click)="closeSuggestions()">
-                        Fermer les suggestions ×
-                    </button>
-                </div>
+                        <!-- Form Group for THIS equipment -->
+                        <div [formGroup]="getEquipmentGroup(i)" *ngIf="addedEquipmentsExpanded[i]">
+                            <!-- Monture -->
+                            <div class="section-card mb-4" formGroupName="monture">
+                                <h4>Monture</h4>
+                                <div class="grid grid-cols-3 gap-4">
+                                    <div class="form-group col-span-2">
+                                        <label>Référence / Code-barres *</label>
+                                        <div class="input-with-button">
+                                            <input type="text" formControlName="reference"
+                                                placeholder="Scanner ou saisir">
+                                            <button type="button" class="btn-scan"
+                                                (click)="scanBarcode('reference', i)">Scan</button>
+                                        </div>
+                                    </div>
+                                    <div class="form-group"><label>Marque</label><input type="text"
+                                            formControlName="marque"></div>
+                                    <div class="form-group"><label>Couleur</label><input type="text"
+                                            formControlName="couleur"></div>
+                                    <div class="form-group"><label>Taille</label><input type="text"
+                                            formControlName="taille"></div>
+                                    <div class="form-group"><label>Prix</label><input type="number"
+                                            formControlName="prixMonture"></div>
+                                </div>
+                            </div>
 
-                <!-- Mode Simple -->
-                <div class="form-row" *ngIf="!ficheForm.get('verres.differentODOG')?.value">
-                    <div class="form-group">
-                        <label>Matière</label>
-                        <select formControlName="matiere">
-                            <option value="Organique (CR-39)">Organique (CR-39)</option>
-                            <option value="Polycarbonate">Polycarbonate</option>
-                            <option value="Trivex">Trivex</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Indice de réfraction</label>
-                        <select formControlName="indice">
-                            <option value="1.50 (Standard)">1.50 (Standard)</option>
-                            <option value="1.56">1.56</option>
-                            <option value="1.60">1.60</option>
-                            <option value="1.67">1.67</option>
-                            <option value="1.74">1.74</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Traitement</label>
-                        <select formControlName="traitement" multiple>
-                            <option value="Anti-reflet">Anti-reflet</option>
-                            <option value="Durci">Durci</option>
-                            <option value="Hydrophobe">Hydrophobe</option>
-                            <option value="Anti-rayure">Anti-rayure</option>
-                        </select>
-                    </div>
-                </div>
+                            <!-- Verres -->
+                            <div class="section-card" formGroupName="verres"
+                                *ngIf="equipment.get('type')?.value !== 'Solaire sans correction'">
+                                <div class="section-header">
+                                    <h4>Verres correcteurs</h4>
+                                    <div class="section-actions">
+                                        <button type="button" class="btn-suggestion"
+                                            (click)="checkSuggestion(i)">Suggestion</button>
+                                        <label class="checkbox-label"><input type="checkbox"
+                                                formControlName="differentODOG"><span>Différents OD/OG</span></label>
+                                    </div>
+                                </div>
 
-                <!-- Mode Différent OD/OG -->
-                <div class="verres-split" *ngIf="ficheForm.get('verres.differentODOG')?.value">
-                    <!-- OD -->
-                    <div class="verre-od">
-                        <h4 class="eye-title-od">Œil Droit (OD)</h4>
-                        <div class="form-group">
-                            <label>Matière</label>
-                            <select formControlName="matiereOD">
-                                <option value="Organique (CR-39)">Organique (CR-39)</option>
-                                <option value="Polycarbonate">Polycarbonate</option>
-                                <option value="Trivex">Trivex</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Indice</label>
-                            <select formControlName="indiceOD">
-                                <option value="1.50 (Standard)">1.50 (Standard)</option>
-                                <option value="1.56">1.56</option>
-                                <option value="1.60">1.60</option>
-                                <option value="1.67">1.67</option>
-                                <option value="1.74">1.74</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Traitement</label>
-                            <select formControlName="traitementOD" multiple>
-                                <option value="Anti-reflet">Anti-reflet</option>
-                                <option value="Durci">Durci</option>
-                                <option value="Hydrophobe">Hydrophobe</option>
-                                <option value="Anti-rayure">Anti-rayure</option>
-                            </select>
-                        </div>
-                    </div>
+                                <!-- Suggestions (Added Equipment) -->
+                                <div class="suggestions-panel" *ngIf="showSuggestions && activeSuggestionIndex === i">
+                                    <div class="suggestion-item" *ngFor="let suggestion of suggestions">
+                                        <div class="suggestion-content">
+                                            <strong>[{{ suggestion.type }}] {{ suggestion.matiere }}</strong>
+                                            <p>{{ suggestion.raison }}</p>
+                                        </div>
+                                        <button type="button" class="btn-apply"
+                                            (click)="applySuggestion(suggestion, getEquipmentGroup(i))">Appliquer</button>
+                                    </div>
+                                    <button type="button" class="btn-close-suggestions"
+                                        (click)="closeSuggestions()">Fermer</button>
+                                </div>
 
-                    <!-- OG -->
-                    <div class="verre-og">
-                        <h4 class="eye-title-og">Œil Gauche (OG)</h4>
-                        <div class="form-group">
-                            <label>Matière</label>
-                            <select formControlName="matiereOG">
-                                <option value="Organique (CR-39)">Organique (CR-39)</option>
-                                <option value="Polycarbonate">Polycarbonate</option>
-                                <option value="Trivex">Trivex</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Indice</label>
-                            <select formControlName="indiceOG">
-                                <option value="1.50 (Standard)">1.50 (Standard)</option>
-                                <option value="1.56">1.56</option>
-                                <option value="1.60">1.60</option>
-                                <option value="1.67">1.67</option>
-                                <option value="1.74">1.74</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Traitement</label>
-                            <select formControlName="traitementOG" multiple>
-                                <option value="Anti-reflet">Anti-reflet</option>
-                                <option value="Durci">Durci</option>
-                                <option value="Hydrophobe">Hydrophobe</option>
-                                <option value="Anti-rayure">Anti-rayure</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
+                                <!-- Single Mode -->
+                                <div class="verres-single" *ngIf="!equipment.get('verres.differentODOG')?.value">
+                                    <div class="grid grid-cols-3 gap-4 mb-4">
+                                        <mat-form-field appearance="outline"
+                                            class="w-full"><mat-label>Matière</mat-label><mat-select
+                                                formControlName="matiere"><mat-option
+                                                    value="Organique (CR-39)">Organique
+                                                    (CR-39)</mat-option><mat-option
+                                                    value="Polycarbonate">Polycarbonate</mat-option><mat-option
+                                                    value="Trivex">Trivex</mat-option></mat-select></mat-form-field>
+                                        <mat-form-field appearance="outline"
+                                            class="w-full"><mat-label>Indice</mat-label><mat-select
+                                                formControlName="indice"><mat-option
+                                                    value="1.50 (Standard)">1.50</mat-option><mat-option
+                                                    value="1.56">1.56</mat-option><mat-option
+                                                    value="1.60">1.60</mat-option></mat-select></mat-form-field>
+                                        <mat-form-field appearance="outline"
+                                            class="w-full"><mat-label>Traitement</mat-label><mat-select
+                                                formControlName="traitement" multiple><mat-option
+                                                    value="Anti-reflet">Anti-reflet</mat-option><mat-option
+                                                    value="Durci">Durci</mat-option></mat-select></mat-form-field>
+                                    </div>
+                                    <div class="form-group full-width price-row">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Prix Unitaire
+                                            (DH)</label>
+                                        <div class="input-with-hint">
+                                            <input type="number" formControlName="prixOD"
+                                                class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white">
+                                            <span class="text-xs text-gray-500 mt-1">Le prix total sera calculé
+                                                automatiquement (x2)</span>
+                                        </div>
+                                    </div>
+                                </div>
 
-                <div class="form-group price-display">
-                    <label>Prix Verres (DH)</label>
-                    <div class="price-value">
-                        {{ ficheForm.get('verres.prixOD')?.value + ficheForm.get('verres.prixOG')?.value }}
-                        <span class="auto-badge">Auto</span>
+                                <!-- Split Mode -->
+                                <div class="verres-split" *ngIf="equipment.get('verres.differentODOG')?.value">
+                                    <div class="verre-od">
+                                        <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Droit (OD)</h4>
+                                        <mat-form-field appearance="outline"
+                                            class="w-full"><mat-label>Matière</mat-label><mat-select
+                                                formControlName="matiereOD"><mat-option
+                                                    value="Organique (CR-39)">Organique
+                                                    (CR-39)</mat-option><mat-option
+                                                    value="Polycarbonate">Polycarbonate</mat-option><mat-option
+                                                    value="Trivex">Trivex</mat-option></mat-select></mat-form-field>
+                                        <mat-form-field appearance="outline"
+                                            class="w-full"><mat-label>Indice</mat-label><mat-select
+                                                formControlName="indiceOD"><mat-option
+                                                    value="1.50 (Standard)">1.50</mat-option><mat-option
+                                                    value="1.56">1.56</mat-option><mat-option
+                                                    value="1.60">1.60</mat-option></mat-select></mat-form-field>
+                                        <mat-form-field appearance="outline"
+                                            class="w-full"><mat-label>Traitement</mat-label><mat-select
+                                                formControlName="traitementOD" multiple><mat-option
+                                                    value="Anti-reflet">Anti-reflet</mat-option><mat-option
+                                                    value="Durci">Durci</mat-option></mat-select></mat-form-field>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Prix Verre OD
+                                                (DH)</label>
+                                            <input type="number" formControlName="prixOD"
+                                                class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-sm">
+                                        </div>
+                                    </div>
+                                    <div class="verre-og">
+                                        <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Gauche (OG)</h4>
+                                        <mat-form-field appearance="outline"
+                                            class="w-full"><mat-label>Matière</mat-label><mat-select
+                                                formControlName="matiereOG"><mat-option
+                                                    value="Organique (CR-39)">Organique
+                                                    (CR-39)</mat-option><mat-option
+                                                    value="Polycarbonate">Polycarbonate</mat-option><mat-option
+                                                    value="Trivex">Trivex</mat-option></mat-select></mat-form-field>
+                                        <mat-form-field appearance="outline"
+                                            class="w-full"><mat-label>Indice</mat-label><mat-select
+                                                formControlName="indiceOG"><mat-option
+                                                    value="1.50 (Standard)">1.50</mat-option><mat-option
+                                                    value="1.56">1.56</mat-option><mat-option
+                                                    value="1.60">1.60</mat-option></mat-select></mat-form-field>
+                                        <mat-form-field appearance="outline"
+                                            class="w-full"><mat-label>Traitement</mat-label><mat-select
+                                                formControlName="traitementOG" multiple><mat-option
+                                                    value="Anti-reflet">Anti-reflet</mat-option><mat-option
+                                                    value="Durci">Durci</mat-option></mat-select></mat-form-field>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Prix Verre OG
+                                                (DH)</label>
+                                            <input type="number" formControlName="prixOG"
+                                                class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-sm">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <p class="price-note">Prix calculé automatiquement</p>
                 </div>
             </div>
+
+
         </div>
 
-        <!-- ONGLET 3: FICHE MONTAGE (Placeholder) -->
+        <!-- ONGLET 3: FICHE MONTAGE -->
         <div class="tab-content" *ngIf="activeTab === 2">
             <div class="tab-header">
                 <div class="icon-box">
@@ -511,17 +632,18 @@
                 <p>Contenu de la fiche montage à venir...</p>
             </div>
         </div>
-    </form>
 
-    <!-- Footer Navigation -->
-    <div class="footer-nav">
-        <button type="button" class="btn-secondary" (click)="prevTab()" [disabled]="activeTab === 0">
-            ← Précédent
-        </button>
-        <button type="button" class="btn-primary" (click)="nextTab()" *ngIf="activeTab < 2">
-            Suivant →
-        </button>
-    </div>
+        <!-- Footer Navigation inside Form -->
+        <div class="footer-nav">
+            <button type="button" class="btn-secondary" (click)="prevTab()" [disabled]="activeTab === 0">←
+                Précédent</button>
+            <button type="button" class="btn-primary" (click)="nextTab()" *ngIf="activeTab < 2">Suivant →</button>
+        </div>
+
+    </form>
+    <!-- End Form -->
+
+    <!-- Modals (Outside Form) -->
 
     <!-- File Viewer Modal -->
     <div class="file-viewer-modal" *ngIf="viewingFile" (click)="closeViewer()">
@@ -538,51 +660,33 @@
         </div>
     </div>
 
-
-    <!-- Camera Capture Modal -->
+    <!-- Camera Modal -->
     <div class="camera-modal" *ngIf="showCameraModal" (click)="closeCamera()">
         <div class="modal-content" (click)="$event.stopPropagation()">
             <div class="modal-header">
-                <h3>Capturer une photo de prescription</h3>
+                <h3>Capturer une photo</h3>
                 <button type="button" class="btn-close" (click)="closeCamera()">×</button>
             </div>
-
             <div class="modal-body">
-                <!-- Video stream -->
                 <div class="camera-container" *ngIf="!capturedImage">
                     <video #videoElement autoplay playsinline></video>
                 </div>
-
-                <!-- Captured photo preview -->
                 <div class="preview-container" *ngIf="capturedImage">
                     <img [src]="capturedImage" alt="Photo capturée">
                 </div>
-
-                <!-- Hidden canvas for capture -->
                 <canvas #canvasElement style="display: none;"></canvas>
             </div>
-
             <div class="modal-footer">
-                <!-- Buttons before capture -->
                 <ng-container *ngIf="!capturedImage">
-                    <button type="button" class="btn-secondary" (click)="closeCamera()">
-                        Annuler
-                    </button>
-                    <button type="button" class="btn-primary" (click)="capturePhoto()">
-                        📷 Capturer
-                    </button>
+                    <button type="button" class="btn-secondary" (click)="closeCamera()">Annuler</button>
+                    <button type="button" class="btn-primary" (click)="capturePhoto()">📷 Capturer</button>
                 </ng-container>
-
-                <!-- Buttons after capture -->
                 <ng-container *ngIf="capturedImage">
-                    <button type="button" class="btn-secondary" (click)="retakePhoto()">
-                        ↺ Reprendre
-                    </button>
-                    <button type="button" class="btn-success" (click)="useCapture()">
-                        ✓ Utiliser cette photo
-                    </button>
+                    <button type="button" class="btn-secondary" (click)="retakePhoto()">↺ Reprendre</button>
+                    <button type="button" class="btn-success" (click)="useCapture()">✓ Utiliser cette photo</button>
                 </ng-container>
             </div>
         </div>
     </div>
+
 </div>
