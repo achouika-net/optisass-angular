@@ -1,4 +1,4 @@
-<div class="fiche-container">
+<form [formGroup]="ficheForm" class="fiche-container" (ngSubmit)="onSubmit()">
     <!-- Header -->
     <div class="header">
         <div class="client-info">
@@ -17,18 +17,23 @@
             <button type="button" class="btn-secondary" (click)="goBack()">Annuler</button>
             <button type="button" class="btn-primary" (click)="onSubmit()" [disabled]="ficheForm.invalid || loading">
                 Enregistrer
+            </button>
         </div>
     </div>
-    </form>
+</form>
 
-    <h3>{{ viewingFile.name }}</h3>
-    <button type="button" class="btn-close" (click)="closeViewer()">×</button>
-</div>
-<div class="modal-body">
-    <img *ngIf="viewingFile.type.startsWith('image/')" [src]="viewingFile.preview" alt="Prescription">
-    <iframe *ngIf="viewingFile.type === 'application/pdf'" [src]="viewingFile.preview" frameborder="0"></iframe>
-</div>
-</div>
+<!-- File Viewer Modal -->
+<div class="modal-overlay" *ngIf="viewingFile">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>{{ viewingFile.name }}</h3>
+            <button type="button" class="btn-close" (click)="closeViewer()">×</button>
+        </div>
+        <div class="modal-body">
+            <img *ngIf="viewingFile.type.startsWith('image/')" [src]="viewingFile.preview" alt="Prescription">
+            <iframe *ngIf="viewingFile.type === 'application/pdf'" [src]="viewingFile.preview" frameborder="0"></iframe>
+        </div>
+    </div>
 </div>
 
 
@@ -77,5 +82,4 @@
             </ng-container>
         </div>
     </div>
-</div>
 </div>
