@@ -808,12 +808,34 @@ export class MontureFormComponent implements OnInit {
             const parsed = parsePrescription(text);
             console.log('Données parsées (OCR):', parsed);
 
-            // Apply extracted data to form
-            this.setCorrectionOD(parsed.OD);
-            this.setCorrectionOG(parsed.OG);
+            // Check if any data was found
+            const hasOD = parsed.OD.sph !== 0 || parsed.OD.cyl !== 0 || parsed.OD.add !== undefined;
+            const hasOG = parsed.OG.sph !== 0 || parsed.OG.cyl !== 0 || parsed.OG.add !== undefined;
+            const hasEP = parsed.EP.val !== 0;
 
-            console.log('Données OCR appliquées avec succès');
-            this.cdr.markForCheck();
+            if (!hasOD && !hasOG && !hasEP) {
+                alert('Aucune donnée optique détectée dans l\'image. Vérifiez la netteté de la photo.');
+                return;
+            }
+
+            // Build summary for user approval
+            let summary = 'Données détectées :\n\n';
+            if (hasOD) summary += `OD: ${parsed.OD.sph > 0 ? '+' : ''}${parsed.OD.sph} (${parsed.OD.cyl > 0 ? '+' : ''}${parsed.OD.cyl}) ${parsed.OD.axis ? '@' + parsed.OD.axis + '°' : ''} ${parsed.OD.add ? 'Add ' + parsed.OD.add : ''}\n`;
+            if (hasOG) summary += `OG: ${parsed.OG.sph > 0 ? '+' : ''}${parsed.OG.sph} (${parsed.OG.cyl > 0 ? '+' : ''}${parsed.OG.cyl}) ${parsed.OG.axis ? '@' + parsed.OG.axis + '°' : ''} ${parsed.OG.add ? 'Add ' + parsed.OG.add : ''}\n`;
+            if (hasEP) summary += `EP: ${parsed.EP.val} mm\n`;
+
+            summary += '\nImporter ces valeurs ?';
+
+            if (confirm(summary)) {
+                // Apply extracted data to form
+                this.setCorrectionOD(parsed.OD);
+                this.setCorrectionOG(parsed.OG);
+                if (parsed.EP) {
+                    this.setCorrectionEP(parsed.EP);
+                }
+                alert('Données importées avec succès !');
+                this.cdr.markForCheck();
+            }
 
         } catch (error) {
             console.error('Erreur OCR:', error);
@@ -829,6 +851,8 @@ export class MontureFormComponent implements OnInit {
             if (data.cyl !== 0) values.cylindre = this.formatNumber(data.cyl);
             if (data.axis !== undefined) values.axe = data.axis + '°';
             if (data.add !== undefined) values.addition = this.formatNumber(data.add);
+            if (data.prism !== undefined) values.prisme = data.prism;
+            if (data.base !== undefined) values.base = data.base;
             odGroup.patchValue(values);
         }
     }
@@ -841,7 +865,25 @@ export class MontureFormComponent implements OnInit {
             if (data.cyl !== 0) values.cylindre = this.formatNumber(data.cyl);
             if (data.axis !== undefined) values.axe = data.axis + '°';
             if (data.add !== undefined) values.addition = this.formatNumber(data.add);
+            if (data.prism !== undefined) values.prisme = data.prism;
+            if (data.base !== undefined) values.base = data.base;
             ogGroup.patchValue(values);
+        }
+    }
+
+    private setCorrectionEP(data: { val: number; od?: number; og?: number }): void {
+        const ordonnanceGroup = this.ficheForm.get('ordonnance');
+        if (!ordonnanceGroup) return;
+
+        if (data.od && data.og) {
+            // Split provided (e.g. 32/32)
+            ordonnanceGroup.get('od.ep')?.setValue(data.od);
+            ordonnanceGroup.get('og.ep')?.setValue(data.og);
+        } else if (data.val) {
+            // Single value provided (e.g. 64) -> Split implicitly
+            const half = data.val / 2;
+            ordonnanceGroup.get('od.ep')?.setValue(half);
+            ordonnanceGroup.get('og.ep')?.setValue(half);
         }
     }
 
@@ -1154,6 +1196,11 @@ export class MontureFormComponent implements OnInit {
                                 ecartPupillaireOG: measurement.pdLeftMm.toFixed(1),
                                 hauteurOD: measurement.heightRightMm ? measurement.heightRightMm.toFixed(1) : null,
                                 hauteurOG: measurement.heightLeftMm ? measurement.heightLeftMm.toFixed(1) : null
+                            },
+                            // Sync Ecarts to Ordonnance tab as well
+                            ordonnance: {
+                                od: { ep: measurement.pdRightMm.toFixed(1) },
+                                og: { ep: measurement.pdLeftMm.toFixed(1) }
                             }
                         });
 
