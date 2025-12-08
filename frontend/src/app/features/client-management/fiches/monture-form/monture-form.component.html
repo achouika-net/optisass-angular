@@ -108,7 +108,7 @@
                     </button>
 
                     <input #fileInput type="file" accept="image/*,application/pdf" multiple class="hidden"
-                        (change)="onFilesSelected($event)">
+                        (change)="onFilesSelected($event)" aria-label="Sélectionner des documents">
                 </div>
             </div>
 
@@ -277,7 +277,7 @@
                         <button type="button" class="btn-toggle" (click)="toggleMainEquipment()">
                             <span>{{ mainEquipmentExpanded ? 'Réduire' : 'Développer' }}</span>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"
-                                [style.transform]="mainEquipmentExpanded ? 'rotate(180deg)' : 'rotate(0deg)'">
+                                class="transition-transform duration-200" [class.rotate-180]="mainEquipmentExpanded">
                                 <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
                             </svg>
                         </button>
@@ -298,14 +298,14 @@
                                             aria-label="Scanner le code-barres">Scan</button>
                                     </div>
                                 </div>
-                                <div class="form-group"><label>Marque</label><input type="text"
-                                        formControlName="marque">
+                                <div class="form-group"><label>Marque</label><input type="text" formControlName="marque"
+                                        aria-label="Marque de la monture">
                                 </div>
                                 <div class="form-group"><label>Couleur</label><input type="text"
-                                        formControlName="couleur">
+                                        formControlName="couleur" aria-label="Couleur de la monture">
                                 </div>
-                                <div class="form-group"><label>Taille</label><input type="text"
-                                        formControlName="taille">
+                                <div class="form-group"><label>Taille</label><input type="text" formControlName="taille"
+                                        aria-label="Taille de la monture">
                                 </div>
                                 <div class="form-group">
                                     <label>Prix Monture</label>
@@ -492,7 +492,8 @@
                                 <button type="button" class="btn-toggle" (click)="toggleAddedEquipment(i)">
                                     <span>{{ addedEquipmentsExpanded[i] ? 'Réduire' : 'Développer' }}</span>
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"
-                                        [style.transform]="addedEquipmentsExpanded[i] ? 'rotate(180deg)' : 'rotate(0deg)'">
+                                        class="transition-transform duration-200"
+                                        [class.rotate-180]="addedEquipmentsExpanded[i]">
                                         <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
                                     </svg>
                                 </button>
@@ -520,11 +521,14 @@
                                         </div>
                                     </div>
                                     <div class="form-group"><label>Marque</label><input type="text"
-                                            formControlName="marque"></div>
+                                            formControlName="marque" aria-label="Marque de la monture additionnelle">
+                                    </div>
                                     <div class="form-group"><label>Couleur</label><input type="text"
-                                            formControlName="couleur"></div>
+                                            formControlName="couleur" aria-label="Couleur de la monture additionnelle">
+                                    </div>
                                     <div class="form-group"><label>Taille</label><input type="text"
-                                            formControlName="taille"></div>
+                                            formControlName="taille" aria-label="Taille de la monture additionnelle">
+                                    </div>
                                     <div class="form-group">
                                         <label>Prix</label>
                                         <input type="text" formControlName="prixMonture"

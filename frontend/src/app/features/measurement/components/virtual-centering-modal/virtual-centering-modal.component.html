@@ -10,40 +10,33 @@
 
 <mat-dialog-content>
     <div class="instructions">
+        @if (!isCaptured) {
         <p>📸 Positionnez-vous face à la caméra à environ 40-50 cm</p>
         <p>👓 Portez vos lunettes si vous mesurez avec monture</p>
         <p>💡 Assurez-vous d'avoir un bon éclairage</p>
+        } @else {
+        <p class="adjust-instruction">✋ <b>Mode Édition:</b> Ajustez les lignes oranges (Largeur) et bleues (Hauteur)
+        </p>
+        <p class="adjust-instruction">✅ Validez une fois que les lignes sont parfaitement alignées.</p>
+        }
     </div>
 
     <app-camera-view (measurementChange)="onMeasurementChange($event)"></app-camera-view>
-
-    @if (capturedMeasurement) {
-    <div class="captured-measurement">
-        <h3>✓ Mesure Capturée</h3>
-        <div class="measurement-grid">
-            <div class="measure-item">
-                <span class="label">PD Total:</span>
-                <span class="value">{{ capturedMeasurement.pdMm.toFixed(1) }} mm</span>
-            </div>
-            <div class="measure-item">
-                <span class="label">PD Gauche:</span>
-                <span class="value">{{ capturedMeasurement.pdLeftMm.toFixed(1) }} mm</span>
-            </div>
-            <div class="measure-item">
-                <span class="label">PD Droit:</span>
-                <span class="value">{{ capturedMeasurement.pdRightMm.toFixed(1) }} mm</span>
-            </div>
-        </div>
-    </div>
-    }
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
     <button mat-button (click)="cancel()">Annuler</button>
+
+    @if (!isCaptured) {
     <button mat-raised-button color="primary" (click)="captureMeasurement()" [disabled]="!currentMeasurement">
         📷 Capturer
     </button>
-    <button mat-raised-button color="accent" (click)="validateMeasurement()" [disabled]="!capturedMeasurement">
-        ✓ Valider
+    } @else {
+    <button mat-stroked-button color="warn" (click)="retakeMeasurement()">
+        🔄 Reprendre
     </button>
+    <button mat-raised-button color="accent" (click)="validateMeasurement()">
+        ✓ Valider les Mesures
+    </button>
+    }
 </mat-dialog-actions>

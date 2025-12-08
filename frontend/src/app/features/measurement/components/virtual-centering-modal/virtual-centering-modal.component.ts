@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
@@ -21,8 +21,10 @@ import { Measurement } from '../../models/measurement.model';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class VirtualCenteringModalComponent {
+    @ViewChild(CameraViewComponent) cameraView!: CameraViewComponent;
+
     currentMeasurement: Measurement | null = null;
-    capturedMeasurement: Measurement | null = null;
+    isCaptured = false;
 
     constructor(
         private dialogRef: MatDialogRef<VirtualCenteringModalComponent>
@@ -33,14 +35,24 @@ export class VirtualCenteringModalComponent {
     }
 
     captureMeasurement(): void {
-        if (this.currentMeasurement) {
-            this.capturedMeasurement = { ...this.currentMeasurement };
+        if (this.cameraView) {
+            this.cameraView.capture();
+            this.isCaptured = true;
+        }
+    }
+
+    retakeMeasurement(): void {
+        if (this.cameraView) {
+            this.cameraView.retake();
+            this.isCaptured = false;
         }
     }
 
     validateMeasurement(): void {
-        if (this.capturedMeasurement) {
-            this.dialogRef.close(this.capturedMeasurement);
+        // If we are in capture mode, logic is simple: currentMeasurement is already maintained by CameraView
+        // even during static editing.
+        if (this.currentMeasurement) {
+            this.dialogRef.close(this.currentMeasurement);
         }
     }
 

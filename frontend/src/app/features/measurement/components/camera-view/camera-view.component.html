@@ -45,29 +45,6 @@
                 <button (click)="resetCalibration()" class="btn-reset">🔄 Recalibrer</button>
             </div>
             }
-            <!-- Capture / Validate Controls -->
-            <div class="capture-controls" style="margin-top: 20px; display: flex; gap: 10px;">
-                @if (!isCaptured) {
-                <button (click)="captureImage()" class="btn-capture"
-                    style="flex: 1; padding: 12px; background: #2196F3; color: white; border: none; border-radius: 4px;">
-                    📸 Figer l'image (Ajustement)
-                </button>
-                } @else {
-                <button (click)="retake()" class="btn-retake"
-                    style="flex: 1; padding: 12px; background: #f44336; color: white; border: none; border-radius: 4px;">
-                    ❌ Reprendre
-                </button>
-                }
-            </div>
-
-            @if (isCaptured) {
-            <div class="instruction-box"
-                style="margin-top: 10px; background: #e3f2fd; padding: 10px; border-radius: 4px;">
-                <p><strong>👆 Ajustement Hauteur :</strong></p>
-                <p>Déplacez les lignes bleues sur le bas de la monture.</p>
-            </div>
-            }
-
         </div>
 
         <div class="measurements-section">
