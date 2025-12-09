@@ -16,5 +16,13 @@ export const CLIENT_ROUTES: Routes = [
     {
         path: ':id/edit',
         loadComponent: () => import('./components/client-form/client-form.component').then(m => m.ClientFormComponent)
+    },
+    {
+        path: ':clientId/fiche-monture/new',
+        loadComponent: () => import('./components/fiches/monture-form/monture-form.component').then(m => m.MontureFormComponent)
+    },
+    {
+        path: ':clientId/fiche-monture/:ficheId',
+        loadComponent: () => import('./components/fiches/monture-form/monture-form.component').then(m => m.MontureFormComponent)
     }
 ];
