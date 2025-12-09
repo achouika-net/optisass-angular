@@ -181,93 +181,13 @@ mat-form-field {
     }
 }
 
-// --- AGGRESSIVE OVERRIDES FOR DISABLED STATE (Global for this component) ---
-
-// 1. Text Inputs & Selects (via Form Field)
-::ng-deep .mat-form-field.mat-form-field-disabled {
-    .mat-mdc-text-field-wrapper {
-        background-color: #ffffff !important; // Force White Background
-    }
-
-    // Label Color
-    .mdc-floating-label {
-        color: rgba(0, 0, 0, 0.6) !important; // Standard label color
-    }
-
-    // Input/Select Value Color
-    .mat-mdc-input-element,
-    .mat-mdc-select-value {
-        color: rgba(0, 0, 0, 0.87) !important;
-        -webkit-text-fill-color: rgba(0, 0, 0, 0.87) !important;
-        opacity: 1 !important;
-    }
-
-    // Outline Border Color
-    .mdc-notched-outline__leading,
-    .mdc-notched-outline__notch,
-    .mdc-notched-outline__trailing {
-        border-color: rgba(0, 0, 0, 0.38) !important; // Standard border color
-    }
-}
-
 .readonly-state {
-    pointer-events: none; // Still useful for non-input elements if any
+    pointer-events: none;
+    // tab-index is not a valid CSS property, creating lint error. Removed.
 
-    // Hide the select arrow
-    ::ng-deep .mat-mdc-select-arrow-wrapper {
-        display: none !important;
-    }
-
-    // 2. Checkboxes
-    ::ng-deep .mat-mdc-checkbox-disabled {
-        opacity: 1 !important;
-
-        .mat-mdc-checkbox-label {
-            color: rgba(0, 0, 0, 0.87) !important;
-            cursor: default !important;
-        }
-
-        // Force checked box color
-        &.mdc-checkbox--selected .mdc-checkbox__background {
-            background-color: #673ab7 !important;
-            border-color: #673ab7 !important;
-        }
-
-        // Force unchecked box border
-        &:not(.mdc-checkbox--selected) .mdc-checkbox__background {
-            border-color: rgba(0, 0, 0, 0.54) !important;
-        }
-    }
-
-    // 3. Radio Buttons
-    ::ng-deep .mat-mdc-radio-disabled {
-        opacity: 1 !important;
-
-        .mdc-label {
-            color: rgba(0, 0, 0, 0.87) !important;
-            cursor: default !important;
-        }
-
-        // Force checked circle color
-        .mat-mdc-radio-checked .mdc-radio__background::before {
-            background-color: #673ab7 !important;
-        }
-
-        .mat-mdc-radio-checked .mdc-radio__outer-circle {
-            border-color: #673ab7 !important;
-        }
-
-        // Force unchecked circle border
-        &:not(.mat-mdc-radio-checked) .mdc-radio__outer-circle {
-            border-color: rgba(0, 0, 0, 0.54) !important;
-        }
-    }
-
-    ::ng-deep .mat-mdc-select-disabled .mat-mdc-select-value {
+    // Maintain default colors instead of disabled grey
+    ::ng-deep .mat-mdc-checkbox-disabled .mat-mdc-checkbox-label {
         color: rgba(0, 0, 0, 0.87) !important;
-        cursor: default !important;
-        opacity: 1 !important;
-        -webkit-text-fill-color: rgba(0, 0, 0, 0.87) !important;
     }
 }
 
@@ -445,14 +365,24 @@ mat-form-field {
         }
     }
 
-    .close-action {
+    .action-buttons-footer {
         display: flex;
-        justify-content: flex-end;
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 24px;
+        width: 100%;
 
         button {
-            border: 1px solid #ddd;
-            background: white;
-            color: #333;
+            width: 100%;
+            justify-content: center;
+            height: 40px;
+            font-weight: 500;
+            border-radius: 6px;
+        }
+
+        // Specific styles if needed
+        button[color="warn"] {
+            // Warn style handled by Angular Material
         }
     }
 }

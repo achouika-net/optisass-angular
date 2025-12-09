@@ -5,18 +5,7 @@
             <h1>Dossier Fiches Client</h1>
         </div>
         <div class="header-actions">
-            <button mat-stroked-button *ngIf="!isEditMode" (click)="toggleEditMode()">
-                <mat-icon>edit</mat-icon> Modifier
-            </button>
-            <button mat-raised-button color="primary" *ngIf="isEditMode" (click)="saveClient()">
-                <mat-icon>save</mat-icon> Enregistrer
-            </button>
-            <button mat-stroked-button color="warn" *ngIf="!isEditMode" (click)="deleteClient()" class="ml-2">
-                <mat-icon>delete</mat-icon> Supprimer
-            </button>
-            <button mat-icon-button (click)="goBack()" class="close-btn">
-                <mat-icon>close</mat-icon>
-            </button>
+            <!-- Actions moved to footer -->
         </div>
     </div>
 
@@ -441,13 +430,13 @@
                         <div class="fiche-details">
                             <span class="fiche-type">{{ fiche.type }}</span>
                             <span class="fiche-date">{{ fiche.dateCreation | date:'dd/MM/yyyy' }}</span>
-                            <span class="fiche-id">ID: {{ fiche.id }}</span>
                         </div>
                         <div class="fiche-actions">
-                            <button mat-icon-button class="action-btn view">
+                            <button mat-icon-button class="action-btn view" (click)="viewFiche(fiche)"
+                                title="Visualiser">
                                 <mat-icon>visibility</mat-icon>
                             </button>
-                            <button mat-icon-button class="action-btn edit">
+                            <button mat-icon-button class="action-btn edit" (click)="viewFiche(fiche)" title="Modifier">
                                 <mat-icon>edit</mat-icon>
                             </button>
                         </div>
@@ -461,7 +450,16 @@
                 <input type="text" [value]="client?.pointsFidelite || 0" readonly>
             </div>
 
-            <div class="close-action">
+            <div class="close-action action-buttons-footer">
+                <button mat-stroked-button *ngIf="!isEditMode" (click)="toggleEditMode()">
+                    <mat-icon>edit</mat-icon> Modifier
+                </button>
+                <button mat-raised-button color="primary" *ngIf="isEditMode" (click)="saveClient()">
+                    <mat-icon>save</mat-icon> Enregistrer
+                </button>
+                <button mat-stroked-button color="warn" *ngIf="!isEditMode" (click)="deleteClient()">
+                    <mat-icon>delete</mat-icon> Supprimer
+                </button>
                 <button mat-stroked-button (click)="goBack()">Fermer</button>
             </div>
         </div>

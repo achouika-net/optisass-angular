@@ -141,6 +141,22 @@
                 </div>
             </div>
 
+            <!-- Prescription Details -->
+            <div class="prescription-details-row">
+                <mat-form-field appearance="outline">
+                    <mat-label>Date de prescription</mat-label>
+                    <input matInput [matDatepicker]="picker" formControlName="datePrescription">
+                    <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+                    <mat-datepicker #picker></mat-datepicker>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                    <mat-label>Prescripteur</mat-label>
+                    <input matInput formControlName="prescripteur" placeholder="Nom du médecin">
+                    <mat-icon matSuffix>person_outline</mat-icon>
+                </mat-form-field>
+            </div>
+
             <div class="eyes-container">
                 <!-- OEIL DROIT -->
                 <div class="eye-card od-card" formGroupName="od">
