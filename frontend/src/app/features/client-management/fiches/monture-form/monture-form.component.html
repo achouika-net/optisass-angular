@@ -363,17 +363,19 @@
                             <div class="suggestions-panel" *ngIf="showSuggestions && activeSuggestionIndex === -1">
                                 <div class="suggestion-item" *ngFor="let suggestion of suggestions">
                                     <div class="suggestion-content">
-                                        <strong>[{{ suggestion.type }}] {{ suggestion.matiere }}</strong>
-                                        <p class="whitespace-pre-line">{{ suggestion.raison }}</p>
-                                        <p class="text-sm text-blue-600" *ngIf="suggestion.epaisseur">
-                                            📏 Épaisseur estimée: <strong>{{ suggestion.epaisseur }}</strong>
-                                        </p>
-                                        <div *ngIf="suggestion.warnings && suggestion.warnings.length > 0"
-                                            class="warnings mt-2">
-                                            <p *ngFor="let warning of suggestion.warnings"
-                                                class="text-sm text-orange-600">
-                                                {{ warning }}
-                                            </p>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <strong class="text-blue-700">[{{ suggestion.type }}]</strong>
+                                            <span class="font-semibold">{{ suggestion.matiere }}</span>
+                                            <span class="text-gray-400">•</span>
+                                            <span class="text-sm">{{
+                                                suggestion.raison.split('\n')[1]?.replace('Recommandation: ', '') ||
+                                                suggestion.matiere }}</span>
+                                            <span class="text-gray-400" *ngIf="suggestion.epaisseur">•</span>
+                                            <span class="text-sm text-blue-600" *ngIf="suggestion.epaisseur">📏 {{
+                                                suggestion.epaisseur }}</span>
+                                            <span class="text-sm text-orange-600"
+                                                *ngIf="suggestion.warnings && suggestion.warnings.length > 0">⚠️ {{
+                                                suggestion.warnings[0] }}</span>
                                         </div>
                                     </div>
                                     <button type="button" class="btn-apply"
