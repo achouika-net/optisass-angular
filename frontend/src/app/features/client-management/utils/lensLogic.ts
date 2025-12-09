@@ -1,11 +1,15 @@
 // lensLogic.ts
 import { lensDatabase, LensOption, LensTreatment } from "./lensDatabase";
 
-export interface Correction { sph: number; cyl: number; }
+export interface Correction { sph: number; cyl: number; add?: number; }
+
+export type CerclageType = 'cerclée' | 'nylor' | 'percée';
+
 export interface FrameData {
-    ed: number;
+    ed: number; // Effective diameter / calibre
     shape: "round" | "rectangular" | "cat-eye";
     mount: "full-rim" | "semi-rim" | "rimless";
+    cerclage?: CerclageType; // Type de cerclage (optional for backward compatibility)
 }
 
 export interface LensSuggestion {
@@ -13,7 +17,53 @@ export interface LensSuggestion {
     rationale: string;
     estimatedThickness: number;
     selectedTreatments: LensTreatment[];
-    estimatedPriceMAD: number;
+    warnings?: string[]; // Frame compatibility warnings
+}
+
+/**
+ * Calculate edge thickness for a lens
+ * Based on sphere, cylinder, frame calibre, and lens index
+ */
+export function calculateEdgeThickness(
+    corr: Correction,
+    calibre: number,
+    index: number
+): number {
+    const sph = corr.sph;
+    const cyl = Math.abs(corr.cyl);
+
+    let edgeThickness = 0;
+
+    if (sph <= 0) {
+        // Myope: edge is thicker
+        edgeThickness = Math.abs(sph) * (calibre / 50) * (1.0 - (index - 1.5) * 0.4);
+    } else {
+        // Hypermetrope: center is thicker
+        edgeThickness = Math.abs(sph) * 0.5 * (1.0 - (index - 1.5) * 0.4);
+    }
+
+    // Add cylinder effect
+    edgeThickness *= (1 + cyl * 0.12);
+
+    // Minimum thickness
+    edgeThickness = Math.max(0.8, Math.round(edgeThickness * 10) / 10);
+
+    return edgeThickness;
+}
+
+/**
+ * Get frame constraints based on cerclage type
+ */
+export function getFrameConstraints(cerclage?: CerclageType): { maxThickness: number; warning: string } {
+    switch (cerclage) {
+        case 'percée':
+            return { maxThickness: 3.5, warning: 'Monture percée: épaisseur max 3.5mm recommandée' };
+        case 'nylor':
+            return { maxThickness: 4.5, warning: 'Monture nylor: attention au-delà de 4.5mm' };
+        case 'cerclée':
+        default:
+            return { maxThickness: Infinity, warning: '' };
+    }
 }
 
 export function getLensSuggestion(
@@ -21,26 +71,51 @@ export function getLensSuggestion(
     frame: FrameData,
     selectedTreatments: LensTreatment[] = []
 ): LensSuggestion {
-    const absSph = Math.abs(corr.sph);
-    const absCyl = Math.abs(corr.cyl);
-    const power = absSph + absCyl;
+    const warnings: string[] = [];
 
-    // Sélection matière selon puissance
+    // 1. Calculate Effective Power (considering Addition for Near Vision)
+    const sph = corr.sph;
+    const cyl = corr.cyl;
+    const add = corr.add || 0;
+
+    const distancePower = Math.abs(sph) + Math.abs(cyl);
+    const nearPower = Math.abs(sph + add) + Math.abs(cyl);
+
+    const effectivePower = Math.max(distancePower, nearPower);
+    const usedNearVision = nearPower > distancePower;
+
+    // 2. Material Selection based on Effective Power
     let option: LensOption = lensDatabase[0];
-    if (power <= 2) option = lensDatabase.find(l => l.material === "CR-39")!;
-    else if (power <= 4) option = lensDatabase.find(l => l.material === "1.60")!;
-    else if (power <= 6) option = lensDatabase.find(l => l.material === "1.67")!;
-    else option = lensDatabase.find(l => l.material === "1.74")!;
+    if (effectivePower <= 2) option = lensDatabase.find(l => l.material === "CR-39")!;
+    else if (effectivePower <= 4) option = lensDatabase.find(l => l.material === "1.60")!;
+    else if (effectivePower <= 6) option = lensDatabase.find(l => l.material === "1.67")!;
+    else option = lensDatabase.find(l => l.material === "1.74")!; // Default fallback for high power
 
-    // Ajustement monture
+    // Fallback if specific option not found
+    if (!option) option = lensDatabase.find(l => l.material === "1.74") || lensDatabase[lensDatabase.length - 1];
+
+    // 3. Frame Adjustments & Cerclage Constraints
+    const cerclage = frame.cerclage || (frame.mount === 'rimless' ? 'percée' : frame.mount === 'semi-rim' ? 'nylor' : 'cerclée');
+
+    // Increase index for nylor/percée or small frames
+    if (cerclage === 'nylor' || cerclage === 'percée' || frame.ed < 50) {
+        if (option.index < 1.67) {
+            const higherOption = lensDatabase.find(l => l.index >= 1.67);
+            if (higherOption) option = higherOption;
+        }
+    }
+
     if (frame.mount === "semi-rim" && option.index < 1.6)
-        option = lensDatabase.find(l => l.material === "Polycarbonate")!;
+        option = lensDatabase.find(l => l.material === "Polycarbonate") || option;
     if (frame.mount === "rimless" && option.index < 1.67)
-        option = lensDatabase.find(l => l.material === "1.67")!;
+        option = lensDatabase.find(l => l.material === "1.67") || option;
 
-    // Estimation épaisseur
+    // 4. Thickness Estimation
     const baseThickness = 1.2;
-    const edgeFactor = power * (option.index < 1.6 ? 0.8 : option.index < 1.67 ? 0.6 : 0.45);
+    // Thinner index -> lower factor
+    const indexFactor = option.index < 1.6 ? 0.8 : option.index < 1.67 ? 0.6 : 0.45;
+    const edgeFactor = effectivePower * indexFactor;
+
     let frameFactor = 1;
     if (frame.ed > 55) frameFactor += 0.2;
     else if (frame.ed >= 50) frameFactor += 0.1;
@@ -51,88 +126,87 @@ export function getLensSuggestion(
 
     const estimatedThickness = parseFloat((baseThickness + edgeFactor * frameFactor).toFixed(2));
 
-    // Calcul prix final selon traitements sélectionnés
-    let treatmentExtra = 0;
-    selectedTreatments.forEach(t => {
-        if (t === "AR") treatmentExtra += 150;
-        if (t === "BlueCut") treatmentExtra += 150;
-        if (t === "Photochromic") treatmentExtra += 300;
-        if (t === "Polarized") treatmentExtra += 200;
-    });
-    const estimatedPriceMAD = Math.min(option.priceRangeMAD[1], option.priceRangeMAD[0] + treatmentExtra);
+    // 6. Construct Rationale
+    let powerMsg = `Puissance (Sph+Cyl): ${distancePower.toFixed(2)}D`;
+    if (usedNearVision) {
+        powerMsg = `Vision de Près (Sph+Add): ${nearPower.toFixed(2)}D (Utilisé pour le choix)`;
+    }
 
     const rationale = `
-Correction: sph=${corr.sph}, cyl=${corr.cyl} (puissance=${power})
-Monture: ED=${frame.ed}, forme=${frame.shape}, cerclage=${frame.mount}
-Matériau recommandé: ${option.material}, indice=${option.index}
-Épaisseur estimée: ${estimatedThickness} mm
-Traitements sélectionnés: ${selectedTreatments.join(", ") || "None"}
-Prix estimé: ${estimatedPriceMAD} MAD
+Conditions: ${powerMsg}
+Monture: ED=${frame.ed}mm, ${cerclage}
+Recommandation: ${option.material} (Indice ${option.index})
+Épaisseur estimée: ~${estimatedThickness}mm
   `.trim();
 
-    return { option, rationale, estimatedThickness, selectedTreatments, estimatedPriceMAD };
+    return { option, rationale, estimatedThickness, selectedTreatments, warnings: warnings.length > 0 ? warnings : undefined };
 }
 
 /**
  * Helper function to calculate lens price based on material, index, and treatments
- * (for backward compatibility with existing UI)
+ * Updated to correctly match "Organique 1.56" etc.
  */
 export function calculateLensPrice(
     material: string,
     index: string,
     treatments: string[]
 ): number {
-    // Parse index from string (e.g., "1.50 (Standard)" -> 1.50)
-    const indexNum = parseFloat(index);
+    if (!material || !index) return 0;
 
-    // Find matching lens option
+    // Parse index from string (e.g., "1.50 (Standard)" -> 1.50)
+    // Extract first numeric part
+    const indexMatch = index.toString().match(/(\d+(\.\d+)?)/);
+    const indexNum = indexMatch ? parseFloat(indexMatch[0]) : 1.50;
+
+    // Find matching lens option in DB
     const lensOption = lensDatabase.find(lens => {
+        // 1. Check Index Match (allow small tolerance)
         if (Math.abs(lens.index - indexNum) > 0.01) return false;
 
-        const materialLower = material.toLowerCase();
-        const lensMatLower = lens.material.toLowerCase();
+        // 2. Check Material Type Hints
+        const matLower = material.toLowerCase();
+        const dbMatLower = lens.material.toLowerCase();
 
-        if (materialLower.includes('cr-39') || materialLower.includes('organique')) {
-            return lensMatLower === 'cr-39';
-        }
-        if (materialLower.includes('poly')) {
-            return lensMatLower === 'polycarbonate';
-        }
-        if (materialLower.includes('trivex')) {
-            return lensMatLower === 'trivex';
-        }
-        return lensMatLower === indexNum.toFixed(2);
+        // Specific mappings
+        if (matLower.includes('cr-39')) return dbMatLower === 'cr-39';
+        if (matLower.includes('poly')) return dbMatLower === 'polycarbonate';
+        if (matLower.includes('trivex')) return dbMatLower === 'trivex';
+
+        // For generic "Organique 1.xx", reliance on index check is usually sufficient if we ruled out the special ones
+        // But let's be safe: if db is "1.60" and ui is "organique 1.60", it matches.
+        if (matLower.includes(dbMatLower)) return true;
+
+        return false;
     });
 
-    if (!lensOption) {
-        return 200; // Fallback
+    // Default base price if not perfectly found
+    let basePrice = 200;
+    if (lensOption) {
+        basePrice = (lensOption.priceRangeMAD[0] + lensOption.priceRangeMAD[1]) / 2;
+    } else {
+        // Heuristic fallback based on index if DB mismatch
+        if (indexNum >= 1.74) basePrice = 900;
+        else if (indexNum >= 1.67) basePrice = 600;
+        else if (indexNum >= 1.60) basePrice = 400;
+        else if (indexNum >= 1.56) basePrice = 300;
     }
-
-    // Base price (average of range)
-    const basePrice = (lensOption.priceRangeMAD[0] + lensOption.priceRangeMAD[1]) / 2;
 
     // Add treatment costs
     let treatmentCost = 0;
-    treatments.forEach(treatment => {
-        const treatmentLower = treatment.toLowerCase();
-        if (treatmentLower.includes('anti-reflet') || treatmentLower.includes('hmc') || treatmentLower.includes('shmc')) {
-            treatmentCost += 100;
-        } else if (treatmentLower.includes('blue') || treatmentLower.includes('bleu')) {
-            treatmentCost += 150;
-        } else if (treatmentLower.includes('photo') || treatmentLower.includes('transition')) {
-            treatmentCost += 400;
-        } else if (treatmentLower.includes('polar')) {
-            treatmentCost += 350;
-        } else if (treatmentLower.includes('teint') || treatmentLower.includes('solaire')) {
-            treatmentCost += 100;
-        } else if (treatmentLower.includes('durci') || treatmentLower.includes('rayure')) {
-            treatmentCost += 50;
-        } else if (treatmentLower.includes('miroité')) {
-            treatmentCost += 200;
-        } else if (treatmentLower.includes('hydro')) {
-            treatmentCost += 80;
-        }
-    });
+    if (treatments && treatments.length > 0) {
+        treatments.forEach(treatment => {
+            const t = treatment.toLowerCase();
+            if (t.includes('anti-reflet') || t.includes('hmc')) treatmentCost += 100;
+            else if (t.includes('shmc')) treatmentCost += 200;
+            else if (t.includes('blue')) treatmentCost += 150;
+            else if (t.includes('photo') || t.includes('transition')) treatmentCost += 400; // Expensive
+            else if (t.includes('polar')) treatmentCost += 350;
+            else if (t.includes('miroit')) treatmentCost += 200;
+            else if (t.includes('solaire') || t.includes('teinté')) treatmentCost += 100;
+            else if (t.includes('durci')) treatmentCost += 50;
+            else if (t.includes('hydro')) treatmentCost += 100;
+        });
+    }
 
     return Math.round(basePrice + treatmentCost);
 }

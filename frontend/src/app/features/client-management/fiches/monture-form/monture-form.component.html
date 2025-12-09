@@ -267,7 +267,6 @@
                                 [class.opacity-60]="!mainEquipmentExpanded" aria-label="Type d'équipement principal">
                                 <option *ngFor="let type of typesEquipement" [value]="type">{{ type }}</option>
                             </select>
-                            <!-- Summary when collapsed -->
                             <div class="text-gray-600 font-medium ml-2 flex items-center gap-2"
                                 *ngIf="!mainEquipmentExpanded">
                                 <span *ngIf="ficheForm.get('monture.marque')?.value"
@@ -277,9 +276,21 @@
                                 <span *ngIf="ficheForm.get('monture.reference')?.value" class="text-sm text-gray-500">
                                     {{ ficheForm.get('monture.reference')?.value }}
                                 </span>
+                                <!-- Lens Details Summary -->
+                                <span class="text-sm text-gray-400 mx-1">|</span>
+                                <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-100 text-sm">
+                                    Verres: {{ ficheForm.get('verres.differentODOG')?.value ? 'Différenciés' :
+                                    ficheForm.get('verres.matiere')?.value }}
+                                </span>
+                                <span *ngIf="!ficheForm.get('verres.differentODOG')?.value"
+                                    class="text-sm text-gray-500">
+                                    {{ ficheForm.get('verres.indice')?.value }}
+                                </span>
                                 <span *ngIf="ficheForm.get('monture.prixMonture')?.value"
                                     class="text-green-600 font-bold ml-2">
-                                    {{ ficheForm.get('monture.prixMonture')?.value }} DH
+                                    {{ (ficheForm.get('monture.prixMonture')?.value * 1 +
+                                    ficheForm.get('verres.prixOD')?.value * 1 +
+                                    ficheForm.get('verres.prixOG')?.value * 1) | number:'1.2-2' }} DH
                                 </span>
                             </div>
                         </div>
@@ -356,26 +367,26 @@
                             <!-- Single Mode -->
                             <div class="verres-single" *ngIf="!ficheForm.get('verres.differentODOG')?.value">
                                 <div class="grid grid-cols-5 gap-4 mb-4">
-                                    <mat-form-field appearance="outline" class="w-full">
+                                    <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Marque</mat-label>
                                         <mat-select formControlName="marque">
                                             <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b }}</mat-option>
                                         </mat-select>
                                     </mat-form-field>
 
-                                    <mat-form-field appearance="outline" class="w-full">
+                                    <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Matière</mat-label>
                                         <mat-select formControlName="matiere">
                                             <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m }}</mat-option>
                                         </mat-select>
                                     </mat-form-field>
-                                    <mat-form-field appearance="outline" class="w-full">
+                                    <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Indice</mat-label>
                                         <mat-select formControlName="indice">
                                             <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i }}</mat-option>
                                         </mat-select>
                                     </mat-form-field>
-                                    <mat-form-field appearance="outline" class="w-full">
+                                    <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Traitement</mat-label>
                                         <mat-select formControlName="traitement" multiple>
                                             <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
@@ -398,35 +409,35 @@
                                 <div class="verre-od">
                                     <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Droit (OD)</h4>
                                     <div class="grid grid-cols-1 gap-4 mb-4">
-                                        <mat-form-field appearance="outline" class="w-full">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Marque</mat-label>
                                             <mat-select formControlName="marqueOD">
                                                 <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Matière</mat-label>
                                             <mat-select formControlName="matiereOD">
                                                 <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Indice</mat-label>
                                             <mat-select formControlName="indiceOD">
                                                 <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Traitement</mat-label>
                                             <mat-select formControlName="traitementOD" multiple>
                                                 <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Prix Verre OD</mat-label>
                                             <input matInput type="text" formControlName="prixOD"
                                                 (blur)="formatPrice(ficheForm.get('verres.prixOD'), $event)">
@@ -437,35 +448,35 @@
                                 <div class="verre-og">
                                     <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Gauche (OG)</h4>
                                     <div class="grid grid-cols-1 gap-4 mb-4">
-                                        <mat-form-field appearance="outline" class="w-full">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Marque</mat-label>
                                             <mat-select formControlName="marqueOG">
                                                 <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Matière</mat-label>
                                             <mat-select formControlName="matiereOG">
                                                 <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Indice</mat-label>
                                             <mat-select formControlName="indiceOG">
                                                 <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Traitement</mat-label>
                                             <mat-select formControlName="traitementOG" multiple>
                                                 <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Prix Verre OG</mat-label>
                                             <input matInput type="text" formControlName="prixOG"
                                                 (blur)="formatPrice(ficheForm.get('verres.prixOG'), $event)">
@@ -507,9 +518,22 @@
                                         class="text-sm text-gray-500">
                                         {{ equipment.get('monture.reference')?.value }}
                                     </span>
+                                    <!-- Lens Details Summary -->
+                                    <span class="text-sm text-gray-400 mx-1">|</span>
+                                    <span
+                                        class="bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-100 text-sm">
+                                        Verres: {{ equipment.get('verres.differentODOG')?.value ? 'Différenciés' :
+                                        equipment.get('verres.matiere')?.value }}
+                                    </span>
+                                    <span *ngIf="!equipment.get('verres.differentODOG')?.value"
+                                        class="text-sm text-gray-500">
+                                        {{ equipment.get('verres.indice')?.value }}
+                                    </span>
                                     <span *ngIf="equipment.get('monture.prixMonture')?.value"
                                         class="text-green-600 font-bold ml-2">
-                                        {{ equipment.get('monture.prixMonture')?.value }} DH
+                                        {{ (equipment.get('monture.prixMonture')?.value * 1 +
+                                        equipment.get('verres.prixOD')?.value * 1 +
+                                        equipment.get('verres.prixOG')?.value * 1) | number:'1.2-2' }} DH
                                     </span>
                                 </div>
                             </div>
@@ -594,28 +618,28 @@
                                 <!-- Single Mode -->
                                 <div class="verres-single" *ngIf="!equipment.get('verres.differentODOG')?.value">
                                     <div class="grid grid-cols-5 gap-4 mb-4">
-                                        <mat-form-field appearance="outline" class="w-full">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Marque</mat-label>
                                             <mat-select formControlName="marque">
                                                 <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Matière</mat-label>
                                             <mat-select formControlName="matiere">
                                                 <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Indice</mat-label>
                                             <mat-select formControlName="indice">
                                                 <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Traitement</mat-label>
                                             <mat-select formControlName="traitement" multiple>
                                                 <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
@@ -623,7 +647,7 @@
                                             </mat-select>
                                         </mat-form-field>
 
-                                        <mat-form-field appearance="outline" class="w-full">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Prix Unitaire</mat-label>
                                             <input matInput type="text" formControlName="prixOD"
                                                 (blur)="formatPrice(getEquipmentGroup(i).get('verres.prixOD'), $event)">
@@ -638,35 +662,35 @@
                                     <div class="verre-od">
                                         <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Droit (OD)</h4>
                                         <div class="grid grid-cols-1 gap-4 mb-4">
-                                            <mat-form-field appearance="outline" class="w-full">
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Marque</mat-label>
                                                 <mat-select formControlName="marqueOD">
                                                     <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
                                                         }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
-                                            <mat-form-field appearance="outline" class="w-full">
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Matière</mat-label>
                                                 <mat-select formControlName="matiereOD">
                                                     <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
                                                         }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
-                                            <mat-form-field appearance="outline" class="w-full">
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Indice</mat-label>
                                                 <mat-select formControlName="indiceOD">
                                                     <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
                                                         }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
-                                            <mat-form-field appearance="outline" class="w-full">
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Traitement</mat-label>
                                                 <mat-select formControlName="traitementOD" multiple>
                                                     <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
                                                         }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
-                                            <mat-form-field appearance="outline" class="w-full">
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Prix Verre OD</mat-label>
                                                 <input matInput type="text" formControlName="prixOD"
                                                     (blur)="formatPrice(getEquipmentGroup(i).get('verres.prixOD'), $event)">
@@ -678,35 +702,35 @@
                                     <div class="verre-og">
                                         <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Gauche (OG)</h4>
                                         <div class="grid grid-cols-1 gap-4 mb-4">
-                                            <mat-form-field appearance="outline" class="w-full">
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Marque</mat-label>
                                                 <mat-select formControlName="marqueOG">
                                                     <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
                                                         }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
-                                            <mat-form-field appearance="outline" class="w-full">
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Matière</mat-label>
                                                 <mat-select formControlName="matiereOG">
                                                     <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
                                                         }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
-                                            <mat-form-field appearance="outline" class="w-full">
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Indice</mat-label>
                                                 <mat-select formControlName="indiceOG">
                                                     <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
                                                         }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
-                                            <mat-form-field appearance="outline" class="w-full">
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Traitement</mat-label>
                                                 <mat-select formControlName="traitementOG" multiple>
                                                     <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
                                                         }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
-                                            <mat-form-field appearance="outline" class="w-full">
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Prix Verre OG</mat-label>
                                                 <input matInput type="text" formControlName="prixOG"
                                                     (blur)="formatPrice(getEquipmentGroup(i).get('verres.prixOG'), $event)">
@@ -736,7 +760,12 @@
                     <h3>Fiche Montage</h3>
                     <p>Paramètres de centrage et montage</p>
                 </div>
+                <div class="header-actions-inline ml-auto">
+                    <!-- Suggestion Button Removed from Header as per request -->
+                </div>
             </div>
+
+
 
             <!-- Résumé de la Prescription -->
             <div class="montage-summary-grid">
@@ -866,6 +895,22 @@
                             </label>
                             <input type="text" formControlName="diametreEffectif" class="form-control"
                                 placeholder="ex: 65/70">
+                        </div>
+
+                        <!-- Suggestion Panel (Relocated) -->
+                        <!-- Suggestion Panel (Summary Only) -->
+                        <div class="mb-4" *ngIf="showSuggestions && activeSuggestionIndex === -1">
+                            <div class="suggestions-panel">
+                                <h5 class="text-sm font-bold text-blue-800 mb-2">Analyse IA & Recommandations</h5>
+                                <div class="suggestion-item" *ngFor="let suggestion of suggestions">
+                                    <div class="suggestion-content" style="width: 100%;">
+                                        <strong>[{{ suggestion.type }}] {{ suggestion.matiere }}</strong>
+                                        <p class="whitespace-pre-line text-xs text-gray-600 mt-1">{{ suggestion.raison
+                                            }}</p>
+                                    </div>
+                                    <!-- Apply button removed as requested for this view -->
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Remarques -->

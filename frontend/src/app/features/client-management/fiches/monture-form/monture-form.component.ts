@@ -117,7 +117,7 @@ export class MontureFormComponent implements OnInit {
     ];
 
     // État d'expansion
-    mainEquipmentExpanded = false;
+    mainEquipmentExpanded = true;
     addedEquipmentsExpanded: boolean[] = [];
 
     // Suggestions IA
@@ -260,25 +260,25 @@ export class MontureFormComponent implements OnInit {
             }),
 
             verres: this.fb.group({
-                matiere: ['Organique (CR-39)', Validators.required],
-                marque: ['Standard'],
-                indice: ['1.50 (Standard)', Validators.required],
-                traitement: [['Anti-reflet']],
+                matiere: [null, Validators.required],
+                marque: [null],
+                indice: [null, Validators.required],
+                traitement: [[]],
                 prixOD: [0],
                 prixOG: [0],
                 differentODOG: [false],
 
                 // Champs OD
-                matiereOD: ['Organique (CR-39)'],
-                marqueOD: ['Standard'],
-                indiceOD: ['1.50 (Standard)'],
-                traitementOD: [['Anti-reflet']],
+                matiereOD: [null],
+                marqueOD: [null],
+                indiceOD: [null],
+                traitementOD: [[]],
 
                 // Champs OG
-                matiereOG: ['Organique (CR-39)'],
-                marqueOG: ['Standard'],
-                indiceOG: ['1.50 (Standard)'],
-                traitementOG: [['Anti-reflet']]
+                matiereOG: [null],
+                marqueOG: [null],
+                indiceOG: [null],
+                traitementOG: [[]]
             }),
 
             // Onglet 3: Fiche Montage
@@ -383,37 +383,6 @@ export class MontureFormComponent implements OnInit {
         this.cdr.markForCheck();
     }
 
-    // Helper to map database material names to UI names
-    mapMaterialToUI(dbMaterial: string): string {
-        switch (dbMaterial) {
-            case 'CR-39':
-                return 'Organique (CR-39)';
-            case 'Polycarbonate':
-                return 'Polycarbonate';
-            case 'Trivex':
-                return 'Trivex';
-            case '1.56':
-                return 'Organique 1.56';
-            case '1.60':
-                return 'Organique 1.60';
-            case '1.67':
-                return 'Organique 1.67';
-            case '1.74':
-                return 'Organique 1.74';
-            default:
-                return dbMaterial;
-        }
-    }
-
-    // Helper to map database index to UI format with labels
-    mapIndiceToUI(indice: string): string {
-        const indexNum = parseFloat(indice);
-        if (indexNum === 1.50) return '1.50 (Standard)';
-        if (indexNum === 1.53) return '1.53 (Trivex)';
-        if (indexNum === 1.59) return '1.59 (Polycarbonate)';
-        return indice;
-    }
-
     checkSuggestion(index: number = -1): void {
         this.activeSuggestionIndex = index;
         const odValues = this.ficheForm.get('ordonnance.od')?.value;
@@ -436,46 +405,72 @@ export class MontureFormComponent implements OnInit {
             mount: 'full-rim'     // Default
         };
 
-        // Prepare Corrections
+        // Determine Equipment Type
+        let equipmentType: string = '';
+        if (index >= 0) {
+            // For added equipment
+            equipmentType = this.equipements.at(index)?.get('type')?.value || '';
+        } else {
+            // For main equipment
+            equipmentType = this.ficheForm.get('monture.typeEquipement')?.value || '';
+        }
+
+        // Prepare Corrections with Addition Support
+        const sphOD = parseFloat(odValues.sphere) || 0;
+        const sphOG = parseFloat(ogValues.sphere) || 0;
+        const addOD = parseFloat(odValues.addition) || 0;
+        const addOG = parseFloat(ogValues.addition) || 0;
+        const cylOD = parseFloat(odValues.cylindre) || 0;
+        const cylOG = parseFloat(ogValues.cylindre) || 0;
+
+        // CRITICAL: Only apply Addition for "Vision de près" equipment type
+        const isNearVision = equipmentType === TypeEquipement.VISION_PRES;
+
         const corrOD: Correction = {
-            sph: parseFloat(odValues.sphere) || 0,
-            cyl: parseFloat(odValues.cylindre) || 0
+            sph: sphOD,
+            cyl: cylOD,
+            add: isNearVision ? addOD : undefined  // Only pass addition for near vision
         };
         const corrOG: Correction = {
-            sph: parseFloat(ogValues.sphere) || 0,
-            cyl: parseFloat(ogValues.cylindre) || 0
+            sph: sphOG,
+            cyl: cylOG,
+            add: isNearVision ? addOG : undefined  // Only pass addition for near vision
         };
 
         // Get AI Recommendations
         const recOD = getLensSuggestion(corrOD, frameData);
         const recOG = getLensSuggestion(corrOG, frameData);
 
-        // Check if recommendations are identical (same material and index)
-        const areIdentical = recOD.option.material === recOG.option.material &&
-            recOD.option.index === recOG.option.index;
+        // Compare Spheres for Pair vs Split Logic
+        const diff = Math.abs(corrOD.sph - corrOG.sph);
 
         this.suggestions = [];
 
-        if (areIdentical) {
-            // Case A: Identical recommendations -> Show single Paire suggestion
+        if (diff < 2.0) {
+            // Case A: Similar Prescriptions -> Suggest Single Pair (Aesthetic Priority)
+            // Use the "stronger" recommendation (highest index) for both
+            const useOD = recOD.option.index >= recOG.option.index;
+            const bestRec = useOD ? recOD : recOG;
+            const thicknessInfo = `~${bestRec.estimatedThickness}mm`;
+
             this.suggestions.push({
                 type: 'Paire',
-                matiere: this.mapMaterialToUI(recOD.option.material),
-                indice: this.mapIndiceToUI(recOD.option.index.toFixed(2)),
-                traitements: this.mapTreatmentsToUI(recOD.selectedTreatments),
-                raison: recOD.rationale,
-                epaisseur: `~${recOD.estimatedThickness}mm`
+                matiere: this.mapMaterialToUI(bestRec.option.material),
+                indice: this.mapIndexToUI(bestRec.option.index),
+                traitements: this.mapTreatmentsToUI(bestRec.selectedTreatments),
+                raison: bestRec.rationale,
+                epaisseur: thicknessInfo
             });
 
         } else {
-            // Case B: Different recommendations -> Show OD and OG suggestions
+            // Case B: Different Prescriptions -> Suggest Split Indices
             const thickOD = `~${recOD.estimatedThickness}mm`;
             const thickOG = `~${recOG.estimatedThickness}mm`;
 
             this.suggestions.push({
                 type: 'OD',
                 matiere: this.mapMaterialToUI(recOD.option.material),
-                indice: this.mapIndiceToUI(recOD.option.index.toFixed(2)),
+                indice: this.mapIndexToUI(recOD.option.index),
                 traitements: this.mapTreatmentsToUI(recOD.selectedTreatments),
                 raison: recOD.rationale,
                 epaisseur: thickOD
@@ -484,17 +479,37 @@ export class MontureFormComponent implements OnInit {
             this.suggestions.push({
                 type: 'OG',
                 matiere: this.mapMaterialToUI(recOG.option.material),
-                indice: this.mapIndiceToUI(recOG.option.index.toFixed(2)),
+                indice: this.mapIndexToUI(recOG.option.index),
                 traitements: this.mapTreatmentsToUI(recOG.selectedTreatments),
                 raison: recOG.rationale,
                 epaisseur: thickOG
             });
         }
 
-        // Always show suggestions panel
         this.showSuggestions = true;
-
         this.cdr.markForCheck();
+    }
+
+    // Helper to map DB material names to UI dropdown values
+    mapMaterialToUI(dbMaterial: string): string {
+        switch (dbMaterial) {
+            case 'CR-39': return 'Organique (CR-39)';
+            case 'Polycarbonate': return 'Polycarbonate';
+            case 'Trivex': return 'Trivex';
+            case '1.56': return 'Organique 1.56';
+            case '1.60': return 'Organique 1.60';
+            case '1.67': return 'Organique 1.67';
+            case '1.74': return 'Organique 1.74';
+            default: return dbMaterial;
+        }
+    }
+
+    // Helper to map DB index numbers to UI dropdown values
+    mapIndexToUI(dbIndex: number): string {
+        if (dbIndex === 1.50) return '1.50 (Standard)';
+        if (dbIndex === 1.53) return '1.53 (Trivex)';
+        if (dbIndex === 1.59) return '1.59 (Polycarbonate)';
+        return dbIndex.toFixed(2);
     }
 
     applySuggestion(suggestion: SuggestionIA, parentGroup: AbstractControl = this.ficheForm): void {
@@ -516,6 +531,7 @@ export class MontureFormComponent implements OnInit {
                 indiceOG: suggestion.indice,
                 traitementOG: suggestion.traitements || []
             });
+            this.closeSuggestions();
 
         } else {
             // Case B: Split Mode
@@ -538,14 +554,7 @@ export class MontureFormComponent implements OnInit {
             }
         }
 
-        // Recalculate prices after applying suggestion
         this.calculateLensPrices(parentGroup);
-
-        // Close suggestions panel
-        this.closeSuggestions();
-
-        // Force change detection
-        this.cdr.markForCheck();
     }
 
     // Helper to map database treatment names to UI names
@@ -603,21 +612,21 @@ export class MontureFormComponent implements OnInit {
                 prixMonture: [0]
             }),
             verres: this.fb.group({
-                matiere: ['Organique (CR-39)'],
-                marque: ['Essilor'],
-                indice: ['1.50 (Standard)'],
-                traitement: [['Anti-reflet']],
+                matiere: [null],
+                marque: [null],
+                indice: [null],
+                traitement: [[]],
                 prixOD: [0],
                 prixOG: [0],
                 differentODOG: [false],
-                matiereOD: ['Organique (CR-39)'],
-                marqueOD: ['Essilor'],
-                indiceOD: ['1.50 (Standard)'],
-                traitementOD: [['Anti-reflet']],
-                matiereOG: ['Organique (CR-39)'],
-                marqueOG: ['Essilor'],
-                indiceOG: ['1.50 (Standard)'],
-                traitementOG: [['Anti-reflet']]
+                matiereOD: [null],
+                marqueOD: [null],
+                indiceOD: [null],
+                traitementOD: [[]],
+                matiereOG: [null],
+                marqueOG: [null],
+                indiceOG: [null],
+                traitementOG: [[]]
             })
         });
 
@@ -1069,7 +1078,11 @@ export class MontureFormComponent implements OnInit {
         if (this.ficheForm.invalid || !this.clientId) return;
         this.loading = true;
         const formValue = this.ficheForm.value;
-        const montantTotal = formValue.monture.prixMonture + formValue.verres.prixOD + formValue.verres.prixOG;
+        // Fix: Parse as floats to avoid string concatenation
+        const pMonture = parseFloat(formValue.monture.prixMonture) || 0;
+        const pOD = parseFloat(formValue.verres.prixOD) || 0;
+        const pOG = parseFloat(formValue.verres.prixOG) || 0;
+        const montantTotal = pMonture + pOD + pOG;
         const ficheData: FicheMontureCreate = {
             clientId: this.clientId,
             type: TypeFiche.MONTURE,
