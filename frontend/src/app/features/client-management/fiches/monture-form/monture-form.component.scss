@@ -1472,8 +1472,8 @@ span[matSuffix] {
     .frame-canvas {
         display: block;
         width: 100%;
-        max-width: 600px;
-        height: 450px;
+        max-width: 100%; // Fill container width
+        height: 600px;
         margin: 0 auto;
         border: none;
         border-radius: 8px;
