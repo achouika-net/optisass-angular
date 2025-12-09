@@ -16,7 +16,6 @@
                 <!-- Onglet Identité Client -->
                 <mat-tab label="Identité Client">
                     <div class="form-container" *ngIf="client">
-                        <!-- Particulier -->
                         <ng-container *ngIf="clientParticulier">
                             <div class="form-row three-cols">
                                 <mat-form-field appearance="outline">
@@ -97,43 +96,119 @@
                             </div>
 
                             <div class="section-title">Groupe Famille et Le Lien Parental</div>
+                            <!-- Cas Principal : Role + Nom Famille -->
+                            <ng-container *ngIf="clientParticulier.groupeFamille?.role === 'Principal'">
+                                <div class="form-row two-cols">
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Rôle Client</mat-label>
+                                        <mat-select value="Principal" class="readonly-state">
+                                            <mat-option value="Principal">Principal</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Nom Famille</mat-label>
+                                        <input matInput [value]="clientParticulier.groupeFamille?.nomFamille || ''"
+                                            readonly>
+                                    </mat-form-field>
+                                </div>
+                            </ng-container>
+
+                            <!-- Cas Membre : Role + Lien Parental + ID + Nom Famille -->
+                            <ng-container *ngIf="clientParticulier.groupeFamille?.role === 'Membre'">
+                                <div class="form-row two-cols">
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Rôle Client</mat-label>
+                                        <mat-select value="Membre" class="readonly-state">
+                                            <mat-option value="Membre">Membre</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Lien Parental</mat-label>
+                                        <mat-select [value]="clientParticulier.groupeFamille?.lienParental"
+                                            class="readonly-state">
+                                            <mat-option [value]="clientParticulier.groupeFamille?.lienParental">{{
+                                                clientParticulier.groupeFamille?.lienParental || '-' }}</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                </div>
+                                <div class="form-row two-cols">
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>ID Famille</mat-label>
+                                        <input matInput disabled value="">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Nom Famille</mat-label>
+                                        <input matInput [value]="clientParticulier.groupeFamille?.nomFamille || ''"
+                                            readonly>
+                                    </mat-form-field>
+                                </div>
+                            </ng-container>
+                        </ng-container>
+
+                        <!-- Professionnel -->
+                        <ng-container *ngIf="clientProfessionnel">
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
-                                    <mat-label>Rôle Client</mat-label>
-                                    <mat-select [value]="clientParticulier.groupeFamille?.role || 'Principal'"
-                                        class="readonly-state">
-                                        <mat-option value="Principal">Principal</mat-option>
-                                        <mat-option value="Membre">Membre</mat-option>
-                                    </mat-select>
+                                    <mat-label>Raison Sociale</mat-label>
+                                    <input matInput [value]="clientProfessionnel.raisonSociale" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
-                                    <mat-label>Lien Parental</mat-label>
-                                    <mat-select [value]="clientParticulier.groupeFamille?.lienParental"
-                                        class="readonly-state">
-                                        <mat-option [value]="clientParticulier.groupeFamille?.lienParental">{{
-                                            clientParticulier.groupeFamille?.lienParental || '-' }}</mat-option>
-                                    </mat-select>
+                                    <mat-label>Identifiant Fiscal</mat-label>
+                                    <input matInput [value]="clientProfessionnel.identifiantFiscal" readonly>
+                                </mat-form-field>
+                            </div>
+                            <div class="form-row three-cols">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>ICE</mat-label>
+                                    <input matInput [value]="clientProfessionnel.ice" readonly>
+                                </mat-form-field>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Registre Commerce</mat-label>
+                                    <input matInput [value]="clientProfessionnel.registreCommerce || ''" readonly>
+                                </mat-form-field>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Patente</mat-label>
+                                    <input matInput [value]="clientProfessionnel.patente || ''" readonly>
+                                </mat-form-field>
+                            </div>
+
+                            <div class="section-title">LOCALISATION & CONTACT</div>
+                            <div class="form-row two-cols">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Téléphone</mat-label>
+                                    <input matInput [value]="clientProfessionnel.telephone" readonly>
+                                </mat-form-field>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Email</mat-label>
+                                    <input matInput [value]="clientProfessionnel.email" readonly>
                                 </mat-form-field>
                             </div>
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
-                                    <mat-label>ID Famille</mat-label>
-                                    <input matInput disabled value="">
+                                    <mat-label>Ville</mat-label>
+                                    <input matInput [value]="clientProfessionnel.ville" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
-                                    <mat-label>Nom Famille</mat-label>
-                                    <input matInput [value]="clientParticulier.groupeFamille?.nomFamille || ''"
-                                        readonly>
+                                    <mat-label>Adresse</mat-label>
+                                    <input matInput [value]="clientProfessionnel.adresse || ''" readonly>
+                                </mat-form-field>
+                            </div>
+
+                            <div class="section-title">FISCALITÉ</div>
+                            <div class="form-row two-cols">
+                                <mat-checkbox [checked]="clientProfessionnel.tvaAssujetti"
+                                    class="readonly-state">Assujetti à la TVA</mat-checkbox>
+                                <mat-form-field appearance="outline" *ngIf="clientProfessionnel.tvaAssujetti">
+                                    <mat-label>Numéro d'Autorisation</mat-label>
+                                    <input matInput [value]="clientProfessionnel.numeroAutorisation || ''" readonly>
                                 </mat-form-field>
                             </div>
                         </ng-container>
-
-                        <!-- TODO: Implement Professionnel view if needed similar to above -->
                     </div>
                 </mat-tab>
 
-                <!-- Onglet Dossier Médical -->
-                <mat-tab label="Dossier Médical">
+                <!-- Onglet Dossier Médical (Particulier Only) -->
+                <mat-tab label="Dossier Médical" *ngIf="clientParticulier">
                     <div class="form-container medical-container" *ngIf="clientParticulier?.dossierMedical as dossier">
                         <div class="medical-columns">
                             <!-- Col 1: Antecedents Visuels -->
@@ -241,8 +316,62 @@
                     </div>
                 </mat-tab>
 
-                <!-- Onglet Notes -->
-                <mat-tab label="Notes">
+                <!-- Onglet Convention & Contacts (Professionnel Only) -->
+                <mat-tab label="Convention & Contacts" *ngIf="clientProfessionnel">
+                    <div class="form-container">
+                        <div class="section-title">CONVENTION</div>
+                        <div class="form-row two-cols">
+                            <!-- Example Convention fields -->
+                            <mat-checkbox [checked]="clientProfessionnel.convention?.actif"
+                                class="readonly-state">Convention Active</mat-checkbox>
+                            <mat-form-field appearance="outline" *ngIf="clientProfessionnel.convention?.actif">
+                                <mat-label>Nom Convention</mat-label>
+                                <input matInput [value]="clientProfessionnel.convention?.nomConvention || ''" readonly>
+                            </mat-form-field>
+                        </div>
+                        <div class="form-row two-cols" *ngIf="clientProfessionnel.convention?.actif">
+                            <mat-form-field appearance="outline">
+                                <mat-label>Modalité Paiement</mat-label>
+                                <input matInput [value]="clientProfessionnel.convention?.modalitePaiement" readonly>
+                            </mat-form-field>
+                            <mat-form-field appearance="outline">
+                                <mat-label>Échéance Paiement</mat-label>
+                                <input matInput [value]="clientProfessionnel.convention?.echeancePaiement" readonly>
+                            </mat-form-field>
+                        </div>
+
+                        <div class="section-title">CONTACTS INTERNES</div>
+                        <div *ngFor="let contact of clientProfessionnel.contacts" class="contact-card mb-4">
+                            <div class="form-row three-cols">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Nom</mat-label>
+                                    <input matInput [value]="contact.nom" readonly>
+                                </mat-form-field>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Prénom</mat-label>
+                                    <input matInput [value]="contact.prenom" readonly>
+                                </mat-form-field>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Fonction</mat-label>
+                                    <input matInput [value]="contact.fonction" readonly>
+                                </mat-form-field>
+                            </div>
+                            <div class="form-row two-cols">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Téléphone</mat-label>
+                                    <input matInput [value]="contact.telephone" readonly>
+                                </mat-form-field>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Email</mat-label>
+                                    <input matInput [value]="contact.email" readonly>
+                                </mat-form-field>
+                            </div>
+                        </div>
+                    </div>
+                </mat-tab>
+
+                <!-- Onglet Notes (Particulier Only) -->
+                <mat-tab label="Notes" *ngIf="clientParticulier">
                     <div class="form-container">
                         <mat-form-field appearance="outline" class="full-width notes-field">
                             <mat-label>Notes et observations</mat-label>

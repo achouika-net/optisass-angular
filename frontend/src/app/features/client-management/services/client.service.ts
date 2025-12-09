@@ -174,7 +174,7 @@ export class ClientService {
      * Initialiser des données de test
      */
     private initMockData(): void {
-        this.nextId = 3;
+        this.nextId = 4;
         this.clients = [
             {
                 id: '1',
@@ -197,6 +197,14 @@ export class ClientService {
                     actif: true,
                     type: TypeCouverture.MUTUELLE,
                     numeroAdhesion: 'MAF-888999'
+                },
+                groupeFamille: {
+                    role: 'Principal', // Test Principal logic
+                    nomFamille: 'Famille Benami',
+                    beneficiaireOptique: true,
+                    responsableFinancier: true,
+                    mutuellePartagee: true,
+                    adressePartagee: true
                 },
                 dossierMedical: {
                     correctionActuelle: CorrectionVisuelle.LUNETTES,
@@ -222,7 +230,7 @@ export class ClientService {
                     },
                     notes: 'Patiente sensible à la lumière bleue.'
                 }
-            } as ClientParticulier,
+            } as any, // Cast as any to avoid strict type checks on partial updates during dev
             {
                 id: '2',
                 typeClient: TypeClient.PROFESSIONNEL,
@@ -230,12 +238,21 @@ export class ClientService {
                 identifiantFiscal: 'IF123456',
                 ice: 'ICE987654321',
                 registreCommerce: 'RC555666',
+                patente: 'P12345',
                 telephone: '0522112233',
                 email: 'contact@optitech.com',
                 ville: 'Rabat',
                 adresse: 'Zone Industrielle Agdal',
                 statut: StatutClient.ACTIF,
                 dateCreation: new Date('2023-11-05'),
+                tvaAssujetti: true,
+                numeroAutorisation: 'AUT-TVA-2023',
+                convention: {
+                    actif: true,
+                    nomConvention: 'Convention Tech 2024',
+                    modalitePaiement: 'Virement',
+                    echeancePaiement: '60 jours'
+                },
                 contacts: [
                     {
                         nom: 'Alami',
@@ -243,9 +260,39 @@ export class ClientService {
                         fonction: 'Directeur',
                         telephone: '0661112233',
                         email: 'k.alami@optitech.com'
+                    },
+                    {
+                        nom: 'Idrissi',
+                        prenom: 'Leila',
+                        fonction: 'RH',
+                        telephone: '0661112244',
+                        email: 'l.idrissi@optitech.com'
                     }
                 ]
-            } as ClientProfessionnel
+            } as any,
+            {
+                id: '3',
+                typeClient: TypeClient.PARTICULIER,
+                titre: TitreClient.ENF,
+                nom: 'Benami',
+                prenom: 'Youssef',
+                dateNaissance: new Date('2015-06-01'),
+                typePieceIdentite: TypePieceIdentite.CIN, // N/A normally but needed for mock
+                numeroPieceIdentite: '',
+                telephone: '',
+                ville: 'Casablanca',
+                statut: StatutClient.ACTIF,
+                groupeFamille: {
+                    role: 'Membre',
+                    lienParental: 'Enfant',
+                    nomFamille: 'Famille Benami',
+                    beneficiaireOptique: true,
+                    responsableFinancier: false,
+                    mutuellePartagee: true,
+                    adressePartagee: true
+                },
+                dossierMedical: {}
+            } as any
         ];
     }
 }
