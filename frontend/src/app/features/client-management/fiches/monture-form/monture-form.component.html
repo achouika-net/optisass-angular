@@ -786,7 +786,28 @@
                 </div>
             </div>
 
-
+            <!-- Frame Visualization Canvas -->
+            <div class="frame-visualization-container">
+                <div class="visualization-header">
+                    <h4>Visualisation de Centrage</h4>
+                    <button type="button" class="btn-print" (click)="printFicheMontage()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z" />
+                        </svg>
+                        Imprimer
+                    </button>
+                </div>
+                <canvas #frameCanvas width="400" height="300" class="frame-canvas"></canvas>
+                <div class="canvas-legend">
+                    <span class="legend-item"><span class="legend-color" style="background: #FF0000;"></span>
+                        Pont/Centre</span>
+                    <span class="legend-item"><span class="legend-color" style="background: #0066FF;"></span> Hauteur
+                        Pupille</span>
+                    <span class="legend-item"><span class="legend-color" style="background: #FF8800;"></span>
+                        Calibre</span>
+                </div>
+            </div>
 
             <!-- Résumé de la Prescription -->
             <div class="montage-summary-grid">

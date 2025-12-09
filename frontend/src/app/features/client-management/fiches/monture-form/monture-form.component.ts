@@ -57,6 +57,7 @@ export class MontureFormComponent implements OnInit {
     @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
     @ViewChild('canvasElement') canvasElement!: ElementRef<HTMLCanvasElement>;
     @ViewChild('centeringCanvas') centeringCanvas!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('frameCanvas') frameCanvas!: ElementRef<HTMLCanvasElement>;
 
     ficheForm: FormGroup;
     clientId: string | null = null;
@@ -203,6 +204,12 @@ export class MontureFormComponent implements OnInit {
     }
 
     ngOnInit(): void {
+        // Draw frame visualization when tab changes to Fiche Montage
+        this.ficheForm.valueChanges.subscribe(() => {
+            if (this.activeTab === 2) {
+                setTimeout(() => this.drawFrameVisualization(), 100);
+            }
+        });
         this.clientId = this.route.snapshot.paramMap.get('clientId');
         this.ficheId = this.route.snapshot.paramMap.get('ficheId');
 
@@ -977,10 +984,14 @@ export class MontureFormComponent implements OnInit {
 
     setActiveTab(index: number): void {
         this.activeTab = index;
-        // Draw canvas when switching to Fiche Montage tab
+        // Draw canvases when switching to Fiche Montage tab
         if (index === 2) {
-            setTimeout(() => this.drawCenteringCanvas(), 100);
+            setTimeout(() => {
+                this.drawCenteringCanvas();
+                this.drawFrameVisualization();
+            }, 100);
         }
+        this.cdr.markForCheck();
     }
 
     nextTab(): void {
@@ -1314,5 +1325,117 @@ export class MontureFormComponent implements OnInit {
         // TODO: Implement PDF generation with jsPDF or pdfmake
         console.log('PDF generation feature - to be implemented');
         alert('Génération PDF de la fiche de montage à venir...');
+    }
+
+    /**
+     * Draw frame visualization with centering indicators
+     */
+    drawFrameVisualization(): void {
+        if (!this.frameCanvas) return;
+
+        const canvas = this.frameCanvas.nativeElement;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Clear canvas with WHITE background (save ink!)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Get frame data
+        const taille = this.ficheForm.get('monture.taille')?.value || '52-18-140';
+        const [calibreStr] = taille.split('-');
+        const calibre = parseInt(calibreStr) || 52;
+        const pont = parseInt(taille.split('-')[1]) || 18;
+
+        const hauteurOD = this.ficheForm.get('montage.hauteurOD')?.value || 20;
+        const hauteurOG = this.ficheForm.get('montage.hauteurOG')?.value || 20;
+        const epOD = this.ficheForm.get('montage.ecartPupillaireOD')?.value || 32;
+        const epOG = this.ficheForm.get('montage.ecartPupillaireOG')?.value || 32;
+
+        // Canvas dimensions and scale
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const scale = 2.5; // 1mm = 2.5px
+
+        // Frame dimensions
+        const frameWidth = calibre * scale;
+        const frameHeight = frameWidth * 0.6;
+        const bridgeWidth = pont * scale;
+
+        // Draw frame shape (simplified rectangle with rounded corners)
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const radius = 15;
+        const leftX = centerX - frameWidth / 2;
+        const rightX = centerX + frameWidth / 2;
+        const topY = centerY - frameHeight / 2;
+        const bottomY = centerY + frameHeight / 2;
+
+        ctx.moveTo(leftX + radius, topY);
+        ctx.lineTo(rightX - radius, topY);
+        ctx.quadraticCurveTo(rightX, topY, rightX, topY + radius);
+        ctx.lineTo(rightX, bottomY - radius);
+        ctx.quadraticCurveTo(rightX, bottomY, rightX - radius, bottomY);
+        ctx.lineTo(leftX + radius, bottomY);
+        ctx.quadraticCurveTo(leftX, bottomY, leftX, bottomY - radius);
+        ctx.lineTo(leftX, topY + radius);
+        ctx.quadraticCurveTo(leftX, topY, leftX + radius, topY);
+        ctx.stroke();
+
+        // RED LINE - Bridge/Center (vertical)
+        ctx.strokeStyle = '#FF0000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(centerX, topY - 20);
+        ctx.lineTo(centerX, bottomY + 20);
+        ctx.stroke();
+
+        // ORANGE LINES - Frame width/caliber (vertical lines at edges)
+        ctx.strokeStyle = '#FF8800';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(leftX, topY - 10);
+        ctx.lineTo(leftX, bottomY + 10);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(rightX, topY - 10);
+        ctx.lineTo(rightX, bottomY + 10);
+        ctx.stroke();
+
+        // BLUE LINES - Pupil height (horizontal)
+        const avgHauteur = (hauteurOD + hauteurOG) / 2;
+        const pupilY = bottomY - (avgHauteur * scale);
+        ctx.strokeStyle = '#0066FF';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(leftX - 10, pupilY);
+        ctx.lineTo(rightX + 10, pupilY);
+        ctx.stroke();
+
+        // Labels
+        ctx.fillStyle = '#000000';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+
+        // Caliber label
+        ctx.fillText(`${calibre}mm`, centerX, bottomY + 35);
+
+        // Bridge label
+        ctx.fillText(`Pont: ${pont}mm`, centerX, topY - 25);
+
+        // EP labels
+        ctx.font = '10px Arial';
+        ctx.fillText(`EP: ${epOD}/${epOG}mm`, centerX, bottomY + 50);
+
+        // Height label
+        ctx.fillText(`H: ${avgHauteur.toFixed(1)}mm`, leftX - 30, pupilY + 4);
+    }
+
+    /**
+     * Print Fiche Montage
+     */
+    printFicheMontage(): void {
+        window.print();
     }
 }
