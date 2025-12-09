@@ -181,41 +181,41 @@ mat-form-field {
     }
 }
 
+// --- AGGRESSIVE OVERRIDES FOR DISABLED STATE (Global for this component) ---
+
+// 1. Text Inputs & Selects (via Form Field)
+::ng-deep .mat-form-field.mat-form-field-disabled {
+    .mat-mdc-text-field-wrapper {
+        background-color: #ffffff !important; // Force White Background
+    }
+
+    // Label Color
+    .mdc-floating-label {
+        color: rgba(0, 0, 0, 0.6) !important; // Standard label color
+    }
+
+    // Input/Select Value Color
+    .mat-mdc-input-element,
+    .mat-mdc-select-value {
+        color: rgba(0, 0, 0, 0.87) !important;
+        -webkit-text-fill-color: rgba(0, 0, 0, 0.87) !important;
+        opacity: 1 !important;
+    }
+
+    // Outline Border Color
+    .mdc-notched-outline__leading,
+    .mdc-notched-outline__notch,
+    .mdc-notched-outline__trailing {
+        border-color: rgba(0, 0, 0, 0.38) !important; // Standard border color
+    }
+}
+
 .readonly-state {
     pointer-events: none; // Still useful for non-input elements if any
 
     // Hide the select arrow
     ::ng-deep .mat-mdc-select-arrow-wrapper {
         display: none !important;
-    }
-
-    // --- AGGRESSIVE OVERRIDES FOR DISABLED STATE ---
-
-    // 1. Text Inputs & Selects (via Form Field)
-    ::ng-deep .mat-form-field-disabled {
-        .mat-mdc-text-field-wrapper {
-            background-color: transparent !important; // No grey background
-        }
-
-        // Label Color
-        .mdc-floating-label {
-            color: rgba(0, 0, 0, 0.6) !important; // Standard label color
-        }
-
-        // Input/Select Value Color
-        .mat-mdc-input-element,
-        .mat-mdc-select-value {
-            color: rgba(0, 0, 0, 0.87) !important;
-            -webkit-text-fill-color: rgba(0, 0, 0, 0.87) !important;
-            opacity: 1 !important;
-        }
-
-        // Outline Border Color
-        .mdc-notched-outline__leading,
-        .mdc-notched-outline__notch,
-        .mdc-notched-outline__trailing {
-            border-color: rgba(0, 0, 0, 0.38) !important; // Standard border color
-        }
     }
 
     // 2. Checkboxes
@@ -261,6 +261,13 @@ mat-form-field {
         &:not(.mat-mdc-radio-checked) .mdc-radio__outer-circle {
             border-color: rgba(0, 0, 0, 0.54) !important;
         }
+    }
+
+    ::ng-deep .mat-mdc-select-disabled .mat-mdc-select-value {
+        color: rgba(0, 0, 0, 0.87) !important;
+        cursor: default !important;
+        opacity: 1 !important;
+        -webkit-text-fill-color: rgba(0, 0, 0, 0.87) !important;
     }
 }
 
