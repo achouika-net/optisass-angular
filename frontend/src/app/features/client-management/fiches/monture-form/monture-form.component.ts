@@ -1527,6 +1527,55 @@ export class MontureFormComponent implements OnInit {
         ctx.font = 'bold 11px Arial';
         const totalWidth = calibre * 2 + pont + frameAdjustment;
         ctx.fillText(`${totalWidth}mm`, centerX, lensY + lensHeight / 2 + 65);
+
+        // Helper function to draw dimension line with arrows
+        const drawDimension = (x1: number, y: number, x2: number, label: string, color: string) => {
+            const arrowSize = 6;
+
+            // Main horizontal line
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x1, y);
+            ctx.lineTo(x2, y);
+            ctx.stroke();
+
+            // Left arrow
+            ctx.beginPath();
+            ctx.moveTo(x1, y);
+            ctx.lineTo(x1 + arrowSize, y - arrowSize);
+            ctx.lineTo(x1 + arrowSize, y + arrowSize);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+
+            // Right arrow
+            ctx.beginPath();
+            ctx.moveTo(x2, y);
+            ctx.lineTo(x2 - arrowSize, y - arrowSize);
+            ctx.lineTo(x2 - arrowSize, y + arrowSize);
+            ctx.closePath();
+            ctx.fill();
+
+            // Label
+            ctx.fillStyle = color;
+            ctx.font = 'bold 10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, (x1 + x2) / 2, y - 8);
+        };
+
+        // COTATION 1: Largeur du verre (calibre) - à droite du verre OD
+        const lensRightEdge = rightLensX + lensWidth / 2;
+        const dimensionY1 = lensY; // Au centre du verre
+        const dimensionX1Start = lensRightEdge + 15;
+        const dimensionX1End = dimensionX1Start + (calibre * scale);
+        drawDimension(dimensionX1Start, dimensionY1, dimensionX1End, `${calibre}mm`, '#000000');
+
+        // COTATION 2: Largeur totale de la monture - en bas
+        const dimensionY2 = lensY + lensHeight / 2 + 80;
+        const totalLeftEdge = leftLensX - lensWidth / 2 - adjustmentScaled / 2;
+        const totalRightEdge = rightLensX + lensWidth / 2 + adjustmentScaled / 2;
+        drawDimension(totalLeftEdge, dimensionY2, totalRightEdge, `Largeur totale: ${totalWidth}mm`, '#FF8800');
     }
 
     /**
