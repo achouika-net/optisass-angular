@@ -25,10 +25,10 @@
 
     <button
       mat-icon-button
-      class="flex size-12 items-center justify-center"
+      class="flex items-center justify-center"
       (click)="toggleSidenav(sidenav)"
     >
-      <mat-icon class="text-[28px]">
+      <mat-icon>
         {{ isMobile() ? 'menu' : isCollapsed() ? 'chevron_right' : 'chevron_left' }}
       </mat-icon>
     </button>
