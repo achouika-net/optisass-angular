@@ -16,7 +16,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { FicheService } from '../../services/fiche.service';
 import { ClientService } from '../../services/client.service';
 import { FicheLentillesCreate, TypeFiche, StatutFiche } from '../../models/fiche-client.model';
-import { Client, TypeClient, ClientParticulier, ClientProfessionnel } from '../../models/client.model';
+import { Client, TypeClient, ClientParticulier, ClientProfessionnel, isClientParticulier, isClientProfessionnel } from '../../models/client.model';
 import { ContactLensType, ContactLensUsage } from '../../../../shared/interfaces/product.interface';
 
 @Component({
@@ -183,14 +183,32 @@ export class LentillesFormComponent implements OnInit {
         return this.lentillesGroup.get('diffLentilles')?.value;
     }
 
-    get clientName(): string {
+    get clientDisplayName(): string {
         if (!this.client) return '';
-        if (this.client.typeClient === TypeClient.PARTICULIER) {
-            return `${(this.client as ClientParticulier).nom} ${(this.client as ClientParticulier).prenom}`;
-        } else if (this.client.typeClient === TypeClient.PROFESSIONNEL) {
-            return (this.client as ClientProfessionnel).raisonSociale;
+
+        if (isClientProfessionnel(this.client)) {
+            return this.client.raisonSociale.toUpperCase();
         }
-        return 'Client Anonyme';
+
+        if (isClientParticulier(this.client)) {
+            const nom = this.client.nom || '';
+            const prenom = this.client.prenom || '';
+            return `${nom.toUpperCase()} ${this.toTitleCase(prenom)}`;
+        }
+
+        // Fallback for untyped or anonyme
+        if ((this.client as any).nom) {
+            const nom = (this.client as any).nom || '';
+            const prenom = (this.client as any).prenom || '';
+            return `${nom.toUpperCase()} ${this.toTitleCase(prenom)}`;
+        }
+
+        return 'Client';
+    }
+
+    private toTitleCase(str: string): string {
+        if (!str) return '';
+        return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     }
 
     setActiveTab(index: number): void {
@@ -234,7 +252,8 @@ export class LentillesFormComponent implements OnInit {
                 od: formValue.lentilles.od,
                 og: formValue.lentilles.diffLentilles ? formValue.lentilles.og : formValue.lentilles.od
             },
-            adaptation: formValue.adaptation
+            adaptation: formValue.adaptation,
+            dateLivraisonEstimee: formValue.dateLivraisonEstimee
         };
 
         this.ficheService.createFicheLentilles(ficheData).subscribe({

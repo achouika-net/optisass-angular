@@ -7,7 +7,13 @@
             </div>
             <div class="title-section">
                 <h1>Fiche Lentilles</h1>
-                <p *ngIf="client">{{ clientName }}</p>
+                <p *ngIf="client" style="color: white; opacity: 0.9;">
+                    <span style="font-weight: bold; font-size: 1.1em;">{{ clientDisplayName }}</span>
+                    <span style="opacity: 0.8; font-size: 0.9em;">
+                        <span *ngIf="client.telephone"> • 📞 {{ client.telephone }}</span>
+                        <span *ngIf="client.ville"> • 📍 {{ client.ville }}</span>
+                    </span>
+                </p>
             </div>
         </div>
         <div class="header-actions">
@@ -51,6 +57,19 @@
                 </ng-template>
 
                 <div class="tab-content" formGroupName="ordonnance">
+                    <!-- Info Livraison -->
+                    <mat-card class="section-card mb-4" style="margin-bottom: 1rem;">
+                        <mat-card-content>
+                            <mat-form-field appearance="outline" class="w-full">
+                                <mat-label>Date Livraison Estimée</mat-label>
+                                <input matInput [matDatepicker]="pickerLivraison"
+                                    formControlName="dateLivraisonEstimee">
+                                <mat-datepicker-toggle matIconSuffix [for]="pickerLivraison"></mat-datepicker-toggle>
+                                <mat-datepicker #pickerLivraison></mat-datepicker>
+                            </mat-form-field>
+                        </mat-card-content>
+                    </mat-card>
+
                     <!-- Info Prescription -->
                     <mat-card class="section-card mb-4">
                         <mat-card-content class="grid-3">

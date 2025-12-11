@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -15,7 +15,7 @@ import { MatRadioModule } from '@angular/material/radio';
 import { FormsModule } from '@angular/forms';
 import { ClientService } from '../services/client.service';
 import { FicheService } from '../services/fiche.service';
-import { Client, TypeClient, ClientParticulier, ClientProfessionnel, ClientAnonyme, StatutClient } from '../models/client.model';
+import { Client, TypeClient, ClientParticulier, ClientProfessionnel, ClientAnonyme, StatutClient, isClientParticulier, isClientProfessionnel } from '../models/client.model';
 import { FicheClient, StatutFiche, TypeFiche } from '../models/fiche-client.model';
 
 @Component({
@@ -46,18 +46,37 @@ export class ClientDetailComponent implements OnInit {
   loading = true;
   isEditMode = false;
 
-  // Stats
-  stats = {
-    total: 0,
-    enCours: 0,
-    commande: 0,
-    livre: 0,
-    montantTotal: 0,
-    montantRestant: 0
-  };
+  get clientDisplayName(): string {
+    if (!this.client) return '';
+
+    if (isClientProfessionnel(this.client)) {
+      return this.client.raisonSociale.toUpperCase();
+    }
+
+    if (isClientParticulier(this.client) || (this.client as any).nom) {
+      const nom = (this.client as any).nom || '';
+      const prenom = (this.client as any).prenom || '';
+      return `${nom.toUpperCase()} ${this.toTitleCase(prenom)}`;
+    }
+
+    return '';
+  }
+
+  private toTitleCase(str: string): string {
+    if (!str) return '';
+    return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  }
+
+
+  // Stats Signal
+  clientStats = signal({
+    ca: 0,
+    paiements: 0,
+    reste: 0
+  });
 
   // Table columns
-  displayedColumns: string[] = ['type', 'date', 'description', 'montant', 'statut', 'actions'];
+  historyColumns: string[] = ['type', 'dateCreation', 'dateLivraison', 'docteur', 'typeEquipement', 'typeVerre', 'nomenclature', 'actions'];
 
   // Enums pour le template
   StatutFiche = StatutFiche;
@@ -127,8 +146,13 @@ export class ClientDetailComponent implements OnInit {
     if (!this.clientId) return;
 
     this.ficheService.getClientFichesStats(this.clientId).subscribe({
-      next: (stats) => {
-        this.stats = stats;
+      next: (statsData: any) => {
+        // Map backend stats to UI stats
+        this.clientStats.set({
+          ca: statsData.montantTotal || 0,
+          paiements: (statsData.montantTotal || 0) - (statsData.montantRestant || 0),
+          reste: statsData.montantRestant || 0
+        });
       },
       error: (error) => {
         console.error('Erreur chargement stats:', error);
@@ -161,10 +185,19 @@ export class ClientDetailComponent implements OnInit {
   }
 
   /**
-   * Voir/Éditer une fiche
+   * Voir une fiche
    */
   viewFiche(fiche: FicheClient): void {
-    const routePath = `fiche-${fiche.type}`;
+    const routePath = `fiche-${fiche.type.toLowerCase()}`; // Ensure lowercase
+    this.router.navigate(['/p/clients', this.clientId, routePath, fiche.id]);
+  }
+
+  /**
+   * Éditer une fiche
+   */
+  editClientFiche(fiche: FicheClient): void {
+    const routePath = `fiche-${fiche.type.toLowerCase()}`;
+    // Assuming edit route is same as view or appending /edit if supported
     this.router.navigate(['/p/clients', this.clientId, routePath, fiche.id]);
   }
 

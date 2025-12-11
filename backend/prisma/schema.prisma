@@ -62,6 +62,7 @@ model Fiche {
   dateCreation DateTime @default(now())
   statut       String   // 'BROUILLON', 'EN_COURS', 'VALIDE', 'FACTURE', 'LIVRE'
   type         String   // 'MONTURE', 'LENTILLES', 'PRODUIT'
+  dateLivraisonEstimee DateTime?
   montantTotal Float    @default(0)
   montantPaye  Float    @default(0)
   

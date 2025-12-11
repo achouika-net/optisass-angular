@@ -9,8 +9,13 @@
                 </svg>
             </div>
             <div class="client-details">
-                <h2>Client Name</h2>
-                <p>N° Client: 2024-0547 • Tel: 06 12 34 56 78</p>
+                <h2>{{ clientDisplayName }}</h2>
+                <p *ngIf="client">
+                    <span class="opacity-75 uppercase text-xs font-bold">{{ client.typeClient }}</span>
+                    <ng-container *ngIf="client.telephone"> • 📞 {{ client.telephone }}</ng-container>
+                    <ng-container *ngIf="client.ville"> • 📍 {{ client.ville }}</ng-container>
+                </p>
+                <p *ngIf="!client" class="text-gray-400 italic">Chargement du client...</p>
             </div>
         </div>
         <div class="header-actions">
@@ -167,6 +172,8 @@
 
             <!-- Prescription Details -->
             <div class="prescription-details-row">
+
+
                 <mat-form-field appearance="outline">
                     <mat-label>Date de prescription</mat-label>
                     <input matInput [matDatepicker]="picker" formControlName="datePrescription">
@@ -276,6 +283,14 @@
                 <div>
                     <h3>Monture & Verres</h3>
                     <p>Sélectionner les équipements pour le client</p>
+                </div>
+                <div class="header-actions-inline">
+                    <mat-form-field appearance="outline" style="width: 280px;">
+                        <mat-label>Date Livraison Estimée</mat-label>
+                        <input matInput [matDatepicker]="pickerLivraisonVente" formControlName="dateLivraisonEstimee">
+                        <mat-datepicker-toggle matSuffix [for]="pickerLivraisonVente"></mat-datepicker-toggle>
+                        <mat-datepicker #pickerLivraisonVente></mat-datepicker>
+                    </mat-form-field>
                 </div>
             </div>
 

@@ -2,7 +2,15 @@
     <!-- Header -->
     <div class="header">
         <div class="header-content">
-            <h1>Dossier Fiches Client</h1>
+            <h1>
+                Dossier Fiches Client
+                <span class="client-name-subtitle" *ngIf="client">
+                    - {{ clientDisplayName }}
+                    <span class="client-phone" *ngIf="client.telephone">
+                        | <mat-icon>phone</mat-icon> {{ client.telephone }}
+                    </span>
+                </span>
+            </h1>
             <span class="status-badge" [class.actif]="client?.statut === StatutClient.ACTIF"
                 [class.inactif]="client?.statut === StatutClient.INACTIF">
                 {{ client?.statut || 'N/A' }}
@@ -17,10 +25,140 @@
         </div>
     </div>
 
+    <!-- Stats Cards Section -->
+    <div class="stats-grid mt-4" *ngIf="client">
+        <mat-card class="stat-card stat-card-blue">
+            <mat-card-content>
+                <div class="stat-number">{{ clientStats().ca | currency:'MAD':'MAD ':'1.0-2' }}</div>
+                <div class="stat-label">Chiffre d'Affaire</div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="stat-card stat-card-green">
+            <mat-card-content>
+                <div class="stat-number">{{ clientStats().paiements | currency:'MAD':'MAD ':'1.0-2' }}</div>
+                <div class="stat-label">Paiements</div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="stat-card stat-card-red">
+            <mat-card-content>
+                <div class="stat-number">{{ clientStats().reste | currency:'MAD':'MAD ':'1.0-2' }}</div>
+                <div class="stat-label">Reste à Payer</div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="stat-card stat-card-purple">
+            <mat-card-content>
+                <div class="stat-number">{{ client.pointsFidelite || 0 }}</div>
+                <div class="stat-label">Points Fedilio</div>
+            </mat-card-content>
+        </mat-card>
+    </div>
+
+    <!-- Main Actions Bar -->
+    <div class="main-actions-bar">
+        <div class="creation-actions">
+            <button mat-flat-button color="primary" (click)="createFicheMonture()">
+                <mat-icon>visibility</mat-icon> Nouvelle Fiche Monture
+            </button>
+            <button mat-flat-button color="primary" (click)="createFicheLentilles()">
+                <mat-icon>remove_red_eye</mat-icon> Nouvelle Fiche Lentilles
+            </button>
+            <button mat-flat-button class="btn-success" (click)="createFicheProduit()">
+                <mat-icon>shopping_cart</mat-icon> Nouvelle Fiche Produit
+            </button>
+        </div>
+        <div class="global-actions">
+            <button mat-stroked-button (click)="goBack()">
+                <mat-icon>close</mat-icon> Fermer
+            </button>
+        </div>
+    </div>
+
     <div class="main-content">
-        <!-- Left Side: Tabs -->
-        <div class="left-section">
+        <!-- Main Content: Tabs -->
+        <div class="content-section">
             <mat-tab-group class="client-tabs" animationDuration="0ms">
+                <!-- NEW: Onglet Fiches Médicales (Default) -->
+                <mat-tab label="Fiches Médicales">
+                    <div class="form-container">
+                        <!-- Data Table -->
+                        <table mat-table [dataSource]="fiches" class="w-full">
+                            <!-- Type Fiche Column -->
+                            <ng-container matColumnDef="type">
+                                <th mat-header-cell *matHeaderCellDef>Type Fiche</th>
+                                <td mat-cell *matCellDef="let fiche">
+                                    <div class="flex items-center gap-2">
+                                        <mat-icon [class.text-primary]="fiche.type === TypeFiche.MONTURE"
+                                            [class.text-accent]="fiche.type === TypeFiche.LENTILLES" class="scale-75">
+                                            {{ getTypeIcon(fiche.type) }}
+                                        </mat-icon>
+                                        {{ fiche.type }}
+                                    </div>
+                                </td>
+                            </ng-container>
+
+                            <!-- Date Fiche Column -->
+                            <ng-container matColumnDef="dateCreation">
+                                <th mat-header-cell *matHeaderCellDef>Date Fiche</th>
+                                <td mat-cell *matCellDef="let fiche">{{ fiche.dateCreation | date:'dd/MM/yyyy' }}</td>
+                            </ng-container>
+
+                            <!-- Date Livraison Column -->
+                            <ng-container matColumnDef="dateLivraison">
+                                <th mat-header-cell *matHeaderCellDef>Date Livraison</th>
+                                <td mat-cell *matCellDef="let fiche">{{ fiche.dateLivraison ? (fiche.dateLivraison |
+                                    date:'dd/MM/yyyy') : '-' }}</td>
+                            </ng-container>
+
+                            <!-- Docteur Column -->
+                            <ng-container matColumnDef="docteur">
+                                <th mat-header-cell *matHeaderCellDef>Docteur</th>
+                                <td mat-cell *matCellDef="let fiche">{{ fiche.docteur || '-' }}</td>
+                            </ng-container>
+
+                            <!-- Type Equipement Column -->
+                            <ng-container matColumnDef="typeEquipement">
+                                <th mat-header-cell *matHeaderCellDef>Type Equipement</th>
+                                <td mat-cell *matCellDef="let fiche">{{ fiche.detailsMonture?.typeMonture || '-' }}</td>
+                            </ng-container>
+
+                            <!-- Type Verre Column -->
+                            <ng-container matColumnDef="typeVerre">
+                                <th mat-header-cell *matHeaderCellDef>Type Verre</th>
+                                <td mat-cell *matCellDef="let fiche">{{ fiche.detailsMonture?.typeVerre || '-' }}</td>
+                            </ng-container>
+
+                            <!-- Nomenclature Column -->
+                            <ng-container matColumnDef="nomenclature">
+                                <th mat-header-cell *matHeaderCellDef>Nomenclature</th>
+                                <td mat-cell *matCellDef="let fiche">{{ fiche.reference || '-' }}</td>
+                            </ng-container>
+
+                            <!-- Actions Column -->
+                            <ng-container matColumnDef="actions">
+                                <th mat-header-cell *matHeaderCellDef>Actions</th>
+                                <td mat-cell *matCellDef="let fiche">
+                                    <button mat-icon-button color="primary" (click)="viewFiche(fiche)" title="Voir">
+                                        <mat-icon>visibility</mat-icon>
+                                    </button>
+                                    <button mat-icon-button color="accent" (click)="editClientFiche(fiche)"
+                                        title="Éditer">
+                                        <mat-icon>edit</mat-icon>
+                                    </button>
+                                    <button mat-icon-button color="warn" (click)="deleteFiche(fiche)" title="Supprimer">
+                                        <mat-icon>delete</mat-icon>
+                                    </button>
+                                </td>
+                            </ng-container>
+
+                            <tr mat-header-row *matHeaderRowDef="historyColumns"></tr>
+                            <tr mat-row *matRowDef="let row; columns: historyColumns;"></tr>
+                        </table>
+                    </div>
+                </mat-tab>
+
                 <!-- Onglet Identité Client -->
                 <mat-tab label="Identité Client">
                     <div class="form-container" *ngIf="client">
@@ -415,70 +553,11 @@
                         </mat-form-field>
                     </div>
                 </mat-tab>
+
+                <!-- NEW: Onglet Historique -->
+                <!-- End of tabs -->
             </mat-tab-group>
 
-            <!-- Bottom Actions -->
-            <div class="bottom-actions">
-                <button mat-flat-button color="primary" (click)="createFicheMonture()">
-                    <mat-icon>visibility</mat-icon> Nouveau Dossier Monture
-                </button>
-                <button mat-flat-button color="primary" (click)="createFicheLentilles()">
-                    <mat-icon>remove_red_eye</mat-icon> Nouveau Dossier Lentilles
-                </button>
-                <button mat-flat-button class="btn-success" (click)="createFicheProduit()">
-                    <mat-icon>shopping_cart</mat-icon> Nouveau Dossier Produit
-                </button>
-            </div>
-        </div>
-
-        <!-- Right Side: Historique -->
-        <div class="right-section">
-            <div class="historique-panel">
-                <h3>HISTORIQUE</h3>
-                <div class="historique-list custom-scrollbar">
-                    <div class="fiche-item" *ngFor="let fiche of fiches">
-                        <div class="fiche-icon">
-                            <mat-icon>remove_red_eye</mat-icon>
-                        </div>
-                        <div class="fiche-details">
-                            <span class="fiche-type">{{ fiche.type }}</span>
-                            <span class="fiche-date">{{ fiche.dateCreation | date:'dd/MM/yyyy' }}</span>
-                        </div>
-                        <div class="fiche-actions">
-                            <button mat-icon-button class="action-btn view" (click)="viewFiche(fiche)"
-                                title="Visualiser">
-                                <mat-icon>visibility</mat-icon>
-                            </button>
-                            <button mat-icon-button class="action-btn edit" (click)="viewFiche(fiche)" title="Modifier">
-                                <mat-icon>edit</mat-icon>
-                            </button>
-                            <button mat-icon-button class="action-btn delete"
-                                (click)="deleteFiche(fiche); $event.stopPropagation()" title="Supprimer">
-                                <mat-icon color="warn">delete</mat-icon>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Point Fedilio -->
-            <div class="point-fedilio-section">
-                <label>Point Fedilio</label>
-                <input type="text" [value]="client?.pointsFidelite || 0" readonly>
-            </div>
-
-            <div class="close-action action-buttons-footer">
-                <button mat-stroked-button *ngIf="!isEditMode" (click)="toggleEditMode()">
-                    <mat-icon>edit</mat-icon> Modifier
-                </button>
-                <button mat-raised-button color="primary" *ngIf="isEditMode" (click)="saveClient()">
-                    <mat-icon>save</mat-icon> Enregistrer
-                </button>
-                <button mat-stroked-button color="warn" *ngIf="!isEditMode" (click)="deleteClient()">
-                    <mat-icon>delete</mat-icon> Supprimer
-                </button>
-                <button mat-stroked-button (click)="goBack()">Fermer</button>
-            </div>
         </div>
     </div>
 </div>

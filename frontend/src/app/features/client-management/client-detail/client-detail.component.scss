@@ -60,6 +60,29 @@ $white: #ffffff;
             font-weight: 500;
             text-decoration: underline;
             text-underline-offset: 4px;
+
+            .client-name-subtitle {
+                font-size: 0.85em;
+                font-weight: 400;
+                color: rgba(255, 255, 255, 0.95);
+                margin-left: 12px;
+                text-decoration: none;
+                display: inline-block;
+
+                .client-phone {
+                    margin-left: 8px;
+                    font-size: 0.9em;
+                    opacity: 0.9;
+
+                    mat-icon {
+                        font-size: 18px;
+                        width: 18px;
+                        height: 18px;
+                        vertical-align: text-bottom;
+                        margin-right: 4px;
+                    }
+                }
+            }
         }
 
         .status-badge {
@@ -103,6 +126,57 @@ $white: #ffffff;
     }
 }
 
+// Stats Cards
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    padding: 0 20px 20px 20px;
+
+    .stat-card {
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+        mat-card-content {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        &.stat-card-blue {
+            background: linear-gradient(135deg, #42A5F5, #1976D2);
+        }
+
+        &.stat-card-green {
+            background: linear-gradient(135deg, #66BB6A, #388E3C);
+        }
+
+        &.stat-card-red {
+            background: linear-gradient(135deg, #EF5350, #D32F2F);
+        }
+
+        &.stat-card-purple {
+            background: linear-gradient(135deg, #AB47BC, #7B1FA2);
+        }
+    }
+}
+
 .main-content {
     display: flex;
     flex: 1;
@@ -111,8 +185,8 @@ $white: #ffffff;
     gap: 20px;
 }
 
-// Left Section (Tabs)
-.left-section {
+// Main Content Section (Tabs)
+.content-section {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -204,9 +278,7 @@ mat-form-field {
     grid-template-columns: 1fr 1fr 1fr;
     gap: 32px;
 
-    .medical-col {
-        // Individual column styles
-    }
+    // .medical-col removed (empty)
 }
 
 .field-label {
@@ -304,173 +376,66 @@ mat-form-field {
     resize: none;
 }
 
-// Footer Buttons
-.bottom-actions {
+// Styles obsolètes supprimés
+
+
+/* --- New Styles for Layout Refinement --- */
+
+.mt-4 {
+    margin-top: 24px !important;
+}
+
+.main-actions-bar {
     display: flex;
-    gap: 16px;
-    margin-top: 20px;
-    padding-bottom: 10px; // Spacing from bottom of screen
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px 20px 20px;
+    margin-top: 20px; // Add space between stats and buttons
+
+    .creation-actions {
+        display: flex;
+        gap: 16px;
+    }
+
+    .global-actions {
+        display: flex;
+    }
 
     button {
-        border-radius: 6px;
-        height: 40px;
+        height: 42px;
         font-weight: 500;
+        text-transform: uppercase;
+        font-size: 13px;
+
+        .mat-icon {
+            margin-right: 8px;
+        }
 
         &.btn-success {
-            background-color: #66BB6A; // Green for product
-            color: white;
+            background-color: #2E7D32 !important;
+            color: white !important;
         }
     }
 }
 
-// Right Section (Historique)
-.right-section {
-    width: 350px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+// Table Header Colors Override & Restoration
+table.mat-mdc-table {
+    width: 100%; // Restore full width
 
-    .historique-panel {
-        background: $white;
-        border-radius: 8px;
-        padding: 20px;
-        flex: 1; // Take available height
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        display: flex;
-        flex-direction: column;
-
-        h3 {
-            color: $primary-color;
-            font-size: 14px;
-            font-weight: 700;
-            text-transform: uppercase;
-            margin: 0 0 20px 0;
-            letter-spacing: 0.5px;
-        }
+    .mat-mdc-header-row {
+        background-color: #546e7a !important; // Blue Grey 600 (Softer)
+        min-height: 48px;
     }
 
-    .historique-list {
-        flex: 1;
-        overflow-y: auto;
-        padding-right: 4px; // Space for scrollbar
-
-        // Custom Scrollbar
-        &.custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        &.custom-scrollbar::-webkit-scrollbar-thumb {
-            background-color: #ddd;
-            border-radius: 4px;
-        }
+    .mat-mdc-header-cell {
+        background-color: #546e7a !important; // Force cell background
+        color: white !important;
+        font-weight: 600;
+        font-size: 13px;
+        text-transform: uppercase;
     }
 
-    .fiche-item {
-        display: flex;
-        align-items: center;
-        padding: 12px;
-        border: 1px solid #eee;
-        border-radius: 8px;
-        margin-bottom: 12px;
-        background: #fff;
-
-        .fiche-icon {
-            color: $primary-color;
-            margin-right: 12px;
-        }
-
-        .fiche-details {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            font-weight: 600;
-
-            .fiche-type {
-                color: #333;
-            }
-
-            .fiche-date {
-                color: #888;
-                font-weight: 400;
-            }
-
-            .fiche-id {
-                color: #bbb;
-                font-weight: 400;
-                font-size: 12px;
-                margin-left: auto;
-                margin-right: 8px;
-            }
-        }
-
-        .fiche-actions {
-            display: flex;
-
-            .action-btn {
-                width: 32px;
-                height: 32px;
-                line-height: 32px;
-
-                &.view {
-                    color: $primary-color;
-                    background: rgba($primary-color, 0.1);
-                    border-radius: 6px;
-                    margin-right: 4px;
-                }
-
-                &.edit {
-                    color: #888;
-                }
-            }
-        }
-    }
-
-    .point-fedilio-section {
-        background: $white;
-        padding: 16px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-
-        label {
-            font-weight: 700;
-            font-size: 14px;
-            white-space: nowrap;
-        }
-
-        input {
-            flex: 1;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 8px 12px;
-            background: #f9f9f9;
-            text-align: right;
-            outline: none;
-        }
-    }
-
-    .action-buttons-footer {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        margin-top: 24px;
-        width: 100%;
-
-        button {
-            width: 100%;
-            justify-content: center;
-            height: 40px;
-            font-weight: 500;
-            border-radius: 6px;
-        }
-
-        // Specific styles if needed
-        button[color="warn"] {
-            // Warn style handled by Angular Material
-        }
+    .mat-mdc-cell {
+        font-size: 13px;
     }
 }

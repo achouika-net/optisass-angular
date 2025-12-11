@@ -15,6 +15,8 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { ClientService } from '../../services/client.service';
+import { Client, isClientParticulier, isClientProfessionnel } from '../../models/client.model';
 import { FicheService } from '../../services/fiche.service';
 import { FicheMontureCreate, TypeFiche, StatutFiche, TypeEquipement, SuggestionIA } from '../../models/fiche-client.model';
 import { getLensSuggestion, Correction, FrameData, calculateLensPrice, determineLensType } from '../../utils/lensLogic';
@@ -61,6 +63,7 @@ export class MontureFormComponent implements OnInit {
 
     ficheForm: FormGroup;
     clientId: string | null = null;
+    client: Client | null = null;
     ficheId: string | null = null;
     activeTab = 0;
     loading = false;
@@ -195,6 +198,7 @@ export class MontureFormComponent implements OnInit {
         private fb: FormBuilder,
         private route: ActivatedRoute,
         private router: Router,
+        private clientService: ClientService,
         private ficheService: FicheService,
         private cdr: ChangeDetectorRef,
         private sanitizer: DomSanitizer,
@@ -211,6 +215,12 @@ export class MontureFormComponent implements OnInit {
             }
         });
         this.clientId = this.route.snapshot.paramMap.get('clientId');
+        if (this.clientId) {
+            this.clientService.getClient(this.clientId).subscribe(client => {
+                this.client = client;
+                this.cdr.markForCheck();
+            });
+        }
         this.ficheId = this.route.snapshot.paramMap.get('ficheId');
 
         if (this.ficheId && this.ficheId !== 'new') {
@@ -329,8 +339,32 @@ export class MontureFormComponent implements OnInit {
             suggestions: [[]],
 
             // Liste des équipements additionnels
-            equipements: this.fb.array([])
+            equipements: this.fb.array([]),
+
+            // Date Livraison (Required)
+            dateLivraisonEstimee: [null, Validators.required]
         });
+    }
+
+    get clientDisplayName(): string {
+        if (!this.client) return 'Client';
+
+        if (isClientProfessionnel(this.client)) {
+            return this.client.raisonSociale.toUpperCase();
+        }
+
+        if (isClientParticulier(this.client) || (this.client as any).nom) {
+            const nom = (this.client as any).nom || '';
+            const prenom = (this.client as any).prenom || '';
+            return `${nom.toUpperCase()} ${this.toTitleCase(prenom)}`;
+        }
+
+        return 'Client';
+    }
+
+    private toTitleCase(str: string): string {
+        if (!str) return '';
+        return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     }
 
     // Generic Listener Setup
@@ -1240,6 +1274,7 @@ export class MontureFormComponent implements OnInit {
             clientId: this.clientId,
             type: TypeFiche.MONTURE,
             statut: StatutFiche.EN_COURS,
+            dateLivraisonEstimee: formValue.dateLivraisonEstimee,
             ordonnance: {
                 ...formValue.ordonnance,
                 prescriptionFiles: serializableFiles  // ✅ Serializable prescription attachments

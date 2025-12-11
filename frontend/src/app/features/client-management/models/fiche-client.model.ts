@@ -76,6 +76,7 @@ export interface FicheClientBase {
     clientId: string;
     type: TypeFiche;
     dateCreation: Date;
+    dateLivraisonEstimee?: Date;
     dateLivraisonPrevue?: Date;
     dateLivraisonReelle?: Date;
     statut: StatutFiche;
