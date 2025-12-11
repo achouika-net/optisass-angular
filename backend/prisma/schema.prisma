@@ -1,0 +1,74 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id             String      @id @default(uuid())
+  typeClient     String      // 'PARTICULIER', 'PROFESSIONNEL', 'ANONYME'
+  dateCreation   DateTime    @default(now())
+  
+  // Contact & Localisation
+  email          String?
+  telephone      String?
+  adresse        String?
+  ville          String?
+  codePostal     String?
+  pointsFidelite Int         @default(0)
+  statut         String      @default("INACTIF") // 'ACTIF', 'INACTIF', 'EN_COMPTE', 'DE_PASSAGE'
+  commentaires   String?
+
+  // --- Particulier Specific ---
+  civilite       String?
+  nom            String?
+  prenom         String?
+  dateNaissance  DateTime?
+  typePieceIdentite   String?
+  numeroPieceIdentite String?
+  cinParent           String?
+  
+  // Complex Data (JSONB)
+  groupeFamille      Json?     // { role: 'Principal'|'Membre', nomFamille: string, lienParental: string }
+  dossierMedical     Json?     // Full medical history object
+  couvertureSociale  Json?     // { type, numeroAdhesion... }
+
+  // --- Professionnel Specific ---
+  raisonSociale      String?
+  identifiantFiscal  String?
+  ice                String?
+  registreCommerce   String?
+  patente            String?
+  tvaAssujetti       Boolean?  @default(false)
+  numeroAutorisation String?   // If TVA assujetti
+  siteWeb            String?
+  
+  // Pro Complex Data
+  contacts           Json?     // Array of internal contacts
+  convention         Json?     // { actif: boolean, nomConvention... }
+
+  // Relations
+  fiches             Fiche[]
+}
+
+model Fiche {
+  id           String   @id @default(uuid())
+  dateCreation DateTime @default(now())
+  statut       String   // 'BROUILLON', 'EN_COURS', 'VALIDE', 'FACTURE', 'LIVRE'
+  type         String   // 'MONTURE', 'LENTILLES', 'PRODUIT'
+  montantTotal Float    @default(0)
+  montantPaye  Float    @default(0)
+  
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id])
+  
+  // The content of the fiche (flexible structure)
+  // Stores: ordonnance, monture, verres, lentilles selection, adaptation...
+  content      Json 
+}
