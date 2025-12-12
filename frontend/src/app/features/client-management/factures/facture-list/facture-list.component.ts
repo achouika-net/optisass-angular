@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
 import { HttpClient } from '@angular/common/http';
 
 @Component({
@@ -18,7 +19,8 @@ import { HttpClient } from '@angular/common/http';
         MatButtonModule,
         MatIconModule,
         MatChipsModule,
-        MatMenuModule
+        MatMenuModule,
+        MatDividerModule
     ],
     templateUrl: './facture-list.component.html',
     styleUrls: ['./facture-list.component.scss']
