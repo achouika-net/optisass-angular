@@ -2,8 +2,8 @@
 
 @include mat.toolbar-overrides(
   (
-    container-background-color: var(--mat-sys-tertiary),
-    container-text-color: var(--mat-sys-on-tertiary),
+    container-background-color: var(--mat-sys-primary),
+    container-text-color: var(--mat-sys-on-primary),
     mobile-height: 64px,
   )
 );

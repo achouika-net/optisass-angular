@@ -1,18 +1,4 @@
-@if (!isCollapsed()) {
-<div
-  class="relative mb-2 min-h-[165px] rounded-none bg-[url('/background/auth-bg-2.jpg')] bg-cover"
->
-  <button
-    class="absolute bottom-0 flex w-full justify-between border-0 bg-black/50 px-8 py-1.5 text-white backdrop-blur-xs"
-  >
-    <span class="text-sm font-medium">
-      {{ 'commun.welcome' | translate : { value: userName() } }}
-    </span>
-  </button>
-</div>
-}
-
-<!-- Wrapper principal -->
+<mat-divider class="mb-8" [class]="isCollapsed() ? 'mx-0' : 'mx-8'"/>
 <div [class]="isCollapsed() ? 'mx-0' : 'mx-2'">
   <!-- SECTION FAVORIS -->
   @if (favorisItems().length) { @if (!isCollapsed()) {
@@ -20,7 +6,6 @@
     {{ 'commun.myFavorites' | translate }}
   </div>
   }
-
   <mat-nav-list class="mb-2 p-0 pb-2">
     @if (favoritesOpen() && !isCollapsed()) {
     <div

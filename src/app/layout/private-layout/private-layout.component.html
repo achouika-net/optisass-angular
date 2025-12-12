@@ -1,86 +1,141 @@
-<mat-toolbar
-  class="fixed top-0 left-0 z-50 flex h-16 w-full items-center shadow"
-  [style.padding-left]="isCollapsed() ? '8px' : '16px'"
->
-  <div class="flex w-full items-center gap-2">
-    @if (!isCollapsed() && !isMobile()) {
-    <img
-      [ngSrc]="logo()"
-      width="1473"
-      height="369"
-      alt="homepage-logo"
-      [routerLink]="['/p']"
-      class="cursor-pointer w-[200px] h-full"
-    />
-    } @else {
-    <img
-      [ngSrc]="circleLogo()"
-      width="45"
-      height="45"
-      alt="homepage-logo"
-      [routerLink]="['/p']"
-      class="cursor-pointer"
-    />
-    }
-
-    <button
-      mat-icon-button
-      class="flex items-center justify-center"
-      (click)="toggleSidenav(sidenav)"
-    >
-      <mat-icon>
-        {{ isMobile() ? 'menu' : isCollapsed() ? 'chevron_right' : 'chevron_left' }}
-      </mat-icon>
-    </button>
-    <div class="flex-1"></div>
-    @if (currentCentre()?.name) {
-    <button
-      mat-stroked-button
-      class="mr-2 min-w-24 rounded-sm border-2 border-white text-center font-semibold text-white md:min-w-56"
-      [matMenuTriggerFor]="centersMenu"
-      [disabled]="centres().length === 1"
-    >
-      {{ currentCentre()?.name.toUpperCase() }}
-    </button>
-    <mat-menu #centersMenu="matMenu" class="min-w-56">
-      @for (centre of centres(); track centre.id) {
-      <button
-        class="text-center"
-        mat-menu-item
-        [disabled]="centre.id === currentCentre().id"
-        (click)="selectCenter(centre)"
-      >
-        <span class="font-semibold">
-          {{ centre?.name.toUpperCase() }}
-        </span>
-      </button>
-      }
-    </mat-menu>
-    }
-    <app-topbar-actions [isMobile]="isMobile()" />
-  </div>
-</mat-toolbar>
-
-<mat-sidenav-container
-  class="fixed top-16 left-0 z-10 h-[calc(100dvh-64px)] w-screen overflow-hidden"
->
+<mat-sidenav-container class="fixed top-0 left-0 h-screen w-screen overflow-hidden">
   <mat-sidenav
     #sidenav
     [mode]="isMobile() ? 'over' : 'side'"
     [opened]="!isMobile()"
     [fixedInViewport]="true"
-    [fixedTopGap]="64"
+    [fixedTopGap]="0"
     [style.width.px]="isMobile() ? null : isCollapsed() ? 64 : 260"
-    class="overflow-y-auto rounded-none shadow-md transition-all duration-300 ease-in-out"
+    class="group overflow-y-auto rounded-none shadow-md transition-all duration-300 ease-in-out"
   >
+    <!-- Header de la sidebar avec logo et bouton collapse -->
+    <div class="flex h-16 items-center justify-center">
+      @if (!isCollapsed() && !isMobile()) {
+        <div class="flex items-center w-full px-4">
+          <img
+            [ngSrc]="circleLogo()"
+            width="80"
+            height="80"
+            alt="homepage-logo"
+            [routerLink]="['/p']"
+            class="cursor-pointer"
+          />
+            OPTIC SAAS
+        </div>
+      } @else {
+        <img
+          [ngSrc]="circleLogo()"
+          width="45"
+          height="45"
+          alt="homepage-logo"
+          [routerLink]="['/p']"
+          class="cursor-pointer w-[200px] h-full"
+        />
+      }
+
+      <!-- Bouton collapse - Desktop -->
+      @if (isDesktop()) {
+        @if (isCollapsed()) {
+        <!-- Bouton au hover sur la bordure quand fermé -->
+        <button
+          mat-icon-button
+          class="absolute -right-5 z-[60] bg-white shadow-md rounded-full opacity-0 transition-opacity group-hover:opacity-100"
+          (click)="toggleSidenav(sidenav)"
+        >
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+        } @else {
+        <!-- Bouton normal à l'intérieur quand ouvert -->
+        <button
+          mat-icon-button
+          class="absolute right-2"
+          (click)="toggleSidenav(sidenav)"
+        >
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+        }
+      }
+
+      <!-- Bouton collapse - Tablette -->
+      @if (isTablet()) {
+        @if (isCollapsed()) {
+        <!-- Bouton au hover sur la bordure quand fermé -->
+        <button
+          mat-icon-button
+          class="absolute -right-5 z-[60] bg-white shadow-md rounded-full opacity-0 transition-opacity group-hover:opacity-100"
+          (click)="toggleSidenav(sidenav)"
+        >
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+        } @else {
+        <!-- Bouton normal à l'intérieur au hover quand ouvert -->
+        <button
+          mat-icon-button
+          class="absolute right-2 opacity-0 transition-opacity group-hover:opacity-100"
+          (click)="toggleSidenav(sidenav)"
+        >
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+        }
+      }
+    </div>
+
     <app-sidebar [isMobile]="isMobile()" [isCollapsed]="isCollapsed()" />
   </mat-sidenav>
+
   <mat-sidenav-content
     class="relative flex h-full flex-col overflow-hidden transition-all duration-300 ease-in-out"
     [style.marginLeft.px]="!isMobile() ? (isCollapsed() ? 64 : 260) : 0"
   >
-    <app-breadcrumb class="sticky top-0 z-40 bg-white shadow-sm" [isMobile]="isMobile()" />
-    <main class="bg-bodycolor flex-1 overflow-y-auto px-6 py-6">
+    <mat-toolbar
+      class="fixed top-0 flex h-16 items-center shadow z-[40]"
+      [style.padding-left]="isCollapsed() ? '8px' : '16px'"
+      [style.right.px]="0"
+    >
+      <div class="flex w-full items-center justify-between gap-2"
+           [style.marginLeft.px]="!isMobile() ? (isCollapsed() ? 64 : 260) : 0">
+        <!-- Bouton menu - Mobile uniquement -->
+        @if (isMobile()) {
+        <button
+          mat-icon-button
+          class="flex items-center justify-center"
+          (click)="toggleSidenav(sidenav)"
+        >
+          <mat-icon>menu</mat-icon>
+        </button>
+        }
+        <button mat-icon-button><mat-icon>search</mat-icon></button>
+        <div class="flex-1"></div>
+        @if (currentCentre()?.name) {
+        <button
+          matButton="outlined"
+          class="mr-2 min-w-24 rounded-sm text-center font-semibold  md:min-w-56"
+          [matMenuTriggerFor]="centersMenu"
+          [disabled]="centres().length === 1"
+        >
+          {{ currentCentre()?.name.toUpperCase() }}
+        </button>
+        <mat-menu #centersMenu="matMenu" class="min-w-56">
+          @for (centre of centres(); track centre.id) {
+          <button
+            class="text-center"
+            mat-menu-item
+            [disabled]="centre.id === currentCentre().id"
+            (click)="selectCenter(centre)"
+          >
+            <span class="font-semibold">
+              {{ centre?.name.toUpperCase() }}
+            </span>
+          </button>
+          }
+        </mat-menu>
+        }
+        <app-topbar-actions [isMobile]="isMobile()" />
+      </div>
+    </mat-toolbar>
+
+    <app-breadcrumb class="sticky top-16 z-40 bg-white shadow-sm" [isMobile]="isMobile()" />
+    <main class="bg-bodycolor mt-16 flex-1 overflow-y-auto px-6 py-6">
       <router-outlet />
     </main>
   </mat-sidenav-content>

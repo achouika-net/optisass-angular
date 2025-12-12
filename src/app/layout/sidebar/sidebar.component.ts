@@ -53,11 +53,6 @@ export class SidebarComponent implements OnInit {
 
   readonly isMobile = input.required<boolean>();
   readonly isCollapsed = input.required<boolean>();
-
-  private readonly user = this.store.selectSignal(UserSelector);
-  readonly userName = computed(
-    () => `${this.user().last_name || ''} ${this.user().first_name || ''}`
-  );
   readonly userRole = this.store.selectSignal(UserRoleSelector);
   readonly openSubMenu = signal<string | null>(null);
   readonly favoritesOpen = signal(true);

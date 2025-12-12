@@ -1,6 +1,6 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { NgOptimizedImage } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject, linkedSignal } from '@angular/core';
+import {ChangeDetectionStrategy, Component, inject, linkedSignal, signal} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
@@ -24,7 +24,7 @@ import {
   UserCurrentCentreSelector,
 } from '../../core/store/auth/auth.selectors';
 import { ICenter } from '@app/models';
-import { ConfirmationPopupComponent } from '../../shared/components/confirmation-popup/confirmation-popup.component';
+import { ConfirmationPopupComponent } from '@app/components';
 import { TranslateService } from '@ngx-translate/core';
 import { MatDialog } from '@angular/material/dialog';
 import { SetCurrentCenter } from '../../core/store/auth/auth.actions';
@@ -61,22 +61,37 @@ export default class PrivateLayoutComponent {
 
   logo = this.#store.selectSignal<string>(LogoSettingsSelector);
   circleLogo = this.#store.selectSignal<string>(CircleLogoSettingsSelector);
-  centres = this.#store.selectSignal<ICenter[]>(UserCentresSelector);
-  currentCentre = this.#store.selectSignal<ICenter>(UserCurrentCentreSelector);
+  // centres = this.#store.selectSignal<ICenter[]>(UserCentresSelector);
+  centres = signal([{name: 'Centre A', id:1}, {name: 'Centre B', id:2}] as ICenter[]);
+  // currentCentre = this.#store.selectSignal<ICenter>(UserCurrentCentreSelector);
+  currentCentre = signal({name: 'Centre A', id:1} as ICenter);
+
+  // Mobile: < 600px
   readonly #isHandset = toSignal(
     this.#breakpointObserver.observe('(max-width: 599.98px)').pipe(map(({ matches }) => matches))
   );
-  readonly #isLarge = toSignal(
+
+  // Tablet: 600px - 1279px
+  readonly #isTablet = toSignal(
+    this.#breakpointObserver.observe('(min-width: 600px) and (max-width: 1279.98px)').pipe(map(({ matches }) => matches))
+  );
+
+  // Desktop: >= 1280px
+  readonly #isDesktop = toSignal(
     this.#breakpointObserver.observe('(min-width: 1280px)').pipe(map(({ matches }) => matches))
   );
+
   readonly isMobile = linkedSignal(() => this.#isHandset());
-  readonly isCollapsed = linkedSignal(() => !this.#isLarge() || this.#isHandset());
+  readonly isTablet = linkedSignal(() => this.#isTablet());
+  readonly isDesktop = linkedSignal(() => this.#isDesktop());
+  readonly isCollapsed = linkedSignal(() => this.isTablet() || this.isMobile());
 
   toggleSidenav(sidenav: MatSidenav): void {
     if (this.isMobile()) {
       sidenav.toggle();
+    } else {
+      this.isCollapsed.update((v) => !v);
     }
-    this.isCollapsed.update((v) => !v);
   }
 
   /**

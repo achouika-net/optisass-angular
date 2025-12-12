@@ -11,6 +11,7 @@ export interface ICurrentUser {
   remember_token: string;
   menu_favoris: string;
   centers: ICenter[];
+  avatar?: string | null;
 }
 
 export class CurrentUser implements ICurrentUser {
@@ -24,6 +25,7 @@ export class CurrentUser implements ICurrentUser {
   remember_token: string;
   menu_favoris: string;
   centers: ICenter[];
+  avatar?: string | null;
 
   constructor() {
     this.id = null;
@@ -35,5 +37,6 @@ export class CurrentUser implements ICurrentUser {
     this.remember_token = null;
     this.menu_favoris = null;
     this.centers = [];
+    this.avatar = null;
   }
 }

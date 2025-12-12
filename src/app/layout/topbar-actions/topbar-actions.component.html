@@ -1,34 +1,25 @@
-<div class="flex items-center gap-1">
-  <button mat-icon-button><mat-icon>public</mat-icon></button>
-  <button mat-icon-button><mat-icon>delete</mat-icon></button>
-  <button mat-icon-button><mat-icon>calendar_month</mat-icon></button>
-  <button mat-icon-button><mat-icon>support_agent</mat-icon></button>
-  <button mat-button [matMenuTriggerFor]="userMenu">
-    <div class="flex items-center gap-1">
-      <mat-icon>person</mat-icon>
-      @if (!isMobile()) {
-        <span class="text-xs font-medium">Super Admin</span>
-      }
-      <mat-icon>expand_more</mat-icon>
-    </div>
+<!-- Version Mobile/Compact -->
+@if (isMobile()) {
+  <button mat-button [matMenuTriggerFor]="userMenu" class="flex items-center gap-2 px-2">
+    <app-avatar [imageBase64]="user()?.avatar" [size]="32" />
   </button>
-  @if (!isMobile()) {
-    <button mat-icon-button>
-      <mat-icon>open_in_full</mat-icon>
+} @else {
+  <!-- Version Desktop -->
+  <div class="flex items-center gap-1">
+    <button mat-icon-button><mat-icon>notifications</mat-icon></button>
+    <button mat-button [matMenuTriggerFor]="userMenu">
+      <div class="flex items-center gap-2">
+        <app-avatar [imageBase64]="user()?.avatar" [size]="32" />
+        <div class="flex flex-col items-start">
+          <span class="text-sm font-medium">{{ user()?.is_callcenter ? 'Call Center' : 'Super Admin' }}</span>
+          <span class="text-xs">{{ user()?.is_callcenter ? 'Call Center' : 'Super Admin' }}</span>
+        </div>
+      </div>
     </button>
-  }
-</div>
+  </div>
+}
 
 <mat-menu #userMenu="matMenu">
-  <button mat-menu-item>
-    <mat-icon>account_circle</mat-icon>
-    <span>Mon compte</span>
-  </button>
-  <button mat-menu-item>
-    <mat-icon>settings</mat-icon>
-    <span>Paramètres</span>
-  </button>
-  <mat-divider class="m-0 mx-5" />
   <button mat-menu-item (click)="logout()">
     <mat-icon>logout</mat-icon>
     <span>Déconnexion</span>
