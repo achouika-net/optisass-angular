@@ -21,6 +21,8 @@ import { Client, isClientParticulier, isClientProfessionnel } from '../../models
 import { FicheService } from '../../services/fiche.service';
 import { FicheMontureCreate, TypeFiche, StatutFiche, TypeEquipement, SuggestionIA } from '../../models/fiche-client.model';
 import { FactureService, Facture } from '../../services/facture.service';
+import { FactureFormComponent } from '../../factures/facture-form/facture-form.component';
+import { map } from 'rxjs/operators';
 import { getLensSuggestion, Correction, FrameData, calculateLensPrice, determineLensType } from '../../utils/lensLogic';
 import { getLensMaterials, getLensIndices } from '../../utils/lensDatabase';
 
@@ -51,7 +53,9 @@ interface PrescriptionFile {
         MatTabsModule,
         MatCheckboxModule,
         MatDialogModule,
-        RouterModule
+        MatDialogModule,
+        RouterModule,
+        FactureFormComponent
     ],
     templateUrl: './monture-form.component.html',
     styleUrls: ['./monture-form.component.scss'],
@@ -143,8 +147,10 @@ export class MontureFormComponent implements OnInit {
 
     // Facturation
     clientFactures$: Observable<Facture[]> | null = null;
-
-    // Paste text dialog
+    linkedFacture$: Observable<Facture | null> | null = null;
+    initialLines: any[] = [];
+    nomenclatureString: string | null = null;
+    showFacture = false;
     // Paste text dialog removed
 
 
@@ -1169,26 +1175,29 @@ export class MontureFormComponent implements OnInit {
         }
         // Load invoices when switching to Billing tab
         if (index === 3 && this.client) {
+            this.updateInitialLines();
             this.loadClientFactures();
         }
         this.cdr.markForCheck();
     }
 
+    // Load client invoices
     loadClientFactures() {
         if (this.clientId) {
             this.clientFactures$ = this.factureService.findAll({ clientId: this.clientId });
+            if (this.ficheId && this.ficheId !== 'new') {
+                this.linkedFacture$ = this.clientFactures$.pipe(
+                    map(factures => factures.find(f => f.ficheId === this.ficheId) || null)
+                );
+            }
         }
     }
 
-    generateFacture() {
-        console.log('generateFacture called');
-        if (!this.client || !this.client.id) {
-            console.error('Client or Client ID missing', this.client);
-            return;
-        }
+    updateInitialLines() {
+        this.initialLines = this.getInvoiceLines();
+    }
 
-        console.log('Generating facture for client:', this.client.id);
-
+    getInvoiceLines(): any[] {
         const lignes: any[] = [];
 
         // 1. Main Equipment
@@ -1213,6 +1222,22 @@ export class MontureFormComponent implements OnInit {
             // Verres
             const differentODOG = mainVerres.get('differentODOG')?.value;
             const matiere = mainVerres.get('matiere')?.value || 'Verre';
+
+            // Generate Nomenclature String
+            const odVars = this.ficheForm.get('ordonnance.od')?.value || {};
+            const ogVars = this.ficheForm.get('ordonnance.og')?.value || {};
+            const formatCorrection = (c: any) => {
+                let s = '';
+                if (c.sphere && c.sphere !== '0' && c.sphere !== '+0.00') s += (c.sphere.startsWith('+') || c.sphere.startsWith('-') ? c.sphere : '+' + c.sphere) + ' ';
+                if (c.cylindre && c.cylindre !== '0' && c.cylindre !== '+0.00') s += `(${c.cylindre}) `;
+                if (c.axe && c.axe !== '0°') s += `${c.axe} `;
+                if (c.addition && c.addition !== '0' && c.addition !== '+0.00') s += `Add ${c.addition}`;
+                return s.trim();
+            };
+            const descOD = formatCorrection(odVars);
+            const descOG = formatCorrection(ogVars);
+
+            this.nomenclatureString = `Nomenclature: OD: ${descOD} / OG: ${descOG}`;
 
             if (differentODOG) {
                 const prixOD = parseFloat(mainVerres.get('prixOD')?.value) || 0;
@@ -1255,6 +1280,154 @@ export class MontureFormComponent implements OnInit {
                 if (prixOG > 0) {
                     lignes.push({
                         description: `Verre OG ${matiere}`.trim(),
+                        qte: 1,
+                        prixUnitaireTTC: prixOG,
+                        remise: 0,
+                        totalTTC: prixOG
+                    });
+                }
+            }
+        }
+
+        // 2. Additional Equipments
+        this.equipements.controls.forEach((equip, index) => {
+            const monture = equip.get('monture');
+            const verres = equip.get('verres');
+
+            if (monture) {
+                const prix = parseFloat(monture.get('prixMonture')?.value) || 0;
+                if (prix > 0) {
+                    lignes.push({
+                        description: `Monture Eq${index + 1} ${monture.get('marque')?.value || ''}`.trim(),
+                        qte: 1,
+                        prixUnitaireTTC: prix,
+                        remise: 0,
+                        totalTTC: prix
+                    });
+                }
+            }
+            if (verres) {
+                const prixOD = parseFloat(verres.get('prixOD')?.value) || 0;
+                if (prixOD > 0) {
+                    lignes.push({
+                        description: `Verre OD Eq${index + 1}`,
+                        qte: 1,
+                        prixUnitaireTTC: prixOD,
+                        remise: 0,
+                        totalTTC: prixOD
+                    });
+                }
+                const prixOG = parseFloat(verres.get('prixOG')?.value) || 0;
+                if (prixOG > 0) {
+                    lignes.push({
+                        description: `Verre OG Eq${index + 1}`,
+                        qte: 1,
+                        prixUnitaireTTC: prixOG,
+                        remise: 0,
+                        totalTTC: prixOG
+                    });
+                }
+            }
+        });
+
+        return lignes;
+    }
+
+    onInvoiceSaved(facture: Facture) {
+        console.log('Invoice saved from embedded form:', facture);
+        // Refresh invoice list/linked invoice
+        this.loadClientFactures();
+    }
+
+    generateFacture() {
+        console.log('generateFacture called');
+        if (!this.client || !this.client.id) {
+            console.error('Client or Client ID missing', this.client);
+            return;
+        }
+
+        console.log('Generating facture for client:', this.client.id);
+
+        const lignes: any[] = [];
+
+        // 1. Main Equipment
+        const mainMonture = this.ficheForm.get('monture');
+        const mainVerres = this.ficheForm.get('verres');
+
+        if (mainMonture && mainVerres) {
+            // Monture
+            const prixMonture = parseFloat(mainMonture.get('prixMonture')?.value) || 0;
+            if (prixMonture > 0) {
+                const ref = mainMonture.get('reference')?.value || 'Monture';
+                const marque = mainMonture.get('marque')?.value || '';
+                lignes.push({
+                    description: `Monture ${marque} ${ref}`.trim(),
+                    qte: 1,
+                    prixUnitaireTTC: prixMonture,
+                    remise: 0,
+                    totalTTC: prixMonture
+                });
+            }
+
+            // Verres
+            const differentODOG = mainVerres.get('differentODOG')?.value;
+            const matiere = mainVerres.get('matiere')?.value || 'Verre';
+
+            // Get corrections logic
+            const odVars = this.ficheForm.get('ordonnance.od')?.value || {};
+            const ogVars = this.ficheForm.get('ordonnance.og')?.value || {};
+            const formatCorrection = (c: any) => {
+                let s = '';
+                if (c.sphere && c.sphere !== '0' && c.sphere !== '+0.00') s += `Sph ${c.sphere} `;
+                if (c.cylindre && c.cylindre !== '0' && c.cylindre !== '+0.00') s += `Cyl ${c.cylindre} `;
+                if (c.axe && c.axe !== '0°') s += `Axe ${c.axe} `;
+                if (c.addition && c.addition !== '0' && c.addition !== '+0.00') s += `Add ${c.addition}`;
+                return s.trim();
+            };
+            const descOD = formatCorrection(odVars);
+            const descOG = formatCorrection(ogVars);
+
+            if (differentODOG) {
+                const prixOD = parseFloat(mainVerres.get('prixOD')?.value) || 0;
+                const prixOG = parseFloat(mainVerres.get('prixOG')?.value) || 0;
+                const matiereOD = mainVerres.get('matiereOD')?.value || matiere;
+                const matiereOG = mainVerres.get('matiereOG')?.value || matiere;
+
+                if (prixOD > 0) {
+                    lignes.push({
+                        description: `Verre OD ${matiereOD} ${descOD}`.trim(),
+                        qte: 1,
+                        prixUnitaireTTC: prixOD,
+                        remise: 0,
+                        totalTTC: prixOD
+                    });
+                }
+                if (prixOG > 0) {
+                    lignes.push({
+                        description: `Verre OG ${matiereOG} ${descOG}`.trim(),
+                        qte: 1,
+                        prixUnitaireTTC: prixOG,
+                        remise: 0,
+                        totalTTC: prixOG
+                    });
+                }
+            } else {
+                // Paire ou calcul par verre simple
+                const prixOD = parseFloat(mainVerres.get('prixOD')?.value) || 0;
+                const prixOG = parseFloat(mainVerres.get('prixOG')?.value) || 0;
+
+                if (prixOD > 0) {
+                    lignes.push({
+                        description: `Verre OD ${matiere} ${descOD}`.trim(),
+                        qte: 1,
+                        prixUnitaireTTC: prixOD,
+                        remise: 0,
+                        totalTTC: prixOD
+                    });
+                }
+                if (prixOG > 0) {
+                    lignes.push({
+                        description: `Verre OG ${matiere} ${descOG}`.trim(),
                         qte: 1,
                         prixUnitaireTTC: prixOG,
                         remise: 0,

@@ -1061,6 +1061,35 @@
             </div>
         </div>
 
+        <!-- ONGLET 3: FACTURATION -->
+        <div class="tab-content" *ngIf="activeTab === 3">
+            <div class="tab-header">
+                <div class="icon-box">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3>Facturation</h3>
+                    <p>Gérer les factures et devis du client</p>
+                </div>
+            </div>
+
+            <div class="facturation-container" *ngIf="linkedFacture$ | async as linkedFacture; else newFactureTemplate">
+                <app-facture-form [factureId]="linkedFacture.id" [embedded]="true" (onSaved)="onInvoiceSaved($event)">
+                </app-facture-form>
+            </div>
+
+            <ng-template #newFactureTemplate>
+                <div class="facturation-container">
+                    <app-facture-form [clientIdInput]="clientId" [ficheIdInput]="ficheId" [initialLines]="initialLines"
+                        [embedded]="true" (onSaved)="onInvoiceSaved($event)" [nomenclature]="nomenclatureString">
+                    </app-facture-form>
+                </div>
+            </ng-template>
+        </div>
+
         <!-- Footer Navigation inside Form -->
         <div class="footer-nav">
             <button type="button" class="btn-secondary" (click)="prevTab()" [disabled]="activeTab === 0">←
@@ -1068,57 +1097,8 @@
             <button type="button" class="btn-primary" (click)="nextTab()">Suivant
                 →</button>
         </div>
+    </form>
 
-    
-<!-- ONGLET 3: FACTURATION -->
-<div class="tab-content" *ngIf="activeTab === 3">
-    <div class="tab-header">
-        <div class="icon-box">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                    d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
-            </svg>
-        </div>
-        <div>
-            <h3>Facturation</h3>
-            <p>GÃ©rer les factures et devis du client</p>
-        </div>
-        <div class="header-actions-inline">
-            <button type="button" class="btn-primary" (click)="generateFacture()">
-                <mat-icon>receipt_long</mat-icon> GÃ©nÃ©rer Facture
-            </button>
-        </div>
-    </div>
-
-    <div class="factures-list" *ngIf="clientFactures$ | async as factures">
-        <div class="empty-state" *ngIf="factures.length === 0">
-            <p>Aucune facture trouvÃ©e pour ce client.</p>
-        </div>
-
-        <div class="facture-card" *ngFor="let facture of factures">
-            <div class="facture-info">
-                <span class="facture-type">{{ facture.type }}</span>
-                <span class="facture-date">{{ facture.dateEmission | date:'dd/MM/yyyy' }}</span>
-                <span class="facture-status" [class.status-brouillon]="facture.statut === 'BROUILLON'"
-                    [class.status-valide]="facture.statut === 'VALIDE'"
-                    [class.status-payee]="facture.statut === 'PAYEE'">
-                    {{ facture.statut }}
-                </span>
-            </div>
-            <div class="facture-amount">
-                {{ facture.totalTTC | number:'1.2-2' }} DH
-            </div>
-            <div class="facture-actions">
-                <a [routerLink]="['/p/clients/factures', facture.id]" class="btn-link">Ouvrir</a>
-            </div>
-        </div>
-    </div>
-</div>
-
-</form>
-    <!-- End Form -->
-
-    <!-- Modals (Outside Form) -->
 
     <!-- File Viewer Modal -->
     <div class="file-viewer-modal" *ngIf="viewingFile" (click)="closeViewer()">

@@ -122,11 +122,50 @@
             border-radius: 8px;
             color: #334155;
             font-style: italic;
+            margin-top: 40px; // Decalage vers le bas demandé
         }
     }
 
     .footer-right {
         flex: 0 0 300px;
+
+        .discount-section {
+            margin-bottom: 24px;
+
+            .discount-inputs {
+                display: flex;
+                gap: 12px;
+                align-items: center;
+
+                mat-form-field {
+                    flex: 1;
+                    width: 100%;
+                    margin-bottom: -16px; // Fix Material form field extra spacing
+                }
+            }
+
+            .discount-calculation {
+                text-align: right;
+                color: #ef4444;
+                font-size: 13px;
+                font-weight: 500;
+                margin-top: 4px;
+                margin-bottom: 8px;
+            }
+
+            .discount-display {
+                display: flex;
+                justify-content: space-between;
+                font-size: 14px;
+                color: #64748b;
+                margin-bottom: 8px;
+
+                .view-calc {
+                    color: #ef4444;
+                    font-size: 12px;
+                }
+            }
+        }
 
         .total-row {
             display: flex;

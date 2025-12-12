@@ -9,7 +9,8 @@
                 numero not in form group yet, need to handle
             </div>
             <div class="actions">
-                <button type="button" mat-stroked-button color="warn" routerLink="/p/clients">Annuler</button>
+                <button type="button" mat-stroked-button color="warn" routerLink="/p/clients"
+                    *ngIf="!embedded">Annuler</button>
                 <button type="submit" mat-raised-button color="primary" [disabled]="form.invalid || isViewMode">
                     <mat-icon>save</mat-icon> Enregistrer
                 </button>
@@ -98,12 +99,54 @@
             <!-- Totals -->
             <div class="footer-section">
                 <div class="footer-left">
+                    <div class="nomenclature-section" *ngIf="form.get('proprietes.nomenclature')?.value as nom">
+                        <strong>Détail Nomenclature:</strong><br>
+                        {{ nom }}
+                    </div>
+
                     <div class="montant-lettres" *ngIf="montantLettres">
-                        <strong>Arrêté le présent document à la somme de :</strong><br>
+                        <strong>Arrêter {{ form.get('type')?.value === 'DEVIS' ? 'le présent devis' :
+                            (form.get('type')?.value === 'FACTURE' ? 'la présente facture' : 'le présent document') }} à
+                            la somme de :</strong><br>
                         {{ montantLettres }}
                     </div>
                 </div>
                 <div class="footer-right">
+                    <div class="discount-section" formGroupName="proprietes" [class.view-mode]="isViewMode">
+                        <div class="discount-inputs" *ngIf="!isViewMode">
+                            <mat-form-field appearance="outline" class="discount-type">
+                                <mat-label>Type Remise</mat-label>
+                                <mat-select formControlName="remiseGlobalType" (selectionChange)="calculateTotals()">
+                                    <mat-option value="PERCENT">%</mat-option>
+                                    <mat-option value="AMOUNT">DH</mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                            <mat-form-field appearance="outline" class="discount-value">
+                                <mat-label>Valeur Remise</mat-label>
+                                <input matInput type="number" formControlName="remiseGlobalValue"
+                                    (change)="calculateTotals()" min="0">
+                            </mat-form-field>
+
+                        </div>
+                        <div class="discount-calculation"
+                            *ngIf="form.get('proprietes.remiseGlobalValue')?.value > 0 && form.get('proprietes.remiseGlobalType')?.value === 'PERCENT'">
+                            <span class="calc-label">Montant déduit:</span>
+                            <span class="calc-value">-{{ calculatedGlobalDiscount | number:'1.2-2' }} DH</span>
+                        </div>
+                        <div class="discount-display"
+                            *ngIf="isViewMode && form.get('proprietes.remiseGlobalValue')?.value > 0">
+                            <span>Remise Globale:</span>
+                            <span>
+                                {{ form.get('proprietes.remiseGlobalValue')?.value }}
+                                {{ form.get('proprietes.remiseGlobalType')?.value === 'PERCENT' ? '%' : 'DH' }}
+                            </span>
+                            <span class="view-calc"
+                                *ngIf="form.get('proprietes.remiseGlobalType')?.value === 'PERCENT'">
+                                (-{{ calculatedGlobalDiscount | number:'1.2-2' }} DH)
+                            </span>
+                        </div>
+                    </div>
+
                     <div class="total-row">
                         <span>Total HT:</span>
                         <span>{{ totalHT | number:'1.2-2' }} DH</span>

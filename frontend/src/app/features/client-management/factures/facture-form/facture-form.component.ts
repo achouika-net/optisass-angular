@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormArray, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -15,6 +15,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { FactureService } from '../../services/facture.service';
 import { PaymentDialogComponent, Payment } from '../payment-dialog/payment-dialog.component';
+import { numberToFrench } from '../../../../utils/number-to-text';
 
 @Component({
     selector: 'app-facture-form',
@@ -38,6 +39,15 @@ import { PaymentDialogComponent, Payment } from '../payment-dialog/payment-dialo
     styleUrls: ['./facture-form.component.scss']
 })
 export class FactureFormComponent implements OnInit {
+    @Input() factureId: string | null = null;
+    @Input() clientIdInput: string | null = null;
+    @Input() ficheIdInput: string | null = null;
+    @Input() initialLines: any[] = [];
+    @Input() embedded = false;
+    @Input() nomenclature: string | null = null;
+    @Output() onSaved = new EventEmitter<any>();
+    @Output() onCancelled = new EventEmitter<void>();
+
     form: FormGroup;
     id: string | null = null;
     isViewMode = false;
@@ -47,6 +57,7 @@ export class FactureFormComponent implements OnInit {
     totalTVA = 0;
     totalTTC = 0;
     montantLettres = '';
+    calculatedGlobalDiscount = 0;
 
     // Payments
     paiements: Payment[] = [];
@@ -68,12 +79,51 @@ export class FactureFormComponent implements OnInit {
             clientId: ['', Validators.required],
             lignes: this.fb.array([]),
             proprietes: this.fb.group({
-                tvaRate: [0.20] // Default 20%
+                tvaRate: [0.20], // Default 20%
+                nomenclature: [''],
+                remiseGlobalType: ['PERCENT'], // PERCENT or AMOUNT
+                remiseGlobalValue: [0]
             })
         });
     }
 
     ngOnInit(): void {
+        if (this.nomenclature && this.embedded) {
+            this.form.patchValue({ proprietes: { nomenclature: this.nomenclature } });
+        }
+
+        if (this.embedded) {
+            this.handleEmbeddedInit();
+        } else {
+            this.handleRouteInit();
+        }
+    }
+
+    handleEmbeddedInit() {
+        this.id = this.factureId;
+        if (this.clientIdInput) {
+            this.form.patchValue({ clientId: this.clientIdInput });
+        }
+
+        if (this.id && this.id !== 'new') {
+            this.loadFacture(this.id);
+        } else {
+            // New embedded invoice
+            if (this.initialLines && this.initialLines.length > 0) {
+                this.lignes.clear();
+                this.initialLines.forEach(l => {
+                    const group = this.createLigne();
+                    group.patchValue(l);
+                    this.lignes.push(group);
+                });
+                this.calculateTotals();
+            } else {
+                this.addLine();
+            }
+        }
+    }
+
+    handleRouteInit() {
         this.route.queryParams.subscribe(params => {
             const clientId = params['clientId'];
             const type = params['type'];
@@ -137,15 +187,36 @@ export class FactureFormComponent implements OnInit {
     }
 
     calculateTotals() {
-        this.totalTTC = this.lignes.controls.reduce((sum, control) => {
+        const rawTotalTTC = this.lignes.controls.reduce((sum, control) => {
             return sum + (control.get('totalTTC')?.value || 0);
         }, 0);
+
+        // Apply Global Discount
+        const props = this.form.get('proprietes')?.value;
+        const remiseType = props?.remiseGlobalType || 'PERCENT';
+        const remiseValue = props?.remiseGlobalValue || 0;
+
+        let globalDiscount = 0;
+        if (remiseValue > 0) {
+            if (remiseType === 'PERCENT') {
+                globalDiscount = rawTotalTTC * (remiseValue / 100);
+            } else {
+                globalDiscount = remiseValue;
+            }
+        }
+
+        this.calculatedGlobalDiscount = globalDiscount;
+        this.totalTTC = Math.max(0, rawTotalTTC - globalDiscount);
 
         const tvaRate = 0.20; // Fixed 20% for now
         this.totalHT = this.totalTTC / (1 + tvaRate);
         this.totalTVA = this.totalTTC - this.totalHT;
 
         this.montantLettres = this.numberToText(this.totalTTC);
+
+        // Update payment status if totals change
+        this.calculatePaymentTotals();
+        this.updateStatutFromPayments();
     }
 
     loadFacture(id: string) {
@@ -217,7 +288,9 @@ export class FactureFormComponent implements OnInit {
         request.subscribe({
             next: (facture) => {
                 this.snackBar.open('Document enregistré avec succès', 'Fermer', { duration: 3000 });
-                if (!this.id || this.id === 'new') {
+                if (this.embedded) {
+                    this.onSaved.emit(facture);
+                } else if (!this.id || this.id === 'new') {
                     this.router.navigate(['/p/clients']);
                 }
             },
@@ -229,7 +302,7 @@ export class FactureFormComponent implements OnInit {
     }
 
     numberToText(num: number): string {
-        return `${Math.floor(num)} Dirhams`;
+        return numberToFrench(num);
     }
 
     loadSourceFacture(id: string) {
