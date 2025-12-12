@@ -4,11 +4,11 @@ import {
   Signal,
   effect,
   inject,
+  input,
   signal,
   untracked,
-  input,
 } from '@angular/core';
-import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { Field, FieldTree } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -20,7 +20,7 @@ import { States } from '@app/config';
 import { FieldControlLabelDirective } from '@app/directives';
 import { IResource, IRole } from '@app/models';
 import { TranslateModule } from '@ngx-translate/core';
-import { IUserSearch, IUserSearchForm } from '../../../models';
+import { IUserSearch } from '../../../models';
 import { UserStore } from '../../../user.store';
 
 @Component({
@@ -28,7 +28,7 @@ import { UserStore } from '../../../user.store';
   templateUrl: './user-search-form.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    ReactiveFormsModule,
+    Field,
     TranslateModule,
     MatCardModule,
     MatFormFieldModule,
@@ -43,8 +43,7 @@ import { UserStore } from '../../../user.store';
 export class UserSearchFormComponent {
   #userStore = inject(UserStore);
 
-  readonly searchForm = input.required<FormGroup<IUserSearchForm>>();
-
+  readonly searchForm = input.required<FieldTree<IUserSearch>>();
   #searchValue: Signal<IUserSearch> = this.#userStore.state.searchForm;
   roles: Signal<IRole[]> = this.#userStore.state.roles;
   states = signal<IResource[]>(States).asReadonly();
@@ -52,12 +51,16 @@ export class UserSearchFormComponent {
   constructor() {
     effect(() => {
       const searchValue = this.#searchValue();
-      untracked(() => searchValue && this.searchForm()?.patchValue(searchValue));
+      untracked(() => {
+        if (searchValue && this.searchForm()().value()) {
+          this.searchForm()().value.set(searchValue);
+        }
+      });
     });
   }
 
   search(): void {
-    this.#userStore.setSearchForm(this.searchForm().getRawValue());
+    this.#userStore.setSearchForm(this.searchForm()().value());
     this.#userStore.searchUsers();
   }
 

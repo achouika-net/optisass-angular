@@ -1,12 +1,12 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { FormGroup } from '@angular/forms';
+import { form } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ActionsButtonsComponent } from '@app/components';
 import { ActionsButton, DirectionType, PermissionType } from '@app/models';
 import { UserStore } from '../../user.store';
 import { UserSearchFormComponent } from './user-search-form/user-search-form.component';
 import { UserSearchTableComponent } from './user-search-table/user-search-table.component';
-import { IUserSearch, IUserSearchForm, UserSearchForm } from '../../models';
+import { IUserSearch, UserSearch } from '../../models';
 
 @Component({
   selector: 'app-user-search',
@@ -40,7 +40,10 @@ export default class UserSearchComponent implements OnInit {
       permissions: [PermissionType.WRITE],
     },
   ]).asReadonly();
-  searchForm = new FormGroup<IUserSearchForm>(new UserSearchForm());
+
+  searchFormModel = signal<IUserSearch>(new UserSearch());
+
+  searchForm = form(this.searchFormModel);
 
   ngOnInit(): void {
     this.#userStore.searchUsers();
@@ -53,7 +56,7 @@ export default class UserSearchComponent implements OnInit {
   handleActions(action: 'exportPdf' | 'addUser'): void {
     switch (action) {
       case 'exportPdf': {
-        const searchFormValue: IUserSearch = this.searchForm.getRawValue();
+        const searchFormValue: IUserSearch = this.searchFormModel();
         // this.#userStore.exportPdfUsers(searchFormValue);
         break;
       }

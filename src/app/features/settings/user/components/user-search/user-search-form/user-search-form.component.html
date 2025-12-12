@@ -1,23 +1,23 @@
 <mat-card>
   <mat-card-content>
-    <form [formGroup]="searchForm()" (ngSubmit)="search()">
+    <form (submit)="$event.preventDefault(); search()">
       <div class="search-form-grid">
         <!-- Last Name -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.lastName' | translate }}</mat-label>
-          <input matInput formControlName="last_name" />
+          <input matInput [field]="searchForm().last_name" />
         </mat-form-field>
 
         <!-- First Name -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.firstName' | translate }}</mat-label>
-          <input matInput formControlName="first_name" />
+          <input matInput [field]="searchForm().first_name" />
         </mat-form-field>
 
         <!-- Role -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.role' | translate }}</mat-label>
-          <mat-select formControlName="role_id">
+          <mat-select [field]="searchForm().role_id">
             <mat-option [value]="-1">{{ 'commun.all' | translate }}</mat-option>
             @for (role of roles(); track role.id) {
             <mat-option [value]="role.id">{{ role.name }}</mat-option>
@@ -28,23 +28,10 @@
         <!-- Status -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.status' | translate }}</mat-label>
-          <mat-select formControlName="actif">
+          <mat-select [field]="searchForm().actif">
             @for (state of states(); track state.code) {
             <mat-option [value]="state.code">
               {{`commun.${state.libelle}` | translate }}
-            </mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-
-        <!-- Role -->
-        <mat-form-field appFieldControlLabel>
-          <mat-label>{{ 'commun.role' | translate }}</mat-label>
-          <mat-select formControlName="role_id">
-            <mat-option value="">{{ 'commun.all' | translate }}</mat-option>
-            @for (role of roles(); track role.id) {
-            <mat-option [value]="role.id">
-              {{ role.name | translate }}
             </mat-option>
             }
           </mat-select>
