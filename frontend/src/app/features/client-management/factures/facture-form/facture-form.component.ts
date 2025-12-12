@@ -232,6 +232,25 @@ export class FactureFormComponent implements OnInit {
         return `${Math.floor(num)} Dirhams`;
     }
 
+    loadSourceFacture(id: string) {
+        this.factureService.findOne(id).subscribe({
+            next: (facture) => {
+                // Copy lines from source invoice
+                this.lignes.clear();
+                if (facture.lignes) {
+                    (facture.lignes as any[]).forEach((l: any) => {
+                        const lineGroup = this.createLigne();
+                        lineGroup.patchValue(l);
+                        this.lignes.push(lineGroup);
+                    });
+                }
+                this.calculateTotals();
+                this.snackBar.open('Données chargées depuis la facture ' + facture.numero, 'OK', { duration: 3000 });
+            },
+            error: (err) => console.error('Error loading source facture', err)
+        });
+    }
+
     // ===== PAYMENT METHODS =====
 
     openPaymentDialog() {
