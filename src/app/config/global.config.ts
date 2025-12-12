@@ -1,3 +1,5 @@
+import { IResource } from '@app/models';
+
 export const CRYPT_KEY = 'SomeRondomKey';
 export const BACKGROUND_IMAGE_REFRESH = 15000; //15s';
 export const PASSWORD_MIN_LENGTH = 12;
@@ -34,3 +36,9 @@ export const FILTER_ALL_YES_NO_OPTIONS = [
 // Récupérer les années de l'année donnée en param à l'année en cours.
 export const yearsFrom = (year: number) =>
   [...Array(new Date().getFullYear() - (year - 1)).keys()].map((e: number) => e + year).reverse();
+
+export const States: IResource[] = [
+  { code: -1, libelle: 'all' },
+  { code: 1, libelle: 'active' },
+  { code: 0, libelle: 'inactive' },
+];

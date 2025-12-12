@@ -1,9 +1,12 @@
+export * from './actions-button.model';
+export * from './called-ressources.model';
 export * from './center.model';
 export * from './client-search-request.model';
 export * from './client-search-response.model';
 export * from './client.model';
 export * from './confirm-data.model';
 export * from './current-user.model';
+export * from './direction-type.model';
 export * from './jwt-tokens.model';
 export * from './links.model';
 export * from './login-request.model';
@@ -12,10 +15,11 @@ export * from './menuitem.models';
 export * from './meta.model';
 export * from './paginated-api-response.model';
 export * from './password-retry-timer.model';
+export * from './permission-type.model';
 export * from './remaining-time.model';
 export * from './reset-password-confirm-request.model';
-
+export * from './role.model';
 export * from './type-client.model';
-export * from './ws-error.model';
 export * from './websocket.model';
-export * from './called-ressources.model';
+export * from './ws-error.model';
+export * from './resource.model';

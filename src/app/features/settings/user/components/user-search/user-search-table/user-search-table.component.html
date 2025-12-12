@@ -1,0 +1,107 @@
+@if (users()?.data?.length) {
+<mat-card>
+  <mat-card-content>
+    <table
+      mat-table
+      [appResponsiveTable]="users()?.data"
+      [dataSource]="users()?.data"
+      matSort
+      [matSortActive]="sort()?.active"
+      [matSortDirection]="sort()?.direction"
+      (matSortChange)="sortChange($event)"
+    >
+      <ng-container matColumnDef="first_name">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>
+          {{ 'commun.firstName' | translate }}
+        </th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.first_name }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="last_name">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>
+          {{ 'commun.lastName' | translate }}
+        </th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.last_name }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="email">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>
+          {{ 'commun.email' | translate }}
+        </th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.email }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="mobile">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>
+          {{ 'commun.mobile' | translate }}
+        </th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.mobile }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="role_id">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>
+          {{ 'commun.role' | translate }}
+        </th>
+        <td mat-cell *matCellDef="let element">
+          {{ getUserRoleOfCurrentCenter | wrapFn : roles() : element.centres : currentCenter().id }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actif">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="actif">
+          {{ 'commun.status' | translate }}
+        </th>
+        <td mat-cell *matCellDef="let element">
+          <app-status-illustration [status]="element.actif" />
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="action">
+        <th mat-header-cell *matHeaderCellDef>
+          {{ 'commun.actions' | translate }}
+        </th>
+        <td mat-cell *matCellDef="let element">
+          <div class="flex gap-3">
+            <button mat-icon-button class="text-primary">
+              <mat-icon>visibility</mat-icon>
+            </button>
+            <button
+              mat-icon-button
+              class="text-error"
+              (click)="$event.stopPropagation(); deleteUser(element.id)"
+            >
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>
+      <tr
+        mat-row
+        *matRowDef="let row; columns: displayedColumns()"
+        [routerLink]="[row.id]"
+        [relativeTo]="route"
+      ></tr>
+    </table>
+    @if (showPaginator()) {
+    <mat-paginator
+      [length]="users()?.meta?.total"
+      [pageSize]="page().pageSize"
+      [pageIndex]="page().pageIndex"
+      (page)="changePage($event)"
+    />
+    }
+  </mat-card-content>
+</mat-card>
+} @else {
+<app-no-data-search />
+}

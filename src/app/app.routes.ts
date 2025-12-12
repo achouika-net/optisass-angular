@@ -18,8 +18,12 @@ export const routes: Routes = [
     children: [
       {
         path: '',
-        redirectTo: 'dashboard',
+        redirectTo: 'settings',
         pathMatch: 'full',
+      },
+      {
+        path: 'settings',
+        loadChildren: () => import('./features/settings/settings.routes'),
       },
     ],
   },

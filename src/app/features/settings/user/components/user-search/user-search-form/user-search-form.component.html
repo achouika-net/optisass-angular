@@ -1,0 +1,69 @@
+<mat-card>
+  <mat-card-content>
+    <form [formGroup]="searchForm()" (ngSubmit)="search()">
+      <div class="search-form-grid">
+        <!-- Last Name -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'commun.lastName' | translate }}</mat-label>
+          <input matInput formControlName="last_name" />
+        </mat-form-field>
+
+        <!-- First Name -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'commun.firstName' | translate }}</mat-label>
+          <input matInput formControlName="first_name" />
+        </mat-form-field>
+
+        <!-- Role -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'commun.role' | translate }}</mat-label>
+          <mat-select formControlName="role_id">
+            <mat-option [value]="-1">{{ 'commun.all' | translate }}</mat-option>
+            @for (role of roles(); track role.id) {
+            <mat-option [value]="role.id">{{ role.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Status -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'commun.status' | translate }}</mat-label>
+          <mat-select formControlName="actif">
+            @for (state of states(); track state.code) {
+            <mat-option [value]="state.code">
+              {{`commun.${state.libelle}` | translate }}
+            </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Role -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'commun.role' | translate }}</mat-label>
+          <mat-select formControlName="role_id">
+            <mat-option value="">{{ 'commun.all' | translate }}</mat-option>
+            @for (role of roles(); track role.id) {
+            <mat-option [value]="role.id">
+              {{ role.name | translate }}
+            </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+      <div class="flex flex-1 items-center justify-end gap-2.5">
+        <button mat-flat-button class="tertiary" (click)="search()" type="submit">
+          {{ 'commun.search' | translate }}
+        </button>
+        <button
+          mat-icon-button
+          class="text-primary"
+          [matTooltip]="'commun.reinitialiseRecherche' | translate"
+          (click)="resetSearchForm()"
+          type="button"
+        >
+          <mat-icon>autorenew</mat-icon>
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>

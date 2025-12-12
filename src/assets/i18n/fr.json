@@ -55,7 +55,10 @@
     "reinitialiseRecherche": "Réinitialiser la recherche",
     "reinitialiseForm": "Réinitialiser le formulaire",
     "with": "Avec",
-    "etats": {
+    "'all": "Tous",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "states": {
       "-1": "Tous",
       "1": "Actif",
       "0": "Inactif"
