@@ -36,8 +36,8 @@ export class AdaptationModerneComponent implements OnInit {
     @Output() suggestionGenerated = new EventEmitter<LensSuggestion>();
 
     suggestion: LensSuggestion | null = null;
-    isCapturing = false;
     validationErrors: string[] = [];
+    showInfo = false;  // Pour afficher le message d'info tablette
 
     constructor(
         private optilensService: OptilensService,
@@ -52,34 +52,10 @@ export class AdaptationModerneComponent implements OnInit {
     }
 
     /**
-     * Capture les mesures automatiques depuis la tablette
+     * Affiche les informations sur la capture automatique avec tablette
      */
-    async captureMeasures() {
-        this.isCapturing = true;
-        this.validationErrors = [];
-
-        try {
-            const measures = await this.optilensService.fetchAutoMeasures();
-
-            // Patcher les valeurs dans le formulaire
-            this.formGroup.patchValue({
-                hvid: measures.hvid,
-                pupilPhot: measures.pupilPhot,
-                pupilMes: measures.pupilMes,
-                but: measures.but,
-                schirmer: measures.schirmer,
-                k1: measures.k1,
-                k2: measures.k2
-            });
-
-            // Générer automatiquement la suggestion
-            this.generateSuggestion();
-        } catch (error) {
-            console.error('Erreur lors de la capture des mesures:', error);
-            this.validationErrors.push('Impossible de capturer les mesures. Vérifiez la connexion à la tablette.');
-        } finally {
-            this.isCapturing = false;
-        }
+    showTabletInfo() {
+        this.showInfo = true;
     }
 
     /**

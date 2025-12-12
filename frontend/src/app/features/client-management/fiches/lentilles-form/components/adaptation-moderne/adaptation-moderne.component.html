@@ -17,14 +17,27 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="compact-field">
-            <mat-label>Docteur</mat-label>
+            <mat-label>Docteur / Opticien</mat-label>
             <input matInput formControlName="docteur" placeholder="Nom du praticien">
         </mat-form-field>
 
-        <button mat-raised-button color="primary" (click)="captureMeasures()" [disabled]="isCapturing"
-            class="capture-btn">
-            <mat-icon>{{isCapturing ? 'hourglass_empty' : 'camera_alt'}}</mat-icon>
-            {{isCapturing ? 'Capture...' : 'Capturer'}}
+        <button mat-raised-button color="primary" (click)="showTabletInfo()" class="capture-btn">
+            <mat-icon>camera_alt</mat-icon>
+            Capturer Mesures
+        </button>
+    </div>
+
+    <!-- Info Message -->
+    <div *ngIf="showInfo" class="info-banner">
+        <mat-icon>info</mat-icon>
+        <div class="info-content">
+            <strong>Capture Automatique Disponible</strong>
+            <p>Connectez une tablette de mesure OptiSass (Visioffice, i.Profiler, etc.) pour capturer automatiquement
+                les mesures HVID, pupille, BUT, Schirmer et kératométrie.</p>
+            <p class="info-note">💡 En attendant, saisissez les mesures manuellement avec vos outils professionnels.</p>
+        </div>
+        <button mat-icon-button (click)="showInfo = false">
+            <mat-icon>close</mat-icon>
         </button>
     </div>
 
