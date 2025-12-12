@@ -8,7 +8,7 @@
         <form [formGroup]="form">
             <div class="form-grid">
                 <!-- Date -->
-                <mat-form-field appearance="outline" class="full-width">
+                <mat-form-field appearance="outline">
                     <mat-label>Date du paiement</mat-label>
                     <input matInput [matDatepicker]="picker" formControlName="date">
                     <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
@@ -16,7 +16,7 @@
                 </mat-form-field>
 
                 <!-- Montant -->
-                <mat-form-field appearance="outline" class="full-width">
+                <mat-form-field appearance="outline">
                     <mat-label>Montant</mat-label>
                     <input matInput type="number" formControlName="montant" step="0.01" min="0.01" [max]="maxAmount">
                     <span matTextSuffix>DH</span>
@@ -33,7 +33,7 @@
                 </mat-form-field>
 
                 <!-- Mode de paiement -->
-                <mat-form-field appearance="outline" class="full-width">
+                <mat-form-field appearance="outline">
                     <mat-label>Mode de paiement</mat-label>
                     <mat-select formControlName="mode">
                         <mat-option *ngFor="let mode of paymentModes" [value]="mode.value">
@@ -43,7 +43,7 @@
                 </mat-form-field>
 
                 <!-- Référence -->
-                <mat-form-field appearance="outline" class="full-width">
+                <mat-form-field appearance="outline">
                     <mat-label>Référence</mat-label>
                     <input matInput formControlName="reference" placeholder="Numéro chèque, transaction...">
                     <mat-icon matIconPrefix>receipt</mat-icon>
@@ -52,7 +52,8 @@
                 <!-- Notes -->
                 <mat-form-field appearance="outline" class="full-width">
                     <mat-label>Notes</mat-label>
-                    <textarea matInput formControlName="notes" rows="2" placeholder="Acompte, solde, etc."></textarea>
+                    <textarea matInput formControlName="notes" rows="3"
+                        placeholder="Acompte, solde, remarques..."></textarea>
                 </mat-form-field>
             </div>
         </form>
