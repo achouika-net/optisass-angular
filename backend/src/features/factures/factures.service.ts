@@ -198,36 +198,37 @@ export class FacturesService {
                 where,
             });
         }
+    }
 
     async remove(where: Prisma.FactureWhereUniqueInput) {
-            // Vérifier que la facture existe
-            const facture = await this.prisma.facture.findUnique({
-                where,
-                include: { paiements: true }
-            });
+        // Vérifier que la facture existe
+        const facture = await this.prisma.facture.findUnique({
+            where,
+            include: { paiements: true }
+        });
 
-            if (!facture) {
-                throw new NotFoundException('Facture non trouvée');
-            }
-
-            // Bloquer si facture validée ou payée
-            if (facture.statut === 'VALIDE' || facture.statut === 'PAYEE' || facture.statut === 'PARTIEL') {
-                throw new BadRequestException(
-                    'Impossible de supprimer une facture validée ou avec paiements. Créez un avoir à la place.'
-                );
-            }
-
-            // Bloquer si des paiements existent
-            if (facture.paiements && facture.paiements.length > 0) {
-                throw new BadRequestException(
-                    'Impossible de supprimer une facture avec des paiements'
-                );
-            }
-
-            return this.prisma.facture.delete({
-                where,
-            });
+        if (!facture) {
+            throw new NotFoundException('Facture non trouvée');
         }
+
+        // Bloquer si facture validée ou payée
+        if (facture.statut === 'VALIDE' || facture.statut === 'PAYEE' || facture.statut === 'PARTIEL') {
+            throw new BadRequestException(
+                'Impossible de supprimer une facture validée ou avec paiements. Créez un avoir à la place.'
+            );
+        }
+
+        // Bloquer si des paiements existent
+        if (facture.paiements && facture.paiements.length > 0) {
+            throw new BadRequestException(
+                'Impossible de supprimer une facture avec des paiements'
+            );
+        }
+
+        return this.prisma.facture.delete({
+            where,
+        });
+    }
 
     private getPrefix(type: string): string {
         switch (type) {
