@@ -104,12 +104,12 @@
           <mat-icon>menu</mat-icon>
         </button>
         }
-        <button mat-icon-button><mat-icon>search</mat-icon></button>
+        <button class="m-6" mat-icon-button><mat-icon>search</mat-icon></button>
         <div class="flex-1"></div>
         @if (currentCentre()?.name) {
         <button
           matButton="outlined"
-          class="mr-2 min-w-24 rounded-sm text-center font-semibold  md:min-w-56"
+          class="mr-2 min-w-24 rounded-sm text-center border-on-primary font-semibold  md:min-w-56"
           [matMenuTriggerFor]="centersMenu"
           [disabled]="centres().length === 1"
         >
