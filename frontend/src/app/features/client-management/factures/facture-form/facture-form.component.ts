@@ -1,4 +1,6 @@
-import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
+import { Observable, of } from 'rxjs';
+import { map, catchError, tap } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormArray, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -14,6 +16,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { FactureService } from '../../services/facture.service';
+import { PaiementService } from '../../services/paiement.service';
 import { PaymentDialogComponent, Payment } from '../payment-dialog/payment-dialog.component';
 import { numberToFrench } from '../../../../utils/number-to-text';
 
@@ -45,6 +48,7 @@ export class FactureFormComponent implements OnInit {
     @Input() initialLines: any[] = [];
     @Input() embedded = false;
     @Input() nomenclature: string | null = null;
+    @Input() isReadonly = false;
     @Output() onSaved = new EventEmitter<any>();
     @Output() onCancelled = new EventEmitter<void>();
 
@@ -69,10 +73,12 @@ export class FactureFormComponent implements OnInit {
         private route: ActivatedRoute,
         private router: Router,
         private factureService: FactureService,
+        private paiementService: PaiementService,
         private snackBar: MatSnackBar,
         private dialog: MatDialog
     ) {
         this.form = this.fb.group({
+            numero: [''], // Auto-generated
             type: ['FACTURE', Validators.required],
             statut: ['BROUILLON', Validators.required],
             dateEmission: [new Date(), Validators.required],
@@ -96,6 +102,38 @@ export class FactureFormComponent implements OnInit {
             this.handleEmbeddedInit();
         } else {
             this.handleRouteInit();
+        }
+    }
+
+    ngOnChanges(changes: SimpleChanges) {
+        if (changes['isReadonly']) {
+            this.updateViewMode();
+        }
+        if (changes['initialLines'] && this.initialLines && (!this.id || this.id === 'new')) {
+            // Update lines from new initialLines if we are in creation mode
+            // But we should be careful not to overwrite manual edits if possible.
+            // For now, if initialLines updates (e.g. equipment changed), we replace.
+            this.lignes.clear();
+            this.initialLines.forEach(l => {
+                const group = this.createLigne();
+                group.patchValue(l);
+                this.lignes.push(group);
+            });
+            this.calculateTotals();
+        }
+    }
+
+    updateViewMode() {
+        if (this.isReadonly) {
+            this.isViewMode = true;
+            this.form.disable();
+        } else if (this.form.get('statut')?.value === 'BROUILLON') {
+            // Only re-enable if it's draft and not explicitly viewed via route (which is static)
+            // But for embedded, we usually rely on parent state.
+            this.isViewMode = false;
+            this.form.enable();
+            // Ensure 'numero' stays disabled if it's auto-generated
+            this.form.get('numero')?.disable();
         }
     }
 
@@ -223,6 +261,7 @@ export class FactureFormComponent implements OnInit {
         this.factureService.findOne(id).subscribe({
             next: (facture) => {
                 this.form.patchValue({
+                    numero: facture.numero,
                     type: facture.type,
                     statut: facture.statut,
                     dateEmission: facture.dateEmission,
@@ -251,8 +290,12 @@ export class FactureFormComponent implements OnInit {
                 // Check for explicit view mode from query params
                 const isExplicitViewMode = this.route.snapshot.queryParamMap.get('mode') === 'view';
 
-                // Only allow editing if status is BROUILLON AND not in explicit view mode
-                this.isViewMode = facture.statut !== 'BROUILLON' || isExplicitViewMode;
+                // Only allow editing if status is BROUILLON OR if it's a Partial Draft (BRO/TEMP)
+                // AND not in explicit view mode
+                const isDraft = facture.statut === 'BROUILLON' ||
+                    (facture.statut === 'PARTIEL' && (facture.numero.startsWith('BRO') || facture.numero.startsWith('TEMP')));
+
+                this.isViewMode = !isDraft || isExplicitViewMode;
 
                 if (this.isViewMode) {
                     this.form.disable();
@@ -268,16 +311,26 @@ export class FactureFormComponent implements OnInit {
     }
 
     save() {
-        if (this.form.invalid) return;
+        this.saveAsObservable().subscribe();
+    }
+
+    saveAsObservable(showNotification = true): Observable<any> {
+        if (this.form.invalid) return new Observable(obs => obs.next(null));
 
         const formData = this.form.getRawValue();
+
+        // Extract paiements to avoid sending them to invoice update (handled separately)
+        // proprietes MUST be included now
+        const { paiements, ...restFormData } = formData;
+
         const factureData = {
-            ...formData,
+            ...restFormData,
+            ficheId: this.ficheIdInput, // Include link to Fiche
             totalHT: this.totalHT,
             totalTVA: this.totalTVA,
             totalTTC: this.totalTTC,
             montantLettres: this.montantLettres,
-            paiements: this.paiements,
+            // paiements: excluded
             resteAPayer: this.resteAPayer
         };
 
@@ -285,20 +338,29 @@ export class FactureFormComponent implements OnInit {
             ? this.factureService.update(this.id, factureData)
             : this.factureService.create(factureData);
 
-        request.subscribe({
-            next: (facture) => {
-                this.snackBar.open('Document enregistré avec succès', 'Fermer', { duration: 3000 });
+        return request.pipe(
+            map(facture => {
+                this.id = facture.id; // Update internal ID to prevent duplicates
+                if (showNotification) {
+                    this.snackBar.open('Document enregistré avec succès', 'Fermer', { duration: 3000 });
+                }
                 if (this.embedded) {
                     this.onSaved.emit(facture);
-                } else if (!this.id || this.id === 'new') {
-                    this.router.navigate(['/p/clients']);
+                } else if (!this.id || this.id === 'new') { // This condition will now be false for 'this.id'
+                    // logic adjusted below
                 }
-            },
-            error: (err) => {
+                // Navigation logic for standalone mode
+                if (!this.embedded && this.route.snapshot.paramMap.get('id') === 'new') {
+                    this.router.navigate(['/p/clients/factures', facture.id], { replaceUrl: true });
+                }
+                return facture;
+            }),
+            catchError(err => {
                 console.error('Erreur sauvegarde facture:', err);
                 this.snackBar.open('Erreur lors de l\'enregistrement', 'Fermer', { duration: 3000 });
-            }
-        });
+                throw err;
+            })
+        );
     }
 
     numberToText(num: number): string {
@@ -327,6 +389,16 @@ export class FactureFormComponent implements OnInit {
     // ===== PAYMENT METHODS =====
 
     openPaymentDialog() {
+        if (!this.id || this.id === 'new') {
+            this.snackBar.open('Veuillez d\'abord enregistrer la facture', 'Fermer', { duration: 3000 });
+            return;
+        }
+
+        if (this.form.get('statut')?.value === 'BROUILLON') {
+            this.snackBar.open('La facture doit être validée avant paiement', 'Fermer', { duration: 3000 });
+            return;
+        }
+
         const dialogRef = this.dialog.open(PaymentDialogComponent, {
             width: '800px',
             maxWidth: '90vw',
@@ -335,15 +407,36 @@ export class FactureFormComponent implements OnInit {
 
         dialogRef.afterClosed().subscribe((payment: Payment) => {
             if (payment) {
-                this.addPayment(payment);
+                this.createPayment(payment);
             }
         });
     }
 
+    createPayment(payment: Payment) {
+        if (!this.id) return;
+
+        this.paiementService.create({
+            ...payment,
+            factureId: this.id,
+            date: payment.date ? (typeof payment.date === 'string' ? payment.date : payment.date.toISOString()) : new Date().toISOString(),
+            mode: payment.mode.toString() // Ensure string enum match if needed
+        }).subscribe({
+            next: (savedPayment) => {
+                this.snackBar.open('Paiement enregistré', 'Fermer', { duration: 3000 });
+                // Reload facture to get updated status and remaining amount
+                this.loadFacture(this.id!);
+            },
+            error: (err) => {
+                console.error('Error creating payment:', err);
+                this.snackBar.open('Erreur lors de l\'enregistrement du paiement', 'Fermer', { duration: 3000 });
+            }
+        });
+    }
+
+    // Deprecated/Modified: addPayment no longer pushes to local array directly for persistence, 
+    // but we keep it if needed for view update before reload (optional)
     addPayment(payment: Payment) {
-        this.paiements.push(payment);
-        this.calculatePaymentTotals();
-        this.updateStatutFromPayments();
+        // logic moved to createPayment
     }
 
     removePayment(index: number) {
@@ -358,10 +451,16 @@ export class FactureFormComponent implements OnInit {
     }
 
     updateStatutFromPayments() {
+        // Only auto-update if we are not explicitly VALIDE (unless fully paid)
+        const currentStatut = this.form.get('statut')?.value;
+
         if (this.resteAPayer <= 0 && this.totalTTC > 0) {
             this.form.patchValue({ statut: 'PAYEE' });
         } else if (this.montantPaye > 0) {
-            this.form.patchValue({ statut: 'PARTIEL' });
+            // If user has manually set VALIDE, don't revert to PARTIEL
+            if (currentStatut !== 'VALIDE') {
+                this.form.patchValue({ statut: 'PARTIEL' });
+            }
         }
     }
 
