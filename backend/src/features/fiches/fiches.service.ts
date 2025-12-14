@@ -1,10 +1,14 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { FacturesService } from '../factures/factures.service';
 
 @Injectable()
 export class FichesService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private facturesService: FacturesService
+    ) { }
 
     async create(data: Prisma.FicheCreateInput) {
         try {
@@ -70,6 +74,45 @@ export class FichesService {
                     data: { statut: 'ACTIF' }
                 });
                 console.log('✅ Client status updated: INACTIF → ACTIF');
+            }
+
+            // 5. AUTOMATIC INVOICE GENERATION (BROUILLON)
+            console.log('🧾 Checking/Creating Draft Invoice for Fiche...');
+            try {
+                // Check if invoice already exists for this Fiche
+                const existingInvoice = await this.prisma.facture.findUnique({
+                    where: { ficheId: result.id }
+                });
+
+                if (!existingInvoice) {
+                    await this.facturesService.create({
+                        clientId: clientId as string,
+                        numero: 'TEMP', // Will be overwritten by service
+                        type: 'FACTURE',
+                        statut: 'BROUILLON', // Will trigger BRO- prefix logic
+                        ficheId: result.id,
+                        totalHT: data.montantTotal, // Assuming TTC for now, or simple flat tax
+                        totalTTC: data.montantTotal,
+                        totalTVA: 0,
+                        resteAPayer: data.montantTotal,
+                        lignes: [
+                            {
+                                description: `Fiche ${result.type} du ${new Date().toLocaleDateString()}`,
+                                qte: 1,
+                                prixUnitaireTTC: data.montantTotal,
+                                remise: 0,
+                                totalTTC: data.montantTotal
+                            }
+                        ],
+                        notes: 'Facture générée automatiquement depuis la fiche technique.'
+                    });
+                    console.log('✅ Draft Invoice created successfully');
+                } else {
+                    console.log('ℹ️ Invoice already exists for this Fiche, skipping creation.');
+                }
+            } catch (invError) {
+                console.error('⚠️ Failed to create draft invoice automatically:', invError);
+                // We don't block the response, just log the error
             }
 
             return result;

@@ -12,6 +12,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
 import { ClientService } from '../services/client.service';
 import { Client, StatutClient, TypeClient, isClientParticulier, isClientProfessionnel } from '../models/client.model';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 interface ClientStats {
     actifs: number;
@@ -54,7 +55,8 @@ export class ClientListComponent implements OnInit {
     constructor(
         private fb: FormBuilder,
         private router: Router,
-        private clientService: ClientService
+        private clientService: ClientService,
+        private snackBar: MatSnackBar
     ) {
         this.searchForm = this.fb.group({
             typeClient: [''],
@@ -102,6 +104,23 @@ export class ClientListComponent implements OnInit {
             inactifs: clients.filter(c => c.statut === StatutClient.INACTIF).length
         };
         this.stats.set(stats);
+    }
+
+    deleteClient(client: Client) {
+        if (confirm(`Êtes-vous sûr de vouloir supprimer le client ${this.getClientName(client)} ${this.getClientPrenom(client)} ? \nCette action est irréversible et supprimera tout l'historique non bloquant.`)) {
+            this.clientService.deleteClient(client.id).subscribe({
+                next: () => {
+                    this.snackBar.open('Client supprimé avec succès', 'Fermer', { duration: 3000 });
+                    this.loadClients();
+                },
+                error: (err: any) => {
+                    console.error('Error deleting client', err);
+                    // Display backend error message if available
+                    const msg = err.error?.message || 'Erreur lors de la suppression du client';
+                    this.snackBar.open(msg, 'Fermer', { duration: 5000 });
+                }
+            });
+        }
     }
 
     onSearch() {

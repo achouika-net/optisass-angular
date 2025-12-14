@@ -37,6 +37,36 @@
         mat-form-field {
             width: 100%;
         }
+
+        .identity-section {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .attachment-section {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 8px 0;
+
+            .attachment-label {
+                font-size: 14px;
+                font-weight: 500;
+                color: #64748b;
+            }
+
+            .preview {
+                img {
+                    max-width: 100%;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 6px;
+                    padding: 4px;
+                }
+            }
+        }
     }
 
     mat-dialog-actions {

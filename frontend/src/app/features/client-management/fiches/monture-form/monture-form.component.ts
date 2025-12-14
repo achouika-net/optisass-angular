@@ -1,6 +1,6 @@
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { FormBuilder, FormGroup, AbstractControl, ReactiveFormsModule, Validators, FormArray, FormControl } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -22,7 +22,8 @@ import { FicheService } from '../../services/fiche.service';
 import { FicheMontureCreate, TypeFiche, StatutFiche, TypeEquipement, SuggestionIA } from '../../models/fiche-client.model';
 import { FactureService, Facture } from '../../services/facture.service';
 import { FactureFormComponent } from '../../factures/facture-form/facture-form.component';
-import { map } from 'rxjs/operators';
+import { PaymentListComponent } from '../../payments/payment-list/payment-list.component';
+import { map, switchMap, tap, catchError } from 'rxjs/operators';
 import { getLensSuggestion, Correction, FrameData, calculateLensPrice, determineLensType } from '../../utils/lensLogic';
 import { getLensMaterials, getLensIndices } from '../../utils/lensDatabase';
 
@@ -53,9 +54,9 @@ interface PrescriptionFile {
         MatTabsModule,
         MatCheckboxModule,
         MatDialogModule,
-        MatDialogModule,
         RouterModule,
-        FactureFormComponent
+        FactureFormComponent,
+        PaymentListComponent
     ],
     templateUrl: './monture-form.component.html',
     styleUrls: ['./monture-form.component.scss'],
@@ -67,6 +68,8 @@ export class MontureFormComponent implements OnInit {
     @ViewChild('canvasElement') canvasElement!: ElementRef<HTMLCanvasElement>;
     @ViewChild('centeringCanvas') centeringCanvas!: ElementRef<HTMLCanvasElement>;
     @ViewChild('frameCanvas') frameCanvas!: ElementRef<HTMLCanvasElement>;
+    @ViewChild(FactureFormComponent) factureComponent!: FactureFormComponent;
+    @ViewChild(PaymentListComponent) paymentListComponent!: PaymentListComponent;
 
     ficheForm: FormGroup;
     clientId: string | null = null;
@@ -261,6 +264,30 @@ export class MontureFormComponent implements OnInit {
                 this.ficheForm.get('monture.typeEquipement')?.setValue(value);
             }
         });
+
+        // Update nomenclature when ordonnance changes
+        this.ficheForm.get('ordonnance')?.valueChanges.subscribe(() => {
+            this.updateNomenclature();
+        });
+        // Initial call
+        this.updateNomenclature();
+    }
+
+    updateNomenclature(): void {
+        const odVars = this.ficheForm.get('ordonnance.od')?.value || {};
+        const ogVars = this.ficheForm.get('ordonnance.og')?.value || {};
+        const formatCorrection = (c: any) => {
+            let s = '';
+            if (c.sphere && c.sphere !== '0' && c.sphere !== '+0.00') s += `Sph ${c.sphere} `;
+            if (c.cylindre && c.cylindre !== '0' && c.cylindre !== '+0.00') s += `Cyl ${c.cylindre} `;
+            if (c.axe && c.axe !== '0°') s += `Axe ${c.axe} `;
+            if (c.addition && c.addition !== '0' && c.addition !== '+0.00') s += `Add ${c.addition}`;
+            return s.trim();
+        };
+        const descOD = formatCorrection(odVars);
+        const descOG = formatCorrection(ogVars);
+        this.nomenclatureString = `OD: ${descOD || '-'} / OG: ${descOG || '-'}`;
+        console.log('📋 Nomenclature generated in ngOnInit:', this.nomenclatureString);
     }
 
     setupSynchronization(): void {
@@ -409,7 +436,7 @@ export class MontureFormComponent implements OnInit {
         if (isClientParticulier(this.client) || (this.client as any).nom) {
             const nom = (this.client as any).nom || '';
             const prenom = (this.client as any).prenom || '';
-            return `${nom.toUpperCase()} ${this.toTitleCase(prenom)}`;
+            return `${nom.toUpperCase()} ${this.toTitleCase(prenom)} `;
         }
 
         return 'Client';
@@ -602,7 +629,7 @@ export class MontureFormComponent implements OnInit {
             // Use the "stronger" recommendation (highest index) for both
             const useOD = recOD.option.index >= recOG.option.index;
             const bestRec = useOD ? recOD : recOG;
-            const thicknessInfo = `~${bestRec.estimatedThickness}mm`;
+            const thicknessInfo = `~${bestRec.estimatedThickness} mm`;
 
             // Combine warnings from both eyes
             const allWarnings = [
@@ -623,8 +650,8 @@ export class MontureFormComponent implements OnInit {
 
         } else {
             // Case B: Different Prescriptions -> Suggest Split Indices
-            const thickOD = `~${recOD.estimatedThickness}mm`;
-            const thickOG = `~${recOG.estimatedThickness}mm`;
+            const thickOD = `~${recOD.estimatedThickness} mm`;
+            const thickOG = `~${recOG.estimatedThickness} mm`;
 
             this.suggestions.push({
                 type: 'OD',
@@ -849,7 +876,7 @@ export class MontureFormComponent implements OnInit {
 
         Array.from(input.files).forEach(file => {
             if (file.size > 10 * 1024 * 1024) {
-                alert(`Le fichier ${file.name} est trop volumineux (max 10MB)`);
+                alert(`Le fichier ${file.name} est trop volumineux(max 10MB)`);
                 return;
             }
 
@@ -1032,8 +1059,8 @@ export class MontureFormComponent implements OnInit {
 
             // Build summary for user approval
             let summary = 'Données détectées :\n\n';
-            if (hasOD) summary += `OD: ${parsed.OD.sph > 0 ? '+' : ''}${parsed.OD.sph} (${parsed.OD.cyl > 0 ? '+' : ''}${parsed.OD.cyl}) ${parsed.OD.axis ? '@' + parsed.OD.axis + '°' : ''} ${parsed.OD.add ? 'Add ' + parsed.OD.add : ''}\n`;
-            if (hasOG) summary += `OG: ${parsed.OG.sph > 0 ? '+' : ''}${parsed.OG.sph} (${parsed.OG.cyl > 0 ? '+' : ''}${parsed.OG.cyl}) ${parsed.OG.axis ? '@' + parsed.OG.axis + '°' : ''} ${parsed.OG.add ? 'Add ' + parsed.OG.add : ''}\n`;
+            if (hasOD) summary += `OD: ${parsed.OD.sph > 0 ? '+' : ''}${parsed.OD.sph} (${parsed.OD.cyl > 0 ? '+' : ''}${parsed.OD.cyl}) ${parsed.OD.axis ? '@' + parsed.OD.axis + '°' : ''} ${parsed.OD.add ? 'Add ' + parsed.OD.add : ''} \n`;
+            if (hasOG) summary += `OG: ${parsed.OG.sph > 0 ? '+' : ''}${parsed.OG.sph} (${parsed.OG.cyl > 0 ? '+' : ''}${parsed.OG.cyl}) ${parsed.OG.axis ? '@' + parsed.OG.axis + '°' : ''} ${parsed.OG.add ? 'Add ' + parsed.OG.add : ''} \n`;
             if (hasEP) summary += `EP: ${parsed.EP.val} mm\n`;
 
             summary += '\nImporter ces valeurs ?';
@@ -1156,6 +1183,12 @@ export class MontureFormComponent implements OnInit {
                 }
                 this.loading = false;
                 this.cdr.markForCheck();
+
+                // Generate nomenclature after loading fiche data
+                setTimeout(() => {
+                    this.generateInvoiceLines();
+                    console.log('📋 Nomenclature generated after fiche load:', this.nomenclatureString);
+                }, 100);
             },
             error: (err) => {
                 console.error('Error loading fiche:', err);
@@ -1211,7 +1244,7 @@ export class MontureFormComponent implements OnInit {
                 const ref = mainMonture.get('reference')?.value || 'Monture';
                 const marque = mainMonture.get('marque')?.value || '';
                 lignes.push({
-                    description: `Monture ${marque} ${ref}`.trim(),
+                    description: `Monture ${marque} ${ref} `.trim(),
                     qte: 1,
                     prixUnitaireTTC: prixMonture,
                     remise: 0,
@@ -1231,7 +1264,7 @@ export class MontureFormComponent implements OnInit {
                 if (c.sphere && c.sphere !== '0' && c.sphere !== '+0.00') s += (c.sphere.startsWith('+') || c.sphere.startsWith('-') ? c.sphere : '+' + c.sphere) + ' ';
                 if (c.cylindre && c.cylindre !== '0' && c.cylindre !== '+0.00') s += `(${c.cylindre}) `;
                 if (c.axe && c.axe !== '0°') s += `${c.axe} `;
-                if (c.addition && c.addition !== '0' && c.addition !== '+0.00') s += `Add ${c.addition}`;
+                if (c.addition && c.addition !== '0' && c.addition !== '+0.00') s += `Add ${c.addition} `;
                 return s.trim();
             };
             const descOD = formatCorrection(odVars);
@@ -1499,7 +1532,10 @@ export class MontureFormComponent implements OnInit {
             lignes: lignes,
             totalTTC: total,
             totalHT: totalHT,
-            totalTVA: tva
+            totalTVA: tva,
+            proprietes: {
+                nomenclature: this.nomenclatureString || ''
+            }
         };
 
         this.factureService.create(factureData).subscribe({
@@ -1516,11 +1552,41 @@ export class MontureFormComponent implements OnInit {
     }
 
     nextTab(): void {
-        if (this.activeTab < 3) {
+        const targetTab = this.activeTab + 1;
+
+        if (targetTab === 4) { // Switching to Payments
+            // Auto-save draft invoice if exists and not saved
+            if (this.factureComponent && (!this.factureComponent.id || this.factureComponent.id === 'new')) {
+                if (this.factureComponent.form.value.lignes.length > 0) {
+                    this.factureComponent.saveAsObservable().subscribe({
+                        next: (inv: Facture) => { // Type explicitly to avoid inference issues?
+                            console.log('Auto-saved draft invoice:', inv);
+                            this.activeTab = targetTab;
+                            setTimeout(() => {
+                                if (this.paymentListComponent) {
+                                    this.paymentListComponent.loadPayments();
+                                }
+                            }, 200);
+                        },
+                        error: (e: any) => {
+                            console.error('Auto-save error', e);
+                            this.activeTab = targetTab; // Proceed anyway?
+                        }
+                    });
+                    return;
+                }
+            }
+        }
+
+        if (this.activeTab < 4) {
             this.activeTab++;
             // Draw canvas when entering Fiche Montage tab
             if (this.activeTab === 2) {
                 setTimeout(() => this.drawFrameVisualization(), 100);
+            }
+            // Generate invoice lines when entering Facturation tab
+            if (this.activeTab === 3) {
+                this.generateInvoiceLines();
             }
         }
     }
@@ -1533,6 +1599,71 @@ export class MontureFormComponent implements OnInit {
                 setTimeout(() => this.drawFrameVisualization(), 100);
             }
         }
+    }
+
+    generateInvoiceLines(): void {
+        const lignes: any[] = [];
+        const formValue = this.ficheForm.value;
+
+        // 1. Monture
+        const prixMonture = parseFloat(formValue.monture?.prixMonture) || 0;
+        if (prixMonture > 0) {
+            const ref = formValue.monture?.reference || 'Monture';
+            const marque = formValue.monture?.marque || '';
+            lignes.push({
+                description: `Monture ${marque} ${ref}`.trim(),
+                qte: 1,
+                prixUnitaireTTC: prixMonture,
+                remise: 0,
+                totalTTC: prixMonture
+            });
+        }
+
+        // 2. Verres
+        const odVars = formValue.ordonnance?.od || {};
+        const ogVars = formValue.ordonnance?.og || {};
+        const formatCorrection = (c: any) => {
+            let s = '';
+            if (c.sphere && c.sphere !== '0' && c.sphere !== '+0.00') s += `Sph ${c.sphere} `;
+            if (c.cylindre && c.cylindre !== '0' && c.cylindre !== '+0.00') s += `Cyl ${c.cylindre} `;
+            if (c.axe && c.axe !== '0°') s += `Axe ${c.axe} `;
+            if (c.addition && c.addition !== '0' && c.addition !== '+0.00') s += `Add ${c.addition}`;
+            return s.trim();
+        };
+        const descOD = formatCorrection(odVars);
+        const descOG = formatCorrection(ogVars);
+
+        const matiere = formValue.verres?.matiere || 'Verre';
+        const prixOD = parseFloat(formValue.verres?.prixOD) || 0;
+        const prixOG = parseFloat(formValue.verres?.prixOG) || 0;
+
+        if (prixOD > 0) {
+            lignes.push({
+                description: `Verre OD ${matiere} ${descOD}`.trim(),
+                qte: 1,
+                prixUnitaireTTC: prixOD,
+                remise: 0,
+                totalTTC: prixOD
+            });
+        }
+        if (prixOG > 0) {
+            lignes.push({
+                description: `Verre OG ${matiere} ${descOG}`.trim(),
+                qte: 1,
+                prixUnitaireTTC: prixOG,
+                remise: 0,
+                totalTTC: prixOG
+            });
+        }
+
+        this.initialLines = lignes;
+        this.cdr.markForCheck(); // Trigger change detection
+    }
+
+    hasInvoiceLines(): boolean {
+        // Generate lines from current form state
+        const lines = this.getInvoiceLines();
+        return lines && lines.length > 0;
     }
 
     formatSphereValue(eye: 'od' | 'og', event: Event): void {
@@ -1622,7 +1753,7 @@ export class MontureFormComponent implements OnInit {
             // Let's keep the number in the model, and maybe just the number in input to match other fields?
             // The previous code appended ' mm'. I will respect that but without rounding.
             const formatted = `${cleanValue} mm`;
-            this.ficheForm.get(`ordonnance.${eye}.ep`)?.setValue(value, { emitEvent: false });
+            this.ficheForm.get(`ordonnance.${eye}.ep`)?.setValue(value);
             input.value = formatted;
         }
     }
@@ -1650,6 +1781,9 @@ export class MontureFormComponent implements OnInit {
         if (this.ficheForm.invalid || !this.clientId) return;
         this.loading = true;
         const formValue = this.ficheForm.value;
+
+        // Capture if we are in creation mode before any updates
+        const wasNew = !this.ficheId || this.ficheId === 'new';
 
         // Fix: Parse as floats to avoid string concatenation
         const pMonture = parseFloat(formValue.monture.prixMonture) || 0;
@@ -1687,18 +1821,116 @@ export class MontureFormComponent implements OnInit {
 
         console.log('📤 Submitting fiche data:', ficheData);
 
-        const submitObservable = (this.isEditMode && this.ficheId && this.ficheId !== 'new')
+        const operation = (this.isEditMode && this.ficheId && this.ficheId !== 'new')
             ? this.ficheService.updateFiche(this.ficheId, ficheData)
             : this.ficheService.createFicheMonture(ficheData);
 
-        submitObservable.subscribe({
-            next: () => {
+        operation.pipe(
+            switchMap(fiche => {
+                this.ficheId = fiche.id;
+                this.isEditMode = false;
+
+                // Check if we should create an invoice
+                const generatedLines = this.getInvoiceLines();
+                const shouldCreateInvoice = generatedLines.length > 0;
+
+                if (shouldCreateInvoice) {
+                    // Scenario 1: FactureComponent is active (User visited tab) -> Use it (preserves manual edits)
+                    if (this.factureComponent) {
+                        // Update input manually to ensure it has the new ficheId
+                        this.factureComponent.ficheIdInput = fiche.id;
+
+                        return this.factureComponent.saveAsObservable().pipe(
+                            map(() => fiche),
+                            catchError(err => {
+                                console.error('Error saving linked invoice:', err);
+                                return of(fiche);
+                            })
+                        );
+                    }
+                    // Scenario 2: FactureComponent not active (Tab never visited) -> Check if invoice exists, create if not
+                    else {
+                        // First, check if an invoice already exists for this fiche
+                        // Use the linkedFacture$ observable if available, otherwise query
+                        const checkExisting$ = this.linkedFacture$ || this.factureService.findAll({}).pipe(
+                            map(factures => factures.find(f => f.ficheId === fiche.id) || null)
+                        );
+
+                        return checkExisting$.pipe(
+                            switchMap(existingFacture => {
+                                if (existingFacture) {
+                                    // Invoice already exists, skip creation
+                                    console.log('Invoice already exists for this fiche, skipping creation');
+                                    return of(fiche);
+                                }
+
+                                // No invoice exists, create one
+                                // Generate nomenclature first
+                                this.generateInvoiceLines();
+                                console.log('📋 Generating nomenclature for new invoice:', this.nomenclatureString);
+
+                                const total = generatedLines.reduce((acc, val) => acc + val.totalTTC, 0);
+                                const tvaRate = 0.20;
+                                const totalHT = total / (1 + tvaRate);
+                                const tva = total - totalHT;
+
+                                const factureData: any = {
+                                    type: 'FACTURE',
+                                    statut: 'BROUILLON',
+                                    dateEmission: new Date(),
+                                    clientId: this.clientId,
+                                    ficheId: fiche.id,
+                                    lignes: generatedLines,
+                                    totalTTC: total,
+                                    totalHT: totalHT,
+                                    totalTVA: tva,
+                                    proprietes: {
+                                        nomenclature: this.nomenclatureString || ''
+                                    },
+                                    resteAPayer: total
+                                };
+
+                                return this.factureService.create(factureData).pipe(
+                                    map(() => fiche),
+                                    catchError(err => {
+                                        console.error('Error auto-creating invoice:', err);
+                                        return of(fiche);
+                                    })
+                                );
+                            }),
+                            catchError(err => {
+                                console.error('Error checking for existing invoice:', err);
+                                return of(fiche);
+                            })
+                        );
+                    }
+                } else {
+                    // No invoice to save
+                    return of(fiche);
+                }
+            })
+        ).subscribe({
+            next: (fiche) => {
                 this.loading = false;
-                this.router.navigate(['/p/clients', this.clientId]);
+                // this.snackBar.open ... handling in saveAsObservable for invoice, but we need one for Fiche?
+                // FactureFormComponent shows its own snackbar.
+                // We should show "Fiche enregistrée".
+                // Use a simple prompt or snackbar if available.
+                // The original code used alert or logic in 'next'.
+                // We'll just log and maybe navigate if needed.
+                console.log('Fiche saved:', fiche);
+
+                console.log('Fiche saved:', fiche);
+
+                if (wasNew) { // Use captured state
+                    this.router.navigate(['/p/clients', this.clientId, 'fiche-monture', fiche.id], { replaceUrl: true });
+                }
             },
             error: (err) => {
-                console.error('Error saving fiche:', err);
                 this.loading = false;
+                console.error('Error saving fiche:', err);
+                const msg = err.error?.message || err.statusText || 'Erreur inconnue';
+                alert(`Erreur lors de l'enregistrement: ${msg}`);
 
                 // Handle incomplete profile error
                 if (err.status === 400 && err.error?.missingFields) {
@@ -1893,16 +2125,13 @@ export class MontureFormComponent implements OnInit {
      * Draw frame visualization with TWO LENSES and measurement indicators
      */
     drawFrameVisualization(): void {
-        console.log('drawFrameVisualization called');
-        console.log('frameCanvas:', this.frameCanvas);
-
-        if (!this.frameCanvas) {
-            console.warn('frameCanvas not initialized');
+        // Only draw if we are on the correct tab and canvas exists
+        if (this.activeTab !== 2 || !this.frameCanvas || !this.frameCanvas.nativeElement) {
             return;
         }
 
         const canvas = this.frameCanvas.nativeElement;
-        console.log('Canvas element:', canvas);
+        // console.log('Canvas element:', canvas); // Reduce logs
         console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
 
         const ctx = canvas.getContext('2d');

@@ -20,16 +20,6 @@
                     <mat-label>Montant</mat-label>
                     <input matInput type="number" formControlName="montant" step="0.01" min="0.01" [max]="maxAmount">
                     <span matTextSuffix>DH</span>
-                    <mat-hint>Maximum: {{ maxAmount | number:'1.2-2' }} DH</mat-hint>
-                    <mat-error *ngIf="form.get('montant')?.hasError('required')">
-                        Le montant est obligatoire
-                    </mat-error>
-                    <mat-error *ngIf="form.get('montant')?.hasError('max')">
-                        Le montant ne peut pas dépasser {{ maxAmount | number:'1.2-2' }} DH
-                    </mat-error>
-                    <mat-error *ngIf="form.get('montant')?.hasError('min')">
-                        Le montant doit être supérieur à 0
-                    </mat-error>
                 </mat-form-field>
 
                 <!-- Mode de paiement -->
@@ -42,18 +32,79 @@
                     </mat-select>
                 </mat-form-field>
 
-                <!-- Référence -->
-                <mat-form-field appearance="outline">
+                <!-- Référence (Hide for ESPECES) -->
+                <mat-form-field appearance="outline" *ngIf="form.get('mode')?.value !== 'ESPECES'">
                     <mat-label>Référence</mat-label>
-                    <input matInput formControlName="reference" placeholder="Numéro chèque, transaction...">
-                    <mat-icon matIconPrefix>receipt</mat-icon>
+                    <input matInput formControlName="reference" placeholder="Num chèque/LCN ...">
                 </mat-form-field>
 
-                <!-- Notes -->
+                <!-- Nouvelles options pour Cheque/LCN/Virement -->
+                <ng-container *ngIf="['CHEQUE', 'LCN', 'VIREMENT'].includes(form.get('mode')?.value)">
+                    <!-- Banque Autocomplete -->
+                    <mat-form-field appearance="outline">
+                        <mat-label>Banque</mat-label>
+                        <input type="text" matInput formControlName="banque" [matAutocomplete]="autoBanque">
+                        <mat-autocomplete #autoBanque="matAutocomplete">
+                            <mat-option *ngFor="let b of banks" [value]="b">
+                                {{ b }}
+                            </mat-option>
+                        </mat-autocomplete>
+                    </mat-form-field>
+
+                    <!-- Date Versement -->
+                    <mat-form-field appearance="outline">
+                        <mat-label>Date de Versement</mat-label>
+                        <input matInput [matDatepicker]="pickerVers" formControlName="dateVersement">
+                        <mat-datepicker-toggle matIconSuffix [for]="pickerVers"></mat-datepicker-toggle>
+                        <mat-datepicker #pickerVers></mat-datepicker>
+                    </mat-form-field>
+
+                    <!-- Identité Tireur -->
+                    <div class="full-width identity-section">
+                        <mat-form-field appearance="outline">
+                            <mat-label>Nom / Émetteur (Tiers si différent du client)</mat-label>
+                            <input matInput formControlName="tiersNom" placeholder="Nom sur le chèque">
+                        </mat-form-field>
+
+                        <!-- Show CIN (Always visible now per user request, validation depends on name match) -->
+                        <mat-form-field appearance="outline">
+                            <mat-label>C.I.N / Pièce d'identité</mat-label>
+                            <input matInput formControlName="tiersCin" placeholder="Numéro pièce d'identité">
+                            <mat-error *ngIf="form.get('tiersCin')?.hasError('required')">
+                                Obligatoire pour tiers hors famille
+                            </mat-error>
+                        </mat-form-field>
+                    </div>
+
+                    <!-- Pièce Jointe -->
+                    <div class="full-width attachment-section">
+                        <label class="attachment-label">Pièce Jointe (Scan/Photo)</label>
+                        <div class="actions-row">
+                            <button type="button" mat-stroked-button (click)="fileInput.click()">
+                                <mat-icon>attach_file</mat-icon> Importer Fichier
+                            </button>
+                            <button type="button" mat-flat-button color="accent" (click)="openCamera()">
+                                <mat-icon>camera_alt</mat-icon> Camera
+                            </button>
+                        </div>
+
+                        <!-- File Upload (PDF/Images) -->
+                        <input #fileInput type="file" (change)="onFileSelected($event)" accept="image/*,application/pdf"
+                            style="display: none">
+
+                        <div *ngIf="attachmentPreview" class="preview">
+                            <img [src]="attachmentPreview" alt="Aperçu" style="max-height: 100px; margin-top: 10px;">
+                        </div>
+                        <div *ngIf="isProcessingOcr" class="ocr-loading">
+                            <small>Analyse du document en cours (OCR)...</small>
+                        </div>
+                    </div>
+                </ng-container>
+
+                <!-- Notes (Legacy) -->
                 <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>Notes</mat-label>
-                    <textarea matInput formControlName="notes" rows="3"
-                        placeholder="Acompte, solde, remarques..."></textarea>
+                    <mat-label>Notes (Interne)</mat-label>
+                    <textarea matInput formControlName="notes" rows="2"></textarea>
                 </mat-form-field>
             </div>
         </form>

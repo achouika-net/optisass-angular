@@ -15,6 +15,7 @@ import { MatRadioModule } from '@angular/material/radio';
 import { FormsModule } from '@angular/forms';
 import { ClientService } from '../services/client.service';
 import { FicheService } from '../services/fiche.service';
+import { FactureService } from '../services/facture.service';
 import { Client, TypeClient, ClientParticulier, ClientProfessionnel, ClientAnonyme, StatutClient, isClientParticulier, isClientProfessionnel } from '../models/client.model';
 import { FactureListComponent } from '../factures/facture-list/facture-list.component';
 import { FicheClient, StatutFiche, TypeFiche } from '../models/fiche-client.model';
@@ -93,6 +94,7 @@ export class ClientDetailComponent implements OnInit {
     private router: Router,
     private clientService: ClientService,
     private ficheService: FicheService,
+    private factureService: FactureService,
     private cdr: ChangeDetectorRef
   ) {
     this.clientId = this.route.snapshot.paramMap.get('id');
@@ -150,17 +152,23 @@ export class ClientDetailComponent implements OnInit {
   loadStats(): void {
     if (!this.clientId) return;
 
-    this.ficheService.getClientFichesStats(this.clientId).subscribe({
-      next: (statsData: any) => {
-        // Map backend stats to UI stats
+    this.factureService.findAll({ clientId: this.clientId }).subscribe({
+      next: (factures) => {
+        // Filter out cancelled invoices
+        const activeFactures = factures.filter(f => f.statut !== 'ANNULEE');
+
+        const ca = activeFactures.reduce((sum, f) => sum + f.totalTTC, 0);
+        const reste = activeFactures.reduce((sum, f) => sum + f.resteAPayer, 0);
+        const paiements = ca - reste;
+
         this.clientStats.set({
-          ca: statsData.montantTotal || 0,
-          paiements: (statsData.montantTotal || 0) - (statsData.montantRestant || 0),
-          reste: statsData.montantRestant || 0
+          ca,
+          paiements,
+          reste
         });
       },
       error: (error) => {
-        console.error('Erreur chargement stats:', error);
+        console.error('Erreur chargement stats (factures):', error);
       }
     });
   }
@@ -222,6 +230,11 @@ export class ClientDetailComponent implements OnInit {
   }
 
   getCorrectionSummary(fiche: any): string {
+    // Hide correction for Solaire (non-corrective)
+    if (fiche.monture?.typeEquipement === 'Solaire') {
+      return '';
+    }
+
     if (!fiche.ordonnance) return '-';
     const od = fiche.ordonnance.od;
     const og = fiche.ordonnance.og;

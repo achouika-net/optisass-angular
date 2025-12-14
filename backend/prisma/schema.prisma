@@ -68,7 +68,7 @@ model Fiche {
   montantPaye  Float    @default(0)
   
   clientId     String
-  client       Client   @relation(fields: [clientId], references: [id])
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   
   // The content of the fiche (flexible structure)
   // Stores: ordonnance, monture, verres, lentilles selection, adaptation...
@@ -79,33 +79,59 @@ model Fiche {
 }
 
 model Facture {
-  id             String    @id @default(uuid())
-  numero         String    @unique // Sequence: FAC-2024-001, DEV-2024-001, etc.
-  type           String    // FACTURE, DEVIS, AVOIR, BL
-  dateEmission   DateTime  @default(now())
+  id             String     @id @default(uuid())
+  numero         String     @unique // Sequence: FAC-2024-001, DEV-2024-001, etc.
+  type           String     // FACTURE, DEVIS, AVOIR, BL
+  dateEmission   DateTime   @default(now())
   dateEcheance   DateTime?
-  statut         String    // BROUILLON, VALIDE, PAYEE, ANNULEE, PARTIEL
+  statut         String     // BROUILLON, VALIDE, PAYEE, ANNULEE, PARTIEL
   
   clientId       String
-  client         Client    @relation(fields: [clientId], references: [id])
+  client         Client     @relation(fields: [clientId], references: [id], onDelete: Restrict)
   
-  ficheId        String?   @unique
-  fiche          Fiche?    @relation(fields: [ficheId], references: [id])
+  ficheId        String?    @unique
+  fiche          Fiche?     @relation(fields: [ficheId], references: [id], onDelete: SetNull)
 
   // Montants (Stored as Float)
-  totalHT        Float     @default(0)
-  totalTVA       Float     @default(0)
-  totalTTC       Float     @default(0)
-  resteAPayer    Float     @default(0)
+  totalHT        Float      @default(0)
+  totalTVA       Float      @default(0)
+  totalTTC       Float      @default(0)
+  resteAPayer    Float      @default(0)
   
-  // Arrays storing JSON data
-  lignes         Json      // [{ description, qte, prixUnitaireTTC, tva, remise, totalTTC }]
-  paiements      Json?     // [{ date, montant, mode, reference }]
+  // Données structurées
+  lignes         Json       // [{ description, qte, prixUnitaireTTC, tva, remise, totalTTC }]
+  proprietes     Json?      // { nomenclature: string, ... } - Données métier spécifiques
+  
+  // Relations
+  paiements      Paiement[]
   
   // Extras
   montantLettres String?
   notes          String?
   
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model Paiement {
+  id          String   @id @default(uuid())
+  montant     Float
+  date        DateTime @default(now())
+  mode        String   // ESPECES, CHEQUE, CARTE, VIREMENT, AUTRE
+  reference   String?  // Numéro de chèque, référence virement, etc.
+  notes       String?
+  
+  // New Fields
+  dateVersement DateTime?
+  banque        String?
+  tiersNom      String?
+  tiersCin      String?
+  remarque      String?
+  pieceJointe   String?
+  
+  factureId   String
+  facture     Facture  @relation(fields: [factureId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

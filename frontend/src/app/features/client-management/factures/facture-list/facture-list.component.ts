@@ -84,15 +84,27 @@ export class FactureListComponent implements OnInit {
     }
 
     deleteFacture(facture: any) {
-        if (confirm(`Êtes-vous sûr de vouloir supprimer la facture ${facture.numero} ?`)) {
+        let confirmMessage = `Êtes-vous sûr de vouloir supprimer la facture ${facture.numero} ?`;
+
+        if (facture.statut === 'ANNULEE') {
+            confirmMessage = `⚠️ ATTENTION: Cette facture est ANNULÉE.\n\nLa suppression d'une facture annulée supprime définitivement l'historique.\nCeci ne devrait être fait que pour nettoyer la base de données de test.\n\nÊtes-vous absolument sûr de vouloir supprimer ${facture.numero} ?`;
+        } else if (facture.statut !== 'BROUILLON') {
+            confirmMessage += `\n\nSi c'est une facture validée, un AVOIR sera généré automatiquement.`;
+        }
+
+        if (confirm(confirmMessage)) {
             this.factureService.delete(facture.id).subscribe({
-                next: () => {
-                    this.snackBar.open('Facture supprimée avec succès', 'Fermer', { duration: 3000 });
+                next: (res: any) => {
+                    if (res && res.action === 'AVOIR_CREATED') {
+                        this.snackBar.open(`Facture annulée. Avoir ${res.avoir.numero} généré.`, 'Fermer', { duration: 5000 });
+                    } else {
+                        this.snackBar.open('Facture supprimée définitivement', 'Fermer', { duration: 3000 });
+                    }
                     this.loadFactures();
                 },
                 error: (err: any) => {
                     console.error('Error deleting facture', err);
-                    this.snackBar.open('Erreur lors de la suppression', 'Fermer', { duration: 3000 });
+                    this.snackBar.open(err.error?.message || 'Erreur lors de la suppression', 'Fermer', { duration: 3000 });
                 }
             });
         }
@@ -103,6 +115,8 @@ export class FactureListComponent implements OnInit {
             case 'PAYEE': return 'primary';
             case 'BROUILLON': return 'warn';
             case 'VALIDEE': return 'accent';
+            case 'ANNULEE': return 'warn';
+            case 'PARTIEL': return 'accent';
             default: return 'default';
         }
     }
@@ -112,6 +126,7 @@ export class FactureListComponent implements OnInit {
     }
 
     canDelete(facture: any): boolean {
-        return facture.statut === 'BROUILLON';
+        // Allow deletion of all invoices (with warnings for cancelled ones)
+        return true;
     }
 }
