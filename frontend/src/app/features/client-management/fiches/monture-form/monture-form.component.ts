@@ -1,6 +1,6 @@
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Observable, of } from 'rxjs';
+import { Observable, of, BehaviorSubject } from 'rxjs';
 import { FormBuilder, FormGroup, AbstractControl, ReactiveFormsModule, Validators, FormArray, FormControl } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -150,7 +150,8 @@ export class MontureFormComponent implements OnInit {
 
     // Facturation
     clientFactures$: Observable<Facture[]> | null = null;
-    linkedFacture$: Observable<Facture | null> | null = null;
+    private linkedFactureSubject = new BehaviorSubject<Facture | null>(null);
+    linkedFacture$ = this.linkedFactureSubject.asObservable();
     initialLines: any[] = [];
     nomenclatureString: string | null = null;
     showFacture = false;
@@ -230,24 +231,33 @@ export class MontureFormComponent implements OnInit {
                 setTimeout(() => this.drawFrameVisualization(), 100);
             }
         });
-        this.clientId = this.route.snapshot.paramMap.get('clientId');
-        if (this.clientId) {
-            this.clientService.getClient(this.clientId).subscribe(client => {
-                this.client = client;
-                this.cdr.markForCheck();
-            });
-        }
-        this.ficheId = this.route.snapshot.paramMap.get('ficheId');
+        this.route.paramMap.subscribe(params => {
+            this.clientId = params.get('clientId');
+            this.ficheId = params.get('ficheId');
 
-        if (this.ficheId && this.ficheId !== 'new') {
-            // VIEW MODE: Existing Fiche
-            this.isEditMode = false;
-            this.ficheForm.disable(); // Disable form in view mode
-            this.loadFiche();
-        } else {
-            // CREATE MODE: New Fiche
-            this.isEditMode = true;
-        }
+            if (this.clientId) {
+                this.clientService.getClient(this.clientId).subscribe(client => {
+                    this.client = client;
+                    this.cdr.markForCheck();
+                });
+            }
+
+            if (this.ficheId && this.ficheId !== 'new') {
+                // VIEW MODE: Existing Fiche
+                this.isEditMode = false;
+                this.ficheForm.disable(); // Disable form in view mode
+                this.loadFiche();
+
+                // Load linked facture via Service
+                this.loadLinkedFacture();
+            } else {
+                // CREATE MODE: New Fiche
+                this.isEditMode = true;
+                this.ficheForm.enable();
+                // Reset form if creating new
+                // this.ficheForm.reset(); // Optional: might strictly need this if reusing component
+            }
+        });
 
         // Setup generic listeners for Main Equipment
         this.setupLensListeners(this.ficheForm);
@@ -271,6 +281,31 @@ export class MontureFormComponent implements OnInit {
         });
         // Initial call
         this.updateNomenclature();
+    }
+
+    loadLinkedFacture(): void {
+        if (!this.clientId || !this.ficheId) return;
+
+        // Find invoice linked to this fiche
+        this.factureService.findAll({ clientId: this.clientId }).subscribe(factures => {
+            const found = factures.find(f => f.ficheId === this.ficheId);
+            if (found) {
+                console.log('🔗 Linked Facture found:', found.numero);
+                this.linkedFactureSubject.next(found);
+            } else {
+                this.linkedFactureSubject.next(null);
+            }
+        });
+    }
+
+    onInvoiceSaved(facture: any): void {
+        console.log('✅ Invoice saved/updated in Monture Form:', facture);
+
+        // Update the subject to reflect the new state (e.g. Valid status, New Number)
+        this.linkedFactureSubject.next(facture);
+
+        // Also ensure inputs are synced if they weren't
+        this.cdr.markForCheck();
     }
 
     updateNomenclature(): void {
@@ -463,14 +498,18 @@ export class MontureFormComponent implements OnInit {
         verresGroup.get('differentODOG')?.valueChanges.subscribe((isSplit: boolean) => {
             if (isSplit) {
                 const currentVals = verresGroup.value;
-                verresGroup.patchValue({
-                    matiereOD: currentVals.matiere,
-                    indiceOD: currentVals.indice,
-                    traitementOD: currentVals.traitement,
-                    matiereOG: currentVals.matiere,
-                    indiceOG: currentVals.indice,
-                    traitementOG: currentVals.traitement
-                }, { emitEvent: false });
+                // FIX: Only overwrite Split fields if Unified fields HAVE data.
+                // This prevents erasing valid Split data when enabling form (where Unified might be null)
+                if (currentVals.matiere || currentVals.indice) {
+                    verresGroup.patchValue({
+                        matiereOD: currentVals.matiere,
+                        indiceOD: currentVals.indice,
+                        traitementOD: currentVals.traitement,
+                        matiereOG: currentVals.matiere,
+                        indiceOG: currentVals.indice,
+                        traitementOG: currentVals.traitement
+                    }, { emitEvent: false });
+                }
             }
             updatePrice();
         });
@@ -800,6 +839,7 @@ export class MontureFormComponent implements OnInit {
                 marque: [''],
                 couleur: [''],
                 taille: [''],
+                cerclage: ['cerclée'],
                 prixMonture: [0]
             }),
             verres: this.fb.group({
@@ -1133,53 +1173,7 @@ export class MontureFormComponent implements OnInit {
         this.ficheService.getFicheById(this.ficheId).subscribe({
             next: (fiche: any) => {
                 if (fiche) {
-                    // Patch Form Values
-                    this.ficheForm.patchValue({
-                        ordonnance: fiche.ordonnance,
-                        monture: fiche.monture,
-                        montage: fiche.montage,
-                        suggestions: fiche.suggestions,
-                        dateLivraisonEstimee: fiche.dateLivraisonEstimee
-                    }, { emitEvent: false });
-
-                    // Explicitly patch verres to ensure UI updates for differentODOG
-                    if (fiche.verres) {
-                        this.ficheForm.get('verres')?.patchValue(fiche.verres, { emitEvent: false });
-                    }
-
-                    // Restore suggestions and prescription files for display
-                    if (fiche.suggestions) {
-                        this.suggestions = fiche.suggestions;
-                        this.showSuggestions = this.suggestions.length > 0;
-                    }
-
-                    if (fiche.ordonnance && fiche.ordonnance.prescriptionFiles) {
-                        this.prescriptionFiles = fiche.ordonnance.prescriptionFiles;
-                    }
-
-                    // Handle Equipments (FormArray)
-                    if (fiche.equipements && Array.isArray(fiche.equipements)) {
-                        const equipementsArray = this.ficheForm.get('equipements') as FormArray;
-                        equipementsArray.clear(); // Clear existing
-                        fiche.equipements.forEach((eq: any) => {
-                            const eqGroup = this.fb.group({
-                                type: [eq.type],
-                                dateAjout: [eq.dateAjout],
-                                monture: this.fb.group(eq.monture),
-                                verres: this.fb.group(eq.verres)
-                            });
-                            this.setupLensListeners(eqGroup);
-                            equipementsArray.push(eqGroup);
-                            this.addedEquipmentsExpanded.push(false);
-                        });
-                    }
-
-                    // Trigger visuals
-                    setTimeout(() => {
-                        this.calculateLensPrices();
-                        this.drawFrameVisualization();
-                        if (this.activeTab === 2) this.drawCenteringCanvas();
-                    }, 500);
+                    this.patchForm(fiche);
                 }
                 this.loading = false;
                 this.cdr.markForCheck();
@@ -1196,6 +1190,109 @@ export class MontureFormComponent implements OnInit {
                 alert('Erreur lors du chargement de la fiche.');
             }
         });
+    }
+
+    private patchForm(fiche: any): void {
+        // Patch Form Values
+        this.ficheForm.patchValue({
+            ordonnance: fiche.ordonnance,
+            monture: fiche.monture,
+            montage: fiche.montage,
+            suggestions: fiche.suggestions,
+            dateLivraisonEstimee: fiche.dateLivraisonEstimee
+        }, { emitEvent: false });
+
+        // Explicitly patch verres to ensure UI updates for differentODOG
+        if (fiche.verres) {
+            const verresVals = { ...fiche.verres };
+
+            // FIX: Guard against empty objects overwriting form
+            if (Object.keys(verresVals).length === 0) return;
+
+            // FIX: Convert numeric indices to strings for mat-select matching
+            // Using strict check to handle 0 or existing values
+            if (verresVals.indice !== undefined && verresVals.indice !== null) verresVals.indice = String(verresVals.indice);
+            if (verresVals.indiceOD !== undefined && verresVals.indiceOD !== null) verresVals.indiceOD = String(verresVals.indiceOD);
+            if (verresVals.indiceOG !== undefined && verresVals.indiceOG !== null) verresVals.indiceOG = String(verresVals.indiceOG);
+
+            // FIX: Ensure differentODOG is set first for *ngIf visibility
+            const diffODOG = verresVals.differentODOG === true;
+            this.ficheForm.get('verres.differentODOG')?.setValue(diffODOG, { emitEvent: false });
+
+            this.ficheForm.get('verres')?.patchValue(verresVals, { emitEvent: false });
+        }
+
+        // Restore suggestions and prescription files for display
+        if (fiche.suggestions) {
+            this.suggestions = fiche.suggestions;
+            this.showSuggestions = this.suggestions.length > 0;
+        }
+
+        if (fiche.ordonnance && fiche.ordonnance.prescriptionFiles) {
+            this.prescriptionFiles = fiche.ordonnance.prescriptionFiles;
+        }
+
+        // Handle Equipments (FormArray)
+        if (fiche.equipements && Array.isArray(fiche.equipements)) {
+            const equipementsArray = this.ficheForm.get('equipements') as FormArray;
+            equipementsArray.clear(); // Clear existing
+
+            fiche.equipements.forEach((eq: any) => {
+                // Manually rebuild structure to ensure arrays (treatments) are handled correctly
+                // and to include new fields like 'cerclage'
+                const eqGroup = this.fb.group({
+                    type: [eq.type],
+                    dateAjout: [eq.dateAjout],
+                    monture: this.fb.group({
+                        reference: [eq.monture?.reference || ''],
+                        marque: [eq.monture?.marque || ''],
+                        couleur: [eq.monture?.couleur || ''],
+                        taille: [eq.monture?.taille || ''],
+                        cerclage: [eq.monture?.cerclage || 'cerclée'], // Added Field
+                        prixMonture: [eq.monture?.prixMonture || 0]
+                    }),
+                    verres: this.fb.group({
+                        matiere: [eq.verres?.matiere],
+                        marque: [eq.verres?.marque],
+                        indice: [eq.verres?.indice ? String(eq.verres.indice) : null], // Type conversion
+                        traitement: [eq.verres?.traitement || []], // Array safe here because passed as initial value? No, safest is patchValue below.
+                        prixOD: [eq.verres?.prixOD],
+                        prixOG: [eq.verres?.prixOG],
+                        differentODOG: [eq.verres?.differentODOG || false],
+                        matiereOD: [eq.verres?.matiereOD],
+                        marqueOD: [eq.verres?.marqueOD],
+                        indiceOD: [eq.verres?.indiceOD ? String(eq.verres.indiceOD) : null],
+                        traitementOD: [eq.verres?.traitementOD || []],
+                        matiereOG: [eq.verres?.matiereOG],
+                        marqueOG: [eq.verres?.marqueOG],
+                        indiceOG: [eq.verres?.indiceOG ? String(eq.verres.indiceOG) : null],
+                        traitementOG: [eq.verres?.traitementOG || []]
+                    })
+                });
+
+                // Set up listeners first
+                this.setupLensListeners(eqGroup);
+
+                // Add to array
+                equipementsArray.push(eqGroup);
+                this.addedEquipmentsExpanded.push(false);
+
+                // Disable if parent is disabled (View Mode)
+                if (this.ficheForm.disabled) {
+                    eqGroup.disable();
+                }
+            });
+        }
+
+        // Trigger visuals
+        setTimeout(() => {
+            this.calculateLensPrices();
+            this.drawFrameVisualization();
+            if (this.activeTab === 2) this.drawCenteringCanvas();
+        }, 500);
+
+        // Force UI update (OnPush strategy might miss patchValue with emitEvent: false)
+        this.cdr.markForCheck();
     }
 
     setActiveTab(index: number): void {
@@ -1232,167 +1329,18 @@ export class MontureFormComponent implements OnInit {
 
     getInvoiceLines(): any[] {
         const lignes: any[] = [];
+        const formValue = this.ficheForm.getRawValue();
 
         // 1. Main Equipment
-        const mainMonture = this.ficheForm.get('monture');
-        const mainVerres = this.ficheForm.get('verres');
+        const mainMonture = formValue.monture;
+        const mainVerres = formValue.verres;
 
         if (mainMonture && mainVerres) {
             // Monture
-            const prixMonture = parseFloat(mainMonture.get('prixMonture')?.value) || 0;
+            const prixMonture = parseFloat(mainMonture.prixMonture) || 0;
             if (prixMonture > 0) {
-                const ref = mainMonture.get('reference')?.value || 'Monture';
-                const marque = mainMonture.get('marque')?.value || '';
-                lignes.push({
-                    description: `Monture ${marque} ${ref} `.trim(),
-                    qte: 1,
-                    prixUnitaireTTC: prixMonture,
-                    remise: 0,
-                    totalTTC: prixMonture
-                });
-            }
-
-            // Verres
-            const differentODOG = mainVerres.get('differentODOG')?.value;
-            const matiere = mainVerres.get('matiere')?.value || 'Verre';
-
-            // Generate Nomenclature String
-            const odVars = this.ficheForm.get('ordonnance.od')?.value || {};
-            const ogVars = this.ficheForm.get('ordonnance.og')?.value || {};
-            const formatCorrection = (c: any) => {
-                let s = '';
-                if (c.sphere && c.sphere !== '0' && c.sphere !== '+0.00') s += (c.sphere.startsWith('+') || c.sphere.startsWith('-') ? c.sphere : '+' + c.sphere) + ' ';
-                if (c.cylindre && c.cylindre !== '0' && c.cylindre !== '+0.00') s += `(${c.cylindre}) `;
-                if (c.axe && c.axe !== '0°') s += `${c.axe} `;
-                if (c.addition && c.addition !== '0' && c.addition !== '+0.00') s += `Add ${c.addition} `;
-                return s.trim();
-            };
-            const descOD = formatCorrection(odVars);
-            const descOG = formatCorrection(ogVars);
-
-            this.nomenclatureString = `Nomenclature: OD: ${descOD} / OG: ${descOG}`;
-
-            if (differentODOG) {
-                const prixOD = parseFloat(mainVerres.get('prixOD')?.value) || 0;
-                const prixOG = parseFloat(mainVerres.get('prixOG')?.value) || 0;
-                const matiereOD = mainVerres.get('matiereOD')?.value || matiere;
-                const matiereOG = mainVerres.get('matiereOG')?.value || matiere;
-
-                if (prixOD > 0) {
-                    lignes.push({
-                        description: `Verre OD ${matiereOD}`.trim(),
-                        qte: 1,
-                        prixUnitaireTTC: prixOD,
-                        remise: 0,
-                        totalTTC: prixOD
-                    });
-                }
-                if (prixOG > 0) {
-                    lignes.push({
-                        description: `Verre OG ${matiereOG}`.trim(),
-                        qte: 1,
-                        prixUnitaireTTC: prixOG,
-                        remise: 0,
-                        totalTTC: prixOG
-                    });
-                }
-            } else {
-                // Paire ou calcul par verre simple
-                const prixOD = parseFloat(mainVerres.get('prixOD')?.value) || 0;
-                const prixOG = parseFloat(mainVerres.get('prixOG')?.value) || 0;
-
-                if (prixOD > 0) {
-                    lignes.push({
-                        description: `Verre OD ${matiere}`.trim(),
-                        qte: 1,
-                        prixUnitaireTTC: prixOD,
-                        remise: 0,
-                        totalTTC: prixOD
-                    });
-                }
-                if (prixOG > 0) {
-                    lignes.push({
-                        description: `Verre OG ${matiere}`.trim(),
-                        qte: 1,
-                        prixUnitaireTTC: prixOG,
-                        remise: 0,
-                        totalTTC: prixOG
-                    });
-                }
-            }
-        }
-
-        // 2. Additional Equipments
-        this.equipements.controls.forEach((equip, index) => {
-            const monture = equip.get('monture');
-            const verres = equip.get('verres');
-
-            if (monture) {
-                const prix = parseFloat(monture.get('prixMonture')?.value) || 0;
-                if (prix > 0) {
-                    lignes.push({
-                        description: `Monture Eq${index + 1} ${monture.get('marque')?.value || ''}`.trim(),
-                        qte: 1,
-                        prixUnitaireTTC: prix,
-                        remise: 0,
-                        totalTTC: prix
-                    });
-                }
-            }
-            if (verres) {
-                const prixOD = parseFloat(verres.get('prixOD')?.value) || 0;
-                if (prixOD > 0) {
-                    lignes.push({
-                        description: `Verre OD Eq${index + 1}`,
-                        qte: 1,
-                        prixUnitaireTTC: prixOD,
-                        remise: 0,
-                        totalTTC: prixOD
-                    });
-                }
-                const prixOG = parseFloat(verres.get('prixOG')?.value) || 0;
-                if (prixOG > 0) {
-                    lignes.push({
-                        description: `Verre OG Eq${index + 1}`,
-                        qte: 1,
-                        prixUnitaireTTC: prixOG,
-                        remise: 0,
-                        totalTTC: prixOG
-                    });
-                }
-            }
-        });
-
-        return lignes;
-    }
-
-    onInvoiceSaved(facture: Facture) {
-        console.log('Invoice saved from embedded form:', facture);
-        // Refresh invoice list/linked invoice
-        this.loadClientFactures();
-    }
-
-    generateFacture() {
-        console.log('generateFacture called');
-        if (!this.client || !this.client.id) {
-            console.error('Client or Client ID missing', this.client);
-            return;
-        }
-
-        console.log('Generating facture for client:', this.client.id);
-
-        const lignes: any[] = [];
-
-        // 1. Main Equipment
-        const mainMonture = this.ficheForm.get('monture');
-        const mainVerres = this.ficheForm.get('verres');
-
-        if (mainMonture && mainVerres) {
-            // Monture
-            const prixMonture = parseFloat(mainMonture.get('prixMonture')?.value) || 0;
-            if (prixMonture > 0) {
-                const ref = mainMonture.get('reference')?.value || 'Monture';
-                const marque = mainMonture.get('marque')?.value || '';
+                const ref = mainMonture.reference || 'Monture';
+                const marque = mainMonture.marque || '';
                 lignes.push({
                     description: `Monture ${marque} ${ref}`.trim(),
                     qte: 1,
@@ -1403,28 +1351,31 @@ export class MontureFormComponent implements OnInit {
             }
 
             // Verres
-            const differentODOG = mainVerres.get('differentODOG')?.value;
-            const matiere = mainVerres.get('matiere')?.value || 'Verre';
+            const differentODOG = mainVerres.differentODOG;
+            const matiere = mainVerres.matiere || 'Verre';
 
-            // Get corrections logic
-            const odVars = this.ficheForm.get('ordonnance.od')?.value || {};
-            const ogVars = this.ficheForm.get('ordonnance.og')?.value || {};
+            // Generate Nomenclature String
+            const odVars = formValue.ordonnance?.od || {};
+            const ogVars = formValue.ordonnance?.og || {};
+
             const formatCorrection = (c: any) => {
                 let s = '';
-                if (c.sphere && c.sphere !== '0' && c.sphere !== '+0.00') s += `Sph ${c.sphere} `;
-                if (c.cylindre && c.cylindre !== '0' && c.cylindre !== '+0.00') s += `Cyl ${c.cylindre} `;
-                if (c.axe && c.axe !== '0°') s += `Axe ${c.axe} `;
+                if (c.sphere && c.sphere !== '0' && c.sphere !== '+0.00') s += (c.sphere.startsWith('+') || c.sphere.startsWith('-') ? c.sphere : '+' + c.sphere) + ' ';
+                if (c.cylindre && c.cylindre !== '0' && c.cylindre !== '+0.00') s += `(${c.cylindre}) `;
+                if (c.axe && c.axe !== '0°') s += `${c.axe} `;
                 if (c.addition && c.addition !== '0' && c.addition !== '+0.00') s += `Add ${c.addition}`;
                 return s.trim();
             };
             const descOD = formatCorrection(odVars);
             const descOG = formatCorrection(ogVars);
 
+            this.nomenclatureString = `Nomenclature: OD: ${descOD} / OG: ${descOG}`;
+
             if (differentODOG) {
-                const prixOD = parseFloat(mainVerres.get('prixOD')?.value) || 0;
-                const prixOG = parseFloat(mainVerres.get('prixOG')?.value) || 0;
-                const matiereOD = mainVerres.get('matiereOD')?.value || matiere;
-                const matiereOG = mainVerres.get('matiereOG')?.value || matiere;
+                const prixOD = parseFloat(mainVerres.prixOD) || 0;
+                const prixOG = parseFloat(mainVerres.prixOG) || 0;
+                const matiereOD = mainVerres.matiereOD || matiere;
+                const matiereOG = mainVerres.matiereOG || matiere;
 
                 if (prixOD > 0) {
                     lignes.push({
@@ -1445,9 +1396,8 @@ export class MontureFormComponent implements OnInit {
                     });
                 }
             } else {
-                // Paire ou calcul par verre simple
-                const prixOD = parseFloat(mainVerres.get('prixOD')?.value) || 0;
-                const prixOG = parseFloat(mainVerres.get('prixOG')?.value) || 0;
+                const prixOD = parseFloat(mainVerres.prixOD) || 0;
+                const prixOG = parseFloat(mainVerres.prixOG) || 0;
 
                 if (prixOD > 0) {
                     lignes.push({
@@ -1471,48 +1421,55 @@ export class MontureFormComponent implements OnInit {
         }
 
         // 2. Additional Equipments
-        this.equipements.controls.forEach((equip, index) => {
-            const monture = equip.get('monture');
-            const verres = equip.get('verres');
+        if (formValue.equipements && Array.isArray(formValue.equipements)) {
+            formValue.equipements.forEach((equip: any, index: number) => {
+                const monture = equip.monture;
+                const verres = equip.verres;
 
-            if (monture) {
-                const prix = parseFloat(monture.get('prixMonture')?.value) || 0;
-                if (prix > 0) {
-                    lignes.push({
-                        description: `Monture Eq${index + 1} ${monture.get('marque')?.value || ''}`.trim(),
-                        qte: 1,
-                        prixUnitaireTTC: prix,
-                        remise: 0,
-                        totalTTC: prix
-                    });
+                if (monture) {
+                    const prix = parseFloat(monture.prixMonture) || 0;
+                    if (prix > 0) {
+                        lignes.push({
+                            description: `Monture Eq${index + 1} ${monture.marque || ''}`.trim(),
+                            qte: 1,
+                            prixUnitaireTTC: prix,
+                            remise: 0,
+                            totalTTC: prix
+                        });
+                    }
                 }
-            }
-            if (verres) {
-                const prixOD = parseFloat(verres.get('prixOD')?.value) || 0;
-                if (prixOD > 0) {
-                    lignes.push({
-                        description: `Verre OD Eq${index + 1}`,
-                        qte: 1,
-                        prixUnitaireTTC: prixOD,
-                        remise: 0,
-                        totalTTC: prixOD
-                    });
+                if (verres) {
+                    const prixOD = parseFloat(verres.prixOD) || 0;
+                    if (prixOD > 0) {
+                        lignes.push({
+                            description: `Verre OD Eq${index + 1}`,
+                            qte: 1,
+                            prixUnitaireTTC: prixOD,
+                            remise: 0,
+                            totalTTC: prixOD
+                        });
+                    }
+                    const prixOG = parseFloat(verres.prixOG) || 0;
+                    if (prixOG > 0) {
+                        lignes.push({
+                            description: `Verre OG Eq${index + 1}`,
+                            qte: 1,
+                            prixUnitaireTTC: prixOG,
+                            remise: 0,
+                            totalTTC: prixOG
+                        });
+                    }
                 }
-                const prixOG = parseFloat(verres.get('prixOG')?.value) || 0;
-                if (prixOG > 0) {
-                    lignes.push({
-                        description: `Verre OG Eq${index + 1}`,
-                        qte: 1,
-                        prixUnitaireTTC: prixOG,
-                        remise: 0,
-                        totalTTC: prixOG
-                    });
-                }
-            }
-        });
+            });
+        }
 
-        console.log('Lignes generated:', lignes);
+        return lignes;
+    }
 
+    generateFacture() {
+        if (!this.client || !this.client.id) return;
+
+        const lignes = this.getInvoiceLines();
         if (lignes.length === 0) {
             alert('Aucun article à facturer (Prix = 0)');
             return;
@@ -1539,132 +1496,71 @@ export class MontureFormComponent implements OnInit {
         };
 
         this.factureService.create(factureData).subscribe({
-            next: (f) => {
-                console.log('Facture created:', f);
-                this.router.navigate(['/p/clients/factures', f.id]);
-            },
+            next: (f) => this.router.navigate(['/p/clients/factures', f.id]),
             error: (err) => {
-                console.error('Error creating facture:', err);
                 const msg = err.error?.message || err.statusText || 'Erreur inconnue';
-                alert(`Erreur lors de la création de la facture: ${msg}\n${JSON.stringify(err.error)}`);
+                alert(`Erreur: ${msg}`);
             }
         });
     }
 
     nextTab(): void {
         const targetTab = this.activeTab + 1;
-
-        if (targetTab === 4) { // Switching to Payments
-            // Auto-save draft invoice if exists and not saved
+        if (targetTab === 4) {
             if (this.factureComponent && (!this.factureComponent.id || this.factureComponent.id === 'new')) {
                 if (this.factureComponent.form.value.lignes.length > 0) {
-                    this.factureComponent.saveAsObservable().subscribe({
-                        next: (inv: Facture) => { // Type explicitly to avoid inference issues?
-                            console.log('Auto-saved draft invoice:', inv);
-                            this.activeTab = targetTab;
-                            setTimeout(() => {
-                                if (this.paymentListComponent) {
-                                    this.paymentListComponent.loadPayments();
-                                }
-                            }, 200);
-                        },
-                        error: (e: any) => {
-                            console.error('Auto-save error', e);
-                            this.activeTab = targetTab; // Proceed anyway?
-                        }
+                    this.factureComponent.saveAsObservable().subscribe(() => {
+                        this.activeTab = targetTab;
+                        setTimeout(() => {
+                            if (this.paymentListComponent) this.paymentListComponent.loadPayments();
+                        }, 200);
                     });
                     return;
                 }
             }
         }
-
         if (this.activeTab < 4) {
             this.activeTab++;
-            // Draw canvas when entering Fiche Montage tab
-            if (this.activeTab === 2) {
-                setTimeout(() => this.drawFrameVisualization(), 100);
-            }
-            // Generate invoice lines when entering Facturation tab
-            if (this.activeTab === 3) {
-                this.generateInvoiceLines();
-            }
+            if (this.activeTab === 2) setTimeout(() => this.drawFrameVisualization(), 100);
+            if (this.activeTab === 3) this.generateInvoiceLines();
         }
     }
 
     prevTab(): void {
         if (this.activeTab > 0) {
             this.activeTab--;
-            // Draw canvas when entering Fiche Montage tab
-            if (this.activeTab === 2) {
-                setTimeout(() => this.drawFrameVisualization(), 100);
-            }
+            if (this.activeTab === 2) setTimeout(() => this.drawFrameVisualization(), 100);
         }
     }
 
     generateInvoiceLines(): void {
-        const lignes: any[] = [];
-        const formValue = this.ficheForm.value;
-
-        // 1. Monture
-        const prixMonture = parseFloat(formValue.monture?.prixMonture) || 0;
-        if (prixMonture > 0) {
-            const ref = formValue.monture?.reference || 'Monture';
-            const marque = formValue.monture?.marque || '';
-            lignes.push({
-                description: `Monture ${marque} ${ref}`.trim(),
-                qte: 1,
-                prixUnitaireTTC: prixMonture,
-                remise: 0,
-                totalTTC: prixMonture
-            });
-        }
-
-        // 2. Verres
-        const odVars = formValue.ordonnance?.od || {};
-        const ogVars = formValue.ordonnance?.og || {};
-        const formatCorrection = (c: any) => {
-            let s = '';
-            if (c.sphere && c.sphere !== '0' && c.sphere !== '+0.00') s += `Sph ${c.sphere} `;
-            if (c.cylindre && c.cylindre !== '0' && c.cylindre !== '+0.00') s += `Cyl ${c.cylindre} `;
-            if (c.axe && c.axe !== '0°') s += `Axe ${c.axe} `;
-            if (c.addition && c.addition !== '0' && c.addition !== '+0.00') s += `Add ${c.addition}`;
-            return s.trim();
-        };
-        const descOD = formatCorrection(odVars);
-        const descOG = formatCorrection(ogVars);
-
-        const matiere = formValue.verres?.matiere || 'Verre';
-        const prixOD = parseFloat(formValue.verres?.prixOD) || 0;
-        const prixOG = parseFloat(formValue.verres?.prixOG) || 0;
-
-        if (prixOD > 0) {
-            lignes.push({
-                description: `Verre OD ${matiere} ${descOD}`.trim(),
-                qte: 1,
-                prixUnitaireTTC: prixOD,
-                remise: 0,
-                totalTTC: prixOD
-            });
-        }
-        if (prixOG > 0) {
-            lignes.push({
-                description: `Verre OG ${matiere} ${descOG}`.trim(),
-                qte: 1,
-                prixUnitaireTTC: prixOG,
-                remise: 0,
-                totalTTC: prixOG
-            });
-        }
-
+        const lignes = this.getInvoiceLines();
         this.initialLines = lignes;
-        this.cdr.markForCheck(); // Trigger change detection
+
+        if (this.factureComponent && this.factureComponent.form) {
+            console.log('🔄 Syncing calculated lines to FactureComponent');
+            if (this.factureComponent.lignes) {
+                this.factureComponent.lignes.clear();
+                lignes.forEach(l => {
+                    const group = this.factureComponent.createLigne();
+                    group.patchValue(l);
+                    this.factureComponent.lignes.push(group);
+                });
+            }
+            if (this.nomenclatureString) {
+                this.factureComponent.nomenclature = this.nomenclatureString;
+                this.factureComponent.form.get('proprietes.nomenclature')?.setValue(this.nomenclatureString);
+            }
+            this.factureComponent.calculateTotals();
+        }
+        this.cdr.markForCheck();
     }
 
     hasInvoiceLines(): boolean {
-        // Generate lines from current form state
         const lines = this.getInvoiceLines();
         return lines && lines.length > 0;
     }
+
 
     formatSphereValue(eye: 'od' | 'og', event: Event): void {
         const input = event.target as HTMLInputElement;
@@ -1780,7 +1676,7 @@ export class MontureFormComponent implements OnInit {
     onSubmit(): void {
         if (this.ficheForm.invalid || !this.clientId) return;
         this.loading = true;
-        const formValue = this.ficheForm.value;
+        const formValue = this.ficheForm.getRawValue();
 
         // Capture if we are in creation mode before any updates
         const wasNew = !this.ficheId || this.ficheId === 'new';
@@ -1840,6 +1736,28 @@ export class MontureFormComponent implements OnInit {
                         // Update input manually to ensure it has the new ficheId
                         this.factureComponent.ficheIdInput = fiche.id;
 
+                        // FIX: Force sync lines and nomenclature from Monture form to Facture component
+                        // (Because FactureComponent might have stale data if user didn't visit tab after changes)
+                        const freshLines = this.getInvoiceLines();
+                        const freshNomenclature = this.nomenclatureString;
+
+                        // Update Nomenclature
+                        if (freshNomenclature) {
+                            this.factureComponent.form.patchValue({ proprietes: { nomenclature: freshNomenclature } });
+                        }
+
+                        // Update Lines if we have fresh ones
+                        if (freshLines && freshLines.length > 0) {
+                            const fa = this.factureComponent.lignes;
+                            fa.clear();
+                            freshLines.forEach(l => {
+                                const group = this.factureComponent.createLigne();
+                                group.patchValue(l);
+                                fa.push(group);
+                            });
+                            this.factureComponent.calculateTotals();
+                        }
+
                         return this.factureComponent.saveAsObservable().pipe(
                             map(() => fiche),
                             catchError(err => {
@@ -1851,17 +1769,47 @@ export class MontureFormComponent implements OnInit {
                     // Scenario 2: FactureComponent not active (Tab never visited) -> Check if invoice exists, create if not
                     else {
                         // First, check if an invoice already exists for this fiche
-                        // Use the linkedFacture$ observable if available, otherwise query
-                        const checkExisting$ = this.linkedFacture$ || this.factureService.findAll({}).pipe(
+                        // Use the linkedFacture$ observable if available, otherwise query by client
+                        // FIX: Explicitly check service for existing invoice (linkedFacture$ might be stale or not updated)
+                        const checkExisting$ = this.factureService.findAll({ clientId: this.clientId }).pipe(
                             map(factures => factures.find(f => f.ficheId === fiche.id) || null)
                         );
 
                         return checkExisting$.pipe(
                             switchMap(existingFacture => {
                                 if (existingFacture) {
-                                    // Invoice already exists, skip creation
-                                    console.log('Invoice already exists for this fiche, skipping creation');
-                                    return of(fiche);
+                                    // Invoice exists but component is not active.
+                                    // We MUST update it with the new lines/properties to keep it in sync.
+                                    console.log('🔄 Updating existing invoice (via Service) as component is not active');
+
+                                    this.generateInvoiceLines();
+                                    const total = generatedLines.reduce((acc, val) => acc + val.totalTTC, 0);
+                                    // Calculate HT/TVA approx or relies on backend? Better to send all.
+                                    // Similar logic to create but for update
+                                    const tvaRate = 0.20;
+                                    const totalHT = total / (1 + tvaRate);
+                                    const tva = total - totalHT;
+
+                                    const updateData: any = {
+                                        lignes: generatedLines,
+                                        totalTTC: total,
+                                        totalHT: totalHT,
+                                        totalTVA: tva,
+                                        proprietes: {
+                                            ...(existingFacture.proprietes as any || {}),
+                                            nomenclature: this.nomenclatureString || ''
+                                        },
+                                        resteAPayer: total // Usually resets amount to pay if content changes? Valid for BROUILLON.
+                                    };
+
+                                    return this.factureService.update(existingFacture.id, updateData).pipe(
+                                        map(() => fiche),
+                                        catchError(err => {
+                                            console.error('Error auto-updating invoice:', err);
+                                            // Fallback: Just return fiche if update fails, don't block
+                                            return of(fiche);
+                                        })
+                                    );
                                 }
 
                                 // No invoice exists, create one
@@ -1893,6 +1841,12 @@ export class MontureFormComponent implements OnInit {
                                 return this.factureService.create(factureData).pipe(
                                     map(() => fiche),
                                     catchError(err => {
+                                        // If error is unique constraint on ficheId, it means it was created in parallel.
+                                        // We can ignore this error safely as the goal (invoice exists) is met.
+                                        if (err?.error?.message?.includes('ficheId') || err?.error?.code === 'P2002') {
+                                            console.log('⚠️ Race condition prevented: Invoice already created during process.');
+                                            return of(fiche);
+                                        }
                                         console.error('Error auto-creating invoice:', err);
                                         return of(fiche);
                                     })
@@ -1920,7 +1874,14 @@ export class MontureFormComponent implements OnInit {
                 // We'll just log and maybe navigate if needed.
                 console.log('Fiche saved:', fiche);
 
-                console.log('Fiche saved:', fiche);
+                // FIX: Patch form with saved data to ensure UI reflects backend state (prevents fields clearing)
+                this.patchForm(fiche);
+
+                // Fix: Ensure form is disabled after save (View Mode)
+                if (!wasNew) {
+                    this.ficheForm.disable();
+                    this.isEditMode = false;
+                }
 
                 if (wasNew) { // Use captured state
                     this.router.navigate(['/p/clients', this.clientId, 'fiche-monture', fiche.id], { replaceUrl: true });

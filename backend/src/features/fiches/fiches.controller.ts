@@ -26,7 +26,7 @@ export class FichesController {
     }
 
     @Put(':id')
-    update(@Param('id') id: string, @Body() updateFicheDto: Prisma.FicheUpdateInput) {
+    update(@Param('id') id: string, @Body() updateFicheDto: any) {
         return this.fichesService.update(id, updateFicheDto);
     }
 

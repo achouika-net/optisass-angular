@@ -33,6 +33,7 @@ export class FichesService {
                 throw new BadRequestException('Client ID is required');
             }
 
+            // check client
             // 1. Fetch the client to check status
             console.log('🔍 Verifying client existence for ID:', clientId);
             const client = await this.prisma.client.findUnique({
@@ -50,6 +51,22 @@ export class FichesService {
                 this.validateRequiredFields(client);
             }
 
+            // Construct Content JSON from loose fields
+            const looseData = data as any;
+
+            // Fix: Frontend sends content nested in 'content' field via FicheService.createFicheMonture
+            // We must extract it correctly, falling back to looseData (flat) if not nested.
+            const incomingContent = (looseData.content && typeof looseData.content === 'object') ? looseData.content : looseData;
+
+            const content = {
+                ordonnance: incomingContent.ordonnance,
+                monture: incomingContent.monture,
+                verres: incomingContent.verres,
+                montage: incomingContent.montage,
+                suggestions: incomingContent.suggestions,
+                equipements: incomingContent.equipements,
+            };
+
             // 3. Create the fiche with explicit data mapping
             // Using UncheckedCreateInput to allow scalar clientId
             const createData: Prisma.FicheUncheckedCreateInput = {
@@ -59,7 +76,7 @@ export class FichesService {
                 montantTotal: data.montantTotal,
                 montantPaye: data.montantPaye,
                 dateLivraisonEstimee: data.dateLivraisonEstimee,
-                content: data.content as any, // Ensure JSON compatibility
+                content: content as any,
             };
 
             const result = await this.prisma.fiche.create({
@@ -85,37 +102,17 @@ export class FichesService {
                 });
 
                 if (!existingInvoice) {
-                    await this.facturesService.create({
-                        clientId: clientId as string,
-                        numero: 'TEMP', // Will be overwritten by service
-                        type: 'FACTURE',
-                        statut: 'BROUILLON', // Will trigger BRO- prefix logic
-                        ficheId: result.id,
-                        totalHT: data.montantTotal, // Assuming TTC for now, or simple flat tax
-                        totalTTC: data.montantTotal,
-                        totalTVA: 0,
-                        resteAPayer: data.montantTotal,
-                        lignes: [
-                            {
-                                description: `Fiche ${result.type} du ${new Date().toLocaleDateString()}`,
-                                qte: 1,
-                                prixUnitaireTTC: data.montantTotal,
-                                remise: 0,
-                                totalTTC: data.montantTotal
-                            }
-                        ],
-                        notes: 'Facture générée automatiquement depuis la fiche technique.'
-                    });
-                    console.log('✅ Draft Invoice created successfully');
+                    // AUTOMATIC INVOICE CREATION REMOVED
+                    // Reason: Frontend creates detailed invoice immediately after (Scenario 2).
+                    console.log('ℹ️ Automatic draft creation disabled to prevent duplicates.');
                 } else {
                     console.log('ℹ️ Invoice already exists for this Fiche, skipping creation.');
                 }
             } catch (invError) {
-                console.error('⚠️ Failed to create draft invoice automatically:', invError);
-                // We don't block the response, just log the error
+                console.error('⚠️ Failed to check invoice existence:', invError);
             }
 
-            return result;
+            return this.unpackContent(result);
         } catch (error) {
             console.error('❌ ERROR saving fiche:');
             console.error('Error:', error);
@@ -142,23 +139,109 @@ export class FichesService {
     }
 
     async findAllByClient(clientId: string) {
-        return this.prisma.fiche.findMany({
+        const fiches = await this.prisma.fiche.findMany({
             where: { clientId },
             orderBy: { dateCreation: 'desc' },
         });
+        return fiches.map((f: any) => this.unpackContent(f));
     }
 
     async findOne(id: string) {
-        return this.prisma.fiche.findUnique({
+        const fiche = await this.prisma.fiche.findUnique({
             where: { id },
         });
+        return fiche ? this.unpackContent(fiche) : null;
     }
 
     async update(id: string, data: Prisma.FicheUpdateInput) {
-        return this.prisma.fiche.update({
+        const looseData = data as any;
+        // Safe Merge Strategy: Fetch existing content first
+        const currentFiche = await this.prisma.fiche.findUnique({
             where: { id },
-            data,
+            select: { content: true }
         });
+        const currentContent = currentFiche?.content as any || {};
+
+        // Fix: Frontend sends content nested in 'content' field via FicheService.updateFiche
+        // We must extract it correctly, falling back to looseData (flat) if not nested.
+        const incomingContent = (looseData.content && typeof looseData.content === 'object') ? looseData.content : looseData;
+
+        const content = {
+            ordonnance: incomingContent.ordonnance !== undefined ? incomingContent.ordonnance : currentContent.ordonnance,
+            monture: incomingContent.monture !== undefined ? incomingContent.monture : currentContent.monture,
+            verres: incomingContent.verres !== undefined ? incomingContent.verres : currentContent.verres,
+            montage: incomingContent.montage !== undefined ? incomingContent.montage : currentContent.montage,
+            suggestions: incomingContent.suggestions !== undefined ? incomingContent.suggestions : currentContent.suggestions,
+            equipements: incomingContent.equipements !== undefined ? incomingContent.equipements : currentContent.equipements,
+        };
+
+        const updateData: any = {
+            statut: data.statut,
+            type: data.type,
+            montantTotal: data.montantTotal,
+            montantPaye: data.montantPaye,
+            dateLivraisonEstimee: data.dateLivraisonEstimee,
+            content: content,
+        };
+        // Add optional fields if present
+        if ((data as any).clientId) updateData.clientId = (data as any).clientId;
+
+        const result = await this.prisma.fiche.update({
+            where: { id },
+            data: updateData,
+        });
+
+        // AUTOMATIC INVOICE UPDATE REMOVED (prevent data loss)
+        /*
+        try {
+            const draftInvoice = await this.prisma.facture.findFirst({
+                where: { ficheId: id, statut: 'BROUILLON' }
+            });
+        
+            if (draftInvoice && draftInvoice.numero.startsWith('BRO-')) {
+                console.log('🔄 Updating Draft Invoice for Fiche:', draftInvoice.id);
+        
+                // Re-calculate lines based on new content logic (simplified mirror of Frontend or explicit map)
+                // For backend simplicity, we might just update the MAIN summary line, OR we need the frontend to send the lines.
+                // IF the frontend doesn't send "lines", we can't perfectly replicate the complex frontend logic here without duplicating it.
+                // HOWEVER, the user issue is "Generic Description". 
+                // Let's try to construct a BETTER description at least, or check if we can get lines from data?
+                // The `data` passed here is just Fiche structure, not Invoice lines. 
+        
+                // Better approach: Update the invoice TOTALS and a Summary Description.
+                // But the user wants "Detail". 
+                // Creating detailed lines in backend requires duplicating the `getInvoiceLines` logic from frontend.
+                // A quick win: Update the generic line with more info if possible, OR
+                // Rely on the Frontend to explicitely update the Invoice when saving the Fiche (which was the original plan with `generateInvoiceLines` syncing to `FactureComponent`).
+        
+                // WAITING: The user said "Modifier ne prend pas en charge". This suggests the Frontend sync failed.
+                // If I update it here, I fix the "Server side" draft.
+        
+                let newDescription = `Fiche ${result.type} du ${new Date(result.dateCreation).toLocaleDateString()}`;
+                if (looseData.monture?.marque) newDescription += ` - ${looseData.monture.marque}`;
+                if (looseData.monture?.reference) newDescription += ` (${looseData.monture.reference})`;
+        
+                await this.prisma.facture.update({
+                    where: { id: draftInvoice.id },
+                    data: {
+                        totalHT: result.montantTotal,
+                        totalTTC: result.montantTotal,
+                        resteAPayer: result.montantTotal,
+                        lignes: [
+                            {
+                                description: newDescription,
+                                qte: 1,
+                                prixUnitaireTTC: result.montantTotal,
+                                remise: 0,
+                                totalTTC: result.montantTotal
+                            }
+                        ]
+                    }
+                });
+            }
+            } */
+
+        return this.unpackContent(result);
     }
 
     async remove(id: string) {
@@ -173,5 +256,15 @@ export class FichesService {
         return this.prisma.fiche.delete({
             where: { id },
         });
+    }
+    private unpackContent(fiche: any) {
+        if (!fiche) return fiche;
+        const content = fiche.content as any || {};
+        // Merge content properties to top level
+        return {
+            ...fiche,
+            ...content,
+            content: undefined // Optional: hide raw content, or keep it
+        };
     }
 }

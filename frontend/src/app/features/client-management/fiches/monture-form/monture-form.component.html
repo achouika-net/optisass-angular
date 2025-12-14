@@ -683,6 +683,14 @@
                                             formControlName="taille" aria-label="Taille de la monture additionnelle">
                                     </div>
                                     <div class="form-group">
+                                        <label>Cerclage</label>
+                                        <select formControlName="cerclage">
+                                            <option value="cerclée">Cerclée</option>
+                                            <option value="nylor">Nylor</option>
+                                            <option value="percée">Percée</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
                                         <label>Prix</label>
                                         <input type="text" formControlName="prixMonture"
                                             (blur)="formatPrice(getEquipmentGroup(i).get('monture.prixMonture'), $event)"
