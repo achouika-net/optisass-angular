@@ -5,15 +5,17 @@
         <div class="header">
             <div class="title-section">
                 <h2 *ngIf="!id || id === 'new'">Nouveau Document</h2>
-                <h2 *ngIf="id && id !== 'new'">{{form.get('type')?.value}} {{form.get('numero')?.value}}</h2> // Note:
-                numero not in form group yet, need to handle
+                <h2 *ngIf="id && id !== 'new'">{{form.get('type')?.value}} {{form.get('numero')?.value}}</h2>
             </div>
             <div class="actions">
                 <button type="button" mat-stroked-button color="warn" routerLink="/p/clients"
-                    *ngIf="!embedded">Annuler</button>
-                <button type="submit" mat-raised-button color="primary" [disabled]="form.invalid || isViewMode">
+                    *ngIf="!embedded && !isViewMode">Annuler</button>
+                <button type="submit" mat-raised-button color="primary" [disabled]="form.invalid"
+                    *ngIf="!embedded && !isViewMode">
                     <mat-icon>save</mat-icon> Enregistrer
                 </button>
+                <button type="button" mat-stroked-button routerLink="/p/clients"
+                    *ngIf="!embedded && isViewMode">Retour</button>
             </div>
         </div>
 
@@ -31,7 +33,7 @@
                 </mat-form-field>
 
                 <!-- Statut -->
-                <mat-form-field appearance="outline">
+                <mat-form-field appearance="outline" *ngIf="!isViewMode">
                     <mat-label>Statut</mat-label>
                     <mat-select formControlName="statut">
                         <mat-option value="BROUILLON">Brouillon</mat-option>
@@ -41,11 +43,17 @@
                     </mat-select>
                 </mat-form-field>
 
+                <div class="status-display" *ngIf="isViewMode">
+                    <span class="badgex badge-{{form.get('statut')?.value | lowercase}}">
+                        {{ form.get('statut')?.value }}
+                    </span>
+                </div>
+
                 <!-- Date -->
                 <mat-form-field appearance="outline">
                     <mat-label>Date d'émission</mat-label>
                     <input matInput [matDatepicker]="picker" formControlName="dateEmission">
-                    <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+                    <mat-datepicker-toggle matIconSuffix [for]="picker" [disabled]="isViewMode"></mat-datepicker-toggle>
                     <mat-datepicker #picker></mat-datepicker>
                 </mat-form-field>
             </div>
@@ -81,7 +89,7 @@
                         <span class="total-display">{{ line.get('totalTTC')?.value | number:'1.2-2' }} DH</span>
                     </div>
                     <div class="col-action">
-                        <button type="button" mat-icon-button color="warn" (click)="removeLine(i)">
+                        <button type="button" mat-icon-button color="warn" (click)="removeLine(i)" *ngIf="!isViewMode">
                             <mat-icon>delete</mat-icon>
                         </button>
                     </div>
@@ -89,7 +97,7 @@
             </div>
 
             <div class="add-line-btn">
-                <button type="button" mat-button color="primary" (click)="addLine()">
+                <button type="button" mat-button color="primary" (click)="addLine()" *ngIf="!isViewMode && !embedded">
                     <mat-icon>add</mat-icon> Ajouter une ligne
                 </button>
             </div>
@@ -99,9 +107,9 @@
             <!-- Totals -->
             <div class="footer-section">
                 <div class="footer-left">
-                    <div class="nomenclature-section" *ngIf="form.get('proprietes.nomenclature')?.value as nom">
+                    <div class="nomenclature-section" *ngIf="form.get('proprietes.nomenclature')?.value">
                         <strong>Détail Nomenclature:</strong><br>
-                        {{ nom }}
+                        {{ form.get('proprietes.nomenclature')?.value }}
                     </div>
 
                     <div class="montant-lettres" *ngIf="montantLettres">

@@ -1,5 +1,8 @@
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
-import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { ApplicationConfig, provideBrowserGlobalErrorListeners, LOCALE_ID } from '@angular/core';
+import { registerLocaleData } from '@angular/common';
+import localeFr from '@angular/common/locales/fr';
+registerLocaleData(localeFr);
 import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
 import { provideEffects } from '@ngrx/effects';
 import { provideRouterStore, RouterStateSerializer } from '@ngrx/router-store';
@@ -21,6 +24,7 @@ import { CustomRouterSerializer } from './core/store/router/custom-router-serial
 import { SettingsEffects } from './core/store/settings/settings.effects';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
+import { MAT_DATE_LOCALE } from '@angular/material/core';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -67,5 +71,7 @@ export const appConfig: ApplicationConfig = {
       provide: MAT_ICON_DEFAULT_OPTIONS,
       useValue: { fontSet: 'material-symbols-outlined' },
     },
+    { provide: LOCALE_ID, useValue: 'fr-FR' },
+    { provide: MAT_DATE_LOCALE, useValue: 'fr-FR' }
   ],
 };

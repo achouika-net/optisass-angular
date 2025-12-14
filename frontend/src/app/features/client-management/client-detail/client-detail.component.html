@@ -178,7 +178,7 @@
                 <!-- Onglet Paiements -->
                 <mat-tab label="Paiements">
                     <div class="form-container">
-                        <app-payment-list [clientId]="clientId"></app-payment-list>
+                        <app-payment-list [clientId]="clientId" (paymentAdded)="loadStats()"></app-payment-list>
                     </div>
                 </mat-tab>
 

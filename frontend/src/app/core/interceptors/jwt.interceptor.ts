@@ -9,7 +9,7 @@ import { inject } from '@angular/core';
 import { IJwtTokens } from '@app/models';
 import { Store } from '@ngrx/store';
 import { BehaviorSubject, Subject, throwError } from 'rxjs';
-import { catchError, filter, switchMap, take, takeUntil } from 'rxjs/operators';
+import { catchError, filter, switchMap, take, takeUntil, timeout } from 'rxjs/operators';
 import { RefreshToken } from '../store/auth/auth.actions';
 import { JwtTokensSelector, RefreshTokenInProgressSelector } from '../store/auth/auth.selectors';
 
@@ -63,6 +63,7 @@ export const JwtInterceptor: HttpInterceptorFn = (req: HttpRequest<any>, next: H
           filter((newToken: string) => !!newToken),
           take(1),
           takeUntil(takeUntilSubject),
+          timeout(15000), // Timeout after 15s if no new token
           switchMap((newToken: string) => next(addAuthHeader(authReq, newToken)))
         );
       }

@@ -247,10 +247,11 @@
     grid-template-columns: 1fr 1fr 1fr;
     gap: 24px;
     margin-bottom: 24px;
-    background: #f8fafc;
-    padding: 20px;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
+    // Removed gray band style as requested
+    // background: #f8fafc;
+    // padding: 20px;
+    // border-radius: 12px;
+    // border: 1px solid #e2e8f0;
 
     mat-form-field {
         width: 100%;
@@ -333,6 +334,24 @@
 
     &.triple {
         grid-template-columns: 1fr 1fr 1fr;
+    }
+}
+
+.prescription-details-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+    align-items: flex-start;
+
+    mat-form-field {
+        flex: 1;
+        min-width: 200px;
+        width: 100%; // Ensure it takes width in flex item
+    }
+
+    @media (max-width: 768px) {
+        flex-direction: column;
     }
 }
 
@@ -837,6 +856,7 @@
 .prescription-files {
     margin-top: 24px;
     padding-top: 24px;
+    margin-bottom: 24px;
     border-top: 1px solid #e2e8f0;
 
     h4 {

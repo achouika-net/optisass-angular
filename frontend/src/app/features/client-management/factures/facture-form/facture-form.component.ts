@@ -55,6 +55,7 @@ export class FactureFormComponent implements OnInit {
     form: FormGroup;
     id: string | null = null;
     isViewMode = false;
+    client: any = null;
 
     // Totals
     totalHT = 0;
@@ -109,6 +110,9 @@ export class FactureFormComponent implements OnInit {
         if (changes['isReadonly']) {
             this.updateViewMode();
         }
+        if (changes['nomenclature'] && this.nomenclature && this.embedded) {
+            this.form.get('proprietes')?.patchValue({ nomenclature: this.nomenclature });
+        }
         if (changes['initialLines'] && this.initialLines && (!this.id || this.id === 'new')) {
             // Update lines from new initialLines if we are in creation mode
             // But we should be careful not to overwrite manual edits if possible.
@@ -122,18 +126,20 @@ export class FactureFormComponent implements OnInit {
             this.calculateTotals();
         }
     }
-
+    // ... (rest of methods) - RESTORED
     updateViewMode() {
-        if (this.isReadonly) {
+        // Check if we're in explicit view mode from route
+        const isExplicitViewMode = this.route?.snapshot?.queryParamMap?.get('mode') === 'view';
+
+        // Only treat as read-only if explicitly in view mode or readonly flag is set
+        if (this.isReadonly || isExplicitViewMode) {
             this.isViewMode = true;
             this.form.disable();
-        } else if (this.form.get('statut')?.value === 'BROUILLON') {
-            // Only re-enable if it's draft and not explicitly viewed via route (which is static)
-            // But for embedded, we usually rely on parent state.
+        } else {
+            // Allow editing (even in embedded mode)
             this.isViewMode = false;
             this.form.enable();
-            // Ensure 'numero' stays disabled if it's auto-generated
-            this.form.get('numero')?.disable();
+            this.form.get('numero')?.disable(); // Keep numero disabled (auto-generated)
         }
     }
 
@@ -146,7 +152,6 @@ export class FactureFormComponent implements OnInit {
         if (this.id && this.id !== 'new') {
             this.loadFacture(this.id);
         } else {
-            // New embedded invoice
             if (this.initialLines && this.initialLines.length > 0) {
                 this.lignes.clear();
                 this.initialLines.forEach(l => {
@@ -158,6 +163,8 @@ export class FactureFormComponent implements OnInit {
             } else {
                 this.addLine();
             }
+            // Disable form for embedded new invoices too
+            this.updateViewMode();
         }
     }
 
@@ -184,7 +191,6 @@ export class FactureFormComponent implements OnInit {
         if (this.id && this.id !== 'new') {
             this.loadFacture(this.id);
         } else {
-            // Add one empty line by default
             this.addLine();
         }
     }
@@ -229,7 +235,6 @@ export class FactureFormComponent implements OnInit {
             return sum + (control.get('totalTTC')?.value || 0);
         }, 0);
 
-        // Apply Global Discount
         const props = this.form.get('proprietes')?.value;
         const remiseType = props?.remiseGlobalType || 'PERCENT';
         const remiseValue = props?.remiseGlobalValue || 0;
@@ -246,13 +251,12 @@ export class FactureFormComponent implements OnInit {
         this.calculatedGlobalDiscount = globalDiscount;
         this.totalTTC = Math.max(0, rawTotalTTC - globalDiscount);
 
-        const tvaRate = 0.20; // Fixed 20% for now
+        const tvaRate = 0.20;
         this.totalHT = this.totalTTC / (1 + tvaRate);
         this.totalTVA = this.totalTTC - this.totalHT;
 
         this.montantLettres = this.numberToText(this.totalTTC);
 
-        // Update payment status if totals change
         this.calculatePaymentTotals();
         this.updateStatutFromPayments();
     }
@@ -260,13 +264,19 @@ export class FactureFormComponent implements OnInit {
     loadFacture(id: string) {
         this.factureService.findOne(id).subscribe({
             next: (facture) => {
+                console.log('📄 Loaded facture:', facture);
+                console.log('📋 Nomenclature:', facture.proprietes?.nomenclature);
+
                 this.form.patchValue({
                     numero: facture.numero,
                     type: facture.type,
                     statut: facture.statut,
                     dateEmission: facture.dateEmission,
-                    clientId: facture.clientId
+                    clientId: facture.clientId,
+                    proprietes: facture.proprietes // Patch proprietes including nomenclature
                 });
+
+                this.client = facture.client;
 
                 // Patch lines
                 this.lignes.clear();
@@ -287,21 +297,8 @@ export class FactureFormComponent implements OnInit {
                 this.calculatePaymentTotals();
                 this.updateStatutFromPayments();
 
-                // Check for explicit view mode from query params
-                const isExplicitViewMode = this.route.snapshot.queryParamMap.get('mode') === 'view';
-
-                // Only allow editing if status is BROUILLON OR if it's a Partial Draft (BRO/TEMP)
-                // AND not in explicit view mode
-                const isDraft = facture.statut === 'BROUILLON' ||
-                    (facture.statut === 'PARTIEL' && (facture.numero.startsWith('BRO') || facture.numero.startsWith('TEMP')));
-
-                this.isViewMode = !isDraft || isExplicitViewMode;
-
-                if (this.isViewMode) {
-                    this.form.disable();
-                } else {
-                    this.form.enable();
-                }
+                // Don't change form state here - let updateViewMode handle it
+                // The form state is already set correctly in updateViewMode based on embedded/route params
             },
             error: (err) => {
                 console.error(err);
@@ -316,6 +313,16 @@ export class FactureFormComponent implements OnInit {
 
     saveAsObservable(showNotification = true): Observable<any> {
         if (this.form.invalid) return new Observable(obs => obs.next(null));
+
+        // Ensure nomenclature from input is in the form before saving
+        if (this.nomenclature && this.embedded) {
+            const currentPropretes = this.form.get('proprietes')?.value || {};
+            this.form.get('proprietes')?.patchValue({
+                ...currentPropretes,
+                nomenclature: this.nomenclature
+            });
+            console.log('📋 Syncing nomenclature to form before save:', this.nomenclature);
+        }
 
         const formData = this.form.getRawValue();
 
@@ -333,6 +340,12 @@ export class FactureFormComponent implements OnInit {
             // paiements: excluded
             resteAPayer: this.resteAPayer
         };
+
+        console.log('💾 Saving facture with data:', {
+            id: this.id,
+            proprietes: factureData.proprietes,
+            nomenclature: factureData.proprietes?.nomenclature
+        });
 
         const request = this.id && this.id !== 'new'
             ? this.factureService.update(this.id, factureData)
@@ -402,7 +415,10 @@ export class FactureFormComponent implements OnInit {
         const dialogRef = this.dialog.open(PaymentDialogComponent, {
             width: '800px',
             maxWidth: '90vw',
-            data: { resteAPayer: this.resteAPayer }
+            data: {
+                resteAPayer: this.resteAPayer,
+                client: this.client
+            }
         });
 
         dialogRef.afterClosed().subscribe((payment: Payment) => {
@@ -419,7 +435,8 @@ export class FactureFormComponent implements OnInit {
             ...payment,
             factureId: this.id,
             date: payment.date ? (typeof payment.date === 'string' ? payment.date : payment.date.toISOString()) : new Date().toISOString(),
-            mode: payment.mode.toString() // Ensure string enum match if needed
+            mode: payment.mode.toString(),
+            dateVersement: payment.dateVersement ? (typeof payment.dateVersement === 'string' ? payment.dateVersement : payment.dateVersement.toISOString()) : undefined,
         }).subscribe({
             next: (savedPayment) => {
                 this.snackBar.open('Paiement enregistré', 'Fermer', { duration: 3000 });

@@ -25,7 +25,8 @@ export interface Facture {
     totalTTC: number;
     resteAPayer: number;
     lignes: LigneFacture[];
-    paiements?: any[];  // Array of payments
+    paiements?: import('./paiement.service').Paiement[];  // Array of payments
+    proprietes?: any; // For custom properties like nomenclature, discount details
     montantLettres?: string;
     notes?: string;
     createdAt?: string;
@@ -59,7 +60,7 @@ export class FactureService {
     }
 
     update(id: string, facture: Partial<Facture>): Observable<Facture> {
-        return this.http.put<Facture>(`${this.apiUrl}/${id}`, facture);
+        return this.http.patch<Facture>(`${this.apiUrl}/${id}`, facture);
     }
 
     delete(id: string): Observable<void> {

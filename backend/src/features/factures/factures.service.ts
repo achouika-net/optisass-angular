@@ -18,6 +18,8 @@ export class FacturesService {
 
         // 2. Valider les lignes (si c'est un objet JSON)
         if (!data.lignes || (Array.isArray(data.lignes) && data.lignes.length === 0)) {
+            // Allow empty lines if it's an AVOIR (auto-generated) or strict? 
+            // Usually Avoir copies lines. So we should be good.
             throw new BadRequestException('La facture doit contenir au moins une ligne');
         }
 
@@ -29,33 +31,10 @@ export class FacturesService {
             // Temporary number for drafts
             numero = `BRO-${new Date().getTime()}`;
         } else {
-            // Official sequential number for validated documents
-            const year = new Date().getFullYear();
-            const prefix = this.getPrefix(type);
-
-            // Find last document of this type for current year
-            const lastDoc = await this.prisma.facture.findFirst({
-                where: {
-                    type: type,
-                    numero: {
-                        startsWith: `${prefix}-${year}`
-                    }
-                },
-                orderBy: {
-                    createdAt: 'desc'
-                }
-            });
-
-            let sequence = 1;
-            if (lastDoc) {
-                const parts = lastDoc.numero.split('-');
-                if (parts.length === 3) {
-                    sequence = parseInt(parts[2]) + 1;
-                }
-            }
-
-            numero = `${prefix}-${year}-${sequence.toString().padStart(3, '0')}`;
+            numero = await this.generateNextNumber(type);
         }
+
+        console.log('💾 Creating facture with proprietes:', data.proprietes);
 
         // 4. Créer la facture
         const facture = await this.prisma.facture.create({
@@ -67,7 +46,37 @@ export class FacturesService {
             }
         });
 
+        console.log('✅ Facture created with proprietes:', facture.proprietes);
+
         return facture;
+    }
+
+    private async generateNextNumber(type: string): Promise<string> {
+        const year = new Date().getFullYear();
+        const prefix = this.getPrefix(type);
+
+        // Find last document of this type for current year
+        const lastDoc = await this.prisma.facture.findFirst({
+            where: {
+                type: type,
+                numero: {
+                    startsWith: `${prefix}-${year}`
+                }
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
+
+        let sequence = 1;
+        if (lastDoc) {
+            const parts = lastDoc.numero.split('-');
+            if (parts.length === 3) {
+                sequence = parseInt(parts[2]) + 1;
+            }
+        }
+
+        return `${prefix}-${year}-${sequence.toString().padStart(3, '0')}`;
     }
 
     async findAll(params: {
@@ -109,99 +118,73 @@ export class FacturesService {
     }) {
         const { where, data } = params;
 
-        // Check if we are validating a draft (VALIDE only triggers numbering now)
-        // User requested that PARTIEL status is kept if balance exists, so we only trigger on VALIDE intent.
+        // Check if we are validating a BROUILLON (BROUILLON → VALIDE)
         if (data.statut === 'VALIDE') {
             const currentFacture = await this.prisma.facture.findUnique({
                 where,
-                include: { paiements: true }
+                include: { paiements: true, client: true }
             });
 
-            // If currently BROUILLON or has temp number, assign official number
-            if (currentFacture && (currentFacture.statut === 'BROUILLON' || currentFacture.numero.startsWith('BRO'))) {
-                console.log('🔄 Validating Draft Invoice:', currentFacture.numero);
-                const year = new Date().getFullYear();
-                const prefix = this.getPrefix(currentFacture.type);
-                console.log('📌 Generated Prefix:', prefix);
+            // If currently BROUILLON, create AVOIR for fiscal traceability
+            if (currentFacture && currentFacture.statut === 'BROUILLON') {
+                console.log('📋 Validating BROUILLON - Creating AVOIR for fiscal traceability');
 
-                // Find the highest number for this year/prefix
-                const lastDoc = await this.prisma.facture.findFirst({
-                    where: {
-                        type: currentFacture.type,
-                        numero: { startsWith: `${prefix}-${year}` }
-                    },
-                    orderBy: {
-                        numero: 'desc' // Sort by Number to get the highest sequence
+                // 1. Create AVOIR to cancel the BROUILLON
+                const avoirData: Prisma.FactureUncheckedCreateInput = {
+                    type: 'AVOIR',
+                    statut: 'VALIDE',
+                    numero: 'TEMP-AVOIR', // Will be replaced by create method
+                    dateEmission: new Date(),
+                    clientId: currentFacture.clientId,
+                    ficheId: currentFacture.ficheId,
+                    // Negative amounts to cancel the BROUILLON
+                    lignes: (currentFacture.lignes as any[]).map(ligne => ({
+                        ...ligne,
+                        prixUnitaireTTC: -ligne.prixUnitaireTTC,
+                        totalTTC: -ligne.totalTTC
+                    })),
+                    totalHT: -currentFacture.totalHT,
+                    totalTVA: -currentFacture.totalTVA,
+                    totalTTC: -currentFacture.totalTTC,
+                    resteAPayer: 0,
+                    proprietes: {
+                        ...currentFacture.proprietes as any,
+                        factureOriginale: currentFacture.numero,
+                        raison: 'Annulation automatique pour validation'
                     }
-                });
+                };
 
-                let sequence = 1;
-                if (lastDoc) {
-                    console.log('📄 Last Document found:', lastDoc.numero);
-                    const parts = lastDoc.numero.split('-');
-                    if (parts.length === 3) {
-                        const lastSeq = parseInt(parts[2]);
-                        if (!isNaN(lastSeq)) {
-                            sequence = lastSeq + 1;
-                        }
-                    }
-                } else {
-                    console.log('✨ No previous document found, starting at 1');
+                const avoir = await this.create(avoirData);
+                console.log('✅ AVOIR created:', avoir.numero);
+
+                // 2. Assign official number to the now-VALIDE invoice
+                data.numero = await this.generateNextNumber(currentFacture.type);
+                console.log('✅ Assigning official number:', data.numero);
+
+                // 3. Check payment status
+                let totalPaye = 0;
+                if (currentFacture.paiements) {
+                    totalPaye = currentFacture.paiements.reduce((sum, p) => sum + p.montant, 0);
                 }
-
-                // Generate candidate and check for collision
-                let candidateNumero = `${prefix}-${year}-${String(sequence).padStart(3, '0')}`;
-
-                // Safety loop to prevent duplicates
-                let attempts = 0;
-                while (attempts < 5) {
-                    const exists = await this.prisma.facture.findUnique({
-                        where: { numero: candidateNumero }
-                    });
-                    if (!exists) break;
-
-                    console.warn(`⚠️ Collision detected for ${candidateNumero}, incrementing...`);
-                    sequence++;
-                    data.numero = candidateNumero;
-                    console.log('✅ Assigning new Number:', data.numero);
-
-                    // 3. Post-Validation Status Check
-                    // Although user selected "VALIDE" (Intent: Official), actual status depends on payments
-                    let totalPaye = 0;
-                    if (currentFacture.paiements) {
-                        totalPaye = currentFacture.paiements.reduce((sum, p) => sum + p.montant, 0);
-                    }
-
-                    // If not fully paid, force status back to PARTIEL or IMPAYEE
-                    if (totalPaye < currentFacture.totalTTC) {
-                        // If we have some payment, it's PARTIEL. If 0 (and strict), IMPAYEE.
-                        // User specified: "affiche PARTIEL". We'll default to PARTIEL if > 0, probably IMPAYEE if 0?
-                        // Currently assuming PARTIEL is safer if they want to track balance.
-                        // But if 0 paid, usually it's IMPAYEE. Let's check logic:
-                        data.statut = totalPaye > 0 ? 'PARTIEL' : 'IMPAYEE';
-                        // Wait, if 0 paid, usually "VALIDE" means "Issued/Impoyee" in some systems.
-                        // But here user insists on "PARTIEL" if there is a remainder.
-                        // Let's stick to: if remainder > 0 -> PARTIEL.
-                        // Actually, if totalPaye === 0, status VALIDE is usually fine (meaning "Issued, waiting for payment").
-                        // User said "quand il y a un reste de payer affiche partiel".
-                        // So if paid > 0 and < total, FORCE PARTIEL.
-                        if (totalPaye > 0) {
-                            data.statut = 'PARTIEL';
-                        }
-                        // If totalPaye == 0, we leave it as VALIDE (standard "Issued" state)
-                    }
+                if (totalPaye > 0 && totalPaye < currentFacture.totalTTC) {
+                    data.statut = 'PARTIEL';
                 }
             }
-
-            return this.prisma.facture.update({
-                data,
-                where,
-            });
+            // If has temp number (BRO-xxx) but not BROUILLON status, just assign number
+            else if (currentFacture && currentFacture.numero.startsWith('BRO')) {
+                data.numero = await this.generateNextNumber(currentFacture.type);
+                console.log('✅ Assigning new Number:', data.numero);
+            }
         }
+
+        return this.prisma.facture.update({
+            data,
+            where,
+        });
     }
 
     async remove(where: Prisma.FactureWhereUniqueInput) {
-        // Vérifier que la facture existe
+        // 1. Get the invoice
         const facture = await this.prisma.facture.findUnique({
             where,
             include: { paiements: true }
@@ -211,23 +194,80 @@ export class FacturesService {
             throw new NotFoundException('Facture non trouvée');
         }
 
-        // Bloquer si facture validée ou payée
-        if (facture.statut === 'VALIDE' || facture.statut === 'PAYEE' || facture.statut === 'PARTIEL') {
-            throw new BadRequestException(
-                'Impossible de supprimer une facture validée ou avec paiements. Créez un avoir à la place.'
-            );
+        // Note: Cancelled invoices can be deleted, but this should be done with caution
+        // as it removes audit trail. Consider using AVOIR instead for production.
+
+        // 3. Logic: Last vs Middle
+        // Check if it is the LAST official invoice of its type (and year)
+        const isOfficial = !facture.numero.startsWith('BRO');
+        let isLast = false;
+
+        if (isOfficial) {
+            const year = new Date().getFullYear(); // Or year from invoice date? strict sequential usually means current year context.
+            // Better: Check if any invoice exists with same type and a HIGHER number (alphanumerically or creation date)
+            const nextInvoice = await this.prisma.facture.findFirst({
+                where: {
+                    type: facture.type,
+                    numero: { gt: facture.numero, startsWith: this.getPrefix(facture.type) }
+                }
+            });
+            isLast = !nextInvoice;
+        } else {
+            isLast = true; // Drafts are always "last" in sense of deletable safe
         }
 
-        // Bloquer si des paiements existent
-        if (facture.paiements && facture.paiements.length > 0) {
-            throw new BadRequestException(
-                'Impossible de supprimer une facture avec des paiements'
-            );
-        }
+        // 3. Execution
+        if (isLast) {
+            // Safe to delete physically
+            // But check payments first?
+            if (facture.paiements && facture.paiements.length > 0) {
+                // Even if last, if payments exist, we probably shouldn't just vanish it without warning?
+                // But user said "doit etre supprimer". If payments exist, usually we should delete payments too?
+                // or Block?
+                // "les facture valides doivent etre annuler par avoir... si cette facture a des facture generer apres, si nn on la supprime"
+                // Implies: If last -> delete. (Implicitly delete payments? Or block if paid?)
+                // Usually deleting an invoice DELETES its payments (Cascade in UI or DB?). Schema says Paiement->Facture onDelete: Cascade?
+                // Let's check schema. Checked: `onDelete: Cascade`. So payments vanish.
+                return this.prisma.facture.delete({ where });
+            }
+            return this.prisma.facture.delete({ where });
+        } else {
+            // Not Last -> Create AVOIR
+            // Calculate negative amounts
+            const lignesAvoir = (facture.lignes as any[]).map(l => ({
+                ...l,
+                prixUnitaireTTC: -Math.abs(l.prixUnitaireTTC),
+                totalTTC: -Math.abs(l.totalTTC),
+                description: `Avoir sur facture ${facture.numero}: ${l.description}`
+            }));
 
-        return this.prisma.facture.delete({
-            where,
-        });
+            // Create Avoir
+            const avoirNumero = await this.generateNextNumber('AVOIR');
+
+            const avoir = await this.prisma.facture.create({
+                data: {
+                    numero: avoirNumero,
+                    type: 'AVOIR',
+                    clientId: facture.clientId,
+                    statut: 'VALIDE', // Avoirs are usually effective immediately
+                    dateEmission: new Date(),
+                    totalHT: -Math.abs(facture.totalHT),
+                    totalTVA: -Math.abs(facture.totalTVA),
+                    totalTTC: -Math.abs(facture.totalTTC),
+                    resteAPayer: 0, // Avoirs don't have "to pay" usually, or they offset balance.
+                    lignes: lignesAvoir,
+                    notes: `Annulation de la facture ${facture.numero}`,
+                }
+            });
+
+            // Mark original as ANNULEE
+            await this.prisma.facture.update({
+                where: { id: facture.id },
+                data: { statut: 'ANNULEE' }
+            });
+
+            return { action: 'AVOIR_CREATED', avoir };
+        }
     }
 
     private getPrefix(type: string): string {

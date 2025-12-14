@@ -37,7 +37,7 @@ export enum TypeEquipement {
     VISION_INTERMEDIAIRE = 'Vision intermédiaire',
     PROGRESSIFS = 'Progressifs',
     OPTIQUE_SOLAIRE = 'Optique solaire',
-    SOLAIRE_SANS_CORRECTION = 'Solaire sans correction'
+    SOLAIRE_SANS_CORRECTION = 'Solaire'
 }
 
 // ============ Suggestion IA ============
