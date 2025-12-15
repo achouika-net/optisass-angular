@@ -1354,7 +1354,7 @@ export class MontureFormComponent implements OnInit {
             const differentODOG = mainVerres.differentODOG;
             const matiere = mainVerres.matiere || 'Verre';
 
-            // Generate Nomenclature String
+            // Generate Nomenclature String (Internal use for notes, but removed from line description per request)
             const odVars = formValue.ordonnance?.od || {};
             const ogVars = formValue.ordonnance?.og || {};
 
@@ -1376,10 +1376,12 @@ export class MontureFormComponent implements OnInit {
                 const prixOG = parseFloat(mainVerres.prixOG) || 0;
                 const matiereOD = mainVerres.matiereOD || matiere;
                 const matiereOG = mainVerres.matiereOG || matiere;
+                const indiceOD = mainVerres.indiceOD || mainVerres.indice || '';
+                const indiceOG = mainVerres.indiceOG || mainVerres.indice || '';
 
                 if (prixOD > 0) {
                     lignes.push({
-                        description: `Verre OD ${matiereOD} ${descOD}`.trim(),
+                        description: `Verre OD ${matiereOD} ${indiceOD}`.trim(),
                         qte: 1,
                         prixUnitaireTTC: prixOD,
                         remise: 0,
@@ -1388,7 +1390,7 @@ export class MontureFormComponent implements OnInit {
                 }
                 if (prixOG > 0) {
                     lignes.push({
-                        description: `Verre OG ${matiereOG} ${descOG}`.trim(),
+                        description: `Verre OG ${matiereOG} ${indiceOG}`.trim(),
                         qte: 1,
                         prixUnitaireTTC: prixOG,
                         remise: 0,
@@ -1398,10 +1400,11 @@ export class MontureFormComponent implements OnInit {
             } else {
                 const prixOD = parseFloat(mainVerres.prixOD) || 0;
                 const prixOG = parseFloat(mainVerres.prixOG) || 0;
+                const indice = mainVerres.indice || '';
 
                 if (prixOD > 0) {
                     lignes.push({
-                        description: `Verre OD ${matiere} ${descOD}`.trim(),
+                        description: `Verre OD ${matiere} ${indice}`.trim(),
                         qte: 1,
                         prixUnitaireTTC: prixOD,
                         remise: 0,
@@ -1410,7 +1413,7 @@ export class MontureFormComponent implements OnInit {
                 }
                 if (prixOG > 0) {
                     lignes.push({
-                        description: `Verre OG ${matiere} ${descOG}`.trim(),
+                        description: `Verre OG ${matiere} ${indice}`.trim(),
                         qte: 1,
                         prixUnitaireTTC: prixOG,
                         remise: 0,
@@ -1430,7 +1433,7 @@ export class MontureFormComponent implements OnInit {
                     const prix = parseFloat(monture.prixMonture) || 0;
                     if (prix > 0) {
                         lignes.push({
-                            description: `Monture Eq${index + 1} ${monture.marque || ''}`.trim(),
+                            description: `Monture Eq${index + 1} ${monture.marque || ''} ${monture.reference || ''}`.trim(),
                             qte: 1,
                             prixUnitaireTTC: prix,
                             remise: 0,
@@ -1439,10 +1442,25 @@ export class MontureFormComponent implements OnInit {
                     }
                 }
                 if (verres) {
+                    const diff = verres.differentODOG;
+
+                    // Helper to get description
+                    const getDesc = (eye: 'OD' | 'OG') => {
+                        if (diff) {
+                            const mat = eye === 'OD' ? (verres.matiereOD || verres.matiere) : (verres.matiereOG || verres.matiere);
+                            const ind = eye === 'OD' ? (verres.indiceOD || verres.indice) : (verres.indiceOG || verres.indice);
+                            return `Verre ${eye} Eq${index + 1} ${mat || ''} ${ind || ''}`.trim();
+                        } else {
+                            const mat = verres.matiere || '';
+                            const ind = verres.indice || '';
+                            return `Verre ${eye} Eq${index + 1} ${mat} ${ind}`.trim();
+                        }
+                    };
+
                     const prixOD = parseFloat(verres.prixOD) || 0;
                     if (prixOD > 0) {
                         lignes.push({
-                            description: `Verre OD Eq${index + 1}`,
+                            description: getDesc('OD'),
                             qte: 1,
                             prixUnitaireTTC: prixOD,
                             remise: 0,
@@ -1452,7 +1470,7 @@ export class MontureFormComponent implements OnInit {
                     const prixOG = parseFloat(verres.prixOG) || 0;
                     if (prixOG > 0) {
                         lignes.push({
-                            description: `Verre OG Eq${index + 1}`,
+                            description: getDesc('OG'),
                             qte: 1,
                             prixUnitaireTTC: prixOG,
                             remise: 0,
