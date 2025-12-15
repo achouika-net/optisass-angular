@@ -1,0 +1,451 @@
+<div class="sales-control-container">
+    <div class="header">
+        <h1>
+            Contrôle des Ventes
+            <span class="subtitle">Gestion fiscale des factures BROUILLON</span>
+        </h1>
+
+        <!-- Filter Section -->
+        <mat-form-field appearance="outline" class="period-filter" style="margin-top: 1rem;">
+            <mat-label>Période</mat-label>
+            <mat-select [(ngModel)]="selectedPeriod" (selectionChange)="onPeriodChange()">
+                <mat-option value="ALL">Toutes les périodes</mat-option>
+                <mat-option *ngFor="let p of availablePeriods" [value]="p">{{ p }}</mat-option>
+            </mat-select>
+        </mat-form-field>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards" style="display: flex; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap;">
+        <mat-card class="stat-card blue"
+            style="flex: 1; min-width: 250px; background: #e3f2fd; border-left: 5px solid #2196f3;">
+            <mat-card-content style="padding: 1.5rem;">
+                <div class="stat-icon" style="float: right; color: #2196f3;">
+                    <mat-icon style="transform: scale(1.5);">monetization_on</mat-icon>
+                </div>
+                <div class="stat-info">
+                    <p class="stat-label" style="margin: 0; color: #546e7a; font-weight: 500;">Chiffre d'Affaires Global
+                    </p>
+                    <h2 class="stat-value" style="margin: 0.5rem 0 0; font-size: 2rem; color: #0d47a1;">{{
+                        metrics.totalCA | number:'1.2-2' }} DH</h2>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="stat-card green"
+            style="flex: 1; min-width: 250px; background: #e8f5e9; border-left: 5px solid #4caf50;">
+            <mat-card-content style="padding: 1.5rem;">
+                <div class="stat-icon" style="float: right; color: #4caf50;">
+                    <mat-icon style="transform: scale(1.5);">check_circle</mat-icon>
+                </div>
+                <div class="stat-info">
+                    <p class="stat-label" style="margin: 0; color: #546e7a; font-weight: 500;">Total Encaissé</p>
+                    <h2 class="stat-value" style="margin: 0.5rem 0 0; font-size: 2rem; color: #1b5e20;">{{
+                        metrics.totalPaid | number:'1.2-2' }} DH</h2>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="stat-card red"
+            style="flex: 1; min-width: 250px; background: #ffebee; border-left: 5px solid #f44336;">
+            <mat-card-content style="padding: 1.5rem;">
+                <div class="stat-icon" style="float: right; color: #f44336;">
+                    <mat-icon style="transform: scale(1.5);">warning</mat-icon>
+                </div>
+                <div class="stat-info">
+                    <p class="stat-label" style="margin: 0; color: #546e7a; font-weight: 500;">Reste à Payer</p>
+                    <h2 class="stat-value" style="margin: 0.5rem 0 0; font-size: 2rem; color: #b71c1c;">{{
+                        metrics.totalReste | number:'1.2-2' }} DH</h2>
+                </div>
+            </mat-card-content>
+        </mat-card>
+    </div>
+
+    <mat-tab-group animationDuration="0ms">
+        <!-- Tab 1: Invoices with payments -->
+        <mat-tab>
+            <ng-template mat-tab-label>
+                <mat-icon class="mr-2">payments</mat-icon>
+                Avec Paiement ({{ invoicesWithPayment.length }})
+            </ng-template>
+
+            <div class="tab-content">
+                <div class="modern-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Numéro</th>
+                                <th>Client</th>
+                                <th>Date</th>
+                                <th>Total TTC</th>
+                                <th>Montant Payé</th>
+                                <th>Reste à Payer</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <ng-container *ngFor="let group of groupedWithPayment">
+                                <ng-container *ngIf="isGroupVisible(group)">
+                                    <!-- Month Header -->
+                                    <tr class="bg-light">
+                                        <td colspan="7"
+                                            class="py-2 px-3 font-semibold text-gray-700 bg-gray-50 border-b">
+                                            <div class="flex items-center">
+                                                <mat-icon class="mr-2 text-sm text-gray-500">calendar_today</mat-icon>
+                                                {{ group.month }}
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Invoices -->
+                                    <tr *ngFor="let invoice of group.invoices">
+                                        <td>{{ invoice.numero }}</td>
+                                        <td>{{ getClientName(invoice) }}</td>
+                                        <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
+                                        <td>{{ invoice.totalTTC | number:'1.2-2' }} DH</td>
+                                        <td class="text-success">{{ getMontantPaye(invoice) | number:'1.2-2' }} DH</td>
+                                        <td>{{ invoice.resteAPayer | number:'1.2-2' }} DH</td>
+                                        <td>
+                                            <button mat-flat-button color="primary" (click)="validateInvoice(invoice)">
+                                                <mat-icon>check_circle</mat-icon>
+                                                Valider
+                                            </button>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Subtotal -->
+                                    <tr class="bg-gray-50 font-bold border-t-2">
+                                        <td colspan="3" class="text-right pr-4">Sous-total {{ group.month }}:</td>
+                                        <td>{{ group.totalTTC | number:'1.2-2' }} DH</td>
+                                        <td class="text-success">{{ group.totalPaid | number:'1.2-2' }} DH</td>
+                                        <td class="text-danger">{{ group.totalReste | number:'1.2-2' }} DH</td>
+                                        <td></td>
+                                    </tr>
+                                </ng-container>
+                            </ng-container>
+
+                            <tr *ngIf="groupedWithPayment.length === 0">
+                                <td colspan="7">
+                                    <div class="empty-state">
+                                        <mat-icon>check_circle</mat-icon>
+                                        <h3>Tout est en ordre</h3>
+                                        <p>Aucune facture BROUILLON avec paiement en attente.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </mat-tab>
+
+        <!-- Tab 2: Invoices without payments -->
+        <mat-tab>
+            <ng-template mat-tab-label>
+                <mat-icon class="mr-2">inventory_2</mat-icon>
+                Sans Paiement ({{ invoicesWithoutPayment.length }})
+            </ng-template>
+
+            <div class="tab-content">
+                <div class="modern-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Numéro</th>
+                                <th>Client</th>
+                                <th>Date</th>
+                                <th>Total TTC</th>
+                                <th>Reste à Payer</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <ng-container *ngFor="let group of groupedWithoutPayment">
+                                <ng-container *ngIf="isGroupVisible(group)">
+                                    <!-- Month Header -->
+                                    <tr class="bg-light">
+                                        <td colspan="6"
+                                            class="py-2 px-3 font-semibold text-gray-700 bg-gray-50 border-b">
+                                            <div class="flex items-center">
+                                                <mat-icon class="mr-2 text-sm text-gray-500">calendar_today</mat-icon>
+                                                {{ group.month }}
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Invoices -->
+                                    <tr *ngFor="let invoice of group.invoices">
+                                        <td>{{ invoice.numero }}</td>
+                                        <td>{{ getClientName(invoice) }}</td>
+                                        <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
+                                        <td>{{ invoice.totalTTC | number:'1.2-2' }} DH</td>
+                                        <td class="font-weight-bold text-danger">{{ invoice.resteAPayer | number:'1.2-2'
+                                            }}
+                                            DH
+                                        </td>
+                                        <td>
+                                            <!-- Offert Badge for Drafts -->
+                                            <span class="badge badge-info mr-2"
+                                                *ngIf="invoice.totalTTC === 0">OFFERT</span>
+
+                                            <button mat-stroked-button color="primary"
+                                                (click)="validateInvoice(invoice)" class="mr-2"
+                                                *ngIf="invoice.totalTTC > 0">
+                                                <mat-icon>check_circle</mat-icon>
+                                                Valider
+                                            </button>
+                                            <button mat-button color="accent" (click)="declareAsGift(invoice)"
+                                                *ngIf="invoice.totalTTC > 0">
+                                                <mat-icon>card_giftcard</mat-icon>
+                                                Don / Offert
+                                            </button>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Subtotal -->
+                                    <tr class="bg-gray-50 font-bold border-t-2">
+                                        <td colspan="3" class="text-right pr-4">Sous-total {{ group.month }}:</td>
+                                        <td>{{ group.totalTTC | number:'1.2-2' }} DH</td>
+                                        <td class="text-danger">{{ group.totalReste | number:'1.2-2' }} DH</td>
+                                        <td></td>
+                                    </tr>
+                                </ng-container>
+                            </ng-container>
+
+                            <tr *ngIf="groupedWithoutPayment.length === 0">
+                                <td colspan="6">
+                                    <div class="empty-state">
+                                        <mat-icon>check_circle</mat-icon>
+                                        <h3>Tout est en ordre</h3>
+                                        <p>Aucune facture BROUILLON sans paiement.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </mat-tab>
+
+        <!-- Tab 3: Valid Invoices -->
+        <mat-tab>
+            <ng-template mat-tab-label>
+                <mat-icon class="mr-2">verified</mat-icon>
+                Factures Validées ({{ invoicesValid.length }})
+            </ng-template>
+
+            <div class="tab-content">
+                <div class="modern-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Numéro</th>
+                                <th>Client</th>
+                                <th>Date</th>
+                                <th>Total TTC</th>
+                                <th>Reste à Payer</th>
+                                <th>Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <ng-container *ngFor="let group of groupedValid">
+                                <ng-container *ngIf="isGroupVisible(group)">
+                                    <!-- Month Header -->
+                                    <tr class="bg-light">
+                                        <td colspan="6"
+                                            class="py-2 px-3 font-semibold text-gray-700 bg-gray-50 border-b">
+                                            <div class="flex items-center">
+                                                <mat-icon class="mr-2 text-sm text-gray-500">calendar_today</mat-icon>
+                                                {{ group.month }}
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Invoices -->
+                                    <tr *ngFor="let invoice of group.invoices">
+                                        <td>{{ invoice.numero }}</td>
+                                        <td>{{ getClientName(invoice) }}</td>
+                                        <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
+                                        <td>{{ invoice.totalTTC | number:'1.2-2' }} DH</td>
+                                        <td class="font-weight-bold">{{ invoice.resteAPayer | number:'1.2-2' }} DH</td>
+                                        <td>
+                                            <span class="badge" [ngClass]="{
+                                            'badge-success': invoice.statut === 'PAYEE',
+                                            'badge-warning': invoice.statut === 'PARTIEL',
+                                            'badge-info': invoice.statut === 'VALIDE' && !invoice.proprietes?.['typeVente'],
+                                            'badge-primary': invoice.proprietes?.['typeVente'] === 'DON'
+                                        }">{{ invoice.proprietes?.['typeVente'] === 'DON' ? 'OFFERT' : invoice.statut
+                                                }}</span>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Subtotal -->
+                                    <tr class="bg-gray-50 font-bold border-t-2">
+                                        <td colspan="3" class="text-right pr-4">Sous-total {{ group.month }}:</td>
+                                        <td>{{ group.totalTTC | number:'1.2-2' }} DH</td>
+                                        <td>{{ group.totalReste | number:'1.2-2' }} DH</td>
+                                        <td></td>
+                                    </tr>
+                                </ng-container>
+                            </ng-container>
+
+                            <tr *ngIf="groupedValid.length === 0">
+                                <td colspan="6">
+                                    <div class="empty-state">
+                                        <mat-icon>verified</mat-icon>
+                                        <h3>Aucune facture validée</h3>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </mat-tab>
+
+        <!-- Tab 4: Avoirs -->
+        <mat-tab>
+            <ng-template mat-tab-label>
+                <mat-icon class="mr-2">assignment_return</mat-icon>
+                Avoirs ({{ invoicesAvoir.length }})
+            </ng-template>
+
+            <div class="tab-content">
+                <div class="modern-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Numéro</th>
+                                <th>Client</th>
+                                <th>Date</th>
+                                <th>Total TTC</th>
+                                <th>Reste à Payer</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <ng-container *ngFor="let group of groupedAvoir">
+                                <ng-container *ngIf="isGroupVisible(group)">
+                                    <!-- Month Header -->
+                                    <tr class="bg-light">
+                                        <td colspan="6"
+                                            class="py-2 px-3 font-semibold text-gray-700 bg-gray-50 border-b">
+                                            <div class="flex items-center">
+                                                <mat-icon class="mr-2 text-sm text-gray-500">calendar_today</mat-icon>
+                                                {{ group.month }}
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Invoices -->
+                                    <tr *ngFor="let invoice of group.invoices">
+                                        <td>{{ invoice.numero }}</td>
+                                        <td>{{ getClientName(invoice) }}</td>
+                                        <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
+                                        <td>{{ invoice.totalTTC | number:'1.2-2' }} DH</td>
+                                        <td class="font-weight-bold">{{ invoice.resteAPayer | number:'1.2-2' }} DH</td>
+                                        <td>
+                                            <span class="badge badge-danger"
+                                                *ngIf="invoice.type === 'AVOIR'">AVOIR</span>
+                                            <span class="badge badge-secondary"
+                                                *ngIf="invoice.statut === 'ANNULEE'">ANNULÉE</span>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Subtotal -->
+                                    <tr class="bg-gray-50 font-bold border-t-2">
+                                        <td colspan="3" class="text-right pr-4">Sous-total {{ group.month }}:</td>
+                                        <td>{{ group.totalTTC | number:'1.2-2' }} DH</td>
+                                        <td>{{ group.totalReste | number:'1.2-2' }} DH</td>
+                                        <td></td>
+                                    </tr>
+                                </ng-container>
+                            </ng-container>
+
+                            <tr *ngIf="groupedAvoir.length === 0">
+                                <td colspan="6">
+                                    <div class="empty-state">
+                                        <mat-icon>assignment_return</mat-icon>
+                                        <h3>Aucun avoir</h3>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+
+                    </table>
+                </div>
+            </div>
+        </mat-tab>
+
+        <!-- Tab 3: Statistics -->
+        <mat-tab>
+            <ng-template mat-tab-label>
+                <mat-icon class="mr-2">bar_chart</mat-icon>
+                Statistiques
+            </ng-template>
+
+            <div class="tab-content">
+                <div class="modern-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Vendeur</th>
+                                <th>Brouillon (Av. Pmt)</th>
+                                <th>Brouillon (Ss. Pmt)</th>
+                                <th>Factures Validées</th>
+                                <th>Avoirs</th>
+                                <th>Chiffre d'Affaires Validé</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let stat of statistics">
+                                <td>
+                                    <div class="flex items-center">
+                                        <mat-icon class="text-gray-400 mr-2">person</mat-icon>
+                                        {{ stat.vendorName }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge badge-warning" *ngIf="stat.countWithPayment > 0">
+                                        {{ stat.countWithPayment }} factures
+                                    </span>
+                                    <span class="text-gray-400" *ngIf="stat.countWithPayment === 0">-</span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-info" *ngIf="stat.countWithoutPayment > 0">
+                                        {{ stat.countWithoutPayment }} factures
+                                    </span>
+                                    <span class="text-gray-400" *ngIf="stat.countWithoutPayment === 0">-</span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-success" *ngIf="stat.countValid && stat.countValid > 0">
+                                        {{ stat.countValid }} factures
+                                    </span>
+                                    <span class="text-gray-400"
+                                        *ngIf="!stat.countValid || stat.countValid === 0">-</span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-danger" *ngIf="stat.countAvoir && stat.countAvoir > 0">
+                                        {{ stat.countAvoir }} avoirs
+                                    </span>
+                                    <span class="text-gray-400"
+                                        *ngIf="!stat.countAvoir || stat.countAvoir === 0">-</span>
+                                </td>
+                                <td class="text-bold">{{ stat.totalAmount | number:'1.2-2' }} DH</td>
+                            </tr>
+                            <tr *ngIf="statistics.length === 0">
+                                <td colspan="6">
+                                    <div class="empty-state">
+                                        <mat-icon>bar_chart</mat-icon>
+                                        <h3>Aucune donnée</h3>
+                                        <p>Pas de statistiques disponibles.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </mat-tab>
+    </mat-tab-group>
+</div>

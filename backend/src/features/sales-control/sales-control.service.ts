@@ -12,7 +12,7 @@ export class SalesControlService {
     // Get BROUILLON invoices with payments
     async getBrouillonWithPayments(userId?: string) {
         const where: any = {
-            statut: 'BROUILLON',
+            numero: { startsWith: 'BRO' },
             paiements: {
                 some: {}
             }
@@ -40,10 +40,64 @@ export class SalesControlService {
         });
     }
 
+    // Get VALID invoices (Valid, Payee, Partiel)
+    async getValidInvoices(userId?: string) {
+        const where: any = {
+            numero: { startsWith: 'FAC' }
+            // Removed strict type check to ensure any FAC numbered invoice appears
+        };
+
+        return this.prisma.facture.findMany({
+            where,
+            include: {
+                client: {
+                    select: {
+                        nom: true,
+                        prenom: true,
+                        raisonSociale: true
+                    }
+                },
+                paiements: true,
+                fiche: true
+            },
+            orderBy: {
+                numero: 'desc'
+            }
+        });
+    }
+
+    // Get AVOIRS and CANCELLED Drafts
+    async getAvoirs(userId?: string) {
+        const where: any = {
+            OR: [
+                { type: 'AVOIR' },
+                { statut: 'ANNULEE' }
+            ]
+        };
+
+        return this.prisma.facture.findMany({
+            where,
+            include: {
+                client: {
+                    select: {
+                        nom: true,
+                        prenom: true,
+                        raisonSociale: true
+                    }
+                },
+                paiements: true
+            },
+            orderBy: {
+                numero: 'desc'
+            }
+        });
+    }
+
     // Get BROUILLON invoices without payments
     async getBrouillonWithoutPayments(userId?: string) {
         const where: any = {
-            statut: 'BROUILLON',
+            numero: { startsWith: 'BRO' },
+            statut: { not: 'ANNULEE' },
             paiements: {
                 none: {}
             }
@@ -71,7 +125,12 @@ export class SalesControlService {
     async getStatisticsByVendor() {
         const factures = await this.prisma.facture.findMany({
             where: {
-                statut: 'BROUILLON'
+                // Fetch all relevant types/statuses for stats
+                OR: [
+                    { numero: { startsWith: 'BRO' } },
+                    { numero: { startsWith: 'FAC' } },
+                    { type: 'AVOIR' }
+                ]
             },
             include: {
                 paiements: true,
@@ -79,16 +138,31 @@ export class SalesControlService {
             }
         });
 
+        console.log('📊 Statistics Query Result:', factures.length, 'factures found');
+        console.log('📊 Status Distribution:', factures.map(f => `${f.numero}:${f.statut}:${f.type}`));
+
         // Simple statistics for now
-        const withPayment = factures.filter(f => f.paiements && f.paiements.length > 0);
-        const withoutPayment = factures.filter(f => !f.paiements || f.paiements.length === 0);
-        
+        const withPayment = factures.filter(f => f.numero.startsWith('BRO') && f.paiements && f.paiements.length > 0);
+        const withoutPayment = factures.filter(f => f.numero.startsWith('BRO') && (!f.paiements || f.paiements.length === 0) && f.statut !== 'ANNULEE');
+
+        // Valid Invoices: Must have FAC prefix
+        const validInvoices = factures.filter(f => f.numero.startsWith('FAC') && f.type === 'FACTURE');
+
+        // Avoirs
+        const avoirs = factures.filter(f => f.type === 'AVOIR');
+
+        // Cancelled Drafts (Traceability)
+        const cancelledDrafts = factures.filter(f => f.statut === 'ANNULEE' && f.numero.startsWith('BRO'));
+
         return [{
             vendorId: 'all',
             vendorName: 'Tous les vendeurs',
             countWithPayment: withPayment.length,
             countWithoutPayment: withoutPayment.length,
-            totalAmount: factures.reduce((sum, f) => sum + f.totalTTC, 0)
+            countValid: validInvoices.length,
+            countAvoir: avoirs.length,
+            countCancelled: cancelledDrafts.length, // Unmapped in UI yet, but useful for debug
+            totalAmount: validInvoices.reduce((sum, f) => sum + f.totalTTC, 0) // Only sum VALID invoices revenue
         }];
     }
 

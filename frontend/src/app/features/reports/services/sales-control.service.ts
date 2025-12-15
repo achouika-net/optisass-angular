@@ -15,6 +15,12 @@ export interface BrouillonInvoice {
         raisonSociale?: string;
     };
     paiements?: any[];
+    statut?: string; // e.g. BROUILLON, VALIDE, PAYEE, PARTIEL
+    type?: string; // FACTURE, AVOIR, DEVIS
+    proprietes?: {
+        typeVente?: string;
+        [key: string]: any;
+    };
 }
 
 export interface VendorStatistics {
@@ -23,6 +29,8 @@ export interface VendorStatistics {
     countWithPayment: number;
     countWithoutPayment: number;
     totalAmount: number;
+    countValid?: number;
+    countAvoir?: number;
 }
 
 @Injectable({
@@ -41,6 +49,16 @@ export class SalesControlService {
     getBrouillonWithoutPayments(userId?: string): Observable<BrouillonInvoice[]> {
         const params = userId ? { userId } : {};
         return this.http.get<BrouillonInvoice[]>(`${this.apiUrl}/brouillon-without-payments`, { params });
+    }
+
+    getValidInvoices(userId?: string): Observable<BrouillonInvoice[]> {
+        const params = userId ? { userId } : {};
+        return this.http.get<BrouillonInvoice[]>(`${this.apiUrl}/valid-invoices`, { params });
+    }
+
+    getAvoirs(userId?: string): Observable<BrouillonInvoice[]> {
+        const params = userId ? { userId } : {};
+        return this.http.get<BrouillonInvoice[]>(`${this.apiUrl}/avoirs`, { params });
     }
 
     getStatistics(): Observable<VendorStatistics[]> {

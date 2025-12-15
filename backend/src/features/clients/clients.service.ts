@@ -47,42 +47,83 @@ export class ClientsService {
     }
 
     async remove(id: string) {
-        // 1. Check for Invoices (Blocker)
-        const invoiceCount = await this.prisma.facture.count({
-            where: { clientId: id }
-        });
+        // 1. Check for **VALID** Invoices (FISCAL INTEGRITY - First Test)
+        // User rule: "le premier test sera pour facture valide"
 
-        if (invoiceCount > 0) {
-            throw new Error('Action refusée: Ce client possède des factures (Actives ou Archivées). Suppression impossible pour préserver la comptabilité.');
-        }
-
-        // 2. Check for blocking fiches (Finalized states or even Active ones)
-        // User said: "dossier ouverte avec des fiche medicales ... impacte chiffre d affaire"
-        // Safest is to block if ANY fiche exists, or at least important ones.
-        // Existing logic blocked 'FACTURE', 'LIVRE', 'COMMANDE'.
-        // If we want to be safe, we might block all. But let's stick to "Important" ones or just Delete Valid ones?
-        // Actually, if no invoices exist, Fiches are just "potential" orders. 
-        // But if `statut` is VALIDE, it might be relevant history.
-        // Let's keep existing check but maybe broaden it or clarify message.
-        // If we delete client, we cascade delete fiches (see transaction below).
-        // So strict safety = Block if key statuses.
-        const blockingCount = await this.prisma.fiche.count({
+        const clientValidInvoices = await this.prisma.facture.findMany({
             where: {
                 clientId: id,
-                statut: { in: ['FACTURE', 'LIVRE', 'COMMANDE', 'EN_COURS', 'VALIDE'] }
+                statut: { in: ['VALIDE', 'PAYEE', 'PARTIEL'] } // Official statuses
+            },
+            orderBy: { numero: 'desc' }
+        });
+
+        if (clientValidInvoices.length > 0) {
+            // Client has valid invoices. We must verify they are the LAST ones globally.
+            // "stricetement interdit de suprimer touts le process meme les paiments" if not last.
+
+            const globalLastValidInvoices = await this.prisma.facture.findMany({
+                where: {
+                    statut: { in: ['VALIDE', 'PAYEE', 'PARTIEL'] }
+                },
+                orderBy: { numero: 'desc' },
+                take: clientValidInvoices.length
+            });
+
+            const clientIds = clientValidInvoices.map(f => f.id).sort();
+            const globalIds = globalLastValidInvoices.map(f => f.id).sort();
+
+            const isSafeToDelete = clientIds.length === globalIds.length &&
+                clientIds.every((val, index) => val === globalIds[index]);
+
+            if (!isSafeToDelete) {
+                const globalLast = globalLastValidInvoices[0];
+                throw new Error(`Supression impossible: La continuité fiscale n'est pas respectée. Une facture plus récente existe (${globalLast?.numero}). Action strictement interdite.`);
+            }
+        }
+
+        // 2. Check for **OPEN** Fiches (OPERATIONAL SAFETY)
+        // User rule: "on doit pas supprimer un dossier client qui a une fiche ouverte"
+        const openFichesCount = await this.prisma.fiche.count({
+            where: {
+                clientId: id,
+                statut: 'EN_COURS'
             }
         });
 
-        if (blockingCount > 0) {
-            throw new Error('Action refusée: Ce client a des dossiers en cours ou validés. Veuillez les archiver ou annuler avant suppression.');
+        if (openFichesCount > 0) {
+            throw new Error('Supression impossible: Ce client a des fiches en cours. Veuillez les annuler d\'abord.');
         }
 
-        // 3. Delete Safe Fiches & Client in Transaction
-        const [_, deletedClient] = await this.prisma.$transaction([
-            this.prisma.fiche.deleteMany({ where: { clientId: id } }),
-            this.prisma.client.delete({ where: { id } })
-        ]);
+        // 3. SAFE EXECUTION: Cascade Delete
+        // Order: Paiements -> Factures -> Fiches -> Client
+        return this.prisma.$transaction(async (tx) => {
 
-        return deletedClient;
+            // Delete payments linked to client invoices
+            // (Actually Prisma generic cascade on Facture deletion handles this usually, but explicit is cleaner if relationships vary)
+            // We'll rely on Prisma schema cascades if configured, but let's be thorough.
+            // Actually, we can just delete Invoices and Fiches. 
+            // Fiche -> Facture relation is 1-1 or 1-N.
+            // Client -> Fiche (Cascade)
+            // Client -> Facture (Restrict usually?)
+
+            // Let's delete invoices manually first
+            const invoices = await tx.facture.findMany({ where: { clientId: id } });
+            const invoiceIds = invoices.map(i => i.id);
+
+            // Delete payments
+            if (invoiceIds.length > 0) {
+                await tx.paiement.deleteMany({ where: { factureId: { in: invoiceIds } } });
+            }
+
+            // Delete invoices
+            await tx.facture.deleteMany({ where: { clientId: id } });
+
+            // Delete fiches
+            await tx.fiche.deleteMany({ where: { clientId: id } });
+
+            // Delete client
+            return tx.client.delete({ where: { id } });
+        });
     }
 }

@@ -79,6 +79,13 @@ export const MENU: MenuItem[] = [
     roles: [4, 3, 2],
   },
   {
+    label: 'Contrôle des Ventes',
+    icon: 'policy',
+    type: 'link',
+    route: 'reports/sales-control',
+    // roles: [4, 3], // Admin & Manager
+  },
+  {
     label: 'Agendas',
     icon: 'event_note',
     type: 'link',

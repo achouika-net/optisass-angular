@@ -15,6 +15,16 @@ export class SalesControlController {
         return this.salesControlService.getBrouillonWithoutPayments(userId);
     }
 
+    @Get('valid-invoices')
+    async getValidInvoices(@Query('userId') userId?: string) {
+        return this.salesControlService.getValidInvoices(userId);
+    }
+
+    @Get('avoirs')
+    async getAvoirs(@Query('userId') userId?: string) {
+        return this.salesControlService.getAvoirs(userId);
+    }
+
     @Get('statistics')
     async getStatistics() {
         return this.salesControlService.getStatisticsByVendor();

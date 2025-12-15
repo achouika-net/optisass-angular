@@ -162,6 +162,23 @@
     .footer-left {
         flex: 1;
 
+        .nomenclature-section {
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: 8px;
+            color: #334155;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 20px;
+            font-size: 14px;
+            white-space: pre-wrap; // Preserve newlines
+
+            strong {
+                color: #1e293b;
+                display: block;
+                margin-bottom: 8px;
+            }
+        }
+
         .montant-lettres {
             background: #f1f5f9;
             padding: 16px;

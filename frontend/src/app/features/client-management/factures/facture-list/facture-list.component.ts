@@ -72,12 +72,12 @@ export class FactureListComponent implements OnInit {
     loadFactures() {
         if (this.clientId) {
             this.factureService.findAll({ clientId: this.clientId }).subscribe({
-                next: (data: any[]) => this.dataSource = data,
+                next: (data: any[]) => this.dataSource = data.filter(f => f.type !== 'AVOIR'), // User req: Hide AVOIRs
                 error: (err: any) => console.error('Error loading factures', err)
             });
         } else {
             this.factureService.findAll().subscribe({
-                next: (data: any[]) => this.dataSource = data,
+                next: (data: any[]) => this.dataSource = data.filter(f => f.type !== 'AVOIR'),
                 error: (err: any) => console.error('Error loading factures', err)
             });
         }
