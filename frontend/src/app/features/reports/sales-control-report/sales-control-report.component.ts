@@ -9,9 +9,13 @@ import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { SalesControlService, BrouillonInvoice, VendorStatistics } from '../services/sales-control.service';
 import { RouterModule } from '@angular/router';
+
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatInputModule } from '@angular/material/input';
 
 interface MonthlyGroup {
     month: string; // MM/YYYY
@@ -37,7 +41,10 @@ interface MonthlyGroup {
         MatSnackBarModule,
         MatSelectModule,
         MatFormFieldModule,
-        FormsModule
+        FormsModule,
+        MatDatepickerModule,
+        MatNativeDateModule,
+        MatInputModule
     ],
     templateUrl: './sales-control-report.component.html',
     styleUrls: ['./sales-control-report.component.scss']
@@ -58,8 +65,18 @@ export class SalesControlReportComponent implements OnInit {
     statistics: VendorStatistics[] = [];
 
     // Filter State
-    selectedPeriod: string = 'ALL';
+    filterType: 'DAILY' | 'MONTHLY' | 'SEMESTER' | 'YEARLY' | 'CUSTOM' | 'ALL' = 'MONTHLY';
+
+    // Selections
+    selectedDate: Date = new Date();
+    selectedMonth: string = ''; // 'MM/YYYY'
+    selectedYear: number = new Date().getFullYear();
+    selectedSemester: number = 1;
+    customStartDate: Date | null = null;
+    customEndDate: Date | null = null;
+
     availablePeriods: string[] = [];
+    availableYears: number[] = [];
 
     // Summary Metrics
     metrics = {
@@ -185,16 +202,32 @@ export class SalesControlReportComponent implements OnInit {
 
     updateAvailablePeriods() {
         const periods = new Set<string>();
+        const years = new Set<number>();
 
         [...this.groupedWithPayment, ...this.groupedWithoutPayment, ...this.groupedValid, ...this.groupedAvoir]
-            .forEach(g => periods.add(g.month));
+            .forEach(g => {
+                periods.add(g.month);
+                const [m, y] = g.month.split('/').map(Number);
+                years.add(y);
+            });
 
-        // Convert to array and sort (descending by year/month)
+        // Periods
         this.availablePeriods = Array.from(periods).sort((a, b) => {
             const [m1, y1] = a.split('/').map(Number);
             const [m2, y2] = b.split('/').map(Number);
             return (y2 * 100 + m2) - (y1 * 100 + m1);
         });
+
+        // Years
+        this.availableYears = Array.from(years).sort((a, b) => b - a);
+
+        // Set default month/year if available
+        if (this.availablePeriods.length > 0 && !this.selectedMonth) {
+            this.selectedMonth = this.availablePeriods[0];
+        }
+        if (this.availableYears.length > 0) {
+            this.selectedYear = this.availableYears[0];
+        }
     }
 
     calculateMetrics() {
@@ -204,27 +237,59 @@ export class SalesControlReportComponent implements OnInit {
             totalReste: 0
         };
 
-        const sumGroups = (groups: MonthlyGroup[]) => {
+        const sumInvoices = (groups: MonthlyGroup[]) => {
             groups.forEach(g => {
-                if (this.selectedPeriod === 'ALL' || g.month === this.selectedPeriod) {
-                    this.metrics.totalCA += g.totalTTC;
-                    this.metrics.totalPaid += g.totalPaid;
-                    this.metrics.totalReste += g.totalReste;
-                }
+                g.invoices.forEach(inv => {
+                    if (this.isInvoiceVisible(inv)) {
+                        this.metrics.totalCA += inv.totalTTC;
+                        const paid = inv.paiements ? inv.paiements.reduce((sum, p) => sum + p.montant, 0) : 0;
+                        this.metrics.totalPaid += paid;
+                        this.metrics.totalReste += (inv.resteAPayer || 0);
+                    }
+                });
             });
         };
 
-        sumGroups(this.groupedWithPayment);
-        sumGroups(this.groupedWithoutPayment);
-        sumGroups(this.groupedValid);
+        sumInvoices(this.groupedWithPayment);
+        sumInvoices(this.groupedWithoutPayment);
+        sumInvoices(this.groupedValid);
     }
 
-    onPeriodChange() {
+    onFilterChange() {
         this.calculateMetrics();
     }
 
+    isInvoiceVisible(invoice: BrouillonInvoice): boolean {
+        const date = new Date(invoice.dateEmission);
+
+        switch (this.filterType) {
+            case 'ALL':
+                return true;
+            case 'DAILY':
+                return date.toDateString() === this.selectedDate.toDateString();
+            case 'MONTHLY':
+                if (!this.selectedMonth) return true;
+                const [m, y] = this.selectedMonth.split('/').map(Number);
+                return date.getMonth() + 1 === m && date.getFullYear() === y;
+            case 'YEARLY':
+                return date.getFullYear() === this.selectedYear;
+            case 'SEMESTER':
+                const month = date.getMonth() + 1;
+                if (date.getFullYear() !== this.selectedYear) return false;
+                if (this.selectedSemester === 1) return month >= 1 && month <= 6;
+                else return month >= 7 && month <= 12;
+            case 'CUSTOM':
+                if (!this.customStartDate || !this.customEndDate) return true;
+                const start = new Date(this.customStartDate); start.setHours(0, 0, 0, 0);
+                const end = new Date(this.customEndDate); end.setHours(23, 59, 59, 999);
+                return date >= start && date <= end;
+            default:
+                return true;
+        }
+    }
+
     isGroupVisible(group: MonthlyGroup): boolean {
-        return this.selectedPeriod === 'ALL' || group.month === this.selectedPeriod;
+        return group.invoices.some(inv => this.isInvoiceVisible(inv));
     }
 
     getClientName(invoice: BrouillonInvoice): string {

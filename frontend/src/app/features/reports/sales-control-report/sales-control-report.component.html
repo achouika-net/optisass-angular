@@ -5,14 +5,7 @@
             <span class="subtitle">Gestion fiscale des factures BROUILLON</span>
         </h1>
 
-        <!-- Filter Section -->
-        <mat-form-field appearance="outline" class="period-filter" style="margin-top: 1rem;">
-            <mat-label>Période</mat-label>
-            <mat-select [(ngModel)]="selectedPeriod" (selectionChange)="onPeriodChange()">
-                <mat-option value="ALL">Toutes les périodes</mat-option>
-                <mat-option *ngFor="let p of availablePeriods" [value]="p">{{ p }}</mat-option>
-            </mat-select>
-        </mat-form-field>
+
     </div>
 
     <!-- Summary Cards -->
@@ -59,6 +52,84 @@
                 </div>
             </mat-card-content>
         </mat-card>
+    </div>
+
+    <!-- Advanced Filter Section -->
+    <div class="filter-section mb-4"
+        style="width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+        <!-- Filter Type Selector -->
+        <mat-form-field appearance="outline" class="density-compact filter-field" style="width: 100%;">
+            <mat-label>Type de Filtre</mat-label>
+            <mat-select [(ngModel)]="filterType" (selectionChange)="onFilterChange()">
+                <mat-option value="ALL">Tout</mat-option>
+                <mat-option value="DAILY">Journalier</mat-option>
+                <mat-option value="MONTHLY">Mensuel</mat-option>
+                <mat-option value="SEMESTER">Semestriel</mat-option>
+                <mat-option value="YEARLY">Annuel</mat-option>
+                <mat-option value="CUSTOM">Personnalisé</mat-option>
+            </mat-select>
+        </mat-form-field>
+
+        <!-- Daily Filter -->
+        <mat-form-field appearance="outline" class="density-compact filter-field" *ngIf="filterType === 'DAILY'"
+            style="width: 100%;">
+            <mat-label>Date</mat-label>
+            <input matInput [matDatepicker]="dailyPicker" [(ngModel)]="selectedDate" (dateChange)="onFilterChange()">
+            <mat-datepicker-toggle matSuffix [for]="dailyPicker"></mat-datepicker-toggle>
+            <mat-datepicker #dailyPicker></mat-datepicker>
+        </mat-form-field>
+
+        <!-- Monthly Filter -->
+        <mat-form-field appearance="outline" class="density-compact filter-field" *ngIf="filterType === 'MONTHLY'"
+            style="width: 100%;">
+            <mat-label>Mois</mat-label>
+            <mat-select [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()">
+                <mat-option *ngFor="let p of availablePeriods" [value]="p">{{ p }}</mat-option>
+            </mat-select>
+        </mat-form-field>
+
+        <!-- Semester Filter -->
+        <ng-container *ngIf="filterType === 'SEMESTER'">
+            <mat-form-field appearance="outline" class="density-compact filter-field" style="width: 100%;">
+                <mat-label>Année</mat-label>
+                <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()">
+                    <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
+                </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="density-compact filter-field" style="width: 100%;">
+                <mat-label>Semestre</mat-label>
+                <mat-select [(ngModel)]="selectedSemester" (selectionChange)="onFilterChange()">
+                    <mat-option [value]="1">Semestre 1 (Jan-Juin)</mat-option>
+                    <mat-option [value]="2">Semestre 2 (Juil-Déc)</mat-option>
+                </mat-select>
+            </mat-form-field>
+        </ng-container>
+
+        <!-- Yearly Filter -->
+        <mat-form-field appearance="outline" class="density-compact filter-field" *ngIf="filterType === 'YEARLY'"
+            style="width: 100%;">
+            <mat-label>Année</mat-label>
+            <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()">
+                <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
+            </mat-select>
+        </mat-form-field>
+
+        <!-- Custom Range Filter -->
+        <ng-container *ngIf="filterType === 'CUSTOM'">
+            <mat-form-field appearance="outline" class="density-compact filter-field" style="width: 100%;">
+                <mat-label>Date Début</mat-label>
+                <input matInput [matDatepicker]="startPicker" [(ngModel)]="customStartDate"
+                    (dateChange)="onFilterChange()">
+                <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
+                <mat-datepicker #startPicker></mat-datepicker>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="density-compact filter-field" style="width: 100%;">
+                <mat-label>Date Fin</mat-label>
+                <input matInput [matDatepicker]="endPicker" [(ngModel)]="customEndDate" (dateChange)="onFilterChange()">
+                <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
+                <mat-datepicker #endPicker></mat-datepicker>
+            </mat-form-field>
+        </ng-container>
     </div>
 
     <mat-tab-group animationDuration="0ms">
