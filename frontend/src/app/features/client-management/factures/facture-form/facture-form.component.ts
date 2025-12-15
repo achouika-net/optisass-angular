@@ -110,6 +110,13 @@ export class FactureFormComponent implements OnInit {
         if (changes['isReadonly']) {
             this.updateViewMode();
         }
+        if (changes['factureId'] && this.factureId && this.factureId !== this.id) {
+            // Reload if input ID changes
+            this.id = this.factureId;
+            if (this.id !== 'new') {
+                this.loadFacture(this.id);
+            }
+        }
         if (changes['nomenclature'] && this.nomenclature && this.embedded) {
             this.form.get('proprietes')?.patchValue({ nomenclature: this.nomenclature });
         }
@@ -297,8 +304,8 @@ export class FactureFormComponent implements OnInit {
                 this.calculatePaymentTotals();
                 this.updateStatutFromPayments();
 
-                // Don't change form state here - let updateViewMode handle it
-                // The form state is already set correctly in updateViewMode based on embedded/route params
+                // Explicitly update view mode to ensure new lines are disabled if needed
+                this.updateViewMode();
             },
             error: (err) => {
                 console.error(err);
@@ -354,6 +361,17 @@ export class FactureFormComponent implements OnInit {
         return request.pipe(
             map(facture => {
                 this.id = facture.id; // Update internal ID to prevent duplicates
+
+                // IMPORTANT: Update form with returned data (Official Number, New Status, etc.)
+                // This handles the Draft -> Valid ID swap seamlessly
+                if (facture.numero !== this.form.get('numero')?.value) {
+                    this.form.patchValue({
+                        numero: facture.numero,
+                        statut: facture.statut,
+                        // Update other fields if backend normalized them
+                    }, { emitEvent: false });
+                }
+
                 if (showNotification) {
                     this.snackBar.open('Document enregistré avec succès', 'Fermer', { duration: 3000 });
                 }
@@ -363,8 +381,8 @@ export class FactureFormComponent implements OnInit {
                     // logic adjusted below
                 }
                 // Navigation logic for standalone mode
-                if (!this.embedded && this.route.snapshot.paramMap.get('id') === 'new') {
-                    this.router.navigate(['/p/clients/factures', facture.id], { replaceUrl: true });
+                if (!this.embedded && this.id !== this.route.snapshot.paramMap.get('id')) {
+                    this.router.navigate(['/p/clients/factures', this.id], { replaceUrl: true });
                 }
                 return facture;
             }),

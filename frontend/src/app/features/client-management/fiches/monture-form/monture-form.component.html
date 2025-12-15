@@ -310,7 +310,7 @@
             </div>
 
             <!-- 2. Add Button Only -->
-            <div class="flex justify-end mb-6">
+            <div class="flex justify-end mb-6" *ngIf="isEditMode">
                 <button type="button" class="btn-icon-primary" (click)="addEquipment()">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
@@ -447,7 +447,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <button type="button" class="btn-apply"
+                                    <button type="button" class="btn-apply" *ngIf="isEditMode"
                                         (click)="applySuggestion(suggestion)">Appliquer</button>
                                 </div>
                                 <button type="button" class="btn-close-suggestions"
@@ -650,7 +650,7 @@
                                         <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
                                     </svg>
                                 </button>
-                                <button type="button"
+                                <button type="button" *ngIf="isEditMode"
                                     class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"
                                     (click)="removeEquipment(i)">
                                     Supprimer
@@ -670,7 +670,7 @@
                                             <input type="text" formControlName="reference"
                                                 placeholder="Scanner ou saisir">
                                             <button type="button" class="btn-scan" (click)="scanBarcode('reference', i)"
-                                                aria-label="Scanner le code-barres">Scan</button>
+                                                *ngIf="isEditMode" aria-label="Scanner le code-barres">Scan</button>
                                         </div>
                                     </div>
                                     <div class="form-group"><label>Marque</label><input type="text"
@@ -706,6 +706,7 @@
                                     <h4>Verres correcteurs</h4>
                                     <div class="section-actions">
                                         <button type="button" class="btn-suggestion" (click)="checkSuggestion(i)"
+                                            *ngIf="isEditMode"
                                             aria-label="Obtenir une suggestion IA">Suggestion</button>
                                         <label class="checkbox-label"><input type="checkbox"
                                                 formControlName="differentODOG"><span>Différents
@@ -720,7 +721,7 @@
                                             <strong>[{{ suggestion.type }}] {{ suggestion.matiere }}</strong>
                                             <p>{{ suggestion.raison }}</p>
                                         </div>
-                                        <button type="button" class="btn-apply"
+                                        <button type="button" class="btn-apply" *ngIf="isEditMode"
                                             (click)="applySuggestion(suggestion, getEquipmentGroup(i))">Appliquer</button>
                                     </div>
                                     <button type="button" class="btn-close-suggestions"
