@@ -62,6 +62,12 @@
                 <span class="label">PD Droit:</span>
                 <span class="value">{{ latestMeasurement.pdRightMm.toFixed(1) }} mm</span>
             </div>
+            @if (latestMeasurement.frameHeightMm) {
+            <div class="measurement-item" style="border-top: 2px solid #f1f5f9; margin-top: 5px; padding-top: 10px;">
+                <span class="label" style="color: #FF0000; font-weight: bold;">Hauteur Verre:</span>
+                <span class="value" style="color: #FF0000;">{{ latestMeasurement.frameHeightMm.toFixed(1) }} mm</span>
+            </div>
+            }
             } @else {
             <p class="no-data">Aucune mesure disponible</p>
             }

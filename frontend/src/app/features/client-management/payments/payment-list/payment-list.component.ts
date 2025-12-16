@@ -224,7 +224,8 @@ export class PaymentListComponent implements OnInit {
     loadPayments() {
         if (!this.clientId) return;
 
-        this.factureService.findAll({ clientId: this.clientId, type: 'FACTURE' }).subscribe(factures => {
+        // Fetch ALL types (Facture + Devis) to show full payment history
+        this.factureService.findAll({ clientId: this.clientId }).subscribe(factures => {
             // Filter factures by ficheId if provided
             const filteredFactures = this.ficheId
                 ? factures.filter(f => f.ficheId === this.ficheId)
@@ -262,10 +263,10 @@ export class PaymentListComponent implements OnInit {
         dialogRef.afterClosed().subscribe((facture: Facture) => {
             if (facture) {
                 // Check if invoice is already paid
-                if (facture.statut === 'PAYEE') {
-                    this.snackBar.open('Cette facture est déjà payée.', 'OK', { duration: 3000 });
-                    return;
-                }
+                // if (facture.statut === 'PAYEE') {
+                //     this.snackBar.open('Cette facture est déjà payée.', 'OK', { duration: 3000 });
+                //     return;
+                // }
 
                 // 2. Open Payment Dialog
                 this.openPaymentForm(facture);

@@ -12,6 +12,7 @@ export interface SimpleMeasureResult {
     hpRight: number;
     shiftLeft: number; // mm (pupille -> centre verre)
     shiftRight: number;
+    frameHeightMM?: number; // Hauteur totale du verre (B)
     pxPerMm: number;
     pupils: Pupils;
     frameGeom: FrameGeometry;

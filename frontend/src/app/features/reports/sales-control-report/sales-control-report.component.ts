@@ -61,6 +61,7 @@ export class SalesControlReportComponent implements OnInit {
     groupedWithoutPayment: MonthlyGroup[] = [];
     groupedValid: MonthlyGroup[] = [];
     groupedAvoir: MonthlyGroup[] = [];
+    groupedArchived: MonthlyGroup[] = [];
 
     statistics: VendorStatistics[] = [];
 
@@ -155,6 +156,16 @@ export class SalesControlReportComponent implements OnInit {
             error: (err) => console.error('Error loading avoirs:', err)
         });
 
+        // Load archived (hidden from list but used for calculation)
+        this.salesControlService.getArchivedInvoices().subscribe({
+            next: (data) => {
+                this.groupedArchived = this.groupInvoices(data);
+                this.updateAvailablePeriods();
+                this.calculateMetrics();
+            },
+            error: (err) => console.error('Error loading archived:', err)
+        });
+
         // Load statistics
         this.salesControlService.getStatistics().subscribe({
             next: (data) => {
@@ -204,7 +215,7 @@ export class SalesControlReportComponent implements OnInit {
         const periods = new Set<string>();
         const years = new Set<number>();
 
-        [...this.groupedWithPayment, ...this.groupedWithoutPayment, ...this.groupedValid, ...this.groupedAvoir]
+        [...this.groupedWithPayment, ...this.groupedWithoutPayment, ...this.groupedValid, ...this.groupedAvoir, ...this.groupedArchived]
             .forEach(g => {
                 periods.add(g.month);
                 const [m, y] = g.month.split('/').map(Number);
@@ -251,8 +262,10 @@ export class SalesControlReportComponent implements OnInit {
         };
 
         sumInvoices(this.groupedWithPayment);
-        sumInvoices(this.groupedWithoutPayment);
+        // Exclude unpaid devis from Global Revenue as per user request
+        // sumInvoices(this.groupedWithoutPayment);
         sumInvoices(this.groupedValid);
+        // sumInvoices(this.groupedArchived); // Excluded from Global Revenue as per user request (Step 4554)
     }
 
     onFilterChange() {
@@ -307,32 +320,52 @@ export class SalesControlReportComponent implements OnInit {
     }
 
     validateInvoice(invoice: BrouillonInvoice): void {
-        if (confirm(`Valider la facture ${invoice.numero}?\n\nCela créera automatiquement un AVOIR pour la traçabilité fiscale.`)) {
-            this.salesControlService.validateInvoice(invoice.id).subscribe({
-                next: () => {
-                    this.snackBar.open('Facture validée avec succès', 'Fermer', { duration: 3000 });
-                    this.loadData(); // Reload data
-                },
-                error: (err) => {
-                    console.error('Error validating invoice:', err);
-                    this.snackBar.open('Erreur lors de la validation', 'Fermer', { duration: 3000 });
-                }
-            });
-        }
+        this.salesControlService.validateInvoice(invoice.id).subscribe({
+            next: () => {
+                this.snackBar.open('Facture validée avec succès', 'Fermer', { duration: 3000 });
+                this.loadData(); // Reload data
+            },
+            error: (err) => {
+                console.error('Error validating invoice:', err);
+                this.snackBar.open('Erreur lors de la validation', 'Fermer', { duration: 3000 });
+            }
+        });
     }
 
     declareAsGift(invoice: BrouillonInvoice): void {
-        if (confirm(`Déclarer la facture ${invoice.numero} comme don/offert?\n\nLe montant sera mis à 0 DH.`)) {
-            this.salesControlService.declareAsGift(invoice.id).subscribe({
-                next: () => {
-                    this.snackBar.open('Facture déclarée comme don', 'Fermer', { duration: 3000 });
-                    this.loadData(); // Reload data
-                },
-                error: (err) => {
-                    console.error('Error declaring as gift:', err);
-                    this.snackBar.open('Erreur lors de la déclaration', 'Fermer', { duration: 3000 });
-                }
-            });
+        this.salesControlService.declareAsGift(invoice.id).subscribe({
+            next: () => {
+                this.snackBar.open('Facture déclarée comme don', 'Fermer', { duration: 3000 });
+                this.loadData(); // Reload data
+            },
+            error: (err) => {
+                console.error('Error declaring as gift:', err);
+                this.snackBar.open('Erreur lors de la déclaration', 'Fermer', { duration: 3000 });
+            }
+        });
+    }
+
+    canArchive(invoice: BrouillonInvoice): boolean {
+        // 1. Must have at least one payment
+        if (this.getMontantPaye(invoice) <= 0) {
+            return false;
         }
+
+        // 2. TEMPORARY: Allow archiving if paid, regardless of stock source
+        // (User Request: "point on payment explicitly for now")
+        return true;
+    }
+
+    archiveInvoice(invoice: BrouillonInvoice): void {
+        this.salesControlService.archiveInvoice(invoice.id).subscribe({
+            next: () => {
+                this.snackBar.open('Devis archivé avec succès', 'Fermer', { duration: 3000 });
+                this.loadData();
+            },
+            error: (err) => {
+                console.error('Error archiving invoice:', err);
+                this.snackBar.open("Erreur lors de l'archivage", 'Fermer', { duration: 3000 });
+            }
+        });
     }
 }

@@ -120,7 +120,7 @@ export class ClientService {
         typeClient?: TypeClient;
         nom?: string;
         telephone?: string;
-        ville?: string;
+        groupeFamille?: string;
         cin?: string;
     }): Observable<Client[]> {
         return this.getClients().pipe(
@@ -149,9 +149,11 @@ export class ClientService {
                     );
                 }
 
-                if (filters.ville) {
+                if (filters.groupeFamille) {
                     results = results.filter(c =>
-                        c.ville?.toLowerCase().includes(filters.ville!.toLowerCase())
+                        c.typeClient === TypeClient.PARTICULIER &&
+                        'groupeFamille' in c &&
+                        c.groupeFamille?.nomFamille?.toLowerCase().includes(filters.groupeFamille!.toLowerCase())
                     );
                 }
 

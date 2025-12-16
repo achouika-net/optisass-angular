@@ -145,8 +145,10 @@
                     <table>
                         <thead>
                             <tr>
+                                <th>Ref Fiche</th>
                                 <th>Numéro</th>
                                 <th>Client</th>
+                                <th>Vendeur</th>
                                 <th>Date</th>
                                 <th>Total TTC</th>
                                 <th>Montant Payé</th>
@@ -159,7 +161,7 @@
                                 <ng-container *ngIf="isGroupVisible(group)">
                                     <!-- Month Header -->
                                     <tr class="bg-light">
-                                        <td colspan="7"
+                                        <td colspan="9"
                                             class="py-2 px-3 font-semibold text-gray-700 bg-gray-50 border-b">
                                             <div class="flex items-center">
                                                 <mat-icon class="mr-2 text-sm text-gray-500">calendar_today</mat-icon>
@@ -170,23 +172,31 @@
 
                                     <!-- Invoices -->
                                     <tr *ngFor="let invoice of group.invoices">
+                                        <td>{{
+                                            (invoice.ficheId || invoice.proprietes?.['ficheId'])?.substring(0, 12) }}
+                                        </td>
                                         <td>{{ invoice.numero }}</td>
                                         <td>{{ getClientName(invoice) }}</td>
+                                        <td>Admin</td>
                                         <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
                                         <td>{{ invoice.totalTTC | number:'1.2-2' }} DH</td>
                                         <td class="text-success">{{ getMontantPaye(invoice) | number:'1.2-2' }} DH</td>
                                         <td>{{ invoice.resteAPayer | number:'1.2-2' }} DH</td>
                                         <td>
-                                            <button mat-flat-button color="primary" (click)="validateInvoice(invoice)">
+                                            <button mat-icon-button color="primary" (click)="validateInvoice(invoice)"
+                                                matTooltip="Valider">
                                                 <mat-icon>check_circle</mat-icon>
-                                                Valider
+                                            </button>
+                                            <button mat-icon-button color="warn" (click)="archiveInvoice(invoice)"
+                                                *ngIf="canArchive(invoice)" class="ml-2" matTooltip="Archiver">
+                                                <mat-icon>inventory_2</mat-icon>
                                             </button>
                                         </td>
                                     </tr>
 
                                     <!-- Subtotal -->
                                     <tr class="bg-gray-50 font-bold border-t-2">
-                                        <td colspan="3" class="text-right pr-4">Sous-total {{ group.month }}:</td>
+                                        <td colspan="5" class="text-right pr-4">Sous-total {{ group.month }}:</td>
                                         <td>{{ group.totalTTC | number:'1.2-2' }} DH</td>
                                         <td class="text-success">{{ group.totalPaid | number:'1.2-2' }} DH</td>
                                         <td class="text-danger">{{ group.totalReste | number:'1.2-2' }} DH</td>
@@ -196,7 +206,7 @@
                             </ng-container>
 
                             <tr *ngIf="groupedWithPayment.length === 0">
-                                <td colspan="7">
+                                <td colspan="8">
                                     <div class="empty-state">
                                         <mat-icon>check_circle</mat-icon>
                                         <h3>Tout est en ordre</h3>
@@ -222,8 +232,10 @@
                     <table>
                         <thead>
                             <tr>
+                                <th>Ref Fiche</th>
                                 <th>Numéro</th>
                                 <th>Client</th>
+                                <th>Vendeur</th>
                                 <th>Date</th>
                                 <th>Total TTC</th>
                                 <th>Reste à Payer</th>
@@ -235,7 +247,7 @@
                                 <ng-container *ngIf="isGroupVisible(group)">
                                     <!-- Month Header -->
                                     <tr class="bg-light">
-                                        <td colspan="6"
+                                        <td colspan="8"
                                             class="py-2 px-3 font-semibold text-gray-700 bg-gray-50 border-b">
                                             <div class="flex items-center">
                                                 <mat-icon class="mr-2 text-sm text-gray-500">calendar_today</mat-icon>
@@ -246,8 +258,12 @@
 
                                     <!-- Invoices -->
                                     <tr *ngFor="let invoice of group.invoices">
+                                        <td>{{
+                                            (invoice.ficheId || invoice.proprietes?.['ficheId'])?.substring(0, 12) }}
+                                        </td>
                                         <td>{{ invoice.numero }}</td>
                                         <td>{{ getClientName(invoice) }}</td>
+                                        <td>Admin</td>
                                         <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
                                         <td>{{ invoice.totalTTC | number:'1.2-2' }} DH</td>
                                         <td class="font-weight-bold text-danger">{{ invoice.resteAPayer | number:'1.2-2'
@@ -259,23 +275,20 @@
                                             <span class="badge badge-info mr-2"
                                                 *ngIf="invoice.totalTTC === 0">OFFERT</span>
 
-                                            <button mat-stroked-button color="primary"
-                                                (click)="validateInvoice(invoice)" class="mr-2"
-                                                *ngIf="invoice.totalTTC > 0">
+                                            <button mat-icon-button color="primary" (click)="validateInvoice(invoice)"
+                                                class="mr-2" *ngIf="invoice.totalTTC > 0" matTooltip="Valider">
                                                 <mat-icon>check_circle</mat-icon>
-                                                Valider
                                             </button>
-                                            <button mat-button color="accent" (click)="declareAsGift(invoice)"
-                                                *ngIf="invoice.totalTTC > 0">
+                                            <button mat-icon-button color="accent" (click)="declareAsGift(invoice)"
+                                                *ngIf="invoice.totalTTC > 0" matTooltip="Déclarer comme Don / Offert">
                                                 <mat-icon>card_giftcard</mat-icon>
-                                                Don / Offert
                                             </button>
                                         </td>
                                     </tr>
 
                                     <!-- Subtotal -->
                                     <tr class="bg-gray-50 font-bold border-t-2">
-                                        <td colspan="3" class="text-right pr-4">Sous-total {{ group.month }}:</td>
+                                        <td colspan="5" class="text-right pr-4">Sous-total {{ group.month }}:</td>
                                         <td>{{ group.totalTTC | number:'1.2-2' }} DH</td>
                                         <td class="text-danger">{{ group.totalReste | number:'1.2-2' }} DH</td>
                                         <td></td>
@@ -284,7 +297,7 @@
                             </ng-container>
 
                             <tr *ngIf="groupedWithoutPayment.length === 0">
-                                <td colspan="6">
+                                <td colspan="7">
                                     <div class="empty-state">
                                         <mat-icon>check_circle</mat-icon>
                                         <h3>Tout est en ordre</h3>
@@ -310,8 +323,10 @@
                     <table>
                         <thead>
                             <tr>
+                                <th>Ref Fiche</th>
                                 <th>Numéro</th>
                                 <th>Client</th>
+                                <th>Vendeur</th>
                                 <th>Date</th>
                                 <th>Total TTC</th>
                                 <th>Reste à Payer</th>
@@ -323,7 +338,7 @@
                                 <ng-container *ngIf="isGroupVisible(group)">
                                     <!-- Month Header -->
                                     <tr class="bg-light">
-                                        <td colspan="6"
+                                        <td colspan="8"
                                             class="py-2 px-3 font-semibold text-gray-700 bg-gray-50 border-b">
                                             <div class="flex items-center">
                                                 <mat-icon class="mr-2 text-sm text-gray-500">calendar_today</mat-icon>
@@ -334,8 +349,12 @@
 
                                     <!-- Invoices -->
                                     <tr *ngFor="let invoice of group.invoices">
+                                        <td>{{
+                                            (invoice.ficheId || invoice.proprietes?.['ficheId'])?.substring(0, 12) }}
+                                        </td>
                                         <td>{{ invoice.numero }}</td>
                                         <td>{{ getClientName(invoice) }}</td>
+                                        <td>Admin</td>
                                         <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
                                         <td>{{ invoice.totalTTC | number:'1.2-2' }} DH</td>
                                         <td class="font-weight-bold">{{ invoice.resteAPayer | number:'1.2-2' }} DH</td>
@@ -352,7 +371,7 @@
 
                                     <!-- Subtotal -->
                                     <tr class="bg-gray-50 font-bold border-t-2">
-                                        <td colspan="3" class="text-right pr-4">Sous-total {{ group.month }}:</td>
+                                        <td colspan="5" class="text-right pr-4">Sous-total {{ group.month }}:</td>
                                         <td>{{ group.totalTTC | number:'1.2-2' }} DH</td>
                                         <td>{{ group.totalReste | number:'1.2-2' }} DH</td>
                                         <td></td>
@@ -361,7 +380,7 @@
                             </ng-container>
 
                             <tr *ngIf="groupedValid.length === 0">
-                                <td colspan="6">
+                                <td colspan="7">
                                     <div class="empty-state">
                                         <mat-icon>verified</mat-icon>
                                         <h3>Aucune facture validée</h3>
@@ -386,8 +405,10 @@
                     <table>
                         <thead>
                             <tr>
+                                <th>Ref Fiche</th>
                                 <th>Numéro</th>
                                 <th>Client</th>
+                                <th>Vendeur</th>
                                 <th>Date</th>
                                 <th>Total TTC</th>
                                 <th>Reste à Payer</th>
@@ -399,7 +420,7 @@
                                 <ng-container *ngIf="isGroupVisible(group)">
                                     <!-- Month Header -->
                                     <tr class="bg-light">
-                                        <td colspan="6"
+                                        <td colspan="8"
                                             class="py-2 px-3 font-semibold text-gray-700 bg-gray-50 border-b">
                                             <div class="flex items-center">
                                                 <mat-icon class="mr-2 text-sm text-gray-500">calendar_today</mat-icon>
@@ -410,8 +431,12 @@
 
                                     <!-- Invoices -->
                                     <tr *ngFor="let invoice of group.invoices">
+                                        <td>{{
+                                            (invoice.ficheId || invoice.proprietes?.['ficheId'])?.substring(0, 12) }}
+                                        </td>
                                         <td>{{ invoice.numero }}</td>
                                         <td>{{ getClientName(invoice) }}</td>
+                                        <td>Admin</td>
                                         <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
                                         <td>{{ invoice.totalTTC | number:'1.2-2' }} DH</td>
                                         <td class="font-weight-bold">{{ invoice.resteAPayer | number:'1.2-2' }} DH</td>
@@ -425,7 +450,7 @@
 
                                     <!-- Subtotal -->
                                     <tr class="bg-gray-50 font-bold border-t-2">
-                                        <td colspan="3" class="text-right pr-4">Sous-total {{ group.month }}:</td>
+                                        <td colspan="5" class="text-right pr-4">Sous-total {{ group.month }}:</td>
                                         <td>{{ group.totalTTC | number:'1.2-2' }} DH</td>
                                         <td>{{ group.totalReste | number:'1.2-2' }} DH</td>
                                         <td></td>
@@ -434,7 +459,7 @@
                             </ng-container>
 
                             <tr *ngIf="groupedAvoir.length === 0">
-                                <td colspan="6">
+                                <td colspan="7">
                                     <div class="empty-state">
                                         <mat-icon>assignment_return</mat-icon>
                                         <h3>Aucun avoir</h3>
@@ -461,11 +486,12 @@
                         <thead>
                             <tr>
                                 <th>Vendeur</th>
-                                <th>Brouillon (Av. Pmt)</th>
-                                <th>Brouillon (Ss. Pmt)</th>
+                                <th>Devis (Av. Pmt)</th>
+                                <th>Devis (Ss. Pmt)</th>
                                 <th>Factures Validées</th>
                                 <th>Avoirs</th>
-                                <th>Chiffre d'Affaires Validé</th>
+                                <th>CA consolidé</th>
+                                <th>Non Consolidé</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -476,33 +502,36 @@
                                         {{ stat.vendorName }}
                                     </div>
                                 </td>
-                                <td>
+                                <td class="text-center">
                                     <span class="badge badge-warning" *ngIf="stat.countWithPayment > 0">
-                                        {{ stat.countWithPayment }} factures
+                                        {{ stat.countWithPayment }} devis
                                     </span>
                                     <span class="text-gray-400" *ngIf="stat.countWithPayment === 0">-</span>
                                 </td>
-                                <td>
+                                <td class="text-center">
                                     <span class="badge badge-info" *ngIf="stat.countWithoutPayment > 0">
-                                        {{ stat.countWithoutPayment }} factures
+                                        {{ stat.countWithoutPayment }} devis
                                     </span>
                                     <span class="text-gray-400" *ngIf="stat.countWithoutPayment === 0">-</span>
                                 </td>
-                                <td>
+                                <td class="text-center">
                                     <span class="badge badge-success" *ngIf="stat.countValid && stat.countValid > 0">
                                         {{ stat.countValid }} factures
                                     </span>
                                     <span class="text-gray-400"
                                         *ngIf="!stat.countValid || stat.countValid === 0">-</span>
                                 </td>
-                                <td>
+                                <td class="text-center">
                                     <span class="badge badge-danger" *ngIf="stat.countAvoir && stat.countAvoir > 0">
                                         {{ stat.countAvoir }} avoirs
                                     </span>
                                     <span class="text-gray-400"
                                         *ngIf="!stat.countAvoir || stat.countAvoir === 0">-</span>
                                 </td>
-                                <td class="text-bold">{{ stat.totalAmount | number:'1.2-2' }} DH</td>
+                                <td class="text-center text-bold">{{ stat.totalAmount | number:'1.2-2' }} DH</td>
+                                <td class="text-center text-bold text-warning">{{ (stat.totalArchived || 0) |
+                                    number:'1.2-2' }} DH
+                                </td>
                             </tr>
                             <tr *ngIf="statistics.length === 0">
                                 <td colspan="6">

@@ -58,12 +58,72 @@
                 color: #64748b;
             }
 
-            .preview {
-                img {
-                    max-width: 100%;
+            .files-list {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                margin-top: 8px;
+                width: 100%;
+
+                .file-item {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 8px 12px;
+                    background-color: #f8fafc;
                     border: 1px solid #e2e8f0;
                     border-radius: 6px;
-                    padding: 4px;
+
+                    .file-info {
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        overflow: hidden;
+
+                        .file-icon {
+                            color: #64748b;
+                            font-size: 20px;
+                            width: 20px;
+                            height: 20px;
+                        }
+
+                        .file-link {
+                            color: #2563eb;
+                            text-decoration: none;
+                            font-weight: 500;
+                            font-size: 14px;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+
+                            &:hover {
+                                text-decoration: underline;
+                            }
+                        }
+
+                        .file-size {
+                            color: #94a3b8;
+                            font-size: 12px;
+                        }
+                    }
+
+                    .file-actions {
+                        display: flex;
+                        align-items: center;
+                        gap: 4px;
+
+                        button {
+                            width: 32px;
+                            height: 32px;
+                            line-height: 32px;
+
+                            mat-icon {
+                                font-size: 18px;
+                                width: 18px;
+                                height: 18px;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -79,5 +139,42 @@
             height: 44px;
             font-size: 15px;
         }
+    }
+}
+
+// Compact Date Field Style Matching "Adaptation Moderne"
+.compact-date-field {
+    ::ng-deep {
+        .mat-mdc-text-field-wrapper {
+            padding-bottom: 0;
+            background-color: #ffffff;
+            border-radius: 8px;
+        }
+
+        .mat-mdc-form-field-subscript-wrapper {
+            display: none; // Hides hint/error space for compact look
+        }
+
+        .mat-mdc-form-field-infix {
+            padding-top: 10px;
+            padding-bottom: 10px;
+            min-height: 48px;
+        }
+
+        .mat-mdc-input-element {
+            font-size: 14px;
+            font-weight: 500;
+        }
+    }
+}
+
+// Custom Calendar Style
+::ng-deep .custom-calendar {
+    .mat-calendar-body-selected {
+        background-color: #3b82f6; // Blue accent
+    }
+
+    .mat-calendar-body-today:not(.mat-calendar-body-selected) {
+        border-color: #3b82f6;
     }
 }

@@ -124,7 +124,7 @@ export class InvoiceSelectionDialogComponent implements OnInit {
 
     this.factureService.findAll({
       clientId: this.data.clientId,
-      type: 'FACTURE',
+      // Fetch all types (we filter client-side for DEVIS and FACTURE)
       // @ts-ignore
       _cb: new Date().getTime() // Cache buster
     }).pipe(
@@ -139,12 +139,16 @@ export class InvoiceSelectionDialogComponent implements OnInit {
       next: (data: Facture[]) => {
         console.log('Invoices loaded:', data.length);
         clearTimeout(failsafeTimeout);
-        // Only show invoices that can be paid (VALIDE or PARTIEL or BROUILLON)
-        // PAYEE invoices usually don't need payment unless we allow overpayment or adjustments
-        this.invoices = data.filter(f => f.statut === 'VALIDE' || f.statut === 'PARTIEL' || f.statut === 'BROUILLON');
+        // show DEVIS (Drafts) and FACTURE (Valid/Partial/Payee for Avoir)
+        this.invoices = data.filter(f =>
+          // Type Check
+          (f.type === 'FACTURE' || f.type === 'DEVIS') &&
+          // Status Check (Must be payable OR refundable)
+          (f.statut === 'VALIDE' || f.statut === 'PARTIEL' || f.statut === 'BROUILLON' || f.statut === 'PAYEE')
+        );
 
         if (this.invoices.length === 0) {
-          this.message = 'Aucune facture en attente de paiement (statut VALIDE, PARTIEL ou BROUILLON).';
+          this.message = 'Aucune facture, devis ou document disponible.';
         }
       },
       error: (err) => {

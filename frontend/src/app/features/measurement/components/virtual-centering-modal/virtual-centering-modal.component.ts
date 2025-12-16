@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, ViewChild, Inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ViewChild, Inject, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
@@ -40,6 +40,16 @@ export class VirtualCenteringModalComponent {
             this.caliber = data.caliber || 52;
             this.bridge = data.bridge || 18;
             this.mountingType = data.mountingType || '';
+        }
+    }
+
+    @HostListener('document:keydown', ['$event'])
+    handleKeyboardEvent(event: KeyboardEvent) {
+        if (event.code === 'Space') {
+            event.preventDefault(); // Prevent scrolling
+            if (!this.isCaptured) {
+                this.captureMeasurement();
+            }
         }
     }
 

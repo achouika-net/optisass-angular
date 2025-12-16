@@ -35,6 +35,7 @@ export interface Measurement {
     vertexDistanceMm?: number;
     pantoscopicTiltDeg?: number;
     wrapDeg?: number;
+    frameHeightMm?: number; // Hauteur totale du verre (B)
     pupils?: Pupils;
     timestamp?: number;
 }

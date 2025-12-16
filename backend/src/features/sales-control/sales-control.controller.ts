@@ -25,6 +25,11 @@ export class SalesControlController {
         return this.salesControlService.getAvoirs(userId);
     }
 
+    @Get('archived')
+    async getArchivedInvoices(@Query('userId') userId?: string) {
+        return this.salesControlService.getArchivedInvoices(userId);
+    }
+
     @Get('statistics')
     async getStatistics() {
         return this.salesControlService.getStatisticsByVendor();
@@ -38,6 +43,11 @@ export class SalesControlController {
     @Post('declare-gift/:id')
     async declareAsGift(@Param('id') id: string) {
         return this.salesControlService.declareAsGift(id);
+    }
+
+    @Post('archive/:id')
+    async archiveInvoice(@Param('id') id: string) {
+        return this.salesControlService.archiveInvoice(id);
     }
 
     // Delete is handled by existing factures controller

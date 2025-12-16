@@ -1,10 +1,16 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
-export class FacturesService {
+export class FacturesService implements OnModuleInit {
     constructor(private prisma: PrismaService) { }
+
+    async onModuleInit() {
+        await this.cleanupExpiredDrafts();
+        await this.migrateDraftsToDevis();
+        await this.migrateBroNumbersToDevis();
+    }
 
     async create(data: Prisma.FactureUncheckedCreateInput) {
         // 1. Vérifier que le client existe
@@ -29,7 +35,7 @@ export class FacturesService {
 
         if (data.statut === 'BROUILLON') {
             // Temporary number for drafts
-            numero = `BRO-${new Date().getTime()}`;
+            numero = `Devis-${new Date().getTime()}`;
         } else {
             numero = await this.generateNextNumber(type);
         }
@@ -129,7 +135,7 @@ export class FacturesService {
             });
 
             const isBrouillon = currentFacture?.statut === 'BROUILLON';
-            const hasDraftNumber = currentFacture?.numero?.startsWith('BRO');
+            const hasDraftNumber = currentFacture?.numero?.startsWith('BRO') || currentFacture?.numero?.startsWith('Devis');
 
             if (currentFacture && (isBrouillon || hasDraftNumber)) {
                 console.log('📋 Validating BROUILLON/Draft-Number - Triggering Fiscal Traceability Flow');
@@ -155,6 +161,7 @@ export class FacturesService {
                         proprietes: {
                             ...(currentFacture.proprietes as any || {}),
                             factureOriginale: currentFacture.numero,
+                            ficheId: currentFacture.ficheId, // Store Fiche ID in proprietes due to unique constraint
                             raison: 'Annulation automatique du brouillon lors de la validation'
                         }
                     };
@@ -171,7 +178,7 @@ export class FacturesService {
                     // For now, I'll allow `this.generateNextNumber` (non-tx) but it might miss the AVOIR increment if run strictly parallel?
                     // But here we generate FACTURE number. Avoir is AVOIR type. Distinct sequences. Safe.
 
-                    const officialNumber = await this.generateNextNumber(currentFacture.type); // type=FACTURE
+                    const officialNumber = await this.generateNextNumber('FACTURE'); // Validating a DEVIS creates a FACTURE
 
                     // 3. Create New Valid Invoice
                     // Fix: Explicitly destruct to avoid passing nested objects like 'client' which cause PRISMA validation errors
@@ -192,7 +199,8 @@ export class FacturesService {
                             ...(currentFacture.proprietes as any || {}),
                             ancienneReference: currentFacture.numero,
                             source: 'Validation Brouillon'
-                        }
+                        },
+                        type: 'FACTURE' // Force type validation to FACTURE (Devis -> Facture)
                     };
                     const newInvoice = await tx.facture.create({ data: newInvoiceData });
                     console.log('✅ New Valid Invoice created:', newInvoice.numero);
@@ -209,6 +217,10 @@ export class FacturesService {
                         data: {
                             statut: 'ANNULEE',
                             ficheId: null, // Free up the Fiche linkage
+                            proprietes: {
+                                ...(currentFacture.proprietes as any || {}),
+                                ficheId: currentFacture.ficheId // Preserve Fiche ID in proprietes
+                            },
                             notes: `Remplacée par facture ${newInvoice.numero}`
                         }
                     });
@@ -266,7 +278,7 @@ export class FacturesService {
 
         // 3. Logic: Last vs Middle
         // Check if it is the LAST official invoice of its type (and year)
-        const isOfficial = !facture.numero.startsWith('BRO');
+        const isOfficial = !facture.numero.startsWith('BRO') && !facture.numero.startsWith('Devis');
         let isLast = false;
 
         if (isOfficial) {
@@ -324,6 +336,10 @@ export class FacturesService {
                     resteAPayer: 0, // Avoirs don't have "to pay" usually, or they offset balance.
                     lignes: lignesAvoir,
                     notes: `Annulation de la facture ${facture.numero}`,
+                    proprietes: {
+                        ...(facture.proprietes as any || {}),
+                        ficheId: facture.ficheId // Store Fiche ID in proprietes
+                    }
                 }
             });
 
@@ -344,6 +360,83 @@ export class FacturesService {
             case 'AVOIR': return 'AVR';
             case 'BL': return 'BL';
             default: return 'DOC';
+        }
+    }
+
+    async cleanupExpiredDrafts() {
+        console.log('🧹 Cleaning up expired drafts...');
+        const twoMonthsAgo = new Date();
+        twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+
+        // Find unpaid drafts older than 2 months
+        const expiredDrafts = await this.prisma.facture.findMany({
+            where: {
+                statut: 'BROUILLON',
+                dateEmission: { lt: twoMonthsAgo },
+                paiements: { none: {} } // No payments
+            }
+        });
+
+        if (expiredDrafts.length > 0) {
+            console.log(`🧹 Found ${expiredDrafts.length} expired drafts. Cancelling...`);
+
+            // Bulk update (Prisma assumes same update for all)
+            // or loop if we want to log each.
+            await this.prisma.facture.updateMany({
+                where: {
+                    id: { in: expiredDrafts.map(d => d.id) }
+                },
+                data: {
+                    statut: 'ANNULEE',
+                    notes: 'Annulation automatique (Expiration > 2 mois sans paiement)'
+                }
+            });
+            console.log('✅ Expired drafts cancelled.');
+        } else {
+            console.log('✨ No expired drafts found.');
+        }
+    }
+
+    async migrateDraftsToDevis() {
+        console.log('🔄 Migrating existing Drafts to Devis...');
+        const result = await this.prisma.facture.updateMany({
+            where: {
+                statut: 'BROUILLON',
+                type: 'FACTURE' // Change only those marked as FACTURE
+            },
+            data: {
+                type: 'DEVIS'
+            }
+        });
+        if (result.count > 0) {
+            console.log(`✅ Migrated ${result.count} drafts to DEVIS.`);
+        } else {
+            console.log('✨ No drafts to migrate.');
+        }
+    }
+
+    async migrateBroNumbersToDevis() {
+        console.log('🔄 Migrating BRO- numbers to Devis-...');
+        const drafts = await this.prisma.facture.findMany({
+            where: {
+                numero: { startsWith: 'BRO-' }
+            }
+        });
+
+        let count = 0;
+        for (const draft of drafts) {
+            const newNumero = draft.numero.replace('BRO-', 'Devis-');
+            await this.prisma.facture.update({
+                where: { id: draft.id },
+                data: { numero: newNumero }
+            });
+            count++;
+        }
+
+        if (count > 0) {
+            console.log(`✅ Renamed ${count} drafts from BRO- to Devis-.`);
+        } else {
+            console.log('✨ No BRO- drafts to rename.');
         }
     }
 }

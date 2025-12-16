@@ -6,6 +6,7 @@ import { environment } from '../../../../environments/environment';
 export interface BrouillonInvoice {
     id: string;
     numero: string;
+    ficheId?: string;
     dateEmission: Date;
     totalTTC: number;
     resteAPayer: number;
@@ -15,6 +16,7 @@ export interface BrouillonInvoice {
         raisonSociale?: string;
     };
     paiements?: any[];
+    lignes?: any[]; // Snapshot of lines
     statut?: string; // e.g. BROUILLON, VALIDE, PAYEE, PARTIEL
     type?: string; // FACTURE, AVOIR, DEVIS
     proprietes?: {
@@ -31,6 +33,7 @@ export interface VendorStatistics {
     totalAmount: number;
     countValid?: number;
     countAvoir?: number;
+    totalArchived?: number;
 }
 
 @Injectable({
@@ -56,6 +59,11 @@ export class SalesControlService {
         return this.http.get<BrouillonInvoice[]>(`${this.apiUrl}/valid-invoices`, { params });
     }
 
+    getArchivedInvoices(userId?: string): Observable<BrouillonInvoice[]> {
+        const params = userId ? { userId } : {};
+        return this.http.get<BrouillonInvoice[]>(`${this.apiUrl}/archived`, { params });
+    }
+
     getAvoirs(userId?: string): Observable<BrouillonInvoice[]> {
         const params = userId ? { userId } : {};
         return this.http.get<BrouillonInvoice[]>(`${this.apiUrl}/avoirs`, { params });
@@ -71,5 +79,9 @@ export class SalesControlService {
 
     declareAsGift(id: string): Observable<any> {
         return this.http.post(`${this.apiUrl}/declare-gift/${id}`, {});
+    }
+
+    archiveInvoice(id: string): Observable<any> {
+        return this.http.post(`${this.apiUrl}/archive/${id}`, {});
     }
 }

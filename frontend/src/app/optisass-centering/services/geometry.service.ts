@@ -15,7 +15,7 @@ export class GeometryService {
         return widthPx / frameWidthMM;
     }
 
-    computeMeasures(pupils: Pupils, frameGeom: FrameGeometry, frameWidthMM: number, bottomGlassYpx: number, glassLeftCenterXpx: number, glassRightCenterXpx: number): SimpleMeasureResult {
+    computeMeasures(pupils: Pupils, frameGeom: FrameGeometry, frameWidthMM: number, bottomGlassYpx: number, glassLeftCenterXpx: number, glassRightCenterXpx: number, topGlassYpx?: number): SimpleMeasureResult {
         const pxPerMm = this.computePxPerMm(frameWidthMM, frameGeom);
 
         // Total PD (inter-pupillary distance)
@@ -54,9 +54,14 @@ export class GeometryService {
         const shiftRight = (realRightPupil.x - glassRightCenterXpx) / pxPerMm;
         const shiftLeft = (realLeftPupil.x - glassLeftCenterXpx) / pxPerMm;
 
+        let frameHeightMM: number | undefined;
+        if (topGlassYpx !== undefined) {
+            frameHeightMM = Math.abs(bottomGlassYpx - topGlassYpx) / pxPerMm;
+        }
+
         // We return consistent referencing
         return {
-            pd, pdLeft, pdRight, hpLeft, hpRight, shiftLeft, shiftRight,
+            pd, pdLeft, pdRight, hpLeft, hpRight, shiftLeft, shiftRight, frameHeightMM,
             pxPerMm, pupils, frameGeom
         };
     }

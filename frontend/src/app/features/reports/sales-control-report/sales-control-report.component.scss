@@ -56,6 +56,17 @@
     font-weight: 600;
 }
 
+// Align Actions Column
+td:last-child,
+th:last-child {
+    text-align: center;
+    white-space: nowrap;
+    width: 1%;
+    /* Collapse width to content */
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
 // Override material tab styles to match clean look
 ::ng-deep {
     .mat-mdc-tab-group {

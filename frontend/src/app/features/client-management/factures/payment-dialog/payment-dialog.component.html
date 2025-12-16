@@ -52,11 +52,12 @@
                     </mat-form-field>
 
                     <!-- Date Versement -->
-                    <mat-form-field appearance="outline">
+                    <mat-form-field appearance="outline" class="compact-date-field">
                         <mat-label>Date de Versement</mat-label>
-                        <input matInput [matDatepicker]="pickerVers" formControlName="dateVersement">
+                        <input matInput [matDatepicker]="pickerVers" formControlName="dateVersement"
+                            placeholder="JJ/MM/AAAA">
                         <mat-datepicker-toggle matIconSuffix [for]="pickerVers"></mat-datepicker-toggle>
-                        <mat-datepicker #pickerVers></mat-datepicker>
+                        <mat-datepicker #pickerVers class="custom-calendar"></mat-datepicker>
                     </mat-form-field>
 
                     <!-- Identité Tireur -->
@@ -79,7 +80,13 @@
                     <!-- Pièce Jointe -->
                     <div class="full-width attachment-section">
                         <label class="attachment-label">Pièce Jointe (Scan/Photo)</label>
-                        <div class="actions-row">
+
+                        <!-- File Input (Hidden) -->
+                        <input #fileInput type="file" (change)="onFileSelected($event)" accept="image/*,application/pdf"
+                            style="display: none">
+
+                        <!-- Main Actions -->
+                        <div class="actions-row" *ngIf="!attachmentPreview">
                             <button type="button" mat-stroked-button (click)="fileInput.click()">
                                 <mat-icon>attach_file</mat-icon> Importer Fichier
                             </button>
@@ -88,13 +95,28 @@
                             </button>
                         </div>
 
-                        <!-- File Upload (PDF/Images) -->
-                        <input #fileInput type="file" (change)="onFileSelected($event)" accept="image/*,application/pdf"
-                            style="display: none">
-
-                        <div *ngIf="attachmentPreview" class="preview">
-                            <img [src]="attachmentPreview" alt="Aperçu" style="max-height: 100px; margin-top: 10px;">
+                        <!-- Files List (Styled like Fiche Monture) -->
+                        <div class="files-list" *ngIf="attachmentPreview">
+                            <div class="file-item">
+                                <div class="file-info">
+                                    <mat-icon class="file-icon text-gray-500">description</mat-icon>
+                                    <a href="javascript:void(0)" (click)="viewFile()" class="file-link">
+                                        {{ fileName || 'Document.pdf' }}
+                                    </a>
+                                    <span class="file-size" *ngIf="fileSize">({{ formatFileSize(fileSize) }})</span>
+                                </div>
+                                <div class="file-actions">
+                                    <button type="button" mat-icon-button (click)="viewFile()" title="Visualiser">
+                                        <mat-icon>visibility</mat-icon>
+                                    </button>
+                                    <button type="button" mat-icon-button color="warn" (click)="deleteFile()"
+                                        title="Supprimer">
+                                        <mat-icon>delete</mat-icon>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
+
                         <div *ngIf="isProcessingOcr" class="ocr-loading">
                             <small>Analyse du document en cours (OCR)...</small>
                         </div>

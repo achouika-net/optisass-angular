@@ -41,7 +41,7 @@
             <!-- Edit Mode: Enregistrer -->
             <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="ficheForm.invalid || loading"
                 *ngIf="isEditMode">
-                <mat-icon>save</mat-icon> Enregistrer
+                <mat-icon>save</mat-icon> {{ (ficheId && ficheId !== 'new') ? 'Mettre à jour' : 'Enregistrer' }}
             </button>
         </div>
     </div>
@@ -507,6 +507,176 @@
                         </mat-form-field>
                     </div>
 
+                </div>
+            </mat-tab>
+            <!-- ONGLET 5: FACTURATION -->
+            <mat-tab>
+                <ng-template mat-tab-label>
+                    <mat-icon class="tab-icon">euro</mat-icon>
+                    Facturation
+                </ng-template>
+                <div class="tab-content" style="padding: 24px;">
+                    <app-facture-form [factureId]="linkedFacture?.id" [embedded]="true"
+                        (onSaved)="onInvoiceSaved($event)" [nomenclature]="nomenclatureString"
+                        [initialLines]="initialInvoiceLines" [clientIdInput]="clientId" [ficheIdInput]="ficheId">
+                    </app-facture-form>
+                </div>
+            </mat-tab>
+
+            <!-- ONGLET 6: PAIEMENTS -->
+            <mat-tab>
+                <ng-template mat-tab-label>
+                    <mat-icon class="tab-icon">payments</mat-icon>
+                    Paiements
+                </ng-template>
+                <div class="tab-content" style="padding: 24px;">
+                    <app-payment-list [clientId]="clientId" [ficheId]="ficheId"></app-payment-list>
+                </div>
+            </mat-tab>
+
+            <!-- ONGLET 7: SUIVI COMMANDE -->
+            <mat-tab>
+                <ng-template mat-tab-label>
+                    <mat-icon class="tab-icon">local_shipping</mat-icon>
+                    Suivi Commande
+                </ng-template>
+                <div class="tab-content" formGroupName="suiviCommande" style="padding: 24px;">
+
+                    <!-- Stepper UI -->
+                    <div class="mb-4 px-4" style="margin-bottom: 32px;">
+                        <div class="relative flex items-center justify-between w-full"
+                            style="display: flex; justify-content: space-between; position: relative;">
+                            <!-- Connecting Line -->
+                            <div
+                                style="position: absolute; top: 50%; left: 0; right: 0; height: 4px; background: #e0e0e0; z-index: 0; transform: translateY(-50%);">
+                            </div>
+
+                            <!-- Step 1: A Commander -->
+                            <div
+                                style="z-index: 1; display: flex; flex-direction: column; align-items: center; background: white; padding: 0 10px;">
+                                <div [style.background-color]="getStepState('A_COMMANDER') !== 'pending' ? '#1976d2' : '#e0e0e0'"
+                                    style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; margin-bottom: 8px;">
+                                    1
+                                </div>
+                                <span [style.color]="getStepState('A_COMMANDER') === 'active' ? '#1976d2' : '#757575'"
+                                    style="font-weight: 500;">À Commander</span>
+                            </div>
+
+                            <!-- Step 2: Commandé -->
+                            <div
+                                style="z-index: 1; display: flex; flex-direction: column; align-items: center; background: white; padding: 0 10px;">
+                                <div [style.background-color]="getStepState('COMMANDE') !== 'pending' ? '#1976d2' : '#e0e0e0'"
+                                    style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; margin-bottom: 8px;">
+                                    2
+                                </div>
+                                <span [style.color]="getStepState('COMMANDE') === 'active' ? '#1976d2' : '#757575'"
+                                    style="font-weight: 500;">Commandé</span>
+                            </div>
+
+                            <!-- Step 3: Reçu -->
+                            <div
+                                style="z-index: 1; display: flex; flex-direction: column; align-items: center; background: white; padding: 0 10px;">
+                                <div [style.background-color]="getStepState('RECU') !== 'pending' ? '#4caf50' : '#e0e0e0'"
+                                    style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; margin-bottom: 8px;">
+                                    3
+                                </div>
+                                <span [style.color]="getStepState('RECU') === 'active' ? '#4caf50' : '#757575'"
+                                    style="font-weight: 500;">Reçu Atelier</span>
+                            </div>
+
+                            <!-- Step 4: Livré Client -->
+                            <div
+                                style="z-index: 1; display: flex; flex-direction: column; align-items: center; background: white; padding: 0 10px;">
+                                <div [style.background-color]="getStepState('LIVRE_CLIENT') !== 'pending' ? '#9c27b0' : '#e0e0e0'"
+                                    style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; margin-bottom: 8px;">
+                                    4
+                                </div>
+                                <span [style.color]="getStepState('LIVRE_CLIENT') === 'active' ? '#9c27b0' : '#757575'"
+                                    style="font-weight: 500;">Livré Client</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Area -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                        <!-- Left: Status & Actions -->
+                        <mat-card class="section-card">
+                            <div class="card-header">
+                                <h3>Actions & Statut</h3>
+                            </div>
+                            <mat-card-content>
+                                <div style="text-align: center; margin-bottom: 24px;">
+                                    <span
+                                        style="text-transform: uppercase; font-size: 0.8rem; font-weight: bold; color: #757575; display: block; margin-bottom: 8px;">Statut
+                                        Actuel</span>
+                                    <div style="font-size: 1.5rem; font-weight: bold;"
+                                        [style.color]="suiviStatut === 'A_COMMANDER' ? '#ff9800' : suiviStatut === 'COMMANDE' ? '#1976d2' : suiviStatut === 'RECU' ? '#4caf50' : '#9c27b0'">
+                                        {{ suiviStatut === 'A_COMMANDER' ? 'À COMMANDER' :
+                                        suiviStatut === 'COMMANDE' ? 'EN COMMANDE' :
+                                        suiviStatut === 'RECU' ? 'REÇU ATELIER' : 'LIVRÉ CLIENT' }}
+                                    </div>
+                                </div>
+
+                                <div style="display: flex; flex-direction: column; gap: 12px;">
+                                    <button mat-raised-button color="primary" (click)="setOrderStatus('COMMANDE')"
+                                        *ngIf="suiviStatut === 'A_COMMANDER'" [disabled]="!isEditMode">
+                                        <mat-icon>send</mat-icon> Marquer comme Commandé
+                                    </button>
+
+                                    <button mat-raised-button color="accent" (click)="setOrderStatus('RECU')"
+                                        *ngIf="suiviStatut === 'COMMANDE'" [disabled]="!isEditMode">
+                                        <mat-icon>check_circle</mat-icon> Marquer comme Reçu
+                                    </button>
+
+                                    <button mat-raised-button style="background-color: #9c27b0; color: white;"
+                                        (click)="setOrderStatus('LIVRE_CLIENT')" *ngIf="suiviStatut === 'RECU'"
+                                        [disabled]="!isEditMode">
+                                        <mat-icon>inventory_2</mat-icon> Marquer comme Livré au Client
+                                    </button>
+                                </div>
+                            </mat-card-content>
+                        </mat-card>
+
+                        <!-- Right: Details Form -->
+                        <mat-card class="section-card">
+                            <div class="card-header">
+                                <h3>Détails Commande</h3>
+                            </div>
+                            <mat-card-content class="grid-1">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Fournisseur Verres</mat-label>
+                                    <input matInput formControlName="fournisseur" placeholder="Ex: Hoya, Essilor...">
+                                </mat-form-field>
+
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Référence Commande</mat-label>
+                                    <input matInput formControlName="referenceCommande"
+                                        placeholder="N° de commande fournisseur">
+                                </mat-form-field>
+
+                                <div class="grid-2">
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Date Commande</mat-label>
+                                        <input matInput [matDatepicker]="pickerCmd" formControlName="dateCommande">
+                                        <mat-datepicker-toggle matIconSuffix [for]="pickerCmd"></mat-datepicker-toggle>
+                                        <mat-datepicker #pickerCmd></mat-datepicker>
+                                    </mat-form-field>
+
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Date Réception</mat-label>
+                                        <input matInput [matDatepicker]="pickerRecu" formControlName="dateReception">
+                                        <mat-datepicker-toggle matIconSuffix [for]="pickerRecu"></mat-datepicker-toggle>
+                                        <mat-datepicker #pickerRecu></mat-datepicker>
+                                    </mat-form-field>
+                                </div>
+
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Commentaires / Suivi</mat-label>
+                                    <textarea matInput formControlName="commentaire" rows="3"></textarea>
+                                </mat-form-field>
+                            </mat-card-content>
+                        </mat-card>
+                    </div>
                 </div>
             </mat-tab>
         </mat-tab-group>

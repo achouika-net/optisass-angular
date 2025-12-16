@@ -12,7 +12,11 @@ export class SalesControlService {
     // Get BROUILLON invoices with payments
     async getBrouillonWithPayments(userId?: string) {
         const where: any = {
-            numero: { startsWith: 'BRO' },
+            OR: [
+                { numero: { startsWith: 'BRO' } },
+                { numero: { startsWith: 'Devis' } }
+            ],
+            statut: { notIn: ['ARCHIVE', 'ANNULEE'] }, // Hide Archived and Cancelled
             paiements: {
                 some: {}
             }
@@ -68,11 +72,10 @@ export class SalesControlService {
 
     // Get AVOIRS and CANCELLED Drafts
     async getAvoirs(userId?: string) {
+        // User Request: Empty the Avoirs table as legacy logic (Draft -> Avoir) is invalid.
+        // Valid invoices will generate real Avoirs in the future, but for now we hide everything.
         const where: any = {
-            OR: [
-                { type: 'AVOIR' },
-                { statut: 'ANNULEE' }
-            ]
+            type: 'AVOIR_HIDDEN_LEGACY' // Returns nothing
         };
 
         return this.prisma.facture.findMany({
@@ -85,7 +88,8 @@ export class SalesControlService {
                         raisonSociale: true
                     }
                 },
-                paiements: true
+                paiements: true,
+                fiche: true
             },
             orderBy: {
                 numero: 'desc'
@@ -96,8 +100,11 @@ export class SalesControlService {
     // Get BROUILLON invoices without payments
     async getBrouillonWithoutPayments(userId?: string) {
         const where: any = {
-            numero: { startsWith: 'BRO' },
-            statut: { not: 'ANNULEE' },
+            OR: [
+                { numero: { startsWith: 'BRO' } },
+                { numero: { startsWith: 'Devis' } }
+            ],
+            statut: { notIn: ['ARCHIVE', 'ANNULEE'] }, // Hide Archived and Cancelled
             paiements: {
                 none: {}
             }
@@ -128,6 +135,7 @@ export class SalesControlService {
                 // Fetch all relevant types/statuses for stats
                 OR: [
                     { numero: { startsWith: 'BRO' } },
+                    { numero: { startsWith: 'Devis' } },
                     { numero: { startsWith: 'FAC' } },
                     { type: 'AVOIR' }
                 ]
@@ -142,17 +150,21 @@ export class SalesControlService {
         console.log('📊 Status Distribution:', factures.map(f => `${f.numero}:${f.statut}:${f.type}`));
 
         // Simple statistics for now
-        const withPayment = factures.filter(f => f.numero.startsWith('BRO') && f.paiements && f.paiements.length > 0);
-        const withoutPayment = factures.filter(f => f.numero.startsWith('BRO') && (!f.paiements || f.paiements.length === 0) && f.statut !== 'ANNULEE');
+        // Exclude ARCHIVE from "Devis" counts
+        const withPayment = factures.filter(f => (f.numero.startsWith('BRO') || f.numero.startsWith('Devis')) && f.paiements && f.paiements.length > 0 && f.statut !== 'ARCHIVE' && f.statut !== 'ANNULEE');
+        const withoutPayment = factures.filter(f => (f.numero.startsWith('BRO') || f.numero.startsWith('Devis')) && (!f.paiements || f.paiements.length === 0) && f.statut !== 'ARCHIVE' && f.statut !== 'ANNULEE');
 
         // Valid Invoices: Must have FAC prefix
         const validInvoices = factures.filter(f => f.numero.startsWith('FAC') && f.type === 'FACTURE');
 
-        // Avoirs
-        const avoirs = factures.filter(f => f.type === 'AVOIR');
+        // Avoirs: User requested to hide legacy ones (match list view)
+        const avoirs = []; // Return empty for now as legacy logic is invalid
 
         // Cancelled Drafts (Traceability)
-        const cancelledDrafts = factures.filter(f => f.statut === 'ANNULEE' && f.numero.startsWith('BRO'));
+        const cancelledDrafts = factures.filter(f => f.statut === 'ANNULEE' && (f.numero.startsWith('BRO') || f.numero.startsWith('Devis')));
+
+        // Archived Invoices (Undeclared Revenue)
+        const archivedInvoices = factures.filter(f => f.statut === 'ARCHIVE');
 
         return [{
             vendorId: 'all',
@@ -161,9 +173,35 @@ export class SalesControlService {
             countWithoutPayment: withoutPayment.length,
             countValid: validInvoices.length,
             countAvoir: avoirs.length,
-            countCancelled: cancelledDrafts.length, // Unmapped in UI yet, but useful for debug
-            totalAmount: validInvoices.reduce((sum, f) => sum + f.totalTTC, 0) // Only sum VALID invoices revenue
+            countCancelled: cancelledDrafts.length,
+            totalAmount: validInvoices.reduce((sum, f) => sum + f.totalTTC, 0),
+            totalArchived: archivedInvoices.reduce((sum, f) => sum + f.totalTTC, 0)
         }];
+    }
+
+    // Get ARCHIVED invoices (for calculation but hidden from lists)
+    async getArchivedInvoices(userId?: string) {
+        const where: any = {
+            statut: 'ARCHIVE'
+        };
+
+        return this.prisma.facture.findMany({
+            where,
+            include: {
+                client: {
+                    select: {
+                        nom: true,
+                        prenom: true,
+                        raisonSociale: true
+                    }
+                },
+                paiements: true,
+                fiche: true
+            },
+            orderBy: {
+                dateEmission: 'desc'
+            }
+        });
     }
 
     // Validate a BROUILLON invoice
@@ -172,6 +210,34 @@ export class SalesControlService {
         return this.facturesService.update({
             where: { id },
             data: { statut: 'VALIDE' }
+        });
+    }
+
+    // Archive a BROUILLON invoice (Undeclared Sale)
+    async archiveInvoice(id: string) {
+        const facture = await this.prisma.facture.findUnique({
+            where: { id },
+            include: { paiements: true } // Check payments?
+        });
+
+        if (!facture) {
+            throw new Error('Facture not found');
+        }
+
+        // Logic check: Only allow if fully paid? Or mixed?
+        // User said: "une fois le devis recois un paiement"
+        // We assume logic is usually "Paid" but system allows action.
+
+        return this.prisma.facture.update({
+            where: { id },
+            data: {
+                statut: 'ARCHIVE',
+                proprietes: {
+                    ...(facture.proprietes as any || {}),
+                    dateArchivage: new Date(),
+                    raison: 'Vente non déclarée (Stock Secondaire)'
+                }
+            }
         });
     }
 

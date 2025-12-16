@@ -65,7 +65,7 @@ export class ClientListComponent implements OnInit {
             prenom: [''],
             telephone: [''],
             cin: [''],
-            ville: ['']
+            groupeFamille: ['']
         });
     }
 

@@ -53,6 +53,9 @@ export interface BaseProduct {
     photo?: string;
     statut: ProductStatus;
     utilisateurCreation: string;
+
+    // New field for Billing Workflow
+    sourceStock?: 'PRINCIPALE' | 'SECONDAIRE';
 }
 
 /**

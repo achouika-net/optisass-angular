@@ -18,6 +18,7 @@ export class AnalysisPreviewComponent implements OnInit, OnChanges {
 
     public measures?: SimpleMeasureResult;
     public frameWidthMM = 140; // default, editable by user (should come from fiche monture)
+    public topGlassYpx = 0;
     public bottomGlassYpx = 0;
     public leftCenterXpx = 0;
     public rightCenterXpx = 0;
@@ -61,8 +62,17 @@ export class AnalysisPreviewComponent implements OnInit, OnChanges {
             if (!this.bottomGlassYpx) {
                 this.bottomGlassYpx = Math.round(canvas.height * 0.72);
             }
+            // default topGlassY ~ 0.25 height if not already set
+            if (!this.topGlassYpx) {
+                this.topGlassYpx = Math.round(canvas.height * 0.35); // Approx defaults
+            }
 
-            ctx.strokeStyle = 'rgba(255,165,0,0.9)';
+            // Draw Top Line (Red)
+            ctx.strokeStyle = '#FF0000';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(0, this.topGlassYpx); ctx.lineTo(canvas.width, this.topGlassYpx); ctx.stroke();
+
+            // Draw Bottom Line (Red)
             ctx.beginPath(); ctx.moveTo(0, this.bottomGlassYpx); ctx.lineTo(canvas.width, this.bottomGlassYpx); ctx.stroke();
 
             // centers approximated as quarter points inside frame if not set
@@ -75,12 +85,15 @@ export class AnalysisPreviewComponent implements OnInit, OnChanges {
         }
         // compute now measures if we have pupils & frame
         if (this.data.pupils && this.data.frameGeom) {
-            this.measures = this.geom.computeMeasures(this.data.pupils, this.data.frameGeom, this.frameWidthMM, this.bottomGlassYpx, this.leftCenterXpx, this.rightCenterXpx);
+            this.measures = this.geom.computeMeasures(this.data.pupils, this.data.frameGeom, this.frameWidthMM, this.bottomGlassYpx, this.leftCenterXpx, this.rightCenterXpx, this.topGlassYpx);
         }
     }
 
     // allow manual adjust of bottomGlassYpx via up/down
     adjustBottomGlass(delta: number) { this.bottomGlassYpx += delta; this.drawPreview(); }
+
+    // allow manual adjust of topGlassYpx via up/down
+    adjustTopGlass(delta: number) { this.topGlassYpx += delta; this.drawPreview(); }
 
     async generateAnimation() {
         // create an offscreen base canvas we can pass to animator

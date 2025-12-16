@@ -316,9 +316,43 @@ export class ProductService {
             calibre: 58,
             pont: 14,
             branche: 135,
-            typeMonture: 'cerclee' as any
+            typeMonture: 'cerclee' as any,
+            sourceStock: 'PRINCIPALE'
         };
 
-        this.mockProducts.push(sampleFrame);
+        const secondaryFrame: Frame = {
+            id: '2',
+            codeInterne: 'MON002',
+            codeBarres: '2001234567891',
+            designation: 'Monture Import Parallèle',
+            marque: 'Generic',
+            modele: 'X1',
+            couleur: 'Noir',
+            typeArticle: ProductType.MONTURE,
+            famille: 'Optique',
+            quantiteActuelle: 10,
+            seuilAlerte: 2,
+            prixAchatHT: 20,
+            coefficient: 3,
+            prixVenteHT: 60,
+            prixVenteTTC: 72,
+            tauxTVA: 0.20,
+            dateCreation: new Date(),
+            dateModification: new Date(),
+            statut: ProductStatus.DISPONIBLE,
+            utilisateurCreation: 'admin',
+            categorie: 'optique' as any,
+            genre: 'mixte' as any,
+            forme: 'rectangulaire' as any,
+            matiere: 'plastique' as any,
+            couleurMonture: 'Noir',
+            calibre: 50,
+            pont: 18,
+            branche: 140,
+            typeMonture: 'cerclee' as any,
+            sourceStock: 'SECONDAIRE'
+        };
+
+        this.mockProducts.push(sampleFrame, secondaryFrame);
     }
 }

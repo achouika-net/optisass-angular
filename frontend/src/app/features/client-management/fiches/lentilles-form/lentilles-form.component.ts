@@ -17,15 +17,17 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { FicheService } from '../../services/fiche.service';
 import { ClientService } from '../../services/client.service';
+import { FactureService } from '../../services/facture.service';
 import { FicheLentillesCreate, TypeFiche, StatutFiche } from '../../models/fiche-client.model';
-import { Client, TypeClient, ClientParticulier, ClientProfessionnel, isClientParticulier, isClientProfessionnel } from '../../models/client.model';
+import { Client, ClientParticulier, ClientProfessionnel, isClientParticulier, isClientProfessionnel } from '../../models/client.model';
 import { ContactLensType, ContactLensUsage } from '../../../../shared/interfaces/product.interface';
+import { FactureFormComponent } from '../../factures/facture-form/facture-form.component';
+import { PaymentListComponent } from '../../payments/payment-list/payment-list.component';
 
 @Component({
     selector: 'app-lentilles-form',
     standalone: true,
     imports: [
-        CommonModule,
         CommonModule,
         ReactiveFormsModule,
         FormsModule,
@@ -42,7 +44,9 @@ import { ContactLensType, ContactLensUsage } from '../../../../shared/interfaces
         MatDividerModule,
         MatButtonToggleModule,
         RouterModule,
-        AdaptationModerneComponent
+        AdaptationModerneComponent,
+        FactureFormComponent,
+        PaymentListComponent
     ],
     templateUrl: './lentilles-form.component.html',
     styleUrls: ['./lentilles-form.component.scss'],
@@ -61,53 +65,50 @@ export class LentillesFormComponent implements OnInit {
     lensTypes = Object.values(ContactLensType);
     lensUsages = Object.values(ContactLensUsage);
 
+    // Linked Invoice
+    linkedFacture: any = null;
+
     constructor(
         private fb: FormBuilder,
         private route: ActivatedRoute,
         private router: Router,
         private ficheService: FicheService,
         private clientService: ClientService,
+        private factureService: FactureService,
         private cdr: ChangeDetectorRef
     ) {
-        console.log('LentillesFormComponent: Constructor called');
-        try {
-            this.ficheForm = this.initForm();
-            console.log('LentillesFormComponent: Form initialized', this.ficheForm);
-        } catch (e) {
-            console.error('LentillesFormComponent: Error initializing form', e);
-            throw e;
-        }
+        this.ficheForm = this.initForm();
     }
 
     ngOnInit(): void {
-        console.log('LentillesFormComponent: ngOnInit called');
-        try {
-            this.clientId = this.route.snapshot.paramMap.get('clientId');
-            this.ficheId = this.route.snapshot.paramMap.get('id');
-            console.log('LentillesFormComponent: Params', { clientId: this.clientId, ficheId: this.ficheId });
+        this.clientId = this.route.snapshot.paramMap.get('clientId');
+        this.ficheId = this.route.snapshot.paramMap.get('id');
 
-            if (this.clientId) {
-                this.loadClient();
-            }
+        if (this.clientId) {
+            this.loadClient();
+        }
 
-            if (this.ficheId && this.ficheId !== 'new') {
-                this.isEditMode = false;
-                this.ficheForm.disable();
-                this.loadFiche();
-            } else {
-                this.isEditMode = true;
-                this.ficheForm.enable();
-            }
-        } catch (e) {
-            console.error('LentillesFormComponent: Error in ngOnInit', e);
+        if (this.ficheId && this.ficheId !== 'new') {
+            this.isEditMode = false;
+            this.ficheForm.disable();
+            this.loadFiche();
+            this.loadLinkedInvoice();
+        } else {
+            this.isEditMode = true;
+            this.ficheForm.enable();
+            // Default dates
+            this.ficheForm.patchValue({
+                ordonnance: { datePrescription: new Date() },
+                adaptation: { dateEssai: new Date() }
+            });
         }
     }
-
 
     toggleEditMode(): void {
         this.isEditMode = !this.isEditMode;
         if (this.isEditMode) {
             this.ficheForm.enable();
+            // Ensure derived/calculated fields are disabled if necessary
         } else {
             this.ficheForm.disable();
         }
@@ -125,7 +126,7 @@ export class LentillesFormComponent implements OnInit {
                     cylindre: [''],
                     axe: [''],
                     addition: [''],
-                    k1: [''], // Kératométrie
+                    k1: [''],
                     k2: ['']
                 }),
                 og: this.fb.group({
@@ -146,13 +147,13 @@ export class LentillesFormComponent implements OnInit {
                 od: this.fb.group({
                     marque: ['', Validators.required],
                     modele: [''],
-                    rayon: ['', Validators.required], // BC
-                    diametre: ['', Validators.required], // DIA
+                    rayon: ['', Validators.required],
+                    diametre: ['', Validators.required],
                     sphere: [''],
                     cylindre: [''],
                     axe: [''],
                     addition: [''],
-                    prix: ['']
+                    prix: [0]
                 }),
                 og: this.fb.group({
                     marque: ['', Validators.required],
@@ -163,66 +164,39 @@ export class LentillesFormComponent implements OnInit {
                     cylindre: [''],
                     axe: [''],
                     addition: [''],
-                    prix: ['']
+                    prix: [0]
                 })
             }),
 
-            // Adaptation & Essai
+            // Adaptation
             adaptation: this.fb.group({
                 dateEssai: [new Date()],
                 dateControle: [''],
-                docteur: [''],                       // Doctor name
-
+                docteur: [''],
                 // Automatic Measures
-                hvid: [''],                          // Horizontal Visible Iris Diameter
-                pupilPhot: [''],                     // Photopic pupil
-                pupilMes: [''],                      // Mesopic pupil
-                but: [''],                           // Break-Up Time
-                schirmer: [''],                      // Schirmer test
-                k1: [''],                            // Keratometry 1
-                k2: [''],                            // Keratometry 2
-
-                // Clinical Parameters
-                blinkFreq: ['normal'],               // Blink frequency
-                blinkAmp: ['complet'],               // Blink amplitude
-                tonus: ['normal'],                   // Palpebral tonus
-
-                // Suggestion Applied
-                suggestedType: [''],
-                suggestedDiameter: [''],
-                suggestedBC: [''],
-                suggestedMaterial: [''],
-
-                // OD (Right Eye) Clinical Parameters
+                hvid: [''], pupilPhot: [''], pupilMes: [''], but: [''], k1: [''], k2: [''],
+                // OD
                 od: this.fb.group({
-                    frequenceCillement: ['normal'],      // Blink frequency
-                    amplitudeCillement: ['complet'],     // Blink amplitude
-                    tonusPalpebral: ['normal'],          // Palpebral tonus
-                    reactionPupillaire: ['normale'],     // Pupillary reaction
-                    secretionLacrimale: [''],            // Tear secretion (mm)
-                    but: [''],                           // Break-up time (seconds)
-                    etatPaupieres: ['']                  // Eyelid condition
+                    frequenceCillement: ['normal'], amplitudeCillement: ['complet'], tonusPalpebral: ['normal'],
+                    reactionPupillaire: ['normale'], secretionLacrimale: [''], but: [''], etatPaupieres: ['']
                 }),
-
-                // OG (Left Eye) Clinical Parameters
+                // OG
                 og: this.fb.group({
-                    frequenceCillement: ['normal'],
-                    amplitudeCillement: ['complet'],
-                    tonusPalpebral: ['normal'],
-                    reactionPupillaire: ['normale'],
-                    secretionLacrimale: [''],
-                    but: [''],
-                    etatPaupieres: ['']
+                    frequenceCillement: ['normal'], amplitudeCillement: ['complet'], tonusPalpebral: ['normal'],
+                    reactionPupillaire: ['normale'], secretionLacrimale: [''], but: [''], etatPaupieres: ['']
                 }),
-
-                // Legacy fields for compatibility
-                acuiteOD: [''],
-                acuiteOG: [''],
-                confort: [''],
-                centrage: [''],
-                mobilite: [''],
-                validation: [false],
                 remarques: ['']
+            }),
+
+            // Suivi Commande
+            suiviCommande: this.fb.group({
+                statut: ['A_COMMANDER'], // A_COMMANDER, COMMANDE, RECU, LIVRE_CLIENT
+                dateCommande: [null],
+                dateReception: [null],
+                dateLivraison: [null],
+                fournisseur: [''],
+                referenceCommande: [''],
+                commentaire: ['']
             })
         });
     }
@@ -236,136 +210,190 @@ export class LentillesFormComponent implements OnInit {
     }
 
     loadFiche(): void {
-        // TODO: Implement load logic when backend is ready
+        if (!this.ficheId) return;
+
+        this.ficheService.getFicheById(this.ficheId).subscribe({
+            next: (fiche: any) => {
+                // Determine 'prescription' vs 'ordonnance' mapping
+                // Backend model uses 'prescription' but form uses 'ordonnance'
+                const formPatch = {
+                    ...fiche,
+                    ordonnance: fiche.prescription || fiche.ordonnance,
+                    // If backend stores content flattened or nested, FicheService handles mapBackendToFrontend
+                    // which spreads content. So 'lentilles', 'adaptation', 'suiviCommande' should be at top level.
+                };
+
+                this.ficheForm.patchValue(formPatch);
+                this.cdr.markForCheck();
+            },
+            error: (err) => console.error('Error loading fiche:', err)
+        });
     }
 
-    // Getters for form groups
+    loadLinkedInvoice() {
+        if (!this.ficheId) return;
+        // Mock logic: find first invoice for this fiche
+        // Ideally backend provides this or we search invoices by ficheId
+        this.factureService.findAll().subscribe(factures => {
+            this.linkedFacture = factures.find(f => f.ficheId === this.ficheId) || { id: 'new' };
+            this.cdr.markForCheck();
+        });
+    }
+
+    // --- Getters ---
     get ordonnanceGroup(): FormGroup { return this.ficheForm.get('ordonnance') as FormGroup; }
     get lentillesGroup(): FormGroup { return this.ficheForm.get('lentilles') as FormGroup; }
     get adaptationGroup(): FormGroup { return this.ficheForm.get('adaptation') as FormGroup; }
-
-    get diffLentilles(): boolean {
-        return this.lentillesGroup.get('diffLentilles')?.value;
-    }
+    get suiviCommandeGroup(): FormGroup { return this.ficheForm.get('suiviCommande') as FormGroup; }
+    get diffLentilles(): boolean { return this.lentillesGroup.get('diffLentilles')?.value; }
 
     get clientDisplayName(): string {
         if (!this.client) return '';
-
-        if (isClientProfessionnel(this.client)) {
-            return this.client.raisonSociale.toUpperCase();
-        }
-
-        if (isClientParticulier(this.client)) {
-            const nom = this.client.nom || '';
-            const prenom = this.client.prenom || '';
-            return `${nom.toUpperCase()} ${this.toTitleCase(prenom)}`;
-        }
-
-        // Fallback for untyped or anonyme
-        if ((this.client as any).nom) {
-            const nom = (this.client as any).nom || '';
-            const prenom = (this.client as any).prenom || '';
-            return `${nom.toUpperCase()} ${this.toTitleCase(prenom)}`;
-        }
-
+        if (isClientProfessionnel(this.client)) return this.client.raisonSociale.toUpperCase();
+        if (isClientParticulier(this.client)) return `${this.client.nom?.toUpperCase()} ${this.client.prenom}`;
         return 'Client';
     }
 
-    private toTitleCase(str: string): string {
-        if (!str) return '';
-        return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    // --- Order Tracking Logic ---
+    get suiviStatut(): string {
+        return this.suiviCommandeGroup.get('statut')?.value;
     }
 
-    setActiveTab(index: number): void {
-        this.activeTab = index;
-    }
+    setOrderStatus(statut: string) {
+        this.suiviCommandeGroup.patchValue({ statut });
+        const now = new Date();
 
-    nextTab(): void {
-        if (this.activeTab < 2) {
-            this.activeTab++;
+        if (statut === 'COMMANDE') {
+            this.suiviCommandeGroup.patchValue({ dateCommande: now });
+        } else if (statut === 'RECU') {
+            this.suiviCommandeGroup.patchValue({ dateReception: now });
+        } else if (statut === 'LIVRE_CLIENT') {
+            this.suiviCommandeGroup.patchValue({ dateLivraison: now });
         }
+        this.ficheForm.markAsDirty();
     }
 
-    prevTab(): void {
-        if (this.activeTab > 0) {
-            this.activeTab--;
+    getStepState(stepStatus: string): 'pending' | 'active' | 'completed' {
+        const currentStatus = this.suiviStatut;
+        const statusOrder = ['A_COMMANDER', 'COMMANDE', 'RECU', 'LIVRE_CLIENT'];
+        const currentIndex = statusOrder.indexOf(currentStatus);
+        const stepIndex = statusOrder.indexOf(stepStatus);
+
+        if (stepIndex < currentIndex) return 'completed';
+        if (stepIndex === currentIndex) return 'active';
+        return 'pending';
+    }
+
+    // --- Invoice Generation ---
+    get initialInvoiceLines(): any[] {
+        const lentilles = this.lentillesGroup.value;
+        const lines = [];
+
+        // OD
+        if (lentilles.od && lentilles.od.marque) {
+            lines.push({
+                description: `Lentille OD: ${lentilles.od.marque} ${lentilles.od.modele || ''} - ${lentilles.type}`,
+                qte: 1, // Or pack size default
+                prixUnitaireTTC: lentilles.od.prix || 0,
+                remise: 0,
+                totalTTC: lentilles.od.prix || 0
+            });
         }
+
+        // OG
+        if (this.diffLentilles && lentilles.og && lentilles.og.marque) {
+            lines.push({
+                description: `Lentille OG: ${lentilles.og.marque} ${lentilles.og.modele || ''} - ${lentilles.type}`,
+                qte: 1,
+                prixUnitaireTTC: lentilles.og.prix || 0,
+                remise: 0,
+                totalTTC: lentilles.og.prix || 0
+            });
+        } else if (!this.diffLentilles && lentilles.od && lentilles.od.marque) {
+            // Same lens twice or pack of 2? Usually sell boxes.
+            // Assuming 1 box per eye for now or 2 boxes identical
+            lines.push({
+                description: `Lentille OG: ${lentilles.od.marque} ${lentilles.od.modele || ''} - ${lentilles.type}`,
+                qte: 1,
+                prixUnitaireTTC: lentilles.od.prix || 0,
+                remise: 0,
+                totalTTC: lentilles.od.prix || 0
+            });
+        }
+
+        return lines;
     }
 
+    get nomenclatureString(): string {
+        // Build a string like "Lentilles MENSUELLE [Marque]"
+        const l = this.lentillesGroup.value;
+        return `Lentilles ${l.type} - ${l.od?.marque || ''}`;
+    }
+
+    onInvoiceSaved(facture: any) {
+        this.linkedFacture = facture;
+        // Optionally update fiche status or total
+        this.cdr.markForCheck();
+    }
+
+    // --- Navigation ---
+    setActiveTab(index: number): void { this.activeTab = index; }
+    nextTab(): void { if (this.activeTab < 5) this.activeTab++; } // Increased max tab
+    prevTab(): void { if (this.activeTab > 0) this.activeTab--; }
+    goBack(): void {
+        this.router.navigate(['/p/clients', this.clientId]);
+    }
+
+    // --- Submit ---
     onSubmit(): void {
         if (this.ficheForm.invalid) {
-            console.warn('Form invalid:', this.ficheForm.errors);
-            alert('Veuillez remplir tous les champs obligatoires (marqués en rouge).');
-            return;
-        }
-        if (!this.clientId) {
-            console.error('Missing clientId');
+            alert('Veuillez remplir tous les champs obligatoires.');
             return;
         }
 
         this.loading = true;
         const formValue = this.ficheForm.value;
 
-        // Calculate total amount (mock logic)
+        // Calculate total
         const prixOD = parseFloat(formValue.lentilles.od.prix) || 0;
         const prixOG = parseFloat(formValue.lentilles.diffLentilles ? formValue.lentilles.og.prix : formValue.lentilles.od.prix) || 0;
-        const total = prixOD + prixOG;
+        const total = prixOD + prixOG; // Simplified
 
-        // Mapping to FicheLentillesCreate model
-        const ficheData: FicheLentillesCreate = {
+        const payload: any = {
             clientId: this.clientId,
             type: TypeFiche.LENTILLES,
-            statut: StatutFiche.EN_COURS,
+            statut: formValue.suiviCommande.statut === 'LIVRE_CLIENT' ? StatutFiche.LIVRE :
+                formValue.suiviCommande.statut === 'COMMANDE' ? StatutFiche.COMMANDE : StatutFiche.EN_COURS,
             montantTotal: total,
-            montantPaye: 0,
+            montantPaye: 0, // Should be calculated linked
             prescription: formValue.ordonnance,
-            lentilles: {
-                type: formValue.lentilles.type,
-                usage: formValue.lentilles.usage,
-                od: formValue.lentilles.od,
-                og: formValue.lentilles.diffLentilles ? formValue.lentilles.og : formValue.lentilles.od
-            },
-            adaptation: formValue.adaptation
+            lentilles: formValue.lentilles,
+            adaptation: formValue.adaptation,
+            suiviCommande: formValue.suiviCommande
         };
 
-        this.ficheService.createFicheLentilles(ficheData).subscribe({
-            next: () => {
+        const request = (this.ficheId && this.ficheId !== 'new')
+            ? this.ficheService.updateFiche(this.ficheId, payload)
+            : this.ficheService.createFicheLentilles(payload);
+
+        request.subscribe({
+            next: (fiche) => {
                 this.loading = false;
-                this.router.navigate(['/p/clients', this.clientId]);
+                this.ficheId = fiche.id; // Update ID if creating
+                this.isEditMode = false;
+                this.ficheForm.disable(); // Return to view mode
+                this.loadFiche(); // Reload to be sure
+                alert('Fiche enregistrée avec succès');
             },
             error: (err) => {
-                console.error('Error creating fiche lentilles:', err);
+                console.error(err);
                 this.loading = false;
-
-                // Handle incomplete profile error
-                if (err.status === 400 && err.error?.missingFields) {
-                    const message = `Profil client incomplet.\n\nChamps manquants:\n${err.error.missingFields.join('\n')}\n\nVoulez-vous compléter le profil maintenant?`;
-
-                    if (confirm(message)) {
-                        this.router.navigate(['/p/clients', this.clientId, 'edit']);
-                    }
-                } else {
-                    alert('Erreur lors de la création de la fiche: ' + (err.message || 'Erreur inconnue'));
-                }
-
-                this.cdr.markForCheck();
+                alert('Erreur lors de l\'enregistrement');
             }
         });
     }
 
-    goBack(): void {
-        if (this.clientId) {
-            this.router.navigate(['/p/clients', this.clientId]);
-        } else {
-            this.router.navigate(['/p/clients']);
-        }
-    }
-
-    /**
-     * Handle suggestion generated from modern adaptation component
-     */
     onSuggestionGenerated(suggestion: any): void {
-        console.log('Suggestion generated:', suggestion);
-        // Suggestion is automatically applied to form by the child component
+        // Suggestion handled by child, potentially trigger re-calc of visual aid
     }
 }

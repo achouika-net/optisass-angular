@@ -457,7 +457,18 @@ export class MontureFormComponent implements OnInit {
             equipements: this.fb.array([]),
 
             // Date Livraison (Required)
-            dateLivraisonEstimee: [null, Validators.required]
+            dateLivraisonEstimee: [null, Validators.required],
+
+            // Onglet 5: Suivi Commande (Notes refactored)
+            suiviCommande: this.fb.group({
+                statut: ['A_COMMANDER'], // A_COMMANDER, COMMANDE, RECU, LIVRE_CLIENT
+                dateCommande: [null],
+                dateReception: [null],
+                dateLivraison: [null], // Date effective de livraison au client
+                fournisseur: [''],     // Fournisseur des verres
+                referenceCommande: [''], // Ref commande fournisseur
+                commentaire: ['']
+            })
         });
     }
 
@@ -799,6 +810,50 @@ export class MontureFormComponent implements OnInit {
         return dbTreatments
             .map(t => mapping[t] || t)
             .filter(t => t !== '');
+    }
+
+    // --- Suivi Commande Logic ---
+
+    get suiviStatut(): string {
+        return this.ficheForm.get('suiviCommande.statut')?.value || 'A_COMMANDER';
+    }
+
+    setOrderStatus(statut: string): void {
+        const group = this.ficheForm.get('suiviCommande');
+        if (!group) return;
+
+        group.patchValue({ statut });
+
+        const now = new Date();
+
+        // Auto-fill dates based on status transition
+        if (statut === 'COMMANDE') {
+            if (!group.get('dateCommande')?.value) {
+                group.patchValue({ dateCommande: now });
+            }
+        } else if (statut === 'RECU') {
+            if (!group.get('dateReception')?.value) {
+                group.patchValue({ dateReception: now });
+            }
+        } else if (statut === 'LIVRE_CLIENT') {
+            if (!group.get('dateLivraison')?.value) {
+                group.patchValue({ dateLivraison: now });
+            }
+        }
+
+        // Mark form as dirty to enable save
+        this.ficheForm.markAsDirty();
+    }
+
+    getStepState(stepStatus: string): string {
+        const current = this.suiviStatut;
+        const levels = ['A_COMMANDER', 'COMMANDE', 'RECU', 'LIVRE_CLIENT'];
+        const currentIndex = levels.indexOf(current);
+        const stepIndex = levels.indexOf(stepStatus);
+
+        if (currentIndex > stepIndex) return 'completed';
+        if (currentIndex === stepIndex) return 'active';
+        return 'pending';
     }
 
     closeSuggestions(): void {
@@ -1199,7 +1254,8 @@ export class MontureFormComponent implements OnInit {
             monture: fiche.monture,
             montage: fiche.montage,
             suggestions: fiche.suggestions,
-            dateLivraisonEstimee: fiche.dateLivraisonEstimee
+            dateLivraisonEstimee: fiche.dateLivraisonEstimee,
+            suiviCommande: fiche.suiviCommande
         }, { emitEvent: false });
 
         // Explicitly patch verres to ensure UI updates for differentODOG

@@ -88,7 +88,15 @@ export class MediaPipeEngineService {
 
         let pupils: Pupils;
 
-        if (leftIris.length && rightIris.length) {
+        // Use specific Indigo Iris landmarks if available (468 left, 473 right)
+        // These are the exact centers provided by MediaPipe's refineLandmarks
+        if (pts[468] && pts[473]) {
+            pupils = {
+                left: pts[468],
+                right: pts[473]
+            };
+        } else if (leftIris.length && rightIris.length) {
+            // Fallback to average if 468/473 missing (unlikely if refined)
             pupils = {
                 left: this.averagePoints(leftIris),
                 right: this.averagePoints(rightIris)

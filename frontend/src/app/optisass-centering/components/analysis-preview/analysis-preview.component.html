@@ -4,8 +4,16 @@
         <label>Largeur monture (mm):
             <input type="number" [(ngModel)]="frameWidthMM" (change)="drawPreview()" />
         </label>
-        <button (click)="adjustBottomGlass(-2)">Haut</button>
-        <button (click)="adjustBottomGlass(2)">Bas</button>
+        <div class="adjust-group" style="display:flex; gap:10px; align-items:center; margin-bottom:5px;">
+            <span>Ligne Haute:</span>
+            <button (click)="adjustTopGlass(-2)">↑</button>
+            <button (click)="adjustTopGlass(2)">↓</button>
+        </div>
+        <div class="adjust-group" style="display:flex; gap:10px; align-items:center;">
+            <span>Ligne Basse:</span>
+            <button (click)="adjustBottomGlass(-2)">↑</button>
+            <button (click)="adjustBottomGlass(2)">↓</button>
+        </div>
         <button (click)="generateAnimation()" [disabled]="!data">Générer animation</button>
         <a *ngIf="animUrl" [href]="animUrl" download="optisass_anim.webm">Télécharger animation</a>
     </div>

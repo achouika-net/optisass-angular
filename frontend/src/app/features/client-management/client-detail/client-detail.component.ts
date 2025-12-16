@@ -82,7 +82,7 @@ export class ClientDetailComponent implements OnInit {
   });
 
   // Table columns
-  historyColumns: string[] = ['type', 'dateCreation', 'dateLivraison', 'docteur', 'typeEquipement', 'typeVerre', 'nomenclature', 'actions'];
+  historyColumns: string[] = ['dateLivraison', 'type', 'dateCreation', 'docteur', 'typeEquipement', 'typeVerre', 'nomenclature', 'actions'];
 
   // Enums pour le template
   StatutFiche = StatutFiche;

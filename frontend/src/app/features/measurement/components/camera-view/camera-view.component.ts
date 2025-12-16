@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, ElementRef, Output, EventEmitter, Input, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, ElementRef, Output, EventEmitter, Input, ChangeDetectorRef, ChangeDetectionStrategy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MediaPipeEngineService } from '../../services/mediapipe-engine.service';
@@ -40,6 +40,16 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
     frameBottomRightY: number = 0;
     isDraggingLeft = false;
     isDraggingRight = false;
+
+    // Frame Height (Red Lines)
+    frameTopY: number = 0;
+    frameBottomY: number = 0;
+    isDraggingFrameTop = false;
+    isDraggingFrameBottom = false;
+
+    // Manual Pupil Adjustment
+    isDraggingPupilLeft = false;
+    isDraggingPupilRight = false;
 
     // Frame Calibration (Adjustable Vertical Lines)
     frameLeftOffset: number = 0;
@@ -124,7 +134,33 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             }
         }
 
-        // 2. Check Height Horizontal Lines (Y-axis)
+        // 2. Check Frame Top/Bottom Red Lines (Y-axis)
+        // If not initialized, don't drag
+        if (this.frameTopY && Math.abs(canvasY - this.frameTopY) < PROXIMITY_THRESHOLD) {
+            this.isDraggingFrameTop = true;
+            return;
+        }
+        if (this.frameBottomY && Math.abs(canvasY - this.frameBottomY) < PROXIMITY_THRESHOLD) {
+            this.isDraggingFrameBottom = true;
+            return;
+        }
+
+        // 3. Check Pupils (Prioritize this if Captured for manual correction)
+        if (this.isCaptured && this.capturedPupils) {
+            const pupils = this.capturedPupils;
+            const PUPIL_THRESHOLD = 15; // Closer threshold for small points
+
+            if (Math.hypot(canvasX - pupils.left.x, canvasY - pupils.left.y) < PUPIL_THRESHOLD) {
+                this.isDraggingPupilLeft = true;
+                return;
+            }
+            if (Math.hypot(canvasX - pupils.right.x, canvasY - pupils.right.y) < PUPIL_THRESHOLD) {
+                this.isDraggingPupilRight = true;
+                return;
+            }
+        }
+
+        // 4. Check Height Horizontal Lines (Y-axis) (Blue lines for pupil height)
         if (Math.abs(canvasY - this.frameBottomLeftY) < PROXIMITY_THRESHOLD) {
             this.isDraggingLeft = true;
         } else if (Math.abs(canvasY - this.frameBottomRightY) < PROXIMITY_THRESHOLD) {
@@ -133,7 +169,7 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     onMouseMove(event: MouseEvent): void {
-        if (!this.isDraggingLeft && !this.isDraggingRight && !this.isDraggingFrameLeft && !this.isDraggingFrameRight) return;
+        if (!this.isDraggingLeft && !this.isDraggingRight && !this.isDraggingFrameLeft && !this.isDraggingFrameRight && !this.isDraggingFrameTop && !this.isDraggingFrameBottom && !this.isDraggingPupilLeft && !this.isDraggingPupilRight) return;
 
         const rect = this.overlayCanvas.nativeElement.getBoundingClientRect();
         const x = event.clientX - rect.left;
@@ -151,6 +187,24 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         }
         if (this.isDraggingRight) {
             this.frameBottomRightY = canvasY;
+        }
+
+        // Red Lines Dragging
+        if (this.isDraggingFrameTop) {
+            this.frameTopY = canvasY;
+        }
+        if (this.isDraggingFrameBottom) {
+            this.frameBottomY = canvasY;
+        }
+
+        // Pupil Dragging (Manual Correction)
+        if (this.isCaptured && this.capturedPupils) {
+            if (this.isDraggingPupilLeft) {
+                this.capturedPupils.left = { x: canvasX, y: canvasY };
+            }
+            if (this.isDraggingPupilRight) {
+                this.capturedPupils.right = { x: canvasX, y: canvasY };
+            }
         }
 
         // Frame Width Dragging (Update Offsets)
@@ -187,6 +241,10 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         this.isDraggingRight = false;
         this.isDraggingFrameLeft = false;
         this.isDraggingFrameRight = false;
+        this.isDraggingFrameTop = false;
+        this.isDraggingFrameBottom = false;
+        this.isDraggingPupilLeft = false;
+        this.isDraggingPupilRight = false;
     }
 
     async ngAfterViewInit(): Promise<void> {
@@ -254,6 +312,14 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
                     }
                     if (this.frameBottomRightY === 0) {
                         this.frameBottomRightY = result.pupils.right.y + 50;
+                    }
+
+                    // Initialize Red Frame Lines (Top/Bottom) - FAR AWAY from eyes
+                    if (this.frameTopY === 0) {
+                        this.frameTopY = Math.max(20, result.pupils.left.y - 150); // Much higher
+                    }
+                    if (this.frameBottomY === 0) {
+                        this.frameBottomY = Math.min(700, result.pupils.left.y + 150); // Much lower
                     }
 
                     // Store landmarks for calibration
@@ -424,12 +490,20 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         const heightLeftMm = this.calibrationService.pxToMm(heightLeftPx, this.pixelsPerMm!);
         const heightRightMm = this.calibrationService.pxToMm(heightRightPx, this.pixelsPerMm!);
 
+        // Frame Height Calculation (Red Lines)
+        let frameHeightMm = 0;
+        if (this.frameTopY > 0 && this.frameBottomY > 0) {
+            const hPx = Math.abs(this.frameBottomY - this.frameTopY);
+            frameHeightMm = this.calibrationService.pxToMm(hPx, this.pixelsPerMm!);
+        }
+
         return {
             pdMm,
             pdLeftMm,
             pdRightMm,
             heightLeftMm,
             heightRightMm,
+            frameHeightMm,
             pupils,
             timestamp: Date.now()
         };
@@ -507,9 +581,19 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         ctx.fillStyle = 'rgba(0, 255, 0, 0.9)'; // Brighter green
         ctx.beginPath();
         ctx.arc(pupils.left.x, pupils.left.y, 2, 0, Math.PI * 2); // Reduced size
-        ctx.fill();
+        // Draw pupils
+        // Left
+        ctx.fillStyle = this.isDraggingPupilLeft ? '#ffff00' : 'rgba(0, 255, 0, 0.9)'; // Yellow if dragging
+        const rL = this.isDraggingPupilLeft ? 4 : 2;
         ctx.beginPath();
-        ctx.arc(pupils.right.x, pupils.right.y, 2, 0, Math.PI * 2); // Reduced size
+        ctx.arc(pupils.left.x, pupils.left.y, rL, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Right
+        ctx.fillStyle = this.isDraggingPupilRight ? '#ffff00' : 'rgba(0, 255, 0, 0.9)'; // Yellow if dragging
+        const rR = this.isDraggingPupilRight ? 4 : 2;
+        ctx.beginPath();
+        ctx.arc(pupils.right.x, pupils.right.y, rR, 0, Math.PI * 2);
         ctx.fill();
 
         // Draw line between pupils
@@ -520,7 +604,35 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         ctx.moveTo(pupils.left.x, pupils.left.y);
         ctx.lineTo(pupils.right.x, pupils.right.y);
         ctx.stroke();
+        ctx.stroke();
         ctx.setLineDash([]);
+
+        // --- DRAW RED FRAME HEIGHT LINES ---
+        if (this.frameTopY > 0) {
+            ctx.strokeStyle = '#FF0000';
+            ctx.lineWidth = 2; // Bold red
+            ctx.beginPath();
+            ctx.moveTo(0, this.frameTopY);
+            ctx.lineTo(canvas.width, this.frameTopY);
+            ctx.stroke();
+
+            // Draw small handle/label
+            ctx.fillStyle = '#FF0000';
+            ctx.fillText('Haut Verre', 10, this.frameTopY - 5);
+        }
+
+        if (this.frameBottomY > 0) {
+            ctx.strokeStyle = '#FF0000';
+            ctx.lineWidth = 2; // Bold red
+            ctx.beginPath();
+            ctx.moveTo(0, this.frameBottomY);
+            ctx.lineTo(canvas.width, this.frameBottomY);
+            ctx.stroke();
+
+            // Draw small handle/label
+            ctx.fillStyle = '#FF0000';
+            ctx.fillText('Bas Verre', 10, this.frameBottomY + 15);
+        }
 
         // DRAW HEIGHT LINES (Bottom of frame)
         // Left Eye Height Line
