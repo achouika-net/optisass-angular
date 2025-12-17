@@ -1,98 +1,121 @@
-<h2 mat-dialog-title>Rechercher dans le Stock Global</h2>
-<mat-dialog-content>
-    <div class="search-bar">
-        <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Rechercher (Référence, Marque, Code...)</mat-label>
-            <input matInput [(ngModel)]="searchQuery" (keyup)="filterProducts()" placeholder="Ex: Ray-ban">
-            <mat-icon matSuffix>search</mat-icon>
-        </mat-form-field>
+<div class="h-full flex flex-col">
+    <div mat-dialog-title class="flex justify-between items-center mb-0 px-6 pt-6">
+        <h2 class="text-xl font-bold m-0">Sélectionner un produit du stock</h2>
+        <button mat-icon-button (click)="dialogRef.close()">
+            <mat-icon>close</mat-icon>
+        </button>
     </div>
 
-    <div class="table-container">
-        <div *ngIf="loading" class="loading-spinner">
-            <mat-spinner diameter="40"></mat-spinner>
+    <mat-dialog-content class="mat-typography flex-1 flex flex-col px-6">
+
+        <!-- Filters Row -->
+        <div class="flex gap-4 mb-4">
+            <!-- Warehouse Filter -->
+            <mat-form-field appearance="outline" class="w-1/3">
+                <mat-label>Filtrer par Entrepôt</mat-label>
+                <mat-select [(ngModel)]="selectedWarehouseId" (selectionChange)="onWarehouseChange()">
+                    <mat-option [value]="undefined">Tous les entrepôts</mat-option>
+                    <mat-option *ngFor="let wh of warehouses" [value]="wh.id">
+                        {{ wh.nom }} ({{ wh.type }})
+                    </mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <!-- Search Input -->
+            <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Rechercher (Code, Marque, Désignation...)</mat-label>
+                <input matInput [(ngModel)]="searchQuery" (ngModelChange)="filterProducts()"
+                    placeholder="Ex: Ray-Ban, 12345...">
+                <mat-icon matSuffix>search</mat-icon>
+            </mat-form-field>
         </div>
 
-        <table mat-table [dataSource]="filteredProducts" *ngIf="!loading && filteredProducts.length > 0">
+        <div class="flex-1 overflow-auto bg-white rounded-lg border border-gray-200 relative">
+            <div *ngIf="loading" class="absolute inset-0 bg-white/80 z-10 flex justify-center items-center">
+                <mat-progress-spinner mode="indeterminate" diameter="40"></mat-progress-spinner>
+            </div>
 
-            <!-- Photo Column -->
-            <ng-container matColumnDef="photo">
-                <th mat-header-cell *matHeaderCellDef> Photo </th>
-                <td mat-cell *matCellDef="let element">
-                    <img [src]="element.photo || 'assets/images/placeholder-product.png'" class="product-thumb"
-                        onerror="this.src='assets/images/placeholder-product.png'">
-                </td>
-            </ng-container>
+            <table mat-table [dataSource]="filteredProducts" *ngIf="!loading && filteredProducts.length > 0">
 
-            <!-- Designation Column -->
-            <ng-container matColumnDef="designation">
-                <th mat-header-cell *matHeaderCellDef> Désignation </th>
-                <td mat-cell *matCellDef="let element">
-                    <div class="flex flex-col">
-                        <span class="font-bold">{{ element.designation }}</span>
-                        <span class="text-xs text-gray-500">{{ element.typeArticle | titlecase }}</span>
-                    </div>
-                </td>
-            </ng-container>
+                <!-- Photo Column -->
+                <ng-container matColumnDef="photo">
+                    <th mat-header-cell *matHeaderCellDef> Photo </th>
+                    <td mat-cell *matCellDef="let element">
+                        <img [src]="element.photo || 'assets/images/placeholder-product.png'" class="product-thumb"
+                            onerror="this.src='assets/images/placeholder-product.png'">
+                    </td>
+                </ng-container>
 
-            <!-- Reference Column -->
-            <ng-container matColumnDef="reference">
-                <th mat-header-cell *matHeaderCellDef> Référence </th>
-                <td mat-cell *matCellDef="let element"> {{ element.codeInterne }} </td>
-            </ng-container>
+                <!-- Designation Column -->
+                <ng-container matColumnDef="designation">
+                    <th mat-header-cell *matHeaderCellDef> Désignation </th>
+                    <td mat-cell *matCellDef="let element">
+                        <div class="flex flex-col">
+                            <span class="font-bold">{{ element.designation }}</span>
+                            <span class="text-xs text-gray-500">{{ element.typeArticle | titlecase }}</span>
+                        </div>
+                    </td>
+                </ng-container>
 
-            <!-- Marque Column -->
-            <ng-container matColumnDef="marque">
-                <th mat-header-cell *matHeaderCellDef> Marque </th>
-                <td mat-cell *matCellDef="let element"> {{ element.marque || '-' }} </td>
-            </ng-container>
+                <!-- Reference Column -->
+                <ng-container matColumnDef="reference">
+                    <th mat-header-cell *matHeaderCellDef> Référence </th>
+                    <td mat-cell *matCellDef="let element"> {{ element.codeInterne }} </td>
+                </ng-container>
 
-            <!-- Location Column -->
-            <ng-container matColumnDef="location">
-                <th mat-header-cell *matHeaderCellDef> Localisation </th>
-                <td mat-cell *matCellDef="let element">
-                    <div class="location-badge">
-                        <mat-icon inline class="text-xs mr-1">store</mat-icon>
-                        {{ element.entrepot?.nom || 'Inconnu' }}
-                    </div>
-                </td>
-            </ng-container>
+                <!-- Marque Column -->
+                <ng-container matColumnDef="marque">
+                    <th mat-header-cell *matHeaderCellDef> Marque </th>
+                    <td mat-cell *matCellDef="let element"> {{ element.marque || '-' }} </td>
+                </ng-container>
 
-            <!-- Status Column -->
-            <ng-container matColumnDef="statut">
-                <th mat-header-cell *matHeaderCellDef> Statut </th>
-                <td mat-cell *matCellDef="let element">
-                    <span class="status-badge" [ngClass]="element.statut?.toLowerCase()">
-                        {{ element.statut }}
-                    </span>
-                </td>
-            </ng-container>
+                <!-- Location Column -->
+                <ng-container matColumnDef="location">
+                    <th mat-header-cell *matHeaderCellDef> Localisation </th>
+                    <td mat-cell *matCellDef="let element">
+                        <div class="location-badge">
+                            <mat-icon inline class="text-xs mr-1">store</mat-icon>
+                            {{ element.entrepot?.nom || 'Inconnu' }}
+                        </div>
+                    </td>
+                </ng-container>
 
-            <!-- Actions Column -->
-            <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef> Actions </th>
-                <td mat-cell *matCellDef="let element">
-                    <button mat-icon-button color="primary" (click)="selectProduct(element)" matTooltip="Sélectionner">
-                        <mat-icon>check_circle</mat-icon>
-                    </button>
+                <!-- Status Column -->
+                <ng-container matColumnDef="statut">
+                    <th mat-header-cell *matHeaderCellDef> Statut </th>
+                    <td mat-cell *matCellDef="let element">
+                        <span class="status-badge" [ngClass]="element.statut?.toLowerCase()">
+                            {{ element.statut }}
+                        </span>
+                    </td>
+                </ng-container>
 
-                    <button mat-icon-button color="accent" *ngIf="element.statut === 'DISPONIBLE'"
-                        (click)="requestTransfer(element)" matTooltip="Demander Transfert">
-                        <mat-icon>local_shipping</mat-icon>
-                    </button>
-                </td>
-            </ng-container>
+                <!-- Actions Column -->
+                <ng-container matColumnDef="actions">
+                    <th mat-header-cell *matHeaderCellDef> Actions </th>
+                    <td mat-cell *matCellDef="let element">
+                        <button mat-icon-button color="primary" (click)="selectProduct(element)"
+                            matTooltip="Sélectionner">
+                            <mat-icon>check_circle</mat-icon>
+                        </button>
 
-            <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-        </table>
+                        <button mat-icon-button color="accent" *ngIf="element.statut === 'DISPONIBLE'"
+                            (click)="requestTransfer(element)" matTooltip="Demander Transfert">
+                            <mat-icon>local_shipping</mat-icon>
+                        </button>
+                    </td>
+                </ng-container>
 
-        <div *ngIf="!loading && filteredProducts.length === 0" class="no-data">
-            <mat-icon>search_off</mat-icon>
-            <p>Aucun produit trouvé</p>
+                <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+            </table>
+
+            <div *ngIf="!loading && filteredProducts.length === 0" class="no-data">
+                <mat-icon>search_off</mat-icon>
+                <p>Aucun produit trouvé</p>
+            </div>
         </div>
-    </div>
-</mat-dialog-content>
-<mat-dialog-actions align="end">
-    <button mat-button mat-dialog-close>Fermer</button>
-</mat-dialog-actions>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+        <button mat-button mat-dialog-close>Fermer</button>
+    </mat-dialog-actions>
