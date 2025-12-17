@@ -1,0 +1,59 @@
+<h2 mat-dialog-title>
+    {{ isEditMode ? 'Modifier l\'Entrepôt' : 'Nouvel Entrepôt' }}
+</h2>
+
+<mat-dialog-content>
+    <form [formGroup]="form">
+        <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Nom de l'Entrepôt</mat-label>
+            <input matInput formControlName="nom" placeholder="Ex: Entrepôt Principal" required>
+            <mat-error *ngIf="form.get('nom')?.hasError('required')">
+                Le nom est requis
+            </mat-error>
+        </mat-form-field>
+
+        <div class="form-row">
+            <mat-form-field appearance="outline" class="half-width">
+                <mat-label>Type</mat-label>
+                <mat-select formControlName="type" required>
+                    <mat-option *ngFor="let type of entrepotTypes" [value]="type">
+                        {{ type }}
+                    </mat-option>
+                </mat-select>
+                <mat-error *ngIf="form.get('type')?.hasError('required')">
+                    Le type est requis
+                </mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="half-width">
+                <mat-label>Responsable</mat-label>
+                <input matInput formControlName="responsable" placeholder="Nom du responsable">
+            </mat-form-field>
+        </div>
+
+        <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Description</mat-label>
+            <textarea matInput formControlName="description" rows="2"
+                placeholder="Description de l'entrepôt"></textarea>
+        </mat-form-field>
+
+        <div class="form-row">
+            <mat-form-field appearance="outline" class="half-width">
+                <mat-label>Capacité Max (m³)</mat-label>
+                <input matInput type="number" formControlName="capaciteMax" placeholder="1000">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="half-width">
+                <mat-label>Surface (m²)</mat-label>
+                <input matInput type="number" formControlName="surface" placeholder="500">
+            </mat-form-field>
+        </div>
+    </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+    <button mat-button (click)="onCancel()">Annuler</button>
+    <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="!form.valid">
+        {{ isEditMode ? 'Mettre à jour' : 'Créer' }}
+    </button>
+</mat-dialog-actions>

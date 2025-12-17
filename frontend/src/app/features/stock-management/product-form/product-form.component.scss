@@ -159,8 +159,71 @@
     .form-field-large {
         grid-column: span 1;
     }
+}
 
-    .price-display {
-        grid-template-columns: 1fr;
+/* Layout for General Info Form */
+.info-layout-form {
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+}
+
+.info-fields {
+    flex: 1;
+}
+
+.form-field-full {
+    grid-column: 1 / -1;
+}
+
+.info-photo-preview {
+    width: 250px;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+.photo-preview-container {
+    width: 100%;
+    aspect-ratio: 1;
+    background: #f1f3f4;
+    border-radius: 8px;
+    border: 1px solid #dadce0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+
+.preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.preview-label {
+    font-size: 13px;
+    color: #5f6368;
+    margin: 0;
+}
+
+/* Responsive for Info Layout */
+@media (max-width: 900px) {
+    .info-layout-form {
+        flex-direction: column;
     }
+
+    .info-photo-preview {
+        width: 100%;
+        max-width: 300px;
+        margin: 0 auto 20px auto;
+    }
+}
+
+.photo-actions {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 12px;
 }

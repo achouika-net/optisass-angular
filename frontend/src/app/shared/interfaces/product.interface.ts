@@ -54,6 +54,10 @@ export interface BaseProduct {
     statut: ProductStatus;
     utilisateurCreation: string;
 
+    // Warehouse Association
+    entrepotId?: string;
+    entrepot?: any; // Will be typed as Entrepot when imported
+
     // New field for Billing Workflow
     sourceStock?: 'PRINCIPALE' | 'SECONDAIRE';
 }
@@ -389,6 +393,7 @@ export enum LabelFormat {
  * Product Filters
  */
 export interface ProductFilters {
+    entrepotId?: string; // Warehouse filter
     typeArticle?: ProductType;
     marque?: string;
     famille?: string;

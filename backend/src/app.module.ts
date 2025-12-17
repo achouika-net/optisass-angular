@@ -7,10 +7,30 @@ import { FichesModule } from './features/fiches/fiches.module';
 import { FacturesModule } from './features/factures/factures.module';
 import { PaiementsModule } from './features/paiements/paiements.module';
 import { SalesControlModule } from './features/sales-control/sales-control.module';
+import { GroupsModule } from './features/groups/groups.module';
+import { CentersModule } from './features/centers/centers.module';
+import { WarehousesModule } from './features/warehouses/warehouses.module';
+import { StockMovementsModule } from './features/stock-movements/stock-movements.module';
+
+import { ProductsModule } from './features/products/products.module';
+import { ConfigModule } from '@nestjs/config';
+import { PrismaService } from './prisma/prisma.service';
 
 @Module({
-  imports: [PrismaModule, ClientsModule, FichesModule, FacturesModule, PaiementsModule, SalesControlModule],
-  controllers: [AppController],
-  providers: [AppService],
+  imports: [
+    ConfigModule.forRoot(),
+    GroupsModule,
+    CentersModule,
+    WarehousesModule,
+    ProductsModule,
+    StockMovementsModule,
+    ClientsModule,
+    FacturesModule,
+    PaiementsModule,
+    FichesModule,
+    SalesControlModule,
+  ],
+  controllers: [],
+  providers: [PrismaService],
 })
 export class AppModule { }

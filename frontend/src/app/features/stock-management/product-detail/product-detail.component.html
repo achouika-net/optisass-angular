@@ -1,10 +1,22 @@
-<div class="product-detail-container" *ngIf="product">
+<div class="product-detail-container" *ngIf="isLoading">
+    <div class="flex justify-center items-center h-64">
+        <p class="text-gray-500 text-lg">Chargement du produit...</p>
+    </div>
+</div>
+
+<div class="product-detail-container" *ngIf="!isLoading && product">
     <div class="detail-header">
         <h1 class="detail-title">{{ product.designation }}</h1>
         <div class="header-actions">
             <button mat-button (click)="goBack()" class="back-btn">
                 <mat-icon>arrow_back</mat-icon> Retour
             </button>
+
+            <button mat-raised-button color="primary" *ngIf="product.statut === 'DISPONIBLE'"
+                (click)="requestTransfer()" class="transfer-btn">
+                <mat-icon>local_shipping</mat-icon> Demander Transfert
+            </button>
+
             <button mat-raised-button color="accent" (click)="editProduct()" class="edit-btn">
                 <mat-icon>edit</mat-icon> Modifier
             </button>
@@ -21,30 +33,43 @@
                 <mat-card-title>Informations Générales</mat-card-title>
             </mat-card-header>
             <mat-card-content>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">Code Interne:</span>
-                        <span class="info-value">{{ product.codeInterne }}</span>
+                <div class="info-layout">
+                    <!-- Left Side: Data Grid -->
+                    <div class="info-data">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-label">Code Interne:</span>
+                                <span class="info-value">{{ product.codeInterne }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Code-Barres:</span>
+                                <span class="info-value">{{ product.codeBarres || '--' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Type:</span>
+                                <span class="info-value">{{ product.typeArticle | titlecase }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Marque:</span>
+                                <span class="info-value">{{ product.marque || '--' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Modèle:</span>
+                                <span class="info-value">{{ product.modele || '--' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Couleur:</span>
+                                <span class="info-value">{{ product.couleur || '--' }}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Code-Barres:</span>
-                        <span class="info-value">{{ product.codeBarres || '--' }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Type:</span>
-                        <span class="info-value">{{ product.typeArticle | titlecase }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Marque:</span>
-                        <span class="info-value">{{ product.marque || '--' }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Modèle:</span>
-                        <span class="info-value">{{ product.modele || '--' }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Couleur:</span>
-                        <span class="info-value">{{ product.couleur || '--' }}</span>
+
+                    <!-- Right Side: Product Photo -->
+                    <div class="info-photo">
+                        <div class="photo-container">
+                            <img [src]="product.photo || 'assets/images/placeholder-product.png'" alt="Photo produit"
+                                class="product-img" onerror="this.src='assets/images/placeholder-product.png'">
+                        </div>
                     </div>
                 </div>
             </mat-card-content>
@@ -93,6 +118,10 @@
             <mat-card-content>
                 <div class="info-grid">
                     <div class="info-item">
+                        <span class="info-label">Localisation (Entrepôt):</span>
+                        <span class="info-value location-value">{{ product.entrepot?.nom || 'Inconnu' }}</span>
+                    </div>
+                    <div class="info-item">
                         <span class="info-label">Quantité en Stock:</span>
                         <span class="info-value stock-value">{{ product.quantiteActuelle }}</span>
                     </div>
@@ -126,7 +155,7 @@
     </div>
 </div>
 
-<div class="no-product" *ngIf="!product">
+<div class="no-product" *ngIf="!isLoading && !product">
     <mat-icon>inventory_2</mat-icon>
     <p>Produit non trouvé</p>
     <button mat-raised-button color="primary" routerLink="/p/stock">

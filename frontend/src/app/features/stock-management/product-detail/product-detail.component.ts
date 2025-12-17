@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -6,6 +6,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { ProductService } from '../services/product.service';
 import { Product, Frame } from '../../../shared/interfaces/product.interface';
+import { finalize, timeout } from 'rxjs/operators';
+
+import { MatDialog } from '@angular/material/dialog';
+import { StockTransferDialogComponent } from '../services/../components/stock-transfer-dialog/stock-transfer-dialog.component';
 
 @Component({
     selector: 'app-product-detail',
@@ -21,32 +25,97 @@ import { Product, Frame } from '../../../shared/interfaces/product.interface';
     styleUrls: ['./product-detail.component.scss']
 })
 export class ProductDetailComponent implements OnInit {
-    product: Product | undefined;
+    product: any | undefined; // Use any to match include structure if needed
     productId: string | null = null;
+    isLoading = true;
 
     constructor(
         private productService: ProductService,
         private route: ActivatedRoute,
-        private router: Router
+        private router: Router,
+        private cdr: ChangeDetectorRef,
+        private dialog: MatDialog
     ) { }
 
     ngOnInit(): void {
-        this.productId = this.route.snapshot.paramMap.get('id');
-        if (this.productId) {
-            this.loadProduct(this.productId);
-        }
+        this.route.paramMap.subscribe(params => {
+            this.productId = params.get('id');
+            if (this.productId) {
+                this.loadProduct(this.productId);
+            } else {
+                this.isLoading = false;
+                this.cdr.detectChanges();
+            }
+        });
     }
 
     loadProduct(id: string): void {
-        this.productService.findOne(id).subscribe(product => {
-            this.product = product;
-        });
+        console.log('Starting loadProduct for ID:', id);
+        this.isLoading = true;
+
+        // Failsafe: Manual timeout to guarantee spinner removal
+        setTimeout(() => {
+            if (this.isLoading) {
+                console.warn('Manual timeout triggered!');
+                this.isLoading = false;
+                this.cdr.detectChanges();
+            }
+        }, 6000);
+
+        this.productService.findOne(id)
+            .pipe(
+                timeout(5000), // Force error after 5 seconds if no response
+                finalize(() => {
+                    console.log('Finalize called');
+                    this.isLoading = false;
+                    this.cdr.detectChanges();
+                })
+            )
+            .subscribe({
+                next: (product) => {
+                    console.log('Product loaded successfully:', product);
+                    this.product = product;
+                    this.cdr.detectChanges();
+                },
+                error: (err) => {
+                    console.error('Error loading product:', err);
+                    this.cdr.detectChanges();
+                }
+            });
     }
 
     editProduct(): void {
         if (this.productId) {
             this.router.navigate(['/p/stock', this.productId, 'edit']);
         }
+    }
+
+    requestTransfer(): void {
+        if (!this.product) return;
+
+        const dialogRef = this.dialog.open(StockTransferDialogComponent, {
+            width: '400px',
+            data: { product: this.product }
+        });
+
+        dialogRef.afterClosed().subscribe(targetWarehouseId => {
+            if (targetWarehouseId) {
+                this.isLoading = true;
+                this.productService.initiateTransfer(this.product!.id, targetWarehouseId).subscribe({
+                    next: () => {
+                        this.isLoading = false;
+                        this.cdr.detectChanges();
+                        // Reload to show updated status
+                        if (this.productId) this.loadProduct(this.productId);
+                    },
+                    error: (err) => {
+                        console.error('Transfer initiation failed:', err);
+                        this.isLoading = false;
+                        this.cdr.detectChanges();
+                    }
+                });
+            }
+        });
     }
 
     deleteProduct(): void {
@@ -65,7 +134,10 @@ export class ProductDetailComponent implements OnInit {
         return this.product?.typeArticle === 'monture' ? this.product as Frame : undefined;
     }
 
-    formatPrice(price: number): string {
-        return price.toFixed(2) + ' €';
+    formatPrice(price: number | undefined | null): string {
+        if (price === undefined || price === null) {
+            return '0.00 DH';
+        }
+        return Number(price).toFixed(2) + ' DH';
     }
 }

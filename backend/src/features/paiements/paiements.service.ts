@@ -20,15 +20,6 @@ export class PaiementsService {
             throw new NotFoundException('Facture non trouvée');
         }
 
-        /*
-        // Allow paying BROUILLON invoices as per user request (undeclared sales)
-        if (facture.statut === 'BROUILLON') {
-            throw new BadRequestException(
-                'Impossible de payer une facture brouillon. Veuillez la valider d\'abord.'
-            );
-        }
-        */
-
         // 2. Vérifier que le montant ne dépasse pas le reste à payer
         if (montant > facture.resteAPayer) {
             throw new BadRequestException(
@@ -52,6 +43,65 @@ export class PaiementsService {
                 statut: nouveauStatut
             }
         });
+
+        // 5. STOCK DECREMENT LOGIC (SECONDARY WAREHOUSES)
+        // Check lines that are NOT yet marked as 'stockProcessed'.
+
+        /* 
+           NOTE: We rely on 'lignes' from the fetched 'facture' (Step 1).
+           If stock logic needs the absolute latest, we might re-fetch, but 'lignes' usually static here.
+        */
+
+        const currentLines = (facture.lignes as any[]) || [];
+        let stockUpdated = false;
+        const updatedLines: any[] = [];
+
+        for (const line of currentLines) {
+            // Check if line has product and NOT processed
+            if (line.productId && line.qte > 0 && !line.stockProcessed) {
+                const product = await this.prisma.product.findUnique({
+                    where: { id: line.productId },
+                    include: { entrepot: true }
+                });
+
+                if (product && product.entrepot && product.entrepot.type === 'SECONDAIRE') {
+                    console.log(`📉 Decrementing Secondary Stock (Payment): ${product.designation} (-${line.qte})`);
+
+                    await this.prisma.$transaction([
+                        this.prisma.product.update({
+                            where: { id: product.id },
+                            data: { quantiteActuelle: { decrement: line.qte } }
+                        }),
+                        this.prisma.mouvementStock.create({
+                            data: {
+                                type: 'SORTIE_VENTE',
+                                quantite: -line.qte,
+                                produitId: product.id,
+                                entrepotSourceId: product.entrepotId,
+                                motif: `Paiement Devis ${facture.numero}`,
+                                utilisateur: 'System'
+                            }
+                        })
+                    ]);
+
+                    // Mark line as processed
+                    updatedLines.push({ ...line, stockProcessed: true });
+                    stockUpdated = true;
+                } else {
+                    updatedLines.push(line);
+                }
+            } else {
+                updatedLines.push(line);
+            }
+        }
+
+        if (stockUpdated) {
+            await this.prisma.facture.update({
+                where: { id: factureId },
+                data: { lignes: updatedLines }
+            });
+            console.log('✅ Updated Invoice Lines with stockProcessed flags.');
+        }
 
         return paiement;
     }

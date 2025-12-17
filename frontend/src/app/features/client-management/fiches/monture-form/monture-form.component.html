@@ -384,9 +384,13 @@
                                 <div class="form-group col-span-2">
                                     <label>Référence / Code-barres *</label>
                                     <div class="input-with-button">
-                                        <input type="text" formControlName="reference" placeholder="Scanner ou saisir">
-                                        <button type="button" class="btn-scan" (click)="scanBarcode('reference', -1)"
-                                            aria-label="Scanner le code-barres">Scan</button>
+                                        <input type="text" formControlName="reference" placeholder="Saisir ou chercher">
+                                        <button type="button" class="btn-scan" (click)="openStockSearch(-1)"
+                                            aria-label="Chercher en Stock">
+                                            <mat-icon inline
+                                                style="font-size: 18px; margin-right: 4px;">inventory_2</mat-icon>
+                                            Stock
+                                        </button>
                                     </div>
                                 </div>
                                 <div class="form-group"><label>Marque</label><input type="text" formControlName="marque"
@@ -668,9 +672,13 @@
                                         <label>Référence / Code-barres *</label>
                                         <div class="input-with-button">
                                             <input type="text" formControlName="reference"
-                                                placeholder="Scanner ou saisir">
-                                            <button type="button" class="btn-scan" (click)="scanBarcode('reference', i)"
-                                                *ngIf="isEditMode" aria-label="Scanner le code-barres">Scan</button>
+                                                placeholder="Saisir ou chercher">
+                                            <button type="button" class="btn-scan" (click)="openStockSearch(i)"
+                                                *ngIf="isEditMode" aria-label="Chercher en Stock">
+                                                <mat-icon inline
+                                                    style="font-size: 18px; margin-right: 4px;">inventory_2</mat-icon>
+                                                Stock
+                                            </button>
                                         </div>
                                     </div>
                                     <div class="form-group"><label>Marque</label><input type="text"
@@ -884,189 +892,300 @@
                 </div>
             </div>
 
-            <!-- Résumé de la Prescription -->
-            <div class="montage-summary-grid">
-                <!-- Correction d'Ordonnance -->
-                <div class="summary-card">
-                    <div class="summary-header">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
-                        </svg>
-                        <h4>Correction d'Ordonnance</h4>
-                    </div>
-                    <div class="summary-content">
-                        <div class="eye-summary od-summary">
-                            <strong>OD:</strong>
-                            <span>{{ ficheForm.get('ordonnance.od.sphere')?.value || '0' }} ({{
-                                ficheForm.get('ordonnance.od.cylindre')?.value || '0' }}) {{
-                                ficheForm.get('ordonnance.od.axe')?.value || '0' }}° Add {{
-                                ficheForm.get('ordonnance.od.addition')?.value || '0' }}</span>
-                        </div>
-                        <div class="eye-summary og-summary">
-                            <strong>OG:</strong>
-                            <span>{{ ficheForm.get('ordonnance.og.sphere')?.value || '0' }} ({{
-                                ficheForm.get('ordonnance.og.cylindre')?.value || '0' }}) {{
-                                ficheForm.get('ordonnance.og.axe')?.value || '0' }}° Add {{
-                                ficheForm.get('ordonnance.og.addition')?.value || '0' }}</span>
-                        </div>
-                    </div>
-                </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8" formGroupName="montage">
+                <!-- LEFT COLUMN: Ordonnance & Montage Params -->
+                <div class="flex flex-col gap-6">
 
-                <!-- Types de Verres -->
-                <div class="summary-card">
-                    <div class="summary-header">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
-                        </svg>
-                        <h4>Types de Verres</h4>
-                    </div>
-                    <div class="summary-content">
-                        <div class="eye-summary od-summary">
-                            <strong>OD:</strong>
-                            <span>{{ ficheForm.get('verres.differentODOG')?.value ?
-                                ficheForm.get('verres.matiereOD')?.value : ficheForm.get('verres.matiere')?.value }}
-                                {{ ficheForm.get('verres.differentODOG')?.value ?
-                                ficheForm.get('verres.indiceOD')?.value : ficheForm.get('verres.indice')?.value }}
-                                ({{ ficheForm.get('verres.differentODOG')?.value ?
-                                ficheForm.get('verres.marqueOD')?.value : ficheForm.get('verres.marque')?.value }})
-                                • {{ (ficheForm.get('verres.differentODOG')?.value ?
-                                ficheForm.get('verres.traitementOD')?.value :
-                                ficheForm.get('verres.traitement')?.value)?.join(', ') || 'Aucun' }}</span>
+                    <!-- Correction d'Ordonnance -->
+                    <div class="section-card-clean">
+                        <h4 class="section-title-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="text-blue-600">
+                                <path
+                                    d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
+                            </svg>
+                            Correction d'Ordonnance
+                        </h4>
+                        <div class="flex flex-col gap-4">
+                            <!-- OD Row (Purple) -->
+                            <div
+                                class="px-4 py-3 rounded-xl border-l-4 border-purple-400 bg-purple-50 text-purple-900 flex items-center gap-3 shadow-sm">
+                                <strong class="min-w-[40px] text-purple-700">OD:</strong>
+                                <span class="font-medium text-base">
+                                    {{ ficheForm.get('ordonnance.od.sphere')?.value || '0.00' }}
+                                    ({{ ficheForm.get('ordonnance.od.cylindre')?.value || '0.00' }})
+                                    {{ ficheForm.get('ordonnance.od.axe')?.value || '0' }}°
+                                    Add {{ ficheForm.get('ordonnance.od.addition')?.value || '0.00' }}
+                                </span>
+                            </div>
+                            <!-- OG Row (Green) -->
+                            <div
+                                class="px-4 py-3 rounded-xl border-l-4 border-green-400 bg-green-50 text-green-900 flex items-center gap-3 shadow-sm">
+                                <strong class="min-w-[40px] text-green-700">OG:</strong>
+                                <span class="font-medium text-base">
+                                    {{ ficheForm.get('ordonnance.og.sphere')?.value || '0.00' }}
+                                    ({{ ficheForm.get('ordonnance.og.cylindre')?.value || '0.00' }})
+                                    {{ ficheForm.get('ordonnance.og.axe')?.value || '0' }}°
+                                    Add {{ ficheForm.get('ordonnance.og.addition')?.value || '0.00' }}
+                                </span>
+                            </div>
                         </div>
-                        <div class="eye-summary og-summary">
-                            <strong>OG:</strong>
-                            <span>{{ ficheForm.get('verres.differentODOG')?.value ?
-                                ficheForm.get('verres.matiereOG')?.value : ficheForm.get('verres.matiere')?.value }}
-                                {{ ficheForm.get('verres.differentODOG')?.value ?
-                                ficheForm.get('verres.indiceOG')?.value : ficheForm.get('verres.indice')?.value }}
-                                ({{ ficheForm.get('verres.differentODOG')?.value ?
-                                ficheForm.get('verres.marqueOG')?.value : ficheForm.get('verres.marque')?.value }})
-                                • {{ (ficheForm.get('verres.differentODOG')?.value ?
-                                ficheForm.get('verres.traitementOG')?.value :
-                                ficheForm.get('verres.traitement')?.value)?.join(', ') || 'Aucun' }}</span>
-                        </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Paramètres de Montage -->
-            <div class="montage-params-container" formGroupName="montage">
-                <div class="montage-params-left">
                     <!-- Type de Montage -->
-                    <div class="form-group mb-4">
-                        <label>Type de Montage</label>
-                        <select formControlName="typeMontage" class="form-control">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Type de Montage</label>
+                        <select formControlName="typeMontage"
+                            class="w-full h-11 px-4 rounded-xl border border-gray-300 bg-white text-gray-800 focus:ring-2 focus:ring-blue-500 shadow-sm">
                             <option *ngFor="let type of typesMontage" [value]="type">{{ type }}</option>
                         </select>
                     </div>
 
-                    <!-- Paramètres OD/OG -->
-                    <div class="eye-params-grid">
-                        <div class="eye-param-section od-section">
-                            <h5 class="eye-param-title">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <circle cx="12" cy="12" r="10" />
-                                </svg>
-                                ŒIL DROIT (OD)
-                            </h5>
-                            <div class="param-field">
-                                <label>Écart Pupillaire (mm)</label>
-                                <input type="number" formControlName="ecartPupillaireOD" class="form-control">
+                    <!-- Parameters OD / OG Cards -->
+                    <!-- Parameters OD / OG Cards -->
+                    <!-- Parameters OD / OG Cards -->
+                    <div class="grid grid-cols-2 gap-6">
+                        <!-- OD Card -->
+                        <div class="border border-purple-200 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
+                            <div
+                                class="bg-purple-50 px-4 py-3 border-b border-purple-100 flex items-center gap-2 text-purple-800 font-bold text-sm uppercase">
+                                <span class="w-2 h-2 rounded-full bg-purple-600"></span> œil droit (OD)
                             </div>
-                            <div class="param-field">
-                                <label>Hauteur (mm)</label>
-                                <input type="number" formControlName="hauteurOD" class="form-control">
-                            </div>
-                        </div>
-
-                        <div class="eye-param-section og-section">
-                            <h5 class="eye-param-title">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <circle cx="12" cy="12" r="10" />
-                                </svg>
-                                ŒIL GAUCHE (OG)
-                            </h5>
-                            <div class="param-field">
-                                <label>Écart Pupillaire (mm)</label>
-                                <input type="number" formControlName="ecartPupillaireOG" class="form-control">
-                            </div>
-                            <div class="param-field">
-                                <label>Hauteur (mm)</label>
-                                <input type="number" formControlName="hauteurOG" class="form-control">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Diamètre Effectif & Remarques (aligned with OG) -->
-                    <div class="bottom-fields-container">
-                        <!-- Diamètre Effectif -->
-                        <div class="form-group mb-4">
-                            <label>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path
-                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
-                                </svg>
-                                Diamètre Effectif (mm)
-                            </label>
-                            <input type="text" formControlName="diametreEffectif" class="form-control"
-                                placeholder="ex: 65/70">
-                        </div>
-
-                        <!-- Suggestion Panel (Summary Only) -->
-                        <div class="mb-4" *ngIf="suggestions && suggestions.length > 0">
-                            <div class="suggestions-panel">
-                                <h5 class="text-sm font-bold text-blue-800 mb-2">Analyse IA & Recommandations</h5>
-                                <div class="suggestion-item" *ngFor="let suggestion of suggestions">
-                                    <div class="suggestion-content" style="width: 100%;">
-                                        <strong>[{{ suggestion.type }}] {{ suggestion.matiere }}</strong>
-                                        <p class="whitespace-pre-line text-xs text-gray-600 mt-1">{{ suggestion.raison
-                                            }}</p>
-                                    </div>
-                                    <!-- Apply button removed as requested for this view -->
+                            <div class="p-4 bg-white flex flex-col justify-between gap-4 h-full">
+                                <div>
+                                    <label
+                                        class="text-xs text-gray-500 uppercase font-bold tracking-wide mb-1 block">Écart
+                                        Pupillaire (mm)</label>
+                                    <input type="number" formControlName="ecartPupillaireOD"
+                                        class="w-full h-10 px-3 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 font-bold text-base text-gray-800 transition shadow-sm"
+                                        placeholder="32">
+                                </div>
+                                <div>
+                                    <label
+                                        class="text-xs text-gray-500 uppercase font-bold tracking-wide mb-1 block">Hauteur
+                                        (mm)</label>
+                                    <input type="number" formControlName="hauteurOD"
+                                        class="w-full h-10 px-3 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 font-bold text-base text-gray-800 transition shadow-sm"
+                                        placeholder="20">
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Remarques -->
-                        <div class="form-group">
-                            <label>Remarques</label>
-                            <textarea formControlName="remarques" class="form-control" rows="3"
-                                placeholder="Notes spéciales pour le montage..."></textarea>
+                        <!-- OG Card -->
+                        <div class="border border-green-200 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
+                            <div
+                                class="bg-green-50 px-4 py-3 border-b border-green-100 flex items-center gap-2 text-green-800 font-bold text-sm uppercase">
+                                <span class="w-2 h-2 rounded-full bg-green-600"></span> œil gauche (OG)
+                            </div>
+                            <div class="p-4 bg-white flex flex-col justify-between gap-4 h-full">
+                                <div>
+                                    <label
+                                        class="text-xs text-gray-500 uppercase font-bold tracking-wide mb-1 block">Écart
+                                        Pupillaire (mm)</label>
+                                    <input type="number" formControlName="ecartPupillaireOG"
+                                        class="w-full h-10 px-3 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-green-500 font-bold text-base text-gray-800 transition shadow-sm"
+                                        placeholder="32">
+                                </div>
+                                <div>
+                                    <label
+                                        class="text-xs text-gray-500 uppercase font-bold tracking-wide mb-1 block">Hauteur
+                                        (mm)</label>
+                                    <input type="number" formControlName="hauteurOG"
+                                        class="w-full h-10 px-3 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-green-500 font-bold text-base text-gray-800 transition shadow-sm"
+                                        placeholder="20">
+                                </div>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Diametre Effectif (Wrapped for Alignment) -->
+                    <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mt-1">
+                        <div class="p-4">
+                            <label class="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
+                                <span class="w-2 h-2 rounded-full border border-gray-400 bg-gray-100"></span> Diamètre
+                                Effectif (mm)
+                            </label>
+                            <input type="text" formControlName="diametreEffectif"
+                                class="w-full h-10 px-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 text-base font-bold text-gray-800 transition shadow-sm"
+                                placeholder="ex: 65/70">
+                        </div>
+                    </div>
+
+                    <!-- Analyse IA (Yellow Box) -->
+                    <div class="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4 mt-auto">
+                        <h4 class="text-blue-900 font-bold text-sm mb-2">Analyse IA & Recommandations</h4>
+                        <div *ngIf="suggestions && suggestions.length > 0; else noSuggestions">
+                            <div *ngFor="let suggestion of suggestions" class="mb-2 last:mb-0">
+                                <strong class="text-gray-800 text-sm">[{{ suggestion.type }}] {{ suggestion.matiere
+                                    }}</strong>
+                                <p class="text-xs text-gray-600 mt-1 leading-relaxed">{{ suggestion.raison }}</p>
+                            </div>
+                        </div>
+                        <ng-template #noSuggestions>
+                            <p class="text-xs text-gray-500 italic">Aucune recommandation disponible pour le moment.</p>
+                        </ng-template>
+                    </div>
+
                 </div>
 
-                <!-- Canvas de Calibrage Visuel -->
-                <div class="montage-canvas-section">
-                    <div class="canvas-header">
-                        <h4>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                <circle cx="12" cy="12" r="3" />
-                            </svg>
-                            Prototype de Calibrage Visuel
-                        </h4>
-                        <button type="button" class="btn-camera-stylish" (click)="openVirtualCentering()">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <!-- RIGHT COLUMN: Types de Verres & Visual Calibration -->
+                <div class="flex flex-col gap-8">
+
+                    <!-- Types de Verres -->
+                    <div class="section-card-clean">
+                        <h4 class="section-title-icon mb-4">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="text-purple-600">
                                 <path
-                                    d="M12 15.2c1.77 0 3.2-1.43 3.2-3.2s-1.43-3.2-3.2-3.2-3.2 1.43-3.2 3.2 1.43 3.2 3.2 3.2z" />
+                                    d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
                             </svg>
-                            Centrage Virtuel (Tablette)
-                        </button>
-                    </div>
-                    <div class="canvas-container">
-                        <canvas #frameCanvas width="600" height="400" class="frame-canvas"></canvas>
-                        <div class="canvas-legend">
-                            <span class="legend-item"><span class="legend-color" style="background: #FF0000;"></span>
-                                Pont/Centre</span>
-                            <span class="legend-item"><span class="legend-color" style="background: #0066FF;"></span>
-                                Hauteur Pupille</span>
-                            <span class="legend-item"><span class="legend-color" style="background: #FF8800;"></span>
-                                Calibre</span>
+                            Types de Verres
+                        </h4>
+
+                        <div class="flex flex-col gap-6">
+                            <!-- Helper to iterate over loop including main -->
+                            <!-- MAIN EQUIPMENT -->
+                            <div class="glass-type-item">
+                                <div class="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-4 items-start">
+                                    <div
+                                        class="pt-2 font-bold underline decoration-dotted underline-offset-4 text-gray-800">
+                                        Equipement 1: {{ ficheForm.get('monture.typeEquipement')?.value || 'Principal'
+                                        }}
+                                    </div>
+                                    <div class="flex flex-col gap-2 pl-0 md:pl-4 md:border-l-2 md:border-gray-200">
+                                        <!-- OD Box -->
+                                        <div
+                                            class="p-3 rounded bg-purple-50 border-l-4 border-purple-500 text-sm text-purple-900">
+                                            <strong class="text-purple-700 mr-2">OD:</strong>
+                                            {{ ficheForm.get('verres.differentODOG')?.value ?
+                                            ficheForm.get('verres.matiereOD')?.value :
+                                            ficheForm.get('verres.matiere')?.value }}
+                                            {{ ficheForm.get('verres.differentODOG')?.value ?
+                                            ficheForm.get('verres.indiceOD')?.value :
+                                            ficheForm.get('verres.indice')?.value
+                                            }}
+                                            <span class="opacity-75">({{ ficheForm.get('verres.differentODOG')?.value ?
+                                                ficheForm.get('verres.marqueOD')?.value :
+                                                ficheForm.get('verres.marque')?.value }})</span>
+                                            <span class="mx-1">•</span>
+                                            <span class="italic text-xs">{{
+                                                (ficheForm.get('verres.differentODOG')?.value ?
+                                                ficheForm.get('verres.traitementOD')?.value :
+                                                ficheForm.get('verres.traitement')?.value)?.join(', ') || 'Standard'
+                                                }}</span>
+                                        </div>
+                                        <!-- OG Box -->
+                                        <div
+                                            class="p-3 rounded bg-green-50 border-l-4 border-green-500 text-sm text-green-900">
+                                            <strong class="text-green-700 mr-2">OG:</strong>
+                                            {{ ficheForm.get('verres.differentODOG')?.value ?
+                                            ficheForm.get('verres.matiereOG')?.value :
+                                            ficheForm.get('verres.matiere')?.value }}
+                                            {{ ficheForm.get('verres.differentODOG')?.value ?
+                                            ficheForm.get('verres.indiceOG')?.value :
+                                            ficheForm.get('verres.indice')?.value
+                                            }}
+                                            <span class="opacity-75">({{ ficheForm.get('verres.differentODOG')?.value ?
+                                                ficheForm.get('verres.marqueOG')?.value :
+                                                ficheForm.get('verres.marque')?.value }})</span>
+                                            <span class="mx-1">•</span>
+                                            <span class="italic text-xs">{{
+                                                (ficheForm.get('verres.differentODOG')?.value ?
+                                                ficheForm.get('verres.traitementOG')?.value :
+                                                ficheForm.get('verres.traitement')?.value)?.join(', ') || 'Standard'
+                                                }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ADDED EQUIPMENTS -->
+                            <ng-container *ngFor="let equipment of equipements.controls; let i = index">
+                                <div class="glass-type-item">
+                                    <div class="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-4 items-start">
+                                        <div
+                                            class="pt-2 font-bold underline decoration-dotted underline-offset-4 text-gray-800">
+                                            Equipement {{ i + 2 }}: {{ equipment.get('type')?.value || 'Secondaire' }}
+                                        </div>
+                                        <div class="flex flex-col gap-2 pl-0 md:pl-4 md:border-l-2 md:border-gray-200">
+                                            <!-- OD Box -->
+                                            <div
+                                                class="p-3 rounded bg-purple-50 border-l-4 border-purple-500 text-sm text-purple-900">
+                                                <strong class="text-purple-700 mr-2">OD:</strong>
+                                                {{ equipment.get('verres.differentODOG')?.value ?
+                                                equipment.get('verres.matiereOD')?.value :
+                                                equipment.get('verres.matiere')?.value }}
+                                                {{ equipment.get('verres.differentODOG')?.value ?
+                                                equipment.get('verres.indiceOD')?.value :
+                                                equipment.get('verres.indice')?.value }}
+                                                <span class="opacity-75">({{
+                                                    equipment.get('verres.differentODOG')?.value ?
+                                                    equipment.get('verres.marqueOD')?.value :
+                                                    equipment.get('verres.marque')?.value }})</span>
+                                                <span class="mx-1">•</span>
+                                                <span class="italic text-xs">{{
+                                                    (equipment.get('verres.differentODOG')?.value ?
+                                                    equipment.get('verres.traitementOD')?.value :
+                                                    equipment.get('verres.traitement')?.value)?.join(', ') || 'Standard'
+                                                    }}</span>
+                                            </div>
+                                            <!-- OG Box -->
+                                            <div
+                                                class="p-3 rounded bg-green-50 border-l-4 border-green-500 text-sm text-green-900">
+                                                <strong class="text-green-700 mr-2">OG:</strong>
+                                                {{ equipment.get('verres.differentODOG')?.value ?
+                                                equipment.get('verres.matiereOG')?.value :
+                                                equipment.get('verres.matiere')?.value }}
+                                                {{ equipment.get('verres.differentODOG')?.value ?
+                                                equipment.get('verres.indiceOG')?.value :
+                                                equipment.get('verres.indice')?.value }}
+                                                <span class="opacity-75">({{
+                                                    equipment.get('verres.differentODOG')?.value ?
+                                                    equipment.get('verres.marqueOG')?.value :
+                                                    equipment.get('verres.marque')?.value }})</span>
+                                                <span class="mx-1">•</span>
+                                                <span class="italic text-xs">{{
+                                                    (equipment.get('verres.differentODOG')?.value ?
+                                                    equipment.get('verres.traitementOG')?.value :
+                                                    equipment.get('verres.traitement')?.value)?.join(', ') || 'Standard'
+                                                    }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </ng-container>
+
                         </div>
                     </div>
+
+                    <!-- Visual Calibration -->
+                    <div>
+                        <h4 class="flex items-center gap-2 font-bold text-gray-700 mb-4">
+                            <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                            Prototype de Calibrage Visuel
+                            <button type="button"
+                                class="ml-auto bg-blue-600 text-white px-3 py-1 text-xs rounded shadow hover:bg-blue-700 transition"
+                                (click)="openVirtualCentering()">
+                                Centrage Virtuel (Tablette)
+                            </button>
+                        </h4>
+
+                        <div class="canvas-container bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
+                            <canvas #frameCanvas width="600" height="300" class="w-full h-auto"></canvas>
+
+                            <!-- Legend Overlay -->
+                            <div
+                                class="absolute bottom-4 left-0 w-full flex justify-center gap-4 text-xs font-bold bg-white/80 backdrop-blur py-2">
+                                <span class="text-blue-600">EP OG: 32mm</span>
+                                <span class="text-gray-800">Pont: 15mm</span>
+                                <span class="text-blue-600">EP OD: 32mm</span>
+                            </div>
+
+                            <!-- Height Indicators (Mock Visuals for prototype match) -->
+                            <!-- We rely on canvas drawing but can add overlay markers if needed. For now keeping canvas. -->
+                        </div>
+                    </div>
+
                 </div>
+
             </div>
         </div>
 

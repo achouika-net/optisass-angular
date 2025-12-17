@@ -135,3 +135,152 @@ model Paiement {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+// ============================================
+// HIERARCHICAL STOCK MANAGEMENT SYSTEM
+// ============================================
+
+model Groupe {
+  id          String   @id @default(uuid())
+  nom         String   @unique
+  description String?
+  adresse     String?
+  telephone   String?
+  email       String?
+  
+  // Relations
+  centres     Centre[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Centre {
+  id          String   @id @default(uuid())
+  nom         String
+  description String?
+  adresse     String?
+  ville       String?
+  codePostal  String?
+  telephone   String?
+  email       String?
+  
+  // Relations
+  groupeId    String
+  groupe      Groupe     @relation(fields: [groupeId], references: [id], onDelete: Cascade)
+  entrepots   Entrepot[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([groupeId, nom])
+}
+
+model Entrepot {
+  id          String   @id @default(uuid())
+  nom         String
+  description String?
+  type        String   // PRINCIPAL, SECONDAIRE, TRANSIT
+  
+  // Capacity and details
+  capaciteMax Float?   // Maximum capacity in m³ or units
+  surface     Float?   // Surface area in m²
+  responsable String?  // Manager name
+  
+  // Relations
+  centreId    String
+  centre      Centre            @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  produits    Product[]
+  mouvementsSource      MouvementStock[] @relation("EntrepotSource")
+  mouvementsDestination MouvementStock[] @relation("EntrepotDestination")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([centreId, nom])
+}
+
+model Product {
+  id                  String   @id @default(uuid())
+  codeInterne         String   @unique
+  codeBarres          String   @unique
+  referenceFournisseur String?
+  designation         String
+  marque              String?
+  modele              String?
+  couleur             String?
+  
+  // Classification
+  typeArticle         String   // MONTURE, VERRE, LENTILLE, ACCESSOIRE
+  famille             String?
+  sousFamille         String?
+  fournisseurPrincipal String?
+  
+  // Stock & Pricing
+  quantiteActuelle    Float    @default(0)
+  seuilAlerte         Float    @default(0)
+  prixAchatHT         Float    @default(0)
+  coefficient         Float    @default(1)
+  prixVenteHT         Float    @default(0)
+  prixVenteTTC        Float    @default(0)
+  tauxTVA             Float    @default(0.20)
+  
+  // Status
+  statut              String   // DISPONIBLE, RESERVE, EN_COMMANDE, RUPTURE, OBSOLETE
+  
+  // Metadata
+  photo               String?
+  utilisateurCreation String
+  
+  // Type-specific data (stored as JSON)
+  // For Frame: { categorie, genre, forme, matiere, calibre, pont, branche, ... }
+  // For Lens: { typeVerre, materiau, indiceRefraction, teinte, traitements, ... }
+  // For ContactLens: { typeLentille, usage, puissanceSph, rayonCourbure, ... }
+  // For Accessory: { categorie, sousCategorie, ... }
+  specificData        Json?
+  
+  // Relations
+  entrepotId          String
+  entrepot            Entrepot           @relation(fields: [entrepotId], references: [id], onDelete: Restrict)
+  mouvements          MouvementStock[]
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model MouvementStock {
+  id          String   @id @default(uuid())
+  type        String   // ENTREE_ACHAT, SORTIE_VENTE, TRANSFERT, ENTREE_RETOUR_CLIENT, SORTIE_RETOUR_FOURNISSEUR, INVENTAIRE, CASSE
+  quantite    Float
+  dateMovement DateTime @default(now())
+  motif       String
+  utilisateur String
+  
+  // Product reference
+  produitId   String
+  produit     Product  @relation(fields: [produitId], references: [id], onDelete: Cascade)
+  
+  // For transfers between warehouses
+  entrepotSourceId      String?
+  entrepotSource        Entrepot? @relation("EntrepotSource", fields: [entrepotSourceId], references: [id], onDelete: SetNull)
+  
+  entrepotDestinationId String?
+  entrepotDestination   Entrepot? @relation("EntrepotDestination", fields: [entrepotDestinationId], references: [id], onDelete: SetNull)
+  
+  // External references
+  fournisseurId String?
+  clientId      String?
+  factureId     String?
+  
+  // Prices at movement time
+  prixAchatUnitaire  Float?
+  prixVenteUnitaire  Float?
+  
+  // Traceability
+  numeroLot      String?
+  datePeremption DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+

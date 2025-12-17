@@ -1,0 +1,104 @@
+.hierarchy-container {
+    padding: 16px; // Reduced padding
+    // max-width removed to fill available space
+    margin: 0;
+    height: calc(100vh - 84px); // Fill height minus header estimated height
+    display: flex;
+    flex-direction: column;
+
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #333;
+        }
+    }
+}
+
+.tree-card {
+    padding: 16px;
+    flex-grow: 1; // Fill remaining space
+    overflow: auto; // Scroll inside card if tree is huge
+}
+
+.stock-tree {
+    background: transparent;
+}
+
+.stock-tree ul,
+.stock-tree li {
+    margin-top: 0;
+    margin-bottom: 0;
+    list-style-type: none;
+}
+
+/* Node Styling */
+.tree-node-content,
+.mat-tree-node-content {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+    user-select: none;
+    width: 100%; // Ensure click area covers row
+
+    &:hover {
+        background-color: #f5f5f5;
+    }
+}
+
+.node-name {
+    font-weight: 500;
+    margin-left: 8px;
+    font-size: 16px;
+}
+
+.node-type-label {
+    margin-left: 12px;
+    font-size: 12px;
+    background-color: #eee;
+    padding: 2px 8px;
+    border-radius: 12px;
+    color: #666;
+}
+
+.count-badge {
+    margin-left: 12px;
+    font-size: 12px;
+    color: #888;
+}
+
+.action-btn {
+    margin-left: auto;
+    color: #999;
+}
+
+/* Icons */
+.group-icon {
+    color: #3f51b5;
+}
+
+.center-icon {
+    color: #009688;
+}
+
+.warehouse-icon {
+    color: #ff9800;
+}
+
+.tree-invisible {
+    display: none;
+}
+
+.warehouse-node {
+    margin-left: 40px;
+    /* Indent leaves a bit more to align with children */
+    border-left: 2px solid #ddd;
+}

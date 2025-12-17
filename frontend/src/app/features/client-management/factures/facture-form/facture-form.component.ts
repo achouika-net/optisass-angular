@@ -80,7 +80,7 @@ export class FactureFormComponent implements OnInit {
     ) {
         this.form = this.fb.group({
             numero: [''], // Auto-generated
-            type: ['FACTURE', Validators.required],
+            type: ['DEVIS', Validators.required], // [MODIFIED] Default to DEVIS
             statut: ['BROUILLON', Validators.required],
             dateEmission: [new Date(), Validators.required],
             clientId: ['', Validators.required],

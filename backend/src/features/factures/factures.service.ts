@@ -57,6 +57,11 @@ export class FacturesService implements OnModuleInit {
 
         console.log('✅ Facture created with proprietes:', facture.proprietes);
 
+        // [NEW] If created directly as VALIDE (e.g. Principal Stock Auto-Facture), decrement stock immediately
+        if (facture.statut === 'VALIDE') {
+            await this.decrementStockForInvoice(this.prisma, facture);
+        }
+
         return facture;
     }
 
@@ -88,6 +93,45 @@ export class FacturesService implements OnModuleInit {
         return `${prefix}-${year}-${sequence.toString().padStart(3, '0')}`;
     }
 
+    // Helper: Decrement Stock for Valid Invoice (Principal Warehouses)
+    private async decrementStockForInvoice(tx: any, invoice: any) {
+        console.log('📦 Processing Stock Decrement for Validated Invoice:', invoice.numero);
+
+        const linesToProcess = (invoice.lignes as any[]) || [];
+        for (const line of linesToProcess) {
+            if (line.productId && line.qte > 0) {
+                // Fetch Product to check Warehouse Type
+                // Use 'tx' to ensure we are in same transaction context (if applicable) or current state
+                const product = await tx.product.findUnique({
+                    where: { id: line.productId },
+                    include: { entrepot: true }
+                });
+
+                if (product && product.entrepot && product.entrepot.type === 'PRINCIPAL') {
+                    console.log(`📉 Decrementing Principal Stock: ${product.designation} (-${line.qte})`);
+
+                    await tx.product.update({
+                        where: { id: product.id },
+                        data: { quantiteActuelle: { decrement: line.qte } }
+                    });
+
+                    await tx.mouvementStock.create({
+                        data: {
+                            type: 'SORTIE_VENTE',
+                            quantite: -line.qte,
+                            produitId: product.id,
+                            entrepotSourceId: product.entrepotId,
+                            motif: `Vente Facture ${invoice.numero}`,
+                            utilisateur: 'System'
+                        }
+                    });
+                } else {
+                    console.log(`⏩ Skipping Stock Decrement for ${product?.designation} (Warehouse: ${product?.entrepot?.type})`);
+                }
+            }
+        }
+    }
+
     async findAll(params: {
         skip?: number;
         take?: number;
@@ -109,6 +153,8 @@ export class FacturesService implements OnModuleInit {
             }
         });
     }
+
+
 
     async findOne(id: string) {
         return this.prisma.facture.findUnique({
@@ -247,6 +293,9 @@ export class FacturesService implements OnModuleInit {
                             resteAPayer: reste
                         }
                     });
+
+                    // 7. STOCK DECREMENT LOGIC (PRINCIPAL WAREHOUSES)
+                    await this.decrementStockForInvoice(tx, finalInvoice);
 
                     return finalInvoice; // Return the NEW invoice so frontend redirects/updates
                 });

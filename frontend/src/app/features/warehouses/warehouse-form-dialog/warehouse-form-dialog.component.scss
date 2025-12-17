@@ -1,0 +1,41 @@
+h2[mat-dialog-title] {
+    margin: 0;
+    padding: 20px 24px;
+    background-color: #3f51b5;
+    color: white;
+    font-size: 20px;
+    font-weight: 500;
+    border-bottom: none;
+}
+
+mat-dialog-content {
+    padding: 40px 24px 24px 24px !important;
+    min-width: 650px;
+    max-width: 650px;
+    overflow: visible;
+}
+
+.full-width {
+    width: 100%;
+    margin-bottom: 20px;
+
+    &:first-child {
+        margin-top: 10px;
+    }
+}
+
+.form-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.half-width {
+    flex: 1;
+}
+
+mat-dialog-actions {
+    padding: 16px 24px;
+    border-top: 1px solid #e0e0e0;
+    gap: 12px;
+}

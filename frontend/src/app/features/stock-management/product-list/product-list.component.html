@@ -7,6 +7,10 @@
                 <mat-icon>file_download</mat-icon>
                 Exporter
             </button>
+            <button mat-raised-button class="tree-btn" routerLink="/p/stock/tree" color="accent">
+                <mat-icon>account_tree</mat-icon>
+                Vue Arborescence
+            </button>
             <button mat-raised-button class="add-btn" routerLink="/p/stock/new">
                 <mat-icon>add</mat-icon>
                 Ajouter un produit
@@ -24,7 +28,7 @@
         </mat-card>
         <mat-card class="stat-card stat-card-green">
             <mat-card-content>
-                <div class="stat-value">{{ stats.valeurStockTotal | number:'1.2-2' }} €</div>
+                <div class="stat-value">{{ stats.valeurStockTotal | number:'1.2-2' }} DH</div>
                 <div class="stat-label">Valeur du stock</div>
             </mat-card-content>
         </mat-card>
@@ -138,9 +142,9 @@
                     </ng-container>
 
                     <!-- Price Column -->
-                    <ng-container matColumnDef="prixVenteHT">
-                        <th mat-header-cell *matHeaderCellDef mat-sort-header> Prix HT </th>
-                        <td mat-cell *matCellDef="let row"> {{formatPrice(row.prixVenteHT)}} </td>
+                    <ng-container matColumnDef="prixVenteTTC">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header> Prix TTC </th>
+                        <td mat-cell *matCellDef="let row"> {{formatPrice(row.prixVenteTTC)}} </td>
                     </ng-container>
 
                     <!-- Status Column -->

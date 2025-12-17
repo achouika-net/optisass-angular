@@ -26,6 +26,7 @@ import { PaymentListComponent } from '../../payments/payment-list/payment-list.c
 import { map, switchMap, tap, catchError } from 'rxjs/operators';
 import { getLensSuggestion, Correction, FrameData, calculateLensPrice, determineLensType } from '../../utils/lensLogic';
 import { getLensMaterials, getLensIndices } from '../../utils/lensDatabase';
+import { StockSearchDialogComponent } from '../../../stock-management/components/stock-search-dialog/stock-search-dialog.component';
 
 interface PrescriptionFile {
     name: string;
@@ -157,6 +158,9 @@ export class MontureFormComponent implements OnInit {
     showFacture = false;
     // Paste text dialog removed
 
+    // Paste text dialog removed
+
+    // Prix des verres (logique de calcul)
 
     // Prix des verres (logique de calcul)
     private LENS_PRICES: Record<string, Record<string, number>> = {
@@ -377,100 +381,7 @@ export class MontureFormComponent implements OnInit {
         }
     }
 
-    initForm(): FormGroup {
-        return this.fb.group({
-            // Onglet 1: Ordonnance
-            ordonnance: this.fb.group({
-                od: this.fb.group({
-                    sphere: [null],
-                    cylindre: [null],
-                    axe: [null],
-                    addition: [null],
-                    prisme: [null],
-                    base: [null],
-                    ep: [null]
-                }),
-                og: this.fb.group({
-                    sphere: [null],
-                    cylindre: [null],
-                    axe: [null],
-                    addition: [null],
-                    prisme: [null],
-                    base: [null],
-                    ep: [null]
-                }),
-                datePrescription: [new Date()],
-                prescripteur: [''],
-                dateControle: [null],
-                prescriptionFiles: [[]]  // Store prescription attachments
-            }),
 
-            // Onglet 2: Monture & Verres
-            monture: this.fb.group({
-                typeEquipement: [TypeEquipement.MONTURE, Validators.required],
-                reference: [''],
-                codeBarres: [''],
-                marque: [''],
-                couleur: ['Noir mat'],
-                taille: ['52-18-145'],
-                cerclage: ['cerclée'], // Type de cerclage: cerclée/nylor/percée
-                prixMonture: [0, Validators.required]
-            }),
-
-            verres: this.fb.group({
-                matiere: [null],
-                marque: [null],
-                indice: [null],
-                traitement: [[]],
-                prixOD: [0],
-                prixOG: [0],
-                differentODOG: [false],
-
-                // Champs OD
-                matiereOD: [null],
-                marqueOD: [null],
-                indiceOD: [null],
-                traitementOD: [[]],
-
-                // Champs OG
-                matiereOG: [null],
-                marqueOG: [null],
-                indiceOG: [null],
-                traitementOG: [[]]
-            }),
-
-            // Onglet 3: Fiche Montage
-            montage: this.fb.group({
-                typeMontage: ['Cerclé (Complet)'],
-                ecartPupillaireOD: [32, [Validators.required, Validators.min(20), Validators.max(40)]],
-                ecartPupillaireOG: [32, [Validators.required, Validators.min(20), Validators.max(40)]],
-                hauteurOD: [20, [Validators.required, Validators.min(10), Validators.max(30)]],
-                hauteurOG: [20, [Validators.required, Validators.min(10), Validators.max(30)]],
-                diametreEffectif: ['65/70'],
-                remarques: ['']
-            }),
-
-            // AI suggestions
-            suggestions: [[]],
-
-            // Liste des équipements additionnels
-            equipements: this.fb.array([]),
-
-            // Date Livraison (Required)
-            dateLivraisonEstimee: [null, Validators.required],
-
-            // Onglet 5: Suivi Commande (Notes refactored)
-            suiviCommande: this.fb.group({
-                statut: ['A_COMMANDER'], // A_COMMANDER, COMMANDE, RECU, LIVRE_CLIENT
-                dateCommande: [null],
-                dateReception: [null],
-                dateLivraison: [null], // Date effective de livraison au client
-                fournisseur: [''],     // Fournisseur des verres
-                referenceCommande: [''], // Ref commande fournisseur
-                commentaire: ['']
-            })
-        });
-    }
 
     get clientDisplayName(): string {
         if (!this.client) return 'Client';
@@ -798,6 +709,85 @@ export class MontureFormComponent implements OnInit {
         this.calculateLensPrices(parentGroup);
     }
 
+    openStockSearch(index: number = -1): void {
+        const dialogRef = this.dialog.open(StockSearchDialogComponent, {
+            width: '90vw',
+            maxWidth: '1200px',
+            height: '80vh',
+            autoFocus: false
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result && result.action === 'SELECT' && result.product) {
+                this.fillProductDetails(result.product, index);
+            }
+        });
+    }
+
+    fillProductDetails(product: any, index: number): void {
+        let targetGroup: FormGroup;
+        if (index === -1) {
+            targetGroup = this.ficheForm;
+        } else {
+            targetGroup = this.getEquipmentGroup(index);
+        }
+
+        const montureGroup = targetGroup.get('monture');
+        if (!montureGroup) return;
+
+        // Map product data to form fields
+        montureGroup.patchValue({
+            reference: product.codeInterne || product.codeBarres,
+            marque: product.marque,
+            couleur: product.couleur,
+            prixMonture: product.prixVenteTTC, // Using TTC as selling price
+            productId: product.id,             // [NEW] Link Product ID
+            entrepotId: product.entrepotId     // [NEW] Link Warehouse ID
+            // Additional mapping if fields match
+        });
+
+        // [NEW] AUTO-SWITCH for PRINCIPAL STOCK Logic:
+        // User Request: If Principal Stock product selected -> Document becomes FACTURE (Valid) automatically.
+        if (product.entrepot?.type === 'PRINCIPAL') {
+            if (this.factureComponent && this.factureComponent.form) {
+                console.log('🔄 Auto-Switching to FACTURE (Valid) for Principal Stock Product');
+                this.factureComponent.form.patchValue({
+                    type: 'FACTURE',
+                    statut: 'VALIDE'
+                });
+
+                // Optional: Force view update if needed or reset invoice numbering logic visualization?
+                // The FactureComponent handles number generation on backend save usually.
+            }
+        }
+
+        // Try to parse dimensions from specificData or modele if available
+        // Need to check if specificData 'taille' exists or map from elsewhere
+        if (product.specificData) {
+            const specs = product.specificData;
+            // Assuming specificData might have frame fields directly
+            if (specs.calibre && specs.pont && specs.branche) {
+                montureGroup.patchValue({
+                    taille: `${specs.calibre}-${specs.pont}-${specs.branche}`
+                });
+            }
+            if (specs.cerclage) {
+                montureGroup.patchValue({ cerclage: specs.cerclage });
+            }
+        } else if (product.modele) {
+            // Basic fallback
+            // montureGroup.patchValue({ taille: product.modele }); // Optional
+        }
+
+        this.cdr.markForCheck();
+    }
+
+    // Keep scanBarcode placeholder or delegate to stock search?
+    scanBarcode(field: string, index: number): void {
+        // Renamed functionality per user request
+        this.openStockSearch(index);
+    }
+
     // Helper to map database treatment names to UI names
     mapTreatmentsToUI(dbTreatments: string[]): string[] {
         const mapping: { [key: string]: string } = {
@@ -862,25 +852,98 @@ export class MontureFormComponent implements OnInit {
         this.cdr.markForCheck();
     }
 
-    // Scan Functionality
-    scanBarcode(fieldName: string, groupIndex: number = -1): void {
-        // Determine target group (Main vs Added)
-        const montureGroup = groupIndex === -1
-            ? this.ficheForm.get('monture')
-            : this.equipements.at(groupIndex)?.get('monture');
 
-        if (montureGroup) {
-            // Simulate scanning delay
-            // In a real app, this would open a barcode scanner
-            const mockBarcode = 'REF-' + Math.floor(100000 + Math.random() * 900000);
-            montureGroup.get(fieldName)?.setValue(mockBarcode);
-            this.cdr.markForCheck();
-        }
-    }
 
     // Equipment Management
     get equipements(): FormArray {
         return this.ficheForm.get('equipements') as FormArray;
+    }
+
+    // Main Equipment Initialization
+    initForm(): FormGroup {
+        const typeEquipement = 'Monture';
+        const typeVerre = 'Unifocal';
+
+        return this.fb.group({
+            // ... existing fields ...
+            clientId: [this.clientId],
+            type: ['MONTURE'],
+            statut: ['BROUILLON'],
+            monture: this.fb.group({
+                reference: ['', Validators.required],
+                marque: ['', Validators.required],
+                couleur: [''],
+                taille: [''],
+                cerclage: ['cerclée'],
+                typeEquipement: [typeEquipement],
+                prixMonture: [0],
+                productId: [null], // [NEW] Track Product ID
+                entrepotId: [null] // [NEW] Track Warehouse ID
+            }),
+            verres: this.fb.group({
+                matiere: [null],
+                marque: [null],
+                indice: [null],
+                traitement: [[]],
+                prixOD: [0],
+                prixOG: [0],
+                differentODOG: [false],
+                matiereOD: [null],
+                marqueOD: [null],
+                indiceOD: [null],
+                traitementOD: [[]],
+                matiereOG: [null],
+                marqueOG: [null],
+                indiceOG: [null],
+                traitementOG: [[]]
+            }),
+            // Restore missing fields from deleted initForm (Important!)
+            ordonnance: this.fb.group({
+                od: this.fb.group({
+                    sphere: [null],
+                    cylindre: [null],
+                    axe: [null],
+                    addition: [null],
+                    prisme: [null],
+                    base: [null],
+                    ep: [null]
+                }),
+                og: this.fb.group({
+                    sphere: [null],
+                    cylindre: [null],
+                    axe: [null],
+                    addition: [null],
+                    prisme: [null],
+                    base: [null],
+                    ep: [null]
+                }),
+                datePrescription: [new Date()],
+                prescripteur: [''],
+                dateControle: [null],
+                prescriptionFiles: [[]]
+            }),
+            montage: this.fb.group({
+                typeMontage: ['Cerclé (Complet)'],
+                ecartPupillaireOD: [32, [Validators.required, Validators.min(20), Validators.max(40)]],
+                ecartPupillaireOG: [32, [Validators.required, Validators.min(20), Validators.max(40)]],
+                hauteurOD: [20, [Validators.required, Validators.min(10), Validators.max(30)]],
+                hauteurOG: [20, [Validators.required, Validators.min(10), Validators.max(30)]],
+                diametreEffectif: ['65/70'],
+                remarques: ['']
+            }),
+            suggestions: [[]],
+            equipements: this.fb.array([]),
+            dateLivraisonEstimee: [null, Validators.required],
+            suiviCommande: this.fb.group({
+                statut: ['A_COMMANDER'],
+                dateCommande: [null],
+                dateReception: [null],
+                dateLivraison: [null],
+                fournisseur: [''],
+                referenceCommande: [''],
+                commentaire: ['']
+            })
+        });
     }
 
     addEquipment(): void {
@@ -895,7 +958,9 @@ export class MontureFormComponent implements OnInit {
                 couleur: [''],
                 taille: [''],
                 cerclage: ['cerclée'],
-                prixMonture: [0]
+                prixMonture: [0],
+                productId: [null], // [NEW]
+                entrepotId: [null] // [NEW]
             }),
             verres: this.fb.group({
                 matiere: [null],
@@ -1305,7 +1370,9 @@ export class MontureFormComponent implements OnInit {
                         couleur: [eq.monture?.couleur || ''],
                         taille: [eq.monture?.taille || ''],
                         cerclage: [eq.monture?.cerclage || 'cerclée'], // Added Field
-                        prixMonture: [eq.monture?.prixMonture || 0]
+                        prixMonture: [eq.monture?.prixMonture || 0],
+                        productId: [eq.monture?.productId || null], // [NEW] Load if exists
+                        entrepotId: [eq.monture?.entrepotId || null] // [NEW] Load if exists
                     }),
                     verres: this.fb.group({
                         matiere: [eq.verres?.matiere],
@@ -1402,7 +1469,9 @@ export class MontureFormComponent implements OnInit {
                     qte: 1,
                     prixUnitaireTTC: prixMonture,
                     remise: 0,
-                    totalTTC: prixMonture
+                    totalTTC: prixMonture,
+                    productId: mainMonture.productId || null, // [NEW] Pass to Invoice Line
+                    entrepotId: mainMonture.entrepotId || null // [NEW] Pass to Invoice Line
                 });
             }
 
@@ -1486,14 +1555,16 @@ export class MontureFormComponent implements OnInit {
                 const verres = equip.verres;
 
                 if (monture) {
-                    const prix = parseFloat(monture.prixMonture) || 0;
-                    if (prix > 0) {
+                    const montureAdded = equip.monture;
+                    if (montureAdded && montureAdded.prixMonture > 0) {
                         lignes.push({
-                            description: `Monture Eq${index + 1} ${monture.marque || ''} ${monture.reference || ''}`.trim(),
+                            description: `Monture ${montureAdded.marque || ''} ${montureAdded.reference || ''}`.trim(),
                             qte: 1,
-                            prixUnitaireTTC: prix,
+                            prixUnitaireTTC: parseFloat(montureAdded.prixMonture),
                             remise: 0,
-                            totalTTC: prix
+                            totalTTC: parseFloat(montureAdded.prixMonture),
+                            productId: montureAdded.productId || null, // [NEW]
+                            entrepotId: montureAdded.entrepotId || null // [NEW]
                         });
                     }
                 }

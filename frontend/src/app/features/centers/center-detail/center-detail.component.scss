@@ -1,0 +1,107 @@
+.center-detail-container {
+    padding: 20px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+mat-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-actions {
+    margin-left: auto;
+}
+
+.center-info-card {
+    margin-bottom: 20px;
+}
+
+.title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+
+    h2,
+    h3 {
+        margin: 0;
+    }
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    strong {
+        color: #666;
+        font-size: 14px;
+    }
+
+    span {
+        font-size: 16px;
+        color: #333;
+    }
+}
+
+.warehouses-card {
+    margin-top: 20px;
+}
+
+.warehouses-table {
+    width: 100%;
+    margin-top: 16px;
+}
+
+.badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: white;
+
+    &.principal {
+        background-color: #4caf50;
+    }
+
+    &.secondaire {
+        background-color: #ff9800;
+    }
+
+    &.transit {
+        background-color: #9c27b0;
+    }
+}
+
+.no-data {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+
+    mat-icon {
+        font-size: 64px;
+        width: 64px;
+        height: 64px;
+        color: #ccc;
+    }
+
+    p {
+        margin: 20px 0;
+        font-size: 16px;
+    }
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}

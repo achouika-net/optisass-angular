@@ -1,0 +1,59 @@
+<h2 mat-dialog-title>
+    {{ isEditMode ? 'Modifier le Centre' : 'Nouveau Centre' }}
+</h2>
+
+<mat-dialog-content>
+    <form [formGroup]="form">
+        <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Nom du Centre</mat-label>
+            <input matInput formControlName="nom" placeholder="Ex: Centre Casablanca" required>
+            <mat-error *ngIf="form.get('nom')?.hasError('required')">
+                Le nom est requis
+            </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Description</mat-label>
+            <textarea matInput formControlName="description" rows="2" placeholder="Description du centre"></textarea>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Adresse</mat-label>
+            <input matInput formControlName="adresse" placeholder="Adresse complète">
+        </mat-form-field>
+
+        <div class="form-row">
+            <mat-form-field appearance="outline" class="half-width">
+                <mat-label>Ville</mat-label>
+                <input matInput formControlName="ville" placeholder="Casablanca">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="half-width">
+                <mat-label>Code Postal</mat-label>
+                <input matInput formControlName="codePostal" placeholder="20000">
+            </mat-form-field>
+        </div>
+
+        <div class="form-row">
+            <mat-form-field appearance="outline" class="half-width">
+                <mat-label>Téléphone</mat-label>
+                <input matInput formControlName="telephone" placeholder="+212 5 XX XX XX XX">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="half-width">
+                <mat-label>Email</mat-label>
+                <input matInput formControlName="email" type="email" placeholder="centre@example.com">
+                <mat-error *ngIf="form.get('email')?.hasError('email')">
+                    Email invalide
+                </mat-error>
+            </mat-form-field>
+        </div>
+    </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+    <button mat-button (click)="onCancel()">Annuler</button>
+    <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="!form.valid">
+        {{ isEditMode ? 'Mettre à jour' : 'Créer' }}
+    </button>
+</mat-dialog-actions>

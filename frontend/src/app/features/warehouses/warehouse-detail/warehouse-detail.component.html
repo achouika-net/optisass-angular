@@ -1,0 +1,148 @@
+<div class="warehouse-detail-container" *ngIf="!loading && entrepot">
+    <!-- Warehouse Info Card -->
+    <mat-card class="warehouse-info-card">
+        <mat-card-header>
+            <mat-card-title>
+                <div class="title-row">
+                    <h2>{{ entrepot.nom }}</h2>
+                    <button mat-icon-button (click)="goBack()" matTooltip="Retour au centre">
+                        <mat-icon>arrow_back</mat-icon>
+                    </button>
+                </div>
+            </mat-card-title>
+            <mat-card-subtitle>
+                <span class="badge" [ngClass]="entrepot.type?.toLowerCase()">{{ entrepot.type }}</span>
+            </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+            <div class="info-grid">
+                <div class="info-item" *ngIf="entrepot.description">
+                    <strong>Description:</strong>
+                    <span>{{ entrepot.description }}</span>
+                </div>
+                <div class="info-item" *ngIf="entrepot.responsable">
+                    <strong>Responsable:</strong>
+                    <span>{{ entrepot.responsable }}</span>
+                </div>
+                <div class="info-item" *ngIf="entrepot.capaciteMax">
+                    <strong>Capacité Max:</strong>
+                    <span>{{ entrepot.capaciteMax }} m³</span>
+                </div>
+                <div class="info-item" *ngIf="entrepot.surface">
+                    <strong>Surface:</strong>
+                    <span>{{ entrepot.surface }} m²</span>
+                </div>
+            </div>
+        </mat-card-content>
+    </mat-card>
+
+    <!-- Products Card -->
+    <mat-card class="products-card">
+        <mat-card-header>
+            <mat-card-title>
+                <h3>Produits en Stock ({{ entrepot.produits?.length || 0 }})</h3>
+            </mat-card-title>
+            <div class="header-actions">
+                <mat-form-field appearance="outline" class="search-field dense-form-field">
+                    <mat-label>Rechercher produit...</mat-label>
+                    <input matInput [(ngModel)]="filterText" (keyup)="applyFilter()" placeholder="Ex: Ray-ban, Ref...">
+                    <button mat-icon-button matSuffix *ngIf="filterText" (click)="filterText=''; applyFilter()">
+                        <mat-icon>close</mat-icon>
+                    </button>
+                    <mat-icon matSuffix *ngIf="!filterText">search</mat-icon>
+                </mat-form-field>
+
+                <button mat-raised-button color="accent" (click)="navigateToAddProduct()">
+                    <mat-icon>add_shopping_cart</mat-icon>
+                    Ajouter Produit
+                </button>
+            </div>
+        </mat-card-header>
+        <mat-card-content>
+            <table mat-table [dataSource]="entrepot.produits || []"
+                *ngIf="entrepot.produits && entrepot.produits.length > 0" class="products-table">
+                <!-- Designation Column -->
+                <ng-container matColumnDef="designation">
+                    <th mat-header-cell *matHeaderCellDef>Désignation</th>
+                    <td mat-cell *matCellDef="let product">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <strong>{{ product.designation }}</strong>
+                            <span *ngIf="hasPendingTransferToCurrent(product)" class="badge-incoming">En Arrivage</span>
+                        </div>
+                        <div class="secondary-text">{{ product.marque }} - {{ product.referenceFournisseur }}</div>
+                    </td>
+                </ng-container>
+
+                <!-- Code Column -->
+                <ng-container matColumnDef="codeInterne">
+                    <th mat-header-cell *matHeaderCellDef>Code</th>
+                    <td mat-cell *matCellDef="let product">{{ product.codeInterne }}</td>
+                </ng-container>
+
+                <!-- Quantity Column -->
+                <ng-container matColumnDef="quantiteActuelle">
+                    <th mat-header-cell *matHeaderCellDef>Quantité</th>
+                    <td mat-cell *matCellDef="let product"
+                        [class.low-stock]="product.quantiteActuelle <= product.seuilAlerte">
+                        {{ product.quantiteActuelle }}
+                        <mat-icon *ngIf="product.quantiteActuelle <= product.seuilAlerte" class="warning-icon"
+                            matTooltip="Stock faible">warning</mat-icon>
+                    </td>
+                </ng-container>
+
+                <!-- Price Column -->
+                <ng-container matColumnDef="prixVenteHT">
+                    <th mat-header-cell *matHeaderCellDef>Prix Vente HT</th>
+                    <td mat-cell *matCellDef="let product">{{ product.prixVenteHT | currency:'MAD':'symbol':'1.2-2' }}
+                    </td>
+                </ng-container>
+
+                <!-- Actions Column -->
+                <ng-container matColumnDef="actions">
+                    <th mat-header-cell *matHeaderCellDef>Actions</th>
+                    <td mat-cell *matCellDef="let product">
+                        <!-- History (Always visible) -->
+                        <button mat-icon-button matTooltip="Mouvements" (click)="openHistory(product)">
+                            <mat-icon>history</mat-icon>
+                        </button>
+
+                        <!-- Transfer Actions -->
+                        <!-- Validate Reception (Only if pending transfer to HERE) -->
+                        <button mat-icon-button color="accent" *ngIf="hasPendingTransferToCurrent(product)"
+                            (click)="validateReception(product)" matTooltip="Valider la réception">
+                            <mat-icon>check_circle</mat-icon>
+                        </button>
+
+                        <!-- Initiate Transfer (Only if Available) -->
+                        <button mat-icon-button color="primary" *ngIf="product.statut === 'DISPONIBLE'"
+                            (click)="initiateTransfer(product)" matTooltip="Transférer">
+                            <mat-icon>local_shipping</mat-icon>
+                        </button>
+
+                        <!-- Edit (Standard) -->
+                        <button mat-icon-button matTooltip="Modifier" [routerLink]="['/p/stock', product.id]"
+                            [disabled]="product.statut === 'RESERVE'">
+                            <mat-icon>edit</mat-icon>
+                        </button>
+                    </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+            </table>
+
+            <div *ngIf="!entrepot.produits || entrepot.produits.length === 0" class="no-data">
+                <mat-icon>inventory_2</mat-icon>
+                <p>Aucun produit dans cet entrepôt</p>
+                <button mat-raised-button color="accent">
+                    <mat-icon>add</mat-icon>
+                    Ajouter le premier produit
+                </button>
+            </div>
+        </mat-card-content>
+    </mat-card>
+</div>
+
+<div *ngIf="loading" class="loading">
+    <p>Chargement...</p>
+</div>

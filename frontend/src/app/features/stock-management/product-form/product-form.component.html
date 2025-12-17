@@ -10,6 +10,47 @@
         <mat-card class="form-card">
             <mat-card-content class="form-content">
 
+                <!-- Hierarchy Selection (Visible only when no warehouse pre-selected) -->
+                <div class="section" *ngIf="!route.snapshot.queryParams['entrepotId'] && !isEditMode">
+                    <h2 class="section-title">Localisation du Stock</h2>
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="field-label">Groupe *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select [value]="selectedGroup" (selectionChange)="onGroupChange($event.value)">
+                                    <mat-option *ngFor="let group of groups" [value]="group.id">
+                                        {{ group.nom }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Centre *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select [value]="selectedCenter" (selectionChange)="onCenterChange($event.value)"
+                                    [disabled]="!selectedGroup">
+                                    <mat-option *ngFor="let center of centers" [value]="center.id">
+                                        {{ center.nom }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Entrepôt *</label>
+                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                <mat-select [value]="selectedWarehouse"
+                                    (selectionChange)="onWarehouseChange($event.value)" [disabled]="!selectedCenter">
+                                    <mat-option *ngFor="let warehouse of warehouses" [value]="warehouse.id">
+                                        {{ warehouse.nom }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Type Selection -->
                 <div class="section">
                     <h2 class="section-title">Type de Produit</h2>
@@ -27,71 +68,106 @@
                     </div>
                 </div>
 
-                <!-- General Information -->
                 <div class="section">
                     <h2 class="section-title">Informations Générales</h2>
-                    <div class="form-row">
-                        <div class="form-field">
-                            <label class="field-label">Code Interne *</label>
-                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                <input matInput formControlName="codeInterne" placeholder="MON001">
-                                <button mat-icon-button matSuffix type="button" (click)="generateInternalCode()"
-                                    matTooltip="Générer">
-                                    <mat-icon>refresh</mat-icon>
+
+                    <div class="info-layout-form">
+                        <!-- Left Side: Fields -->
+                        <div class="info-fields">
+                            <div class="form-row">
+                                <div class="form-field">
+                                    <label class="field-label">Code Interne *</label>
+                                    <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                        <input matInput formControlName="codeInterne" placeholder="MON001">
+                                        <button mat-icon-button matSuffix type="button" (click)="generateInternalCode()"
+                                            matTooltip="Générer">
+                                            <mat-icon>refresh</mat-icon>
+                                        </button>
+                                    </mat-form-field>
+                                </div>
+
+                                <div class="form-field">
+                                    <label class="field-label">Code-Barres</label>
+                                    <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                        <input matInput formControlName="codeBarres" placeholder="2001234567890">
+                                        <button mat-icon-button matSuffix type="button" (click)="generateBarcode()"
+                                            matTooltip="Générer">
+                                            <mat-icon>qr_code_2</mat-icon>
+                                        </button>
+                                    </mat-form-field>
+                                </div>
+
+                                <div class="form-field">
+                                    <label class="field-label">Référence Fournisseur</label>
+                                    <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                        <input matInput formControlName="referenceFournisseur">
+                                    </mat-form-field>
+                                </div>
+                            </div>
+
+                            <!-- Photo URL Input -->
+                            <div class="form-row">
+                                <div class="form-field form-field-full">
+                                    <label class="field-label">URL Photo</label>
+                                    <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                        <input matInput formControlName="photo"
+                                            placeholder="https://example.com/image.jpg">
+                                        <mat-icon matSuffix class="text-gray-400">image</mat-icon>
+                                    </mat-form-field>
+                                </div>
+                            </div>
+
+                            <!-- Désignation, Marque, Modèle - Only for Monture -->
+                            <div class="form-row" *ngIf="productType === 'monture'">
+                                <div class="form-field">
+                                    <label class="field-label">Désignation *</label>
+                                    <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                        <input matInput formControlName="designation"
+                                            placeholder="Ray-Ban Aviator RB3025">
+                                    </mat-form-field>
+                                </div>
+
+                                <div class="form-field">
+                                    <label class="field-label">Marque</label>
+                                    <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                        <input matInput formControlName="marque" placeholder="Ray-Ban">
+                                    </mat-form-field>
+                                </div>
+
+                                <div class="form-field">
+                                    <label class="field-label">Modèle</label>
+                                    <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                                        <input matInput formControlName="modele" placeholder="RB3025">
+                                    </mat-form-field>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Side: Photo Preview -->
+                        <div class="info-photo-preview">
+                            <div class="photo-preview-container">
+                                <img [src]="productForm.get('photo')?.value || 'assets/images/placeholder-product.png'"
+                                    alt="Aperçu" class="preview-img"
+                                    onerror="this.src='assets/images/placeholder-product.png'; this.onerror=null;">
+                            </div>
+                            <p class="preview-label">Aperçu Photo</p>
+
+                            <div class="photo-actions">
+                                <button mat-icon-button color="primary" type="button" (click)="openCamera()"
+                                    matTooltip="Prendre une photo">
+                                    <mat-icon>photo_camera</mat-icon>
                                 </button>
-                            </mat-form-field>
-                        </div>
-
-                        <div class="form-field">
-                            <label class="field-label">Code-Barres</label>
-                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                <input matInput formControlName="codeBarres" placeholder="2001234567890">
-                                <button mat-icon-button matSuffix type="button" (click)="generateBarcode()"
-                                    matTooltip="Générer">
-                                    <mat-icon>qr_code_2</mat-icon>
+                                <button mat-icon-button color="accent" type="button" (click)="fileInput.click()"
+                                    matTooltip="Téléverser une image">
+                                    <mat-icon>upload_file</mat-icon>
                                 </button>
-                            </mat-form-field>
-                        </div>
-
-                        <div class="form-field">
-                            <label class="field-label">Référence Fournisseur</label>
-                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                <input matInput formControlName="referenceFournisseur">
-                            </mat-form-field>
-                        </div>
-                    </div>
-
-                    <!-- Désignation - Only for Monture -->
-                    <div class="form-row" *ngIf="productType === 'monture'">
-                        <div class="form-field form-field-large">
-                            <label class="field-label">Désignation *</label>
-                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                <input matInput formControlName="designation" placeholder="Ray-Ban Aviator RB3025">
-                            </mat-form-field>
-                        </div>
-                    </div>
-
-                    <!-- Marque, Modèle, Couleur - Only for Monture -->
-                    <div class="form-row" *ngIf="productType === 'monture'">
-                        <div class="form-field">
-                            <label class="field-label">Marque</label>
-                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                <input matInput formControlName="marque" placeholder="Ray-Ban">
-                            </mat-form-field>
-                        </div>
-
-                        <div class="form-field">
-                            <label class="field-label">Modèle</label>
-                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                <input matInput formControlName="modele" placeholder="RB3025">
-                            </mat-form-field>
-                        </div>
-
-                        <div class="form-field">
-                            <label class="field-label">Couleur</label>
-                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                <input matInput formControlName="couleur" placeholder="Or">
-                            </mat-form-field>
+                                <button mat-icon-button color="warn" type="button" (click)="removePhoto()"
+                                    *ngIf="productForm.get('photo')?.value" matTooltip="Supprimer la photo">
+                                    <mat-icon>delete</mat-icon>
+                                </button>
+                                <input #fileInput type="file" (change)="onFileSelected($event)" accept="image/*"
+                                    style="display: none;">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -189,22 +265,6 @@
                             <label class="field-label">Branche (mm) *</label>
                             <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
                                 <input matInput type="number" formControlName="branche" placeholder="140">
-                            </mat-form-field>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-field">
-                            <label class="field-label">Couleur Monture</label>
-                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                <input matInput formControlName="couleurMonture" placeholder="Or">
-                            </mat-form-field>
-                        </div>
-
-                        <div class="form-field">
-                            <label class="field-label">Couleur Branches</label>
-                            <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                <input matInput formControlName="couleurBranches" placeholder="Noir">
                             </mat-form-field>
                         </div>
                     </div>
@@ -409,13 +469,13 @@
                         <div class="price-card price-ht">
                             <div class="price-label">Prix de Vente HT</div>
                             <div class="price-value">{{ productForm.get('prixVenteHT')?.value |
-                                number:'1.2-2' }} €
+                                number:'1.2-2' }} DH
                             </div>
                         </div>
                         <div class="price-card price-ttc">
                             <div class="price-label">Prix de Vente TTC</div>
                             <div class="price-value">{{ productForm.get('prixVenteTTC')?.value |
-                                number:'1.2-2' }} €
+                                number:'1.2-2' }} DH
                             </div>
                         </div>
                     </div>
@@ -424,11 +484,14 @@
             </mat-card-content>
 
             <mat-card-actions align="end" class="form-actions">
+                <div *ngIf="productForm.invalid && productForm.touched" class="text-red-500 text-sm mr-4">
+                    Champs obligatoires manquants: {{ getInvalidControls().join(', ') }}
+                </div>
                 <button mat-button type="button" (click)="onCancel()" class="cancel-btn">
                     Annuler
                 </button>
-                <button mat-raised-button color="primary" type="submit" [disabled]="productForm.invalid"
-                    class="submit-btn">
+                <button mat-raised-button color="primary" type="submit" class="submit-btn"
+                    (click)="productForm.markAllAsTouched()">
                     {{ isEditMode ? 'Mettre à jour' : 'Créer' }}
                 </button>
             </mat-card-actions>

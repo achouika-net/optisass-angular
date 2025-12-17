@@ -1,0 +1,113 @@
+<div class="center-detail-container" *ngIf="!loading && centre">
+    <!-- Center Info Card -->
+    <mat-card class="center-info-card">
+        <mat-card-header>
+            <mat-card-title>
+                <div class="title-row">
+                    <h2>{{ centre.nom }}</h2>
+                    <button mat-icon-button [routerLink]="['/p/groups', centre.groupeId]" matTooltip="Retour au groupe">
+                        <mat-icon>arrow_back</mat-icon>
+                    </button>
+                </div>
+            </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+            <div class="info-grid">
+                <div class="info-item" *ngIf="centre.description">
+                    <strong>Description:</strong>
+                    <span>{{ centre.description }}</span>
+                </div>
+                <div class="info-item" *ngIf="centre.adresse">
+                    <strong>Adresse:</strong>
+                    <span>{{ centre.adresse }}</span>
+                </div>
+                <div class="info-item" *ngIf="centre.ville">
+                    <strong>Ville:</strong>
+                    <span>{{ centre.ville }}</span>
+                </div>
+                <div class="info-item" *ngIf="centre.telephone">
+                    <strong>Téléphone:</strong>
+                    <span>{{ centre.telephone }}</span>
+                </div>
+            </div>
+        </mat-card-content>
+    </mat-card>
+
+    <!-- Warehouses Card -->
+    <mat-card class="warehouses-card">
+        <mat-card-header>
+            <mat-card-title>
+                <h3>Entrepôts ({{ centre.entrepots?.length || 0 }})</h3>
+            </mat-card-title>
+            <div class="header-actions">
+                <button mat-raised-button color="primary" (click)="openCreateWarehouseDialog()">
+                    <mat-icon>add</mat-icon>
+                    Nouvel Entrepôt
+                </button>
+            </div>
+        </mat-card-header>
+        <mat-card-content>
+            <table mat-table [dataSource]="centre.entrepots || []"
+                *ngIf="centre.entrepots && centre.entrepots.length > 0" class="warehouses-table">
+                <!-- Nom Column -->
+                <ng-container matColumnDef="nom">
+                    <th mat-header-cell *matHeaderCellDef>Nom</th>
+                    <td mat-cell *matCellDef="let entrepot">
+                        <strong>{{ entrepot.nom }}</strong>
+                    </td>
+                </ng-container>
+
+                <!-- Type Column -->
+                <ng-container matColumnDef="type">
+                    <th mat-header-cell *matHeaderCellDef>Type</th>
+                    <td mat-cell *matCellDef="let entrepot">
+                        <span class="badge" [ngClass]="entrepot.type.toLowerCase()">{{ entrepot.type }}</span>
+                    </td>
+                </ng-container>
+
+                <!-- Capacite Column -->
+                <ng-container matColumnDef="capaciteMax">
+                    <th mat-header-cell *matHeaderCellDef>Capacité/Surface</th>
+                    <td mat-cell *matCellDef="let entrepot">
+                        <span *ngIf="entrepot.capaciteMax">{{ entrepot.capaciteMax }} m³</span>
+                        <span *ngIf="entrepot.capaciteMax && entrepot.surface"> / </span>
+                        <span *ngIf="entrepot.surface">{{ entrepot.surface }} m²</span>
+                        <span *ngIf="!entrepot.capaciteMax && !entrepot.surface">-</span>
+                    </td>
+                </ng-container>
+
+                <!-- Actions Column -->
+                <ng-container matColumnDef="actions">
+                    <th mat-header-cell *matHeaderCellDef>Actions</th>
+                    <td mat-cell *matCellDef="let entrepot">
+                        <button mat-icon-button [routerLink]="['/p/warehouses', entrepot.id]" matTooltip="Voir détails">
+                            <mat-icon>visibility</mat-icon>
+                        </button>
+                        <button mat-icon-button (click)="openEditWarehouseDialog(entrepot)" matTooltip="Modifier">
+                            <mat-icon>edit</mat-icon>
+                        </button>
+                        <button mat-icon-button color="warn" matTooltip="Supprimer">
+                            <mat-icon>delete</mat-icon>
+                        </button>
+                    </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+            </table>
+
+            <div *ngIf="!centre.entrepots || centre.entrepots.length === 0" class="no-data">
+                <mat-icon>warehouse</mat-icon>
+                <p>Aucun entrepôt trouvé</p>
+                <button mat-raised-button color="primary" (click)="openCreateWarehouseDialog()">
+                    <mat-icon>add</mat-icon>
+                    Créer le premier entrepôt
+                </button>
+            </div>
+        </mat-card-content>
+    </mat-card>
+</div>
+
+<div *ngIf="loading" class="loading">
+    <p>Chargement...</p>
+</div>

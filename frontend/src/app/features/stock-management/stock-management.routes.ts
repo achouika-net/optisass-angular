@@ -7,6 +7,10 @@ export const routes: Routes = [
         component: ProductListComponent
     },
     {
+        path: 'tree',
+        loadComponent: () => import('./components/stock-hierarchy/stock-hierarchy.component').then(m => m.StockHierarchyComponent)
+    },
+    {
         path: 'new',
         loadComponent: () => import('./product-form/product-form.component').then(m => m.ProductFormComponent)
     },

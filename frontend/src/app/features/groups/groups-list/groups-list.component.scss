@@ -1,0 +1,58 @@
+.groups-container {
+    padding: 20px;
+}
+
+mat-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+
+    mat-card-title h2 {
+        margin: 0;
+    }
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+    margin-left: auto;
+}
+
+.groups-table {
+    width: 100%;
+    margin-top: 20px;
+}
+
+.badge {
+    background-color: #3f51b5;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+.no-data {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+
+    mat-icon {
+        font-size: 64px;
+        width: 64px;
+        height: 64px;
+        color: #ccc;
+    }
+
+    p {
+        margin: 20px 0;
+        font-size: 16px;
+    }
+}

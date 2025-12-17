@@ -1,0 +1,114 @@
+<div class="group-detail-container" *ngIf="!loading && groupe">
+    <!-- Group Info Card -->
+    <mat-card class="group-info-card">
+        <mat-card-header>
+            <mat-card-title>
+                <div class="title-row">
+                    <h2>{{ groupe.nom }}</h2>
+                    <button mat-icon-button routerLink="/p/groups" matTooltip="Retour à la liste">
+                        <mat-icon>arrow_back</mat-icon>
+                    </button>
+                </div>
+            </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+            <div class="info-grid">
+                <div class="info-item" *ngIf="groupe.description">
+                    <strong>Description:</strong>
+                    <span>{{ groupe.description }}</span>
+                </div>
+                <div class="info-item" *ngIf="groupe.adresse">
+                    <strong>Adresse:</strong>
+                    <span>{{ groupe.adresse }}</span>
+                </div>
+                <div class="info-item" *ngIf="groupe.telephone">
+                    <strong>Téléphone:</strong>
+                    <span>{{ groupe.telephone }}</span>
+                </div>
+                <div class="info-item" *ngIf="groupe.email">
+                    <strong>Email:</strong>
+                    <span>{{ groupe.email }}</span>
+                </div>
+            </div>
+        </mat-card-content>
+    </mat-card>
+
+    <!-- Centers Card -->
+    <mat-card class="centers-card">
+        <mat-card-header>
+            <mat-card-title>
+                <h3>Centres ({{ groupe.centres?.length || 0 }})</h3>
+            </mat-card-title>
+            <div class="header-actions">
+                <button mat-raised-button color="primary" (click)="openCreateCenterDialog()">
+                    <mat-icon>add</mat-icon>
+                    Nouveau Centre
+                </button>
+            </div>
+        </mat-card-header>
+        <mat-card-content>
+            <table mat-table [dataSource]="groupe.centres || []" *ngIf="groupe.centres && groupe.centres.length > 0"
+                class="centers-table">
+                <!-- Nom Column -->
+                <ng-container matColumnDef="nom">
+                    <th mat-header-cell *matHeaderCellDef>Nom</th>
+                    <td mat-cell *matCellDef="let centre">
+                        <strong>{{ centre.nom }}</strong>
+                    </td>
+                </ng-container>
+
+                <!-- Ville Column -->
+                <ng-container matColumnDef="ville">
+                    <th mat-header-cell *matHeaderCellDef>Ville</th>
+                    <td mat-cell *matCellDef="let centre">{{ centre.ville || '-' }}</td>
+                </ng-container>
+
+                <!-- Telephone Column -->
+                <ng-container matColumnDef="telephone">
+                    <th mat-header-cell *matHeaderCellDef>Téléphone</th>
+                    <td mat-cell *matCellDef="let centre">{{ centre.telephone || '-' }}</td>
+                </ng-container>
+
+                <!-- Entrepots Column -->
+                <ng-container matColumnDef="entrepots">
+                    <th mat-header-cell *matHeaderCellDef>Entrepôts</th>
+                    <td mat-cell *matCellDef="let centre">
+                        <span class="badge">{{ getEntrepotsCount(centre) }}</span>
+                    </td>
+                </ng-container>
+
+                <!-- Actions Column -->
+                <ng-container matColumnDef="actions">
+                    <th mat-header-cell *matHeaderCellDef>Actions</th>
+                    <td mat-cell *matCellDef="let centre">
+                        <button mat-icon-button [routerLink]="['/p/centers', centre.id]" matTooltip="Voir détails">
+                            <mat-icon>visibility</mat-icon>
+                        </button>
+                        <button mat-icon-button (click)="openEditCenterDialog(centre)" matTooltip="Modifier">
+                            <mat-icon>edit</mat-icon>
+                        </button>
+                        <button mat-icon-button color="warn" matTooltip="Supprimer">
+                            <mat-icon>delete</mat-icon>
+                        </button>
+                    </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+            </table>
+
+            <div *ngIf="!groupe.centres || groupe.centres.length === 0" class="no-data">
+                <mat-icon>business</mat-icon>
+                <p>Aucun centre trouvé</p>
+                <button mat-raised-button color="primary" (click)="openCreateCenterDialog()">
+                    <mat-icon>add</mat-icon>
+                    Créer le premier centre
+                </button>
+            </div>
+        </mat-card-content>
+    </mat-card>
+</div>
+
+<div *ngIf="loading" class="loading">
+    <p>Chargement...</p>
+</div>

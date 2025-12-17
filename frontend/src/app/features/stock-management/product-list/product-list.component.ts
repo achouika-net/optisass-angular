@@ -35,7 +35,7 @@ import { ProductService } from '../services/product.service';
     styleUrls: ['./product-list.component.scss']
 })
 export class ProductListComponent implements OnInit {
-    displayedColumns: string[] = ['codeInterne', 'designation', 'marque', 'typeArticle', 'quantiteActuelle', 'prixVenteHT', 'statut', 'actions'];
+    displayedColumns: string[] = ['codeInterne', 'designation', 'marque', 'typeArticle', 'quantiteActuelle', 'prixVenteTTC', 'statut', 'actions'];
     dataSource: MatTableDataSource<Product> = new MatTableDataSource<Product>([]);
 
     @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -119,7 +119,7 @@ export class ProductListComponent implements OnInit {
     }
 
     formatPrice(price: number): string {
-        return price.toFixed(2) + ' €';
+        return price.toFixed(2) + ' DH';
     }
 
     exportXLS(): void {

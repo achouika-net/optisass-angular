@@ -7,10 +7,15 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatCardModule } from '@angular/material/card';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ProductService } from '../services/product.service';
+import { GroupsService } from '../../groups/services/groups.service';
+import { CentersService } from '../../centers/services/centers.service';
+import { WarehousesService } from '../../warehouses/services/warehouses.service';
+import { CameraCaptureDialogComponent } from '../../../shared/components/camera-capture/camera-capture-dialog.component';
 import {
-    Frame,
     ProductType,
     ProductStatus,
     FrameCategory,
@@ -29,6 +34,7 @@ import {
     ContactLensUsage,
     AccessoryCategory
 } from '../../../shared/interfaces/product.interface';
+import { Groupe, Centre, Entrepot } from '../../../shared/interfaces/warehouse.interface';
 
 @Component({
     selector: 'app-product-form',
@@ -42,7 +48,9 @@ import {
         MatSelectModule,
         MatButtonModule,
         MatIconModule,
-        MatCardModule
+        MatCardModule,
+        MatTooltipModule,
+        MatDialogModule
     ],
     templateUrl: './product-form.component.html',
     styleUrls: ['./product-form.component.scss']
@@ -51,7 +59,18 @@ export class ProductFormComponent implements OnInit {
     productForm: FormGroup;
     isEditMode = false;
     productId: string | null = null;
+    entrepotId: string | null = null;
     productType: ProductType = ProductType.MONTURE;
+
+    // Hierarchy Data
+    groups: Groupe[] = [];
+    centers: Centre[] = [];
+    warehouses: Entrepot[] = [];
+
+    // Selected Hierarchy
+    selectedGroup: string | null = null;
+    selectedCenter: string | null = null;
+    selectedWarehouse: string | null = null;
 
     // Enums for dropdowns
     productTypes = Object.values(ProductType);
@@ -81,45 +100,160 @@ export class ProductFormComponent implements OnInit {
     constructor(
         private fb: FormBuilder,
         private productService: ProductService,
-        private route: ActivatedRoute,
-        private router: Router
+        private groupsService: GroupsService,
+        private centersService: CentersService,
+        private warehousesService: WarehousesService,
+        public route: ActivatedRoute,
+        public router: Router,
+        private dialog: MatDialog
     ) {
         this.productForm = this.createForm();
     }
 
     ngOnInit(): void {
         this.productId = this.route.snapshot.paramMap.get('id');
+
         if (this.productId) {
             this.isEditMode = true;
             this.loadProduct(this.productId);
         }
 
+        this.route.queryParams.subscribe(params => {
+            if (params['entrepotId']) {
+                this.entrepotId = params['entrepotId'];
+                this.selectedWarehouse = this.entrepotId;
+            } else if (!this.isEditMode) {
+                // If new product and no context, load hierarchy
+                this.loadGroups();
+            }
+        });
+
         // Listen to product type changes
         this.productForm.get('typeArticle')?.valueChanges.subscribe(type => {
             this.productType = type;
             this.updateValidators(type);
+
+            // Optional: Regenerate internal code prefix if it was auto-generated and hasn't been manually changed?
+            // For simplicity, we only generate if empty or on init.
+            if (!this.isEditMode && !this.productForm.get('codeInterne')?.dirty) {
+                this.generateInternalCode();
+            }
         });
 
-        // Listen to price changes for automatic calculation
+        // Calculate prices automatically
+        this.setupPriceCalculations();
+
+        // Initial validator setup
+        this.updateValidators(this.productType);
+
+        // Auto-generate codes for new products
+        if (!this.isEditMode) {
+            // Use setTimeout to ensure form is fully ready if needed, currently sync is fine
+            this.generateInternalCode();
+            this.generateBarcode();
+        }
+    }
+
+    // Hierarchy Management
+    loadGroups() {
+        this.groupsService.findAll().subscribe(groups => {
+            this.groups = groups;
+        });
+    }
+
+    onGroupChange(groupId: string) {
+        this.selectedGroup = groupId;
+        this.selectedCenter = null;
+        this.selectedWarehouse = null;
+        this.entrepotId = null;
+        this.centers = [];
+        this.warehouses = [];
+
+        if (groupId) {
+            this.centersService.findAll(groupId).subscribe(centers => {
+                this.centers = centers;
+            });
+        }
+    }
+
+    onCenterChange(centerId: string) {
+        console.log('onCenterChange called with:', centerId);
+        this.selectedCenter = centerId;
+        console.log('selectedCenter set to:', this.selectedCenter);
+        this.selectedWarehouse = null;
+        this.entrepotId = null;
+        this.warehouses = [];
+
+        if (centerId) {
+            this.warehousesService.findAll(centerId).subscribe(warehouses => {
+                console.log('Warehouses loaded:', warehouses);
+                this.warehouses = warehouses;
+            });
+        }
+    }
+
+    onWarehouseChange(warehouseId: string) {
+        this.selectedWarehouse = warehouseId;
+        this.entrepotId = warehouseId;
+    }
+
+    setupPriceCalculations(): void {
         this.productForm.get('prixAchatHT')?.valueChanges.subscribe(() => this.calculatePrices());
         this.productForm.get('coefficient')?.valueChanges.subscribe(() => this.calculatePrices());
         this.productForm.get('tauxTVA')?.valueChanges.subscribe(() => this.calculatePrices());
+    }
+
+    openCamera(): void {
+        const dialogRef = this.dialog.open(CameraCaptureDialogComponent, {
+            width: '600px',
+            disableClose: true
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result) {
+                // Result is a data URL (base64)
+                this.productForm.patchValue({ photo: result });
+                this.productForm.markAsDirty();
+            }
+        });
+    }
+
+    onFileSelected(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                const result = e.target?.result as string;
+                this.productForm.patchValue({ photo: result });
+                this.productForm.markAsDirty();
+            };
+
+            reader.readAsDataURL(file);
+        }
+    }
+
+    removePhoto(): void {
+        this.productForm.patchValue({ photo: null });
+        this.productForm.markAsDirty();
     }
 
     createForm(): FormGroup {
         return this.fb.group({
             // Common fields
             typeArticle: [ProductType.MONTURE, Validators.required],
-            codeInterne: ['', Validators.required],
-            codeBarres: [''],
+            // Disabled by default as requested
+            codeInterne: [{ value: '', disabled: true }, Validators.required],
+            codeBarres: [{ value: '', disabled: true }],
             referenceFournisseur: [''],
             designation: ['', Validators.required],
             marque: [''],
             modele: [''],
-            couleur: [''],
-            famille: [''],
-            sousFamille: [''],
+
+
             fournisseurPrincipal: [''],
+            photo: [''],
 
             // Stock & Pricing
             quantiteActuelle: [0, [Validators.required, Validators.min(0)]],
@@ -136,8 +270,6 @@ export class ProductFormComponent implements OnInit {
             genre: [''],
             forme: [''],
             matiere: [''],
-            couleurMonture: [''],
-            couleurBranches: [''],
             calibre: [0, Validators.min(0)],
             pont: [0, Validators.min(0)],
             branche: [0, Validators.min(0)],
@@ -190,7 +322,8 @@ export class ProductFormComponent implements OnInit {
         const contactLensFields = ['typeLentille', 'usage', 'rayonCourbure', 'diametre', 'puissanceSph'];
         const accessoryFields = ['categorieAccessoire'];
 
-        const allSpecificFields = [...frameFields, ...lensFields, ...contactLensFields, ...accessoryFields];
+        // Include designation to manage its required state dynamically
+        const allSpecificFields = ['designation', ...frameFields, ...lensFields, ...contactLensFields, ...accessoryFields];
 
         allSpecificFields.forEach(field => {
             this.productForm.get(field)?.clearValidators();
@@ -199,6 +332,7 @@ export class ProductFormComponent implements OnInit {
 
         // Add validators based on type
         if (type === ProductType.MONTURE) {
+            this.productForm.get('designation')?.setValidators(Validators.required);
             this.productForm.get('categorie')?.setValidators(Validators.required);
             this.productForm.get('forme')?.setValidators(Validators.required);
             this.productForm.get('matiere')?.setValidators(Validators.required);
@@ -207,14 +341,18 @@ export class ProductFormComponent implements OnInit {
             this.productForm.get('branche')?.setValidators([Validators.required, Validators.min(1)]);
             this.productForm.get('typeMonture')?.setValidators(Validators.required);
         } else if (type === ProductType.VERRE) {
+            // Designation might be auto-generated or optional for lenses?
+            // For now, making it optional to pass validation if hidden
             this.productForm.get('typeVerre')?.setValidators(Validators.required);
             this.productForm.get('materiau')?.setValidators(Validators.required);
             this.productForm.get('puissanceSph')?.setValidators(Validators.required);
         } else if (type === ProductType.LENTILLE) {
+            // Same for lenses
             this.productForm.get('typeLentille')?.setValidators(Validators.required);
             this.productForm.get('usage')?.setValidators(Validators.required);
             this.productForm.get('puissanceSph')?.setValidators(Validators.required);
         } else if (type === ProductType.ACCESSOIRE) {
+            this.productForm.get('designation')?.setValidators(Validators.required); // Required for accessories
             this.productForm.get('categorieAccessoire')?.setValidators(Validators.required);
         }
 
@@ -222,6 +360,18 @@ export class ProductFormComponent implements OnInit {
         allSpecificFields.forEach(field => {
             this.productForm.get(field)?.updateValueAndValidity();
         });
+    }
+
+    // Debug helper
+    getInvalidControls(): string[] {
+        const invalid = [];
+        const controls = this.productForm.controls;
+        for (const name in controls) {
+            if (controls[name].invalid) {
+                invalid.push(name);
+            }
+        }
+        return invalid;
     }
 
     calculatePrices(): void {
@@ -293,12 +443,33 @@ export class ProductFormComponent implements OnInit {
 
     onSubmit(): void {
         console.log('Form submitted');
+
+        // Auto-generate codes if missing on submit (fallback)
+        if (!this.isEditMode) {
+            if (!this.productForm.get('codeInterne')?.value) {
+                this.generateInternalCode();
+            }
+            if (!this.productForm.get('codeBarres')?.value) {
+                this.generateBarcode();
+            }
+        }
+
         console.log('Form valid:', this.productForm.valid);
-        console.log('Form value:', this.productForm.value);
+
+        // Use getRawValue() to include disabled fields like codeInterne and codeBarres
+        const formValue = this.productForm.getRawValue();
+        console.log('Form value (raw):', formValue);
 
         if (this.productForm.valid) {
+            // Check if entrepotId is present for new products
+            if (!this.isEditMode && !this.entrepotId) {
+                alert("Erreur: Aucun entrepôt sélectionné (paramètre 'entrepotId' manquant). Veuillez passer par la page de l'entrepôt.");
+                return;
+            }
+
             const productData = {
-                ...this.productForm.value,
+                ...formValue,
+                entrepotId: this.entrepotId, // Include warehouse ID
                 prixVenteHT: this.productForm.get('prixVenteHT')?.value,
                 prixVenteTTC: this.productForm.get('prixVenteTTC')?.value,
                 utilisateurCreation: 'admin' // TODO: Get from auth service
@@ -307,25 +478,36 @@ export class ProductFormComponent implements OnInit {
             if (this.isEditMode && this.productId) {
                 console.log('Updating product:', this.productId);
                 this.productService.update(this.productId, productData).subscribe(() => {
-                    console.log('Product updated, navigating to /p/stock');
-                    this.router.navigate(['/p/stock']);
+                    console.log('Product updated');
+                    this.navigateBack();
                 });
             } else {
                 console.log('Creating new product');
                 this.productService.create(productData).subscribe((newProduct) => {
                     console.log('Product created:', newProduct);
-                    this.router.navigate(['/p/stock']);
+                    this.navigateBack();
                 });
             }
         } else {
             console.error('Form is invalid. Please check required fields.');
+            const invalidControls = this.getInvalidControls();
+            alert(`Le formulaire est invalide. Veuillez vérifier les champs suivants : ${invalidControls.join(', ')}`);
+
             Object.keys(this.productForm.controls).forEach(key => {
                 this.productForm.get(key)?.markAsTouched();
             });
         }
     }
 
+    navigateBack(): void {
+        if (this.entrepotId) {
+            this.router.navigate(['/p/warehouses', this.entrepotId]);
+        } else {
+            this.router.navigate(['/p/stock']);
+        }
+    }
+
     onCancel(): void {
-        this.router.navigate(['/p/stock']);
+        this.navigateBack();
     }
 }

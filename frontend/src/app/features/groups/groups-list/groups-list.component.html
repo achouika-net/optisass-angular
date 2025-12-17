@@ -1,0 +1,82 @@
+<div class="groups-container">
+    <mat-card>
+        <mat-card-header>
+            <mat-card-title>
+                <h2>Gestion des Groupes</h2>
+            </mat-card-title>
+            <div class="header-actions">
+                <button mat-raised-button color="primary" (click)="openCreateDialog()">
+                    <mat-icon>add</mat-icon>
+                    Nouveau Groupe
+                </button>
+            </div>
+        </mat-card-header>
+
+        <mat-card-content>
+            <div *ngIf="loading" class="loading">Chargement...</div>
+
+            <table mat-table [dataSource]="groupes" *ngIf="!loading" class="groups-table">
+                <!-- Nom Column -->
+                <ng-container matColumnDef="nom">
+                    <th mat-header-cell *matHeaderCellDef>Nom</th>
+                    <td mat-cell *matCellDef="let groupe">
+                        <strong>{{ groupe.nom }}</strong>
+                    </td>
+                </ng-container>
+
+                <!-- Description Column -->
+                <ng-container matColumnDef="description">
+                    <th mat-header-cell *matHeaderCellDef>Description</th>
+                    <td mat-cell *matCellDef="let groupe">{{ groupe.description || '-' }}</td>
+                </ng-container>
+
+                <!-- Ville Column -->
+                <ng-container matColumnDef="ville">
+                    <th mat-header-cell *matHeaderCellDef>Adresse</th>
+                    <td mat-cell *matCellDef="let groupe">{{ groupe.adresse || '-' }}</td>
+                </ng-container>
+
+                <!-- Telephone Column -->
+                <ng-container matColumnDef="telephone">
+                    <th mat-header-cell *matHeaderCellDef>Téléphone</th>
+                    <td mat-cell *matCellDef="let groupe">{{ groupe.telephone || '-' }}</td>
+                </ng-container>
+
+                <!-- Centres Count Column -->
+                <ng-container matColumnDef="centresCount">
+                    <th mat-header-cell *matHeaderCellDef>Centres</th>
+                    <td mat-cell *matCellDef="let groupe">
+                        <span class="badge">{{ getCentresCount(groupe) }}</span>
+                    </td>
+                </ng-container>
+
+                <!-- Actions Column -->
+                <ng-container matColumnDef="actions">
+                    <th mat-header-cell *matHeaderCellDef>Actions</th>
+                    <td mat-cell *matCellDef="let groupe">
+                        <button mat-icon-button [routerLink]="['/p/groups', groupe.id]" matTooltip="Voir détails">
+                            <mat-icon>visibility</mat-icon>
+                        </button>
+                        <button mat-icon-button (click)="openEditDialog(groupe)" matTooltip="Modifier">
+                            <mat-icon>edit</mat-icon>
+                        </button>
+                        <button mat-icon-button color="warn" (click)="deleteGroupe(groupe.id!)" matTooltip="Supprimer">
+                            <mat-icon>delete</mat-icon>
+                        </button>
+                    </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+            </table>
+
+            <div *ngIf="!loading && groupes.length === 0" class="no-data">
+                <mat-icon>inbox</mat-icon>
+                <p>Aucun groupe trouvé</p>
+                <button mat-raised-button color="primary" (click)="openCreateDialog()">
+                    Créer le premier groupe
+                </button>
+            </div>
+        </mat-card-content>
+    </mat-card>
+</div>
