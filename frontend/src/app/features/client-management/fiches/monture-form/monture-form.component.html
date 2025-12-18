@@ -1,963 +1,917 @@
-<div class="fiche-container">
-    <!-- Header -->
-    <div class="header">
-        <div class="client-info">
-            <div class="avatar-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                        d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                </svg>
-            </div>
-            <div class="client-details">
-                <h2>{{ clientDisplayName }}</h2>
-                <p *ngIf="client">
-                    <span class="opacity-75 uppercase text-xs font-bold">{{ client.typeClient }}</span>
-                    <ng-container *ngIf="client.telephone"> • 📞 {{ client.telephone }}</ng-container>
-                    <ng-container *ngIf="client.ville"> • 📍 {{ client.ville }}</ng-container>
-                </p>
-                <p *ngIf="!client" class="text-gray-400 italic">Chargement du client...</p>
-            </div>
-        </div>
-        <div class="header-actions">
-            <!-- View Mode: Retour -->
-            <button type="button" class="btn-secondary" (click)="goBack()" *ngIf="!isEditMode">
-                <mat-icon>arrow_back</mat-icon> Retour
-            </button>
-
-            <!-- New Mode: Annuler Creation -->
-            <button type="button" class="btn-secondary" (click)="goBack()"
-                *ngIf="isEditMode && (!ficheId || ficheId === 'new')">
-                Annuler
-            </button>
-
-            <!-- Edit Mode: Annuler Modification -->
-            <button type="button" class="btn-secondary" (click)="toggleEditMode()"
-                *ngIf="isEditMode && ficheId && ficheId !== 'new'">
-                Annuler modification
-            </button>
-
-            <!-- View Mode: Modifier -->
-            <button type="button" class="btn-primary" (click)="toggleEditMode()"
-                *ngIf="!isEditMode && ficheId && ficheId !== 'new'">
-                <mat-icon>edit</mat-icon> Modifier
-            </button>
-
-            <!-- Edit Mode: Enregistrer / Mettre à jour -->
-            <button type="button" class="btn-primary" (click)="onSubmit()" [disabled]="ficheForm.invalid || loading"
-                *ngIf="isEditMode">
-                <mat-icon>save</mat-icon> {{ (ficheId && ficheId !== 'new') ? 'Mettre à jour' : 'Enregistrer' }}
-            </button>
-        </div>
-    </div>
-
-    <!-- Tabs Navigation -->
-    <div class="tabs-nav">
-        <button type="button" class="tab-btn" [class.active]="activeTab === 0" (click)="setActiveTab(0)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                    d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
-            </svg>
-            Ordonnance
-        </button>
-        <button type="button" class="tab-btn" [class.active]="activeTab === 1" (click)="setActiveTab(1)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                    d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
-            </svg>
-            Monture & Verres
-        </button>
-        <button type="button" class="tab-btn" [class.active]="activeTab === 2" (click)="setActiveTab(2)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6z" />
-            </svg>
-            Fiche Montage
-        </button>
-        <button type="button" class="tab-btn" [class.active]="activeTab === 3" (click)="setActiveTab(3)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                    d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
-            </svg>
-            Facturation
-        </button>
-        <button type="button" class="tab-btn" [class.active]="activeTab === 4" (click)="setActiveTab(4)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                    d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
-            </svg>
-            Paiements
-        </button>
-        <button type="button" class="tab-btn" [class.active]="activeTab === 5" (click)="setActiveTab(5)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                    d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
-            </svg>
-            Suivi Commande
-        </button>
-    </div>
-
-    <!-- Main Form -->
-    <form [formGroup]="ficheForm">
-
-        <!-- ONGLET 1: ORDONNANCE -->
-        <div class="tab-content" *ngIf="activeTab === 0" formGroupName="ordonnance">
-            <div class="tab-header">
-                <div class="icon-box">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
-                    </svg>
-                </div>
-                <div>
-                    <h3>Fiche Monture - Ordonnance</h3>
-                    <p>Saisir ou importer les données de prescription</p>
-                </div>
-                <!-- Actions -->
-                <div class="header-actions-inline">
-
-                    <button type="button" class="btn-icon-success" (click)="openFileUpload()" *ngIf="isEditMode">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                        </svg>
-                        Importer Files
-                    </button>
-                    <button type="button" class="btn-camera-stylish" (click)="openCamera()" *ngIf="isEditMode">
-                        <span class="icon-wrapper">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                <path
-                                    d="M12 15.2c1.77 0 3.2-1.43 3.2-3.2s-1.43-3.2-3.2-3.2-3.2 1.43-3.2 3.2 1.43 3.2 3.2 3.2zm0-4.9c.94 0 1.7.76 1.7 1.7s-.76 1.7-1.7 1.7-1.7-.76-1.7-1.7.76-1.7 1.7-1.7zM20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h4.05l1.83-2h4.24l1.83 2H20v12z" />
-                            </svg>
-                        </span>
-                        <span>Prendre une photo</span>
-                    </button>
-
-                    <input #fileInput type="file" accept="image/*,application/pdf" multiple class="hidden"
-                        (change)="onFilesSelected($event)" aria-label="Sélectionner des documents">
-                </div>
-            </div>
-
-            <!-- Prescription Files Display -->
-            <div class="prescription-files" *ngIf="prescriptionFiles.length > 0">
-                <h4>Documents de prescription</h4>
-                <div class="files-list">
-                    <div class="file-item" *ngFor="let file of prescriptionFiles; let i = index">
-                        <div class="file-info">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="file-icon">
-                                <path *ngIf="file.type.startsWith('image/')"
-                                    d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
-                                <path *ngIf="file.type === 'application/pdf'"
-                                    d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z" />
-                            </svg>
-                            <a href="javascript:void(0)" (click)="viewFile(file)" class="file-link">{{ file.name }}</a>
-                            <span class="file-size">({{ formatFileSize(file.size) }})</span>
-                        </div>
-                        <div class="file-actions">
-                            <button type="button" class="btn-view" (click)="viewFile(file); $event.stopPropagation()"
-                                title="Visualiser">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path
-                                        d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
-                                </svg>
-                            </button>
-                            <button type="button" class="btn-delete" (click)="deleteFile(i); $event.stopPropagation()"
-                                title="Supprimer" *ngIf="isEditMode">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path
-                                        d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Prescription Details -->
-            <div class="prescription-details-row">
-
-
-                <mat-form-field appearance="outline">
-                    <mat-label>Date de prescription</mat-label>
-                    <input matInput [matDatepicker]="picker" formControlName="datePrescription">
-                    <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-                    <mat-datepicker #picker></mat-datepicker>
-                </mat-form-field>
-
-                <mat-form-field appearance="outline">
-                    <mat-label>Prescripteur</mat-label>
-                    <input matInput formControlName="prescripteur" placeholder="Nom du médecin">
-                    <mat-icon matSuffix>person_outline</mat-icon>
-                </mat-form-field>
-
-                <mat-form-field appearance="outline">
-                    <mat-label>Date de Contrôle</mat-label>
-                    <input matInput [matDatepicker]="pickerControle" formControlName="dateControle">
-                    <mat-datepicker-toggle matSuffix [for]="pickerControle"></mat-datepicker-toggle>
-                    <mat-datepicker #pickerControle></mat-datepicker>
-                </mat-form-field>
-            </div>
-
-            <div class="eyes-container">
-                <!-- OEIL DROIT -->
-                <div class="eye-card od-card" formGroupName="od">
-                    <div class="eye-header">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
-                        </svg>
-                        <span>Œil Droit (OD)</span>
-                    </div>
-                    <div class="eye-content">
-                        <div class="form-row">
-                            <div class="form-group"><label>Sphère (SPH)</label><input type="text"
-                                    formControlName="sphere" placeholder="+/- 0.00"
-                                    (blur)="formatSphereValue('od', $event)"></div>
-                            <div class="form-group"><label>Cylindre (CYL)</label><input type="text"
-                                    formControlName="cylindre" (blur)="formatCylindreValue('od', $event)"
-                                    placeholder="+/- 0.00"></div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group"><label>Axe (AXE)</label><input type="text" formControlName="axe"
-                                    placeholder="0°" (blur)="formatAxeValue('od', $event)"></div>
-                            <div class="form-group"><label>Addition (ADD)</label><input type="text"
-                                    formControlName="addition" (blur)="formatAdditionValue('od', $event)"
-                                    placeholder="+0.00"></div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group"><label>Prisme</label><input type="text" formControlName="prisme"
-                                    placeholder="0.00" (blur)="formatPrismeValue('od', $event)"></div>
-                            <div class="form-group"><label>Base</label><input type="text" formControlName="base"
-                                    placeholder="H/B/Int/Ext" (blur)="formatBaseValue('od', $event)"></div>
-                        </div>
-                        <div class="form-group full-width"><label>Écart Pupillaire (EP)</label><input type="text"
-                                formControlName="ep" placeholder="32mm" (blur)="formatEPValue('od', $event)"></div>
-                    </div>
-                </div>
-
-                <!-- OEIL GAUCHE -->
-                <div class="eye-card og-card" formGroupName="og">
-                    <div class="eye-header">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
-                        </svg>
-                        <span>Œil Gauche (OG)</span>
-                    </div>
-                    <div class="eye-content">
-                        <div class="form-row">
-                            <div class="form-group"><label>Sphère (SPH)</label><input type="text"
-                                    formControlName="sphere" placeholder="+/- 0.00"
-                                    (blur)="formatSphereValue('og', $event)"></div>
-                            <div class="form-group"><label>Cylindre (CYL)</label><input type="text"
-                                    formControlName="cylindre" (blur)="formatCylindreValue('og', $event)"
-                                    placeholder="+/- 0.00"></div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group"><label>Axe (AXE)</label><input type="text" formControlName="axe"
-                                    placeholder="0°" (blur)="formatAxeValue('og', $event)"></div>
-                            <div class="form-group"><label>Addition (ADD)</label><input type="text"
-                                    formControlName="addition" (blur)="formatAdditionValue('og', $event)"
-                                    placeholder="+0.00"></div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group"><label>Prisme</label><input type="text" formControlName="prisme"
-                                    placeholder="0.00" (blur)="formatPrismeValue('og', $event)"></div>
-                            <div class="form-group"><label>Base</label><input type="text" formControlName="base"
-                                    placeholder="H/B/Int/Ext" (blur)="formatBaseValue('og', $event)"></div>
-                        </div>
-                        <div class="form-group full-width"><label>Écart Pupillaire (EP)</label><input type="text"
-                                formControlName="ep" placeholder="32mm" (blur)="formatEPValue('og', $event)"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ONGLET 2: MONTURE & VERRES -->
-        <div class="tab-content" *ngIf="activeTab === 1">
-
-            <div class="tab-header">
-                <div class="icon-box">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
-                    </svg>
-                </div>
-                <div>
-                    <h3>Monture & Verres</h3>
-                    <p>Sélectionner les équipements pour le client</p>
-                </div>
-                <div class="header-actions-inline">
-                    <mat-form-field appearance="outline" style="width: 280px;">
-                        <mat-label>Date Livraison Estimée</mat-label>
-                        <input matInput [matDatepicker]="pickerLivraisonVente" formControlName="dateLivraisonEstimee">
-                        <mat-datepicker-toggle matSuffix [for]="pickerLivraisonVente"></mat-datepicker-toggle>
-                        <mat-datepicker #pickerLivraisonVente></mat-datepicker>
-                    </mat-form-field>
-                </div>
-            </div>
-
-            <!-- 1. Essayage Virtuel (Top) -->
-            <div class="virtual-try-on">
-                <div class="icon-box-purple">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M21 6h-2.81c-.45-.78-1.07-1.45-1.82-1.96L17 2.44 15.56 1l-1.97 1.97C12.96 2.36 12.49 2 12 2s-.96.36-1.59.97L8.44 1 7 2.44l.63 1.6C6.88 4.55 6.26 5.22 5.81 6H3v2h2.09c-.05.33-.09.66-.09 1v1H3v2h2v1c0 .34.04.67.09 1H3v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H19v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2V9c0-.34-.04-.67-.09-1H19V6z" />
-                    </svg>
-                </div>
-                <div>
-                    <h4>Essayage Virtuel</h4>
-                    <p>Testez les montures en stock</p>
-                </div>
-                <button type="button" class="btn-purple">Lancer</button>
-            </div>
-
-            <!-- 2. Add Button Only -->
-            <div class="flex justify-end mb-6" *ngIf="isEditMode">
-                <button type="button" class="btn-icon-primary" (click)="addEquipment()">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                    </svg>
-                    Ajouter un équipement
-                </button>
-            </div>
-
-            <!-- 3. Equipement Principal (Collapsible) -->
-            <div class="mb-6">
-                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6">
-                    <div class="flex items-center justify-between mb-6">
-                        <div class="flex items-center gap-3">
-                            <select [formControl]="$any(ficheForm.get('monture.typeEquipement'))"
-                                class="header-select main" [class.pointer-events-none]="!mainEquipmentExpanded"
-                                [class.opacity-60]="!mainEquipmentExpanded" aria-label="Type d'équipement principal">
-                                <option *ngFor="let type of typesEquipement" [value]="type">{{ type }}</option>
-                            </select>
-                            <div class="text-gray-600 font-medium ml-2 flex items-center gap-2"
-                                *ngIf="!mainEquipmentExpanded">
-                                <span *ngIf="ficheForm.get('monture.marque')?.value"
-                                    class="bg-white px-2 py-1 rounded border border-gray-200 text-sm">
-                                    {{ ficheForm.get('monture.marque')?.value }}
-                                </span>
-                                <span *ngIf="ficheForm.get('monture.reference')?.value" class="text-sm text-gray-500">
-                                    {{ ficheForm.get('monture.reference')?.value }}
-                                </span>
-                                <!-- Lens Details Summary -->
-                                <span class="text-sm text-gray-400 mx-1">|</span>
-                                <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-100 text-sm">
-                                    <ng-container *ngIf="ficheForm.get('verres.differentODOG')?.value; else sameLens">
-                                        OD: {{ ficheForm.get('verres.matiereOD')?.value }} {{
-                                        ficheForm.get('verres.indiceOD')?.value }}
-                                        <span class="text-gray-400 mx-1">|</span>
-                                        OG: {{ ficheForm.get('verres.matiereOG')?.value }} {{
-                                        ficheForm.get('verres.indiceOG')?.value }}
-                                    </ng-container>
-                                    <ng-template #sameLens>
-                                        Verres: {{ ficheForm.get('verres.matiere')?.value }}
-                                        <span *ngIf="ficheForm.get('verres.indice')?.value"
-                                            class="text-sm text-gray-500">
-                                            {{ ficheForm.get('verres.indice')?.value }}
-                                        </span>
-                                    </ng-template>
-                                </span>
-                                <span
-                                    *ngIf="(ficheForm.get('monture.prixMonture')?.value * 1 + ficheForm.get('verres.prixOD')?.value * 1 + ficheForm.get('verres.prixOG')?.value * 1) > 0"
-                                    class="text-green-600 font-bold ml-2">
-                                    {{ (ficheForm.get('monture.prixMonture')?.value * 1 +
-                                    ficheForm.get('verres.prixOD')?.value * 1 +
-                                    ficheForm.get('verres.prixOG')?.value * 1) | number:'1.2-2' }} DH
-                                </span>
-                            </div>
-                        </div>
-                        <button type="button" class="btn-toggle" (click)="toggleMainEquipment()">
-                            <span>{{ mainEquipmentExpanded ? 'Réduire' : 'Développer' }}</span>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"
-                                class="transition-transform duration-200" [class.rotate-180]="mainEquipmentExpanded">
-                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    <div *ngIf="mainEquipmentExpanded">
-                        <!-- Content of main equipment -->
-
-                        <!-- Monture Details -->
-                        <div class="section-card mb-4" formGroupName="monture">
-                            <h4>Monture</h4>
-                            <div class="grid grid-cols-3 gap-4">
-                                <div class="form-group col-span-2">
-                                    <label>Référence / Code-barres *</label>
-                                    <div class="input-with-button">
-                                        <input type="text" formControlName="reference" placeholder="Saisir ou chercher">
-                                        <button type="button" class="btn-scan" (click)="openStockSearch(-1)"
-                                            aria-label="Chercher en Stock">
-                                            <mat-icon inline
-                                                style="font-size: 18px; margin-right: 4px;">inventory_2</mat-icon>
-                                            Stock
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="form-group"><label>Marque</label><input type="text" formControlName="marque"
-                                        aria-label="Marque de la monture">
-                                </div>
-                                <div class="form-group"><label>Couleur</label><input type="text"
-                                        formControlName="couleur" aria-label="Couleur de la monture">
-                                </div>
-                                <div class="form-group"><label>Taille</label><input type="text" formControlName="taille"
-                                        aria-label="Taille de la monture">
-                                </div>
-                                <div class="form-group">
-                                    <label>Type de cerclage</label>
-                                    <select formControlName="cerclage" aria-label="Type de cerclage">
-                                        <option value="">-- Sélectionner --</option>
-                                        <option value="cerclée">Cerclée (Complète)</option>
-                                        <option value="nylor">Nylor (Semi-cerclée)</option>
-                                        <option value="percée">Percée (Sans cercle)</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label>Prix Monture</label>
-                                    <input type="text" formControlName="prixMonture"
-                                        (blur)="formatPrice(ficheForm.get('monture.prixMonture'), $event)"
-                                        placeholder="0.00 DH">
-                                </div>
-
-                            </div>
-                        </div>
-
-                        <!-- Verres Details -->
-                        <div class="section-card" formGroupName="verres"
-                            *ngIf="ficheForm.get('monture.typeEquipement')?.value !== 'Solaire'">
-                            <div class="section-header">
-                                <h4>Verres correcteurs</h4>
-                                <div class="section-actions">
-                                    <button type="button" class="btn-suggestion" (click)="checkSuggestion(-1)"
-                                        aria-label="Obtenir une suggestion IA">Suggestion</button>
-                                    <label class="checkbox-label"><input type="checkbox"
-                                            formControlName="differentODOG"><span>Différents OD/OG</span></label>
-                                </div>
-                            </div>
-
-                            <!-- Suggestions -->
-                            <div class="suggestions-panel" *ngIf="showSuggestions && activeSuggestionIndex === -1">
-                                <div class="suggestion-item" *ngFor="let suggestion of suggestions">
-                                    <div class="suggestion-content">
-                                        <div style="line-height: 1.4;">
-                                            <div><strong class="text-blue-700">[{{ suggestion.type }}]</strong> <span
-                                                    class="font-semibold">{{ suggestion.matiere }}</span> <span
-                                                    class="text-gray-400">•</span> Indice {{ suggestion.indice }} <span
-                                                    *ngIf="suggestion.epaisseur" class="text-gray-400">•</span> <span
-                                                    *ngIf="suggestion.epaisseur" class="text-blue-600">📏 {{
-                                                    suggestion.epaisseur }}</span></div>
-                                            <div class="text-xs text-gray-600">{{ suggestion.raison.replace(/\n/g, ' •
-                                                ') }}<span *ngIf="suggestion.warnings && suggestion.warnings.length > 0"
-                                                    class="text-orange-600"> • ⚠️ {{ suggestion.warnings[0] }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button type="button" class="btn-apply" *ngIf="isEditMode"
-                                        (click)="applySuggestion(suggestion)">Appliquer</button>
-                                </div>
-                                <button type="button" class="btn-close-suggestions"
-                                    (click)="closeSuggestions()">Fermer</button>
-                            </div>
-
-                            <!-- Single Mode -->
-                            <div class="verres-single" *ngIf="!ficheForm.get('verres.differentODOG')?.value">
-                                <div class="grid grid-cols-5 gap-4 mb-4">
-                                    <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                        <mat-label>Marque</mat-label>
-                                        <mat-select formControlName="marque" [disabled]="!isEditMode">
-                                            <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b }}</mat-option>
-                                        </mat-select>
-                                    </mat-form-field>
-
-                                    <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                        <mat-label>Matière</mat-label>
-                                        <mat-select formControlName="matiere" [disabled]="!isEditMode">
-                                            <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m }}</mat-option>
-                                        </mat-select>
-                                    </mat-form-field>
-                                    <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                        <mat-label>Indice</mat-label>
-                                        <mat-select formControlName="indice" [disabled]="!isEditMode">
-                                            <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i }}</mat-option>
-                                        </mat-select>
-                                    </mat-form-field>
-                                    <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                        <mat-label>Traitement</mat-label>
-                                        <mat-select formControlName="traitement" multiple [disabled]="!isEditMode">
-                                            <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
-                                                }}</mat-option>
-                                        </mat-select>
-                                    </mat-form-field>
-
-                                    <mat-form-field appearance="outline" class="w-full">
-                                        <mat-label>Prix Unitaire</mat-label>
-                                        <input matInput type="text" formControlName="prixOD" [readonly]="!isEditMode"
-                                            (blur)="formatPrice(ficheForm.get('verres.prixOD'), $event)">
-                                        <span matSuffix>DH</span>
-                                        <mat-hint>Calcul auto (x2)</mat-hint>
-                                    </mat-form-field>
-                                </div>
-                            </div>
-
-                            <!-- Split Mode -->
-                            <div class="verres-split" *ngIf="ficheForm.get('verres.differentODOG')?.value">
-                                <div class="verre-od">
-                                    <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Droit (OD)</h4>
-                                    <div class="grid grid-cols-1 gap-4 mb-4">
-                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                            <mat-label>Marque</mat-label>
-                                            <mat-select formControlName="marqueOD" [disabled]="!isEditMode">
-                                                <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
-                                                    }}</mat-option>
-                                            </mat-select>
-                                        </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                            <mat-label>Matière</mat-label>
-                                            <mat-select formControlName="matiereOD" [disabled]="!isEditMode">
-                                                <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
-                                                    }}</mat-option>
-                                            </mat-select>
-                                        </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                            <mat-label>Indice</mat-label>
-                                            <mat-select formControlName="indiceOD" [disabled]="!isEditMode">
-                                                <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
-                                                    }}</mat-option>
-                                            </mat-select>
-                                        </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                            <mat-label>Traitement</mat-label>
-                                            <mat-select formControlName="traitementOD" multiple
-                                                [disabled]="!isEditMode">
-                                                <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
-                                                    }}</mat-option>
-                                            </mat-select>
-                                        </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                            <mat-label>Prix Verre OD</mat-label>
-                                            <input matInput type="text" formControlName="prixOD"
-                                                [readonly]="!isEditMode"
-                                                (blur)="formatPrice(ficheForm.get('verres.prixOD'), $event)">
-                                            <span matSuffix>DH</span>
-                                        </mat-form-field>
-                                    </div>
-                                </div>
-                                <div class="verre-og">
-                                    <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Gauche (OG)</h4>
-                                    <div class="grid grid-cols-1 gap-4 mb-4">
-                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                            <mat-label>Marque</mat-label>
-                                            <mat-select formControlName="marqueOG" [disabled]="!isEditMode">
-                                                <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
-                                                    }}</mat-option>
-                                            </mat-select>
-                                        </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                            <mat-label>Matière</mat-label>
-                                            <mat-select formControlName="matiereOG" [disabled]="!isEditMode">
-                                                <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
-                                                    }}</mat-option>
-                                            </mat-select>
-                                        </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                            <mat-label>Indice</mat-label>
-                                            <mat-select formControlName="indiceOG" [disabled]="!isEditMode">
-                                                <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
-                                                    }}</mat-option>
-                                            </mat-select>
-                                        </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                            <mat-label>Traitement</mat-label>
-                                            <mat-select formControlName="traitementOG" multiple
-                                                [disabled]="!isEditMode">
-                                                <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
-                                                    }}</mat-option>
-                                            </mat-select>
-                                        </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                            <mat-label>Prix Verre OG</mat-label>
-                                            <input matInput type="text" formControlName="prixOG"
-                                                [readonly]="!isEditMode"
-                                                (blur)="formatPrice(ficheForm.get('verres.prixOG'), $event)">
-                                            <span matSuffix>DH</span>
-                                        </mat-form-field>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-
-                </div>
-            </div>
-
-            <!-- 4. Added Equipments List -->
-            <div *ngIf="equipements.length > 0">
-                <h4 class="text-lg font-semibold mb-4 text-gray-800">Équipements ajoutés</h4>
-                <div *ngFor="let equipment of equipements.controls; let i = index" class="mb-6">
-                    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-6">
-                        <!-- Header -->
-                        <div class="flex items-center justify-between mb-6">
-                            <div class="flex items-center gap-3">
-                                <select [formControl]="$any(equipment.get('type'))" class="header-select added"
-                                    [class.pointer-events-none]="!addedEquipmentsExpanded[i]"
-                                    [class.opacity-60]="!addedEquipmentsExpanded[i]"
-                                    aria-label="Type d'équipement ajouté">
-                                    <option *ngFor="let type of typesEquipement" [value]="type">{{ type }}
-                                    </option>
-                                </select>
-                                <!-- Summary when collapsed -->
-                                <div class="text-gray-600 font-medium ml-2 flex items-center gap-2"
-                                    *ngIf="!addedEquipmentsExpanded[i]">
-                                    <span *ngIf="equipment.get('monture.marque')?.value"
-                                        class="bg-white px-2 py-1 rounded border border-gray-200 text-sm">
-                                        {{ equipment.get('monture.marque')?.value }}
-                                    </span>
-                                    <span *ngIf="equipment.get('monture.reference')?.value"
-                                        class="text-sm text-gray-500">
-                                        {{ equipment.get('monture.reference')?.value }}
-                                    </span>
-                                    <!-- Lens Details Summary -->
-                                    <span class="text-sm text-gray-400 mx-1">|</span>
-                                    <span
-                                        class="bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-100 text-sm">
-                                        <ng-container
-                                            *ngIf="equipment.get('verres.differentODOG')?.value; else sameLensEquip">
-                                            OD: {{ equipment.get('verres.matiereOD')?.value }} {{
-                                            equipment.get('verres.indiceOD')?.value }}
-                                            <span class="text-gray-400 mx-1">|</span>
-                                            OG: {{ equipment.get('verres.matiereOG')?.value }} {{
-                                            equipment.get('verres.indiceOG')?.value }}
-                                        </ng-container>
-                                        <ng-template #sameLensEquip>
-                                            Verres: {{ equipment.get('verres.matiere')?.value }}
-                                            <span *ngIf="equipment.get('verres.indice')?.value"
-                                                class="text-sm text-gray-500">
-                                                {{ equipment.get('verres.indice')?.value }}
-                                            </span>
-                                        </ng-template>
-                                    </span>
-                                    <span
-                                        *ngIf="(equipment.get('monture.prixMonture')?.value * 1 + equipment.get('verres.prixOD')?.value * 1 + equipment.get('verres.prixOG')?.value * 1) > 0"
-                                        class="text-green-600 font-bold ml-2">
-                                        {{ (equipment.get('monture.prixMonture')?.value * 1 +
-                                        equipment.get('verres.prixOD')?.value * 1 +
-                                        equipment.get('verres.prixOG')?.value * 1) | number:'1.2-2' }} DH
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <button type="button" class="btn-toggle" (click)="toggleAddedEquipment(i)">
-                                    <span>{{ addedEquipmentsExpanded[i] ? 'Réduire' : 'Développer' }}</span>
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"
-                                        class="transition-transform duration-200"
-                                        [class.rotate-180]="addedEquipmentsExpanded[i]">
-                                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                                    </svg>
-                                </button>
-                                <button type="button" *ngIf="isEditMode"
-                                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"
-                                    (click)="removeEquipment(i)">
-                                    Supprimer
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Form Group for THIS equipment -->
-                        <div [formGroup]="getEquipmentGroup(i)" *ngIf="addedEquipmentsExpanded[i]">
-                            <!-- Monture -->
-                            <div class="section-card mb-4" formGroupName="monture">
-                                <h4>Monture</h4>
-                                <div class="grid grid-cols-3 gap-4">
-                                    <div class="form-group col-span-2">
-                                        <label>Référence / Code-barres *</label>
-                                        <div class="input-with-button">
-                                            <input type="text" formControlName="reference"
-                                                placeholder="Saisir ou chercher">
-                                            <button type="button" class="btn-scan" (click)="openStockSearch(i)"
-                                                *ngIf="isEditMode" aria-label="Chercher en Stock">
-                                                <mat-icon inline
-                                                    style="font-size: 18px; margin-right: 4px;">inventory_2</mat-icon>
-                                                Stock
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="form-group"><label>Marque</label><input type="text"
-                                            formControlName="marque" aria-label="Marque de la monture additionnelle">
-                                    </div>
-                                    <div class="form-group"><label>Couleur</label><input type="text"
-                                            formControlName="couleur" aria-label="Couleur de la monture additionnelle">
-                                    </div>
-                                    <div class="form-group"><label>Taille</label><input type="text"
-                                            formControlName="taille" aria-label="Taille de la monture additionnelle">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Cerclage</label>
-                                        <select formControlName="cerclage">
-                                            <option value="cerclée">Cerclée</option>
-                                            <option value="nylor">Nylor</option>
-                                            <option value="percée">Percée</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Prix</label>
-                                        <input type="text" formControlName="prixMonture"
-                                            (blur)="formatPrice(getEquipmentGroup(i).get('monture.prixMonture'), $event)"
-                                            placeholder="0.00 DH">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Verres -->
-                            <div class="section-card" formGroupName="verres"
-                                *ngIf="equipment.get('type')?.value !== 'Solaire'">
-                                <div class="section-header">
-                                    <h4>Verres correcteurs</h4>
-                                    <div class="section-actions">
-                                        <button type="button" class="btn-suggestion" (click)="checkSuggestion(i)"
-                                            *ngIf="isEditMode"
-                                            aria-label="Obtenir une suggestion IA">Suggestion</button>
-                                        <label class="checkbox-label"><input type="checkbox"
-                                                formControlName="differentODOG"><span>Différents
-                                                OD/OG</span></label>
-                                    </div>
-                                </div>
-
-                                <!-- Suggestions (Added Equipment) -->
-                                <div class="suggestions-panel" *ngIf="showSuggestions && activeSuggestionIndex === i">
-                                    <div class="suggestion-item" *ngFor="let suggestion of suggestions">
-                                        <div class="suggestion-content">
-                                            <strong>[{{ suggestion.type }}] {{ suggestion.matiere }}</strong>
-                                            <p>{{ suggestion.raison }}</p>
-                                        </div>
-                                        <button type="button" class="btn-apply" *ngIf="isEditMode"
-                                            (click)="applySuggestion(suggestion, getEquipmentGroup(i))">Appliquer</button>
-                                    </div>
-                                    <button type="button" class="btn-close-suggestions"
-                                        (click)="closeSuggestions()">Fermer</button>
-                                </div>
-
-                                <!-- Single Mode -->
-                                <div class="verres-single" *ngIf="!equipment.get('verres.differentODOG')?.value">
-                                    <div class="grid grid-cols-5 gap-4 mb-4">
-                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                            <mat-label>Marque</mat-label>
-                                            <mat-select formControlName="marque">
-                                                <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
-                                                    }}</mat-option>
-                                            </mat-select>
-                                        </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                            <mat-label>Matière</mat-label>
-                                            <mat-select formControlName="matiere">
-                                                <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
-                                                    }}</mat-option>
-                                            </mat-select>
-                                        </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                            <mat-label>Indice</mat-label>
-                                            <mat-select formControlName="indice">
-                                                <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
-                                                    }}</mat-option>
-                                            </mat-select>
-                                        </mat-form-field>
-                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                            <mat-label>Traitement</mat-label>
-                                            <mat-select formControlName="traitement" multiple>
-                                                <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
-                                                    }}</mat-option>
-                                            </mat-select>
-                                        </mat-form-field>
-
-                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                            <mat-label>Prix Unitaire</mat-label>
-                                            <input matInput type="text" formControlName="prixOD"
-                                                (blur)="formatPrice(getEquipmentGroup(i).get('verres.prixOD'), $event)">
-                                            <span matSuffix>DH</span>
-                                            <mat-hint>Calcul auto (x2)</mat-hint>
-                                        </mat-form-field>
-                                    </div>
-                                </div>
-
-                                <!-- Split Mode -->
-                                <div class="verres-split" *ngIf="equipment.get('verres.differentODOG')?.value">
-                                    <div class="verre-od">
-                                        <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Droit (OD)</h4>
-                                        <div class="grid grid-cols-1 gap-4 mb-4">
-                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                                <mat-label>Marque</mat-label>
-                                                <mat-select formControlName="marqueOD">
-                                                    <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
-                                                        }}</mat-option>
-                                                </mat-select>
-                                            </mat-form-field>
-                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                                <mat-label>Matière</mat-label>
-                                                <mat-select formControlName="matiereOD">
-                                                    <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
-                                                        }}</mat-option>
-                                                </mat-select>
-                                            </mat-form-field>
-                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                                <mat-label>Indice</mat-label>
-                                                <mat-select formControlName="indiceOD">
-                                                    <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
-                                                        }}</mat-option>
-                                                </mat-select>
-                                            </mat-form-field>
-                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                                <mat-label>Traitement</mat-label>
-                                                <mat-select formControlName="traitementOD" multiple>
-                                                    <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
-                                                        }}</mat-option>
-                                                </mat-select>
-                                            </mat-form-field>
-                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                                <mat-label>Prix Verre OD</mat-label>
-                                                <input matInput type="text" formControlName="prixOD"
-                                                    (blur)="formatPrice(getEquipmentGroup(i).get('verres.prixOD'), $event)">
-                                                <span matSuffix>DH</span>
-                                            </mat-form-field>
-                                        </div>
-                                    </div>
-
-                                    <div class="verre-og">
-                                        <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Gauche (OG)</h4>
-                                        <div class="grid grid-cols-1 gap-4 mb-4">
-                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                                <mat-label>Marque</mat-label>
-                                                <mat-select formControlName="marqueOG">
-                                                    <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
-                                                        }}</mat-option>
-                                                </mat-select>
-                                            </mat-form-field>
-                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                                <mat-label>Matière</mat-label>
-                                                <mat-select formControlName="matiereOG">
-                                                    <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
-                                                        }}</mat-option>
-                                                </mat-select>
-                                            </mat-form-field>
-                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                                <mat-label>Indice</mat-label>
-                                                <mat-select formControlName="indiceOG">
-                                                    <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
-                                                        }}</mat-option>
-                                                </mat-select>
-                                            </mat-form-field>
-                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                                <mat-label>Traitement</mat-label>
-                                                <mat-select formControlName="traitementOG" multiple>
-                                                    <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
-                                                        }}</mat-option>
-                                                </mat-select>
-                                            </mat-form-field>
-                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
-                                                <mat-label>Prix Verre OG</mat-label>
-                                                <input matInput type="text" formControlName="prixOG"
-                                                    (blur)="formatPrice(getEquipmentGroup(i).get('verres.prixOG'), $event)">
-                                                <span matSuffix>DH</span>
-                                            </mat-form-field>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-
-        </div>
-
-        <!-- ONGLET 3: FICHE MONTAGE -->
-        <div class="tab-content" *ngIf="activeTab === 2">
-            <div class="tab-header">
-                <div class="icon-box">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6z" />
-                    </svg>
-                </div>
-                <div>
-                    <h3>Fiche Montage</h3>
-                    <p>Paramètres de centrage et montage</p>
-                </div>
-                <div class="header-actions-inline ml-auto">
-                    <button type="button" class="btn-print" (click)="printFicheMontage()">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z" />
-                        </svg>
-                        Imprimer
-                    </button>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8" formGroupName="montage">
-                <!-- LEFT COLUMN: Ordonnance & Montage Params -->
-                <div class="flex flex-col gap-6">
-
-                    <!-- Correction d'Ordonnance -->
-                    <div class="section-card-clean">
-                        <h4 class="section-title-icon">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="text-blue-600">
-                                <path
-                                    d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
-                            </svg>
-                            Correction d'Ordonnance
-                        </h4>
-                        <div class="flex flex-col gap-4">
-                            <!-- OD Row (Purple) -->
-                            <div
-                                class="px-4 py-3 rounded-xl border-l-4 border-purple-400 bg-purple-50 text-purple-900 flex items-center gap-3 shadow-sm">
-                                <strong class="min-w-[40px] text-purple-700">OD:</strong>
-                                <span class="font-medium text-base">
-                                    {{ ficheForm.get('ordonnance.od.sphere')?.value || '0.00' }}
-                                    ({{ ficheForm.get('ordonnance.od.cylindre')?.value || '0.00' }})
-                                    {{ ficheForm.get('ordonnance.od.axe')?.value || '0' }}°
-                                    Add {{ ficheForm.get('ordonnance.od.addition')?.value || '0.00' }}
-                                </span>
-                            </div>
-                            <!-- OG Row (Green) -->
-                            <div
-                                class="px-4 py-3 rounded-xl border-l-4 border-green-400 bg-green-50 text-green-900 flex items-center gap-3 shadow-sm">
-                                <strong class="min-w-[40px] text-green-700">OG:</strong>
-                                <span class="font-medium text-base">
-                                    {{ ficheForm.get('ordonnance.og.sphere')?.value || '0.00' }}
-                                    ({{ ficheForm.get('ordonnance.og.cylindre')?.value || '0.00' }})
-                                    {{ ficheForm.get('ordonnance.og.axe')?.value || '0' }}°
-                                    Add {{ ficheForm.get('ordonnance.og.addition')?.value || '0.00' }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Type de Montage -->
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">Type de Montage</label>
-                        <select formControlName="typeMontage"
-                            class="w-full h-11 px-4 rounded-xl border border-gray-300 bg-white text-gray-800 focus:ring-2 focus:ring-blue-500 shadow-sm">
-                            <option *ngFor="let type of typesMontage" [value]="type">{{ type }}</option>
-                        </select>
-                    </div>
-
-                    <!-- Parameters OD / OG Cards -->
-                    <div class="grid grid-cols-2 gap-6">
-                        <!-- OD Card -->
-                        <div class="border border-purple-200 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
-                            <div
-                                class="bg-purple-50 px-4 py-3 border-b border-purple-100 flex items-center gap-2 text-purple-800 font-bold text-sm uppercase">
-                                <span class="w-2 h-2 rounded-full bg-purple-600"></span> œil droit (OD)
-                            </div>
-                                                                                    <div class="p-5 bg-white flex justify-center">
+<div class="fiche-container">
+    <!-- Header -->
+    <div class="header">
+        <div class="client-info">
+            <div class="avatar-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                        d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                </svg>
+            </div>
+            <div class="client-details">
+                <h2>{{ clientDisplayName }}</h2>
+                <p *ngIf="client">
+                    <span class="opacity-75 uppercase text-xs font-bold">{{ client.typeClient }}</span>
+                    <ng-container *ngIf="client.telephone"> • 📞 {{ client.telephone }}</ng-container>
+                    <ng-container *ngIf="client.ville"> • 📍 {{ client.ville }}</ng-container>
+                </p>
+                <p *ngIf="!client" class="text-gray-400 italic">Chargement du client...</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <!-- View Mode: Retour -->
+            <button type="button" class="btn-secondary" (click)="goBack()" *ngIf="!isEditMode">
+                <mat-icon>arrow_back</mat-icon> Retour
+            </button>
+            <!-- New Mode: Annuler Creation -->
+            <button type="button" class="btn-secondary" (click)="goBack()"
+                *ngIf="isEditMode && (!ficheId || ficheId === 'new')">
+                Annuler
+            </button>
+            <!-- Edit Mode: Annuler Modification -->
+            <button type="button" class="btn-secondary" (click)="toggleEditMode()"
+                *ngIf="isEditMode && ficheId && ficheId !== 'new'">
+                Annuler modification
+            </button>
+            <!-- View Mode: Modifier -->
+            <button type="button" class="btn-primary" (click)="toggleEditMode()"
+                *ngIf="!isEditMode && ficheId && ficheId !== 'new'">
+                <mat-icon>edit</mat-icon> Modifier
+            </button>
+            <!-- Edit Mode: Enregistrer / Mettre à jour -->
+            <button type="button" class="btn-primary" (click)="onSubmit()" [disabled]="ficheForm.invalid || loading"
+                *ngIf="isEditMode">
+                <mat-icon>save</mat-icon> {{ (ficheId && ficheId !== 'new') ? 'Mettre à jour' : 'Enregistrer' }}
+            </button>
+        </div>
+    </div>
+    <!-- Tabs Navigation -->
+    <div class="tabs-nav">
+        <button type="button" class="tab-btn" [class.active]="activeTab === 0" (click)="setActiveTab(0)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                    d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
+            </svg>
+            Ordonnance
+        </button>
+        <button type="button" class="tab-btn" [class.active]="activeTab === 1" (click)="setActiveTab(1)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                    d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
+            </svg>
+            Monture & Verres
+        </button>
+        <button type="button" class="tab-btn" [class.active]="activeTab === 2" (click)="setActiveTab(2)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6z" />
+            </svg>
+            Fiche Montage
+        </button>
+        <button type="button" class="tab-btn" [class.active]="activeTab === 3" (click)="setActiveTab(3)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                    d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
+            </svg>
+            Facturation
+        </button>
+        <button type="button" class="tab-btn" [class.active]="activeTab === 4" (click)="setActiveTab(4)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                    d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
+            </svg>
+            Paiements
+        </button>
+        <button type="button" class="tab-btn" [class.active]="activeTab === 5" (click)="setActiveTab(5)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                    d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+            </svg>
+            Suivi Commande
+        </button>
+    </div>
+    <!-- Main Form -->
+    <form [formGroup]="ficheForm">
+        <!-- ONGLET 1: ORDONNANCE -->
+        <div class="tab-content" *ngIf="activeTab === 0" formGroupName="ordonnance">
+            <div class="tab-header">
+                <div class="icon-box">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3>Fiche Monture - Ordonnance</h3>
+                    <p>Saisir ou importer les données de prescription</p>
+                </div>
+                <!-- Actions -->
+                <div class="header-actions-inline">
+                    <button type="button" class="btn-icon-success" (click)="openFileUpload()" *ngIf="isEditMode">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                        </svg>
+                        Importer Files
+                    </button>
+                    <button type="button" class="btn-camera-stylish" (click)="openCamera()" *ngIf="isEditMode">
+                        <span class="icon-wrapper">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path
+                                    d="M12 15.2c1.77 0 3.2-1.43 3.2-3.2s-1.43-3.2-3.2-3.2-3.2 1.43-3.2 3.2 1.43 3.2 3.2 3.2zm0-4.9c.94 0 1.7.76 1.7 1.7s-.76 1.7-1.7 1.7-1.7-.76-1.7-1.7.76-1.7 1.7-1.7zM20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h4.05l1.83-2h4.24l1.83 2H20v12z" />
+                            </svg>
+                        </span>
+                        <span>Prendre une photo</span>
+                    </button>
+                    <input #fileInput type="file" accept="image/*,application/pdf" multiple class="hidden"
+                        (change)="onFilesSelected($event)" aria-label="Sélectionner des documents">
+                </div>
+            </div>
+            <!-- Prescription Files Display -->
+            <div class="prescription-files" *ngIf="prescriptionFiles.length > 0">
+                <h4>Documents de prescription</h4>
+                <div class="files-list">
+                    <div class="file-item" *ngFor="let file of prescriptionFiles; let i = index">
+                        <div class="file-info">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="file-icon">
+                                <path *ngIf="file.type.startsWith('image/')"
+                                    d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
+                                <path *ngIf="file.type === 'application/pdf'"
+                                    d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z" />
+                            </svg>
+                            <a href="javascript:void(0)" (click)="viewFile(file)" class="file-link">{{ file.name }}</a>
+                            <span class="file-size">({{ formatFileSize(file.size) }})</span>
+                        </div>
+                        <div class="file-actions">
+                            <button type="button" class="btn-view" (click)="viewFile(file); $event.stopPropagation()"
+                                title="Visualiser">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path
+                                        d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
+                                </svg>
+                            </button>
+                            <button type="button" class="btn-delete" (click)="deleteFile(i); $event.stopPropagation()"
+                                title="Supprimer" *ngIf="isEditMode">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path
+                                        d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Prescription Details -->
+            <div class="prescription-details-row">
+                <mat-form-field appearance="outline">
+                    <mat-label>Date de prescription</mat-label>
+                    <input matInput [matDatepicker]="picker" formControlName="datePrescription">
+                    <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+                    <mat-datepicker #picker></mat-datepicker>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                    <mat-label>Prescripteur</mat-label>
+                    <input matInput formControlName="prescripteur" placeholder="Nom du médecin">
+                    <mat-icon matSuffix>person_outline</mat-icon>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                    <mat-label>Date de Contrôle</mat-label>
+                    <input matInput [matDatepicker]="pickerControle" formControlName="dateControle">
+                    <mat-datepicker-toggle matSuffix [for]="pickerControle"></mat-datepicker-toggle>
+                    <mat-datepicker #pickerControle></mat-datepicker>
+                </mat-form-field>
+            </div>
+            <div class="eyes-container">
+                <!-- OEIL DROIT -->
+                <div class="eye-card od-card" formGroupName="od">
+                    <div class="eye-header">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
+                        </svg>
+                        <span>Œil Droit (OD)</span>
+                    </div>
+                    <div class="eye-content">
+                        <div class="form-row">
+                            <div class="form-group"><label>Sphère (SPH)</label><input type="text"
+                                    formControlName="sphere" placeholder="+/- 0.00"
+                                    (blur)="formatSphereValue('od', $event)"></div>
+                            <div class="form-group"><label>Cylindre (CYL)</label><input type="text"
+                                    formControlName="cylindre" (blur)="formatCylindreValue('od', $event)"
+                                    placeholder="+/- 0.00"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Axe (AXE)</label><input type="text" formControlName="axe"
+                                    placeholder="0°" (blur)="formatAxeValue('od', $event)"></div>
+                            <div class="form-group"><label>Addition (ADD)</label><input type="text"
+                                    formControlName="addition" (blur)="formatAdditionValue('od', $event)"
+                                    placeholder="+0.00"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Prisme</label><input type="text" formControlName="prisme"
+                                    placeholder="0.00" (blur)="formatPrismeValue('od', $event)"></div>
+                            <div class="form-group"><label>Base</label><input type="text" formControlName="base"
+                                    placeholder="H/B/Int/Ext" (blur)="formatBaseValue('od', $event)"></div>
+                        </div>
+                        <div class="form-group full-width"><label>Écart Pupillaire (EP)</label><input type="text"
+                                formControlName="ep" placeholder="32mm" (blur)="formatEPValue('od', $event)"></div>
+                    </div>
+                </div>
+                <!-- OEIL GAUCHE -->
+                <div class="eye-card og-card" formGroupName="og">
+                    <div class="eye-header">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
+                        </svg>
+                        <span>Œil Gauche (OG)</span>
+                    </div>
+                    <div class="eye-content">
+                        <div class="form-row">
+                            <div class="form-group"><label>Sphère (SPH)</label><input type="text"
+                                    formControlName="sphere" placeholder="+/- 0.00"
+                                    (blur)="formatSphereValue('og', $event)"></div>
+                            <div class="form-group"><label>Cylindre (CYL)</label><input type="text"
+                                    formControlName="cylindre" (blur)="formatCylindreValue('og', $event)"
+                                    placeholder="+/- 0.00"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Axe (AXE)</label><input type="text" formControlName="axe"
+                                    placeholder="0°" (blur)="formatAxeValue('og', $event)"></div>
+                            <div class="form-group"><label>Addition (ADD)</label><input type="text"
+                                    formControlName="addition" (blur)="formatAdditionValue('og', $event)"
+                                    placeholder="+0.00"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Prisme</label><input type="text" formControlName="prisme"
+                                    placeholder="0.00" (blur)="formatPrismeValue('og', $event)"></div>
+                            <div class="form-group"><label>Base</label><input type="text" formControlName="base"
+                                    placeholder="H/B/Int/Ext" (blur)="formatBaseValue('og', $event)"></div>
+                        </div>
+                        <div class="form-group full-width"><label>Écart Pupillaire (EP)</label><input type="text"
+                                formControlName="ep" placeholder="32mm" (blur)="formatEPValue('og', $event)"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- ONGLET 2: MONTURE & VERRES -->
+        <div class="tab-content" *ngIf="activeTab === 1">
+            <div class="tab-header">
+                <div class="icon-box">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3>Monture & Verres</h3>
+                    <p>Sélectionner les équipements pour le client</p>
+                </div>
+                <div class="header-actions-inline">
+                    <mat-form-field appearance="outline" style="width: 280px;">
+                        <mat-label>Date Livraison Estimée</mat-label>
+                        <input matInput [matDatepicker]="pickerLivraisonVente" formControlName="dateLivraisonEstimee">
+                        <mat-datepicker-toggle matSuffix [for]="pickerLivraisonVente"></mat-datepicker-toggle>
+                        <mat-datepicker #pickerLivraisonVente></mat-datepicker>
+                    </mat-form-field>
+                </div>
+            </div>
+            <!-- 1. Essayage Virtuel (Top) -->
+            <div class="virtual-try-on">
+                <div class="icon-box-purple">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M21 6h-2.81c-.45-.78-1.07-1.45-1.82-1.96L17 2.44 15.56 1l-1.97 1.97C12.96 2.36 12.49 2 12 2s-.96.36-1.59.97L8.44 1 7 2.44l.63 1.6C6.88 4.55 6.26 5.22 5.81 6H3v2h2.09c-.05.33-.09.66-.09 1v1H3v2h2v1c0 .34.04.67.09 1H3v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H19v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2V9c0-.34-.04-.67-.09-1H19V6z" />
+                    </svg>
+                </div>
+                <div>
+                    <h4>Essayage Virtuel</h4>
+                    <p>Testez les montures en stock</p>
+                </div>
+                <button type="button" class="btn-purple">Lancer</button>
+            </div>
+            <!-- 2. Add Button Only -->
+            <div class="flex justify-end mb-6" *ngIf="isEditMode">
+                <button type="button" class="btn-icon-primary" (click)="addEquipment()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                    </svg>
+                    Ajouter un équipement
+                </button>
+            </div>
+            <!-- 3. Equipement Principal (Collapsible) -->
+            <div class="mb-6">
+                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-3">
+                            <select [formControl]="$any(ficheForm.get('monture.typeEquipement'))"
+                                class="header-select main" [class.pointer-events-none]="!mainEquipmentExpanded"
+                                [class.opacity-60]="!mainEquipmentExpanded" aria-label="Type d'équipement principal">
+                                <option *ngFor="let type of typesEquipement" [value]="type">{{ type }}</option>
+                            </select>
+                            <div class="text-gray-600 font-medium ml-2 flex items-center gap-2"
+                                *ngIf="!mainEquipmentExpanded">
+                                <span *ngIf="ficheForm.get('monture.marque')?.value"
+                                    class="bg-white px-2 py-1 rounded border border-gray-200 text-sm">
+                                    {{ ficheForm.get('monture.marque')?.value }}
+                                </span>
+                                <span *ngIf="ficheForm.get('monture.reference')?.value" class="text-sm text-gray-500">
+                                    {{ ficheForm.get('monture.reference')?.value }}
+                                </span>
+                                <!-- Lens Details Summary -->
+                                <span class="text-sm text-gray-400 mx-1">|</span>
+                                <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-100 text-sm">
+                                    <ng-container *ngIf="ficheForm.get('verres.differentODOG')?.value; else sameLens">
+                                        OD: {{ ficheForm.get('verres.matiereOD')?.value }} {{
+                                        ficheForm.get('verres.indiceOD')?.value }}
+                                        <span class="text-gray-400 mx-1">|</span>
+                                        OG: {{ ficheForm.get('verres.matiereOG')?.value }} {{
+                                        ficheForm.get('verres.indiceOG')?.value }}
+                                    </ng-container>
+                                    <ng-template #sameLens>
+                                        Verres: {{ ficheForm.get('verres.matiere')?.value }}
+                                        <span *ngIf="ficheForm.get('verres.indice')?.value"
+                                            class="text-sm text-gray-500">
+                                            {{ ficheForm.get('verres.indice')?.value }}
+                                        </span>
+                                    </ng-template>
+                                </span>
+                                <span
+                                    *ngIf="(ficheForm.get('monture.prixMonture')?.value * 1 + ficheForm.get('verres.prixOD')?.value * 1 + ficheForm.get('verres.prixOG')?.value * 1) > 0"
+                                    class="text-green-600 font-bold ml-2">
+                                    {{ (ficheForm.get('monture.prixMonture')?.value * 1 +
+                                    ficheForm.get('verres.prixOD')?.value * 1 +
+                                    ficheForm.get('verres.prixOG')?.value * 1) | number:'1.2-2' }} DH
+                                </span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-toggle" (click)="toggleMainEquipment()">
+                            <span>{{ mainEquipmentExpanded ? 'Réduire' : 'Développer' }}</span>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"
+                                class="transition-transform duration-200" [class.rotate-180]="mainEquipmentExpanded">
+                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div *ngIf="mainEquipmentExpanded">
+                        <!-- Content of main equipment -->
+                        <!-- Monture Details -->
+                        <div class="section-card mb-4" formGroupName="monture">
+                            <h4>Monture</h4>
+                            <div class="grid grid-cols-3 gap-4">
+                                <div class="form-group col-span-2">
+                                    <label>Référence / Code-barres *</label>
+                                    <div class="input-with-button">
+                                        <input type="text" formControlName="reference" placeholder="Saisir ou chercher">
+                                        <button type="button" class="btn-scan" (click)="openStockSearch(-1)"
+                                            aria-label="Chercher en Stock">
+                                            <mat-icon inline
+                                                style="font-size: 18px; margin-right: 4px;">inventory_2</mat-icon>
+                                            Stock
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="form-group"><label>Marque</label><input type="text" formControlName="marque"
+                                        aria-label="Marque de la monture">
+                                </div>
+                                <div class="form-group"><label>Couleur</label><input type="text"
+                                        formControlName="couleur" aria-label="Couleur de la monture">
+                                </div>
+                                <div class="form-group"><label>Taille</label><input type="text" formControlName="taille"
+                                        aria-label="Taille de la monture">
+                                </div>
+                                <div class="form-group">
+                                    <label>Type de cerclage</label>
+                                    <select formControlName="cerclage" aria-label="Type de cerclage">
+                                        <option value="">-- Sélectionner --</option>
+                                        <option value="cerclée">Cerclée (Complète)</option>
+                                        <option value="nylor">Nylor (Semi-cerclée)</option>
+                                        <option value="percée">Percée (Sans cercle)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Prix Monture</label>
+                                    <input type="text" formControlName="prixMonture"
+                                        (blur)="formatPrice(ficheForm.get('monture.prixMonture'), $event)"
+                                        placeholder="0.00 DH">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Verres Details -->
+                        <div class="section-card" formGroupName="verres"
+                            *ngIf="ficheForm.get('monture.typeEquipement')?.value !== 'Solaire'">
+                            <div class="section-header">
+                                <h4>Verres correcteurs</h4>
+                                <div class="section-actions">
+                                    <button type="button" class="btn-suggestion" (click)="checkSuggestion(-1)"
+                                        aria-label="Obtenir une suggestion IA">Suggestion</button>
+                                    <label class="checkbox-label"><input type="checkbox"
+                                            formControlName="differentODOG"><span>Différents OD/OG</span></label>
+                                </div>
+                            </div>
+                            <!-- Suggestions -->
+                            <div class="suggestions-panel" *ngIf="showSuggestions && activeSuggestionIndex === -1">
+                                <div class="suggestion-item" *ngFor="let suggestion of suggestions">
+                                    <div class="suggestion-content">
+                                        <div style="line-height: 1.4;">
+                                            <div><strong class="text-blue-700">[{{ suggestion.type }}]</strong> <span
+                                                    class="font-semibold">{{ suggestion.matiere }}</span> <span
+                                                    class="text-gray-400">•</span> Indice {{ suggestion.indice }} <span
+                                                    *ngIf="suggestion.epaisseur" class="text-gray-400">•</span> <span
+                                                    *ngIf="suggestion.epaisseur" class="text-blue-600">📏 {{
+                                                    suggestion.epaisseur }}</span></div>
+                                            <div class="text-xs text-gray-600">{{ suggestion.raison.replace(/\n/g, ' •
+                                                ') }}<span *ngIf="suggestion.warnings && suggestion.warnings.length > 0"
+                                                    class="text-orange-600"> • ⚠️ {{ suggestion.warnings[0] }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn-apply" *ngIf="isEditMode"
+                                        (click)="applySuggestion(suggestion)">Appliquer</button>
+                                </div>
+                                <button type="button" class="btn-close-suggestions"
+                                    (click)="closeSuggestions()">Fermer</button>
+                            </div>
+                            <!-- Single Mode -->
+                            <div class="verres-single" *ngIf="!ficheForm.get('verres.differentODOG')?.value">
+                                <div class="grid grid-cols-5 gap-4 mb-4">
+                                    <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                        <mat-label>Marque</mat-label>
+                                        <mat-select formControlName="marque" [disabled]="!isEditMode">
+                                            <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b }}</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                        <mat-label>Matière</mat-label>
+                                        <mat-select formControlName="matiere" [disabled]="!isEditMode">
+                                            <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m }}</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                        <mat-label>Indice</mat-label>
+                                        <mat-select formControlName="indice" [disabled]="!isEditMode">
+                                            <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i }}</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                        <mat-label>Traitement</mat-label>
+                                        <mat-select formControlName="traitement" multiple [disabled]="!isEditMode">
+                                            <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
+                                                }}</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="w-full">
+                                        <mat-label>Prix Unitaire</mat-label>
+                                        <input matInput type="text" formControlName="prixOD" [readonly]="!isEditMode"
+                                            (blur)="formatPrice(ficheForm.get('verres.prixOD'), $event)">
+                                        <span matSuffix>DH</span>
+                                        <mat-hint>Calcul auto (x2)</mat-hint>
+                                    </mat-form-field>
+                                </div>
+                            </div>
+                            <!-- Split Mode -->
+                            <div class="verres-split" *ngIf="ficheForm.get('verres.differentODOG')?.value">
+                                <div class="verre-od">
+                                    <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Droit (OD)</h4>
+                                    <div class="grid grid-cols-1 gap-4 mb-4">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                            <mat-label>Marque</mat-label>
+                                            <mat-select formControlName="marqueOD" [disabled]="!isEditMode">
+                                                <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
+                                                    }}</mat-option>
+                                            </mat-select>
+                                        </mat-form-field>
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                            <mat-label>Matière</mat-label>
+                                            <mat-select formControlName="matiereOD" [disabled]="!isEditMode">
+                                                <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
+                                                    }}</mat-option>
+                                            </mat-select>
+                                        </mat-form-field>
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                            <mat-label>Indice</mat-label>
+                                            <mat-select formControlName="indiceOD" [disabled]="!isEditMode">
+                                                <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
+                                                    }}</mat-option>
+                                            </mat-select>
+                                        </mat-form-field>
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                            <mat-label>Traitement</mat-label>
+                                            <mat-select formControlName="traitementOD" multiple
+                                                [disabled]="!isEditMode">
+                                                <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
+                                                    }}</mat-option>
+                                            </mat-select>
+                                        </mat-form-field>
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                            <mat-label>Prix Verre OD</mat-label>
+                                            <input matInput type="text" formControlName="prixOD"
+                                                [readonly]="!isEditMode"
+                                                (blur)="formatPrice(ficheForm.get('verres.prixOD'), $event)">
+                                            <span matSuffix>DH</span>
+                                        </mat-form-field>
+                                    </div>
+                                </div>
+                                <div class="verre-og">
+                                    <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Gauche (OG)</h4>
+                                    <div class="grid grid-cols-1 gap-4 mb-4">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                            <mat-label>Marque</mat-label>
+                                            <mat-select formControlName="marqueOG" [disabled]="!isEditMode">
+                                                <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
+                                                    }}</mat-option>
+                                            </mat-select>
+                                        </mat-form-field>
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                            <mat-label>Matière</mat-label>
+                                            <mat-select formControlName="matiereOG" [disabled]="!isEditMode">
+                                                <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
+                                                    }}</mat-option>
+                                            </mat-select>
+                                        </mat-form-field>
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                            <mat-label>Indice</mat-label>
+                                            <mat-select formControlName="indiceOG" [disabled]="!isEditMode">
+                                                <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
+                                                    }}</mat-option>
+                                            </mat-select>
+                                        </mat-form-field>
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                            <mat-label>Traitement</mat-label>
+                                            <mat-select formControlName="traitementOG" multiple
+                                                [disabled]="!isEditMode">
+                                                <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
+                                                    }}</mat-option>
+                                            </mat-select>
+                                        </mat-form-field>
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                            <mat-label>Prix Verre OG</mat-label>
+                                            <input matInput type="text" formControlName="prixOG"
+                                                [readonly]="!isEditMode"
+                                                (blur)="formatPrice(ficheForm.get('verres.prixOG'), $event)">
+                                            <span matSuffix>DH</span>
+                                        </mat-form-field>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 4. Added Equipments List -->
+            <div *ngIf="equipements.length > 0">
+                <h4 class="text-lg font-semibold mb-4 text-gray-800">Équipements ajoutés</h4>
+                <div *ngFor="let equipment of equipements.controls; let i = index" class="mb-6">
+                    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-6">
+                        <!-- Header -->
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-3">
+                                <select [formControl]="$any(equipment.get('type'))" class="header-select added"
+                                    [class.pointer-events-none]="!addedEquipmentsExpanded[i]"
+                                    [class.opacity-60]="!addedEquipmentsExpanded[i]"
+                                    aria-label="Type d'équipement ajouté">
+                                    <option *ngFor="let type of typesEquipement" [value]="type">{{ type }}
+                                    </option>
+                                </select>
+                                <!-- Summary when collapsed -->
+                                <div class="text-gray-600 font-medium ml-2 flex items-center gap-2"
+                                    *ngIf="!addedEquipmentsExpanded[i]">
+                                    <span *ngIf="equipment.get('monture.marque')?.value"
+                                        class="bg-white px-2 py-1 rounded border border-gray-200 text-sm">
+                                        {{ equipment.get('monture.marque')?.value }}
+                                    </span>
+                                    <span *ngIf="equipment.get('monture.reference')?.value"
+                                        class="text-sm text-gray-500">
+                                        {{ equipment.get('monture.reference')?.value }}
+                                    </span>
+                                    <!-- Lens Details Summary -->
+                                    <span class="text-sm text-gray-400 mx-1">|</span>
+                                    <span
+                                        class="bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-100 text-sm">
+                                        <ng-container
+                                            *ngIf="equipment.get('verres.differentODOG')?.value; else sameLensEquip">
+                                            OD: {{ equipment.get('verres.matiereOD')?.value }} {{
+                                            equipment.get('verres.indiceOD')?.value }}
+                                            <span class="text-gray-400 mx-1">|</span>
+                                            OG: {{ equipment.get('verres.matiereOG')?.value }} {{
+                                            equipment.get('verres.indiceOG')?.value }}
+                                        </ng-container>
+                                        <ng-template #sameLensEquip>
+                                            Verres: {{ equipment.get('verres.matiere')?.value }}
+                                            <span *ngIf="equipment.get('verres.indice')?.value"
+                                                class="text-sm text-gray-500">
+                                                {{ equipment.get('verres.indice')?.value }}
+                                            </span>
+                                        </ng-template>
+                                    </span>
+                                    <span
+                                        *ngIf="(equipment.get('monture.prixMonture')?.value * 1 + equipment.get('verres.prixOD')?.value * 1 + equipment.get('verres.prixOG')?.value * 1) > 0"
+                                        class="text-green-600 font-bold ml-2">
+                                        {{ (equipment.get('monture.prixMonture')?.value * 1 +
+                                        equipment.get('verres.prixOD')?.value * 1 +
+                                        equipment.get('verres.prixOG')?.value * 1) | number:'1.2-2' }} DH
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" class="btn-toggle" (click)="toggleAddedEquipment(i)">
+                                    <span>{{ addedEquipmentsExpanded[i] ? 'Réduire' : 'Développer' }}</span>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"
+                                        class="transition-transform duration-200"
+                                        [class.rotate-180]="addedEquipmentsExpanded[i]">
+                                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                                    </svg>
+                                </button>
+                                <button type="button" *ngIf="isEditMode"
+                                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"
+                                    (click)="removeEquipment(i)">
+                                    Supprimer
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Form Group for THIS equipment -->
+                        <div [formGroup]="getEquipmentGroup(i)" *ngIf="addedEquipmentsExpanded[i]">
+                            <!-- Monture -->
+                            <div class="section-card mb-4" formGroupName="monture">
+                                <h4>Monture</h4>
+                                <div class="grid grid-cols-3 gap-4">
+                                    <div class="form-group col-span-2">
+                                        <label>Référence / Code-barres *</label>
+                                        <div class="input-with-button">
+                                            <input type="text" formControlName="reference"
+                                                placeholder="Saisir ou chercher">
+                                            <button type="button" class="btn-scan" (click)="openStockSearch(i)"
+                                                *ngIf="isEditMode" aria-label="Chercher en Stock">
+                                                <mat-icon inline
+                                                    style="font-size: 18px; margin-right: 4px;">inventory_2</mat-icon>
+                                                Stock
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="form-group"><label>Marque</label><input type="text"
+                                            formControlName="marque" aria-label="Marque de la monture additionnelle">
+                                    </div>
+                                    <div class="form-group"><label>Couleur</label><input type="text"
+                                            formControlName="couleur" aria-label="Couleur de la monture additionnelle">
+                                    </div>
+                                    <div class="form-group"><label>Taille</label><input type="text"
+                                            formControlName="taille" aria-label="Taille de la monture additionnelle">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Cerclage</label>
+                                        <select formControlName="cerclage">
+                                            <option value="cerclée">Cerclée</option>
+                                            <option value="nylor">Nylor</option>
+                                            <option value="percée">Percée</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Prix</label>
+                                        <input type="text" formControlName="prixMonture"
+                                            (blur)="formatPrice(getEquipmentGroup(i).get('monture.prixMonture'), $event)"
+                                            placeholder="0.00 DH">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Verres -->
+                            <div class="section-card" formGroupName="verres"
+                                *ngIf="equipment.get('type')?.value !== 'Solaire'">
+                                <div class="section-header">
+                                    <h4>Verres correcteurs</h4>
+                                    <div class="section-actions">
+                                        <button type="button" class="btn-suggestion" (click)="checkSuggestion(i)"
+                                            *ngIf="isEditMode"
+                                            aria-label="Obtenir une suggestion IA">Suggestion</button>
+                                        <label class="checkbox-label"><input type="checkbox"
+                                                formControlName="differentODOG"><span>Différents
+                                                OD/OG</span></label>
+                                    </div>
+                                </div>
+                                <!-- Suggestions (Added Equipment) -->
+                                <div class="suggestions-panel" *ngIf="showSuggestions && activeSuggestionIndex === i">
+                                    <div class="suggestion-item" *ngFor="let suggestion of suggestions">
+                                        <div class="suggestion-content">
+                                            <strong>[{{ suggestion.type }}] {{ suggestion.matiere }}</strong>
+                                            <p>{{ suggestion.raison }}</p>
+                                        </div>
+                                        <button type="button" class="btn-apply" *ngIf="isEditMode"
+                                            (click)="applySuggestion(suggestion, getEquipmentGroup(i))">Appliquer</button>
+                                    </div>
+                                    <button type="button" class="btn-close-suggestions"
+                                        (click)="closeSuggestions()">Fermer</button>
+                                </div>
+                                <!-- Single Mode -->
+                                <div class="verres-single" *ngIf="!equipment.get('verres.differentODOG')?.value">
+                                    <div class="grid grid-cols-5 gap-4 mb-4">
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                            <mat-label>Marque</mat-label>
+                                            <mat-select formControlName="marque">
+                                                <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
+                                                    }}</mat-option>
+                                            </mat-select>
+                                        </mat-form-field>
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                            <mat-label>Matière</mat-label>
+                                            <mat-select formControlName="matiere">
+                                                <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
+                                                    }}</mat-option>
+                                            </mat-select>
+                                        </mat-form-field>
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                            <mat-label>Indice</mat-label>
+                                            <mat-select formControlName="indice">
+                                                <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
+                                                    }}</mat-option>
+                                            </mat-select>
+                                        </mat-form-field>
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                            <mat-label>Traitement</mat-label>
+                                            <mat-select formControlName="traitement" multiple>
+                                                <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
+                                                    }}</mat-option>
+                                            </mat-select>
+                                        </mat-form-field>
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                            <mat-label>Prix Unitaire</mat-label>
+                                            <input matInput type="text" formControlName="prixOD"
+                                                (blur)="formatPrice(getEquipmentGroup(i).get('verres.prixOD'), $event)">
+                                            <span matSuffix>DH</span>
+                                            <mat-hint>Calcul auto (x2)</mat-hint>
+                                        </mat-form-field>
+                                    </div>
+                                </div>
+                                <!-- Split Mode -->
+                                <div class="verres-split" *ngIf="equipment.get('verres.differentODOG')?.value">
+                                    <div class="verre-od">
+                                        <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Droit (OD)</h4>
+                                        <div class="grid grid-cols-1 gap-4 mb-4">
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                                <mat-label>Marque</mat-label>
+                                                <mat-select formControlName="marqueOD">
+                                                    <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
+                                                        }}</mat-option>
+                                                </mat-select>
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                                <mat-label>Matière</mat-label>
+                                                <mat-select formControlName="matiereOD">
+                                                    <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
+                                                        }}</mat-option>
+                                                </mat-select>
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                                <mat-label>Indice</mat-label>
+                                                <mat-select formControlName="indiceOD">
+                                                    <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
+                                                        }}</mat-option>
+                                                </mat-select>
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                                <mat-label>Traitement</mat-label>
+                                                <mat-select formControlName="traitementOD" multiple>
+                                                    <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
+                                                        }}</mat-option>
+                                                </mat-select>
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                                <mat-label>Prix Verre OD</mat-label>
+                                                <input matInput type="text" formControlName="prixOD"
+                                                    (blur)="formatPrice(getEquipmentGroup(i).get('verres.prixOD'), $event)">
+                                                <span matSuffix>DH</span>
+                                            </mat-form-field>
+                                        </div>
+                                    </div>
+                                    <div class="verre-og">
+                                        <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Gauche (OG)</h4>
+                                        <div class="grid grid-cols-1 gap-4 mb-4">
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                                <mat-label>Marque</mat-label>
+                                                <mat-select formControlName="marqueOG">
+                                                    <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
+                                                        }}</mat-option>
+                                                </mat-select>
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                                <mat-label>Matière</mat-label>
+                                                <mat-select formControlName="matiereOG">
+                                                    <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
+                                                        }}</mat-option>
+                                                </mat-select>
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                                <mat-label>Indice</mat-label>
+                                                <mat-select formControlName="indiceOG">
+                                                    <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
+                                                        }}</mat-option>
+                                                </mat-select>
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                                <mat-label>Traitement</mat-label>
+                                                <mat-select formControlName="traitementOG" multiple>
+                                                    <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
+                                                        }}</mat-option>
+                                                </mat-select>
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always">
+                                                <mat-label>Prix Verre OG</mat-label>
+                                                <input matInput type="text" formControlName="prixOG"
+                                                    (blur)="formatPrice(getEquipmentGroup(i).get('verres.prixOG'), $event)">
+                                                <span matSuffix>DH</span>
+                                            </mat-form-field>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- ONGLET 3: FICHE MONTAGE -->
+        <div class="tab-content" *ngIf="activeTab === 2">
+            <div class="tab-header">
+                <div class="icon-box">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3>Fiche Montage</h3>
+                    <p>Paramètres de centrage et montage</p>
+                </div>
+                <div class="header-actions-inline ml-auto">
+                    <button type="button" class="btn-print" (click)="printFicheMontage()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z" />
+                        </svg>
+                        Imprimer
+                    </button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8" formGroupName="montage">
+                <!-- LEFT COLUMN: Ordonnance & Montage Params -->
+                <div class="flex flex-col gap-6">
+                    <!-- Correction d'Ordonnance -->
+                    <div class="section-card-clean">
+                        <h4 class="section-title-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="text-blue-600">
+                                <path
+                                    d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
+                            </svg>
+                            Correction d'Ordonnance
+                        </h4>
+                        <div class="flex flex-col gap-4">
+                            <!-- OD Row (Purple) -->
+                            <div
+                                class="px-4 py-3 rounded-xl border-l-4 border-purple-400 bg-purple-50 text-purple-900 flex items-center gap-3 shadow-sm">
+                                <strong class="min-w-[40px] text-purple-700">OD:</strong>
+                                <span class="font-medium text-base">
+                                    {{ ficheForm.get('ordonnance.od.sphere')?.value || '0.00' }}
+                                    ({{ ficheForm.get('ordonnance.od.cylindre')?.value || '0.00' }})
+                                    {{ ficheForm.get('ordonnance.od.axe')?.value || '0' }}°
+                                    Add {{ ficheForm.get('ordonnance.od.addition')?.value || '0.00' }}
+                                </span>
+                            </div>
+                            <!-- OG Row (Green) -->
+                            <div
+                                class="px-4 py-3 rounded-xl border-l-4 border-green-400 bg-green-50 text-green-900 flex items-center gap-3 shadow-sm">
+                                <strong class="min-w-[40px] text-green-700">OG:</strong>
+                                <span class="font-medium text-base">
+                                    {{ ficheForm.get('ordonnance.og.sphere')?.value || '0.00' }}
+                                    ({{ ficheForm.get('ordonnance.og.cylindre')?.value || '0.00' }})
+                                    {{ ficheForm.get('ordonnance.og.axe')?.value || '0' }}°
+                                    Add {{ ficheForm.get('ordonnance.og.addition')?.value || '0.00' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Type de Montage -->
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Type de Montage</label>
+                        <select formControlName="typeMontage"
+                            class="w-full h-11 px-4 rounded-xl border border-gray-300 bg-white text-gray-800 focus:ring-2 focus:ring-blue-500 shadow-sm">
+                            <option *ngFor="let type of typesMontage" [value]="type">{{ type }}</option>
+                        </select>
+                    </div>
+                    <!-- Parameters OD / OG Cards -->
+                    <div class="grid grid-cols-2 gap-6">
+                        <!-- OD Card -->
+                        <div class="border border-purple-200 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
+                            <div
+                                class="bg-purple-50 px-4 py-3 border-b border-purple-100 flex items-center gap-2 text-purple-800 font-bold text-sm uppercase">
+                                <span class="w-2 h-2 rounded-full bg-purple-600"></span> œil droit (OD)
+                            </div>
+                            <div class="p-5 bg-white flex justify-center">
                                 <div class="grid grid-cols-2 gap-x-6 gap-y-2">
                                     <!-- Labels Row -->
-                                    <div class="text-[10px] text-gray-400 uppercase font-medium tracking-widest text-center px-1">
+                                    <div
+                                        class="text-[10px] text-gray-400 uppercase font-medium tracking-widest text-center px-1">
                                         ÉCART PUPILLAIRE (MM)
                                     </div>
-                                    <div class="text-[10px] text-gray-400 uppercase font-medium tracking-widest text-center px-1">
+                                    <div
+                                        class="text-[10px] text-gray-400 uppercase font-medium tracking-widest text-center px-1">
                                         HAUTEUR (MM)
                                     </div>
-                                    
+
                                     <!-- Inputs Row -->
                                     <input type="number" formControlName="ecartPupillaireOD"
                                         class="w-28 h-11 px-3 border border-gray-200 rounded-lg bg-white focus:ring-1 focus:ring-purple-400 font-normal text-lg text-gray-800 transition shadow-sm text-center"
@@ -966,25 +920,26 @@
                                         class="w-28 h-11 px-3 border border-gray-200 rounded-lg bg-white focus:ring-1 focus:ring-purple-400 font-normal text-lg text-gray-800 transition shadow-sm text-center"
                                         placeholder="20">
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- OG Card -->
-                        <div class="border border-green-200 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
-                            <div
-                                class="bg-green-50 px-4 py-3 border-b border-green-100 flex items-center gap-2 text-green-800 font-bold text-sm uppercase">
-                                <span class="w-2 h-2 rounded-full bg-green-600"></span> œil gauche (OG)
-                            </div>
-                                                                                    <div class="p-5 bg-white flex justify-center">
+                            </div>
+                        </div>
+                        <!-- OG Card -->
+                        <div class="border border-green-200 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
+                            <div
+                                class="bg-green-50 px-4 py-3 border-b border-green-100 flex items-center gap-2 text-green-800 font-bold text-sm uppercase">
+                                <span class="w-2 h-2 rounded-full bg-green-600"></span> œil gauche (OG)
+                            </div>
+                            <div class="p-5 bg-white flex justify-center">
                                 <div class="grid grid-cols-2 gap-x-6 gap-y-2">
                                     <!-- Labels Row -->
-                                    <div class="text-[10px] text-gray-400 uppercase font-medium tracking-widest text-center px-1">
+                                    <div
+                                        class="text-[10px] text-gray-400 uppercase font-medium tracking-widest text-center px-1">
                                         ÉCART PUPILLAIRE (MM)
                                     </div>
-                                    <div class="text-[10px] text-gray-400 uppercase font-medium tracking-widest text-center px-1">
+                                    <div
+                                        class="text-[10px] text-gray-400 uppercase font-medium tracking-widest text-center px-1">
                                         HAUTEUR (MM)
                                     </div>
-                                    
+
                                     <!-- Inputs Row -->
                                     <input type="number" formControlName="ecartPupillaireOG"
                                         class="w-28 h-11 px-3 border border-gray-200 rounded-lg bg-white focus:ring-1 focus:ring-green-400 font-normal text-lg text-gray-800 transition shadow-sm text-center"
@@ -993,460 +948,420 @@
                                         class="w-28 h-11 px-3 border border-gray-200 rounded-lg bg-white focus:ring-1 focus:ring-green-400 font-normal text-lg text-gray-800 transition shadow-sm text-center"
                                         placeholder="20">
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Diametre Effectif (Wrapped for Alignment) -->
-                    <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mt-1">
-                        <div class="p-4 flex items-center gap-6">
-                            <label class="flex items-center gap-2 text-sm font-bold text-gray-700 whitespace-nowrap">
-                                <span
-                                    class="w-2 h-2 rounded-full border border-gray-400 bg-blue-100 flex items-center justify-center">
-                                    <span class="w-1 h-1 rounded-full bg-blue-500"></span>
-                                </span>
-                                Diamètre Effectif (mm)
-                            </label>
-                            <input type="text" formControlName="diametreEffectif"
-                                class="flex-1 h-10 px-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 text-base font-bold text-gray-800 transition shadow-sm text-center"
-                                placeholder="ex: 65/70">
-                        </div>
-                    </div>
-
-                    <!-- Analyse IA (Yellow Box) -->
-                    <div class="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4 mt-auto">
-                        <h4 class="text-blue-900 font-bold text-sm mb-2">Analyse IA & Recommandations</h4>
-                        <div *ngIf="suggestions && suggestions.length > 0; else noSuggestions">
-                            <div *ngFor="let suggestion of suggestions" class="mb-2 last:mb-0">
-                                <strong class="text-gray-800 text-sm">[{{ suggestion.type }}] {{ suggestion.matiere
-                                    }}</strong>
-                                <p class="text-xs text-gray-600 mt-1 leading-relaxed">{{ suggestion.raison }}</p>
-                            </div>
-                        </div>
-                        <ng-template #noSuggestions>
-                            <p class="text-xs text-gray-500 italic">Aucune recommandation disponible pour le moment.
-                            </p>
-                        </ng-template>
-                    </div>
-
-                </div>
-
-                <!-- RIGHT COLUMN: Types de Verres & Visual Calibration -->
-                <div class="flex flex-col gap-8">
-
-                    <!-- Types de Verres -->
-                    <div class="section-card-clean">
-                        <h4 class="section-title-icon mb-4">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="text-purple-600">
-                                <path
-                                    d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
-                            </svg>
-                            Types de Verres
-                        </h4>
-
-                        <div class="flex flex-col gap-6">
-                            <!-- Helper to iterate over loop including main -->
-                            <!-- MAIN EQUIPMENT -->
-                            <div class="glass-type-item">
-                                <div class="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-4 items-start">
-                                    <div
-                                        class="pt-2 font-bold underline decoration-dotted underline-offset-4 text-gray-800">
-                                        Equipement 1: {{ ficheForm.get('monture.typeEquipement')?.value ||
-                                        'Principal'
-                                        }}
-                                    </div>
-                                    <div class="flex flex-col gap-2 pl-0 md:pl-4 md:border-l-2 md:border-gray-200">
-                                        <!-- OD Box -->
-                                        <div
-                                            class="p-3 rounded bg-purple-50 border-l-4 border-purple-500 text-sm text-purple-900">
-                                            <strong class="text-purple-700 mr-2">OD:</strong>
-                                            {{ ficheForm.get('verres.differentODOG')?.value ?
-                                            ficheForm.get('verres.matiereOD')?.value :
-                                            ficheForm.get('verres.matiere')?.value }}
-                                            {{ ficheForm.get('verres.differentODOG')?.value ?
-                                            ficheForm.get('verres.indiceOD')?.value :
-                                            ficheForm.get('verres.indice')?.value
-                                            }}
-                                            <span class="opacity-75">({{
-                                                ficheForm.get('verres.differentODOG')?.value ?
-                                                ficheForm.get('verres.marqueOD')?.value :
-                                                ficheForm.get('verres.marque')?.value }})</span>
-                                            <span class="mx-1">•</span>
-                                            <span class="italic text-xs">{{
-                                                (ficheForm.get('verres.differentODOG')?.value ?
-                                                ficheForm.get('verres.traitementOD')?.value :
-                                                ficheForm.get('verres.traitement')?.value)?.join(', ') || 'Standard'
-                                                }}</span>
-                                        </div>
-                                        <!-- OG Box -->
-                                        <div
-                                            class="p-3 rounded bg-green-50 border-l-4 border-green-500 text-sm text-green-900">
-                                            <strong class="text-green-700 mr-2">OG:</strong>
-                                            {{ ficheForm.get('verres.differentODOG')?.value ?
-                                            ficheForm.get('verres.matiereOG')?.value :
-                                            ficheForm.get('verres.matiere')?.value }}
-                                            {{ ficheForm.get('verres.differentODOG')?.value ?
-                                            ficheForm.get('verres.indiceOG')?.value :
-                                            ficheForm.get('verres.indice')?.value
-                                            }}
-                                            <span class="opacity-75">({{
-                                                ficheForm.get('verres.differentODOG')?.value ?
-                                                ficheForm.get('verres.marqueOG')?.value :
-                                                ficheForm.get('verres.marque')?.value }})</span>
-                                            <span class="mx-1">•</span>
-                                            <span class="italic text-xs">{{
-                                                (ficheForm.get('verres.differentODOG')?.value ?
-                                                ficheForm.get('verres.traitementOG')?.value :
-                                                ficheForm.get('verres.traitement')?.value)?.join(', ') || 'Standard'
-                                                }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- ADDED EQUIPMENTS -->
-                            <ng-container *ngFor="let equipment of equipements.controls; let i = index">
-                                <div class="glass-type-item">
-                                    <div class="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-4 items-start">
-                                        <div
-                                            class="pt-2 font-bold underline decoration-dotted underline-offset-4 text-gray-800">
-                                            Equipement {{ i + 2 }}: {{ equipment.get('type')?.value || 'Secondaire'
-                                            }}
-                                        </div>
-                                        <div class="flex flex-col gap-2 pl-0 md:pl-4 md:border-l-2 md:border-gray-200">
-                                            <!-- OD Box -->
-                                            <div
-                                                class="p-3 rounded bg-purple-50 border-l-4 border-purple-500 text-sm text-purple-900">
-                                                <strong class="text-purple-700 mr-2">OD:</strong>
-                                                {{ equipment.get('verres.differentODOG')?.value ?
-                                                equipment.get('verres.matiereOD')?.value :
-                                                equipment.get('verres.matiere')?.value }}
-                                                {{ equipment.get('verres.differentODOG')?.value ?
-                                                equipment.get('verres.indiceOD')?.value :
-                                                equipment.get('verres.indice')?.value }}
-                                                <span class="opacity-75">({{
-                                                    equipment.get('verres.differentODOG')?.value ?
-                                                    equipment.get('verres.marqueOD')?.value :
-                                                    equipment.get('verres.marque')?.value }})</span>
-                                                <span class="mx-1">•</span>
-                                                <span class="italic text-xs">{{
-                                                    (equipment.get('verres.differentODOG')?.value ?
-                                                    equipment.get('verres.traitementOD')?.value :
-                                                    equipment.get('verres.traitement')?.value)?.join(', ') ||
-                                                    'Standard'
-                                                    }}</span>
-                                            </div>
-                                            <!-- OG Box -->
-                                            <div
-                                                class="p-3 rounded bg-green-50 border-l-4 border-green-500 text-sm text-green-900">
-                                                <strong class="text-green-700 mr-2">OG:</strong>
-                                                {{ equipment.get('verres.differentODOG')?.value ?
-                                                equipment.get('verres.matiereOG')?.value :
-                                                equipment.get('verres.matiere')?.value }}
-                                                {{ equipment.get('verres.differentODOG')?.value ?
-                                                equipment.get('verres.indiceOG')?.value :
-                                                equipment.get('verres.indice')?.value }}
-                                                <span class="opacity-75">({{
-                                                    equipment.get('verres.differentODOG')?.value ?
-                                                    equipment.get('verres.marqueOG')?.value :
-                                                    equipment.get('verres.marque')?.value }})</span>
-                                                <span class="mx-1">•</span>
-                                                <span class="italic text-xs">{{
-                                                    (equipment.get('verres.differentODOG')?.value ?
-                                                    equipment.get('verres.traitementOG')?.value :
-                                                    equipment.get('verres.traitement')?.value)?.join(', ') ||
-                                                    'Standard'
-                                                    }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </ng-container>
-
-                        </div>
-                    </div>
-
-                    <!-- Visual Calibration -->
-                    <div>
-                        <h4 class="flex items-center gap-2 font-bold text-gray-700 mb-4">
-                            <span class="w-2 h-2 rounded-full bg-blue-600"></span>
-                            Prototype de Calibrage Visuel
-                            <button type="button"
-                                class="ml-auto bg-blue-600 text-white px-3 py-1 text-xs rounded shadow hover:bg-blue-700 transition"
-                                (click)="openVirtualCentering()">
-                                Centrage Virtuel (Tablette)
-                            </button>
-                        </h4>
-
-                        <div class="canvas-container bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
-                            <canvas #frameCanvas width="600" height="300" class="w-full h-auto"></canvas>
-
-                            <!-- Legend Overlay -->
-                            <div
-                                class="absolute bottom-4 left-0 w-full flex justify-center gap-4 text-xs font-bold bg-white/80 backdrop-blur py-2">
-                                <span class="text-blue-600">EP OG: 32mm</span>
-                                <span class="text-gray-800">Pont: 15mm</span>
-                                <span class="text-blue-600">EP OD: 32mm</span>
-                            </div>
-
-                            <!-- Height Indicators (Mock Visuals for prototype match) -->
-                            <!-- We rely on canvas drawing but can add overlay markers if needed. For now keeping canvas. -->
-                        </div>
-                    </div>
-
-                </div>
-
-            </div>
-        </div>
-
-        <!-- ONGLET 3: FACTURATION -->
-        <div class="tab-content" [hidden]="activeTab !== 3">
-            <div class="tab-header">
-                <div class="icon-box">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
-                    </svg>
-                </div>
-                <div>
-                    <h3>Facturation</h3>
-                    <p>Gérer les factures et devis du client</p>
-                </div>
-            </div>
-
-            <div class="facturation-container" *ngIf="linkedFacture$ | async as linkedFacture; else newFactureTemplate">
-                <app-facture-form [factureId]="linkedFacture.id" [embedded]="true" (onSaved)="onInvoiceSaved($event)"
-                    [isReadonly]="!isEditMode">
-                </app-facture-form>
-            </div>
-
-            <ng-template #newFactureTemplate>
-                <div class="facturation-container">
-                    <app-facture-form [clientIdInput]="clientId" [ficheIdInput]="ficheId" [initialLines]="initialLines"
-                        [embedded]="true" (onSaved)="onInvoiceSaved($event)" [nomenclature]="nomenclatureString"
-                        [isReadonly]="!isEditMode">
-                    </app-facture-form>
-                </div>
-            </ng-template>
-        </div>
-
-        <!-- ONGLET 4: PAIEMENTS -->
-        <div class="tab-content" *ngIf="activeTab === 4">
-            <div class="tab-header">
-                <div class="icon-box">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
-                    </svg>
-                </div>
-                <div>
-                    <h3>Historique des Paiements</h3>
-                    <p>Suivi des règlements pour ce dossier</p>
-                </div>
-            </div>
-
-            <div class="payment-container" style="padding: 24px;">
-                <app-payment-list [clientId]="clientId || client?.id" [ficheId]="ficheId"></app-payment-list>
-            </div>
-        </div>
-
-        <!-- ONGLET 5: SUIVI COMMANDE -->
-        <div class="tab-content" *ngIf="activeTab === 5" formGroupName="suiviCommande">
-            <div class="tab-header">
-                <div class="icon-box-purple">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
-                    </svg>
-                </div>
-                <div>
-                    <h3>Suivi de Commande Verres</h3>
-                    <p>Gérer le statut de commande auprès du fournisseur</p>
-                </div>
-            </div>
-
-            <!-- Stepper UI -->
-            <div class="mb-8 px-4">
-                <div class="relative flex items-center justify-between w-full">
-                    <div class="absolute left-0 top-1/2 transform -translate-y-1/2 w-full h-1 bg-gray-200 -z-10">
-                    </div>
-
-                    <!-- Step 1: A Commander -->
-                    <div class="flex flex-col items-center bg-white px-2">
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white mb-2"
-                            [ngClass]="{'bg-blue-600': getStepState('A_COMMANDER') === 'active' || getStepState('A_COMMANDER') === 'completed', 'bg-gray-300': getStepState('A_COMMANDER') === 'pending'}">
-                            1
-                        </div>
-                        <span class="text-sm font-medium"
-                            [class.text-blue-600]="getStepState('A_COMMANDER') === 'active'">À Commander</span>
-                    </div>
-
-                    <!-- Step 2: Commandé -->
-                    <div class="flex flex-col items-center bg-white px-2">
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white mb-2"
-                            [ngClass]="{'bg-blue-600': getStepState('COMMANDE') === 'active' || getStepState('COMMANDE') === 'completed', 'bg-gray-300': getStepState('COMMANDE') === 'pending'}">
-                            2
-                        </div>
-                        <span class="text-sm font-medium"
-                            [class.text-blue-600]="getStepState('COMMANDE') === 'active'">Commandé</span>
-                    </div>
-
-                    <!-- Step 3: Reçu -->
-                    <div class="flex flex-col items-center bg-white px-2">
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white mb-2"
-                            [ngClass]="{'bg-green-600': getStepState('RECU') === 'active' || getStepState('RECU') === 'completed', 'bg-gray-300': getStepState('RECU') === 'pending'}">
-                            3
-                        </div>
-                        <span class="text-sm font-medium"
-                            [class.text-green-600]="getStepState('RECU') === 'active'">Reçu Atelier</span>
-                    </div>
-
-                    <!-- Step 4: Livré Client -->
-                    <div class="flex flex-col items-center bg-white px-2">
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white mb-2"
-                            [ngClass]="{'bg-purple-600': getStepState('LIVRE_CLIENT') === 'active' || getStepState('LIVRE_CLIENT') === 'completed', 'bg-gray-300': getStepState('LIVRE_CLIENT') === 'pending'}">
-                            4
-                        </div>
-                        <span class="text-sm font-medium"
-                            [class.text-purple-600]="getStepState('LIVRE_CLIENT') === 'active'">Livré Client</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Action Area -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Left: Status & Actions -->
-                <div class="section-card">
-                    <h4>Actions & Statut</h4>
-
-                    <div class="p-4 bg-gray-50 rounded-lg mb-4 text-center">
-                        <span class="text-gray-500 uppercase text-xs font-bold tracking-wider">Statut Actuel</span>
-                        <div class="text-2xl font-bold mt-1" [ngClass]="{
-                            'text-orange-500': suiviStatut === 'A_COMMANDER',
-                            'text-blue-600': suiviStatut === 'COMMANDE',
-                            'text-green-600': suiviStatut === 'RECU',
-                            'text-purple-600': suiviStatut === 'LIVRE_CLIENT'
-                        }">
-                            {{ suiviStatut === 'A_COMMANDER' ? 'À COMMANDER' :
-                            suiviStatut === 'COMMANDE' ? 'EN COMMANDE' :
-                            suiviStatut === 'RECU' ? 'REÇU ATELIER' : 'LIVRÉ CLIENT' }}
-                        </div>
-                    </div>
-
-                    <div class="flex flex-col gap-3">
-                        <button type="button" class="btn-primary" (click)="setOrderStatus('COMMANDE')"
-                            *ngIf="suiviStatut === 'A_COMMANDER'" [disabled]="!isEditMode">
-                            <mat-icon class="mr-2">send</mat-icon> Marquer comme Commandé
-                        </button>
-
-                        <button type="button" class="btn-success" (click)="setOrderStatus('RECU')"
-                            *ngIf="suiviStatut === 'COMMANDE'" [disabled]="!isEditMode">
-                            <mat-icon class="mr-2">check_circle</mat-icon> Marquer comme Reçu
-                        </button>
-
-                        <button type="button" class="btn-purple" (click)="setOrderStatus('LIVRE_CLIENT')"
-                            *ngIf="suiviStatut === 'RECU'" [disabled]="!isEditMode">
-                            <mat-icon class="mr-2">inventory_2</mat-icon> Marquer comme Livré au Client
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Right: Details Form -->
-                <div class="section-card">
-                    <h4>Détails Commande</h4>
-
-                    <div class="grid grid-cols-1 gap-4">
-                        <mat-form-field appearance="outline">
-                            <mat-label>Fournisseur Verres</mat-label>
-                            <mat-select formControlName="fournisseur">
-                                <mat-option *ngFor="let brand of lensBrands" [value]="brand">{{ brand
-                                    }}</mat-option>
-                            </mat-select>
-                        </mat-form-field>
-
-                        <mat-form-field appearance="outline">
-                            <mat-label>Référence Commande (Fournisseur)</mat-label>
-                            <input matInput formControlName="referenceCommande" placeholder="Ex: CMD-12345">
-                        </mat-form-field>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <mat-form-field appearance="outline">
-                                <mat-label>Date Commande</mat-label>
-                                <input matInput [matDatepicker]="pickerCmd" formControlName="dateCommande">
-                                <mat-datepicker-toggle matSuffix [for]="pickerCmd"></mat-datepicker-toggle>
-                                <mat-datepicker #pickerCmd></mat-datepicker>
-                            </mat-form-field>
-
-                            <mat-form-field appearance="outline">
-                                <mat-label>Date Réception</mat-label>
-                                <input matInput [matDatepicker]="pickerRecu" formControlName="dateReception">
-                                <mat-datepicker-toggle matSuffix [for]="pickerRecu"></mat-datepicker-toggle>
-                                <mat-datepicker #pickerRecu></mat-datepicker>
-                            </mat-form-field>
-                        </div>
-
-                        <mat-form-field appearance="outline">
-                            <mat-label>Commentaires / Suivi</mat-label>
-                            <textarea matInput formControlName="commentaire" rows="3"
-                                placeholder="Notes sur la commande..."></textarea>
-                        </mat-form-field>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Footer Navigation inside Form -->
-        <div class="footer-nav">
-            <button type="button" class="btn-secondary" (click)="prevTab()" [disabled]="activeTab === 0">←
-                Précédent</button>
-            <button type="button" class="btn-primary" (click)="nextTab()">Suivant
-                →</button>
-        </div>
-    </form>
-
-
-    <!-- File Viewer Modal -->
-    <div class="file-viewer-modal" *ngIf="viewingFile" (click)="closeViewer()">
-        <div class="modal-content" (click)="$event.stopPropagation()">
-            <div class="modal-header">
-                <h3>{{ viewingFile.name }}</h3>
-                <button type="button" class="btn-close" (click)="closeViewer()">×</button>
-            </div>
-            <div class="modal-body">
-                <img *ngIf="viewingFile.type.startsWith('image/')" [src]="viewingFile.preview" alt="Prescription">
-                <iframe *ngIf="viewingFile.type === 'application/pdf'" [src]="viewingFile.preview" frameborder="0"
-                    title="Aperçu du document"></iframe>
-            </div>
-        </div>
-    </div>
-
-    <!-- Camera Modal -->
-    <div class="camera-modal" *ngIf="showCameraModal" (click)="closeCameraModal()">
-        <div class="modal-content" (click)="$event.stopPropagation()">
-            <div class="modal-header">
-                <h3>Capturer une photo</h3>
-                <button type="button" class="btn-close" (click)="closeCameraModal()">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="camera-container" *ngIf="!capturedImage">
-                    <video #videoElement autoplay></video>
-                </div>
-                <div class="preview-container" *ngIf="capturedImage">
-                    <img [src]="capturedImage" alt="Photo capturée">
-                </div>
-                <canvas #canvasElement style="display: none;"></canvas>
-            </div>
-            <div class="modal-footer">
-                <ng-container *ngIf="!capturedImage">
-                    <button type="button" class="btn-secondary" (click)="closeCameraModal()">Annuler</button>
-                    <button type="button" class="btn-primary" (click)="capturePhoto()">📷 Capturer</button>
-                </ng-container>
-                <ng-container *ngIf="capturedImage">
-                    <button type="button" class="btn-secondary" (click)="capturedImage = null">↺ Reprendre</button>
-                    <button type="button" class="btn-success" (click)="saveCapturedPhoto()">✓ Utiliser cette
-                        photo</button>
-                </ng-container>
-            </div>
-        </div>
-    </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Diametre Effectif (Wrapped for Alignment) -->
+                    <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mt-1">
+                        <div class="p-4 flex items-center gap-6">
+                            <label class="flex items-center gap-2 text-sm font-bold text-gray-700 whitespace-nowrap">
+                                <span
+                                    class="w-2 h-2 rounded-full border border-gray-400 bg-blue-100 flex items-center justify-center">
+                                    <span class="w-1 h-1 rounded-full bg-blue-500"></span>
+                                </span>
+                                Diamètre Effectif (mm)
+                            </label>
+                            <input type="text" formControlName="diametreEffectif"
+                                class="flex-1 h-10 px-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 text-base font-bold text-gray-800 transition shadow-sm text-center"
+                                placeholder="ex: 65/70">
+                        </div>
+                    </div>
+                    <!-- Analyse IA (Yellow Box) -->
+                    <div class="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4 mt-auto">
+                        <h4 class="text-blue-900 font-bold text-sm mb-2">Analyse IA & Recommandations</h4>
+                        <div *ngIf="suggestions && suggestions.length > 0; else noSuggestions">
+                            <div *ngFor="let suggestion of suggestions" class="mb-2 last:mb-0">
+                                <strong class="text-gray-800 text-sm">[{{ suggestion.type }}] {{ suggestion.matiere
+                                    }}</strong>
+                                <p class="text-xs text-gray-600 mt-1 leading-relaxed">{{ suggestion.raison }}</p>
+                            </div>
+                        </div>
+                        <ng-template #noSuggestions>
+                            <p class="text-xs text-gray-500 italic">Aucune recommandation disponible pour le moment.
+                            </p>
+                        </ng-template>
+                    </div>
+                </div>
+                <!-- RIGHT COLUMN: Types de Verres & Visual Calibration -->
+                <div class="flex flex-col gap-8">
+                    <!-- Types de Verres -->
+                    <div class="section-card-clean">
+                        <h4 class="section-title-icon mb-4">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="text-purple-600">
+                                <path
+                                    d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
+                            </svg>
+                            Types de Verres
+                        </h4>
+                        <div class="flex flex-col gap-6">
+                            <!-- Helper to iterate over loop including main -->
+                            <!-- MAIN EQUIPMENT -->
+                            <div class="glass-type-item">
+                                <div class="grid grid-cols-1 md:grid-cols-[150px_1fr] gap-4 items-start">
+                                    <div
+                                        class="pt-2 font-bold underline decoration-dotted underline-offset-4 text-gray-800">
+                                        {{ ficheForm.get('monture.typeEquipement')?.value ||
+                                        'Principal'
+                                        }}
+                                    </div>
+                                    <div class="flex flex-col gap-2 pl-0 md:pl-4 md:border-l-2 md:border-gray-200">
+                                        <!-- OD Box -->
+                                        <div
+                                            class="p-3 rounded bg-purple-50 border-l-4 border-purple-500 text-sm text-purple-900">
+                                            <strong class="text-purple-700 mr-2">OD:</strong>
+                                            {{ ficheForm.get('verres.differentODOG')?.value ?
+                                            ficheForm.get('verres.matiereOD')?.value :
+                                            ficheForm.get('verres.matiere')?.value }}
+                                            {{ ficheForm.get('verres.differentODOG')?.value ?
+                                            ficheForm.get('verres.indiceOD')?.value :
+                                            ficheForm.get('verres.indice')?.value
+                                            }}
+                                            <span class="opacity-75">({{
+                                                ficheForm.get('verres.differentODOG')?.value ?
+                                                ficheForm.get('verres.marqueOD')?.value :
+                                                ficheForm.get('verres.marque')?.value }})</span>
+                                            <span class="mx-1">•</span>
+                                            <span class="italic text-xs">{{
+                                                (ficheForm.get('verres.differentODOG')?.value ?
+                                                ficheForm.get('verres.traitementOD')?.value :
+                                                ficheForm.get('verres.traitement')?.value)?.join(', ') || 'Standard'
+                                                }}</span>
+                                        </div>
+                                        <!-- OG Box -->
+                                        <div
+                                            class="p-3 rounded bg-green-50 border-l-4 border-green-500 text-sm text-green-900">
+                                            <strong class="text-green-700 mr-2">OG:</strong>
+                                            {{ ficheForm.get('verres.differentODOG')?.value ?
+                                            ficheForm.get('verres.matiereOG')?.value :
+                                            ficheForm.get('verres.matiere')?.value }}
+                                            {{ ficheForm.get('verres.differentODOG')?.value ?
+                                            ficheForm.get('verres.indiceOG')?.value :
+                                            ficheForm.get('verres.indice')?.value
+                                            }}
+                                            <span class="opacity-75">({{
+                                                ficheForm.get('verres.differentODOG')?.value ?
+                                                ficheForm.get('verres.marqueOG')?.value :
+                                                ficheForm.get('verres.marque')?.value }})</span>
+                                            <span class="mx-1">•</span>
+                                            <span class="italic text-xs">{{
+                                                (ficheForm.get('verres.differentODOG')?.value ?
+                                                ficheForm.get('verres.traitementOG')?.value :
+                                                ficheForm.get('verres.traitement')?.value)?.join(', ') || 'Standard'
+                                                }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- ADDED EQUIPMENTS -->
+                            <ng-container *ngFor="let equipment of equipements.controls; let i = index">
+                                <div class="glass-type-item">
+                                    <div class="grid grid-cols-1 md:grid-cols-[150px_1fr] gap-4 items-start">
+                                        <div
+                                            class="pt-2 font-bold underline decoration-dotted underline-offset-4 text-gray-800">
+                                            {{ equipment.get('type')?.value || 'Secondaire'
+                                            }}
+                                        </div>
+                                        <div class="flex flex-col gap-2 pl-0 md:pl-4 md:border-l-2 md:border-gray-200">
+                                            <!-- OD Box -->
+                                            <div
+                                                class="p-3 rounded bg-purple-50 border-l-4 border-purple-500 text-sm text-purple-900">
+                                                <strong class="text-purple-700 mr-2">OD:</strong>
+                                                {{ equipment.get('verres.differentODOG')?.value ?
+                                                equipment.get('verres.matiereOD')?.value :
+                                                equipment.get('verres.matiere')?.value }}
+                                                {{ equipment.get('verres.differentODOG')?.value ?
+                                                equipment.get('verres.indiceOD')?.value :
+                                                equipment.get('verres.indice')?.value }}
+                                                <span class="opacity-75">({{
+                                                    equipment.get('verres.differentODOG')?.value ?
+                                                    equipment.get('verres.marqueOD')?.value :
+                                                    equipment.get('verres.marque')?.value }})</span>
+                                                <span class="mx-1">•</span>
+                                                <span class="italic text-xs">{{
+                                                    (equipment.get('verres.differentODOG')?.value ?
+                                                    equipment.get('verres.traitementOD')?.value :
+                                                    equipment.get('verres.traitement')?.value)?.join(', ') ||
+                                                    'Standard'
+                                                    }}</span>
+                                            </div>
+                                            <!-- OG Box -->
+                                            <div
+                                                class="p-3 rounded bg-green-50 border-l-4 border-green-500 text-sm text-green-900">
+                                                <strong class="text-green-700 mr-2">OG:</strong>
+                                                {{ equipment.get('verres.differentODOG')?.value ?
+                                                equipment.get('verres.matiereOG')?.value :
+                                                equipment.get('verres.matiere')?.value }}
+                                                {{ equipment.get('verres.differentODOG')?.value ?
+                                                equipment.get('verres.indiceOG')?.value :
+                                                equipment.get('verres.indice')?.value }}
+                                                <span class="opacity-75">({{
+                                                    equipment.get('verres.differentODOG')?.value ?
+                                                    equipment.get('verres.marqueOG')?.value :
+                                                    equipment.get('verres.marque')?.value }})</span>
+                                                <span class="mx-1">•</span>
+                                                <span class="italic text-xs">{{
+                                                    (equipment.get('verres.differentODOG')?.value ?
+                                                    equipment.get('verres.traitementOG')?.value :
+                                                    equipment.get('verres.traitement')?.value)?.join(', ') ||
+                                                    'Standard'
+                                                    }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </ng-container>
+                        </div>
+                    </div>
+                    <!-- Visual Calibration -->
+                    <div>
+                        <h4 class="flex items-center gap-2 font-bold text-gray-700 mb-4">
+                            <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                            Prototype de Calibrage Visuel
+                            <button type="button"
+                                class="ml-auto bg-blue-600 text-white px-3 py-1 text-xs rounded shadow hover:bg-blue-700 transition"
+                                (click)="openVirtualCentering()">
+                                Centrage Virtuel (Tablette)
+                            </button>
+                        </h4>
+                        <div class="canvas-container bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
+                            <canvas #frameCanvas width="600" height="300" class="w-full h-auto"></canvas>
+                            <!-- Legend Overlay -->
+                            <div
+                                class="absolute bottom-4 left-0 w-full flex justify-center gap-4 text-xs font-bold bg-white/80 backdrop-blur py-2">
+                                <span class="text-blue-600">EP OG: 32mm</span>
+                                <span class="text-gray-800">Pont: 15mm</span>
+                                <span class="text-blue-600">EP OD: 32mm</span>
+                            </div>
+                            <!-- Height Indicators (Mock Visuals for prototype match) -->
+                            <!-- We rely on canvas drawing but can add overlay markers if needed. For now keeping canvas. -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- ONGLET 3: FACTURATION -->
+        <div class="tab-content" [hidden]="activeTab !== 3">
+            <div class="tab-header">
+                <div class="icon-box">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3>Facturation</h3>
+                    <p>Gérer les factures et devis du client</p>
+                </div>
+            </div>
+            <div class="facturation-container" *ngIf="linkedFacture$ | async as linkedFacture; else newFactureTemplate">
+                <app-facture-form [factureId]="linkedFacture.id" [embedded]="true" (onSaved)="onInvoiceSaved($event)"
+                    [isReadonly]="!isEditMode">
+                </app-facture-form>
+            </div>
+            <ng-template #newFactureTemplate>
+                <div class="facturation-container">
+                    <app-facture-form [clientIdInput]="clientId" [ficheIdInput]="ficheId" [initialLines]="initialLines"
+                        [embedded]="true" (onSaved)="onInvoiceSaved($event)" [nomenclature]="nomenclatureString"
+                        [isReadonly]="!isEditMode">
+                    </app-facture-form>
+                </div>
+            </ng-template>
+        </div>
+        <!-- ONGLET 4: PAIEMENTS -->
+        <div class="tab-content" *ngIf="activeTab === 4">
+            <div class="tab-header">
+                <div class="icon-box">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3>Historique des Paiements</h3>
+                    <p>Suivi des règlements pour ce dossier</p>
+                </div>
+            </div>
+            <div class="payment-container" style="padding: 24px;">
+                <app-payment-list [clientId]="clientId || client?.id" [ficheId]="ficheId"></app-payment-list>
+            </div>
+        </div>
+        <!-- ONGLET 5: SUIVI COMMANDE -->
+        <div class="tab-content" *ngIf="activeTab === 5" formGroupName="suiviCommande">
+            <div class="tab-header">
+                <div class="icon-box-purple">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3>Suivi de Commande Verres</h3>
+                    <p>Gérer le statut de commande auprès du fournisseur</p>
+                </div>
+            </div>
+            <!-- Stepper UI -->
+            <div class="mb-8 px-4">
+                <div class="relative flex items-center justify-between w-full">
+                    <div class="absolute left-0 top-1/2 transform -translate-y-1/2 w-full h-1 bg-gray-200 -z-10">
+                    </div>
+                    <!-- Step 1: A Commander -->
+                    <div class="flex flex-col items-center bg-white px-2">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white mb-2"
+                            [ngClass]="{'bg-blue-600': getStepState('A_COMMANDER') === 'active' || getStepState('A_COMMANDER') === 'completed', 'bg-gray-300': getStepState('A_COMMANDER') === 'pending'}">
+                            1
+                        </div>
+                        <span class="text-sm font-medium"
+                            [class.text-blue-600]="getStepState('A_COMMANDER') === 'active'">À Commander</span>
+                    </div>
+                    <!-- Step 2: Commandé -->
+                    <div class="flex flex-col items-center bg-white px-2">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white mb-2"
+                            [ngClass]="{'bg-blue-600': getStepState('COMMANDE') === 'active' || getStepState('COMMANDE') === 'completed', 'bg-gray-300': getStepState('COMMANDE') === 'pending'}">
+                            2
+                        </div>
+                        <span class="text-sm font-medium"
+                            [class.text-blue-600]="getStepState('COMMANDE') === 'active'">Commandé</span>
+                    </div>
+                    <!-- Step 3: Reçu -->
+                    <div class="flex flex-col items-center bg-white px-2">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white mb-2"
+                            [ngClass]="{'bg-green-600': getStepState('RECU') === 'active' || getStepState('RECU') === 'completed', 'bg-gray-300': getStepState('RECU') === 'pending'}">
+                            3
+                        </div>
+                        <span class="text-sm font-medium"
+                            [class.text-green-600]="getStepState('RECU') === 'active'">Reçu Atelier</span>
+                    </div>
+                    <!-- Step 4: Livré Client -->
+                    <div class="flex flex-col items-center bg-white px-2">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white mb-2"
+                            [ngClass]="{'bg-purple-600': getStepState('LIVRE_CLIENT') === 'active' || getStepState('LIVRE_CLIENT') === 'completed', 'bg-gray-300': getStepState('LIVRE_CLIENT') === 'pending'}">
+                            4
+                        </div>
+                        <span class="text-sm font-medium"
+                            [class.text-purple-600]="getStepState('LIVRE_CLIENT') === 'active'">Livré Client</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Action Area -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Left: Status & Actions -->
+                <div class="section-card">
+                    <h4>Actions & Statut</h4>
+                    <div class="p-4 bg-gray-50 rounded-lg mb-4 text-center">
+                        <span class="text-gray-500 uppercase text-xs font-bold tracking-wider">Statut Actuel</span>
+                        <div class="text-2xl font-bold mt-1" [ngClass]="{
+                            'text-orange-500': suiviStatut === 'A_COMMANDER',
+                            'text-blue-600': suiviStatut === 'COMMANDE',
+                            'text-green-600': suiviStatut === 'RECU',
+                            'text-purple-600': suiviStatut === 'LIVRE_CLIENT'
+                        }">
+                            {{ suiviStatut === 'A_COMMANDER' ? 'À COMMANDER' :
+                            suiviStatut === 'COMMANDE' ? 'EN COMMANDE' :
+                            suiviStatut === 'RECU' ? 'REÇU ATELIER' : 'LIVRÉ CLIENT' }}
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-3">
+                        <button type="button" class="btn-primary" (click)="setOrderStatus('COMMANDE')"
+                            *ngIf="suiviStatut === 'A_COMMANDER'" [disabled]="!isEditMode">
+                            <mat-icon class="mr-2">send</mat-icon> Marquer comme Commandé
+                        </button>
+                        <button type="button" class="btn-success" (click)="setOrderStatus('RECU')"
+                            *ngIf="suiviStatut === 'COMMANDE'" [disabled]="!isEditMode">
+                            <mat-icon class="mr-2">check_circle</mat-icon> Marquer comme Reçu
+                        </button>
+                        <button type="button" class="btn-purple" (click)="setOrderStatus('LIVRE_CLIENT')"
+                            *ngIf="suiviStatut === 'RECU'" [disabled]="!isEditMode">
+                            <mat-icon class="mr-2">inventory_2</mat-icon> Marquer comme Livré au Client
+                        </button>
+                    </div>
+                </div>
+                <!-- Right: Details Form -->
+                <div class="section-card">
+                    <h4>Détails Commande</h4>
+                    <div class="grid grid-cols-1 gap-4">
+                        <mat-form-field appearance="outline">
+                            <mat-label>Fournisseur Verres</mat-label>
+                            <mat-select formControlName="fournisseur">
+                                <mat-option *ngFor="let brand of lensBrands" [value]="brand">{{ brand
+                                    }}</mat-option>
+                            </mat-select>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline">
+                            <mat-label>Référence Commande (Fournisseur)</mat-label>
+                            <input matInput formControlName="referenceCommande" placeholder="Ex: CMD-12345">
+                        </mat-form-field>
+                        <div class="grid grid-cols-2 gap-4">
+                            <mat-form-field appearance="outline">
+                                <mat-label>Date Commande</mat-label>
+                                <input matInput [matDatepicker]="pickerCmd" formControlName="dateCommande">
+                                <mat-datepicker-toggle matSuffix [for]="pickerCmd"></mat-datepicker-toggle>
+                                <mat-datepicker #pickerCmd></mat-datepicker>
+                            </mat-form-field>
+                            <mat-form-field appearance="outline">
+                                <mat-label>Date Réception</mat-label>
+                                <input matInput [matDatepicker]="pickerRecu" formControlName="dateReception">
+                                <mat-datepicker-toggle matSuffix [for]="pickerRecu"></mat-datepicker-toggle>
+                                <mat-datepicker #pickerRecu></mat-datepicker>
+                            </mat-form-field>
+                        </div>
+                        <mat-form-field appearance="outline">
+                            <mat-label>Commentaires / Suivi</mat-label>
+                            <textarea matInput formControlName="commentaire" rows="3"
+                                placeholder="Notes sur la commande..."></textarea>
+                        </mat-form-field>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Footer Navigation inside Form -->
+        <div class="footer-nav">
+            <button type="button" class="btn-secondary" (click)="prevTab()" [disabled]="activeTab === 0">←
+                Précédent</button>
+            <button type="button" class="btn-primary" (click)="nextTab()">Suivant
+                →</button>
+        </div>
+    </form>
+    <!-- File Viewer Modal -->
+    <div class="file-viewer-modal" *ngIf="viewingFile" (click)="closeViewer()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <h3>{{ viewingFile.name }}</h3>
+                <button type="button" class="btn-close" (click)="closeViewer()">×</button>
+            </div>
+            <div class="modal-body">
+                <img *ngIf="viewingFile.type.startsWith('image/')" [src]="viewingFile.preview" alt="Prescription">
+                <iframe *ngIf="viewingFile.type === 'application/pdf'" [src]="viewingFile.preview" frameborder="0"
+                    title="Aperçu du document"></iframe>
+            </div>
+        </div>
+    </div>
+    <!-- Camera Modal -->
+    <div class="camera-modal" *ngIf="showCameraModal" (click)="closeCameraModal()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Capturer une photo</h3>
+                <button type="button" class="btn-close" (click)="closeCameraModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="camera-container" *ngIf="!capturedImage">
+                    <video #videoElement autoplay></video>
+                </div>
+                <div class="preview-container" *ngIf="capturedImage">
+                    <img [src]="capturedImage" alt="Photo capturée">
+                </div>
+                <canvas #canvasElement style="display: none;"></canvas>
+            </div>
+            <div class="modal-footer">
+                <ng-container *ngIf="!capturedImage">
+                    <button type="button" class="btn-secondary" (click)="closeCameraModal()">Annuler</button>
+                    <button type="button" class="btn-primary" (click)="capturePhoto()">📷 Capturer</button>
+                </ng-container>
+                <ng-container *ngIf="capturedImage">
+                    <button type="button" class="btn-secondary" (click)="capturedImage = null">↺ Reprendre</button>
+                    <button type="button" class="btn-success" (click)="saveCapturedPhoto()">✓ Utiliser cette
+                        photo</button>
+                </ng-container>
+            </div>
+        </div>
+    </div>
 </div>
