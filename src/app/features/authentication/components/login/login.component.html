@@ -1,19 +1,22 @@
 <form>
   <div class="flex flex-col">
+    <!-- Champ Email -->
     <mat-form-field appFieldControlLabel>
       <mat-label>
         {{ 'authentication.login' | translate }}
       </mat-label>
       <input matInput autocomplete="username" [field]="loginForm.email" />
       @if (loginForm.email().touched() && loginForm.email().invalid()) {
-      <mat-error
-        app-field-error
-        [errors]="loginForm.email().errors()"
-        pattern="email"
-        fieldname="email"
-      />
+        <mat-error
+          app-field-error
+          [errors]="loginForm.email().errors()"
+          pattern="email"
+          fieldname="email"
+        />
       }
     </mat-form-field>
+
+    <!-- Champ Mot de passe -->
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'commun.password' | translate }}</mat-label>
       <input
@@ -23,12 +26,20 @@
         [field]="loginForm.password"
       />
       @if (loginForm.password().touched() && loginForm.password().invalid()) {
-      <mat-error app-field-error [errors]="loginForm.password().errors()" fieldname="password" />
+        <mat-error 
+          app-field-error 
+          [errors]="loginForm.password().errors()" 
+          fieldname="password" 
+        />
       }
     </mat-form-field>
+
+    <!-- Bouton mot de passe oublié -->
     <button matButton type="button" (click)="gotToForgotPath()">
       {{ 'authentication.forgottenPassword' | translate }}
     </button>
+
+    <!-- Bouton de connexion -->
     <button
       class="my-5"
       matButton="filled"
@@ -38,10 +49,12 @@
     >
       {{ 'authentication.connexion' | translate }}
     </button>
+
+    <!-- Message d'erreur -->
     @if (errorMessage()?.messageToShow; as messageToShow) {
-    <div class="bg-error rounded-md p-2 text-center text-white">
-      {{ messageToShow }}
-    </div>
+      <div class="bg-error rounded-md p-2 text-center text-white">
+        {{ messageToShow }}
+      </div>
     }
   </div>
 </form>

@@ -13,6 +13,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { ResetError } from '../../../../core/store/auth/auth.actions';
 import { UserErrorSelector } from '../../../../core/store/auth/auth.selectors';
 import { AuthService } from '../../services/auth.service';
+import { LOGIN_FORM_INITIAL_VALUE, LoginFormModel } from './models/login-form.model';
 
 @Component({
   selector: 'app-login',
@@ -36,41 +37,43 @@ export class LoginComponent implements OnDestroy {
   readonly #route = inject(ActivatedRoute);
   readonly #router = inject(Router);
 
-  protected loginModel = signal({ email: '', password: '' });
+  protected readonly loginModel = signal<LoginFormModel>(LOGIN_FORM_INITIAL_VALUE);
 
-  protected loginForm = form(this.loginModel, (fieldPath) => {
+  protected readonly loginForm = form(this.loginModel, (fieldPath) => {
     required(fieldPath.email);
     pattern(fieldPath.email, EMAIL_PATTERN);
     required(fieldPath.password);
   });
 
-  protected errorMessage = this.#store.selectSignal<IWsError>(UserErrorSelector);
+  protected readonly errorMessage = this.#store.selectSignal<IWsError>(UserErrorSelector);
 
   /**
-   * Récupération de du login et mot de passe et authentification de l'utilisateur
+   * Soumet le formulaire de connexion et redirige l'utilisateur vers l'espace privé
+   * Version MOCK actuellement active
    */
-  login() {
+  login(): void {
     if (this.loginForm().invalid()) {
       return;
     }
 
-    // MOCK: Bypass authentication and navigate directly to private layout
     console.log('🔓 MOCK LOGIN - Bypassing authentication');
     void this.#router.navigate(['/p']);
-
-    // Real authentication (commented out)
-    // const request: ILoginRequest = this.loginModel();
-    // this.#store.dispatch(Login({ request }));
   }
 
-  gotToForgotPath() {
+  /**
+   * Redirige vers la page de récupération du mot de passe
+   */
+  gotToForgotPath(): void {
     this.#authService.redirectToAuthPath({
       path: 'forgot',
       redirectUrl: this.#route.snapshot.queryParams['redirectUrl'],
     });
   }
 
-  ngOnDestroy() {
+  /**
+   * Nettoie les erreurs du store lors de la destruction du composant
+   */
+  ngOnDestroy(): void {
     this.#store.dispatch(ResetError());
   }
 }
