@@ -1,111 +1,50 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  forwardRef,
-  signal,
-  inject,
-  ChangeDetectorRef,
-} from '@angular/core';
-import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, model, linkedSignal } from '@angular/core';
+import { FormValueControl } from '@angular/forms/signals';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 
 @Component({
   selector: 'app-photo-upload',
-  imports: [MatIconModule, MatButtonModule],
+  templateUrl: './photo-upload.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [
-    {
-      provide: NG_VALUE_ACCESSOR,
-      useExisting: forwardRef(() => PhotoUploadComponent),
-      multi: true,
-    },
-  ],
-  template: `
-    <div class="flex flex-col items-center gap-2">
-      <div
-        class="relative flex h-32 w-32 items-center justify-center rounded-full border-2 border-gray-300 overflow-hidden bg-gray-100"
-      >
-        @if (previewUrl()) {
-        <img [src]="previewUrl()" alt="Profile photo" class="size-full object-cover" />
-        } @else {
-        <mat-icon class="text-6xl text-gray-400">account_circle</mat-icon>
-        }
-      </div>
-      <div class="flex gap-2">
-        <button mat-icon-button type="button" (click)="fileInput.click()" [disabled]="disabled()">
-          <mat-icon>{{ previewUrl() ? 'edit' : 'upload' }}</mat-icon>
-        </button>
-        @if (previewUrl()) {
-        <button mat-icon-button type="button" (click)="removePhoto()" [disabled]="disabled()">
-          <mat-icon>photo_camera</mat-icon>
-        </button>
-        }
-      </div>
-      <input
-        #fileInput
-        type="file"
-        accept="image/*"
-        class="hidden"
-        (change)="onFileSelected($event)"
-      />
-    </div>
-  `,
+  imports: [MatIconModule, MatButtonModule],
 })
-export class PhotoUploadComponent implements ControlValueAccessor {
-  #cdr = inject(ChangeDetectorRef);
+export class PhotoUploadComponent implements FormValueControl<File | string> {
+  value = model<File | string>(null);
 
-  previewUrl = signal<string | null>(null);
-  disabled = signal(false);
-
-  onChange: (value: File | null) => void = () => {};
-  onTouched: () => void = () => {};
-
-  writeValue(value: File | string | null): void {
-    if (typeof value === 'string') {
-      this.previewUrl.set(value);
-    } else if (value instanceof File) {
-      this.createPreviewUrl(value);
-    } else {
-      this.previewUrl.set(null);
-    }
-    this.#cdr.markForCheck();
-  }
-
-  registerOnChange(fn: (value: File | null) => void): void {
-    this.onChange = fn;
-  }
-
-  registerOnTouched(fn: () => void): void {
-    this.onTouched = fn;
-  }
-
-  setDisabledState(isDisabled: boolean): void {
-    this.disabled.set(isDisabled);
-  }
+  // Derives preview URL from value, handles async File reading via writable linkedSignal
+  previewUrl = linkedSignal({
+    source: () => this.value(),
+    computation: (val) => {
+      if (typeof val === 'string') return val;
+      if (val instanceof File) {
+        // FileReader is async, so we update via the writable signal
+        this.#loadFilePreview(val);
+        return null; // Return null initially, will be updated async
+      }
+      return null;
+    },
+  });
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
 
     if (file) {
-      this.createPreviewUrl(file);
-      this.onChange(file);
-      this.onTouched();
+      this.value.set(file);
+      // Reset input value to allow re-uploading the same file
+      input.value = '';
     }
   }
 
   removePhoto(): void {
-    this.previewUrl.set(null);
-    this.onChange(null);
-    this.onTouched();
+    this.value.set(null);
   }
 
-  private createPreviewUrl(file: File): void {
+  #loadFilePreview(file: File): void {
     const reader = new FileReader();
     reader.onload = () => {
       this.previewUrl.set(reader.result as string);
-      this.#cdr.markForCheck();
     };
     reader.readAsDataURL(file);
   }

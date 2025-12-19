@@ -1,0 +1,22 @@
+<div class="flex flex-col items-center gap-2">
+  <div
+    class="grid size-32 place-items-center rounded-full border-2 border-gray-300 overflow-hidden bg-gray-100"
+  >
+    @if (previewUrl()) {
+    <img [src]="previewUrl()" alt="Profile photo" class="h-full w-full object-cover" />
+    } @else {
+    <mat-icon class="size-6">account_circle</mat-icon>
+    }
+  </div>
+  <div class="flex gap-2">
+    <button mat-icon-button type="button" (click)="fileInput.click()">
+      <mat-icon>{{ previewUrl() ? 'edit' : 'upload' }}</mat-icon>
+    </button>
+    @if (previewUrl()) {
+    <button mat-icon-button type="button" (click)="removePhoto()">
+      <mat-icon>delete</mat-icon>
+    </button>
+    }
+  </div>
+  <input #fileInput type="file" accept="image/*" class="hidden" (change)="onFileSelected($event)" />
+</div>
