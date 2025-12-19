@@ -2,7 +2,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { form } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ActionsButtonsComponent } from '@app/components';
-import { ActionsButton, DirectionType, PermissionType } from '@app/models';
+import { ActionsButton, PermissionType } from '@app/models';
 import { UserStore } from '../../user.store';
 import { UserSearchFormComponent } from './user-search-form/user-search-form.component';
 import { UserSearchTableComponent } from './user-search-table/user-search-table.component';
@@ -26,16 +26,16 @@ export default class UserSearchComponent implements OnInit {
 
   buttons = signal<ActionsButton[]>([
     {
-      libelle: 'commun.exportPdf',
-      direction: DirectionType.LEFT,
+      label: 'commun.exportPdf',
+      direction: 'left',
       action: 'exportPdf',
       icon: 'picture_as_pdf',
       customColor: 'green',
       permissions: [PermissionType.EXPORT],
     },
     {
-      libelle: 'users.addUser',
-      direction: DirectionType.RIGHT,
+      label: 'user.addUser',
+      direction: 'right',
       action: 'addUser',
       permissions: [PermissionType.WRITE],
     },

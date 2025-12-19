@@ -27,7 +27,7 @@ import { MatButtonModule } from '@angular/material/button';
         class="relative flex h-32 w-32 items-center justify-center rounded-full border-2 border-gray-300 overflow-hidden bg-gray-100"
       >
         @if (previewUrl()) {
-        <img [src]="previewUrl()" alt="Profile photo" class="h-full w-full object-cover" />
+        <img [src]="previewUrl()" alt="Profile photo" class="size-full object-cover" />
         } @else {
         <mat-icon class="text-6xl text-gray-400">account_circle</mat-icon>
         }

@@ -7,7 +7,6 @@ export * from './client-search-response.model';
 export * from './client.model';
 export * from './confirm-data.model';
 export * from './current-user.model';
-export * from './direction-type.model';
 export * from './jwt-tokens.model';
 export * from './links.model';
 export * from './login-request.model';

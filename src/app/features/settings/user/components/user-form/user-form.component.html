@@ -16,10 +16,9 @@
           </mat-radio-button>
           <mat-error app-field-error [errors]="form.actif().errors()" />
         </mat-radio-group>
+
         <!-- Photo Upload - Spans full width on mobile, right side on desktop -->
-        <div class="md:flex md:justify-end">
-          <app-photo-upload [field]="form.photo" />
-        </div>
+        <app-photo-upload [field]="form.photo" class="place-self-end" />
 
         <!-- Nom (Last Name) -->
         <mat-form-field appFieldControlLabel>

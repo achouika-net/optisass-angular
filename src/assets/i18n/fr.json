@@ -135,7 +135,12 @@
     },
     "morning": "Matinée",
     "afternoon": "Après-midi",
-    "versionning": "Versionning"
+    "versionning": "Versionning",
+    "agrement": "Agrément",
+    "center": "Centre",
+    "civilite": "Civilité",
+    "validate": "Valider",
+    "exportPdf": "Exporter PDF"
   },
   "error": {
     "clientSearch": "Erreur lors de la recherche des clients",
@@ -625,7 +630,8 @@
       "roleRequired": "Le rôle est requis"
     },
     "centersAndRoles": "Centres et Rôles",
-    "addRole": "Ajouter un rôle"
+    "addRole": "Ajouter un rôle",
+    "addUser": "Ajouter un utilisateur"
   },
   "controllers": {
     "add": "Ajouter un agenda contrôleur",

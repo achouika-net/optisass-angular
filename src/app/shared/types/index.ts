@@ -1,5 +1,6 @@
 export * from './appointment-delete-notification.type';
 export * from './calendar-action.type';
+export * from './direction.type';
 export * from './extract-form-control.type';
 export * from './local-storage-key.type';
 export * from './menu-item.type';
