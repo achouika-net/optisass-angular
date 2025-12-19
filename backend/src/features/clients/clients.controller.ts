@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Put, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Put, Query, Headers } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { Prisma } from '@prisma/client';
 
@@ -87,11 +87,20 @@ export class ClientsController {
     }
 
     @Post()
-    async create(@Body() body: any) {
+    async create(@Body() body: any, @Headers('Tenant') centreId: string) {
         console.log('📥 CREATE Incoming payload:', JSON.stringify(body, null, 2));
+
+        if (!centreId) {
+            console.warn('⚠️ No Tenant/Centre ID provided in headers');
+            // Optionally throw error or allow global (but user wants strict scoping)
+        }
 
         try {
             const createClientDto = this.mapPayloadToDto(body);
+            // Attach centreId
+            if (centreId) {
+                createClientDto['centreId'] = centreId;
+            }
             console.log('🔄 Mapped CREATE DTO:', JSON.stringify(createClientDto, null, 2));
             return await this.clientsService.create(createClientDto);
         } catch (error) {
@@ -101,8 +110,8 @@ export class ClientsController {
     }
 
     @Get()
-    findAll(@Query('nom') nom?: string) {
-        return this.clientsService.findAll(nom);
+    findAll(@Query('nom') nom?: string, @Headers('Tenant') centreId?: string) {
+        return this.clientsService.findAll(nom, centreId);
     }
 
     @Get(':id')

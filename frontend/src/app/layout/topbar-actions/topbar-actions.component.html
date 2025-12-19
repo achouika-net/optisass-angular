@@ -3,23 +3,51 @@
   <button mat-icon-button><mat-icon>delete</mat-icon></button>
   <button mat-icon-button><mat-icon>calendar_month</mat-icon></button>
   <button mat-icon-button><mat-icon>support_agent</mat-icon></button>
+
+  <button mat-button class="mr-2" [matMenuTriggerFor]="centersMenu">
+    <div class="flex items-center gap-1">
+      <mat-icon>store_mall_directory</mat-icon>
+      <span class="text-xs font-medium">
+        {{ currentCentre()?.name?.toUpperCase() || 'SÉLECTIONNER CENTRE' }}
+      </span>
+      <mat-icon>expand_more</mat-icon>
+    </div>
+  </button>
+  <mat-menu #centersMenu="matMenu" class="min-w-56">
+    @for (centre of centres(); track centre.id) {
+    <button class="text-center" mat-menu-item (click)="selectCenter(centre)">
+      <span class="font-semibold">
+        {{ centre?.name.toUpperCase() }}
+      </span>
+    </button>
+    }
+  </mat-menu>
+
   <button mat-button [matMenuTriggerFor]="userMenu">
     <div class="flex items-center gap-1">
       <mat-icon>person</mat-icon>
       @if (!isMobile()) {
-        <span class="text-xs font-medium">Super Admin</span>
+      <div class="flex flex-col items-start leading-none">
+        <span class="text-xs font-semibold">{{ userName() }}</span>
+        <span class="text-[10px] text-gray-500 uppercase">{{ roleName() }}</span>
+      </div>
       }
       <mat-icon>expand_more</mat-icon>
     </div>
   </button>
   @if (!isMobile()) {
-    <button mat-icon-button>
-      <mat-icon>open_in_full</mat-icon>
-    </button>
+  <button mat-icon-button>
+    <mat-icon>open_in_full</mat-icon>
+  </button>
   }
 </div>
 
 <mat-menu #userMenu="matMenu">
+  <div class="px-4 py-2 flex flex-col pointer-events-none">
+    <span class="text-sm font-semibold">{{ userName() }}</span>
+    <span class="text-xs text-gray-500">{{ user()?.email }}</span>
+  </div>
+  <mat-divider class="m-0" />
   <button mat-menu-item>
     <mat-icon>account_circle</mat-icon>
     <span>Mon compte</span>

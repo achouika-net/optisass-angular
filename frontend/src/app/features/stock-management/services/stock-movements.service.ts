@@ -14,11 +14,13 @@ export interface StockMovement {
     entrepotDestination?: { nom: string };
 }
 
+import { API_URL } from '../../../config/api.config';
+
 @Injectable({
     providedIn: 'root'
 })
 export class StockMovementsService {
-    private apiUrl = `${environment.apiUrl}/stock-movements`;
+    private apiUrl = `${API_URL}/stock-movements`;
 
     constructor(private http: HttpClient) { }
 

@@ -12,21 +12,27 @@ export class ClientsService {
         });
     }
 
-    async findAll(nom?: string) {
+    async findAll(nom?: string, centreId?: string) {
+        const whereClause: any = {};
+
         if (nom) {
-            return this.prisma.client.findMany({
-                where: {
-                    nom: {
-                        contains: nom,
-                        mode: 'insensitive',
-                    },
-                    typeClient: 'particulier' // Family logic usually applies to individuals
-                },
-                orderBy: { dateCreation: 'desc' },
-            });
+            whereClause.nom = {
+                contains: nom,
+                mode: 'insensitive',
+            };
+            whereClause.typeClient = 'particulier';
         }
+
+        if (centreId) {
+            whereClause.centreId = centreId;
+        }
+
         return this.prisma.client.findMany({
+            where: whereClause,
             orderBy: { dateCreation: 'desc' },
+            include: {
+                centre: true // Optional: verification
+            }
         });
     }
 

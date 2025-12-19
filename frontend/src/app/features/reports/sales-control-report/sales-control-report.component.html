@@ -137,7 +137,7 @@
         <mat-tab>
             <ng-template mat-tab-label>
                 <mat-icon class="mr-2">payments</mat-icon>
-                Avec Paiement ({{ invoicesWithPayment.length }})
+                Vente en instance ({{ invoicesWithPayment.length }})
             </ng-template>
 
             <div class="tab-content">
@@ -209,8 +209,8 @@
                                 <td colspan="8">
                                     <div class="empty-state">
                                         <mat-icon>check_circle</mat-icon>
-                                        <h3>Tout est en ordre</h3>
-                                        <p>Aucune facture BROUILLON avec paiement en attente.</p>
+                                        <h3>Prêt pour validation</h3>
+                                        <p>Aucune vente en instance en attente.</p>
                                     </div>
                                 </td>
                             </tr>
@@ -224,7 +224,7 @@
         <mat-tab>
             <ng-template mat-tab-label>
                 <mat-icon class="mr-2">inventory_2</mat-icon>
-                Sans Paiement ({{ invoicesWithoutPayment.length }})
+                Devis ({{ invoicesWithoutPayment.length }})
             </ng-template>
 
             <div class="tab-content">
@@ -300,8 +300,8 @@
                                 <td colspan="7">
                                     <div class="empty-state">
                                         <mat-icon>check_circle</mat-icon>
-                                        <h3>Tout est en ordre</h3>
-                                        <p>Aucune facture BROUILLON sans paiement.</p>
+                                        <h3>Aucune donnée</h3>
+                                        <p>Aucun devis sans paiement trouvé.</p>
                                     </div>
                                 </td>
                             </tr>
@@ -473,6 +473,76 @@
             </div>
         </mat-tab>
 
+        <!-- Tab 5: Archivées (Undeclared Sales) -->
+        <mat-tab>
+            <ng-template mat-tab-label>
+                <mat-icon class="mr-2">archive</mat-icon>
+                Ventes Non Consolidées ({{ groupedArchived.length > 0 ? (groupedArchived[0].invoices.length || 0) : 0
+                }})
+            </ng-template>
+
+            <div class="tab-content">
+                <div class="modern-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ref Fiche</th>
+                                <th>Numéro</th>
+                                <th>Client</th>
+                                <th>Date</th>
+                                <th>Total TTC</th>
+                                <th>Reste à Payer</th>
+                                <th>Stock Décrémenté?</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <ng-container *ngFor="let group of groupedArchived">
+                                <ng-container *ngIf="isGroupVisible(group)">
+                                    <!-- Month Header -->
+                                    <tr class="bg-light">
+                                        <td colspan="7"
+                                            class="py-2 px-3 font-semibold text-gray-700 bg-gray-50 border-b">
+                                            <div class="flex items-center">
+                                                <mat-icon class="mr-2 text-sm text-gray-500">calendar_today</mat-icon>
+                                                {{ group.month }}
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Invoices -->
+                                    <tr *ngFor="let invoice of group.invoices">
+                                        <td>{{
+                                            (invoice.ficheId || invoice.proprietes?.['ficheId'])?.substring(0, 12) }}
+                                        </td>
+                                        <td>{{ invoice.numero }}</td>
+                                        <td>{{ getClientName(invoice) }}</td>
+                                        <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
+                                        <td>{{ invoice.totalTTC | number:'1.2-2' }} DH</td>
+                                        <td class="font-weight-bold">{{ invoice.resteAPayer | number:'1.2-2' }} DH</td>
+                                        <td>
+                                            <span class="badge badge-warning"
+                                                *ngIf="invoice.proprietes?.['forceStockDecrement']">OUI</span>
+                                            <span class="badge badge-secondary"
+                                                *ngIf="!invoice.proprietes?.['forceStockDecrement']">NON</span>
+                                        </td>
+                                    </tr>
+                                </ng-container>
+                            </ng-container>
+
+                            <tr *ngIf="groupedArchived.length === 0">
+                                <td colspan="7">
+                                    <div class="empty-state">
+                                        <mat-icon>archive</mat-icon>
+                                        <h3>Aucune facture archivée</h3>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </mat-tab>
+
         <!-- Tab 3: Statistics -->
         <mat-tab>
             <ng-template mat-tab-label>
@@ -486,8 +556,8 @@
                         <thead>
                             <tr>
                                 <th>Vendeur</th>
-                                <th>Devis (Av. Pmt)</th>
-                                <th>Devis (Ss. Pmt)</th>
+                                <th>Vente en instance</th>
+                                <th>Devis</th>
                                 <th>Factures Validées</th>
                                 <th>Avoirs</th>
                                 <th>CA consolidé</th>
@@ -504,7 +574,7 @@
                                 </td>
                                 <td class="text-center">
                                     <span class="badge badge-warning" *ngIf="stat.countWithPayment > 0">
-                                        {{ stat.countWithPayment }} devis
+                                        {{ stat.countWithPayment }} ventes
                                     </span>
                                     <span class="text-gray-400" *ngIf="stat.countWithPayment === 0">-</span>
                                 </td>

@@ -14,7 +14,7 @@ export interface User {
     telephone?: string;
     email: string;
     photoUrl?: string; // Profile picture URL
-    agrement?: string; // Optional field
+    matricule?: string; // Optional field
     statut: UserStatus;
     centreRoles: CentreRole[];
     createdAt: Date;
@@ -29,6 +29,8 @@ export interface CentreRole {
     centreId: string;
     centreName: string;
     role: UserRole;
+    entrepotIds?: string[];
+    entrepotNames?: string[];
 }
 
 /**
@@ -67,7 +69,7 @@ export enum UserRole {
 export interface UserFilters {
     nom?: string;
     prenom?: string;
-    agrement?: string;
+    matricule?: string;
     statut?: UserStatus;
     role?: UserRole;
 }

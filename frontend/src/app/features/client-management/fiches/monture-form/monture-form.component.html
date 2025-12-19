@@ -403,6 +403,12 @@
                                 <div class="section-actions">
                                     <button type="button" class="btn-suggestion" (click)="checkSuggestion(-1)"
                                         aria-label="Obtenir une suggestion IA">Suggestion</button>
+                                    <button type="button" class="btn-stock-search"
+                                        (click)="openStockSearch(-1, 'verres')"
+                                        *ngIf="isEditMode && !ficheForm.get('verres.differentODOG')?.value"
+                                        title="Chercher verres en stock">
+                                        <mat-icon style="font-size: 18px;">inventory_2</mat-icon> Verres
+                                    </button>
                                     <label class="checkbox-label"><input type="checkbox"
                                             formControlName="differentODOG"><span>Différents OD/OG</span></label>
                                 </div>
@@ -470,7 +476,14 @@
                             <!-- Split Mode -->
                             <div class="verres-split" *ngIf="ficheForm.get('verres.differentODOG')?.value">
                                 <div class="verre-od">
-                                    <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Droit (OD)</h4>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <h4 class="text-sm font-bold text-gray-700">Œil Droit (OD)</h4>
+                                        <button type="button" class="btn-stock-search-mini"
+                                            (click)="openStockSearch(-1, 'od')" *ngIf="isEditMode" title="Stock OD">
+                                            <mat-icon
+                                                style="font-size: 16px; width: 16px; height: 16px;">inventory_2</mat-icon>
+                                        </button>
+                                    </div>
                                     <div class="grid grid-cols-1 gap-4 mb-4">
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Marque</mat-label>
@@ -511,7 +524,14 @@
                                     </div>
                                 </div>
                                 <div class="verre-og">
-                                    <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Gauche (OG)</h4>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <h4 class="text-sm font-bold text-gray-700">Œil Gauche (OG)</h4>
+                                        <button type="button" class="btn-stock-search-mini"
+                                            (click)="openStockSearch(-1, 'og')" *ngIf="isEditMode" title="Stock OG">
+                                            <mat-icon
+                                                style="font-size: 16px; width: 16px; height: 16px;">inventory_2</mat-icon>
+                                        </button>
+                                    </div>
                                     <div class="grid grid-cols-1 gap-4 mb-4">
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Marque</mat-label>
@@ -680,6 +700,12 @@
                                         <button type="button" class="btn-suggestion" (click)="checkSuggestion(i)"
                                             *ngIf="isEditMode"
                                             aria-label="Obtenir une suggestion IA">Suggestion</button>
+                                        <button type="button" class="btn-stock-search"
+                                            (click)="openStockSearch(i, 'verres')"
+                                            *ngIf="isEditMode && !equipment.get('verres.differentODOG')?.value"
+                                            title="Chercher verres en stock">
+                                            <mat-icon style="font-size: 18px;">inventory_2</mat-icon> Verres
+                                        </button>
                                         <label class="checkbox-label"><input type="checkbox"
                                                 formControlName="differentODOG"><span>Différents
                                                 OD/OG</span></label>
@@ -741,7 +767,14 @@
                                 <!-- Split Mode -->
                                 <div class="verres-split" *ngIf="equipment.get('verres.differentODOG')?.value">
                                     <div class="verre-od">
-                                        <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Droit (OD)</h4>
+                                        <div class="flex items-center justify-between mb-2">
+                                            <h4 class="text-sm font-bold text-gray-700">Œil Droit (OD)</h4>
+                                            <button type="button" class="btn-stock-search-mini"
+                                                (click)="openStockSearch(i, 'od')" *ngIf="isEditMode" title="Stock OD">
+                                                <mat-icon
+                                                    style="font-size: 16px; width: 16px; height: 16px;">inventory_2</mat-icon>
+                                            </button>
+                                        </div>
                                         <div class="grid grid-cols-1 gap-4 mb-4">
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Marque</mat-label>
@@ -780,7 +813,14 @@
                                         </div>
                                     </div>
                                     <div class="verre-og">
-                                        <h4 class="text-sm font-bold text-gray-700 mb-2">Œil Gauche (OG)</h4>
+                                        <div class="flex items-center justify-between mb-2">
+                                            <h4 class="text-sm font-bold text-gray-700">Œil Gauche (OG)</h4>
+                                            <button type="button" class="btn-stock-search-mini"
+                                                (click)="openStockSearch(i, 'og')" *ngIf="isEditMode" title="Stock OG">
+                                                <mat-icon
+                                                    style="font-size: 16px; width: 16px; height: 16px;">inventory_2</mat-icon>
+                                            </button>
+                                        </div>
                                         <div class="grid grid-cols-1 gap-4 mb-4">
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Marque</mat-label>
@@ -1182,7 +1222,8 @@
                 </div>
             </div>
             <div class="payment-container" style="padding: 24px;">
-                <app-payment-list [clientId]="clientId || client?.id" [ficheId]="ficheId"></app-payment-list>
+                <app-payment-list [clientId]="clientId || client?.id" [ficheId]="ficheId"
+                    (paymentAdded)="onPaymentAdded()"></app-payment-list>
             </div>
         </div>
         <!-- ONGLET 5: SUIVI COMMANDE -->

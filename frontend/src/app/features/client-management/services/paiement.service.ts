@@ -39,11 +39,13 @@ export interface CreatePaiementDto {
     pieceJointe?: string;
 }
 
+import { API_URL } from '../../../config/api.config';
+
 @Injectable({
     providedIn: 'root'
 })
 export class PaiementService {
-    private apiUrl = `${environment.apiUrl}/paiements`;
+    private apiUrl = `${API_URL}/paiements`;
 
     constructor(private http: HttpClient) { }
 

@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ProductService } from '../services/product.service';
 import { GroupsService } from '../../groups/services/groups.service';
 import { CentersService } from '../../centers/services/centers.service';
@@ -50,7 +51,8 @@ import { Groupe, Centre, Entrepot } from '../../../shared/interfaces/warehouse.i
         MatIconModule,
         MatCardModule,
         MatTooltipModule,
-        MatDialogModule
+        MatDialogModule,
+        MatProgressSpinnerModule
     ],
     templateUrl: './product-form.component.html',
     styleUrls: ['./product-form.component.scss']
@@ -61,6 +63,7 @@ export class ProductFormComponent implements OnInit {
     productId: string | null = null;
     entrepotId: string | null = null;
     productType: ProductType = ProductType.MONTURE;
+    isSubmitting = false;
 
     // Hierarchy Data
     groups: Groupe[] = [];
@@ -435,6 +438,14 @@ export class ProductFormComponent implements OnInit {
         this.productService.findOne(id).subscribe(product => {
             if (product) {
                 this.productType = product.typeArticle;
+                this.entrepotId = product.entrepotId; // Set entrepotId for update
+                this.selectedWarehouse = product.entrepotId;
+
+                // Handle Accessory mapping: frontend use 'categorieAccessoire' but backend uses 'categorie'
+                if (product.typeArticle === ProductType.ACCESSOIRE && (product as any).categorie) {
+                    (product as any).categorieAccessoire = (product as any).categorie;
+                }
+
                 this.productForm.patchValue(product);
                 this.calculatePrices();
             }
@@ -477,15 +488,33 @@ export class ProductFormComponent implements OnInit {
 
             if (this.isEditMode && this.productId) {
                 console.log('Updating product:', this.productId);
-                this.productService.update(this.productId, productData).subscribe(() => {
-                    console.log('Product updated');
-                    this.navigateBack();
+                this.isSubmitting = true;
+                this.productService.update(this.productId, productData).subscribe({
+                    next: () => {
+                        console.log('Product updated');
+                        this.isSubmitting = false;
+                        this.navigateBack();
+                    },
+                    error: (error) => {
+                        console.error('Error updating product:', error);
+                        this.isSubmitting = false;
+                        alert('Une erreur est survenue lors de la mise à jour du produit. ' + (error.error?.message || ''));
+                    }
                 });
             } else {
                 console.log('Creating new product');
-                this.productService.create(productData).subscribe((newProduct) => {
-                    console.log('Product created:', newProduct);
-                    this.navigateBack();
+                this.isSubmitting = true;
+                this.productService.create(productData).subscribe({
+                    next: (newProduct) => {
+                        console.log('Product created:', newProduct);
+                        this.isSubmitting = false;
+                        this.navigateBack();
+                    },
+                    error: (error) => {
+                        console.error('Error creating product:', error);
+                        this.isSubmitting = false;
+                        alert('Une erreur est survenue lors de la création du produit. ' + (error.error?.message || ''));
+                    }
                 });
             }
         } else {

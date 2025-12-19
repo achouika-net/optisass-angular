@@ -318,7 +318,7 @@ export class FactureFormComponent implements OnInit {
         this.saveAsObservable().subscribe();
     }
 
-    saveAsObservable(showNotification = true): Observable<any> {
+    saveAsObservable(showNotification = true, extraProperties: any = null): Observable<any> {
         if (this.form.invalid) return new Observable(obs => obs.next(null));
 
         // Ensure nomenclature from input is in the form before saving
@@ -334,11 +334,19 @@ export class FactureFormComponent implements OnInit {
         const formData = this.form.getRawValue();
 
         // Extract paiements to avoid sending them to invoice update (handled separately)
-        // proprietes MUST be included now
+        // proprietes MUST be included now, merged with extraProperties
         const { paiements, ...restFormData } = formData;
 
-        const factureData = {
+        const mergedProprietes = {
+            ...(restFormData.proprietes || {}),
+            ...(extraProperties || {})
+        };
+
+        console.log('📝 FactureFormComponent.saveAsObservable - Merged Properties:', mergedProprietes);
+
+        const factureData: any = {
             ...restFormData,
+            proprietes: mergedProprietes,
             ficheId: this.ficheIdInput, // Include link to Fiche
             totalHT: this.totalHT,
             totalTVA: this.totalTVA,
@@ -425,8 +433,9 @@ export class FactureFormComponent implements OnInit {
             return;
         }
 
-        if (this.form.get('statut')?.value === 'BROUILLON') {
-            this.snackBar.open('La facture doit être validée avant paiement', 'Fermer', { duration: 3000 });
+        const currentStatut = this.form.get('statut')?.value;
+        if (currentStatut === 'BROUILLON') {
+            this.snackBar.open('La facture doit être validée ou au moins au stade de Devis avant paiement', 'Fermer', { duration: 3000 });
             return;
         }
 
@@ -486,14 +495,23 @@ export class FactureFormComponent implements OnInit {
     }
 
     updateStatutFromPayments() {
-        // Only auto-update if we are not explicitly VALIDE (unless fully paid)
+        // Only auto-update if we are not explicitly VALIDE or VENTE_EN_INSTANCE
         const currentStatut = this.form.get('statut')?.value;
+
+        // If it's a Devis, we don't use the standard invoice statuses (PARTIEL/PAYEE)
+        // unless it's just been validated.
+        if (this.form.get('type')?.value === 'DEVIS' && currentStatut !== 'VALIDE') {
+            // Keep current Devis status (DEVIS_EN_COURS, VENTE_EN_INSTANCE, etc.)
+            // But if we want to automatically mark as instance when paid?
+            // Usually we rely on the prompt in MontureForm.
+            return;
+        }
 
         if (this.resteAPayer <= 0 && this.totalTTC > 0) {
             this.form.patchValue({ statut: 'PAYEE' });
         } else if (this.montantPaye > 0) {
             // If user has manually set VALIDE, don't revert to PARTIEL
-            if (currentStatut !== 'VALIDE') {
+            if (currentStatut !== 'VALIDE' && currentStatut !== 'VENTE_EN_INSTANCE') {
                 this.form.patchValue({ statut: 'PARTIEL' });
             }
         }

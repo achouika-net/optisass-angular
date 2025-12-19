@@ -491,8 +491,9 @@
                     Annuler
                 </button>
                 <button mat-raised-button color="primary" type="submit" class="submit-btn"
-                    (click)="productForm.markAllAsTouched()">
-                    {{ isEditMode ? 'Mettre à jour' : 'Créer' }}
+                    [disabled]="productForm.invalid || isSubmitting" (click)="productForm.markAllAsTouched()">
+                    <mat-icon *ngIf="isSubmitting"><mat-spinner diameter="20"></mat-spinner></mat-icon>
+                    {{ isSubmitting ? 'Traitement...' : (isEditMode ? 'Mettre à jour' : 'Créer') }}
                 </button>
             </mat-card-actions>
         </mat-card>

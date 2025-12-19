@@ -15,11 +15,13 @@ import {
     TypeFiche
 } from '../models/fiche-client.model';
 
+import { API_URL } from '../../../config/api.config';
+
 @Injectable({
     providedIn: 'root'
 })
 export class FicheService {
-    private apiUrl = `${environment.apiUrl}/fiches`;
+    private apiUrl = `${API_URL}/fiches`;
 
     constructor(private http: HttpClient) { }
 

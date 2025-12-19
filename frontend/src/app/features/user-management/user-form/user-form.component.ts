@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormArray } from '@angular/forms';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
@@ -9,9 +9,14 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { MatRadioModule } from '@angular/material/radio';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 import { UserService } from '../services/user.service';
 import { User, UserStatus, UserRole, Civilite, CentreRole } from '../../../shared/interfaces/user.interface';
+import { CentersService } from '../../centers/services/centers.service';
+import { Centre, Entrepot } from '../../../shared/interfaces/warehouse.interface';
 
 @Component({
     selector: 'app-user-form',
@@ -26,7 +31,9 @@ import { User, UserStatus, UserRole, Civilite, CentreRole } from '../../../share
         MatButtonModule,
         MatIconModule,
         MatCardModule,
-        MatRadioModule
+        MatRadioModule,
+        MatSnackBarModule,
+        MatCheckboxModule
     ],
     templateUrl: './user-form.component.html',
     styleUrls: ['./user-form.component.scss']
@@ -46,19 +53,19 @@ export class UserFormComponent implements OnInit {
     userRoles = Object.values(UserRole);
     userStatuses = Object.values(UserStatus);
 
-    // Mock centers (should come from a CentreService in production)
-    centres = [
-        { id: 'c1', name: 'DOURDAN' },
-        { id: 'c2', name: 'ETAMPES' },
-        { id: 'c3', name: 'PARIS' },
-        { id: 'c4', name: 'LYON' }
-    ];
+    // Real centers from service
+    private centersService = inject(CentersService);
+    realCentres = toSignal(this.centersService.findAll(), { initialValue: [] as Centre[] });
+
+    // Computed to map backend structure if needed (but currently structures match roughly)
+    centres = computed(() => this.realCentres());
 
     constructor(
         private fb: FormBuilder,
         private userService: UserService,
         private router: Router,
-        private route: ActivatedRoute
+        private route: ActivatedRoute,
+        private snackBar: MatSnackBar
     ) {
         this.userForm = this.createForm();
     }
@@ -87,7 +94,7 @@ export class UserFormComponent implements OnInit {
             telephone: [''],
             email: ['', [Validators.required, Validators.email]],
             photoUrl: [''], // Photo URL
-            agrement: [''], // Optional
+            matricule: [''], // Formerly Agrement
             statut: [UserStatus.ACTIF, Validators.required],
             centreRoles: this.fb.array([])
         });
@@ -108,7 +115,9 @@ export class UserFormComponent implements OnInit {
             id: [centreRole?.id || ''],
             centreId: [centreRole?.centreId || '', Validators.required],
             centreName: [centreRole?.centreName || ''],
-            role: [centreRole?.role || UserRole.CENTRE, Validators.required]
+            role: [centreRole?.role || UserRole.CENTRE, Validators.required],
+            entrepotIds: [centreRole?.entrepotIds || []],
+            entrepotNames: [centreRole?.entrepotNames || []]
         });
     }
 
@@ -131,17 +140,29 @@ export class UserFormComponent implements OnInit {
      */
     onCentreChange(index: number): void {
         const centreId = this.centreRoles.at(index).get('centreId')?.value;
-        const centre = this.centres.find(c => c.id === centreId);
+        const centre = this.centres().find(c => c.id === centreId);
         if (centre) {
-            this.centreRoles.at(index).patchValue({ centreName: centre.name });
+            this.centreRoles.at(index).patchValue({
+                centreName: centre.nom,
+                entrepotIds: [] // Reset warehouses when center changes
+            });
         }
+    }
+
+    /**
+     * Get available warehouses for a specific row
+     */
+    getEntrepotsForCentre(index: number): Entrepot[] {
+        const centreId = this.centreRoles.at(index).get('centreId')?.value;
+        const centre = this.centres().find(c => c.id === centreId);
+        return centre?.entrepots || [];
     }
 
     /**
      * Load user data for editing
      */
     private loadUser(id: string): void {
-        this.userService.getUserById(id).subscribe(user => {
+        this.userService.getUserById(id).subscribe((user: User | undefined) => {
             if (user) {
                 this.userForm.patchValue({
                     nom: user.nom,
@@ -150,7 +171,7 @@ export class UserFormComponent implements OnInit {
                     telephone: user.telephone,
                     email: user.email,
                     photoUrl: user.photoUrl,
-                    agrement: user.agrement,
+                    matricule: user.matricule,
                     statut: user.statut
                 });
 
@@ -160,7 +181,7 @@ export class UserFormComponent implements OnInit {
                 }
 
                 // Load centre-roles
-                user.centreRoles.forEach(cr => {
+                user.centreRoles.forEach((cr: CentreRole) => {
                     this.centreRoles.push(this.createCentreRoleGroup(cr));
                 });
             }
@@ -168,22 +189,45 @@ export class UserFormComponent implements OnInit {
     }
 
     /**
+     * Toggle status selection (Actif/Inactif)
+     */
+    toggleStatus(status: string): void {
+        this.userForm.get('statut')?.setValue(status);
+    }
+
+    /**
+     * Check if a status is currently selected
+     */
+    isStatusSelected(status: string): boolean {
+        return this.userForm.get('statut')?.value === status;
+    }
+
+    /**
      * Save user (create or update)
      */
     onSubmit(): void {
-        if (this.userForm.valid) {
-            const userData = this.userForm.value;
-
-            if (this.isEditMode && this.userId) {
-                this.userService.updateUser(this.userId, userData).subscribe(() => {
-                    this.router.navigate(['/p/users']);
-                });
-            } else {
-                this.userService.createUser(userData).subscribe(() => {
-                    this.router.navigate(['/p/users']);
-                });
-            }
+        if (this.userForm.invalid) {
+            this.snackBar.open('Veuillez remplir tous les champs obligatoires', 'Fermer', { duration: 3000 });
+            this.userForm.markAllAsTouched();
+            return;
         }
+
+        const userData = this.userForm.value;
+
+        const action = this.isEditMode && this.userId
+            ? this.userService.updateUser(this.userId, userData)
+            : this.userService.createUser(userData);
+
+        action.subscribe({
+            next: () => {
+                this.snackBar.open('L\'utilisateur a été enregistré avec succès', 'OK', { duration: 3000 });
+                this.router.navigate(['/p/users']);
+            },
+            error: (err) => {
+                console.error('Error saving user:', err);
+                this.snackBar.open('Une erreur est survenue lors de l\'enregistrement', 'Fermer', { duration: 5000 });
+            }
+        });
     }
 
     /**
@@ -210,11 +254,17 @@ export class UserFormComponent implements OnInit {
 
             // Create preview
             const reader = new FileReader();
-            reader.onload = (e) => {
-                this.photoPreview = e.target?.result as string;
-                // In production, upload to server and get URL
-                // For now, store the base64 preview
-                this.userForm.patchValue({ photoUrl: this.photoPreview });
+            reader.onload = async (e) => {
+                const originalDataUrl = e.target?.result as string;
+                try {
+                    // Compress image before storing
+                    this.photoPreview = await this.compressImage(originalDataUrl);
+                    this.userForm.patchValue({ photoUrl: this.photoPreview });
+                } catch (error) {
+                    console.error('Compression error:', error);
+                    this.photoPreview = originalDataUrl;
+                    this.userForm.patchValue({ photoUrl: this.photoPreview });
+                }
             };
             reader.readAsDataURL(file);
         }
@@ -278,18 +328,27 @@ export class UserFormComponent implements OnInit {
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
                 // Convert canvas to blob
-                canvas.toBlob((blob) => {
+                canvas.toBlob(async (blob) => {
                     if (blob) {
                         // Create preview
                         const reader = new FileReader();
-                        reader.onload = (e) => {
-                            this.photoPreview = e.target?.result as string;
-                            this.userForm.patchValue({ photoUrl: this.photoPreview });
-                            this.closeCamera();
+                        reader.onload = async (e) => {
+                            const originalDataUrl = e.target?.result as string;
+                            try {
+                                // Compress image
+                                this.photoPreview = await this.compressImage(originalDataUrl);
+                                this.userForm.patchValue({ photoUrl: this.photoPreview });
+                                this.closeCamera();
+                            } catch (err) {
+                                console.error('Compression error:', err);
+                                this.photoPreview = originalDataUrl;
+                                this.userForm.patchValue({ photoUrl: this.photoPreview });
+                                this.closeCamera();
+                            }
                         };
                         reader.readAsDataURL(blob);
 
-                        // Store as file
+                        // Store as file (we could store the compressed blob here too if needed)
                         this.selectedPhoto = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
                     }
                 }, 'image/jpeg', 0.9);
@@ -308,6 +367,47 @@ export class UserFormComponent implements OnInit {
             video.srcObject = null;
         }
         this.showCamera = false;
+    }
+
+    /**
+     * Compress an image to a maximum dimension and quality
+     */
+    private compressImage(dataUrl: string, maxWidth: number = 400, quality: number = 0.7): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                // Calculate new dimensions
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height *= maxWidth / width;
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxWidth) {
+                        width *= maxWidth / height;
+                        height = maxWidth;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    reject(new Error('Could not get canvas context'));
+                    return;
+                }
+
+                ctx.drawImage(img, 0, 0, width, height);
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(compressedDataUrl);
+            };
+            img.onerror = (e) => reject(e);
+            img.src = dataUrl;
+        });
     }
 
     /**

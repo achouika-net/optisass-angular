@@ -54,5 +54,5 @@ export const SetCurrentCenter = createAction(
 );
 export const GetUserOptions = createAction(
   '[Auth] Get User Options',
-  props<{ userId: number; triggerNavigation?: boolean }>()
+  props<{ userId: string; triggerNavigation?: boolean }>()
 );

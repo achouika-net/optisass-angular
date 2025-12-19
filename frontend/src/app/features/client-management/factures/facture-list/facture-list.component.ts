@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatTabsModule } from '@angular/material/tabs';
 import { HttpClient } from '@angular/common/http';
 import { FactureService } from '../../services/facture.service';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -26,15 +27,17 @@ import { Router } from '@angular/router';
         MatChipsModule,
         MatMenuModule,
         MatDividerModule,
-        MatSnackBarModule
+        MatSnackBarModule,
+        MatTabsModule
     ],
     templateUrl: './facture-list.component.html',
     styleUrls: ['./facture-list.component.scss']
 })
 export class FactureListComponent implements OnInit {
     @Input() clientId: string | null = null;
-    displayedColumns: string[] = ['numero', 'type', 'dateEmission', 'client', 'statut', 'totalTTC', 'actions'];
-    dataSource: any[] = []; // Replace with Invoice interface
+    dataSource: any[] = [];
+    filteredDataSource: any[] = [];
+    activeReportTab = 'VALIDATED';
 
     constructor(
         private factureService: FactureService,
@@ -70,17 +73,48 @@ export class FactureListComponent implements OnInit {
     }
 
     loadFactures() {
-        if (this.clientId) {
-            this.factureService.findAll({ clientId: this.clientId }).subscribe({
-                next: (data: any[]) => this.dataSource = data.filter(f => f.type !== 'AVOIR'), // User req: Hide AVOIRs
-                error: (err: any) => console.error('Error loading factures', err)
-            });
-        } else {
-            this.factureService.findAll().subscribe({
-                next: (data: any[]) => this.dataSource = data.filter(f => f.type !== 'AVOIR'),
-                error: (err: any) => console.error('Error loading factures', err)
-            });
+        const filters: any = {};
+        if (this.clientId) filters.clientId = this.clientId;
+
+        this.factureService.findAll(filters).subscribe({
+            next: (data: any[]) => {
+                this.dataSource = data.filter(f => f.type !== 'AVOIR');
+                this.applyFilter();
+            },
+            error: (err: any) => console.error('Error loading factures', err)
+        });
+    }
+
+    applyFilter() {
+        switch (this.activeReportTab) {
+            case 'DEVIS_SANS_PAIEMENT':
+                this.filteredDataSource = this.dataSource.filter(f =>
+                    f.type === 'DEVIS' &&
+                    (f.statut === 'DEVIS_SANS_PAIEMENT' || f.statut === 'DEVIS_EN_COURS' || f.statut === 'BROUILLON') &&
+                    (!f.paiements || f.paiements.length === 0)
+                );
+                break;
+            case 'VENTE_EN_INSTANCE':
+                this.filteredDataSource = this.dataSource.filter(f =>
+                    f.statut === 'VENTE_EN_INSTANCE' ||
+                    (f.type === 'DEVIS' && f.paiements && f.paiements.length > 0)
+                );
+                break;
+            case 'VALIDATED':
+                this.filteredDataSource = this.dataSource.filter(f =>
+                    f.type === 'FACTURE' &&
+                    (f.statut === 'VALIDE' || f.statut === 'PAYEE' || f.statut === 'PARTIEL')
+                );
+                break;
+            default:
+                this.filteredDataSource = this.dataSource;
         }
+    }
+
+    onTabChange(event: any) {
+        const tabs = ['VALIDATED', 'VENTE_EN_INSTANCE', 'DEVIS_SANS_PAIEMENT'];
+        this.activeReportTab = tabs[event.index];
+        this.applyFilter();
     }
 
     deleteFacture(facture: any) {
@@ -114,9 +148,14 @@ export class FactureListComponent implements OnInit {
         switch (statut) {
             case 'PAYEE': return 'primary';
             case 'BROUILLON': return 'warn';
+            case 'VALIDE':
             case 'VALIDEE': return 'accent';
             case 'ANNULEE': return 'warn';
             case 'PARTIEL': return 'accent';
+            case 'DEVIS_EN_COURS': return 'default';
+            case 'DEVIS_SANS_PAIEMENT': return 'warn';
+            case 'VENTE_EN_INSTANCE': return 'accent';
+            case 'ARCHIVE': return 'warn';
             default: return 'default';
         }
     }

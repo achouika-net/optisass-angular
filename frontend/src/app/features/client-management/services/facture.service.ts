@@ -11,13 +11,15 @@ export interface LigneFacture {
     totalTTC: number;
 }
 
+export type FactureStatus = 'BROUILLON' | 'VALIDE' | 'PAYEE' | 'ANNULEE' | 'PARTIEL' | 'DEVIS_EN_COURS' | 'DEVIS_SANS_PAIEMENT' | 'VENTE_EN_INSTANCE' | 'ARCHIVE';
+
 export interface Facture {
     id: string;
     numero: string;
     type: 'FACTURE' | 'DEVIS' | 'AVOIR' | 'BL';
     dateEmission: Date;
     dateEcheance?: Date;
-    statut: 'BROUILLON' | 'VALIDE' | 'PAYEE' | 'ANNULEE' | 'PARTIEL';
+    statut: FactureStatus;
     clientId: string;
     ficheId?: string;
     totalHT: number;
@@ -34,11 +36,13 @@ export interface Facture {
     client?: any;
 }
 
+import { API_URL } from '../../../config/api.config';
+
 @Injectable({
     providedIn: 'root'
 })
 export class FactureService {
-    private apiUrl = `${environment.apiUrl}/factures`;
+    private apiUrl = `${API_URL}/factures`;
 
     constructor(private http: HttpClient) { }
 

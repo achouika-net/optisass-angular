@@ -2,12 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Centre } from '../../../shared/interfaces/warehouse.interface';
+import { API_URL } from '../../../config/api.config';
 
 @Injectable({
     providedIn: 'root'
 })
 export class CentersService {
-    private apiUrl = 'http://localhost:3000/centers';
+    private apiUrl = `${API_URL}/centers`;
 
     constructor(private http: HttpClient) { }
 

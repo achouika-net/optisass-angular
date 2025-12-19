@@ -40,7 +40,7 @@ import { User, UserFilters, UserStatus, UserRole } from '../../../shared/interfa
     styleUrls: ['./user-list.component.scss']
 })
 export class UserListComponent implements OnInit {
-    displayedColumns: string[] = ['nom', 'prenom', 'email', 'agrement', 'role', 'statut', 'actions'];
+    displayedColumns: string[] = ['nom', 'prenom', 'email', 'matricule', 'role', 'statut', 'actions'];
     dataSource: MatTableDataSource<User>;
 
     @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -76,7 +76,7 @@ export class UserListComponent implements OnInit {
      * Load users from service
      */
     loadUsers(): void {
-        this.userService.getUsers(this.filter).subscribe(users => {
+        this.userService.getUsers(this.filter).subscribe((users: User[]) => {
             this.dataSource.data = users;
         });
     }

@@ -3,13 +3,13 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of, throwError } from 'rxjs';
 import { delay, map, switchMap } from 'rxjs/operators';
 import { Client, ClientCreate, TypeClient, TitreClient, StatutClient, TypePieceIdentite, TypeCouverture, CorrectionVisuelle, DureePort, ClientParticulier, ClientProfessionnel } from '../models/client.model';
-import { environment } from 'environments/environment';
+import { API_URL } from '@app/config';
 
 @Injectable({
     providedIn: 'root'
 })
-export class ClientService {
-    private apiUrl = `${environment.apiUrl}/clients`;
+export class ClientManagementService {
+    private apiUrl = `${API_URL}/clients`;
 
     constructor(private http: HttpClient) { }
 

@@ -204,6 +204,10 @@
                             <div class="eye-header">
                                 <span class="eye-badge">OD</span>
                                 <h3>Lentille Droite</h3>
+                                <button type="button" class="btn-stock-search-mini" (click)="openStockSearch('od')"
+                                    *ngIf="isEditMode">
+                                    <mat-icon>inventory_2</mat-icon> Stock
+                                </button>
                             </div>
                             <mat-card-content>
                                 <div class="grid-2">
@@ -249,6 +253,10 @@
                             <div class="eye-header">
                                 <span class="eye-badge">OG</span>
                                 <h3>Lentille Gauche</h3>
+                                <button type="button" class="btn-stock-search-mini" (click)="openStockSearch('og')"
+                                    *ngIf="isEditMode">
+                                    <mat-icon>inventory_2</mat-icon> Stock
+                                </button>
                             </div>
                             <mat-card-content>
                                 <div class="grid-2">
@@ -530,7 +538,8 @@
                     Paiements
                 </ng-template>
                 <div class="tab-content" style="padding: 24px;">
-                    <app-payment-list [clientId]="clientId" [ficheId]="ficheId"></app-payment-list>
+                    <app-payment-list [clientId]="clientId" [ficheId]="ficheId"
+                        (paymentAdded)="onPaymentAdded()"></app-payment-list>
                 </div>
             </mat-tab>
 

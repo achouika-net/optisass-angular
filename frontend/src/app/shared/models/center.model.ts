@@ -7,11 +7,11 @@ export interface ICenter {
   center_type_id: number;
   city: string;
   email: string;
-  group_id: number;
-  id: number;
+  group_id: string;
+  id: string;
   migrated: boolean;
   name: string;
-  numero_affaire: number;
+  numero_affaire: string;
   phone: string;
   zipcode: string;
   role_id: UserRole;

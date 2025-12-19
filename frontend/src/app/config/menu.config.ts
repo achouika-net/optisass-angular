@@ -45,10 +45,10 @@ export const MENU: MenuItem[] = [
         route: 'stock',
       },
       {
-        label: 'Groupes & Entrepôts',
-        icon: 'warehouse',
+        label: 'Contrôle des Ventes',
+        icon: 'policy',
         type: 'subchild',
-        route: 'groups',
+        route: 'reports/sales-control',
       },
       {
         label: 'Catégories',
@@ -83,13 +83,6 @@ export const MENU: MenuItem[] = [
     type: 'link',
     route: 'historique',
     roles: [4, 3, 2],
-  },
-  {
-    label: 'Contrôle des Ventes',
-    icon: 'policy',
-    type: 'link',
-    route: 'reports/sales-control',
-    // roles: [4, 3], // Admin & Manager
   },
   {
     label: 'Agendas',
@@ -163,6 +156,12 @@ export const MENU: MenuItem[] = [
         icon: 'people',
         type: 'subchild',
         route: 'users',
+      },
+      {
+        label: 'Groupes & Entrepôts',
+        icon: 'warehouse',
+        type: 'subchild',
+        route: 'groups',
       },
       {
         label: 'Agenda contrôleur',

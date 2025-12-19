@@ -808,6 +808,54 @@
     }
 }
 
+.btn-stock-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+        background: #dcfce7;
+        border-color: #86efac;
+    }
+
+    mat-icon {
+        color: #22c55e;
+    }
+}
+
+.btn-stock-search-mini {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+        background: #dcfce7;
+        border-color: #86efac;
+    }
+
+    mat-icon {
+        font-size: 16px;
+        color: #22c55e;
+    }
+}
+
 // Input with Button
 .input-with-button {
     display: flex;

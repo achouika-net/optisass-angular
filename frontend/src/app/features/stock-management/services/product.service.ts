@@ -4,11 +4,13 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { Product, ProductFilters, StockStats } from '../../../shared/interfaces/product.interface';
 
+import { API_URL } from '../../../config/api.config';
+
 @Injectable({
     providedIn: 'root'
 })
 export class ProductService {
-    private apiUrl = `${environment.apiUrl}/products`;
+    private apiUrl = `${API_URL}/products`;
 
     constructor(private http: HttpClient) { }
 
@@ -95,19 +97,7 @@ export class ProductService {
     // Better to have stats endpoint. For now, let's keep them as minimal or client-side calc on small datasets.
 
     getStockStats(): Observable<StockStats> {
-        // Placeholder or call a dedicated stats endpoint if created
-        // For MVP integration, we might skip this or implement a simple backend endpoint later.
-        // Returning 'of' empty stats for safety if called
-        return new Observable(observer => {
-            observer.next({
-                totalProduits: 0,
-                valeurStockTotal: 0,
-                produitsStockBas: 0,
-                produitsRupture: 0,
-                byType: { montures: 0, verres: 0, lentilles: 0, accessoires: 0 }
-            });
-            observer.complete();
-        });
+        return this.http.get<StockStats>(`${this.apiUrl}/stats`);
     }
 
     // Search methods would be API calls with query params

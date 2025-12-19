@@ -17,7 +17,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatDialog } from '@angular/material/dialog';
 import { debounceTime, distinctUntilChanged, filter, switchMap } from 'rxjs/operators';
 import { FamilyCheckDialogComponent, FamilyCheckDialogResult } from '../components/family-check-dialog/family-check-dialog.component';
-import { ClientService } from '../services/client.service';
+import { ClientManagementService } from '../services/client.service';
 import {
   TypeClient,
   TitreClient,
@@ -99,7 +99,7 @@ export class ClientFormComponent implements OnInit {
 
   constructor(
     private fb: FormBuilder,
-    private clientService: ClientService,
+    private clientService: ClientManagementService,
     private router: Router,
     private route: ActivatedRoute,
     private dialog: MatDialog

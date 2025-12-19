@@ -99,7 +99,7 @@ export class InvoiceSelectionDialogComponent implements OnInit {
 
   constructor(
     private dialogRef: MatDialogRef<InvoiceSelectionDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: { clientId: string },
+    @Inject(MAT_DIALOG_DATA) public data: { clientId: string, ficheId?: string },
     private factureService: FactureService,
     private cdr: ChangeDetectorRef
   ) { }
@@ -111,54 +111,54 @@ export class InvoiceSelectionDialogComponent implements OnInit {
 
   loadInvoices() {
     this.loading = true;
-    console.log('Starting invoice load...');
+    console.log('Starting invoice load context:', this.data.ficheId ? 'Fiche ' + this.data.ficheId : 'Global');
 
     const failsafeTimeout = setTimeout(() => {
-      console.error('FAILSAFE TIMEOUT TRIGGERED - Force stopping loader');
+      console.log('failsafe stop');
       this.loading = false;
-      if (this.invoices.length === 0) {
-        this.message = 'Délai d\'attente dépassé. Le serveur ne répond pas.';
-      }
       this.cdr.detectChanges();
     }, 5000);
 
     this.factureService.findAll({
-      clientId: this.data.clientId,
-      // Fetch all types (we filter client-side for DEVIS and FACTURE)
-      // @ts-ignore
-      _cb: new Date().getTime() // Cache buster
+      clientId: this.data.clientId
     }).pipe(
-      timeout(10000),
       finalize(() => {
-        console.log('Finalize called - stopping loader');
         clearTimeout(failsafeTimeout);
         this.loading = false;
         this.cdr.detectChanges();
       })
     ).subscribe({
       next: (data: Facture[]) => {
-        console.log('Invoices loaded:', data.length);
-        clearTimeout(failsafeTimeout);
-        // show DEVIS (Drafts) and FACTURE (Valid/Partial/Payee for Avoir)
-        this.invoices = data.filter(f =>
-          // Type Check
-          (f.type === 'FACTURE' || f.type === 'DEVIS') &&
-          // Status Check (Must be payable OR refundable)
-          (f.statut === 'VALIDE' || f.statut === 'PARTIEL' || f.statut === 'BROUILLON' || f.statut === 'PAYEE')
+        // Filter: We want documents with debt.
+        // Statut: VALIDE, PARTIEL, BROUILLON (for direct pay), VENTE_EN_INSTANCE (for instance sales), ARCHIVE
+        const allPayables = data.filter(f =>
+          (f.resteAPayer || 0) > 0 &&
+          (f.statut === 'VALIDE' || f.statut === 'PARTIEL' || f.statut === 'VENTE_EN_INSTANCE' || f.statut === 'BROUILLON' || f.statut === 'ARCHIVE')
         );
 
+        // If ficheId is provided, focus ONLY on that fiche's documents
+        if (this.data.ficheId) {
+          this.invoices = allPayables.filter(f => f.ficheId === this.data.ficheId);
+
+          // UX optimization: If there's exactly one payable for this fiche, auto-select it!
+          if (this.invoices.length === 1) {
+            console.log('Auto-selecting unique invoice for fiche:', this.invoices[0].numero);
+            this.select(this.invoices[0]);
+            return;
+          }
+        } else {
+          this.invoices = allPayables;
+        }
+
         if (this.invoices.length === 0) {
-          this.message = 'Aucune facture, devis ou document disponible.';
+          this.message = this.data.ficheId
+            ? 'Aucune dette trouvée pour ce dossier.'
+            : 'Aucune facture ou vente en instance avec un reste à payer.';
         }
       },
       error: (err) => {
         console.error('Error loading invoices', err);
-        clearTimeout(failsafeTimeout);
-        if (err.name === 'TimeoutError') {
-          this.message = 'Le serveur ne répond pas (Délai d\'attente dépassé). Veuillez réessayer.';
-        } else {
-          this.message = 'Erreur lors du chargement des factures. Vérifiez que le serveur est démarré.';
-        }
+        this.message = 'Erreur lors du chargement des factures.';
       }
     });
   }

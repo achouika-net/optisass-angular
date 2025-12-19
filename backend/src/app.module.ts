@@ -11,6 +11,7 @@ import { GroupsModule } from './features/groups/groups.module';
 import { CentersModule } from './features/centers/centers.module';
 import { WarehousesModule } from './features/warehouses/warehouses.module';
 import { StockMovementsModule } from './features/stock-movements/stock-movements.module';
+import { UsersModule } from './features/users/users.module';
 
 import { ProductsModule } from './features/products/products.module';
 import { ConfigModule } from '@nestjs/config';
@@ -29,8 +30,9 @@ import { PrismaService } from './prisma/prisma.service';
     PaiementsModule,
     FichesModule,
     SalesControlModule,
+    UsersModule,
   ],
   controllers: [],
-  providers: [PrismaService],
+  providers: [],
 })
 export class AppModule { }

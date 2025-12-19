@@ -158,10 +158,23 @@ export class AuthEffects {
       withLatestFrom(this.#store.select(UserSelector)),
       map(([action, user]) =>
         GetUserOptions({
-          userId: user.id,
+          userId: user?.id,
           triggerNavigation: action.isManualChange || false,
         })
       )
     )
+  );
+
+  getUserOptions$ = createEffect(
+    () =>
+      this.#actions$.pipe(
+        ofType(GetUserOptions),
+        tap((action) => {
+          if (action.triggerNavigation) {
+            window.location.reload();
+          }
+        })
+      ),
+    { dispatch: false }
   );
 }

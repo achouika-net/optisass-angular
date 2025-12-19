@@ -56,6 +56,9 @@ model Client {
   // Relations
   fiches             Fiche[]
   factures           Facture[]
+  
+  centreId           String?
+  centre             Centre?    @relation(fields: [centreId], references: [id])
 }
 
 model Fiche {
@@ -111,6 +114,9 @@ model Facture {
   
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
+  
+  centreId       String?
+  centre         Centre?    @relation(fields: [centreId], references: [id])
 }
 
 model Paiement {
@@ -169,6 +175,8 @@ model Centre {
   groupeId    String
   groupe      Groupe     @relation(fields: [groupeId], references: [id], onDelete: Cascade)
   entrepots   Entrepot[]
+  clients     Client[]
+  factures    Facture[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -284,3 +292,34 @@ model MouvementStock {
   updatedAt   DateTime @updatedAt
 }
 
+model User {
+  id           String           @id @default(uuid())
+  nom          String
+  prenom       String
+  civilite     String           // 'M', 'Mme', 'Mlle'
+  telephone    String?
+  email        String           @unique
+  photoUrl     String?
+  matricule    String?
+  statut       String           @default("actif") // 'actif', 'inactif'
+  
+  centreRoles  UserCentreRole[]
+
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model UserCentreRole {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  centreId      String
+  centreName    String   // Redundant but helpful for queries or if labels change
+  role          String   // 'Centre', 'Gérant', 'Comptable', etc.
+  
+  entrepotIds   String[] // Array of warehouse IDs this user can access in this center
+  entrepotNames String[] // Optional: for easier display
+
+  @@unique([userId, centreId])
+}

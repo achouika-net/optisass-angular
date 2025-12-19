@@ -13,7 +13,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatRadioModule } from '@angular/material/radio';
 import { FormsModule } from '@angular/forms';
-import { ClientService } from '../services/client.service';
+import { ClientManagementService } from '../services/client.service';
 import { FicheService } from '../services/fiche.service';
 import { FactureService } from '../services/facture.service';
 import { Client, TypeClient, ClientParticulier, ClientProfessionnel, ClientAnonyme, StatutClient, isClientParticulier, isClientProfessionnel } from '../models/client.model';
@@ -92,7 +92,7 @@ export class ClientDetailComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private clientService: ClientService,
+    private clientService: ClientManagementService,
     private ficheService: FicheService,
     private factureService: FactureService,
     private cdr: ChangeDetectorRef
@@ -157,8 +157,22 @@ export class ClientDetailComponent implements OnInit {
         // Filter out cancelled invoices
         const activeFactures = factures.filter(f => f.statut !== 'ANNULEE');
 
-        const ca = activeFactures.reduce((sum, f) => sum + f.totalTTC, 0);
-        const reste = activeFactures.reduce((sum, f) => sum + f.resteAPayer, 0);
+        // CA: Include FACTURE, VENTE_EN_INSTANCE and ARCHIVE (which are considered sales or potential debts)
+        const ca = activeFactures.reduce((sum, f) => {
+          if (f.type === 'FACTURE' || (f.type === 'DEVIS' && (f.statut === 'VENTE_EN_INSTANCE' || f.statut === 'ARCHIVE'))) {
+            return sum + f.totalTTC;
+          }
+          return sum;
+        }, 0);
+
+        // Reste: Only sum debt for FACTURE, VENTE_EN_INSTANCE and ARCHIVE
+        const reste = activeFactures.reduce((sum, f) => {
+          if (f.type === 'FACTURE' || (f.type === 'DEVIS' && (f.statut === 'VENTE_EN_INSTANCE' || f.statut === 'ARCHIVE'))) {
+            return sum + (f.resteAPayer || 0);
+          }
+          return sum;
+        }, 0);
+
         const paiements = ca - reste;
 
         this.clientStats.set({

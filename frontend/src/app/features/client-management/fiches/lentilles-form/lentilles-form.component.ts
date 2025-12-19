@@ -16,13 +16,17 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { FicheService } from '../../services/fiche.service';
-import { ClientService } from '../../services/client.service';
+import { ClientManagementService } from '../../services/client.service';
 import { FactureService } from '../../services/facture.service';
 import { FicheLentillesCreate, TypeFiche, StatutFiche } from '../../models/fiche-client.model';
 import { Client, ClientParticulier, ClientProfessionnel, isClientParticulier, isClientProfessionnel } from '../../models/client.model';
 import { ContactLensType, ContactLensUsage } from '../../../../shared/interfaces/product.interface';
 import { FactureFormComponent } from '../../factures/facture-form/facture-form.component';
 import { PaymentListComponent } from '../../payments/payment-list/payment-list.component';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { firstValueFrom } from 'rxjs';
+import { StockSearchDialogComponent } from '../../../stock-management/components/stock-search-dialog/stock-search-dialog.component';
 
 @Component({
     selector: 'app-lentilles-form',
@@ -46,7 +50,8 @@ import { PaymentListComponent } from '../../payments/payment-list/payment-list.c
         RouterModule,
         AdaptationModerneComponent,
         FactureFormComponent,
-        PaymentListComponent
+        PaymentListComponent,
+        MatDialogModule
     ],
     templateUrl: './lentilles-form.component.html',
     styleUrls: ['./lentilles-form.component.scss'],
@@ -73,8 +78,10 @@ export class LentillesFormComponent implements OnInit {
         private route: ActivatedRoute,
         private router: Router,
         private ficheService: FicheService,
-        private clientService: ClientService,
+        private clientService: ClientManagementService,
         private factureService: FactureService,
+        private dialog: MatDialog,
+        private snackBar: MatSnackBar,
         private cdr: ChangeDetectorRef
     ) {
         this.ficheForm = this.initForm();
@@ -145,15 +152,13 @@ export class LentillesFormComponent implements OnInit {
                 usage: [ContactLensUsage.MYOPIE, Validators.required],
                 diffLentilles: [false],
                 od: this.fb.group({
-                    marque: ['', Validators.required],
-                    modele: [''],
-                    rayon: ['', Validators.required],
-                    diametre: ['', Validators.required],
-                    sphere: [''],
-                    cylindre: [''],
                     axe: [''],
                     addition: [''],
-                    prix: [0]
+                    prix: [0],
+                    productId: [null],
+                    entrepotId: [null],
+                    entrepotType: [null],
+                    entrepotNom: [null]
                 }),
                 og: this.fb.group({
                     marque: ['', Validators.required],
@@ -164,7 +169,11 @@ export class LentillesFormComponent implements OnInit {
                     cylindre: [''],
                     axe: [''],
                     addition: [''],
-                    prix: [0]
+                    prix: [0],
+                    productId: [null],
+                    entrepotId: [null],
+                    entrepotType: [null],
+                    entrepotNom: [null]
                 })
             }),
 
@@ -293,10 +302,14 @@ export class LentillesFormComponent implements OnInit {
         if (lentilles.od && lentilles.od.marque) {
             lines.push({
                 description: `Lentille OD: ${lentilles.od.marque} ${lentilles.od.modele || ''} - ${lentilles.type}`,
-                qte: 1, // Or pack size default
+                qte: 1,
                 prixUnitaireTTC: lentilles.od.prix || 0,
                 remise: 0,
-                totalTTC: lentilles.od.prix || 0
+                totalTTC: lentilles.od.prix || 0,
+                productId: lentilles.od.productId || null,
+                entrepotId: lentilles.od.entrepotId || null,
+                entrepotType: lentilles.od.entrepotType || null,
+                entrepotNom: lentilles.od.entrepotNom || null
             });
         }
 
@@ -307,17 +320,23 @@ export class LentillesFormComponent implements OnInit {
                 qte: 1,
                 prixUnitaireTTC: lentilles.og.prix || 0,
                 remise: 0,
-                totalTTC: lentilles.og.prix || 0
+                totalTTC: lentilles.og.prix || 0,
+                productId: lentilles.og.productId || null,
+                entrepotId: lentilles.og.entrepotId || null,
+                entrepotType: lentilles.og.entrepotType || null,
+                entrepotNom: lentilles.og.entrepotNom || null
             });
         } else if (!this.diffLentilles && lentilles.od && lentilles.od.marque) {
-            // Same lens twice or pack of 2? Usually sell boxes.
-            // Assuming 1 box per eye for now or 2 boxes identical
             lines.push({
                 description: `Lentille OG: ${lentilles.od.marque} ${lentilles.od.modele || ''} - ${lentilles.type}`,
                 qte: 1,
                 prixUnitaireTTC: lentilles.od.prix || 0,
                 remise: 0,
-                totalTTC: lentilles.od.prix || 0
+                totalTTC: lentilles.od.prix || 0,
+                productId: lentilles.od.productId || null,
+                entrepotId: lentilles.od.entrepotId || null,
+                entrepotType: lentilles.od.entrepotType || null,
+                entrepotNom: lentilles.od.entrepotNom || null
             });
         }
 
@@ -344,6 +363,163 @@ export class LentillesFormComponent implements OnInit {
         this.router.navigate(['/p/clients', this.clientId]);
     }
 
+    // --- Stock Search ---
+    openStockSearch(target: 'od' | 'og') {
+        const dialogRef = this.dialog.open(StockSearchDialogComponent, {
+            width: '1000px',
+            maxWidth: '100vw',
+            data: {
+                type: 'LENTILLE',
+                hidePrices: false
+            }
+        });
+
+        dialogRef.afterClosed().subscribe(product => {
+            if (product) {
+                this.fillProductDetails(product, target);
+            }
+        });
+    }
+
+    fillProductDetails(product: any, target: 'od' | 'og') {
+        const group = this.lentillesGroup.get(target) as FormGroup;
+        if (!group) return;
+
+        // Map product specificData to form
+        const spec = product.specificData || {};
+
+        group.patchValue({
+            marque: product.marque || '',
+            modele: product.modele || (product.modeleCommercial || ''),
+            rayon: spec.rayonCourbure || '',
+            diametre: spec.diametre || '',
+            sphere: spec.puissanceSph || '',
+            cylindre: spec.puissanceCyl || '',
+            axe: spec.axe || '',
+            addition: spec.addition || '',
+            prix: product.prixVenteTTC || 0,
+            productId: product.id,
+            entrepotId: product.entrepotId,
+            entrepotType: product.entrepot?.type || null,
+            entrepotNom: product.entrepot?.nom || null
+        });
+
+        this.ficheForm.markAsDirty();
+        this.cdr.markForCheck();
+    }
+
+    async onPaymentAdded() {
+        console.log('💰 [EVENT] Payment Added - Checking for archiving decision...');
+
+        // 1. Detect if we have any valid products with stock
+        const invoiceLines = this.initialInvoiceLines;
+        const productsWithStock = invoiceLines.filter(l => l.productId && l.entrepotId);
+
+        if (productsWithStock.length === 0) {
+            console.log('ℹ️ No products with stock detected. No special alert needed.');
+            return;
+        }
+
+        const warehouses = [...new Set(productsWithStock.map(p => p.entrepotNom || p.entrepotType))].join(' / ');
+        const message = `Vente effectuée depuis l'entrepôt : ${warehouses}.\n\nSouhaitez-vous VALIDER la vente ou la LAISSER EN INSTANCE ?`;
+
+        const choice = confirm(`${message}\n\nOK = Valider\nAnnuler = En Instance`);
+
+        if (choice) {
+            try {
+                this.loading = true;
+                const factures = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId || '' }));
+                const currentFacture = factures.find(f => f.ficheId === this.ficheId);
+
+                if (currentFacture) {
+                    console.log('📄 Converting Devis to official Facture:', currentFacture.numero);
+                    const lines = this.initialInvoiceLines;
+                    const total = lines.reduce((acc, l) => acc + l.totalTTC, 0);
+                    const tvaRate = 0.20;
+                    const totalHT = total / (1 + tvaRate);
+                    const tva = total - totalHT;
+
+                    const updateData: any = {
+                        type: 'FACTURE',
+                        statut: 'VALIDE',
+                        lignes: lines,
+                        totalTTC: total,
+                        totalHT: totalHT,
+                        totalTVA: tva,
+                        resteAPayer: Math.max(0, total - (currentFacture.totalTTC - currentFacture.resteAPayer)),
+                        proprietes: {
+                            ...(currentFacture.proprietes || {}),
+                            nomenclature: this.nomenclatureString || '',
+                            validatedAt: new Date()
+                        }
+                    };
+
+                    this.factureService.update(currentFacture.id, updateData).subscribe({
+                        next: (res) => {
+                            this.loading = false;
+                            this.snackBar.open('Vente validée et facture générée avec succès', 'Fermer', { duration: 5000 });
+                            this.onInvoiceSaved(res);
+                        },
+                        error: (err) => {
+                            this.loading = false;
+                            console.error('❌ Error validating sale:', err);
+                            alert("Erreur lors de la validation: " + (err.message || 'Erreur inconnue'));
+                        }
+                    });
+                } else {
+                    console.warn('⚠️ No associated quote found to validate.');
+                    this.loading = false;
+                }
+            } catch (e) {
+                console.error('Error fetching invoices for validation:', e);
+                this.loading = false;
+            }
+        } else {
+            // User might want to archive later or manually. 
+            // In MontureForm we call archiveFicheFacture(currentFacture) if they say "Archive"
+            // But here the confirm is "Validate" or "Stay as Devis".
+            // If they want to archive, they usually do it via a separate button or naturally.
+        }
+    }
+
+    archiveFicheFacture(facture: any) {
+        console.log('📦 Archiving Devis and Decrementing Stock for:', facture.numero);
+        this.loading = true;
+
+        const lines = this.initialInvoiceLines;
+        const total = lines.reduce((acc, l) => acc + l.totalTTC, 0);
+        const tvaRate = 0.20;
+        const totalHT = total / (1 + tvaRate);
+        const tva = total - totalHT;
+
+        const updateData: any = {
+            statut: 'ARCHIVE',
+            lignes: lines,
+            totalTTC: total,
+            totalHT: totalHT,
+            totalTVA: tva,
+            proprietes: {
+                ...(facture.proprietes || {}),
+                nomenclature: this.nomenclatureString || '',
+                forceStockDecrement: true,
+                instancedAt: new Date()
+            }
+        };
+
+        this.factureService.update(facture.id, updateData as any).subscribe({
+            next: (res) => {
+                this.loading = false;
+                this.snackBar.open('Vente mise en instance et stock décrémenté', 'Fermer', { duration: 5000 });
+                this.onInvoiceSaved(res);
+            },
+            error: (err) => {
+                this.loading = false;
+                console.error('Error archiving quote:', err);
+                alert("Erreur lors de l'archivage: " + (err.message || 'Erreur inconnue'));
+            }
+        });
+    }
+
     // --- Submit ---
     onSubmit(): void {
         if (this.ficheForm.invalid) {
@@ -361,11 +537,10 @@ export class LentillesFormComponent implements OnInit {
 
         const payload: any = {
             clientId: this.clientId,
-            type: TypeFiche.LENTILLES,
-            statut: formValue.suiviCommande.statut === 'LIVRE_CLIENT' ? StatutFiche.LIVRE :
-                formValue.suiviCommande.statut === 'COMMANDE' ? StatutFiche.COMMANDE : StatutFiche.EN_COURS,
+            type: 'DEVIS', // Always starts as DEVIS
+            statut: 'DEVIS_EN_COURS', // Always starts as DEVIS_EN_COURS
             montantTotal: total,
-            montantPaye: 0, // Should be calculated linked
+            montantPaye: 0,
             prescription: formValue.ordonnance,
             lentilles: formValue.lentilles,
             adaptation: formValue.adaptation,

@@ -1,7 +1,7 @@
 import { ICenter } from './center.model';
 
 export interface ICurrentUser {
-  id: number;
+  id: string;
   first_name: string;
   last_name: string;
   address: string;
@@ -14,7 +14,7 @@ export interface ICurrentUser {
 }
 
 export class CurrentUser implements ICurrentUser {
-  id: number;
+  id: string;
   first_name: string;
   last_name: string;
   address: string;

@@ -15,23 +15,6 @@
       </mat-icon>
     </button>
     <div class="flex-1"></div>
-    @if (currentCentre()?.name) {
-    <button mat-stroked-button
-      class="mr-2 min-w-24 rounded-sm border-2 border-white text-center font-semibold text-white md:min-w-56"
-      [matMenuTriggerFor]="centersMenu" [disabled]="centres().length === 1">
-      {{ currentCentre()?.name.toUpperCase() }}
-    </button>
-    <mat-menu #centersMenu="matMenu" class="min-w-56">
-      @for (centre of centres(); track centre.id) {
-      <button class="text-center" mat-menu-item [disabled]="centre.id === currentCentre().id"
-        (click)="selectCenter(centre)">
-        <span class="font-semibold">
-          {{ centre?.name.toUpperCase() }}
-        </span>
-      </button>
-      }
-    </mat-menu>
-    }
     <app-topbar-actions [isMobile]="isMobile()" />
   </div>
 </mat-toolbar>

@@ -33,8 +33,8 @@ export class FacturesService implements OnModuleInit {
         const type = data.type; // FACTURE, DEVIS, AVOIR, BL
         let numero = '';
 
-        if (data.statut === 'BROUILLON') {
-            // Temporary number for drafts
+        if (data.statut === 'BROUILLON' || data.statut === 'DEVIS_EN_COURS') {
+            // Temporary number for drafts/in-progress devis
             numero = `Devis-${new Date().getTime()}`;
         } else {
             numero = await this.generateNextNumber(type);
@@ -58,7 +58,11 @@ export class FacturesService implements OnModuleInit {
         console.log('✅ Facture created with proprietes:', facture.proprietes);
 
         // [NEW] If created directly as VALIDE (e.g. Principal Stock Auto-Facture), decrement stock immediately
-        if (facture.statut === 'VALIDE') {
+        const shouldDecrement = facture.statut === 'VALIDE' ||
+            facture.statut === 'VENTE_EN_INSTANCE' ||
+            ((facture.statut === 'ARCHIVE' || facture.statut === 'ANNULEE') && (facture.proprietes as any)?.forceStockDecrement === true);
+
+        if (shouldDecrement) {
             await this.decrementStockForInvoice(this.prisma, facture);
         }
 
@@ -95,41 +99,102 @@ export class FacturesService implements OnModuleInit {
 
     // Helper: Decrement Stock for Valid Invoice (Principal Warehouses)
     private async decrementStockForInvoice(tx: any, invoice: any) {
-        console.log('📦 Processing Stock Decrement for Validated Invoice:', invoice.numero);
+        console.log(`🎬 [DEBUG] Starting Stock Decrement for ${invoice.numero} (${invoice.id})`);
 
-        const linesToProcess = (invoice.lignes as any[]) || [];
+        // Load full invoice with line items to ensure we have the latest JSON data
+        const fullInvoice = await tx.facture.findUnique({
+            where: { id: invoice.id }
+        });
+
+        if (!fullInvoice) {
+            console.log(`❌ [DEBUG] Invoice not found in DB: ${invoice.id}`);
+            return;
+        }
+
+        const props = fullInvoice.proprietes as any || {};
+        if (props.stockDecremented) {
+            console.log(`⏩ [DEBUG] SKIP: Stock already marked as decremented for ${fullInvoice.numero}`);
+            return;
+        }
+
+        // Parse lines safely
+        let linesToProcess: any[] = [];
+        try {
+            linesToProcess = typeof fullInvoice.lignes === 'string' ? JSON.parse(fullInvoice.lignes) : (fullInvoice.lignes as any[]);
+        } catch (e) {
+            console.error(`❌ [DEBUG] Failed to parse lines for ${fullInvoice.numero}:`, e);
+        }
+
+        if (!Array.isArray(linesToProcess) || linesToProcess.length === 0) {
+            console.log(`⏩ [DEBUG] SKIP: No lines to process in invoice ${fullInvoice.numero}`);
+            return;
+        }
+
+        console.log(`📋 [DEBUG] Found ${linesToProcess.length} lines. Processing...`);
+
         for (const line of linesToProcess) {
-            if (line.productId && line.qte > 0) {
-                // Fetch Product to check Warehouse Type
-                // Use 'tx' to ensure we are in same transaction context (if applicable) or current state
-                const product = await tx.product.findUnique({
-                    where: { id: line.productId },
-                    include: { entrepot: true }
+            const pid = line.productId;
+            const qte = Number(line.qte);
+
+            if (!pid || isNaN(qte) || qte <= 0) {
+                console.log(`   🚫 [DEBUG] Skipping line: "${line.description}" (Invalid ProductID or Qty: ${qte})`);
+                continue;
+            }
+
+            console.log(`   🔎 [DEBUG] Eval: "${line.description}" | PID: ${pid} | Qty: ${qte}`);
+
+            const product = await tx.product.findUnique({
+                where: { id: pid },
+                include: { entrepot: true }
+            });
+
+            if (!product) {
+                console.log(`   ❌ [DEBUG] Product NOT FOUND in database: ${pid}`);
+                continue;
+            }
+
+            const entrepotType = product.entrepot?.type;
+            const forceDecrement = props.forceStockDecrement === true;
+            const isEligible = entrepotType === 'PRINCIPAL' || entrepotType === 'SECONDAIRE' || forceDecrement;
+
+            console.log(`   📊 [DEBUG] Warehouse: ${entrepotType || 'None'} | Force: ${forceDecrement} | Eligible: ${isEligible}`);
+
+            if (isEligible) {
+                console.log(`   📉 [DEBUG] ACTION: Decrementing ${product.designation} by ${qte}`);
+
+                await tx.product.update({
+                    where: { id: product.id },
+                    data: { quantiteActuelle: { decrement: qte } }
                 });
 
-                if (product && product.entrepot && product.entrepot.type === 'PRINCIPAL') {
-                    console.log(`📉 Decrementing Principal Stock: ${product.designation} (-${line.qte})`);
-
-                    await tx.product.update({
-                        where: { id: product.id },
-                        data: { quantiteActuelle: { decrement: line.qte } }
-                    });
-
-                    await tx.mouvementStock.create({
-                        data: {
-                            type: 'SORTIE_VENTE',
-                            quantite: -line.qte,
-                            produitId: product.id,
-                            entrepotSourceId: product.entrepotId,
-                            motif: `Vente Facture ${invoice.numero}`,
-                            utilisateur: 'System'
-                        }
-                    });
-                } else {
-                    console.log(`⏩ Skipping Stock Decrement for ${product?.designation} (Warehouse: ${product?.entrepot?.type})`);
-                }
+                await tx.mouvementStock.create({
+                    data: {
+                        type: 'SORTIE_VENTE',
+                        quantite: -qte,
+                        produitId: product.id,
+                        entrepotSourceId: product.entrepotId,
+                        motif: `${fullInvoice.type} ${fullInvoice.numero} (${fullInvoice.statut})`,
+                        utilisateur: 'System'
+                    }
+                });
+                console.log(`   ✅ [DEBUG] Success`);
+            } else {
+                console.log(`   ⏩ [DEBUG] Ignoring: Wrong warehouse and no force flag.`);
             }
         }
+
+        // Flag as processed
+        await tx.facture.update({
+            where: { id: fullInvoice.id },
+            data: {
+                proprietes: {
+                    ...props,
+                    stockDecremented: true,
+                    dateStockDecrement: new Date()
+                }
+            }
+        });
+        console.log(`🏁 [DEBUG] Completed for ${fullInvoice.numero}`);
     }
 
     async findAll(params: {
@@ -172,6 +237,12 @@ export class FacturesService implements OnModuleInit {
         data: Prisma.FactureUpdateInput;
     }) {
         const { where, data } = params;
+        console.log('🔄 FacturesService.update called with:', {
+            id: where.id,
+            statut: data.statut,
+            proprietes: data.proprietes,
+            forceStockDecrement: (data.proprietes as any)?.forceStockDecrement
+        });
 
         // Check if we are validating a BROUILLON (BROUILLON → VALIDE)
         if (data.statut === 'VALIDE') {
@@ -225,31 +296,36 @@ export class FacturesService implements OnModuleInit {
                     // But here we generate FACTURE number. Avoir is AVOIR type. Distinct sequences. Safe.
 
                     const officialNumber = await this.generateNextNumber('FACTURE'); // Validating a DEVIS creates a FACTURE
+                    const { client, paiements, fiche, ...existingFlat } = currentFacture as any;
+                    const { client: dClient, paiements: dPai, fiche: dFiche, ...incomingData } = data as any;
 
-                    // 3. Create New Valid Invoice
-                    // Fix: Explicitly destruct to avoid passing nested objects like 'client' which cause PRISMA validation errors
-                    // when mixed with 'clientId'. We want UNCHECKED input (flat IDs).
-                    const { client, paiements, fiche, ...flatFacture } = currentFacture as any;
+                    // Merge Existing with Incoming (Incoming takes precedence for lines, proprietes, totals)
+                    const mergedData = {
+                        ...existingFlat,
+                        ...incomingData,
+                        proprietes: {
+                            ...(existingFlat.proprietes || {}),
+                            ...(incomingData.proprietes || {}),
+                            ancienneReference: currentFacture.numero,
+                            source: 'Validation Directe'
+                        }
+                    };
 
                     const newInvoiceData: Prisma.FactureUncheckedCreateInput = {
-                        ...flatFacture,
+                        ...mergedData,
                         id: undefined, // New ID
                         numero: officialNumber,
-                        statut: 'VALIDE', // Starts as Valid
-                        dateEmission: new Date(), // Reset emission date to Now
-                        createdAt: new Date(), // Force new creation date
+                        statut: 'VALIDE', // New starts as Valid
+                        dateEmission: new Date(),
+                        createdAt: new Date(),
                         updatedAt: new Date(),
                         ficheId: undefined, // Will link after unlinking old
-                        clientId: currentFacture.clientId, // Ensure clientId is explicitly passed
-                        proprietes: {
-                            ...(currentFacture.proprietes as any || {}),
-                            ancienneReference: currentFacture.numero,
-                            source: 'Validation Brouillon'
-                        },
-                        type: 'FACTURE' // Force type validation to FACTURE (Devis -> Facture)
+                        clientId: currentFacture.clientId,
+                        type: 'FACTURE'
                     };
+
                     const newInvoice = await tx.facture.create({ data: newInvoiceData });
-                    console.log('✅ New Valid Invoice created:', newInvoice.numero);
+                    console.log('✅ New Valid Invoice created with merged lines:', newInvoice.numero);
 
                     // 4. Move Payments from Old -> New
                     await tx.paiement.updateMany({
@@ -294,7 +370,7 @@ export class FacturesService implements OnModuleInit {
                         }
                     });
 
-                    // 7. STOCK DECREMENT LOGIC (PRINCIPAL WAREHOUSES)
+                    // 7. STOCK DECREMENT LOGIC
                     await this.decrementStockForInvoice(tx, finalInvoice);
 
                     return finalInvoice; // Return the NEW invoice so frontend redirects/updates
@@ -305,10 +381,19 @@ export class FacturesService implements OnModuleInit {
         // FIX: Sanitize input for update as well
         const { client, paiements, fiche, ...cleanData } = data as any;
 
-        return this.prisma.facture.update({
+        const updatedFacture = await this.prisma.facture.update({
             data: cleanData,
             where,
         });
+
+        // [NEW] Logic: Stock Decrement on Archive or Instance (ARCHIVE/ANNULEE + forceDecrement or VENTE_EN_INSTANCE)
+        if (updatedFacture.statut === 'VENTE_EN_INSTANCE' ||
+            ((updatedFacture.statut === 'ARCHIVE' || updatedFacture.statut === 'ANNULEE') && (updatedFacture.proprietes as any)?.forceStockDecrement === true)) {
+            console.log('📦 Post-Update Stock Trigger (Instance or Archive)');
+            await this.decrementStockForInvoice(this.prisma, updatedFacture);
+        }
+
+        return updatedFacture;
     }
 
     async remove(where: Prisma.FactureWhereUniqueInput) {

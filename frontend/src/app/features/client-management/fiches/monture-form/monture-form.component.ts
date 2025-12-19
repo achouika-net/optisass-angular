@@ -1,6 +1,6 @@
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Observable, of, BehaviorSubject } from 'rxjs';
+import { Observable, of, BehaviorSubject, firstValueFrom } from 'rxjs';
 import { FormBuilder, FormGroup, AbstractControl, ReactiveFormsModule, Validators, FormArray, FormControl } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -16,7 +16,8 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { ClientService } from '../../services/client.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { ClientManagementService } from '../../services/client.service';
 import { Client, isClientParticulier, isClientProfessionnel } from '../../models/client.model';
 import { FicheService } from '../../services/fiche.service';
 import { FicheMontureCreate, TypeFiche, StatutFiche, TypeEquipement, SuggestionIA } from '../../models/fiche-client.model';
@@ -75,6 +76,7 @@ export class MontureFormComponent implements OnInit {
     ficheForm: FormGroup;
     clientId: string | null = null;
     client: Client | null = null;
+    allProducts: any[] = []; // [NEW] Store products for easy lookup
     ficheId: string | null = null;
     activeTab = 0;
     loading = false;
@@ -218,12 +220,13 @@ export class MontureFormComponent implements OnInit {
         private fb: FormBuilder,
         private route: ActivatedRoute,
         private router: Router,
-        private clientService: ClientService,
+        private clientService: ClientManagementService,
         private ficheService: FicheService,
         private cdr: ChangeDetectorRef,
         private sanitizer: DomSanitizer,
         private dialog: MatDialog,
-        private factureService: FactureService
+        private factureService: FactureService,
+        private snackBar: MatSnackBar
     ) {
         this.ficheForm = this.initForm();
     }
@@ -303,12 +306,10 @@ export class MontureFormComponent implements OnInit {
     }
 
     onInvoiceSaved(facture: any): void {
-        console.log('✅ Invoice saved/updated in Monture Form:', facture);
-
+        console.log('✅ [EVENT] Invoice saved in MontureFormComponent:', facture.numero || facture);
         // Update the subject to reflect the new state (e.g. Valid status, New Number)
         this.linkedFactureSubject.next(facture);
-
-        // Also ensure inputs are synced if they weren't
+        this.loadClientFactures();
         this.cdr.markForCheck();
     }
 
@@ -709,7 +710,7 @@ export class MontureFormComponent implements OnInit {
         this.calculateLensPrices(parentGroup);
     }
 
-    openStockSearch(index: number = -1): void {
+    openStockSearch(index: number = -1, target: 'monture' | 'verres' | 'od' | 'og' = 'monture'): void {
         const dialogRef = this.dialog.open(StockSearchDialogComponent, {
             width: '90vw',
             maxWidth: '1200px',
@@ -719,64 +720,80 @@ export class MontureFormComponent implements OnInit {
 
         dialogRef.afterClosed().subscribe(result => {
             if (result && result.action === 'SELECT' && result.product) {
-                this.fillProductDetails(result.product, index);
+                this.allProducts.push(result.product);
+                this.fillProductDetails(result.product, index, target);
             }
         });
     }
 
-    fillProductDetails(product: any, index: number): void {
-        let targetGroup: FormGroup;
+    fillProductDetails(product: any, index: number, target: 'monture' | 'verres' | 'od' | 'og' = 'monture'): void {
+        let parentGroup: FormGroup;
         if (index === -1) {
-            targetGroup = this.ficheForm;
+            parentGroup = this.ficheForm;
         } else {
-            targetGroup = this.getEquipmentGroup(index);
+            parentGroup = this.getEquipmentGroup(index);
         }
 
-        const montureGroup = targetGroup.get('monture');
-        if (!montureGroup) return;
-
-        // Map product data to form fields
-        montureGroup.patchValue({
-            reference: product.codeInterne || product.codeBarres,
-            marque: product.marque,
-            couleur: product.couleur,
-            prixMonture: product.prixVenteTTC, // Using TTC as selling price
-            productId: product.id,             // [NEW] Link Product ID
-            entrepotId: product.entrepotId     // [NEW] Link Warehouse ID
-            // Additional mapping if fields match
-        });
-
-        // [NEW] AUTO-SWITCH for PRINCIPAL STOCK Logic:
-        // User Request: If Principal Stock product selected -> Document becomes FACTURE (Valid) automatically.
-        if (product.entrepot?.type === 'PRINCIPAL') {
-            if (this.factureComponent && this.factureComponent.form) {
-                console.log('🔄 Auto-Switching to FACTURE (Valid) for Principal Stock Product');
-                this.factureComponent.form.patchValue({
-                    type: 'FACTURE',
-                    statut: 'VALIDE'
-                });
-
-                // Optional: Force view update if needed or reset invoice numbering logic visualization?
-                // The FactureComponent handles number generation on backend save usually.
-            }
-        }
-
-        // Try to parse dimensions from specificData or modele if available
-        // Need to check if specificData 'taille' exists or map from elsewhere
-        if (product.specificData) {
-            const specs = product.specificData;
-            // Assuming specificData might have frame fields directly
-            if (specs.calibre && specs.pont && specs.branche) {
+        if (target === 'monture') {
+            const montureGroup = parentGroup.get('monture');
+            if (montureGroup) {
                 montureGroup.patchValue({
-                    taille: `${specs.calibre}-${specs.pont}-${specs.branche}`
+                    reference: product.codeInterne || product.codeBarres,
+                    marque: product.marque,
+                    couleur: product.couleur,
+                    prixMonture: product.prixVenteTTC,
+                    productId: product.id,
+                    entrepotId: product.entrepotId,
+                    entrepotType: product.entrepot?.type || null,
+                    entrepotNom: product.entrepot?.nom || null
                 });
+
+                if (product.specificData) {
+                    const specs = product.specificData;
+                    if (specs.calibre && specs.pont && specs.branche) {
+                        montureGroup.patchValue({
+                            taille: `${specs.calibre}-${specs.pont}-${specs.branche}`
+                        });
+                    }
+                    if (specs.cerclage) {
+                        montureGroup.patchValue({ cerclage: specs.cerclage });
+                    }
+                }
             }
-            if (specs.cerclage) {
-                montureGroup.patchValue({ cerclage: specs.cerclage });
+        } else {
+            const verresGroup = parentGroup.get('verres');
+            if (verresGroup) {
+                if (target === 'verres') {
+                    verresGroup.patchValue({
+                        marque: product.marque,
+                        matiere: product.modele || product.description,
+                        prixOD: product.prixVenteTTC,
+                        productId: product.id,
+                        entrepotId: product.entrepotId,
+                        entrepotType: product.entrepot?.type || null,
+                        entrepotNom: product.entrepot?.nom || null
+                    });
+                } else if (target === 'od') {
+                    verresGroup.patchValue({
+                        marqueOD: product.marque,
+                        matiereOD: product.modele || product.description,
+                        prixOD: product.prixVenteTTC,
+                        productIdOD: product.id,
+                        entrepotId: product.entrepotId,
+                        entrepotType: product.entrepot?.type || null,
+                        entrepotNom: product.entrepot?.nom || null
+                    });
+                } else if (target === 'og') {
+                    verresGroup.patchValue({
+                        marqueOG: product.marque,
+                        matiereOG: product.modele || product.description,
+                        prixOG: product.prixVenteTTC,
+                        productIdOG: product.id,
+                        entrepotId: product.entrepotId,
+                        entrepotType: product.entrepot?.type || null
+                    });
+                }
             }
-        } else if (product.modele) {
-            // Basic fallback
-            // montureGroup.patchValue({ taille: product.modele }); // Optional
         }
 
         this.cdr.markForCheck();
@@ -877,8 +894,10 @@ export class MontureFormComponent implements OnInit {
                 cerclage: ['cerclée'],
                 typeEquipement: [typeEquipement],
                 prixMonture: [0],
-                productId: [null], // [NEW] Track Product ID
-                entrepotId: [null] // [NEW] Track Warehouse ID
+                productId: [null],
+                entrepotId: [null],
+                entrepotType: [null],
+                entrepotNom: [null]
             }),
             verres: this.fb.group({
                 matiere: [null],
@@ -895,7 +914,13 @@ export class MontureFormComponent implements OnInit {
                 matiereOG: [null],
                 marqueOG: [null],
                 indiceOG: [null],
-                traitementOG: [[]]
+                traitementOG: [[]],
+                productId: [null],
+                entrepotId: [null],
+                entrepotType: [null],
+                entrepotNom: [null],
+                productIdOD: [null],
+                productIdOG: [null]
             }),
             // Restore missing fields from deleted initForm (Important!)
             ordonnance: this.fb.group({
@@ -959,8 +984,10 @@ export class MontureFormComponent implements OnInit {
                 taille: [''],
                 cerclage: ['cerclée'],
                 prixMonture: [0],
-                productId: [null], // [NEW]
-                entrepotId: [null] // [NEW]
+                productId: [null],
+                entrepotId: [null],
+                entrepotType: [null],
+                entrepotNom: [null]
             }),
             verres: this.fb.group({
                 matiere: [null],
@@ -977,7 +1004,12 @@ export class MontureFormComponent implements OnInit {
                 matiereOG: [null],
                 marqueOG: [null],
                 indiceOG: [null],
-                traitementOG: [[]]
+                traitementOG: [[]],
+                productId: [null],      // [NEW]
+                entrepotId: [null],     // [NEW]
+                entrepotType: [null],   // [NEW]
+                productIdOD: [null],    // [NEW]
+                productIdOG: [null]     // [NEW]
             })
         });
 
@@ -1372,7 +1404,8 @@ export class MontureFormComponent implements OnInit {
                         cerclage: [eq.monture?.cerclage || 'cerclée'], // Added Field
                         prixMonture: [eq.monture?.prixMonture || 0],
                         productId: [eq.monture?.productId || null], // [NEW] Load if exists
-                        entrepotId: [eq.monture?.entrepotId || null] // [NEW] Load if exists
+                        entrepotId: [eq.monture?.entrepotId || null], // [NEW] Load if exists
+                        entrepotType: [eq.monture?.entrepotType || null] // [NEW] Load if exists
                     }),
                     verres: this.fb.group({
                         matiere: [eq.verres?.matiere],
@@ -1464,22 +1497,27 @@ export class MontureFormComponent implements OnInit {
             if (prixMonture > 0) {
                 const ref = mainMonture.reference || 'Monture';
                 const marque = mainMonture.marque || '';
+                const detectedType = mainMonture.entrepotType || (this.allProducts?.find(p => p.id === mainMonture.productId)?.entrepot?.type) || null;
+
                 lignes.push({
                     description: `Monture ${marque} ${ref}`.trim(),
                     qte: 1,
                     prixUnitaireTTC: prixMonture,
                     remise: 0,
                     totalTTC: prixMonture,
-                    productId: mainMonture.productId || null, // [NEW] Pass to Invoice Line
-                    entrepotId: mainMonture.entrepotId || null // [NEW] Pass to Invoice Line
+                    productId: mainMonture.productId || null,
+                    entrepotId: mainMonture.entrepotId || null,
+                    entrepotType: detectedType,
+                    entrepotNom: mainMonture.entrepotNom || null
                 });
+                console.log(`🔍 Detected Stock Source for Main: ${detectedType} (ID: ${mainMonture.productId})`);
             }
 
             // Verres
             const differentODOG = mainVerres.differentODOG;
             const matiere = mainVerres.matiere || 'Verre';
 
-            // Generate Nomenclature String (Internal use for notes, but removed from line description per request)
+            // Generate Nomenclature String (Internal use for notes)
             const odVars = formValue.ordonnance?.od || {};
             const ogVars = formValue.ordonnance?.og || {};
 
@@ -1510,7 +1548,11 @@ export class MontureFormComponent implements OnInit {
                         qte: 1,
                         prixUnitaireTTC: prixOD,
                         remise: 0,
-                        totalTTC: prixOD
+                        totalTTC: prixOD,
+                        productId: mainVerres.productIdOD || mainVerres.productId || null,
+                        entrepotId: mainVerres.entrepotId || null,
+                        entrepotType: mainVerres.entrepotType || null,
+                        entrepotNom: mainVerres.entrepotNom || null
                     });
                 }
                 if (prixOG > 0) {
@@ -1519,7 +1561,11 @@ export class MontureFormComponent implements OnInit {
                         qte: 1,
                         prixUnitaireTTC: prixOG,
                         remise: 0,
-                        totalTTC: prixOG
+                        totalTTC: prixOG,
+                        productId: mainVerres.productIdOG || mainVerres.productId || null,
+                        entrepotId: mainVerres.entrepotId || null,
+                        entrepotType: mainVerres.entrepotType || null,
+                        entrepotNom: mainVerres.entrepotNom || null
                     });
                 }
             } else {
@@ -1533,7 +1579,11 @@ export class MontureFormComponent implements OnInit {
                         qte: 1,
                         prixUnitaireTTC: prixOD,
                         remise: 0,
-                        totalTTC: prixOD
+                        totalTTC: prixOD,
+                        productId: mainVerres.productId || null,
+                        entrepotId: mainVerres.entrepotId || null,
+                        entrepotType: mainVerres.entrepotType || null,
+                        entrepotNom: mainVerres.entrepotNom || null
                     });
                 }
                 if (prixOG > 0) {
@@ -1542,7 +1592,11 @@ export class MontureFormComponent implements OnInit {
                         qte: 1,
                         prixUnitaireTTC: prixOG,
                         remise: 0,
-                        totalTTC: prixOG
+                        totalTTC: prixOG,
+                        productId: mainVerres.productId || null,
+                        entrepotId: mainVerres.entrepotId || null,
+                        entrepotType: mainVerres.entrepotType || null,
+                        entrepotNom: mainVerres.entrepotNom || null
                     });
                 }
             }
@@ -1557,15 +1611,19 @@ export class MontureFormComponent implements OnInit {
                 if (monture) {
                     const montureAdded = equip.monture;
                     if (montureAdded && montureAdded.prixMonture > 0) {
+                        const detectedAddedType = montureAdded.entrepotType || (this.allProducts?.find(p => p.id === montureAdded.productId)?.entrepot?.type) || null;
                         lignes.push({
                             description: `Monture ${montureAdded.marque || ''} ${montureAdded.reference || ''}`.trim(),
                             qte: 1,
                             prixUnitaireTTC: parseFloat(montureAdded.prixMonture),
                             remise: 0,
                             totalTTC: parseFloat(montureAdded.prixMonture),
-                            productId: montureAdded.productId || null, // [NEW]
-                            entrepotId: montureAdded.entrepotId || null // [NEW]
+                            productId: montureAdded.productId || null,
+                            entrepotId: montureAdded.entrepotId || null,
+                            entrepotType: detectedAddedType,
+                            entrepotNom: montureAdded.entrepotNom || null
                         });
+                        console.log(`🔍 Detected Stock Source for Eq${index + 1}: ${detectedAddedType}`);
                     }
                 }
                 if (verres) {
@@ -1591,7 +1649,11 @@ export class MontureFormComponent implements OnInit {
                             qte: 1,
                             prixUnitaireTTC: prixOD,
                             remise: 0,
-                            totalTTC: prixOD
+                            totalTTC: prixOD,
+                            productId: verres.productIdOD || verres.productId || null,
+                            entrepotId: verres.entrepotId || null,
+                            entrepotType: verres.entrepotType || null,
+                            entrepotNom: verres.entrepotNom || null
                         });
                     }
                     const prixOG = parseFloat(verres.prixOG) || 0;
@@ -1601,7 +1663,11 @@ export class MontureFormComponent implements OnInit {
                             qte: 1,
                             prixUnitaireTTC: prixOG,
                             remise: 0,
-                            totalTTC: prixOG
+                            totalTTC: prixOG,
+                            productId: verres.productIdOG || verres.productId || null,
+                            entrepotId: verres.entrepotId || null,
+                            entrepotType: verres.entrepotType || null,
+                            entrepotNom: verres.entrepotNom || null
                         });
                     }
                 }
@@ -1818,8 +1884,12 @@ export class MontureFormComponent implements OnInit {
         }
     }
 
-    onSubmit(): void {
-        if (this.ficheForm.invalid || !this.clientId) return;
+    async onSubmit() {
+        console.log('🚀 [DIAGNOSTIC] onSubmit starting...');
+        if (this.ficheForm.invalid || !this.clientId) {
+            console.log('⚠️ [DIAGNOSTIC] Form Invalid or No Client ID', { invalid: this.ficheForm.invalid, clientId: this.clientId });
+            return;
+        }
         this.loading = true;
         const formValue = this.ficheForm.getRawValue();
 
@@ -1866,6 +1936,66 @@ export class MontureFormComponent implements OnInit {
             ? this.ficheService.updateFiche(this.ficheId, ficheData)
             : this.ficheService.createFicheMonture(ficheData);
 
+        // [NEW] Logic: Sales Validation & Stock Alerts
+        // Check products warehouses
+        const invoiceLines = this.getInvoiceLines();
+        const productsWithStock = invoiceLines.filter(l => l.productId && l.entrepotType);
+
+        console.log('🏁 Checking Sales Rules:', {
+            totalLines: invoiceLines.length,
+            productsWithStock: productsWithStock.length,
+            details: productsWithStock.map(p => ({ id: p.productId, type: p.entrepotType }))
+        });
+
+        const hasPrincipalStock = productsWithStock.some(p => p.entrepotType === 'PRINCIPAL');
+        const hasSecondaryStock = productsWithStock.some(p => p.entrepotType === 'SECONDAIRE');
+
+        // ASYNC Payment Check: Fetch from service directly for total reliability
+        let hasPayment = false;
+        if (this.ficheId && this.ficheId !== 'new' && this.clientId) {
+            try {
+                const allF = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId }));
+                const currentF = allF.find(f => f.ficheId === this.ficheId);
+                if (currentF) {
+                    const paid = (currentF.paiements as any[])?.reduce((acc, p) => acc + (p.montant || 0), 0) || 0;
+                    hasPayment = paid > 0 || currentF.statut === 'PARTIEL' || currentF.statut === 'PAYEE';
+                    console.log('✅ [DIAGNOSTIC] Async Payment Check Success:', { paid, status: currentF.statut, hasPayment });
+                }
+            } catch (e) {
+                console.error('❌ [DIAGNOSTIC] Async Payment Check Failed:', e);
+            }
+        }
+
+        const needsDecision = productsWithStock.length > 0 && hasPayment;
+        console.log('⚖️ [DIAGNOSTIC] Decision Required?', needsDecision, { productsCount: productsWithStock.length, hasPayment });
+
+        let userForcedStatut: string | null = null;
+        let userForcedType: string | null = null;
+        let userForcedStockDecrement = false;
+
+        if (needsDecision) {
+            const warehouses = [...new Set(productsWithStock.map(p => p.entrepotNom || p.entrepotType))].join(' / ');
+            const message = `Vente effectuée depuis l'entrepôt : ${warehouses}.\n\nSouhaitez-vous VALIDER la vente ou la LAISSER EN INSTANCE ?`;
+
+            const choice = confirm(`${message}\n\nOK = Valider\nAnnuler = En Instance`);
+
+            if (choice) {
+                userForcedType = 'FACTURE';
+                userForcedStatut = 'VALIDE';
+                if (this.factureComponent) {
+                    this.factureComponent.form.patchValue({ type: 'FACTURE', statut: 'VALIDE' });
+                }
+            } else {
+                // Instance (Stock Decrement + VENTE_EN_INSTANCE Status)
+                userForcedType = 'DEVIS';
+                userForcedStatut = 'VENTE_EN_INSTANCE';
+                userForcedStockDecrement = true;
+                if (this.factureComponent) {
+                    this.factureComponent.form.patchValue({ type: 'DEVIS', statut: 'VENTE_EN_INSTANCE' });
+                }
+            }
+        }
+
         operation.pipe(
             switchMap(fiche => {
                 this.ficheId = fiche.id;
@@ -1903,7 +2033,22 @@ export class MontureFormComponent implements OnInit {
                             this.factureComponent.calculateTotals();
                         }
 
-                        return this.factureComponent.saveAsObservable().pipe(
+                        // Prepare extra properties for forceStockDecrement
+                        const extraProps: any = {};
+                        if (userForcedStockDecrement) {
+                            extraProps.forceStockDecrement = true;
+                        }
+
+                        // Apply user forced status if provided (e.g. VALIDE or ARCHIVE)
+                        if (userForcedStatut) {
+                            this.factureComponent.form.patchValue({ statut: userForcedStatut }, { emitEvent: false });
+                        }
+                        if (userForcedType) {
+                            this.factureComponent.form.patchValue({ type: userForcedType }, { emitEvent: false });
+                        }
+
+                        // Pass extraProps to saveAsObservable
+                        return this.factureComponent.saveAsObservable(true, extraProps).pipe(
                             map(() => fiche),
                             catchError(err => {
                                 console.error('Error saving linked invoice:', err);
@@ -1927,7 +2072,6 @@ export class MontureFormComponent implements OnInit {
                                     // We MUST update it with the new lines/properties to keep it in sync.
                                     console.log('🔄 Updating existing invoice (via Service) as component is not active');
 
-                                    this.generateInvoiceLines();
                                     const total = generatedLines.reduce((acc, val) => acc + val.totalTTC, 0);
                                     // Calculate HT/TVA approx or relies on backend? Better to send all.
                                     // Similar logic to create but for update
@@ -1942,10 +2086,14 @@ export class MontureFormComponent implements OnInit {
                                         totalTVA: tva,
                                         proprietes: {
                                             ...(existingFacture.proprietes as any || {}),
-                                            nomenclature: this.nomenclatureString || ''
+                                            nomenclature: this.nomenclatureString || '',
+                                            forceStockDecrement: userForcedStockDecrement || (existingFacture.proprietes as any)?.forceStockDecrement
                                         },
                                         resteAPayer: total // Usually resets amount to pay if content changes? Valid for BROUILLON.
                                     };
+
+                                    if (userForcedType) updateData.type = userForcedType;
+                                    if (userForcedStatut) updateData.statut = userForcedStatut;
 
                                     return this.factureService.update(existingFacture.id, updateData).pipe(
                                         map(() => fiche),
@@ -1959,7 +2107,6 @@ export class MontureFormComponent implements OnInit {
 
                                 // No invoice exists, create one
                                 // Generate nomenclature first
-                                this.generateInvoiceLines();
                                 console.log('📋 Generating nomenclature for new invoice:', this.nomenclatureString);
 
                                 const total = generatedLines.reduce((acc, val) => acc + val.totalTTC, 0);
@@ -1968,8 +2115,8 @@ export class MontureFormComponent implements OnInit {
                                 const tva = total - totalHT;
 
                                 const factureData: any = {
-                                    type: 'FACTURE',
-                                    statut: 'BROUILLON',
+                                    type: 'DEVIS',
+                                    statut: 'DEVIS_EN_COURS',
                                     dateEmission: new Date(),
                                     clientId: this.clientId,
                                     ficheId: fiche.id,
@@ -1978,7 +2125,8 @@ export class MontureFormComponent implements OnInit {
                                     totalHT: totalHT,
                                     totalTVA: tva,
                                     proprietes: {
-                                        nomenclature: this.nomenclatureString || ''
+                                        nomenclature: this.nomenclatureString || '',
+                                        forceStockDecrement: userForcedStockDecrement
                                     },
                                     resteAPayer: total
                                 };
@@ -2011,12 +2159,6 @@ export class MontureFormComponent implements OnInit {
         ).subscribe({
             next: (fiche) => {
                 this.loading = false;
-                // this.snackBar.open ... handling in saveAsObservable for invoice, but we need one for Fiche?
-                // FactureFormComponent shows its own snackbar.
-                // We should show "Fiche enregistrée".
-                // Use a simple prompt or snackbar if available.
-                // The original code used alert or logic in 'next'.
-                // We'll just log and maybe navigate if needed.
                 console.log('Fiche saved:', fiche);
 
                 // FIX: Patch form with saved data to ensure UI reflects backend state (prevents fields clearing)
@@ -2050,6 +2192,132 @@ export class MontureFormComponent implements OnInit {
                 }
 
                 this.cdr.markForCheck();
+            }
+        });
+    }
+
+
+    async onPaymentAdded() {
+        console.log('💰 [EVENT] Payment Added - Checking for archiving decision...');
+
+        // 1. Detect if we have any valid products with stock
+        const invoiceLines = this.getInvoiceLines();
+        const productsWithStock = invoiceLines.filter(l => l.productId && l.entrepotId);
+
+        if (productsWithStock.length === 0) {
+            console.log('ℹ️ No products with stock detected. No special alert needed.');
+            return;
+        }
+
+        const warehouses = [...new Set(productsWithStock.map(p => p.entrepotNom || p.entrepotType))].join(' / ');
+        const message = `Vente effectuée depuis l'entrepôt : ${warehouses}.\n\nSouhaitez-vous VALIDER la vente ou la LAISSER EN INSTANCE ?`;
+
+        const choice = confirm(`${message}\n\nOK = Valider\nAnnuler = En Instance`);
+
+        if (choice) {
+            // User wants to Validate -> Automatically convert Devis to Facture and VALIDE status
+            try {
+                this.loading = true;
+                const factures = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId || '' }));
+                const currentFacture = factures.find(f => f.ficheId === this.ficheId);
+
+                if (currentFacture) {
+                    console.log('📄 Converting Devis to official Facture:', currentFacture.numero);
+                    const lines = this.getInvoiceLines();
+                    const total = lines.reduce((acc, l) => acc + l.totalTTC, 0);
+                    const tvaRate = 0.20;
+                    const totalHT = total / (1 + tvaRate);
+                    const tva = total - totalHT;
+
+                    const updateData: any = {
+                        type: 'FACTURE',
+                        statut: 'VALIDE',
+                        lignes: lines,
+                        totalTTC: total,
+                        totalHT: totalHT,
+                        totalTVA: tva,
+                        resteAPayer: Math.max(0, total - (currentFacture.totalTTC - currentFacture.resteAPayer)), // Ensure remaining balance is calc
+                        proprietes: {
+                            ...(currentFacture.proprietes || {}),
+                            nomenclature: this.nomenclatureString || '',
+                            validatedAt: new Date()
+                        }
+                    };
+
+                    this.factureService.update(currentFacture.id, updateData).subscribe({
+                        next: (res) => {
+                            this.loading = false;
+                            this.snackBar.open('Vente validée et facture générée avec succès', 'Fermer', { duration: 5000 });
+                            this.onInvoiceSaved(res);
+                        },
+                        error: (err) => {
+                            this.loading = false;
+                            console.error('❌ Error validating sale:', err);
+                            alert("Erreur lors de la validation: " + (err.message || 'Erreur inconnue'));
+                        }
+                    });
+                } else {
+                    console.warn('⚠️ No associated quote found to validate.');
+                    this.loading = false;
+                }
+            } catch (e) {
+                console.error('Error fetching invoices for validation:', e);
+                this.loading = false;
+            }
+        } else {
+            // User wants to Leave in Instance -> Perform instance logic
+            try {
+                this.loading = true;
+                const factures = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId || '' }));
+                const currentFacture = factures.find(f => f.ficheId === this.ficheId);
+
+                if (currentFacture) {
+                    this.setInstanceFicheFacture(currentFacture);
+                } else {
+                    console.warn('⚠️ No associated invoice found to set in instance.');
+                    this.loading = false;
+                }
+            } catch (e) {
+                console.error('Error fetching invoices for instance:', e);
+                this.loading = false;
+            }
+        }
+    }
+
+    setInstanceFicheFacture(facture: any) {
+        console.log('📦 Setting Devis to Instance and Decrementing Stock for:', facture.numero);
+        this.loading = true;
+
+        const lines = this.getInvoiceLines();
+        const total = lines.reduce((acc, l) => acc + l.totalTTC, 0);
+        const tvaRate = 0.20;
+        const totalHT = total / (1 + tvaRate);
+        const tva = total - totalHT;
+
+        const updateData: any = {
+            statut: 'VENTE_EN_INSTANCE',
+            lignes: lines,
+            totalTTC: total,
+            totalHT: totalHT,
+            totalTVA: tva,
+            proprietes: {
+                ...(facture.proprietes || {}),
+                nomenclature: this.nomenclatureString || '',
+                forceStockDecrement: true,
+                instancedAt: new Date()
+            }
+        };
+
+        this.factureService.update(facture.id, updateData).subscribe({
+            next: (res) => {
+                this.loading = false;
+                this.snackBar.open('Vente mise en instance et stock décrémenté', 'Fermer', { duration: 5000 });
+                this.onInvoiceSaved(res);
+            },
+            error: (err) => {
+                this.loading = false;
+                console.error('❌ Error setting instance status:', err);
+                alert("Erreur lors de la mise en instance: " + (err.message || 'Erreur inconnue'));
             }
         });
     }

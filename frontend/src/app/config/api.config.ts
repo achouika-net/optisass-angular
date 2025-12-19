@@ -2,12 +2,12 @@ import { environment } from 'environments/environment';
 
 export const API_URL = `${environment.apiUrl}/api`;
 export const WSS_URL = `${environment.websocketUrl}agenda-2025-key`;
-export const WSS_BROADCAST_URL = `${environment.apiUrl}/broadcasting/auth`;
+export const WSS_BROADCAST_URL = `${API_URL}/broadcasting/auth`;
 export const LOGIN_API_URL = `${API_URL}/login`;
 export const MODELES_API_URL = `${API_URL}/modeles`;
 export const CLIENTS_API_URL = `${API_URL}/clients`;
 export const PARTNER_API = `${API_URL}/partners`;
-export const COUPONS_API = `${environment.apiUrl}/coupons`;
+export const COUPONS_API = `${API_URL}/coupons`;
 export const CATEGORIES_API_URL = `${API_URL}/categories`;
 export const OFFERINGS_API_URL = `${API_URL}/offerings`;
 export const TAXES_API_URL = `${API_URL}/taxes`;

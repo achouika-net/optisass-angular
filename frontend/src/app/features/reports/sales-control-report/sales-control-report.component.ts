@@ -261,11 +261,10 @@ export class SalesControlReportComponent implements OnInit {
             });
         };
 
-        sumInvoices(this.groupedWithPayment);
-        // Exclude unpaid devis from Global Revenue as per user request
+        // sumInvoices(this.groupedWithPayment); // Excluded as per user request: cards show validated sales ONLY
         // sumInvoices(this.groupedWithoutPayment);
         sumInvoices(this.groupedValid);
-        // sumInvoices(this.groupedArchived); // Excluded from Global Revenue as per user request (Step 4554)
+        // sumInvoices(this.groupedArchived);
     }
 
     onFilterChange() {

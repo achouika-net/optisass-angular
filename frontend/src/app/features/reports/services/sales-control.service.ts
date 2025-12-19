@@ -36,11 +36,13 @@ export interface VendorStatistics {
     totalArchived?: number;
 }
 
+import { API_URL } from '../../../config/api.config';
+
 @Injectable({
     providedIn: 'root'
 })
 export class SalesControlService {
-    private apiUrl = `${environment.apiUrl}/sales-control`;
+    private apiUrl = `${API_URL}/sales-control`;
 
     constructor(private http: HttpClient) { }
 

@@ -1,7 +1,7 @@
 /* User Form Component Styles */
 .user-form-container {
-    max-width: 1200px;
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
 }
 
 .form-card {
@@ -23,15 +23,29 @@
     margin-bottom: 8px;
 }
 
-/* Status and Photo Row - Side by Side */
-.status-photo-row {
+
+.main-info-grid {
     display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 32px;
+    grid-template-columns: 1fr 180px;
+    gap: 24px;
     align-items: start;
-    margin-bottom: 24px;
-    padding-bottom: 24px;
-    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 8px;
+}
+
+.fields-column {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.status-section-compact {
+    margin-top: 8px;
+    padding: 8px 16px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    display: inline-flex;
+    flex-direction: column;
+    width: fit-content;
 }
 
 .status-section {
@@ -39,14 +53,16 @@
     flex-direction: column;
 }
 
-/* Status Radio Group */
-.status-radio-group {
+/* Status Checkbox Group */
+.status-checkbox-group {
     display: flex;
     gap: 24px;
+    align-items: center;
+    height: 56px; // Align with mat-form-field height
 }
 
-.status-radio-group mat-radio-button {
-    margin-right: 16px;
+.status-checkbox-group mat-checkbox {
+    font-weight: 500;
 }
 
 /* Photo Section - Compact Right Aligned */
@@ -152,8 +168,12 @@
 .form-row {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-    margin-bottom: 16px;
+    gap: 12px;
+    margin-bottom: 0; // Let mat-form-field internal spacing handle it
+
+    &.three-cols {
+        grid-template-columns: repeat(3, 1fr);
+    }
 }
 
 .form-field {
@@ -163,7 +183,7 @@
 /* Centre-Role Section */
 .centre-roles-header {
     display: grid;
-    grid-template-columns: 1fr 1fr 48px;
+    grid-template-columns: 1fr 1.5fr 1fr 48px;
     gap: 16px;
     padding: 12px 0;
     font-weight: 600;
@@ -182,13 +202,14 @@
 
 .centre-role-row {
     display: grid;
-    grid-template-columns: 1fr 1fr 48px;
+    grid-template-columns: 1fr 1.5fr 1fr 48px;
     gap: 16px;
     align-items: center;
     margin-bottom: 16px;
 }
 
 .centre-field,
+.entrepot-field,
 .role-field {
     width: 100%;
 }

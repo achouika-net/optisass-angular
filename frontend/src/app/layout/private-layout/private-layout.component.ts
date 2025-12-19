@@ -23,11 +23,6 @@ import {
   UserCentresSelector,
   UserCurrentCentreSelector,
 } from '../../core/store/auth/auth.selectors';
-import { ICenter } from '@app/models';
-import { ConfirmationPopupComponent } from '../../shared/components/confirmation-popup/confirmation-popup.component';
-import { TranslateService } from '@ngx-translate/core';
-import { MatDialog } from '@angular/material/dialog';
-import { SetCurrentCenter } from '../../core/store/auth/auth.actions';
 import { WebSocketsService } from '@app/services';
 
 @Component({
@@ -54,15 +49,13 @@ import { WebSocketsService } from '@app/services';
 export default class PrivateLayoutComponent {
   readonly #store = inject(Store);
   readonly #breakpointObserver = inject(BreakpointObserver);
-  readonly #translate = inject(TranslateService);
-  readonly #dialog = inject(MatDialog);
   // eslint-disable-next-line no-unused-private-class-members
   readonly #webSocketsService = inject(WebSocketsService);
 
   logo = this.#store.selectSignal<string>(LogoSettingsSelector);
   circleLogo = this.#store.selectSignal<string>(CircleLogoSettingsSelector);
-  centres = this.#store.selectSignal<ICenter[]>(UserCentresSelector);
-  currentCentre = this.#store.selectSignal<ICenter>(UserCurrentCentreSelector);
+  centres = this.#store.selectSignal(UserCentresSelector);
+  currentCentre = this.#store.selectSignal(UserCurrentCentreSelector);
   readonly #isHandset = toSignal(
     this.#breakpointObserver.observe('(max-width: 599.98px)').pipe(map(({ matches }) => matches))
   );
@@ -77,35 +70,5 @@ export default class PrivateLayoutComponent {
       sidenav.toggle();
     }
     this.isCollapsed.update((v) => !v);
-  }
-
-  /**
-   * Sélectionner le/les centres
-   * @param currentCenter
-   * @returns void
-   */
-  selectCenter(currentCenter: ICenter): void {
-    this.#dialog
-      .open(ConfirmationPopupComponent, {
-        data: {
-          message: this.#translate.instant('commun.changementCentre'),
-          deny: this.#translate.instant('commun.non'),
-          confirm: this.#translate.instant('commun.oui'),
-        },
-        disableClose: true,
-      })
-      .afterClosed()
-      .subscribe((result) => {
-        if (!result) return;
-
-        // Dispatch l'action avec le flag isManualChange à true
-        // La navigation sera gérée automatiquement par l'effect setCurrentCenter$
-        this.#store.dispatch(
-          SetCurrentCenter({
-            currentCenter,
-            isManualChange: true,
-          })
-        );
-      });
   }
 }

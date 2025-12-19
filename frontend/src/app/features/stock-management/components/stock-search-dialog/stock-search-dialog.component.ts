@@ -8,8 +8,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSelectModule } from '@angular/material/select';
 import { FormsModule } from '@angular/forms';
 import { ProductService } from '../../services/product.service';
+import { WarehousesService } from '../../../warehouses/services/warehouses.service';
 import { StockTransferDialogComponent } from '../stock-transfer-dialog/stock-transfer-dialog.component';
 
 @Component({
@@ -25,6 +27,7 @@ import { StockTransferDialogComponent } from '../stock-transfer-dialog/stock-tra
         MatTableModule,
         MatProgressSpinnerModule,
         MatTooltipModule,
+        MatSelectModule,
         FormsModule
     ],
     templateUrl: './stock-search-dialog.component.html',
@@ -37,20 +40,38 @@ export class StockSearchDialogComponent implements OnInit {
     loading = false;
     displayedColumns: string[] = ['photo', 'designation', 'reference', 'marque', 'location', 'statut', 'actions'];
 
+    warehouses: any[] = [];
+    selectedWarehouseId: string | undefined;
+
     constructor(
         public dialogRef: MatDialogRef<StockSearchDialogComponent>,
         private productService: ProductService,
+        private warehousesService: WarehousesService,
         private dialog: MatDialog,
         private cdr: ChangeDetectorRef
     ) { }
 
     ngOnInit(): void {
+        this.loadWarehouses();
         this.loadProducts();
+    }
+
+    loadWarehouses(): void {
+        this.warehousesService.findAll().subscribe({
+            next: (data) => {
+                this.warehouses = data;
+                this.cdr.detectChanges();
+            },
+            error: (err) => console.error('Error loading warehouses', err)
+        });
     }
 
     loadProducts(): void {
         this.loading = true;
-        this.productService.findAll().subscribe({
+        // Pass filter if warehouse selected
+        const filters = this.selectedWarehouseId ? { entrepotId: this.selectedWarehouseId } : undefined;
+
+        this.productService.findAll(filters).subscribe({
             next: (products) => {
                 this.allProducts = products;
                 this.filterProducts();
@@ -63,6 +84,10 @@ export class StockSearchDialogComponent implements OnInit {
                 this.cdr.detectChanges();
             }
         });
+    }
+
+    onWarehouseChange(): void {
+        this.loadProducts();
     }
 
     filterProducts(): void {

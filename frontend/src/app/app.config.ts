@@ -1,4 +1,5 @@
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
+import { provideAnimations } from '@angular/platform-browser/animations';
 import { ApplicationConfig, provideBrowserGlobalErrorListeners, LOCALE_ID } from '@angular/core';
 import { registerLocaleData } from '@angular/common';
 import localeFr from '@angular/common/locales/fr';
@@ -30,6 +31,8 @@ export const appConfig: ApplicationConfig = {
   providers: [
     // Global Error Handling
     provideBrowserGlobalErrorListeners(),
+    // Animations
+    provideAnimations(),
     // Router Configuration
     provideRouter(routes, withComponentInputBinding(), withViewTransitions()),
     // HTTP Client Configuration

@@ -99,13 +99,28 @@ export class ProductsService {
         }
     }
 
-    async findAll(entrepotId?: string) {
-        const where = entrepotId ? { entrepotId } : {};
+    async findAll(entrepotId?: string, centreId?: string) {
+        const where: any = {};
+
+        if (entrepotId) {
+            where.entrepotId = entrepotId;
+        }
+
+        if (centreId) {
+            where.entrepot = {
+                centreId: centreId
+            };
+        }
+
         return this.prisma.product.findMany({
             where,
             orderBy: { createdAt: 'desc' },
             include: {
-                entrepot: true
+                entrepot: {
+                    include: {
+                        centre: true
+                    }
+                }
             }
         });
     }
@@ -141,15 +156,20 @@ export class ProductsService {
         // But PartialType makes everything optional.
 
         const {
-            categorie, genre, forme, matiere, couleurMonture, couleurBranches, calibre, pont, branche, typeCharniere, typeMonture,
-            typeVerre, materiau, indiceRefraction, teinte, puissanceSph, puissanceCyl, axe, addition, diametre,
-            typeLentille, usage, rayonCourbure,
-            categorieAccessoire,
+            // Monture
+            categorie, genre, forme, matiere, couleurMonture, couleurBranches, calibre, pont, branche, typeCharniere, typeMonture, photoFace, photoProfil,
+            // Verre
+            typeVerre, materiau, indiceRefraction, teinte, filtres, traitements, puissanceSph, puissanceCyl, axe, addition, diametre, base, courbure, fabricant, familleOptique,
+            // Lentille
+            typeLentille, usage, modeleCommercial, laboratoire, rayonCourbure, nombreParBoite, prixParBoite, prixParUnite, numeroLot, datePeremption, quantiteBoites, quantiteUnites,
+            // Accessoire
+            categorieAccessoire, sousCategorie,
             specificData,
             ...mainFields
         } = updateProductDto;
 
         const specificFieldsUpdate = {
+            // Monture
             ...(categorie && { categorie }),
             ...(genre && { genre }),
             ...(forme && { forme }),
@@ -161,22 +181,43 @@ export class ProductsService {
             ...(branche && { branche }),
             ...(typeCharniere && { typeCharniere }),
             ...(typeMonture && { typeMonture }),
+            ...(photoFace && { photoFace }),
+            ...(photoProfil && { photoProfil }),
 
+            // Verre
             ...(typeVerre && { typeVerre }),
             ...(materiau && { materiau }),
             ...(indiceRefraction && { indiceRefraction }),
             ...(teinte && { teinte }),
+            ...(filtres && { filtres }),
+            ...(traitements && { traitements }),
             ...(puissanceSph && { puissanceSph }),
             ...(puissanceCyl && { puissanceCyl }),
             ...(axe && { axe }),
             ...(addition && { addition }),
             ...(diametre && { diametre }),
+            ...(base && { base }),
+            ...(courbure && { courbure }),
+            ...(fabricant && { fabricant }),
+            ...(familleOptique && { familleOptique }),
 
+            // Lentille
             ...(typeLentille && { typeLentille }),
             ...(usage && { usage }),
+            ...(modeleCommercial && { modeleCommercial }),
+            ...(laboratoire && { laboratoire }),
             ...(rayonCourbure && { rayonCourbure }),
+            ...(nombreParBoite && { nombreParBoite }),
+            ...(prixParBoite && { prixParBoite }),
+            ...(prixParUnite && { prixParUnite }),
+            ...(numeroLot && { numeroLot }),
+            ...(datePeremption && { datePeremption }),
+            ...(quantiteBoites && { quantiteBoites }),
+            ...(quantiteUnites && { quantiteUnites }),
 
+            // Accessoire
             ...(categorieAccessoire && { categorieAccessoire }),
+            ...(sousCategorie && { sousCategorie }),
             ...specificData
         };
 
@@ -286,5 +327,24 @@ export class ProductsService {
                 }
             })
         ]);
+    }
+
+    async getStockStats() {
+        const products = await this.prisma.product.findMany();
+
+        const stats = {
+            totalProduits: products.length,
+            valeurStockTotal: products.reduce((acc, p) => acc + (p.quantiteActuelle * (p.prixAchatHT || 0)), 0),
+            produitsStockBas: products.filter(p => p.quantiteActuelle > 0 && p.quantiteActuelle <= p.seuilAlerte).length,
+            produitsRupture: products.filter(p => p.quantiteActuelle <= 0).length,
+            byType: {
+                montures: products.filter(p => p.typeArticle === 'MONTURE').length,
+                verres: products.filter(p => p.typeArticle === 'VERRE').length,
+                lentilles: products.filter(p => p.typeArticle === 'LENTILLE').length,
+                accessoires: products.filter(p => p.typeArticle === 'ACCESSOIRE').length
+            }
+        };
+
+        return stats;
     }
 }

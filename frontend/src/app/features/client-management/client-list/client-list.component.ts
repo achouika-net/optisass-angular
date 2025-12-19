@@ -10,7 +10,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
-import { ClientService } from '../services/client.service';
+import { ClientManagementService } from '../services/client.service';
 import { Client, StatutClient, TypeClient, isClientParticulier, isClientProfessionnel } from '../models/client.model';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
@@ -55,7 +55,7 @@ export class ClientListComponent implements OnInit {
     constructor(
         private fb: FormBuilder,
         private router: Router,
-        private clientService: ClientService,
+        private clientService: ClientManagementService,
         private snackBar: MatSnackBar
     ) {
         this.searchForm = this.fb.group({

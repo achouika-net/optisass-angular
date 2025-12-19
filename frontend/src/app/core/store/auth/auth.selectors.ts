@@ -29,7 +29,7 @@ export const MenuFavorisSelector = createSelector(
 );
 export const TenantSelector = createSelector(
   selectAuth,
-  (state: AuthState) => state.currentCenter?.numero_affaire
+  (state: AuthState) => state.currentCenter?.id
 );
 export const UserCentresSelector = createSelector(
   selectAuth,
