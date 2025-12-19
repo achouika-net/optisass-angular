@@ -446,7 +446,6 @@
       "forcerPrepaiementEnLigne": "Forcer le prépaiement en ligne",
       "forcerPaiementEnLigne": "Forcer paiement en ligne",
       "visibleSurLeWeb": "Visible sur le web",
-      "soumisOTC": "Soumis à l'OTC",
       "activerAssuranceCV": "Activer l'assurance CV",
       "rattachéeA": "Rattachée à",
       "agendasRattaches": "Agenda(s) rattaché(s)",
@@ -612,8 +611,21 @@
       "addUser": "Une erreur est survenue lors de la création d’un utilisateur",
       "updateUser": "Une erreur est survenue lors de la modification de l'utilisateur",
       "deleteUser": "Une erreur est survenue lors de la suppression de l'utilisateur",
-      "emailError": "Cet e-mail est déjà pris"
-    }
+      "emailError": "Cet e-mail est déjà pris",
+      "atLeastOneCenterShouldBeSelected": "Au moins un centre doit être sélectionné",
+      "nomRequired": "Le nom est requis",
+      "nomMaxLength": "Le nom ne peut pas dépasser 40 caractères",
+      "prenomRequired": "Le prénom est requis",
+      "prenomMaxLength": "Le prénom ne peut pas dépasser 40 caractères",
+      "civiliteRequired": "La civilité est requise",
+      "emailRequired": "L'e-mail est requis",
+      "emailPattern": "Veuillez saisir une adresse e-mail valide",
+      "mobilePattern": "Veuillez saisir un numéro de mobile valide",
+      "centreRequired": "Le centre est requis",
+      "roleRequired": "Le rôle est requis"
+    },
+    "centersAndRoles": "Centres et Rôles",
+    "addRole": "Ajouter un rôle"
   },
   "controllers": {
     "add": "Ajouter un agenda contrôleur",

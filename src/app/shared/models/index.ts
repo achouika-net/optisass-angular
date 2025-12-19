@@ -1,6 +1,7 @@
 export * from './actions-button.model';
 export * from './called-ressources.model';
 export * from './center.model';
+export * from './civilite.model';
 export * from './client-search-request.model';
 export * from './client-search-response.model';
 export * from './client.model';
@@ -18,8 +19,8 @@ export * from './password-retry-timer.model';
 export * from './permission-type.model';
 export * from './remaining-time.model';
 export * from './reset-password-confirm-request.model';
+export * from './resource.model';
 export * from './role.model';
 export * from './type-client.model';
 export * from './websocket.model';
 export * from './ws-error.model';
-export * from './resource.model';

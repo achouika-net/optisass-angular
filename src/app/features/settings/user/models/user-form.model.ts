@@ -15,4 +15,4 @@ export interface IUserForm {
   desactivation_motif_text: FormControl<string>;
 }
 
-export type IUserFormGroupValue = FormGroupValue<FormGroup<IUserForm>>;
+export type IUserFormValue = FormGroupValue<FormGroup<IUserForm>>;

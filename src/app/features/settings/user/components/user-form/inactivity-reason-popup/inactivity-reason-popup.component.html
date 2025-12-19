@@ -1,0 +1,19 @@
+<div mat-dialog-content>
+  <mat-form-field>
+    <mat-label>users.inactivityReason</mat-label>
+    <textarea
+      matInput
+      [formControl]="reason"
+      mainTitle="users.inactivityReason"
+      subTitle="users.otherInactivityReason"
+    ></textarea>
+  </mat-form-field>
+</div>
+<div mat-dialog-actions>
+  <button mat-raised-button color="primary" [disabled]="reason.invalid" (click)="saveReason()">
+    {{ 'commun.valider' | translate }}
+  </button>
+  <button mat-raised-button mat-dialog-close>
+    {{ 'commun.annuler' | translate }}
+  </button>
+</div>

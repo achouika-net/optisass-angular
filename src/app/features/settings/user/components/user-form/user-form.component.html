@@ -1,83 +1,140 @@
 <mat-card>
   <mat-card-content>
-    <form [formGroup]="userForm">
+    <form (submit)="$event.preventDefault(); save()">
+      <!-- Basic Information Section -->
       <div class="form-grid">
-        <mat-form-field appFieldControlLabel>
-          <mat-label>{{ 'commun.firstName' | translate }}</mat-label>
-          <input matInput formControlName="first_name" />
-          <mat-error app-form-control-error [errors]="userForm.controls.first_name.errors" />
-        </mat-form-field>
-        <mat-form-field appFieldControlLabel>
-          <mat-label>{{ 'commun.mobile' | translate }}</mat-label>
-          <input matInput formControlName="mobile" />
-          <mat-error
-            app-form-control-error
-            [errors]="userForm.controls.mobile.errors"
-            pattern="phone"
-          />
-        </mat-form-field>
+        <!-- Status Radio Buttons -->
+        <mat-radio-group [field]="form.actif">
+          <mat-label>
+            {{ 'commun.status' | translate }}
+          </mat-label>
+          <mat-radio-button [value]="true">
+            {{ 'commun.actif' | translate }}
+          </mat-radio-button>
+          <mat-radio-button [value]="false">
+            {{ 'commun.inactif' | translate }}
+          </mat-radio-button>
+          <mat-error app-field-error [errors]="form.actif().errors()" />
+        </mat-radio-group>
+        <!-- Photo Upload - Spans full width on mobile, right side on desktop -->
+        <div class="md:flex md:justify-end">
+          <app-photo-upload [field]="form.photo" />
+        </div>
+
+        <!-- Nom (Last Name) -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.lastName' | translate }}</mat-label>
-          <input matInput formControlName="last_name" />
-          <mat-error app-form-control-error [errors]="userForm.controls.last_name.errors" />
+          <input matInput [field]="form.nom" />
+          @if (form.nom().touched() && form.nom().invalid()) {
+          <mat-error app-field-error [errors]="form.nom().errors()" fieldname="lastName" />
+          }
         </mat-form-field>
+
+        <!-- Prénom (First Name) -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'commun.firstName' | translate }}</mat-label>
+          <input matInput [field]="form.prenom" />
+          @if (form.prenom().touched() && form.prenom().invalid()) {
+          <mat-error app-field-error [errors]="form.prenom().errors()" fieldname="firstName" />
+          }
+        </mat-form-field>
+
+        <!-- Civilité (Title) -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'commun.civilite' | translate }}</mat-label>
+          <mat-select [field]="form.civilite_id">
+            @for (civilite of civilites(); track civilite.id) {
+            <mat-option [value]="civilite.id">{{ civilite.libelle_complet }}</mat-option>
+            }
+          </mat-select>
+          @if (form.civilite_id().touched() && form.civilite_id().invalid()) {
+          <mat-error app-field-error [errors]="form.civilite_id().errors()" fieldname="civilite" />
+          }
+        </mat-form-field>
+
+        <!-- Téléphone (Phone) -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'commun.mobile' | translate }}</mat-label>
+          <input matInput [field]="form.mobile" />
+          @if (form.mobile().touched() && form.mobile().invalid()) {
+          <mat-error app-field-error [errors]="form.mobile().errors()" pattern="phone" />
+          }
+        </mat-form-field>
+
+        <!-- Email -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.email' | translate }}</mat-label>
-          <input matInput formControlName="email" />
-          <mat-error
-            app-form-control-error
-            [errors]="userForm.controls.email.errors"
-            pattern="email"
-          />
+          <input matInput [field]="form.email" type="email" />
+          @if (form.email().touched() && form.email().invalid()) {
+          <mat-error app-field-error [errors]="form.email().errors()" pattern="email" />
+          }
         </mat-form-field>
+
+        <!-- Agrément (License/Agreement) -->
         <mat-form-field appFieldControlLabel>
-          <mat-label>{{ 'commun.address' | translate }}</mat-label>
-          <input matInput formControlName="address" />
-          <mat-error app-form-control-error [errors]="userForm.controls.address.errors" />
+          <mat-label>{{ 'commun.agrement' | translate }}</mat-label>
+          <input matInput [field]="form.agrement" />
         </mat-form-field>
-        <mat-form-field appFieldControlLabel>
-          <mat-label>{{ 'commun.city' | translate }}</mat-label>
-          <input matInput formControlName="city" />
-          <mat-error app-form-control-error [errors]="userForm.controls.city.errors" />
+      </div>
+
+      <!-- Centres et Rôles Section -->
+      <mat-divider class="my-2" />
+
+      <div class="mb-4 flex items-center justify-between">
+        <h3 class="text-lg font-medium">{{ 'user.centersAndRoles' | translate }}</h3>
+        <button matButton="outlined" type="button" (click)="addCentreRole()" class="gap-1">
+          <mat-icon>add</mat-icon>
+          {{ 'user.addRole' | translate }}
+        </button>
+      </div>
+
+      @for (centerRolefield of form.center_roles; track $index ) {
+      <div class="mb-3 flex gap-3 items-start rounded border border-gray-200 p-3">
+        <!-- Centre Select -->
+        <mat-form-field appFieldControlLabel class="flex-1">
+          <mat-label>{{ 'commun.center' | translate }}</mat-label>
+          <mat-select [field]="centerRolefield.center_id">
+            @for (center of centers(); track center.id) {
+            <mat-option [value]="center.id">
+              {{ center.numero_affaire }} - {{ center.name }}
+            </mat-option>
+            }
+          </mat-select>
         </mat-form-field>
-        <mat-form-field appFieldControlLabel>
-          <mat-label>{{ 'commun.suite' | translate }}</mat-label>
-          <input matInput formControlName="suite" />
-          <mat-error app-form-control-error [errors]="userForm.controls.suite.errors" />
-        </mat-form-field>
-        <mat-form-field appFieldControlLabel>
-          <mat-label>{{ 'commun.postalCode' | translate }}</mat-label>
-          <input matInput formControlName="zipcode" />
-          <mat-error app-form-control-error [errors]="userForm.controls.zipcode.errors" />
-        </mat-form-field>
-        <mat-form-field appFieldControlLabel>
+
+        <!-- Role Select -->
+        <mat-form-field appFieldControlLabel class="flex-1">
           <mat-label>{{ 'commun.role' | translate }}</mat-label>
-          <mat-select formControlName="role_id">
+          <mat-select [field]="centerRolefield.role_id">
             @for (role of roles(); track role.id) {
             <mat-option [value]="role.id">{{ role.name }}</mat-option>
             }
           </mat-select>
-          <mat-error app-form-control-error [errors]="userForm.controls.role_id.errors" />
         </mat-form-field>
-        <mat-slide-toggle labelPosition="before" formControlName="is_callcenter">
-          {{ 'user.callCenter' | translate }}
-        </mat-slide-toggle>
+
+        <!-- Delete Button -->
+        <button
+          matIconButton
+          type="button"
+          (click)="removeCentreRole($index)"
+          [disabled]="userFormModel().center_roles.length === 1"
+          class="mt-1 text-error"
+        >
+          <mat-icon>delete</mat-icon>
+        </button>
+      </div>
+      } @if (!userFormModel().center_roles.length) {
+      <div class="text-error mt-2 text-sm">
+        {{ 'user.errors.atLeastOneCenterShouldBeSelected' | translate }}
+      </div>
+      }
+
+      <!-- Save Button -->
+      <div class="mt-6 flex justify-center">
+        <button matButton="filled" class="tertiary" type="submit" [disabled]="form().invalid()">
+          {{ 'commun.save' | translate }}
+        </button>
       </div>
     </form>
-    @if (!user()) {
-    <span class="text-sm text-red-400">
-      {{ 'user.generateAutoPasswordMessage' | translate }}
-    </span>
-    }
-    <div class="flex justify-center pt-4">
-      <button
-        mat-flat-button
-        class="tertiary"
-        (click)="save()"
-        [disabled]="userForm.invalid || !userForm.dirty"
-      >
-        {{ (!user() ? 'commun.save' : 'commun.update') | translate }}
-      </button>
-    </div>
   </mat-card-content>
 </mat-card>

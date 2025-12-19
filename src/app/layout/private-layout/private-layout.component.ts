@@ -29,6 +29,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { MatDialog } from '@angular/material/dialog';
 import { SetCurrentCenter } from '../../core/store/auth/auth.actions';
 import { WebSocketsService } from '@app/services';
+import { GetCivilites } from 'app/core/store/resources/resources.actions';
 
 @Component({
   selector: 'app-private-layout',
@@ -85,6 +86,10 @@ export default class PrivateLayoutComponent {
   readonly isTablet = linkedSignal(() => this.#isTablet());
   readonly isDesktop = linkedSignal(() => this.#isDesktop());
   readonly isCollapsed = linkedSignal(() => this.isTablet() || this.isMobile());
+
+  constructor() {
+    this.#store.dispatch(GetCivilites());
+  }
 
   toggleSidenav(sidenav: MatSidenav): void {
     if (this.isMobile()) {
