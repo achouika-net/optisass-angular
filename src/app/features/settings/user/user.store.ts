@@ -1,19 +1,17 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { computed, inject, Injectable, Signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { PageEvent } from '@angular/material/paginator';
 import { Sort } from '@angular/material/sort';
-import { Params, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { DEFAULT_PAGE_SIZE } from '@app/config';
 import { IRole, PaginatedApiResponse } from '@app/models';
 import { ErrorService, RoleService } from '@app/services';
 import { patchState, signalState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { ToastrService } from 'ngx-toastr';
 import { catchError, of, pipe, switchMap } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { selectRouteParams } from '../../../core/store/router/router.selector';
 import { IUser, IUserSearch, UserSearch } from './models';
 import { UserService } from './services/user.service';
 
@@ -46,8 +44,17 @@ export class UserStore {
   readonly #toastr = inject(ToastrService);
   readonly #translate = inject(TranslateService);
   readonly #roleService = inject(RoleService);
-  readonly #store = inject(Store);
-  #id = computed<number>(() => +this.#store.selectSignal<Params>(selectRouteParams)()['id']);
+
+  // Signal pour stocker l'ID de l'utilisateur (sera défini par le composant parent)
+  readonly #id = signal<number>(0);
+
+  /**
+   * Définit l'ID de l'utilisateur à charger
+   * Cette méthode doit être appelée par le composant qui reçoit le paramètre de route
+   */
+  setUserId(id: number): void {
+    this.#id.set(id);
+  }
 
   constructor() {
     this.#getRoles();

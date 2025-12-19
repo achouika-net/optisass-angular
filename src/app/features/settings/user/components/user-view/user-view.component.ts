@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, input, OnInit, signal } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { ActionsButtonsComponent } from '@app/components';
 import { ActionsButton, DirectionType } from '@app/models';
@@ -18,6 +18,10 @@ export default class UserViewComponent implements OnInit {
   readonly #userStore = inject(UserStore);
   readonly #dialog = inject(MatDialog);
   readonly #translateService = inject(TranslateService);
+
+  // Reçoit automatiquement le paramètre ':id' de la route grâce à withComponentInputBinding()
+  readonly id = input.required<number>();
+
   protected actionButtons = signal<ActionsButton[]>([
     {
       libelle: 'commun.generatePassword',
@@ -26,6 +30,13 @@ export default class UserViewComponent implements OnInit {
       permissions: [],
     },
   ]);
+
+  constructor() {
+    // Effect pour mettre à jour le store quand l'ID change
+    effect(() => {
+      this.#userStore.setUserId(this.id());
+    });
+  }
 
   ngOnInit() {
     this.#userStore.getUser();

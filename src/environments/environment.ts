@@ -3,7 +3,7 @@ export const environment = {
   envName: 'development',
   defaultLanguage: 'fr',
   appName: 'Agenda',
-  apiUrl: 'https://optisaas.com',
+  apiUrl: 'http://151.80.146.74:3000/api',
   websocketUrl: 'wss://optisaas.com/app/',
   appVersion: '2.0.0',
 };

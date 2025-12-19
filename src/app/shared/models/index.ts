@@ -20,6 +20,5 @@ export * from './remaining-time.model';
 export * from './reset-password-confirm-request.model';
 export * from './role.model';
 export * from './type-client.model';
-export * from './websocket.model';
 export * from './ws-error.model';
 export * from './resource.model';

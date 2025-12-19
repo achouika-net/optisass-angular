@@ -8,9 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
-import { Store } from '@ngrx/store';
-import { Logout } from '../../core/store/auth/auth.actions';
-import { UserSelector } from '../../core/store/auth/auth.selectors';
+import { AuthStore } from '@app/core/store';
 import { AvatarComponent } from '../../shared/components/avatar/avatar.component';
 
 @Component({
@@ -20,12 +18,15 @@ import { AvatarComponent } from '../../shared/components/avatar/avatar.component
   imports: [MatButtonModule, MatIconModule, MatMenuModule, MatDividerModule, AvatarComponent],
 })
 export class TopbarActionsComponent {
-  private readonly store = inject(Store);
+  private readonly authStore = inject(AuthStore);
   isMobile = input.required<boolean>();
   
-  user = this.store.selectSignal(UserSelector);
+  user = this.authStore.user;
 
-  logout() {
-    this.store.dispatch(Logout({}));
+  /**
+   * Déconnecte l'utilisateur
+   */
+  logout(): void {
+    this.authStore.logout();
   }
 }

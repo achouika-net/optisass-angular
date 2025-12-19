@@ -1,78 +1,136 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   HttpErrorResponse,
+  HttpEvent,
   HttpHandlerFn,
   HttpInterceptorFn,
   HttpRequest,
 } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { IJwtTokens } from '@app/models';
-import { Store } from '@ngrx/store';
-import { BehaviorSubject, Subject, throwError } from 'rxjs';
+import { isValidTokens, JwtTokensState } from '@app/models';
+import { BehaviorSubject, Observable, Subject, throwError } from 'rxjs';
 import { catchError, filter, switchMap, take, takeUntil } from 'rxjs/operators';
-import { RefreshToken } from '../store/auth/auth.actions';
-import { JwtTokensSelector, RefreshTokenInProgressSelector } from '../store/auth/auth.selectors';
+import { AuthStore } from '../store/auth.store';
 
 export const refreshTokenSubject = new BehaviorSubject<string | null>(null);
-const takeUntilSubject = new Subject<boolean>();
 
-const PUBLIC_URLS = ['/login', '/refresh_token', '/password_reset', '/password_reset/verify'];
+const cancelPendingRequests$ = new Subject<void>();
 
-/* Ajout du token dans le header de la request
- * @param request
- * @param token
- * @return HttpRequest<any>
- * @private
+const PUBLIC_URLS = [
+  '/login',
+  '/refresh_token',
+  '/password_reset',
+  '/password_reset/verify',
+] as const;
+
+type PublicUrl = (typeof PUBLIC_URLS)[number];
+
+type AuthStoreInstance = InstanceType<typeof AuthStore>;
+
+/**
+ * Vérifie si une URL est publique
  */
-const addAuthHeader = (request: HttpRequest<any>, token: string): HttpRequest<any> => {
+function isPublicUrl(url: string): boolean {
+  return PUBLIC_URLS.some((publicUrl) => url.includes(publicUrl));
+}
+
+/**
+ * Ajoute le header Authorization à une requête
+ */
+function addAuthHeader<T>(request: HttpRequest<T>, token: string): HttpRequest<T> {
   return request.clone({
-    headers: request.headers.set('Authorization', `Bearer ${token}`),
+    setHeaders: {
+      Authorization: `Bearer ${token}`,
+    },
   });
+}
+
+/**
+ * Gère les erreurs HTTP avec retry automatique pour 401
+ */
+function handleAuthError<T>(
+  request: HttpRequest<T>,
+  next: HttpHandlerFn,
+  error: unknown,
+  authStore: AuthStoreInstance
+): Observable<HttpEvent<T>> {
+  if (!(error instanceof HttpErrorResponse)) {
+    return throwError(() => error);
+  }
+
+  if (isPublicUrl(request.url)) {
+    return throwError(() => error);
+  }
+
+  if (error.status === 401) {
+    return handleUnauthorizedError(request, next, authStore);
+  }
+
+  return throwError(() => error);
+}
+
+/**
+ * Gère spécifiquement les erreurs 401 (Unauthorized)
+ */
+function handleUnauthorizedError<T>(
+  request: HttpRequest<T>,
+  next: HttpHandlerFn,
+  authStore: AuthStoreInstance
+): Observable<HttpEvent<T>> {
+  const tokens: JwtTokensState = authStore.jwtTokens();
+
+  if (!tokens || !tokens.refresh_token) {
+    authStore.logout(true);
+    return throwError(() => new Error('No refresh token available'));
+  }
+
+  if (authStore.refreshTokenInProgress()) {
+    return waitForNewToken(request, next);
+  }
+
+  refreshTokenSubject.next(null);
+  authStore.refreshToken(tokens.refresh_token);
+
+  return waitForNewToken(request, next);
+}
+
+/**
+ * Attend qu'un nouveau token soit disponible et relance la requête
+ */
+function waitForNewToken<T>(
+  request: HttpRequest<T>,
+  next: HttpHandlerFn
+): Observable<HttpEvent<T>> {
+  return refreshTokenSubject.pipe(
+    filter((token): token is string => token !== null && token.length > 0),
+    take(1),
+    takeUntil(cancelPendingRequests$),
+    switchMap((newToken) => {
+      const authRequest = addAuthHeader(request, newToken);
+      return next(authRequest) as Observable<HttpEvent<T>>;
+    })
+  );
+}
+
+/**
+ * Interceptor JWT principal
+ */
+export const JwtInterceptor: HttpInterceptorFn = (req, next) => {
+  const authStore = inject(AuthStore);
+  const tokens: JwtTokensState = authStore.jwtTokens();
+
+  let authRequest = req;
+  if (isValidTokens(tokens) && !isPublicUrl(req.url)) {
+    authRequest = addAuthHeader(req, tokens.token);
+  }
+
+  return next(authRequest).pipe(
+    catchError((error) => handleAuthError(authRequest, next, error, authStore))
+  );
 };
 
 /**
- * Vérifie si l'URL est publique
- * @param url
- * @return boolean
+ * Annule toutes les requêtes en attente
  */
-const isPublicUrl = (url: string): boolean =>
-  PUBLIC_URLS.some((publicUrl) => url.includes(publicUrl));
-
-export const JwtInterceptor: HttpInterceptorFn = (req: HttpRequest<any>, next: HttpHandlerFn) => {
-  const store = inject<Store>(Store);
-  const refreshTokenInProgress = store.selectSignal(RefreshTokenInProgressSelector);
-  const tokens = store.selectSignal<IJwtTokens>(JwtTokensSelector);
-  const accessToken = tokens().token;
-  const refreshToken = tokens().refresh_token;
-
-  let authReq = req;
-  if (!!accessToken && !isPublicUrl(authReq.url)) {
-    authReq = addAuthHeader(req, accessToken);
-  }
-  return next(authReq).pipe(
-    catchError((error) => {
-      if (!isPublicUrl(authReq.url) && error instanceof HttpErrorResponse && error.status === 401) {
-        // mise à jour du accessToken à l'aide du refreshToken lors de la réception d'une HttpResponse avec le code d'erreur 401
-        if (!refreshTokenInProgress()) {
-          refreshTokenSubject.next(null);
-          store.dispatch(RefreshToken({ refresh_token: refreshToken }));
-        }
-
-        // On attend que le nouveau token soit émis via le BehaviorSubject
-        return refreshTokenSubject.pipe(
-          filter((newToken: string) => !!newToken),
-          take(1),
-          takeUntil(takeUntilSubject),
-          switchMap((newToken: string) => next(addAuthHeader(authReq, newToken)))
-        );
-      }
-
-      // Si l'appel au /refresh_token échoue on stoppe tout
-      if (authReq.url.includes('refresh_token')) {
-        takeUntilSubject.next(true);
-      }
-
-      return throwError(error);
-    })
-  );
-};
+export function cancelAllPendingRequests(): void {
+  cancelPendingRequests$.next();
+}

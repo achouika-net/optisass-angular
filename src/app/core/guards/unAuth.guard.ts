@@ -1,21 +1,24 @@
 import { inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { CanActivateFn, Router } from '@angular/router';
-import { Store } from '@ngrx/store';
 import { ToastrService } from 'ngx-toastr';
-import { IsAuthenticatedSelector } from '../store/auth/auth.selectors';
+import { AuthStore } from '@app/core/store';
 
 export const UnAuthGuard: CanActivateFn = (): boolean => {
-  const store = inject(Store);
+  const authStore = inject(AuthStore);
   const router = inject(Router);
   const dialog = inject(MatDialog);
   const toastr = inject(ToastrService);
-  const isAuthenticated = store.selectSignal<boolean>(IsAuthenticatedSelector);
-  if (isAuthenticated()) {
+  
+  const isAuthenticated = authStore.isAuthenticated();
+  
+  if (isAuthenticated) {
     void router.navigate(['/p']);
     return false;
   }
+  
   dialog.closeAll();
   toastr.clear();
-  return !isAuthenticated();
+  
+  return !isAuthenticated;
 };

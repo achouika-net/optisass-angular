@@ -14,29 +14,15 @@ export interface ICurrentUser {
   avatar?: string | null;
 }
 
-export class CurrentUser implements ICurrentUser {
-  id: number;
-  first_name: string;
-  last_name: string;
-  address: string;
-  mobile: string;
-  email: string;
-  is_callcenter: boolean;
-  remember_token: string;
-  menu_favoris: string;
-  centers: ICenter[];
-  avatar?: string | null;
+export type CurrentUserState = ICurrentUser | null;
 
-  constructor() {
-    this.id = null;
-    this.first_name = null;
-    this.last_name = null;
-    this.email = null;
-    this.mobile = null;
-    this.is_callcenter = false;
-    this.remember_token = null;
-    this.menu_favoris = null;
-    this.centers = [];
-    this.avatar = null;
-  }
+export const INITIAL_CURRENT_USER: CurrentUserState = null;
+
+/**
+ * Vérifie si l'utilisateur est valide et non-null
+ * @param user - L'utilisateur à vérifier
+ * @returns true si l'utilisateur est valide, false sinon
+ */
+export function isValidUser(user: CurrentUserState): user is ICurrentUser {
+  return user !== null && typeof user.id === 'number' && user.id > 0;
 }

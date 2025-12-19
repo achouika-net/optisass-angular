@@ -9,11 +9,10 @@ import {
 import { MatCard, MatCardContent } from '@angular/material/card';
 import { NgOptimizedImage } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
-import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { timer } from 'rxjs';
-import { BackgroundsSelector } from '../../../core/store/settings/settings.selectors';
 import { BACKGROUND_IMAGE_REFRESH } from '@app/config';
+import { SettingsStore } from '@app/core/store';
 import { AuthenticationStore } from '../authentication.store';
 
 @Component({
@@ -24,17 +23,18 @@ import { AuthenticationStore } from '../authentication.store';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AuthenticationComponent {
-  readonly #store = inject(Store);
+  readonly #settingsStore = inject(SettingsStore);
   protected readonly logoPath = signal<string>('/logos/optisaas-logo.png');
   #backgroundTimer: Signal<number> = toSignal(timer(0, BACKGROUND_IMAGE_REFRESH), {
     initialValue: 0,
   });
+  
   /**
    * Signal represents a slideshow of backgrounds returning current background URL.
    */
   protected currentBackground: Signal<string> = computed(() => {
-    const backgrounds = this.#store.selectSignal<string[]>(BackgroundsSelector);
-    const current = this.#backgroundTimer() % backgrounds().length;
-    return `url(${backgrounds()[current]})`;
+    const backgrounds = this.#settingsStore.backgrounds();
+    const current = this.#backgroundTimer() % backgrounds.length;
+    return `url(${backgrounds[current]})`;
   });
 }

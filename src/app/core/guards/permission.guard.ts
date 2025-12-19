@@ -7,9 +7,8 @@ import {
   RouterStateSnapshot,
 } from '@angular/router';
 import { findMenuItemByUrl, userHasAccessToItem } from '@app/helpers';
-import { Store } from '@ngrx/store';
+import { AuthStore } from '@app/core/store';
 import { MENU } from '../../config/menu.config';
-import { UserRoleSelector } from '../store/auth/auth.selectors';
 
 export const PermissionCanActivateGuard: CanActivateFn = (
   next: ActivatedRouteSnapshot,
@@ -23,9 +22,10 @@ export const PermissionCanActivateChildGuard: CanActivateChildFn = (
 
 const checkPermission = (url: string): boolean => {
   const router = inject(Router);
-  const store = inject(Store);
-  const userRole = store.selectSignal(UserRoleSelector);
-  if (userHasAccessToItem(findMenuItemByUrl(MENU, url), userRole())) {
+  const authStore = inject(AuthStore);
+  const userRole = authStore.userRole();
+  
+  if (userHasAccessToItem(findMenuItemByUrl(MENU, url), userRole)) {
     return true;
   } else {
     void router.navigate(['page-not-found']);
