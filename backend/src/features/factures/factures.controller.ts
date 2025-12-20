@@ -21,11 +21,11 @@ export class FacturesController {
         @Query('statut') statut?: string,
         @Headers('Tenant') centreId?: string
     ) {
-        const where: any = {}; // Use 'any' to avoid strict type issues if Prisma hasn't refreshed in IDE
+        if (!centreId) return []; // Isolation
+        const where: any = { centreId };
         if (clientId) where.clientId = clientId;
         if (type) where.type = type;
         if (statut) where.statut = statut;
-        if (centreId) where.centreId = centreId;
 
         return this.facturesService.findAll({
             where,

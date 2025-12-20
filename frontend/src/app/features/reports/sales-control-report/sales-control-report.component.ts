@@ -9,6 +9,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { SalesControlService, BrouillonInvoice, VendorStatistics } from '../services/sales-control.service';
 import { RouterModule } from '@angular/router';
+import { forkJoin } from 'rxjs';
 
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -16,6 +17,9 @@ import { FormsModule } from '@angular/forms';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatInputModule } from '@angular/material/input';
+import { Store } from '@ngrx/store';
+import { UserCurrentCentreSelector } from '../../../core/store/auth/auth.selectors';
+import { effect } from '@angular/core';
 
 interface MonthlyGroup {
     month: string; // MM/YYYY
@@ -94,86 +98,74 @@ export class SalesControlReportComponent implements OnInit {
     columnsStats = ['vendorName', 'countWithPayment', 'countWithoutPayment', 'countValid', 'countAvoir', 'totalAmount'];
 
     loading = false;
+    currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
 
     constructor(
         private salesControlService: SalesControlService,
-        private snackBar: MatSnackBar
-    ) { }
+        private snackBar: MatSnackBar,
+        private store: Store
+    ) {
+        // Automatically reload when center changes
+        effect(() => {
+            const center = this.currentCentre();
+            if (center) {
+                this.loadData();
+            }
+        });
+    }
 
     ngOnInit(): void {
-        this.loadData();
+        // Handled by effect on center change
     }
 
     loadData(): void {
         this.loading = true;
 
-        // Load invoices with payments
-        this.salesControlService.getBrouillonWithPayments().subscribe({
-            next: (data) => {
-                this.invoicesWithPayment = data;
-                this.groupedWithPayment = this.groupInvoices(data);
+        // Clear existing data to prevent flicker/stale data from previous center
+        this.invoicesWithPayment = [];
+        this.invoicesWithoutPayment = [];
+        this.invoicesValid = [];
+        this.invoicesAvoir = [];
+        this.groupedWithPayment = [];
+        this.groupedWithoutPayment = [];
+        this.groupedValid = [];
+        this.groupedAvoir = [];
+        this.groupedArchived = [];
+        this.statistics = [];
+
+        // Use forkJoin to load everything atomically
+        forkJoin({
+            withPayments: this.salesControlService.getBrouillonWithPayments(),
+            withoutPayments: this.salesControlService.getBrouillonWithoutPayments(),
+            valid: this.salesControlService.getValidInvoices(),
+            avoirs: this.salesControlService.getAvoirs(),
+            archived: this.salesControlService.getArchivedInvoices(),
+            stats: this.salesControlService.getStatistics()
+        }).subscribe({
+            next: (results) => {
+                this.invoicesWithPayment = results.withPayments;
+                this.groupedWithPayment = this.groupInvoices(results.withPayments);
+
+                this.invoicesWithoutPayment = results.withoutPayments;
+                this.groupedWithoutPayment = this.groupInvoices(results.withoutPayments);
+
+                this.invoicesValid = results.valid;
+                this.groupedValid = this.groupInvoices(results.valid);
+
+                this.invoicesAvoir = results.avoirs;
+                this.groupedAvoir = this.groupInvoices(results.avoirs);
+
+                this.groupedArchived = this.groupInvoices(results.archived);
+
+                this.statistics = results.stats;
+
                 this.updateAvailablePeriods();
                 this.calculateMetrics();
-            },
-            error: (err) => {
-                console.error('Error loading invoices with payment:', err);
-                this.snackBar.open('Erreur lors du chargement', 'Fermer', { duration: 3000 });
-            }
-        });
-
-        // Load invoices without payments
-        this.salesControlService.getBrouillonWithoutPayments().subscribe({
-            next: (data) => {
-                this.invoicesWithoutPayment = data;
-                this.groupedWithoutPayment = this.groupInvoices(data);
-                this.updateAvailablePeriods();
-                this.calculateMetrics();
-            },
-            error: (err) => {
-                console.error('Error loading invoices without payment:', err);
-            }
-        });
-
-        // Load valid invoices
-        this.salesControlService.getValidInvoices().subscribe({
-            next: (data) => {
-                this.invoicesValid = data;
-                this.groupedValid = this.groupInvoices(data);
-                this.updateAvailablePeriods();
-                this.calculateMetrics();
-            },
-            error: (err) => console.error('Error loading valid invoices:', err)
-        });
-
-        // Load avoirs
-        this.salesControlService.getAvoirs().subscribe({
-            next: (data) => {
-                this.invoicesAvoir = data;
-                this.groupedAvoir = this.groupInvoices(data);
-                this.updateAvailablePeriods();
-                this.calculateMetrics();
-            },
-            error: (err) => console.error('Error loading avoirs:', err)
-        });
-
-        // Load archived (hidden from list but used for calculation)
-        this.salesControlService.getArchivedInvoices().subscribe({
-            next: (data) => {
-                this.groupedArchived = this.groupInvoices(data);
-                this.updateAvailablePeriods();
-                this.calculateMetrics();
-            },
-            error: (err) => console.error('Error loading archived:', err)
-        });
-
-        // Load statistics
-        this.salesControlService.getStatistics().subscribe({
-            next: (data) => {
-                this.statistics = data;
                 this.loading = false;
             },
             error: (err) => {
-                console.error('Error loading statistics:', err);
+                console.error('Error loading report data:', err);
+                this.snackBar.open('Erreur lors du chargement des données', 'Fermer', { duration: 3000 });
                 this.loading = false;
             }
         });
@@ -199,7 +191,7 @@ export class SalesControlReportComponent implements OnInit {
             }
 
             groups[monthKey].invoices.push(inv);
-            groups[monthKey].totalTTC += inv.totalTTC;
+            groups[monthKey].totalTTC += (inv.totalTTC || 0);
             groups[monthKey].totalReste += (inv.resteAPayer || 0);
 
             if (inv.paiements) {
@@ -232,12 +224,19 @@ export class SalesControlReportComponent implements OnInit {
         // Years
         this.availableYears = Array.from(years).sort((a, b) => b - a);
 
-        // Set default month/year if available
-        if (this.availablePeriods.length > 0 && !this.selectedMonth) {
-            this.selectedMonth = this.availablePeriods[0];
+        // Set default month/year if available or if current selection is invalid for this center
+        if (this.availablePeriods.length > 0) {
+            if (!this.selectedMonth || !this.availablePeriods.includes(this.selectedMonth)) {
+                this.selectedMonth = this.availablePeriods[0];
+            }
+        } else {
+            this.selectedMonth = '';
         }
+
         if (this.availableYears.length > 0) {
-            this.selectedYear = this.availableYears[0];
+            if (!this.selectedYear || !this.availableYears.includes(this.selectedYear)) {
+                this.selectedYear = this.availableYears[0];
+            }
         }
     }
 
@@ -252,7 +251,7 @@ export class SalesControlReportComponent implements OnInit {
             groups.forEach(g => {
                 g.invoices.forEach(inv => {
                     if (this.isInvoiceVisible(inv)) {
-                        this.metrics.totalCA += inv.totalTTC;
+                        this.metrics.totalCA += (inv.totalTTC || 0);
                         const paid = inv.paiements ? inv.paiements.reduce((sum, p) => sum + p.montant, 0) : 0;
                         this.metrics.totalPaid += paid;
                         this.metrics.totalReste += (inv.resteAPayer || 0);

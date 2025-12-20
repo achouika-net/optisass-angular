@@ -102,14 +102,10 @@ export class ProductsService {
     async findAll(entrepotId?: string, centreId?: string) {
         const where: any = {};
 
-        if (entrepotId) {
-            where.entrepotId = entrepotId;
-        }
-
+        if (!centreId && !entrepotId) return []; // Isolation
+        if (entrepotId) where.entrepotId = entrepotId;
         if (centreId) {
-            where.entrepot = {
-                centreId: centreId
-            };
+            where.entrepot = { centreId };
         }
 
         return this.prisma.product.findMany({
@@ -329,8 +325,30 @@ export class ProductsService {
         ]);
     }
 
-    async getStockStats() {
-        const products = await this.prisma.product.findMany();
+    async getStockStats(centreId?: string) {
+        if (!centreId) {
+            return {
+                totalProduits: 0,
+                valeurStockTotal: 0,
+                produitsStockBas: 0,
+                produitsRupture: 0,
+                byType: {
+                    montures: 0,
+                    verres: 0,
+                    lentilles: 0,
+                    accessoires: 0
+                }
+            };
+        }
+
+        const products = await this.prisma.product.findMany({
+            where: {
+                entrepot: { centreId }
+            },
+            include: {
+                entrepot: true
+            }
+        });
 
         const stats = {
             totalProduits: products.length,
