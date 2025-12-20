@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Query, UseGuards, Headers } from '@nestjs/common';
 import { SalesControlService } from './sales-control.service';
 
 @Controller('sales-control')
@@ -6,33 +6,33 @@ export class SalesControlController {
     constructor(private readonly salesControlService: SalesControlService) { }
 
     @Get('brouillon-with-payments')
-    async getBrouillonWithPayments(@Query('userId') userId?: string) {
-        return this.salesControlService.getBrouillonWithPayments(userId);
+    async getBrouillonWithPayments(@Query('userId') userId?: string, @Headers('Tenant') centreId?: string) {
+        return this.salesControlService.getBrouillonWithPayments(userId, centreId);
     }
 
     @Get('brouillon-without-payments')
-    async getBrouillonWithoutPayments(@Query('userId') userId?: string) {
-        return this.salesControlService.getBrouillonWithoutPayments(userId);
+    async getBrouillonWithoutPayments(@Query('userId') userId?: string, @Headers('Tenant') centreId?: string) {
+        return this.salesControlService.getBrouillonWithoutPayments(userId, centreId);
     }
 
     @Get('valid-invoices')
-    async getValidInvoices(@Query('userId') userId?: string) {
-        return this.salesControlService.getValidInvoices(userId);
+    async getValidInvoices(@Query('userId') userId?: string, @Headers('Tenant') centreId?: string) {
+        return this.salesControlService.getValidInvoices(userId, centreId);
     }
 
     @Get('avoirs')
-    async getAvoirs(@Query('userId') userId?: string) {
-        return this.salesControlService.getAvoirs(userId);
+    async getAvoirs(@Query('userId') userId?: string, @Headers('Tenant') centreId?: string) {
+        return this.salesControlService.getAvoirs(userId, centreId);
     }
 
     @Get('archived')
-    async getArchivedInvoices(@Query('userId') userId?: string) {
-        return this.salesControlService.getArchivedInvoices(userId);
+    async getArchivedInvoices(@Query('userId') userId?: string, @Headers('Tenant') centreId?: string) {
+        return this.salesControlService.getArchivedInvoices(userId, centreId);
     }
 
     @Get('statistics')
-    async getStatistics() {
-        return this.salesControlService.getStatisticsByVendor();
+    async getStatistics(@Headers('Tenant') centreId?: string) {
+        return this.salesControlService.getStatisticsByVendor(centreId);
     }
 
     @Post('validate/:id')

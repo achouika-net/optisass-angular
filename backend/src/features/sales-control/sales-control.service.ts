@@ -10,7 +10,7 @@ export class SalesControlService {
     ) { }
 
     // Get BROUILLON invoices with payments
-    async getBrouillonWithPayments(userId?: string) {
+    async getBrouillonWithPayments(userId?: string, centreId?: string) {
         const where: any = {
             OR: [
                 { numero: { startsWith: 'BRO' } },
@@ -21,6 +21,9 @@ export class SalesControlService {
                 some: {}
             }
         };
+
+        if (!centreId) return [];
+        where.centreId = centreId;
 
         // Note: Vendor filtering would require adding createdBy field to Fiche schema
         // For now, return all BROUILLON with payments
@@ -45,11 +48,14 @@ export class SalesControlService {
     }
 
     // Get VALID invoices (Valid, Payee, Partiel)
-    async getValidInvoices(userId?: string) {
+    async getValidInvoices(userId?: string, centreId?: string) {
         const where: any = {
             numero: { startsWith: 'FAC' }
             // Removed strict type check to ensure any FAC numbered invoice appears
         };
+
+        if (!centreId) return [];
+        where.centreId = centreId;
 
         return this.prisma.facture.findMany({
             where,
@@ -71,12 +77,15 @@ export class SalesControlService {
     }
 
     // Get AVOIRS and CANCELLED Drafts
-    async getAvoirs(userId?: string) {
+    async getAvoirs(userId?: string, centreId?: string) {
         // User Request: Empty the Avoirs table as legacy logic (Draft -> Avoir) is invalid.
         // Valid invoices will generate real Avoirs in the future, but for now we hide everything.
         const where: any = {
             type: 'AVOIR_HIDDEN_LEGACY' // Returns nothing
         };
+
+        if (!centreId) return [];
+        where.centreId = centreId;
 
         return this.prisma.facture.findMany({
             where,
@@ -98,7 +107,7 @@ export class SalesControlService {
     }
 
     // Get BROUILLON invoices without payments
-    async getBrouillonWithoutPayments(userId?: string) {
+    async getBrouillonWithoutPayments(userId?: string, centreId?: string) {
         const where: any = {
             OR: [
                 { numero: { startsWith: 'BRO' } },
@@ -109,6 +118,9 @@ export class SalesControlService {
                 none: {}
             }
         };
+
+        if (!centreId) return [];
+        where.centreId = centreId;
 
         return this.prisma.facture.findMany({
             where,
@@ -129,17 +141,33 @@ export class SalesControlService {
     }
 
     // Get statistics by vendor
-    async getStatisticsByVendor() {
+    async getStatisticsByVendor(centreId?: string) {
+        const where: any = {
+            // Fetch all relevant types/statuses for stats
+            OR: [
+                { numero: { startsWith: 'BRO' } },
+                { numero: { startsWith: 'Devis' } },
+                { numero: { startsWith: 'FAC' } },
+                { type: 'AVOIR' }
+            ]
+        };
+
+        if (!centreId) return [{
+            vendorId: 'none',
+            vendorName: 'Néant',
+            countWithPayment: 0,
+            countWithoutPayment: 0,
+            countValid: 0,
+            countAvoir: 0,
+            countCancelled: 0,
+            totalAmount: 0,
+            totalArchived: 0
+        }];
+        where.centreId = centreId;
+
+        console.log(`📊 Statistics Query for Center: [${centreId || 'GLOBAL'}]`);
         const factures = await this.prisma.facture.findMany({
-            where: {
-                // Fetch all relevant types/statuses for stats
-                OR: [
-                    { numero: { startsWith: 'BRO' } },
-                    { numero: { startsWith: 'Devis' } },
-                    { numero: { startsWith: 'FAC' } },
-                    { type: 'AVOIR' }
-                ]
-            },
+            where,
             include: {
                 paiements: true,
                 fiche: true
@@ -147,7 +175,6 @@ export class SalesControlService {
         });
 
         console.log('📊 Statistics Query Result:', factures.length, 'factures found');
-        console.log('📊 Status Distribution:', factures.map(f => `${f.numero}:${f.statut}:${f.type}`));
 
         // Simple statistics for now
         // Exclude ARCHIVE from "Devis" counts
@@ -174,16 +201,19 @@ export class SalesControlService {
             countValid: validInvoices.length,
             countAvoir: avoirs.length,
             countCancelled: cancelledDrafts.length,
-            totalAmount: validInvoices.reduce((sum, f) => sum + f.totalTTC, 0),
-            totalArchived: archivedInvoices.reduce((sum, f) => sum + f.totalTTC, 0)
+            totalAmount: validInvoices.reduce((sum, f) => sum + (f.totalTTC || 0), 0),
+            totalArchived: archivedInvoices.reduce((sum, f) => sum + (f.totalTTC || 0), 0)
         }];
     }
 
     // Get ARCHIVED invoices (for calculation but hidden from lists)
-    async getArchivedInvoices(userId?: string) {
+    async getArchivedInvoices(userId?: string, centreId?: string) {
         const where: any = {
             statut: 'ARCHIVE'
         };
+
+        if (!centreId) return [];
+        where.centreId = centreId;
 
         return this.prisma.facture.findMany({
             where,

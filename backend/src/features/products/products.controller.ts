@@ -13,8 +13,8 @@ export class ProductsController {
     }
 
     @Get('stats')
-    getStockStats() {
-        return this.productsService.getStockStats();
+    getStockStats(@Headers('Tenant') centreId?: string) {
+        return this.productsService.getStockStats(centreId);
     }
 
     @Get()

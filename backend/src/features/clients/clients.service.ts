@@ -23,9 +23,8 @@ export class ClientsService {
             whereClause.typeClient = 'particulier';
         }
 
-        if (centreId) {
-            whereClause.centreId = centreId;
-        }
+        if (!centreId) return []; // Isolation
+        whereClause.centreId = centreId;
 
         return this.prisma.client.findMany({
             where: whereClause,

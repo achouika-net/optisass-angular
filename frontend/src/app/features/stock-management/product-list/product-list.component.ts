@@ -11,8 +11,11 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { FormsModule } from '@angular/forms';
+import { Store } from '@ngrx/store';
+import { UserCurrentCentreSelector } from '../../../core/store/auth/auth.selectors';
 import { Product, ProductType, ProductStatus, ProductFilters, StockStats } from '../../../shared/interfaces/product.interface';
 import { ProductService } from '../services/product.service';
+import { effect } from '@angular/core';
 
 @Component({
     selector: 'app-product-list',
@@ -63,12 +66,24 @@ export class ProductListComponent implements OnInit {
 
     productTypes = Object.values(ProductType);
     productStatuses = Object.values(ProductStatus);
+    currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
 
-    constructor(private productService: ProductService) { }
+    constructor(
+        private productService: ProductService,
+        private store: Store
+    ) {
+        // Automatically reload when center changes
+        effect(() => {
+            const center = this.currentCentre();
+            if (center) {
+                this.loadProducts();
+                this.loadStats();
+            }
+        });
+    }
 
     ngOnInit(): void {
-        this.loadProducts();
-        this.loadStats();
+        // Handled by effect on center change
     }
 
     ngAfterViewInit(): void {
@@ -77,6 +92,7 @@ export class ProductListComponent implements OnInit {
     }
 
     loadProducts(): void {
+        this.dataSource.data = []; // Reset for stability
         this.productService.findAll(this.filter).subscribe(products => {
             this.dataSource.data = products;
         });
