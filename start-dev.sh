@@ -35,8 +35,15 @@ sleep 1
 # Démarrer en arrière-plan dans un nouveau terminal
 osascript -e 'tell application "Terminal" to do script "cd /Applications/MAMP/htdocs/Workspace/optisass-angular/backend && npm run start:dev"'
 echo "   ✅ Backend démarré dans une nouvelle fenêtre Terminal"
+echo "   ⏳ Attente du démarrage NestJS (10 secondes)..."
+sleep 10
 
-sleep 2
+# Vérifier que le backend est bien démarré
+if lsof -i :3000 > /dev/null 2>&1; then
+    echo "   ✅ Backend actif sur http://localhost:3000"
+else
+    echo "   ⚠️  Le backend n'a pas démarré. Vérifiez la fenêtre Terminal pour les erreurs."
+fi
 echo ""
 
 # 3. Démarrer le Frontend
@@ -50,8 +57,15 @@ sleep 1
 # Démarrer en arrière-plan dans un nouveau terminal
 osascript -e 'tell application "Terminal" to do script "cd /Applications/MAMP/htdocs/Workspace/optisass-angular/frontend && npm start"'
 echo "   ✅ Frontend démarré dans une nouvelle fenêtre Terminal"
+echo "   ⏳ Attente de la compilation Angular (15 secondes)..."
+sleep 15
 
-sleep 2
+# Vérifier que le frontend est bien démarré
+if lsof -i :4200 > /dev/null 2>&1; then
+    echo "   ✅ Frontend actif sur http://localhost:4200"
+else
+    echo "   ⚠️  Le frontend n'a pas démarré. Vérifiez la fenêtre Terminal pour les erreurs."
+fi
 echo ""
 
 # 4. Démarrer Prisma Studio
@@ -77,12 +91,15 @@ echo "   🔧 Backend       : http://localhost:3000/api"
 echo "   📱 Frontend      : http://localhost:4200"
 echo "   🗄️  Prisma Studio : http://localhost:5555"
 echo ""
-echo "✅ Quatre nouvelles fenêtres Terminal ont été ouvertes :"
+echo "✅ Trois nouvelles fenêtres Terminal ont été ouvertes :"
 echo "   - Terminal 1 : Backend NestJS"
 echo "   - Terminal 2 : Frontend Angular"
 echo "   - Terminal 3 : Prisma Studio"
 echo ""
-echo "⏳ Attendez 10-20 secondes que les serveurs démarrent complètement."
+echo "⚠️  Si le frontend ne fonctionne pas immédiatement :"
+echo "   - Attendez 30 secondes supplémentaires (compilation Angular)"
+echo "   - Vérifiez la fenêtre Terminal du frontend pour les erreurs"
+echo "   - Rafraîchissez la page dans votre navigateur"
 echo ""
 echo "🌐 Ensuite, ouvrez votre navigateur à : http://localhost:4200"
 echo ""
