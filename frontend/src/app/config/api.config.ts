@@ -1,4 +1,4 @@
-import { environment } from 'environments/environment';
+import { environment } from '../../environments/environment';
 
 export const API_URL = `${environment.apiUrl}/api`;
 export const WSS_URL = `${environment.websocketUrl}agenda-2025-key`;

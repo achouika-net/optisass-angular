@@ -11,7 +11,7 @@ import { provideStore } from '@ngrx/store';
 import { provideStoreDevtools } from '@ngrx/store-devtools';
 import { provideTranslateService } from '@ngx-translate/core';
 import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
-import { environment } from 'environments/environment';
+import { environment } from '../environments/environment';
 import { provideToastr } from 'ngx-toastr';
 import { routes } from './app.routes';
 import { ExtractDataInterceptor } from './core/interceptors/extract-data.interceptor';
