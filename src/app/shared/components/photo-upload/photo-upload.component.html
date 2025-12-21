@@ -1,22 +1,89 @@
-<div class="flex flex-col items-center gap-2">
-  <div
-    class="grid size-32 place-items-center rounded-full border-2 border-gray-300 overflow-hidden bg-gray-100"
-  >
-    @if (previewUrl()) {
-    <img [src]="previewUrl()" alt="Profile photo" class="h-full w-full object-cover" />
-    } @else {
-    <mat-icon class="size-6">account_circle</mat-icon>
-    }
+<div class="flex flex-col items-center gap-4">
+  <!-- Camera View -->
+  @if (showCamera()) {
+  <div class="relative w-64 h-64">
+    <video
+      #video
+      autoplay
+      playsinline
+      class="w-full h-full object-cover rounded-lg bg-gray-900"
+    ></video>
+    <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+      <button
+        matIconButton
+        color="primary"
+        type="button"
+        (click)="capturePhoto()"
+        [matTooltip]="'commun.capture' | translate"
+        class="bg-white/90"
+      >
+        <mat-icon>camera</mat-icon>
+      </button>
+      <button
+        matIconButton
+        type="button"
+        (click)="closeCamera()"
+        [matTooltip]="'commun.cancel' | translate"
+        class="bg-white/90"
+      >
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
   </div>
-  <div class="flex gap-2">
-    <button mat-icon-button type="button" (click)="fileInput.click()">
-      <mat-icon>{{ previewUrl() ? 'edit' : 'upload' }}</mat-icon>
-    </button>
-    @if (previewUrl()) {
-    <button mat-icon-button type="button" (click)="removePhoto()">
-      <mat-icon>delete</mat-icon>
-    </button>
-    }
+  }
+  <!-- Photo Preview or Placeholder -->
+  @else {
+  <div class="flex flex-col items-center gap-2">
+    <div class="relative size-32">
+      <div
+        class="grid size-32 place-items-center rounded-full border-2 border-gray-300 overflow-hidden bg-gray-100"
+      >
+        @if (previewUrl()) {
+        <img [src]="previewUrl()" alt="Photo de profil" class="h-full w-full object-cover" />
+        } @else {
+        <mat-icon class="scale-200">account_circle</mat-icon>
+        }
+      </div>
+    </div>
+
+    <!-- Upload Buttons -->
+    <div class="flex gap-2">
+      <input
+        type="file"
+        #photoInput
+        accept="image/*"
+        (change)="onPhotoSelected($event)"
+        class="hidden"
+      />
+      <button
+        matIconButton
+        color="accent"
+        type="button"
+        (click)="photoInput.click()"
+        [matTooltip]="'commun.chooseFile' | translate"
+      >
+        <mat-icon>upload</mat-icon>
+      </button>
+      <button
+        matIconButton
+        color="primary"
+        type="button"
+        (click)="openCamera()"
+        [matTooltip]="'commun.takePhoto' | translate"
+      >
+        <mat-icon>photo_camera</mat-icon>
+      </button>
+      @if (previewUrl()) {
+      <button
+        matIconButton
+        type="button"
+        (click)="removePhoto()"
+        [matTooltip]="'commun.delete' | translate"
+      >
+        <mat-icon class="text-error">delete</mat-icon>
+      </button>
+      }
+    </div>
   </div>
-  <input #fileInput type="file" accept="image/*" class="hidden" (change)="onFileSelected($event)" />
+  }
 </div>

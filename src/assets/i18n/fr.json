@@ -4,6 +4,9 @@
     "no": "Non",
     "oui": "Oui",
     "non": "Non",
+    "capture": "Capturer",
+    "chooseFile": "Choisir fichier",
+    "takePhoto": "Prendre photo",
     "changementCentre": "Êtes-vous sûr de vouloir changer de centre ?",
     "changementCentreSuccess": "Le centre a été changé avec succès",
     "noData": "Aucune donnée à afficher",
@@ -145,8 +148,11 @@
   "error": {
     "clientSearch": "Erreur lors de la recherche des clients",
     "resources": "Une erreur est survenue lors du chargement de la ressource {{value}}",
-    "calendar.getUserOptionsError": "Impossible de charger les options calendrier utilisateur.",
-    "calendar.patchUserOptionsError": "Impossible de mettre à jour les options calendrier utilisateur."
+    "invalidImageType": "Veuillez sélectionner une image valide",
+    "fileSizeTooLarge": "La taille de l'image ne doit pas dépasser 5MB",
+    "imageProcessingFailed": "Erreur lors du traitement de l'image",
+    "capturePhotoFailed": "Erreur lors de la capture de la photo",
+    "cameraAccessDenied": "Impossible d'accéder à la caméra. Veuillez vérifier les permissions."
   },
   "table": {
     "firstPage": "Première page",

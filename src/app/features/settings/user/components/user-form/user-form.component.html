@@ -8,7 +8,7 @@
           <mat-label>
             {{ 'commun.status' | translate }}
           </mat-label>
-          <mat-radio-button [value]="true">
+          <mat-radio-button [value]="true" be>
             {{ 'commun.actif' | translate }}
           </mat-radio-button>
           <mat-radio-button [value]="false">
@@ -112,12 +112,13 @@
         </mat-form-field>
 
         <!-- Delete Button -->
+        @let isSingleRow = userFormModel().center_roles.length === 1;
         <button
           matIconButton
           type="button"
           (click)="removeCentreRole($index)"
-          [disabled]="userFormModel().center_roles.length === 1"
-          class="mt-1 text-error"
+          [disabled]="isSingleRow"
+          [class]="isSingleRow ? 'mt-1' : 'mt-1 text-error'"
         >
           <mat-icon>delete</mat-icon>
         </button>

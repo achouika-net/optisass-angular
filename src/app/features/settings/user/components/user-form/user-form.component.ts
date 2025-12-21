@@ -10,11 +10,11 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatSelectModule } from '@angular/material/select';
 import { FieldErrorComponent, PhotoUploadComponent } from '@app/components';
 import { EMAIL_PATTERN, MOBILE_PATTERN } from '@app/config';
-import { AuthStore } from '@app/core/store';
 import { FieldControlLabelDirective } from '@app/directives';
-import { ICivilite, IRole } from '@app/models';
+import { ICenter, ICivilite, IRole } from '@app/models';
 import { TranslateModule } from '@ngx-translate/core';
 import { UserStore } from '../../user.store';
+import { AuthStore } from '@app/core/store';
 
 interface ICentreRole {
   center_id: number;
@@ -58,12 +58,8 @@ interface IUserForm {
 export class UserFormComponent {
   #authStore = inject(AuthStore);
   #userStore = inject(UserStore);
-  //Todo: get civilites from store
-  civilites = signal([
-    { id: 1, libelle_complet: 'M.' },
-    { id: 2, libelle_complet: 'Mme' },
-    { id: 3, libelle_complet: 'Dr' },
-  ] as ICivilite[]);
+
+  civilites = signal([]);
   centers = this.#authStore.userCenters;
   roles: Signal<IRole[]> = this.#userStore.state.roles;
 
@@ -76,7 +72,7 @@ export class UserFormComponent {
     mobile: '',
     email: '',
     agrement: '',
-    center_roles: [newCentreRole],
+    center_roles: [{ ...newCentreRole }],
   });
 
   form = form(this.userFormModel, (fieldPath) => {
@@ -98,7 +94,7 @@ export class UserFormComponent {
     const currentModel = this.userFormModel();
     this.userFormModel.update((model) => ({
       ...model,
-      center_roles: [...currentModel.center_roles, newCentreRole],
+      center_roles: [...currentModel.center_roles, { ...newCentreRole }],
     }));
   }
 
