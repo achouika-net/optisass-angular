@@ -1,10 +1,6 @@
 import { inject, Injectable } from '@angular/core';
-import {
-  IResetPasswordConfirmRequest,
-  IWsError,
-  PasswordRetryTimer,
-  WsErrorClass,
-} from '@app/models';
+import { IResetPasswordConfirmRequest, PasswordRetryTimer } from '@app/models';
+import { IWsError, createWsErrorWithMessage, INITIAL_WS_ERROR } from '@app/models';
 import { patchState, signalState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { of, pipe } from 'rxjs';
@@ -18,13 +14,15 @@ import { LOCAL_STORAGE_KEYS } from '@app/config';
 
 interface AuthenticationState {
   resetPasswordRetryTimer: PasswordRetryTimer[];
-  errors: IWsError;
+  errors: IWsError | null;
 }
+
 const initialAuthenticationState: AuthenticationState = {
   resetPasswordRetryTimer:
     getLocalStorageItem(LOCAL_STORAGE_KEYS.STORE.RESET_PASSWORD_RETRY_TIMER) || [],
-  errors: new WsErrorClass(),
+  errors: INITIAL_WS_ERROR,
 };
+
 @Injectable()
 export class AuthenticationStore {
   readonly state = signalState(initialAuthenticationState);
@@ -32,15 +30,27 @@ export class AuthenticationStore {
   readonly #translate = inject(TranslateService);
   readonly #toastr = inject(ToastrService);
 
-  /********************* UPDATERS **********************/
-  resetError = () => patchState(this.state, { errors: null });
-  saveResetPasswordRetryTimer = () => {
+  /**
+   * Réinitialise les erreurs
+   */
+  resetError = (): void => {
+    patchState(this.state, { errors: null });
+  };
+
+  /**
+   * Sauvegarde le retry timer dans le localStorage
+   */
+  saveResetPasswordRetryTimer = (): void => {
     setLocalStorageItem(
       LOCAL_STORAGE_KEYS.STORE.RESET_PASSWORD_RETRY_TIMER,
       this.state.resetPasswordRetryTimer()
     );
   };
-  startRetryTimer = (duration: number, email: string) =>
+
+  /**
+   * Démarre un timer de retry
+   */
+  startRetryTimer = (duration: number, email: string): void => {
     patchState(this.state, ({ resetPasswordRetryTimer }) => ({
       resetPasswordRetryTimer: [
         ...resetPasswordRetryTimer,
@@ -50,15 +60,22 @@ export class AuthenticationStore {
         },
       ],
     }));
+  };
 
-  stopRetryTimer = (email: string) =>
+  /**
+   * Arrête un timer de retry
+   */
+  stopRetryTimer = (email: string): void => {
     patchState(this.state, ({ resetPasswordRetryTimer }) => ({
       resetPasswordRetryTimer: resetPasswordRetryTimer.filter(
         (e: PasswordRetryTimer) => e.email !== email
       ),
     }));
+  };
 
-  /********************* EFFECTS **********************/
+  /**
+   * Envoie un email de récupération de mot de passe
+   */
   forgotPassword = rxMethod<{ email: string; onSuccess: VoidFunction }>(
     pipe(
       exhaustMap(({ email, onSuccess }) =>
@@ -73,15 +90,13 @@ export class AuthenticationStore {
               this.startRetryTimer(5000, email);
               this.saveResetPasswordRetryTimer();
             } else {
+              const message = this.#translate.instant(
+                error.status === 404
+                  ? 'authentication.userNotFound'
+                  : 'authentication.forgotResetPasswordError'
+              );
               patchState(this.state, {
-                errors: {
-                  ...new WsErrorClass(error),
-                  messageToShow: this.#translate.instant(
-                    error.status === 404
-                      ? 'authentication.userNotFound'
-                      : 'authentication.forgotResetPasswordError'
-                  ),
-                },
+                errors: createWsErrorWithMessage(error, message),
               });
             }
             return of(error);
@@ -91,16 +106,17 @@ export class AuthenticationStore {
     )
   );
 
+  /**
+   * Vérifie la validité du token de réinitialisation
+   */
   verifyResetPasswordToken = rxMethod<string>(
     pipe(
       exhaustMap((token: string) =>
         this.#authService.verifyResetPasswordToken(token).pipe(
           catchError((error: HttpErrorResponse) => {
+            const message = this.#translate.instant('authentication.tokenExpiredError');
             patchState(this.state, {
-              errors: {
-                ...new WsErrorClass(error),
-                messageToShow: this.#translate.instant('authentication.tokenExpiredError'),
-              },
+              errors: createWsErrorWithMessage(error, message),
             });
             return of(null).pipe(
               tap(() => this.#authService.redirectToAuthPath({ path: 'forgot' }))
@@ -111,6 +127,9 @@ export class AuthenticationStore {
     )
   );
 
+  /**
+   * Réinitialise le mot de passe
+   */
   resetPassword = rxMethod<IResetPasswordConfirmRequest>(
     pipe(
       exhaustMap((request: IResetPasswordConfirmRequest) =>
@@ -120,14 +139,13 @@ export class AuthenticationStore {
             this.#authService.redirectToAuthPath();
           }),
           catchError((error: HttpErrorResponse) => {
+            const message = this.#translate.instant(
+              error.status === 400
+                ? 'authentication.tokenExpiredError'
+                : 'authentication.forgotResetPasswordError'
+            );
             patchState(this.state, {
-              errors: {
-                ...new WsErrorClass(error),
-                messageToShow:
-                  error.status === 400
-                    ? this.#translate.instant('authentication.tokenExpiredError')
-                    : this.#translate.instant('authentication.forgotResetPasswordError'),
-              },
+              errors: createWsErrorWithMessage(error, message),
             });
             return of(error);
           })

@@ -1,11 +1,7 @@
 import { HttpClient, HttpResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import {
-  ICurrentUser,
-  IJwtTokens,
-  ILoginRequest,
-  IResetPasswordConfirmRequest,
-} from '@app/models';
+import { ILoginRequest, IResetPasswordConfirmRequest } from '@app/models';
+import { ICurrentUser, IJwtTokens } from '@app/models';
 import { Observable } from 'rxjs/internal/Observable';
 import { Router } from '@angular/router';
 import { API_URL, LOGIN_API_URL } from '@app/config';

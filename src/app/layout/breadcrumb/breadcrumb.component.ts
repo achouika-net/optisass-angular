@@ -7,21 +7,17 @@ import {
   input,
   signal,
 } from '@angular/core';
-
-import { Store } from '@ngrx/store';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, NavigationEnd, Router, RouterLink } from '@angular/router';
+import { Title } from '@angular/platform-browser';
 import { MatIconModule } from '@angular/material/icon';
-import { MenuItem } from '@app/models';
-import {
-  selectCurrentUrl,
-  selectRouteData,
-} from '../../core/store/router/router.selector';
 import { MatButton } from '@angular/material/button';
+import { MatDivider } from '@angular/material/divider';
+import { filter, map, startWith } from 'rxjs/operators';
+import { MenuItem } from '@app/models';
 import { MENU } from '../../config/menu.config';
 import { NavigationHistoryService } from '../../core/navigation-history/navigation-history.service';
-import { RouterLink } from '@angular/router';
-import { MatDivider } from '@angular/material/divider';
 import { findMenuItemByUrl } from '@app/helpers';
-import { Title } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-breadcrumb',
@@ -30,23 +26,34 @@ import { Title } from '@angular/platform-browser';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BreadcrumbComponent {
-  #store = inject(Store);
+  #router = inject(Router);
+  #activatedRoute = inject(ActivatedRoute);
   #history = inject(NavigationHistoryService);
   #titleService = inject(Title);
   readonly isMobile = input.required<boolean>();
   private readonly menuItems = signal<MenuItem[]>(MENU);
-  private readonly currentUrl = computed(() => {
-    const url = this.#store.selectSignal(selectCurrentUrl);
-    return url().replace(/^\/p\//, '');
-  });
-  readonly routeData = this.#store.selectSignal(selectRouteData);
+
+  // Signal qui écoute l'URL actuelle via les événements du router
+  private readonly currentUrl = toSignal(
+    this.#router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      startWith(null),
+      map(() => this.#router.url.replace(/^\/p\//, ''))
+    ),
+    { initialValue: this.#router.url.replace(/^\/p\//, '') }
+  );
+
+  // Signal qui écoute les données de la route active
+  readonly routeData = toSignal(this.#activatedRoute.data, { initialValue: {} as Record<string, any> });
+
   readonly previousUrl = computed(() => {
     this.currentUrl();
     return this.#history.getPreviousUrl();
   });
   readonly breadcrumbItems = computed(() => {
     const url = this.currentUrl();
-    const dataTitle: string = this.routeData()?.['title'];
+    const data = this.routeData() as Record<string, any>;
+    const dataTitle: string = data?.['title'];
     const trail: Partial<MenuItem>[] = [];
     const segments = url.split('/');
     let currentPath = '';
@@ -74,7 +81,8 @@ export class BreadcrumbComponent {
     if (breadcrumb.length) {
       return breadcrumb[breadcrumb.length - 1].label;
     }
-    const dataTitle = this.routeData()?.['title'];
+    const data = this.routeData() as Record<string, any>;
+    const dataTitle = data?.['title'];
     return dataTitle || 'Agenda';
   });
 

@@ -1,19 +1,17 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { computed, inject, Injectable, Signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { PageEvent } from '@angular/material/paginator';
 import { Sort } from '@angular/material/sort';
-import { Params, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { DEFAULT_PAGE_SIZE } from '@app/config';
 import { IRole, PaginatedApiResponse } from '@app/models';
 import { ErrorService, RoleService } from '@app/services';
 import { patchState, signalState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { ToastrService } from 'ngx-toastr';
 import { catchError, of, pipe, switchMap } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { selectRouteParams } from '../../../core/store/router/router.selector';
 import { IUser, IUserSearch, UserSearch } from './models';
 import { UserService } from './services/user.service';
 
@@ -46,8 +44,6 @@ export class UserStore {
   readonly #toastr = inject(ToastrService);
   readonly #translate = inject(TranslateService);
   readonly #roleService = inject(RoleService);
-  readonly #store = inject(Store);
-  #id = computed<number>(() => +this.#store.selectSignal<Params>(selectRouteParams)()['id']);
 
   constructor() {
     this.#getRoles();
@@ -109,10 +105,10 @@ export class UserStore {
       })
     )
   );
-  getUser = rxMethod<void>(
+  getUser = rxMethod<number>(
     pipe(
-      switchMap(() =>
-        this.#userService.getUser(this.#id()).pipe(
+      switchMap((id: number) =>
+        this.#userService.getUser(id).pipe(
           tap((user: IUser) => patchState(this.state, { user })),
           catchError((error: HttpErrorResponse) => {
             this.goToSearchPage();
@@ -143,10 +139,10 @@ export class UserStore {
       )
     )
   );
-  updateUser = rxMethod<Partial<IUser>>(
+  updateUser = rxMethod<{ id: number; user: Partial<IUser> }>(
     pipe(
-      switchMap((user: Partial<IUser>) =>
-        this.#userService.updateUser(this.#id(), user).pipe(
+      switchMap(({ id, user }) =>
+        this.#userService.updateUser(id, user).pipe(
           tap((user: IUser) => {
             patchState(this.state, { user });
             this.#toastr.success(this.#translate.instant('commun.operationTerminee'));

@@ -21,13 +21,9 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { userHasAccessToItem } from '@app/helpers';
 import { MenuItem } from '@app/models';
-import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
+import { AuthStore } from '@app/core/store';
 import { MENU } from '../../config/menu.config';
-import {
-  UserRoleSelector,
-  UserSelector,
-} from '../../core/store/auth/auth.selectors';
 
 @Component({
   selector: 'app-sidebar',
@@ -49,11 +45,11 @@ import {
 })
 export class SidebarComponent implements OnInit {
   private readonly router = inject(Router);
-  private readonly store = inject(Store);
+  private readonly authStore = inject(AuthStore);
 
   readonly isMobile = input.required<boolean>();
   readonly isCollapsed = input.required<boolean>();
-  readonly userRole = this.store.selectSignal(UserRoleSelector);
+  readonly userRole = this.authStore.userRole;
   readonly openSubMenu = signal<string | null>(null);
   readonly favoritesOpen = signal(true);
   readonly favorisItems = signal<MenuItem[]>([]);
@@ -109,7 +105,7 @@ export class SidebarComponent implements OnInit {
   );
 
   /**
-   * Au démarrage : ouvre le sous-menu correspondant à l’URL active.
+   * Au démarrage : ouvre le sous-menu correspondant à l'URL active.
    */
   ngOnInit(): void {
     const opened = this.menuItems()
@@ -125,9 +121,7 @@ export class SidebarComponent implements OnInit {
   }
 
   /**
-   * Vérifie si l’utilisateur a accès à un item donné.
-   * @param item Élément de menu.
-   * @returns `true` si l’élément est visible pour l’utilisateur.
+   * Vérifie si l'utilisateur a accès à un item donné.
    */
   private hasAccess(item: MenuItem): boolean {
     return userHasAccessToItem(item, this.userRole());
@@ -135,16 +129,13 @@ export class SidebarComponent implements OnInit {
 
   /**
    * Vérifie si un item est marqué comme favori.
-   * @param label Label de l’item.
-   * @returns `true` si l’item est dans les favoris.
    */
   isFavorite(label: string): boolean {
     return this.favorisItems().some((f) => f.label === label);
   }
 
   /**
-   * Met à jour l’ordre des favoris suite à un drag&drop.
-   * @param event Événement CDK contenant l’ordre.
+   * Met à jour l'ordre des favoris suite à un drag&drop.
    */
   dropFavorite(event: CdkDragDrop<MenuItem[]>): void {
     const current = [...this.favorisItems()];
@@ -154,7 +145,6 @@ export class SidebarComponent implements OnInit {
 
   /**
    * Supprime un élément des favoris.
-   * @param label Label de l’item à retirer.
    */
   removeFavorite(label: string): void {
     this.favorisItems.set(this.favorisItems().filter((f) => f.label !== label));
@@ -162,9 +152,6 @@ export class SidebarComponent implements OnInit {
 
   /**
    * Ajoute ou retire un item des favoris.
-   * @param favoriteItems Favoris actuels.
-   * @param item Élément à manipuler.
-   * @param e Événement DOM (click).
    */
   handleFavorite(favoriteItems: MenuItem[], item: MenuItem, e: Event): void {
     e.stopPropagation();
@@ -179,7 +166,6 @@ export class SidebarComponent implements OnInit {
 
   /**
    * Ouvre ou ferme manuellement un sous-menu.
-   * @param label Label du sous-menu.
    */
   toggleSubMenu(label: string): void {
     this.openSubMenu.update((current) => (current === label ? null : label));
@@ -187,17 +173,13 @@ export class SidebarComponent implements OnInit {
 
   /**
    * Vérifie si un sous-menu est actuellement ouvert.
-   * @param label Nom du sous-menu.
-   * @returns `true` si ouvert.
    */
   isSubMenuOpen(label: string): boolean {
     return this.openSubMenu() === label;
   }
 
   /**
-   * Vérifie si l’un des enfants du sous-menu est actif (route match).
-   * @param children Enfants du sous-menu.
-   * @returns `true` si un enfant est actif.
+   * Vérifie si l'un des enfants du sous-menu est actif (route match).
    */
   isSubActive(children?: MenuItem[]): boolean {
     if (!children) return false;

@@ -13,7 +13,9 @@
       "@app/enums": ["app/shared/enums/index.ts"],
       "@app/helpers": ["app/shared/helpers/index.ts"],
       "@app/types": ["app/shared/types/index.ts"],
-      "@app/config": ["app/config/index.ts"]
+      "@app/config": ["app/config/index.ts"],
+      "@app/core/store": ["app/core/store/index.ts"],
+      "@app/core/services": ["app/core/services/index.ts"]
     },
     "module": "ESNext",
     "outDir": "./dist/out-tsc",

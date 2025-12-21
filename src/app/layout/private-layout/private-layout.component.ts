@@ -1,8 +1,9 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { NgOptimizedImage } from '@angular/common';
-import {ChangeDetectionStrategy, Component, inject, linkedSignal, signal} from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, linkedSignal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
@@ -10,26 +11,14 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterLink, RouterOutlet } from '@angular/router';
-import { Store } from '@ngrx/store';
+import { ConfirmationPopupComponent } from '@app/components';
+import { AuthStore, SettingsStore } from '@app/core/store';
+import { ICenter } from '@app/models';
+import { TranslateService } from '@ngx-translate/core';
 import { map } from 'rxjs';
-import {
-  CircleLogoSettingsSelector,
-  LogoSettingsSelector,
-} from '../../core/store/settings/settings.selectors';
 import { BreadcrumbComponent } from '../breadcrumb/breadcrumb.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { TopbarActionsComponent } from '../topbar-actions/topbar-actions.component';
-import {
-  UserCentresSelector,
-  UserCurrentCentreSelector,
-} from '../../core/store/auth/auth.selectors';
-import { ICenter } from '@app/models';
-import { ConfirmationPopupComponent } from '@app/components';
-import { TranslateService } from '@ngx-translate/core';
-import { MatDialog } from '@angular/material/dialog';
-import { SetCurrentCenter } from '../../core/store/auth/auth.actions';
-import { WebSocketsService } from '@app/services';
-import { GetCivilites } from 'app/core/store/resources/resources.actions';
 
 @Component({
   selector: 'app-private-layout',
@@ -50,22 +39,18 @@ import { GetCivilites } from 'app/core/store/resources/resources.actions';
     BreadcrumbComponent,
     TopbarActionsComponent,
   ],
-  providers: [WebSocketsService],
 })
 export default class PrivateLayoutComponent {
-  readonly #store = inject(Store);
+  readonly #authStore = inject(AuthStore);
+  readonly #settingsStore = inject(SettingsStore);
   readonly #breakpointObserver = inject(BreakpointObserver);
   readonly #translate = inject(TranslateService);
   readonly #dialog = inject(MatDialog);
-  // eslint-disable-next-line no-unused-private-class-members
-  readonly #webSocketsService = inject(WebSocketsService);
 
-  logo = this.#store.selectSignal<string>(LogoSettingsSelector);
-  circleLogo = this.#store.selectSignal<string>(CircleLogoSettingsSelector);
-  // centres = this.#store.selectSignal<ICenter[]>(UserCentresSelector);
-  centres = signal([{name: 'Centre A', id:1}, {name: 'Centre B', id:2}] as ICenter[]);
-  // currentCentre = this.#store.selectSignal<ICenter>(UserCurrentCentreSelector);
-  currentCentre = signal({name: 'Centre A', id:1} as ICenter);
+  logo = this.#settingsStore.logo;
+  circleLogo = this.#settingsStore.smallLogo;
+  centres = this.#authStore.userCenters;
+  currentCentre = this.#authStore.currentCenter;
 
   // Mobile: < 600px
   readonly #isHandset = toSignal(
@@ -74,7 +59,9 @@ export default class PrivateLayoutComponent {
 
   // Tablet: 600px - 1279px
   readonly #isTablet = toSignal(
-    this.#breakpointObserver.observe('(min-width: 600px) and (max-width: 1279.98px)').pipe(map(({ matches }) => matches))
+    this.#breakpointObserver
+      .observe('(min-width: 600px) and (max-width: 1279.98px)')
+      .pipe(map(({ matches }) => matches))
   );
 
   // Desktop: >= 1280px
@@ -87,10 +74,9 @@ export default class PrivateLayoutComponent {
   readonly isDesktop = linkedSignal(() => this.#isDesktop());
   readonly isCollapsed = linkedSignal(() => this.isTablet() || this.isMobile());
 
-  constructor() {
-    this.#store.dispatch(GetCivilites());
-  }
-
+  /**
+   * Toggle le sidenav (overlay ou collapse selon l'appareil)
+   */
   toggleSidenav(sidenav: MatSidenav): void {
     if (this.isMobile()) {
       sidenav.toggle();
@@ -100,9 +86,7 @@ export default class PrivateLayoutComponent {
   }
 
   /**
-   * Sélectionner le/les centres
-   * @param currentCenter
-   * @returns void
+   * Sélectionner un centre après confirmation
    */
   selectCenter(currentCenter: ICenter): void {
     this.#dialog
@@ -118,14 +102,7 @@ export default class PrivateLayoutComponent {
       .subscribe((result) => {
         if (!result) return;
 
-        // Dispatch l'action avec le flag isManualChange à true
-        // La navigation sera gérée automatiquement par l'effect setCurrentCenter$
-        this.#store.dispatch(
-          SetCurrentCenter({
-            currentCenter,
-            isManualChange: true,
-          })
-        );
+        this.#authStore.setCurrentCenter(currentCenter);
       });
   }
 }

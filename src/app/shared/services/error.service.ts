@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { ToastrService } from 'ngx-toastr';
-import { IWsError, WsErrorClass } from '../models';
+import { IWsError, createWsError } from '@app/models';
 
 @Injectable({ providedIn: 'root' })
 export class ErrorService {
@@ -10,11 +10,7 @@ export class ErrorService {
   #toastr = inject(ToastrService);
 
   /**
-   * Create and return the IWsError
-   * @param {HttpErrorResponse} error - The HTTP error response
-   * @param {string} errorMessage - The error message to display
-   * @param {boolean} showToastr - Whether to show a toast notification
-   * @param {boolean} byTranslate - Whether to translate the error message
+   * Crée et retourne une erreur IWsError
    */
   getError(
     error: HttpErrorResponse,
@@ -22,7 +18,7 @@ export class ErrorService {
     showToastr = false,
     byTranslate = true
   ): IWsError {
-    const iWsError: IWsError = new WsErrorClass(error);
+    const iWsError: IWsError = createWsError(error);
     const messageToShow = byTranslate ? this.#translate.instant(errorMessage) : errorMessage;
     if (showToastr) {
       this.#toastr.error(messageToShow);

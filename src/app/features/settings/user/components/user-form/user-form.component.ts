@@ -10,12 +10,10 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatSelectModule } from '@angular/material/select';
 import { FieldErrorComponent, PhotoUploadComponent } from '@app/components';
 import { EMAIL_PATTERN, MOBILE_PATTERN } from '@app/config';
+import { AuthStore } from '@app/core/store';
 import { FieldControlLabelDirective } from '@app/directives';
-import { ICenter, ICivilite, IRole } from '@app/models';
-import { Store } from '@ngrx/store';
+import { ICivilite, IRole } from '@app/models';
 import { TranslateModule } from '@ngx-translate/core';
-import { UserCentresSelector } from '../../../../../core/store/auth/auth.selectors';
-import { CiviliteByTypeAndStateSelector } from '../../../../../core/store/resources/resources.selector';
 import { UserStore } from '../../user.store';
 
 interface ICentreRole {
@@ -58,11 +56,15 @@ interface IUserForm {
   ],
 })
 export class UserFormComponent {
-  #store = inject(Store);
+  #authStore = inject(AuthStore);
   #userStore = inject(UserStore);
-
-  civilites = this.#store.selectSignal<ICivilite[]>(CiviliteByTypeAndStateSelector(1));
-  centers = this.#store.selectSignal<ICenter[]>(UserCentresSelector);
+  //Todo: get civilites from store
+  civilites = signal([
+    { id: 1, libelle_complet: 'M.' },
+    { id: 2, libelle_complet: 'Mme' },
+    { id: 3, libelle_complet: 'Dr' },
+  ] as ICivilite[]);
+  centers = this.#authStore.userCenters;
   roles: Signal<IRole[]> = this.#userStore.state.roles;
 
   userFormModel = signal<IUserForm>({
