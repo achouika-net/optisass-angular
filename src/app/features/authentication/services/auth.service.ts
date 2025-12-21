@@ -5,6 +5,7 @@ import { ICurrentUser, IJwtTokens } from '@app/models';
 import { Observable } from 'rxjs/internal/Observable';
 import { Router } from '@angular/router';
 import { API_URL, LOGIN_API_URL } from '@app/config';
+import {map} from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root',
@@ -19,7 +20,7 @@ export class AuthService {
    * @return {IJwtTokens}
    */
   login(data: ILoginRequest): Observable<IJwtTokens> {
-    return this.#http.post<IJwtTokens>(`${LOGIN_API_URL}`, data);
+    return this.#http.post<IJwtTokens>(`${LOGIN_API_URL}`, data).pipe(map((data: any) => data.tokens));
   }
 
   /**

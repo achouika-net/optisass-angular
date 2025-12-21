@@ -47,7 +47,7 @@ export const AuthStore = signalStore(
 
   withComputed((store) => ({
     isAuthenticated: computed(
-      () => isValidUser(store.user()) && store.jwtTokens() !== null && !!store.jwtTokens()?.token
+      () => isValidUser(store.user()) && store.jwtTokens() !== null && !!store.jwtTokens()?.accessToken
     ),
     userRole: computed(() => store.currentCenter()?.role_id ?? null),
     tenant: computed(() => store.currentCenter()?.numero_affaire ?? null),
@@ -75,6 +75,7 @@ export const AuthStore = signalStore(
               tapResponse({
                 next: (jwtTokens: IJwtTokens) => {
                   patchState(store, { jwtTokens, error: null });
+                  console.log('here : ', jwtTokens);
                   methods.getCurrentUser();
                 },
                 error: (error: HttpErrorResponse) => {
@@ -165,7 +166,7 @@ export const AuthStore = signalStore(
                     refreshTokenInProgress: false,
                   });
 
-                  refreshTokenSubject.next(jwtTokens.token);
+                  refreshTokenSubject.next(jwtTokens.accessToken);
                 },
                 error: (error: HttpErrorResponse) => {
                   patchState(store, {
