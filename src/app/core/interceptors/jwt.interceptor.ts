@@ -16,8 +16,8 @@ export const refreshTokenSubject = new BehaviorSubject<string | null>(null);
 const cancelPendingRequests$ = new Subject<void>();
 
 const PUBLIC_URLS = [
-  '/login',
-  '/refresh_token',
+  '/client/auth/login',
+  '/client/auth/refresh',
   '/password_reset',
   '/password_reset/verify',
 ] as const;

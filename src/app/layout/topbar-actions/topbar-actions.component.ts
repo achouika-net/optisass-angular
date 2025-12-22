@@ -3,11 +3,13 @@ import {
   Component,
   inject,
   input,
+  linkedSignal,
+  viewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
+import { MatMenu, MatMenuModule } from '@angular/material/menu';
 import { AuthStore } from '@app/core/store';
 import { AvatarComponent } from '../../shared/components/avatar/avatar.component';
 
@@ -18,15 +20,25 @@ import { AvatarComponent } from '../../shared/components/avatar/avatar.component
   imports: [MatButtonModule, MatIconModule, MatMenuModule, MatDividerModule, AvatarComponent],
 })
 export class TopbarActionsComponent {
-  private readonly authStore = inject(AuthStore);
+  readonly #authStore = inject(AuthStore);
   isMobile = input.required<boolean>();
-  
-  user = this.authStore.user;
+
+  // Référence au menu pour le fermer avant logout
+  userMenu = viewChild<MatMenu>('userMenu');
+
+  // Utiliser linkedSignal pour éviter les erreurs pendant le logout
+  user = linkedSignal(() => this.#authStore.user());
 
   /**
    * Déconnecte l'utilisateur
    */
   logout(): void {
-    this.authStore.logout();
+    // Fermer le menu pour éviter les erreurs de template
+    this.userMenu()?.closed.emit();
+
+    // Utiliser setTimeout pour laisser le menu se fermer proprement
+    setTimeout(() => {
+      this.#authStore.logout();
+    }, 50);
   }
 }

@@ -11,26 +11,46 @@
     <!-- Header de la sidebar avec logo et bouton collapse -->
     <div class="flex h-16 items-center justify-center">
       @if (!isCollapsed() && !isMobile()) {
-        <div class="flex items-center w-full px-4">
-          <img
-            [ngSrc]="circleLogo()"
-            width="80"
-            height="80"
-            alt="homepage-logo"
-            [routerLink]="['/p']"
-            class="cursor-pointer"
-          />
-            OPTIC SAAS
+        <div class="flex items-center gap-3 w-full px-4">
+          @if (circleLogo()) {
+            <img
+              [ngSrc]="circleLogo()"
+              width="80"
+              height="80"
+              alt="homepage-logo"
+              [routerLink]="['/p']"
+              class="cursor-pointer"
+              priority
+            />
+          } @else {
+            <div class="flex items-center justify-center w-20 h-20">
+              <mat-icon class="!text-5xl !w-20 !h-20 cursor-pointer" [routerLink]="['/p']">
+                visibility
+              </mat-icon>
+            </div>
+          }
+          <span class="font-semibold">OPTIC SAAS</span>
         </div>
       } @else {
-        <img
-          [ngSrc]="circleLogo()"
-          width="45"
-          height="45"
-          alt="homepage-logo"
-          [routerLink]="['/p']"
-          class="cursor-pointer w-[200px] h-full"
-        />
+        <div class="flex items-center justify-center w-full">
+          @if (circleLogo()) {
+            <img
+              [ngSrc]="circleLogo()"
+              width="45"
+              height="45"
+              alt="homepage-logo"
+              [routerLink]="['/p']"
+              class="cursor-pointer"
+              priority
+            />
+          } @else {
+            <div class="flex items-center justify-center w-12 h-12">
+              <mat-icon class="!text-4xl !w-12 !h-12 cursor-pointer" [routerLink]="['/p']">
+                visibility
+              </mat-icon>
+            </div>
+          }
+        </div>
       }
 
       <!-- Bouton collapse - Desktop -->
