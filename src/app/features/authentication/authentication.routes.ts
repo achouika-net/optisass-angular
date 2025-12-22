@@ -1,8 +1,10 @@
 import { Routes } from '@angular/router';
+import { UnAuthGuard } from '../../core/guards/unAuth.guard';
 
 export const routes: Routes = [
   {
     path: '',
+    canActivate: [UnAuthGuard],
     loadComponent: () =>
       import('./components/authentication.component').then((cmp) => cmp.AuthenticationComponent),
     children: [

@@ -7,12 +7,16 @@
 >
   @if (imageBase64()) {
     <img
-      [src]="'data:image/png;base64,' + imageBase64()"
+      [ngSrc]="'data:image/png;base64,' + imageBase64()"
       [alt]="'Avatar'"
+      [width]="size()"
+      [height]="size()"
+      loading="lazy"
+      decoding="async"
       class="h-full w-full object-cover"
     />
   } @else {
-    <mat-icon 
+    <mat-icon
       class="text-gray-500"
       [style.font-size.px]="size() * 0.6"
       [style.width.px]="size() * 0.6"

@@ -9,15 +9,15 @@ import { inject } from '@angular/core';
 import { isValidTokens, JwtTokensState } from '@app/models';
 import { BehaviorSubject, Observable, Subject, throwError } from 'rxjs';
 import { catchError, filter, switchMap, take, takeUntil } from 'rxjs/operators';
-import { AuthStore } from '../store/auth.store';
+import { AuthStore } from '@app/core/store';
 
 export const refreshTokenSubject = new BehaviorSubject<string | null>(null);
 
 const cancelPendingRequests$ = new Subject<void>();
 
 const PUBLIC_URLS = [
-  '/login',
-  '/refresh_token',
+  '/client/auth/login',
+  '/client/auth/refresh',
   '/password_reset',
   '/password_reset/verify',
 ] as const;
@@ -78,7 +78,7 @@ function handleUnauthorizedError<T>(
 ): Observable<HttpEvent<T>> {
   const tokens: JwtTokensState = authStore.jwtTokens();
 
-  if (!tokens || !tokens.refresh_token) {
+  if (!tokens || !tokens.refreshToken) {
     authStore.logout(true);
     return throwError(() => new Error('No refresh token available'));
   }
@@ -88,7 +88,7 @@ function handleUnauthorizedError<T>(
   }
 
   refreshTokenSubject.next(null);
-  authStore.refreshToken(tokens.refresh_token);
+  authStore.refreshToken(tokens.refreshToken);
 
   return waitForNewToken(request, next);
 }
@@ -120,7 +120,7 @@ export const JwtInterceptor: HttpInterceptorFn = (req, next) => {
 
   let authRequest = req;
   if (isValidTokens(tokens) && !isPublicUrl(req.url)) {
-    authRequest = addAuthHeader(req, tokens.token);
+    authRequest = addAuthHeader(req, tokens.accessToken);
   }
 
   return next(authRequest).pipe(
