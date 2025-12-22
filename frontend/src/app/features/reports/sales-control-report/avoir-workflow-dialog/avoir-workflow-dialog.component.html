@@ -1,0 +1,50 @@
+<h2 mat-dialog-title class="dialog-header">
+    <mat-icon>assignment_return</mat-icon>
+    Gestion de l'Avoir et Refacturation
+</h2>
+
+<mat-dialog-content class="dialog-content">
+    <p class="intro-text">
+        Sélectionnez les articles à <strong>retourner au stock</strong> (entrepôt défectueux).
+        Les articles non cochés seront conservés dans un <strong>nouveau brouillon</strong> de vente.
+    </p>
+
+    <mat-list class="item-list">
+        <h3 mat-subheader>Détails du document {{ data.invoice.numero }}</h3>
+        <mat-list-item *ngFor="let item of items" class="item-row">
+            <mat-icon matListItemIcon color="primary">inventory_2</mat-icon>
+            <div matListItemTitle class="item-name">{{ item.description }}</div>
+            <div matListItemLine class="item-price">
+                {{ item.qte }} unit. x {{ item.prixUnitaireTTC | number:'1.2-2' }} DH =
+                <strong>{{ item.totalTTC | number:'1.2-2' }} DH</strong>
+            </div>
+            <div matListItemMeta>
+                <div class="action-toggle">
+                    <span [class.active]="item.returned" class="status-label">
+                        {{ item.returned ? 'Retour au Stock' : 'Garder (Refacturer)' }}
+                    </span>
+                    <mat-checkbox [(ngModel)]="item.returned" color="warn"></mat-checkbox>
+                </div>
+            </div>
+        </mat-list-item>
+    </mat-list>
+
+    <div class="summary-box" *ngIf="items.length > 0">
+        <div class="summary-line">
+            <span>Articles à Annuler (Avoir):</span>
+            <span class="text-danger">- {{ totalReturned | number:'1.2-2' }} DH</span>
+        </div>
+        <div class="summary-line">
+            <span>Reste à Refacturer:</span>
+            <span class="text-primary">{{ totalKept | number:'1.2-2' }} DH</span>
+        </div>
+    </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="dialog-actions">
+    <button mat-button (click)="onCancel()">Annuler</button>
+    <button mat-raised-button color="warn" (click)="onConfirm()" [disabled]="items.length === 0">
+        <mat-icon>check_circle</mat-icon>
+        Confirmer l'Action
+    </button>
+</mat-dialog-actions>

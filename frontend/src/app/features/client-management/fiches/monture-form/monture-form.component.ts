@@ -24,10 +24,15 @@ import { FicheMontureCreate, TypeFiche, StatutFiche, TypeEquipement, SuggestionI
 import { FactureService, Facture } from '../../services/facture.service';
 import { FactureFormComponent } from '../../factures/facture-form/facture-form.component';
 import { PaymentListComponent } from '../../payments/payment-list/payment-list.component';
-import { map, switchMap, tap, catchError } from 'rxjs/operators';
+import { map, switchMap, tap, catchError, take } from 'rxjs/operators';
 import { getLensSuggestion, Correction, FrameData, calculateLensPrice, determineLensType } from '../../utils/lensLogic';
 import { getLensMaterials, getLensIndices } from '../../utils/lensDatabase';
 import { StockSearchDialogComponent } from '../../../stock-management/components/stock-search-dialog/stock-search-dialog.component';
+import { ProductService } from '../../../stock-management/services/product.service';
+import { Product, ProductStatus } from '../../../../shared/interfaces/product.interface';
+import { forkJoin } from 'rxjs';
+import { Store } from '@ngrx/store';
+import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
 
 interface PrescriptionFile {
     name: string;
@@ -59,6 +64,12 @@ interface PrescriptionFile {
         RouterModule,
         FactureFormComponent,
         PaymentListComponent
+    ],
+    providers: [
+        ClientManagementService,
+        FicheService,
+        FactureService,
+        ProductService
     ],
     templateUrl: './monture-form.component.html',
     styleUrls: ['./monture-form.component.scss'],
@@ -155,7 +166,17 @@ export class MontureFormComponent implements OnInit {
     clientFactures$: Observable<Facture[]> | null = null;
     private linkedFactureSubject = new BehaviorSubject<Facture | null>(null);
     linkedFacture$ = this.linkedFactureSubject.asObservable();
+
+    get isSaleEnInstance(): boolean {
+        return this.linkedFactureSubject.value?.statut === 'VENTE_EN_INSTANCE';
+    }
+    receptionComplete = false;
+    isReserved = false;
+    isTransit = false;
+    currentFiche: any = null; // Store loaded fiche for template/checks
     initialLines: any[] = [];
+    initialProductStatus: string | null = null; // Track initial status: 'RUPTURE' or 'DISPONIBLE'
+
     nomenclatureString: string | null = null;
     showFacture = false;
     // Paste text dialog removed
@@ -226,7 +247,9 @@ export class MontureFormComponent implements OnInit {
         private sanitizer: DomSanitizer,
         private dialog: MatDialog,
         private factureService: FactureService,
-        private snackBar: MatSnackBar
+        private productService: ProductService,
+        private snackBar: MatSnackBar,
+        private store: Store
     ) {
         this.ficheForm = this.initForm();
     }
@@ -288,7 +311,209 @@ export class MontureFormComponent implements OnInit {
         });
         // Initial call
         this.updateNomenclature();
+
+        // REACTIVE RECEPTION CHECK: Trigger whenever the invoice status changes
+        this.linkedFacture$.subscribe(facture => {
+            if (facture?.statut === 'VENTE_EN_INSTANCE' && this.currentFiche) {
+                console.log('🔄 [RECEPTION] Reactive trigger (Invoice changed or loaded)');
+                this.checkReceptionForInstance(this.currentFiche);
+            }
+        });
     }
+
+    // New: Check if products in an INSTANCE sale are now received OR if transfer was cancelled
+    checkReceptionForInstance(fiche: any): void {
+        console.log('🔍 [RECEPTION] Checking reception status for fiche...');
+        const isInstance = (this.linkedFactureSubject.value?.statut === 'VENTE_EN_INSTANCE');
+        console.log('📋 [RECEPTION] Is instance?', isInstance, '| Invoice status:', this.linkedFactureSubject.value?.statut);
+
+        if (!isInstance) return;
+
+        // Reset flags before fresh check
+        this.receptionComplete = false;
+        this.isReserved = false;
+        this.isTransit = false;
+
+        // NEW: Track exactly WHICH field each product ID belongs to
+        const mappings: { path: string, originalId: string }[] = [];
+
+        if (fiche.monture?.productId) {
+            mappings.push({ path: 'monture', originalId: fiche.monture.productId });
+        }
+
+        if (fiche.verres?.differentODOG) {
+            if (fiche.verres.productIdOD) mappings.push({ path: 'verres.od', originalId: fiche.verres.productIdOD });
+            if (fiche.verres.productIdOG) mappings.push({ path: 'verres.og', originalId: fiche.verres.productIdOG });
+        } else if (fiche.verres?.productId) {
+            mappings.push({ path: 'verres.both', originalId: fiche.verres.productId });
+        }
+
+        if (mappings.length === 0) {
+            console.log('⚠️ [RECEPTION] No products found in fiche.');
+            if (isInstance) {
+                console.log('✅ [RECEPTION] Instance sale with no products. Marking as ready for validation.');
+                this.receptionComplete = true;
+                this.cdr.markForCheck();
+            }
+            return;
+        }
+
+        console.log('📦 [RECEPTION] Products to initial check:', mappings);
+
+        // Fetch all products AND current center ID
+        this.store.select(UserCurrentCentreSelector).pipe(take(1)).subscribe(currentCentre => {
+            const currentCentreId = currentCentre?.id;
+            console.log('🏢 [RECEPTION] Current Center ID:', currentCentreId);
+
+            const checks = mappings.map(m => this.productService.findOne(m.originalId).pipe(
+                map(p => ({ ...p, mappingPath: m.path })),
+                catchError(err => {
+                    console.error(`❌ [RECEPTION] Error fetching product ${m.originalId}:`, err);
+                    return of(null);
+                })
+            ));
+
+            forkJoin(checks).subscribe((productsWithMetadata: any[]) => {
+                const products = productsWithMetadata.filter(p => !!p);
+
+                console.log('📊 [RECEPTION] Current product details (remote or local):', products.map(p => ({
+                    path: p.mappingPath,
+                    id: p.id,
+                    ref: p.modele || p.referenceFournisseur,
+                    centerId: p.entrepot?.centreId,
+                    statut: p.statut,
+                    stock: p.quantiteActuelle,
+                    pendingStatus: p.specificData?.pendingIncoming?.status
+                })));
+
+                // Store initial status if not already set (first time checking)
+                if (!this.initialProductStatus && products.length > 0) {
+                    this.initialProductStatus = products[0].quantiteActuelle <= 0 ? 'RUPTURE' : 'DISPONIBLE';
+                    console.log('💾 [RECEPTION] Stored initial product status:', this.initialProductStatus);
+                }
+
+                // A product is ONLY received if it is IN the current center's PRINCIPAL warehouse
+                // and has status DISPONIBLE with no pending incoming status.
+                const allReceivedLocally = products.every(p =>
+                    p.statut === ProductStatus.DISPONIBLE &&
+                    !p.specificData?.pendingIncoming &&
+                    p.quantiteActuelle > 0 &&
+                    p.entrepot?.centreId === currentCentreId
+                );
+
+                console.log('✅ [RECEPTION] All products received locally?', allReceivedLocally);
+
+                if (allReceivedLocally) {
+                    this.receptionComplete = true;
+                    this.isReserved = false;
+                    this.isTransit = false;
+
+                    // PIVOT: Map each product to its local equivalent (already mostly handled by allReceivedLocally but ensure sync)
+                    console.log('🔍 [RECEPTION] Synchronizing local stock IDs by factory reference...');
+
+                    const localMappingChecks = products.map(p => {
+                        const reference = p.modele || p.referenceFournisseur || p.designation;
+                        const couleur = p.couleur || '';
+
+                        if (!reference) {
+                            console.warn(`⚠️ [RECEPTION] No reference found for ${p.mappingPath}. Using existing ID.`);
+                            return of({ ...p, localProduct: p });
+                        }
+
+                        console.log(`🔍 [RECEPTION] Searching local match for "${reference}"...`);
+                        return this.productService.findAll({ search: reference }).pipe(
+                            map(results => {
+                                const localMatch = results.find(r =>
+                                    r.entrepot?.centreId === currentCentreId &&
+                                    r.entrepot?.type === 'PRINCIPAL' &&
+                                    (r.modele === reference || r.referenceFournisseur === reference || r.designation === reference) &&
+                                    (r.couleur === couleur || !couleur)
+                                ) || p;
+
+                                if (localMatch.id !== p.id) {
+                                    console.log(`📍 [RECEPTION] Mapped ${p.mappingPath}: ${p.id} -> ${localMatch.id} (Match found in ${localMatch.entrepot?.nom})`);
+                                }
+                                return { ...p, localProduct: localMatch };
+                            }),
+                            catchError(err => {
+                                console.error(`❌ [RECEPTION] Error searching for ${reference}:`, err);
+                                return of({ ...p, localProduct: p });
+                            })
+                        );
+                    });
+
+                    forkJoin(localMappingChecks).subscribe((mappedResults: any[]) => {
+                        let changed = false;
+                        const formValue = this.ficheForm.getRawValue();
+
+                        mappedResults.forEach(res => {
+                            const localP = res.localProduct;
+                            const path = res.mappingPath;
+
+                            if (path === 'monture') {
+                                if (formValue.monture?.productId !== localP.id || formValue.monture?.isPendingTransfer) {
+                                    this.ficheForm.get('monture')?.patchValue({
+                                        productId: localP.id,
+                                        entrepotType: 'PRINCIPAL',
+                                        isPendingTransfer: false
+                                    });
+                                    changed = true;
+                                }
+                            } else if (path === 'verres.od') {
+                                if (formValue.verres?.productIdOD !== localP.id || formValue.verres?.isPendingTransfer) {
+                                    this.ficheForm.get('verres')?.patchValue({
+                                        productIdOD: localP.id,
+                                        entrepotType: 'PRINCIPAL',
+                                        isPendingTransfer: false
+                                    });
+                                    changed = true;
+                                }
+                            } else if (path === 'verres.og') {
+                                if (formValue.verres?.productIdOG !== localP.id || formValue.verres?.isPendingTransfer) {
+                                    this.ficheForm.get('verres')?.patchValue({
+                                        productIdOG: localP.id,
+                                        entrepotType: 'PRINCIPAL',
+                                        isPendingTransfer: false
+                                    });
+                                    changed = true;
+                                }
+                            } else if (path === 'verres.both') {
+                                if (formValue.verres?.productId !== localP.id || formValue.verres?.isPendingTransfer) {
+                                    this.ficheForm.get('verres')?.patchValue({
+                                        productId: localP.id,
+                                        entrepotType: 'PRINCIPAL',
+                                        isPendingTransfer: false
+                                    });
+                                    changed = true;
+                                }
+                            }
+                        });
+
+                        if (changed) {
+                            console.log('💾 [RECEPTION] Differences detected. Auto-saving synced local IDs...');
+                            this.saveFicheSilently();
+                        } else {
+                            console.log('✅ [RECEPTION] All IDs already local and synced.');
+                        }
+                        this.cdr.markForCheck();
+                    });
+                } else {
+                    // Handle transit/reserved banners BASED ON ACTUAL PRODUCT DATA
+                    this.isTransit = products.some(p => p.specificData?.pendingIncoming?.status === 'SHIPPED');
+                    // Reserved means it is at center expéditeur (not shipped yet) OR stored at another center
+                    this.isReserved = products.some(p =>
+                        p.specificData?.pendingIncoming?.status === 'RESERVED' ||
+                        (p.entrepot?.centreId !== currentCentreId && !p.specificData?.pendingIncoming)
+                    );
+
+                    this.receptionComplete = false;
+                    console.log(`📦 [RECEPTION] Reception incomplete. Local: false, Transit: ${this.isTransit}, Reserved: ${this.isReserved}`);
+                    this.cdr.markForCheck();
+                }
+            });
+        });
+    }
+
 
     loadLinkedFacture(): void {
         if (!this.clientId || !this.ficheId) return;
@@ -299,6 +524,10 @@ export class MontureFormComponent implements OnInit {
             if (found) {
                 console.log('🔗 Linked Facture found:', found.numero);
                 this.linkedFactureSubject.next(found);
+                // Trigger check if fiche is already available
+                if (this.currentFiche) {
+                    this.checkReceptionForInstance(this.currentFiche);
+                }
             } else {
                 this.linkedFactureSubject.next(null);
             }
@@ -307,9 +536,18 @@ export class MontureFormComponent implements OnInit {
 
     onInvoiceSaved(facture: any): void {
         console.log('✅ [EVENT] Invoice saved in MontureFormComponent:', facture.numero || facture);
+        console.log('📊 [EVENT] Invoice status:', facture.statut, '| Type:', facture.type);
+
         // Update the subject to reflect the new state (e.g. Valid status, New Number)
         this.linkedFactureSubject.next(facture);
         this.loadClientFactures();
+
+        // FIX: Reload fiche to trigger checkReceptionForInstance and update UI
+        if (this.ficheId && this.ficheId !== 'new') {
+            console.log('🔄 [EVENT] Reloading fiche to check reception status...');
+            this.loadFiche();
+        }
+
         this.cdr.markForCheck();
     }
 
@@ -721,12 +959,21 @@ export class MontureFormComponent implements OnInit {
         dialogRef.afterClosed().subscribe(result => {
             if (result && result.action === 'SELECT' && result.product) {
                 this.allProducts.push(result.product);
-                this.fillProductDetails(result.product, index, target);
+                this.fillProductDetails(result.product, index, target, result.isPendingTransfer || false);
+            } else if (result && result.action === 'ORDER_AND_SELL' && result.product) {
+                // Handle out-of-stock product order
+                this.allProducts.push(result.product);
+                this.fillProductDetails(result.product, index, target, true); // isPendingTransfer = true
+                this.snackBar.open(
+                    'Produit commandé. La vente sera mise en instance jusqu\'à réception du stock.',
+                    'OK',
+                    { duration: 6000 }
+                );
             }
         });
     }
 
-    fillProductDetails(product: any, index: number, target: 'monture' | 'verres' | 'od' | 'og' = 'monture'): void {
+    fillProductDetails(product: any, index: number, target: 'monture' | 'verres' | 'od' | 'og' = 'monture', isPendingTransfer: boolean = false): void {
         let parentGroup: FormGroup;
         if (index === -1) {
             parentGroup = this.ficheForm;
@@ -739,14 +986,21 @@ export class MontureFormComponent implements OnInit {
             if (montureGroup) {
                 montureGroup.patchValue({
                     reference: product.codeInterne || product.codeBarres,
-                    marque: product.marque,
-                    couleur: product.couleur,
+                    marque: product.marque || '',
+                    couleur: product.couleur || '',
                     prixMonture: product.prixVenteTTC,
                     productId: product.id,
                     entrepotId: product.entrepotId,
                     entrepotType: product.entrepot?.type || null,
-                    entrepotNom: product.entrepot?.nom || null
+                    entrepotNom: product.entrepot?.nom || null,
+                    isPendingTransfer: isPendingTransfer
                 });
+
+                // Pre-fill model or designation into reference if empty? 
+                // Usually reference is codeInterne, but let's ensure designation is tracked
+                if (!montureGroup.get('reference')?.value) {
+                    montureGroup.patchValue({ reference: product.designation });
+                }
 
                 if (product.specificData) {
                     const specs = product.specificData;
@@ -765,32 +1019,35 @@ export class MontureFormComponent implements OnInit {
             if (verresGroup) {
                 if (target === 'verres') {
                     verresGroup.patchValue({
-                        marque: product.marque,
-                        matiere: product.modele || product.description,
+                        marque: product.marque || '',
+                        matiere: product.modele || product.designation || '',
                         prixOD: product.prixVenteTTC,
                         productId: product.id,
                         entrepotId: product.entrepotId,
                         entrepotType: product.entrepot?.type || null,
-                        entrepotNom: product.entrepot?.nom || null
+                        entrepotNom: product.entrepot?.nom || null,
+                        isPendingTransfer: isPendingTransfer
                     });
                 } else if (target === 'od') {
                     verresGroup.patchValue({
-                        marqueOD: product.marque,
-                        matiereOD: product.modele || product.description,
+                        marqueOD: product.marque || '',
+                        matiereOD: product.modele || product.designation || '',
                         prixOD: product.prixVenteTTC,
                         productIdOD: product.id,
                         entrepotId: product.entrepotId,
                         entrepotType: product.entrepot?.type || null,
-                        entrepotNom: product.entrepot?.nom || null
+                        entrepotNom: product.entrepot?.nom || null,
+                        isPendingTransfer: isPendingTransfer || verresGroup.get('isPendingTransfer')?.value
                     });
                 } else if (target === 'og') {
                     verresGroup.patchValue({
-                        marqueOG: product.marque,
-                        matiereOG: product.modele || product.description,
+                        marqueOG: product.marque || '',
+                        matiereOG: product.modele || product.designation || '',
                         prixOG: product.prixVenteTTC,
                         productIdOG: product.id,
                         entrepotId: product.entrepotId,
-                        entrepotType: product.entrepot?.type || null
+                        entrepotType: product.entrepot?.type || null,
+                        isPendingTransfer: isPendingTransfer || verresGroup.get('isPendingTransfer')?.value
                     });
                 }
             }
@@ -897,7 +1154,8 @@ export class MontureFormComponent implements OnInit {
                 productId: [null],
                 entrepotId: [null],
                 entrepotType: [null],
-                entrepotNom: [null]
+                entrepotNom: [null],
+                isPendingTransfer: [false]
             }),
             verres: this.fb.group({
                 matiere: [null],
@@ -920,7 +1178,8 @@ export class MontureFormComponent implements OnInit {
                 entrepotType: [null],
                 entrepotNom: [null],
                 productIdOD: [null],
-                productIdOG: [null]
+                productIdOG: [null],
+                isPendingTransfer: [false]
             }),
             // Restore missing fields from deleted initForm (Important!)
             ordonnance: this.fb.group({
@@ -987,7 +1246,8 @@ export class MontureFormComponent implements OnInit {
                 productId: [null],
                 entrepotId: [null],
                 entrepotType: [null],
-                entrepotNom: [null]
+                entrepotNom: [null],
+                isPendingTransfer: [false]
             }),
             verres: this.fb.group({
                 matiere: [null],
@@ -1005,11 +1265,12 @@ export class MontureFormComponent implements OnInit {
                 marqueOG: [null],
                 indiceOG: [null],
                 traitementOG: [[]],
-                productId: [null],      // [NEW]
-                entrepotId: [null],     // [NEW]
-                entrepotType: [null],   // [NEW]
-                productIdOD: [null],    // [NEW]
-                productIdOG: [null]     // [NEW]
+                productId: [null],
+                entrepotId: [null],
+                entrepotType: [null],
+                productIdOD: [null],
+                productIdOG: [null],
+                isPendingTransfer: [false]
             })
         });
 
@@ -1325,7 +1586,22 @@ export class MontureFormComponent implements OnInit {
         this.ficheService.getFicheById(this.ficheId).subscribe({
             next: (fiche: any) => {
                 if (fiche) {
+                    console.log('📄 [LOAD] Fiche loaded:', fiche.id);
+                    this.currentFiche = fiche;
                     this.patchForm(fiche);
+
+                    // [RECEPTION] Immediate trigger if invoice status is already known
+                    if (this.linkedFactureSubject.value?.statut === 'VENTE_EN_INSTANCE') {
+                        console.log('🔄 [RECEPTION] Triggering check from loadFiche...');
+                        this.checkReceptionForInstance(fiche);
+                    } else {
+                        // Fallback delay for slower invoice loading
+                        setTimeout(() => {
+                            if (this.currentFiche && !this.receptionComplete) {
+                                this.checkReceptionForInstance(this.currentFiche);
+                            }
+                        }, 500);
+                    }
                 }
                 this.loading = false;
                 this.cdr.markForCheck();
@@ -1404,8 +1680,9 @@ export class MontureFormComponent implements OnInit {
                         cerclage: [eq.monture?.cerclage || 'cerclée'], // Added Field
                         prixMonture: [eq.monture?.prixMonture || 0],
                         productId: [eq.monture?.productId || null], // [NEW] Load if exists
-                        entrepotId: [eq.monture?.entrepotId || null], // [NEW] Load if exists
-                        entrepotType: [eq.monture?.entrepotType || null] // [NEW] Load if exists
+                        entrepotId: [eq.monture?.entrepotId || null],
+                        entrepotType: [eq.monture?.entrepotType || null],
+                        isPendingTransfer: [eq.monture?.isPendingTransfer || false]
                     }),
                     verres: this.fb.group({
                         matiere: [eq.verres?.matiere],
@@ -1422,7 +1699,10 @@ export class MontureFormComponent implements OnInit {
                         matiereOG: [eq.verres?.matiereOG],
                         marqueOG: [eq.verres?.marqueOG],
                         indiceOG: [eq.verres?.indiceOG ? String(eq.verres.indiceOG) : null],
-                        traitementOG: [eq.verres?.traitementOG || []]
+                        traitementOG: [eq.verres?.traitementOG || []],
+                        productId: [eq.verres?.productId || null],
+                        entrepotId: [eq.verres?.entrepotId || null],
+                        isPendingTransfer: [eq.verres?.isPendingTransfer || false]
                     })
                 });
 
@@ -1967,13 +2247,37 @@ export class MontureFormComponent implements OnInit {
         }
 
         const needsDecision = productsWithStock.length > 0 && hasPayment;
-        console.log('⚖️ [DIAGNOSTIC] Decision Required?', needsDecision, { productsCount: productsWithStock.length, hasPayment });
+
+        // [NEW] Logic: Check if ANY product is pending transfer
+        const hasPendingTransfer = formValue.monture?.isPendingTransfer ||
+            formValue.verres?.isPendingTransfer ||
+            (formValue.equipements || []).some((e: any) => e.monture?.isPendingTransfer || e.verres?.isPendingTransfer);
+
+        console.log('⚖️ [DIAGNOSTIC] Decision Required?', needsDecision, 'Has Pending Transfer?', hasPendingTransfer);
 
         let userForcedStatut: string | null = null;
         let userForcedType: string | null = null;
         let userForcedStockDecrement = false;
 
-        if (needsDecision) {
+        if (hasPendingTransfer) {
+            // [NEW] Reinforced Financial Status Logic (Devis vs Vente en Instance)
+            // If there is a payment, it's an Instance. If not, it's a Devis.
+            if (hasPayment) {
+                userForcedType = 'DEVIS';
+                userForcedStatut = 'VENTE_EN_INSTANCE';
+                this.snackBar.open('Transfert en cours détecté. Vente mise en instance (Acompte présent).', 'OK', { duration: 5000 });
+            } else {
+                userForcedType = 'DEVIS';
+                userForcedStatut = 'BROUILLON'; // Reverted to generic draft numbering for Devis
+                this.snackBar.open('Transfert en cours détecté. Enregistré comme Devis (Pas d’acompte).', 'OK', { duration: 5000 });
+            }
+
+            userForcedStockDecrement = false;
+
+            if (this.factureComponent) {
+                this.factureComponent.form.patchValue({ type: userForcedType, statut: userForcedStatut });
+            }
+        } else if (needsDecision) {
             const warehouses = [...new Set(productsWithStock.map(p => p.entrepotNom || p.entrepotType))].join(' / ');
             const message = `Vente effectuée depuis l'entrepôt : ${warehouses}.\n\nSouhaitez-vous VALIDER la vente ou la LAISSER EN INSTANCE ?`;
 
@@ -1982,14 +2286,15 @@ export class MontureFormComponent implements OnInit {
             if (choice) {
                 userForcedType = 'FACTURE';
                 userForcedStatut = 'VALIDE';
+                userForcedStockDecrement = true; // Force stock decrement for direct validation
                 if (this.factureComponent) {
                     this.factureComponent.form.patchValue({ type: 'FACTURE', statut: 'VALIDE' });
                 }
             } else {
-                // Instance (Stock Decrement + VENTE_EN_INSTANCE Status)
+                // Instance (No Stock Decrement yet)
                 userForcedType = 'DEVIS';
                 userForcedStatut = 'VENTE_EN_INSTANCE';
-                userForcedStockDecrement = true;
+                userForcedStockDecrement = false; // Changed from true
                 if (this.factureComponent) {
                     this.factureComponent.form.patchValue({ type: 'DEVIS', statut: 'VENTE_EN_INSTANCE' });
                 }
@@ -2197,8 +2502,79 @@ export class MontureFormComponent implements OnInit {
     }
 
 
+
+    async cancelInstancedSale() {
+        this.loading = true;
+        try {
+            const factures = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId || '' }));
+            const currentFacture = factures.find(f => f.ficheId === this.ficheId);
+
+            if (currentFacture) {
+                // Cancel the sale and restore stock
+                const updateData: any = {
+                    statut: 'ANNULEE',
+                    proprietes: {
+                        ...(currentFacture.proprietes || {}),
+                        cancelReason: 'Transfert annulé par le centre expéditeur',
+                        cancelledAt: new Date(),
+                        restoreStock: true // Signal to restore stock from -1 to 0
+                    }
+                };
+
+                this.factureService.update(currentFacture.id, updateData).subscribe({
+                    next: (res) => {
+                        this.loading = false;
+                        this.snackBar.open('Vente annulée. Le stock a été restauré.', 'Fermer', { duration: 5000 });
+                        this.linkedFactureSubject.next(res);
+                        this.cdr.markForCheck();
+                        // Optionally navigate back or disable editing
+                        this.isEditMode = false;
+                    },
+                    error: (err) => {
+                        this.loading = false;
+                        console.error('❌ Error cancelling sale:', err);
+                        alert("Erreur lors de l'annulation: " + (err.message || 'Erreur inconnue'));
+                    }
+                });
+            } else {
+                this.loading = false;
+                console.warn('⚠️ No associated invoice found to cancel.');
+            }
+        } catch (e) {
+            console.error('Error in cancelInstancedSale:', e);
+            this.loading = false;
+        }
+    }
+
+    async validateInstancedSale() {
+        if (confirm("Voulez-vous valider cette vente maintenant que le produit est reçu ?")) {
+            this.loading = true;
+            try {
+                const factures = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId || '' }));
+                const currentFacture = factures.find(f => f.ficheId === this.ficheId);
+                if (currentFacture) {
+                    await this.performSaleValidation(currentFacture);
+                }
+            } catch (e) {
+                console.error('Error in validateInstancedSale:', e);
+                this.loading = false;
+            }
+        }
+    }
+
     async onPaymentAdded() {
         console.log('💰 [EVENT] Payment Added - Checking for archiving decision...');
+
+        // [NEW] Logic: Check if ANY product is pending transfer. If so, don't prompt for validation yet.
+        const formValue = this.ficheForm.getRawValue();
+        const hasPendingTransfer = formValue.monture?.isPendingTransfer ||
+            formValue.verres?.isPendingTransfer ||
+            (formValue.equipements || []).some((e: any) => e.monture?.isPendingTransfer || e.verres?.isPendingTransfer);
+
+        if (hasPendingTransfer && !this.receptionComplete) {
+            console.log('📦 Pending transfer detected. Skipping validation prompt until product arrival.');
+            return;
+        }
 
         // 1. Detect if we have any valid products with stock
         const invoiceLines = this.getInvoiceLines();
@@ -2215,73 +2591,104 @@ export class MontureFormComponent implements OnInit {
         const choice = confirm(`${message}\n\nOK = Valider\nAnnuler = En Instance`);
 
         if (choice) {
-            // User wants to Validate -> Automatically convert Devis to Facture and VALIDE status
             try {
                 this.loading = true;
                 const factures = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId || '' }));
                 const currentFacture = factures.find(f => f.ficheId === this.ficheId);
-
                 if (currentFacture) {
-                    console.log('📄 Converting Devis to official Facture:', currentFacture.numero);
-                    const lines = this.getInvoiceLines();
-                    const total = lines.reduce((acc, l) => acc + l.totalTTC, 0);
-                    const tvaRate = 0.20;
-                    const totalHT = total / (1 + tvaRate);
-                    const tva = total - totalHT;
-
-                    const updateData: any = {
-                        type: 'FACTURE',
-                        statut: 'VALIDE',
-                        lignes: lines,
-                        totalTTC: total,
-                        totalHT: totalHT,
-                        totalTVA: tva,
-                        resteAPayer: Math.max(0, total - (currentFacture.totalTTC - currentFacture.resteAPayer)), // Ensure remaining balance is calc
-                        proprietes: {
-                            ...(currentFacture.proprietes || {}),
-                            nomenclature: this.nomenclatureString || '',
-                            validatedAt: new Date()
-                        }
-                    };
-
-                    this.factureService.update(currentFacture.id, updateData).subscribe({
-                        next: (res) => {
-                            this.loading = false;
-                            this.snackBar.open('Vente validée et facture générée avec succès', 'Fermer', { duration: 5000 });
-                            this.onInvoiceSaved(res);
-                        },
-                        error: (err) => {
-                            this.loading = false;
-                            console.error('❌ Error validating sale:', err);
-                            alert("Erreur lors de la validation: " + (err.message || 'Erreur inconnue'));
-                        }
-                    });
+                    await this.performSaleValidation(currentFacture);
                 } else {
-                    console.warn('⚠️ No associated quote found to validate.');
                     this.loading = false;
                 }
             } catch (e) {
-                console.error('Error fetching invoices for validation:', e);
                 this.loading = false;
             }
         } else {
-            // User wants to Leave in Instance -> Perform instance logic
+            // ... (rest of instance logic)
             try {
                 this.loading = true;
                 const factures = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId || '' }));
                 const currentFacture = factures.find(f => f.ficheId === this.ficheId);
-
                 if (currentFacture) {
                     this.setInstanceFicheFacture(currentFacture);
                 } else {
-                    console.warn('⚠️ No associated invoice found to set in instance.');
                     this.loading = false;
                 }
             } catch (e) {
-                console.error('Error fetching invoices for instance:', e);
                 this.loading = false;
             }
         }
+    }
+
+    private async performSaleValidation(currentFacture: any) {
+        console.log('📄 [VALIDATION] Converting Devis to official Facture:', currentFacture.numero);
+        const lines = this.getInvoiceLines();
+
+        // [FIX] Guard against missing Product IDs
+        const missingIds = lines.filter(l => !l.productId && (l.description.includes('Monture') || l.description.includes('Verre')));
+        if (missingIds.length > 0) {
+            console.error('❌ [VALIDATION] Missing ProductID for lines:', missingIds);
+            const confirmNoStock = confirm(
+                "⚠️ ATTENTION : Certains produits (Monture/Verres) n'ont pas d'identifiant associé.\n\n" +
+                "Le stock NE SERA PAS décrémenté pour ces produits.\n\n" +
+                "Voulez-vous quand même valider la vente ?"
+            );
+            if (!confirmNoStock) return;
+        }
+
+        // Log the products and their IDs for debugging
+        console.log('📦 [VALIDATION] Products in invoice:', lines.map(l => ({
+            desc: l.description,
+            productId: l.productId,
+            entrepotType: l.entrepotType,
+            entrepotId: l.entrepotId
+        })));
+
+        const total = lines.reduce((acc, l) => acc + l.totalTTC, 0);
+        const tvaRate = 0.20;
+        const totalHT = total / (1 + tvaRate);
+        const tva = total - totalHT;
+
+        const updateData: any = {
+            type: 'FACTURE',
+            statut: 'VALIDE',
+            lignes: lines,
+            totalTTC: total,
+            totalHT: totalHT,
+            totalTVA: tva,
+            resteAPayer: Math.max(0, total - (currentFacture.totalTTC - currentFacture.resteAPayer)),
+            proprietes: {
+                ...(currentFacture.proprietes || {}),
+                nomenclature: this.nomenclatureString || '',
+                validatedAt: new Date(),
+                isTransferFulfilled: true, // Mark as fulfilled
+                forceStockDecrement: true  // Ensure stock is decremented upon validation from fiche
+            }
+        };
+
+        console.log('📤 [VALIDATION] Sending update with forceStockDecrement:', updateData.proprietes.forceStockDecrement);
+        console.log('📤 [VALIDATION] Update data:', JSON.stringify(updateData, null, 2));
+
+        return new Promise<void>((resolve, reject) => {
+            this.factureService.update(currentFacture.id, updateData).subscribe({
+                next: (res) => {
+                    console.log('✅ [VALIDATION] Invoice updated successfully:', res);
+                    this.loading = false;
+                    this.snackBar.open('Vente validée et facture générée avec succès', 'Fermer', { duration: 5000 });
+                    this.receptionComplete = false; // Reset flag
+                    console.log('🔄 [VALIDATION] Calling onInvoiceSaved...');
+                    this.onInvoiceSaved(res);
+                    resolve();
+                },
+                error: (err) => {
+                    console.error('❌ [VALIDATION] Error validating sale:', err);
+                    this.loading = false;
+                    console.error('❌ Error validating sale:', err);
+                    alert("Erreur lors de la validation: " + (err.message || 'Erreur inconnue'));
+                    reject(err);
+                }
+            });
+        });
     }
 
     setInstanceFicheFacture(facture: any) {
@@ -2303,7 +2710,7 @@ export class MontureFormComponent implements OnInit {
             proprietes: {
                 ...(facture.proprietes || {}),
                 nomenclature: this.nomenclatureString || '',
-                forceStockDecrement: true,
+                forceStockDecrement: false, // Changed from true
                 instancedAt: new Date()
             }
         };
@@ -2334,6 +2741,61 @@ export class MontureFormComponent implements OnInit {
         // Listen to montage form changes for real-time canvas updates
         this.ficheForm.get('montage')?.valueChanges.subscribe(() => {
             this.drawFrameVisualization();
+        });
+    }
+
+
+
+    /**
+     * Silently updates the fiche in the backend without triggering full validation/navigation
+     */
+    saveFicheSilently(): void {
+        if (!this.ficheId || this.ficheId === 'new' || !this.clientId) return;
+
+        const formValue = this.ficheForm.getRawValue();
+        const montantTotal = (parseFloat(formValue.monture.prixMonture) || 0) +
+            (parseFloat(formValue.verres.prixOD) || 0) +
+            (parseFloat(formValue.verres.prixOG) || 0);
+
+        // Files serialization
+        const serializableFiles = (this.prescriptionFiles || []).map(file => ({
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            preview: typeof file.preview === 'string' ? file.preview : file.preview.toString(),
+            uploadDate: file.uploadDate
+        }));
+
+        const ficheData: any = {
+            clientId: this.clientId,
+            type: 'MONTURE',
+            statut: this.currentFiche?.statut || 'EN_COURS',
+            dateLivraisonEstimee: formValue.dateLivraisonEstimee,
+            ordonnance: {
+                ...formValue.ordonnance,
+                prescriptionFiles: serializableFiles
+            },
+            monture: formValue.monture,
+            verres: formValue.verres,
+            montage: formValue.montage,
+            suggestions: this.suggestions || [],
+            equipements: formValue.equipements || [],
+            montantTotal,
+            montantPaye: this.currentFiche?.montantPaye || 0
+        };
+
+        console.log('📤 [RECEPTION] Sending silent update to background...', { monture: formValue.monture?.productId });
+        this.ficheService.updateFiche(this.ficheId, ficheData).subscribe({
+            next: (res) => {
+                console.log('✅ [RECEPTION] Fiche synced with local IDs. Reloading data...');
+                this.snackBar.open('IDs Produits synchronisés (Centre Principal)', 'OK', { duration: 2000 });
+                // We reload to break the mapping loop and ensure all states (including currentFiche) are fresh
+                this.loadFiche();
+            },
+            error: (err) => {
+                console.error('❌ [RECEPTION] Error in silent update:', err);
+                this.cdr.markForCheck();
+            }
         });
     }
 

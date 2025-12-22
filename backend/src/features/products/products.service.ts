@@ -99,17 +99,20 @@ export class ProductsService {
         }
     }
 
-    async findAll(entrepotId?: string, centreId?: string) {
+    async findAll(entrepotId?: string, centreId?: string, globalSearch: boolean = false) {
         const where: any = {};
 
-        if (!centreId && !entrepotId) return []; // Isolation
+        if (!centreId && !entrepotId && !globalSearch) return []; // Isolation
         if (entrepotId) where.entrepotId = entrepotId;
-        if (centreId) {
-            where.entrepot = { centreId };
-        }
 
-        return this.prisma.product.findMany({
-            where,
+        // Only apply centre scope if NOT a global search
+        // For performance, we still want to limit but we must include items targeting this centre
+        // Since Prisma OR with JSON path is tricky, we fetch items from current centre OR all reserved/in-transit
+        // and filter in memory.
+        const products = await this.prisma.product.findMany({
+            where: globalSearch ? {} : {
+                entrepot: { centreId }
+            },
             orderBy: { createdAt: 'desc' },
             include: {
                 entrepot: {
@@ -119,13 +122,23 @@ export class ProductsService {
                 }
             }
         });
-    }
 
+        return products.map(p => {
+            // Data Correction: In a quantity-based model, if units are available, 
+            // the main status should be DISPONIBLE, not RESERVE/EN_TRANSIT.
+            if (p.quantiteActuelle > 0 && (p.statut === 'RESERVE' || p.statut === 'EN_TRANSIT')) {
+                p.statut = 'DISPONIBLE';
+            }
+            return p;
+        });
+    }
     async findOne(id: string) {
         const product = await this.prisma.product.findUnique({
             where: { id },
             include: {
-                entrepot: true
+                entrepot: {
+                    include: { centre: true }
+                }
             }
         });
 
@@ -133,17 +146,7 @@ export class ProductsService {
             throw new NotFoundException(`Product with ID ${id} not found`);
         }
 
-        // Flatten specificData for easier consumption by frontend if needed, 
-        // or frontend handles it. 
-        // Prisma returns specificData as Json object.
-        // We can spread it into the result if the frontend expects a flat object.
-        const { specificData, ...rest } = product;
-        const flatProduct = {
-            ...rest,
-            ...(specificData as object || {})
-        };
-
-        return flatProduct;
+        return product;
     }
 
     async update(id: string, updateProductDto: UpdateProductDto) {
@@ -250,79 +253,200 @@ export class ProductsService {
         });
     }
 
-    async initiateTransfer(productId: string, targetWarehouseId: string) {
-        const product = await this.prisma.product.findUnique({ where: { id: productId } });
-        if (!product) throw new NotFoundException('Product not found');
+    async initiateTransfer(sourceProductId: string, targetProductId: string) {
+        const sourceProduct = await this.prisma.product.findUnique({
+            where: { id: sourceProductId },
+            include: { entrepot: { include: { centre: true } } }
+        });
+        const targetProduct = await this.prisma.product.findUnique({
+            where: { id: targetProductId },
+            include: { entrepot: { include: { centre: true } } }
+        });
 
-        const currentSpecificData = product.specificData as any || {};
-        const newSpecificData = {
-            ...currentSpecificData,
-            pendingTransfer: {
-                targetWarehouseId,
+        if (!sourceProduct || !targetProduct) throw new NotFoundException('Source or Target product not found');
+        if (sourceProduct.quantiteActuelle < 1) throw new Error('Stock insuffisant à la source');
+
+        const targetSpecificData = (targetProduct.specificData as any) || {};
+        const updatedTargetData = {
+            ...targetSpecificData,
+            pendingIncoming: {
+                sourceProductId: sourceProduct.id,
+                sourceCentreId: sourceProduct.entrepot?.centreId,
+                sourceCentreName: sourceProduct.entrepot?.centre?.nom,
+                status: 'RESERVED',
                 date: new Date().toISOString()
             }
         };
 
+        const sourceSpecificData = (sourceProduct.specificData as any) || {};
+        // Optional: track outgoing transfers if needed
+        const updatedSourceData = {
+            ...sourceSpecificData,
+            pendingOutgoing: [
+                ...(sourceSpecificData.pendingOutgoing || []),
+                { targetProductId: targetProduct.id, status: 'RESERVED', date: new Date().toISOString() }
+            ]
+        };
+
         return this.prisma.$transaction([
+            // Decrement source
             this.prisma.product.update({
-                where: { id: productId },
+                where: { id: sourceProductId },
                 data: {
-                    statut: 'RESERVE',
-                    specificData: newSpecificData
+                    quantiteActuelle: { decrement: 1 },
+                    specificData: updatedSourceData
+                }
+            }),
+            // Tag target
+            this.prisma.product.update({
+                where: { id: targetProductId },
+                data: {
+                    statut: 'RESERVE', // Explicitly mark as reserved during initiation
+                    specificData: updatedTargetData
                 }
             }),
             this.prisma.mouvementStock.create({
                 data: {
                     type: 'TRANSFERT_INIT',
-                    quantite: product.quantiteActuelle, // Information only, usually 0 change in stock count total, but logs quantity moving
-                    produitId: productId,
-                    entrepotSourceId: product.entrepotId,
-                    entrepotDestinationId: targetWarehouseId,
-                    motif: 'Initiation transfert (Réservation)',
-                    utilisateur: 'Demo User' // TODO: Get actua user
+                    quantite: 1,
+                    produitId: sourceProductId,
+                    entrepotSourceId: sourceProduct.entrepotId,
+                    entrepotDestinationId: targetProduct.entrepotId,
+                    motif: `Réservation pour ${targetProduct.entrepot?.centre?.nom}`,
+                    utilisateur: 'System'
                 }
             })
         ]);
     }
 
-    async completeTransfer(productId: string) {
-        const product = await this.prisma.product.findUnique({ where: { id: productId } });
-        if (!product) throw new NotFoundException('Product not found');
+    async shipTransfer(targetProductId: string) {
+        const targetProduct = await this.prisma.product.findUnique({ where: { id: targetProductId } });
+        if (!targetProduct) throw new NotFoundException('Target product not found');
 
-        const specificData = product.specificData as any || {};
-        const pendingTransfer = specificData.pendingTransfer;
+        const tsd = (targetProduct.specificData as any) || {};
+        if (!tsd.pendingIncoming) throw new Error('Aucun transfert entrant trouvé');
 
-        if (!pendingTransfer || !pendingTransfer.targetWarehouseId) {
-            throw new Error('Aucun transfert en attente pour ce produit');
+        tsd.pendingIncoming.status = 'SHIPPED';
+        const sourceProductId = tsd.pendingIncoming.sourceProductId;
+
+        return this.prisma.$transaction(async (tx) => {
+            // Update target
+            await tx.product.update({
+                where: { id: targetProductId },
+                data: {
+                    statut: 'EN_TRANSIT', // Update top-level status
+                    specificData: tsd
+                }
+            });
+
+            // Update source
+            if (sourceProductId) {
+                const sourceProduct = await tx.product.findUnique({ where: { id: sourceProductId } });
+                if (sourceProduct) {
+                    const ssd = (sourceProduct.specificData as any) || {};
+                    if (ssd.pendingOutgoing) {
+                        const outgoing = ssd.pendingOutgoing.find((t: any) => t.targetProductId === targetProductId);
+                        if (outgoing) outgoing.status = 'SHIPPED';
+                        await tx.product.update({
+                            where: { id: sourceProductId },
+                            data: { specificData: ssd }
+                        });
+                    }
+                }
+            }
+            return { success: true };
+        });
+    }
+
+    async cancelTransfer(targetProductId: string) {
+        const targetProduct = await this.prisma.product.findUnique({ where: { id: targetProductId } });
+        if (!targetProduct) throw new NotFoundException('Product not found');
+
+        const targetSd = (targetProduct.specificData as any) || {};
+        const sourceProductId = targetSd.pendingIncoming?.sourceProductId;
+
+        if (!sourceProductId) throw new Error('Informations de source manquantes');
+
+        const { pendingIncoming: _, ...cleanedTargetSd } = targetSd;
+
+        return this.prisma.$transaction(async (tx) => {
+            // Return 1 unit to source
+            await tx.product.update({
+                where: { id: sourceProductId },
+                data: { quantiteActuelle: { increment: 1 } }
+            });
+
+            // Clean source metadata
+            const sourceProduct = await tx.product.findUnique({ where: { id: sourceProductId } });
+            if (sourceProduct) {
+                const sourceSd = (sourceProduct.specificData as any) || {};
+                if (sourceSd.pendingOutgoing) {
+                    sourceSd.pendingOutgoing = sourceSd.pendingOutgoing.filter((t: any) => t.targetProductId !== targetProductId);
+                    await tx.product.update({
+                        where: { id: sourceProductId },
+                        data: { specificData: sourceSd }
+                    });
+                }
+            }
+
+            // Clear target metadata
+            return tx.product.update({
+                where: { id: targetProductId },
+                data: { specificData: cleanedTargetSd }
+            });
+        });
+    }
+
+    async completeTransfer(targetProductId: string) {
+        const targetProduct = await this.prisma.product.findUnique({ where: { id: targetProductId } });
+        if (!targetProduct) throw new NotFoundException('Product not found');
+
+        const sd = (targetProduct.specificData as any) || {};
+        if (!sd.pendingIncoming) throw new Error('Aucun transfert entrant trouvé');
+        if (sd.pendingIncoming.status !== 'SHIPPED') {
+            throw new Error('Le transfert doit être expédié par la source avant d\'être reçu.');
         }
 
-        const targetWarehouseId = pendingTransfer.targetWarehouseId;
-        const sourceWarehouseId = product.entrepotId;
+        const sourceProductId = sd.pendingIncoming.sourceProductId;
+        const { pendingIncoming: _, ...cleanedSd } = sd;
 
-        // Remove pendingTransfer (clean way)
-        const { pendingTransfer: _, ...cleanedSpecificData } = specificData;
+        return this.prisma.$transaction(async (tx) => {
+            // Increment local stock
+            await tx.product.update({
+                where: { id: targetProductId },
+                data: {
+                    quantiteActuelle: { increment: 1 },
+                    statut: 'DISPONIBLE', // Reset to available upon reception
+                    specificData: cleanedSd
+                }
+            });
 
-        return this.prisma.$transaction([
-            this.prisma.product.update({
-                where: { id: productId },
-                data: {
-                    statut: 'DISPONIBLE',
-                    entrepotId: targetWarehouseId,
-                    specificData: cleanedSpecificData
+            // Clean source metadata (remove from pendingOutgoing)
+            if (sourceProductId) {
+                const sourceProduct = await tx.product.findUnique({ where: { id: sourceProductId } });
+                if (sourceProduct) {
+                    const sourceSd = (sourceProduct.specificData as any) || {};
+                    if (sourceSd.pendingOutgoing) {
+                        sourceSd.pendingOutgoing = sourceSd.pendingOutgoing.filter((t: any) => t.targetProductId !== targetProductId);
+                        await tx.product.update({
+                            where: { id: sourceProductId },
+                            data: { specificData: sourceSd }
+                        });
+                    }
                 }
-            }),
-            this.prisma.mouvementStock.create({
+            }
+
+            return tx.mouvementStock.create({
                 data: {
-                    type: 'TRANSFERT_FINAL',
-                    quantite: product.quantiteActuelle,
-                    produitId: productId,
-                    entrepotSourceId: sourceWarehouseId,
-                    entrepotDestinationId: targetWarehouseId,
-                    motif: 'Validation réception transfert',
-                    utilisateur: 'Demo User'
+                    type: 'RECEPTION',
+                    quantite: 1,
+                    produitId: targetProductId,
+                    entrepotDestinationId: targetProduct.entrepotId,
+                    motif: 'Confirmation réception transfert',
+                    utilisateur: 'System'
                 }
-            })
-        ]);
+            });
+        });
     }
 
     async getStockStats(centreId?: string) {
@@ -332,35 +456,22 @@ export class ProductsService {
                 valeurStockTotal: 0,
                 produitsStockBas: 0,
                 produitsRupture: 0,
-                byType: {
-                    montures: 0,
-                    verres: 0,
-                    lentilles: 0,
-                    accessoires: 0
-                }
+                produitsReserves: 0,
+                produitsEnTransit: 0
             };
         }
 
-        const products = await this.prisma.product.findMany({
-            where: {
-                entrepot: { centreId }
-            },
-            include: {
-                entrepot: true
-            }
+        const allProducts = await this.prisma.product.findMany({
+            where: { entrepot: { centreId } }
         });
 
         const stats = {
-            totalProduits: products.length,
-            valeurStockTotal: products.reduce((acc, p) => acc + (p.quantiteActuelle * (p.prixAchatHT || 0)), 0),
-            produitsStockBas: products.filter(p => p.quantiteActuelle > 0 && p.quantiteActuelle <= p.seuilAlerte).length,
-            produitsRupture: products.filter(p => p.quantiteActuelle <= 0).length,
-            byType: {
-                montures: products.filter(p => p.typeArticle === 'MONTURE').length,
-                verres: products.filter(p => p.typeArticle === 'VERRE').length,
-                lentilles: products.filter(p => p.typeArticle === 'LENTILLE').length,
-                accessoires: products.filter(p => p.typeArticle === 'ACCESSOIRE').length
-            }
+            totalProduits: allProducts.reduce((acc, p) => acc + p.quantiteActuelle, 0),
+            valeurStockTotal: allProducts.reduce((acc, p) => acc + (p.quantiteActuelle * (p.prixAchatHT || 0)), 0),
+            produitsStockBas: allProducts.filter(p => p.quantiteActuelle > 0 && p.quantiteActuelle <= p.seuilAlerte).length,
+            produitsRupture: allProducts.filter(p => p.quantiteActuelle <= 0).length,
+            produitsReserves: allProducts.filter(p => (p.specificData as any)?.pendingIncoming?.status === 'RESERVED').length,
+            produitsEnTransit: allProducts.filter(p => (p.specificData as any)?.pendingIncoming?.status === 'SHIPPED').length
         };
 
         return stats;

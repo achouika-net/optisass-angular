@@ -98,18 +98,42 @@ export class ProductDetailComponent implements OnInit {
             data: { product: this.product }
         });
 
-        dialogRef.afterClosed().subscribe(targetWarehouseId => {
-            if (targetWarehouseId) {
+        dialogRef.afterClosed().subscribe(result => {
+            if (result && result.targetWarehouseId) {
+                // To get the targetProductId, we need all products for that warehouse
+                // Since this component might not have allProducts loaded, we might need a search
+                // For now, let's try to find it in the current context or prompt to create it
+
+                // We'll call a temporary search to find the target product
                 this.isLoading = true;
-                this.productService.initiateTransfer(this.product!.id, targetWarehouseId).subscribe({
-                    next: () => {
-                        this.isLoading = false;
-                        this.cdr.detectChanges();
-                        // Reload to show updated status
-                        if (this.productId) this.loadProduct(this.productId);
+                this.productService.findAll({ entrepotId: result.targetWarehouseId }).subscribe({
+                    next: (targetProducts) => {
+                        const targetProduct = targetProducts.find(p =>
+                            p.designation === this.product?.designation &&
+                            p.codeInterne === this.product?.codeInterne
+                        );
+
+                        if (!targetProduct) {
+                            this.isLoading = false;
+                            alert("Le produit correspondant n'existe pas dans l'entrepôt de destination. Veuillez d'abord le créer.");
+                            return;
+                        }
+
+                        this.productService.initiateTransfer(this.product!.id, targetProduct.id).subscribe({
+                            next: () => {
+                                this.isLoading = false;
+                                this.cdr.detectChanges();
+                                if (this.productId) this.loadProduct(this.productId);
+                            },
+                            error: (err) => {
+                                console.error('Transfer initiation failed:', err);
+                                this.isLoading = false;
+                                this.cdr.detectChanges();
+                            }
+                        });
                     },
                     error: (err) => {
-                        console.error('Transfer initiation failed:', err);
+                        console.error('Target discovery failed:', err);
                         this.isLoading = false;
                         this.cdr.detectChanges();
                     }

@@ -8,8 +8,14 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { SalesControlService, BrouillonInvoice, VendorStatistics } from '../services/sales-control.service';
-import { RouterModule } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { RouterModule, Router } from '@angular/router';
+import { forkJoin, Subject, switchMap, tap } from 'rxjs';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { PaymentDialogComponent } from '../../client-management/factures/payment-dialog/payment-dialog.component';
+import { PaiementService } from '../../client-management/services/paiement.service';
+import { FactureService } from '../../client-management/services/facture.service';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -20,6 +26,7 @@ import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../core/store/auth/auth.selectors';
 import { effect } from '@angular/core';
+import { AvoirWorkflowDialogComponent } from './avoir-workflow-dialog/avoir-workflow-dialog.component';
 
 interface MonthlyGroup {
     month: string; // MM/YYYY
@@ -48,7 +55,10 @@ interface MonthlyGroup {
         FormsModule,
         MatDatepickerModule,
         MatNativeDateModule,
-        MatInputModule
+        MatInputModule,
+        MatDialogModule,
+        MatMenuModule,
+        MatTooltipModule
     ],
     templateUrl: './sales-control-report.component.html',
     styleUrls: ['./sales-control-report.component.scss']
@@ -99,50 +109,37 @@ export class SalesControlReportComponent implements OnInit {
 
     loading = false;
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
+    private refresh$ = new Subject<void>();
 
     constructor(
         private salesControlService: SalesControlService,
+        private factureService: FactureService,
+        private paiementService: PaiementService,
         private snackBar: MatSnackBar,
+        private router: Router,
+        private dialog: MatDialog,
         private store: Store
     ) {
         // Automatically reload when center changes
         effect(() => {
             const center = this.currentCentre();
-            if (center) {
+            if (center?.id) {
+                console.log(`[REPORT-SYNC] Center detected: ${center.id}, triggering load...`);
                 this.loadData();
             }
         });
-    }
 
-    ngOnInit(): void {
-        // Handled by effect on center change
-    }
-
-    loadData(): void {
-        this.loading = true;
-
-        // Clear existing data to prevent flicker/stale data from previous center
-        this.invoicesWithPayment = [];
-        this.invoicesWithoutPayment = [];
-        this.invoicesValid = [];
-        this.invoicesAvoir = [];
-        this.groupedWithPayment = [];
-        this.groupedWithoutPayment = [];
-        this.groupedValid = [];
-        this.groupedAvoir = [];
-        this.groupedArchived = [];
-        this.statistics = [];
-
-        // Use forkJoin to load everything atomically
-        forkJoin({
-            withPayments: this.salesControlService.getBrouillonWithPayments(),
-            withoutPayments: this.salesControlService.getBrouillonWithoutPayments(),
-            valid: this.salesControlService.getValidInvoices(),
-            avoirs: this.salesControlService.getAvoirs(),
-            archived: this.salesControlService.getArchivedInvoices(),
-            stats: this.salesControlService.getStatistics()
-        }).subscribe({
+        // Setup the reactive data stream
+        this.refresh$.pipe(
+            tap(() => this.loading = true),
+            switchMap(() => {
+                const centerId = this.currentCentre()?.id;
+                console.log(`[REPORT-SYNC] SwitchMap fetching for: ${centerId || 'none'}`);
+                return this.salesControlService.getDashboardData();
+            })
+        ).subscribe({
             next: (results) => {
+                console.log('[REPORT-SYNC] Results arrived. Updating UI.');
                 this.invoicesWithPayment = results.withPayments;
                 this.groupedWithPayment = this.groupInvoices(results.withPayments);
 
@@ -169,6 +166,27 @@ export class SalesControlReportComponent implements OnInit {
                 this.loading = false;
             }
         });
+    }
+
+    ngOnInit(): void {
+        // Handled by effect on center change
+    }
+
+    loadData(): void {
+        // Clear existing data to prevent flicker/stale data from previous center
+        this.invoicesWithPayment = [];
+        this.invoicesWithoutPayment = [];
+        this.invoicesValid = [];
+        this.invoicesAvoir = [];
+        this.groupedWithPayment = [];
+        this.groupedWithoutPayment = [];
+        this.groupedValid = [];
+        this.groupedAvoir = [];
+        this.groupedArchived = [];
+        this.statistics = [];
+
+        // Trigger the refresh stream
+        this.refresh$.next();
     }
 
     groupInvoices(invoices: BrouillonInvoice[]): MonthlyGroup[] {
@@ -363,6 +381,76 @@ export class SalesControlReportComponent implements OnInit {
             error: (err) => {
                 console.error('Error archiving invoice:', err);
                 this.snackBar.open("Erreur lors de l'archivage", 'Fermer', { duration: 3000 });
+            }
+        });
+    }
+
+    openPaymentDialog(invoice: BrouillonInvoice): void {
+        const dialogRef = this.dialog.open(PaymentDialogComponent, {
+            maxWidth: '95vw',
+            data: {
+                resteAPayer: invoice.resteAPayer,
+                client: invoice.client
+            }
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result) {
+                const dto = {
+                    factureId: invoice.id,
+                    ...result,
+                    date: result.date.toISOString()
+                };
+
+                this.paiementService.create(dto).subscribe({
+                    next: () => {
+                        this.snackBar.open('Paiement enregistré avec succès', 'OK', { duration: 3000 });
+                        this.loadData();
+                    },
+                    error: (err) => {
+                        console.error('Error saving payment:', err);
+                        this.snackBar.open('Erreur lors de l\'enregistrement du paiement', 'OK', { duration: 3000 });
+                    }
+                });
+            }
+        });
+    }
+
+    viewFiche(invoice: BrouillonInvoice): void {
+        const fiche = invoice.fiche;
+        const clientId = invoice.clientId;
+
+        if (fiche && clientId) {
+            const routeType = fiche.type === 'LENTILLES' ? 'fiche-lentilles' : 'fiche-monture';
+            this.router.navigate(['/p/clients', clientId, routeType, fiche.id]);
+        } else {
+            this.snackBar.open('Aucune fiche associée à cette vente', 'OK', { duration: 3000 });
+        }
+    }
+
+    createAvoir(invoice: BrouillonInvoice): void {
+        const dialogRef = this.dialog.open(AvoirWorkflowDialogComponent, {
+            maxWidth: '95vw',
+            data: { invoice }
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result) {
+                const { itemsToReturn, itemsToKeep } = result;
+
+                this.loading = true;
+                this.salesControlService.processAvoirWithItems(invoice.id, itemsToReturn, itemsToKeep).subscribe({
+                    next: (res) => {
+                        this.snackBar.open('Avoir créé et reliquat généré', 'OK', { duration: 3000 });
+                        this.loadData();
+                        this.loading = false;
+                    },
+                    error: (err) => {
+                        console.error('Error processing advanced avoir:', err);
+                        this.snackBar.open('Erreur lors du traitement de l\'avoir', 'OK', { duration: 3000 });
+                        this.loading = false;
+                    }
+                });
             }
         });
     }

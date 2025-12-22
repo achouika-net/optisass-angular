@@ -163,9 +163,35 @@
                     <ng-container matColumnDef="statut">
                         <th mat-header-cell *matHeaderCellDef mat-sort-header> Statut </th>
                         <td mat-cell *matCellDef="let row">
-                            <span class="status-badge" [ngClass]="getStatusClass(row.statut)">
-                                {{row.statut | titlecase}}
-                            </span>
+                            <div class="flex flex-col gap-1 items-start">
+                                <span class="status-badge"
+                                    [ngClass]="(row.quantiteActuelle <= 0 && row.statut?.toUpperCase() === 'DISPONIBLE') ? 'status-rupture' : getStatusClass(row.statut)">
+                                    {{ (row.quantiteActuelle <= 0 && row.statut?.toUpperCase()==='DISPONIBLE'
+                                        ? 'RUPTURE' : row.statut) | titlecase }} </span>
+
+                                        <!-- Incoming Indicator (Local Row) -->
+                                        <span *ngIf="row.specificData?.pendingIncoming"
+                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold uppercase border border-blue-100"
+                                            [class.animate-pulse]="row.specificData.pendingIncoming.status === 'SHIPPED'">
+                                            <mat-icon
+                                                style="font-size: 12px; height: 12px; width: 12px;">login</mat-icon>
+                                            <ng-container *ngIf="row.specificData.pendingIncoming.status === 'SHIPPED'">
+                                                Arrivage
+                                            </ng-container>
+                                            <ng-container
+                                                *ngIf="row.specificData.pendingIncoming.status === 'RESERVED'">
+                                                {{ row.quantiteActuelle <= 0 ? 'RUPTURE → RÉSERVÉ' : 'RÉSERVÉ' }}
+                                                    </ng-container>
+                                        </span>
+
+                                        <!-- Outgoing Indicator (Source Row) -->
+                                        <span *ngIf="row.specificData?.pendingOutgoing?.length > 0"
+                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 text-[10px] font-bold uppercase border border-orange-100">
+                                            <mat-icon
+                                                style="font-size: 12px; height: 12px; width: 12px;">outbound</mat-icon>
+                                            Expédition x{{ row.specificData.pendingOutgoing.length }}
+                                        </span>
+                            </div>
                         </td>
                     </ng-container>
 
@@ -183,6 +209,20 @@
                             </button>
                             <button mat-icon-button (click)="printBarcode(row)" matTooltip="Imprimer code-barres">
                                 <mat-icon>qr_code_2</mat-icon>
+                            </button>
+
+                            <!-- Transfer Actions -->
+                            <button mat-icon-button color="success" *ngIf="canShip(row)" (click)="shipTransfer(row)"
+                                matTooltip="Valider l'expédition">
+                                <mat-icon>local_shipping</mat-icon>
+                            </button>
+                            <button mat-icon-button color="warn" *ngIf="canCancel(row)" (click)="cancelTransfer(row)"
+                                matTooltip="Annuler le transfert">
+                                <mat-icon>cancel</mat-icon>
+                            </button>
+                            <button mat-icon-button class="text-green-600" *ngIf="canReceive(row)"
+                                (click)="receiveTransfer(row)" matTooltip="Confirmer la réception">
+                                <mat-icon>download_for_offline</mat-icon>
                             </button>
                         </td>
                     </ng-container>

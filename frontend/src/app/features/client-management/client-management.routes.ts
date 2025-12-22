@@ -45,4 +45,8 @@ export const routes: Routes = [
         path: ':clientId/fiche-lentilles/:ficheId',
         loadComponent: () => import('./fiches/lentilles-form/lentilles-form.component').then(m => m.LentillesFormComponent),
     },
+    {
+        path: 'instance-sales',
+        loadComponent: () => import('./instance-sales-dashboard/instance-sales-dashboard.component').then(m => m.InstanceSalesDashboardComponent),
+    },
 ];

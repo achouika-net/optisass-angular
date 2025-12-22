@@ -10,9 +10,12 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSelectModule } from '@angular/material/select';
 import { FormsModule } from '@angular/forms';
+import { Store } from '@ngrx/store';
+import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
 import { ProductService } from '../../services/product.service';
 import { WarehousesService } from '../../../warehouses/services/warehouses.service';
 import { StockTransferDialogComponent } from '../stock-transfer-dialog/stock-transfer-dialog.component';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
     selector: 'app-stock-search-dialog',
@@ -28,6 +31,7 @@ import { StockTransferDialogComponent } from '../stock-transfer-dialog/stock-tra
         MatProgressSpinnerModule,
         MatTooltipModule,
         MatSelectModule,
+        MatSnackBarModule,
         FormsModule
     ],
     templateUrl: './stock-search-dialog.component.html',
@@ -38,18 +42,23 @@ export class StockSearchDialogComponent implements OnInit {
     allProducts: any[] = [];
     filteredProducts: any[] = [];
     loading = false;
-    displayedColumns: string[] = ['photo', 'designation', 'reference', 'marque', 'location', 'statut', 'actions'];
+    displayedColumns: string[] = ['photo', 'designation', 'reference', 'marque', 'location', 'quantity', 'statut', 'actions'];
 
     warehouses: any[] = [];
     selectedWarehouseId: string | undefined;
+    currentCenter: any;
 
     constructor(
         public dialogRef: MatDialogRef<StockSearchDialogComponent>,
         private productService: ProductService,
         private warehousesService: WarehousesService,
         private dialog: MatDialog,
-        private cdr: ChangeDetectorRef
-    ) { }
+        private snackBar: MatSnackBar,
+        private cdr: ChangeDetectorRef,
+        private store: Store
+    ) {
+        this.currentCenter = this.store.selectSignal(UserCurrentCentreSelector)();
+    }
 
     ngOnInit(): void {
         this.loadWarehouses();
@@ -68,10 +77,8 @@ export class StockSearchDialogComponent implements OnInit {
 
     loadProducts(): void {
         this.loading = true;
-        // Pass filter if warehouse selected
-        const filters = this.selectedWarehouseId ? { entrepotId: this.selectedWarehouseId } : undefined;
-
-        this.productService.findAll(filters).subscribe({
+        // Always load ALL products (GLOBAL) to enable cross-warehouse search
+        this.productService.findAll({ global: true }).subscribe({
             next: (products) => {
                 this.allProducts = products;
                 this.filterProducts();
@@ -87,15 +94,16 @@ export class StockSearchDialogComponent implements OnInit {
     }
 
     onWarehouseChange(): void {
-        this.loadProducts();
+        this.filterProducts();
     }
 
     filterProducts(): void {
-        if (!this.searchQuery) {
-            this.filteredProducts = [...this.allProducts];
-        } else {
+        let results = [...this.allProducts];
+
+        // 1. Text Search
+        if (this.searchQuery) {
             const query = this.searchQuery.toLowerCase().trim();
-            this.filteredProducts = this.allProducts.filter(p =>
+            results = results.filter(p =>
                 (p.designation?.toLowerCase().includes(query)) ||
                 (p.codeInterne?.toLowerCase().includes(query)) ||
                 (p.codeBarres?.toLowerCase().includes(query)) ||
@@ -103,39 +111,124 @@ export class StockSearchDialogComponent implements OnInit {
                 (p.referenceFournisseur?.toLowerCase().includes(query))
             );
         }
+
+        // 2. Center/Warehouse Filter with Fallback
+        if (this.selectedWarehouseId) {
+            // Explicit warehouse selection
+            this.filteredProducts = results.filter(p => p.entrepotId === this.selectedWarehouseId);
+        } else {
+            // DEFAULT: Show only from current center
+            const localResults = results.filter(p => p.entrepot?.centreId === this.currentCenter?.id);
+
+            // Check if ANY local product has a pending arrival. 
+            // If so, we want to hide corresponding remote rows for that product to avoid duplicates as showing in CASA line.
+            const localArrivals = localResults.filter(p => !!p.specificData?.pendingIncoming);
+            const arrivalDesignations = new Set(localArrivals.map(p => p.designation));
+
+            const hasLocalStock = localResults.some(p => p.quantiteActuelle > 0 || !!p.specificData?.pendingIncoming);
+
+            if (hasLocalStock) {
+                this.filteredProducts = localResults;
+            } else if (results.length > 0) {
+                // FALLBACK: Global view if local is empty/rupture
+                // BUT hide remote rows whose product is already arriving locally
+                this.filteredProducts = results.filter(p => {
+                    const fromOurCenter = p.entrepot?.centreId === this.currentCenter?.id;
+                    if (fromOurCenter) return true;
+                    // If remote, only show if NOT already arriving locally
+                    return !arrivalDesignations.has(p.designation);
+                });
+            } else {
+                this.filteredProducts = [];
+            }
+        }
+    }
+
+    isRemote(product: any): boolean {
+        return this.currentCenter && product.entrepot?.centreId !== this.currentCenter.id;
+    }
+
+    getSenderCenterName(): string {
+        if (this.selectedWarehouseId) {
+            const wh = this.warehouses.find(w => w.id === this.selectedWarehouseId);
+            if (wh && wh.centreId !== this.currentCenter?.id) {
+                return wh.centre?.nom || 'Inconnu';
+            }
+        }
+        return '';
     }
 
     selectProduct(product: any): void {
-        this.dialogRef.close({ action: 'SELECT', product });
+        const localProduct = this.findLocalCounterpart(product) || product;
+        this.dialogRef.close({ action: 'SELECT', product: localProduct });
+    }
+
+    selectIncomingProduct(product: any): void {
+        const localProduct = this.findLocalCounterpart(product) || product;
+        this.dialogRef.close({
+            action: 'SELECT',
+            product: localProduct,
+            isPendingTransfer: true
+        });
+    }
+
+    orderAndSell(product: any): void {
+        // Close dialog and return product with isPendingOrder flag
+        // This will be treated like a transfer (isPendingTransfer = true)
+        const localProduct = this.findLocalCounterpart(product) || product;
+
+        if (localProduct.entrepot?.centreId !== this.currentCenter?.id) {
+            console.warn('⚠️ Selling a remote product directly. Stock will be affected in source center.');
+        }
+
+        this.dialogRef.close({
+            action: 'ORDER_AND_SELL',
+            product: localProduct,
+            isPendingOrder: true
+        });
+    }
+
+    private findLocalCounterpart(remoteProduct: any): any {
+        return this.allProducts.find(p =>
+            p.entrepot?.centreId === this.currentCenter?.id &&
+            p.designation === remoteProduct.designation &&
+            (p.marque === remoteProduct.marque || !p.marque || !remoteProduct.marque)
+        );
     }
 
     requestTransfer(product: any): void {
+        const localProduct = this.findLocalCounterpart(product);
+
+        if (!localProduct) {
+            alert("Aucun produit local correspondant trouvé à " + this.currentCenter?.nom + " pour recevoir ce transfert. Veuillez d'abord créer la fiche produit localement avec la même désignation.");
+            return;
+        }
+
+        const localWarehouses = this.warehouses.filter(w => w.centreId === this.currentCenter?.id);
         const dialogRef = this.dialog.open(StockTransferDialogComponent, {
-            width: '400px',
-            data: { product }
+            width: '500px',
+            data: {
+                product,
+                allProducts: this.allProducts,
+                localWarehouses: localWarehouses
+            }
         });
 
-        dialogRef.afterClosed().subscribe(targetWarehouseId => {
-            if (targetWarehouseId) {
+        dialogRef.afterClosed().subscribe(result => {
+            if (result && result.productId) {
                 this.loading = true;
-                this.cdr.detectChanges(); // Update spinner state immediately
-                this.productService.initiateTransfer(product.id, targetWarehouseId).subscribe({
+                // result.productId is the SOURCE product ID (selected in dialog if multiple warehouses exist)
+                this.productService.initiateTransfer(result.productId, localProduct.id).subscribe({
                     next: () => {
                         this.loading = false;
-                        // Refresh to show updated status
+                        // Instead of closing, let's refresh to show the new state
                         this.loadProducts();
-                        // Optionally close with 'TRANSFER_INITIATED' or assume user stays to select?
-                        // User likely wants to select it even if transfer is pending, to fill the form.
-                        // I'll update the product status locally for immediate feedback
-                        product.statut = 'RESERVE';
-                        // this.selectProduct(product); // Auto-select? Or let user click?
-                        // Let's let user see the status change to "RESERVE" first.
-                        this.cdr.detectChanges();
+                        this.snackBar.open('Réservation de transfert effectuée avec succès !', 'OK', { duration: 3000 });
                     },
                     error: (err) => {
                         console.error('Transfer initiation failed:', err);
                         this.loading = false;
-                        this.cdr.detectChanges();
+                        alert(err.error?.message || 'Erreur lors de l\'initiation du transfert');
                     }
                 });
             }

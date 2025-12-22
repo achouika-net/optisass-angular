@@ -46,6 +46,15 @@ export class FacturesController {
         });
     }
 
+    @Post(':id/avoir-process')
+    processAvoirWithItems(
+        @Param('id') id: string,
+        @Body() body: { itemsToReturn: number[], itemsToKeep: number[] },
+        @Headers('Tenant') centreId: string
+    ) {
+        return this.facturesService.processAvoirWithItems(id, body.itemsToReturn, body.itemsToKeep, centreId);
+    }
+
     @Delete(':id')
     remove(@Param('id') id: string) {
         return this.facturesService.remove({ id });

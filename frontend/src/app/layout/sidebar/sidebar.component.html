@@ -1,10 +1,7 @@
 @if (!isCollapsed()) {
-<div
-  class="relative mb-2 min-h-[165px] rounded-none bg-[url('/background/auth-bg-2.jpg')] bg-cover"
->
+<div class="relative mb-2 min-h-[165px] rounded-none bg-[url('/background/auth-bg-2.jpg')] bg-cover">
   <button
-    class="absolute bottom-0 flex w-full justify-between border-0 bg-black/50 px-8 py-1.5 text-white backdrop-blur-xs"
-  >
+    class="absolute bottom-0 flex w-full justify-between border-0 bg-black/50 px-8 py-1.5 text-white backdrop-blur-xs">
     <span class="text-sm font-medium">
       {{ 'commun.welcome' | translate : { value: userName() } }}
     </span>
@@ -23,19 +20,11 @@
 
   <mat-nav-list class="mb-2 p-0 pb-2">
     @if (favoritesOpen() && !isCollapsed()) {
-    <div
-      class="favorites-wrapper px-2 pt-2 pb-2"
-      cdkDropList
-      (cdkDropListDropped)="dropFavorite($event)"
-    >
+    <div class="favorites-wrapper px-2 pt-2 pb-2" cdkDropList (cdkDropListDropped)="dropFavorite($event)">
       @for (item of favorisItems(); track item.label) {
       <div class="favorite-item-wrapper" cdkDrag>
-        <a
-          mat-list-item
-          class="favorite-item sidebar-menu-item"
-          [routerLink]="`/p/${item.route}`"
-          routerLinkActive="selected"
-        >
+        <a mat-list-item class="favorite-item sidebar-menu-item" [routerLink]="`/p/${item.route}`"
+          routerLinkActive="selected">
           <div class="grid w-full grid-cols-[auto_1fr_auto] items-center gap-2">
             <mat-icon class="icon-standard">
               {{ item.icon }}
@@ -55,13 +44,8 @@
         <mat-icon class="icon-standard text-[18px] text-gray-400"> star </mat-icon>
       </div>
       @for (item of favorisItems(); track item.label) {
-      <a
-        mat-list-item
-        class="sidebar-menu-item flex items-center justify-center"
-        [routerLink]="`/p/${item.route}`"
-        routerLinkActive="selected"
-        [matTooltip]="isCollapsed() ? item.label : null"
-      >
+      <a mat-list-item class="sidebar-menu-item flex items-center justify-center" [routerLink]="`/p/${item.route}`"
+        routerLinkActive="selected" [matTooltip]="isCollapsed() ? item.label : null">
         <mat-icon class="icon-standard">{{ item.icon }}</mat-icon>
       </a>
       }
@@ -85,14 +69,8 @@
   <!-- MENU PRINCIPAL -->
   <mat-nav-list>
     @if (isCollapsed()) { @for (item of flatMenuItemsForCollapsed(); track item.label) {
-    <a
-      mat-list-item
-      class="sidebar-menu-item"
-      [routerLink]="`/p/${item.route}`"
-      routerLinkActive="selected"
-      [routerLinkActiveOptions]="{ exact: true }"
-      [matTooltip]="item.label"
-    >
+    <a mat-list-item class="sidebar-menu-item" [routerLink]="`/p/${item.route}`" routerLinkActive="selected"
+      [routerLinkActiveOptions]="{ exact: true }" [matTooltip]="item.label">
       <div class="place-items-center">
         <mat-icon class="icon-standard">
           {{ item.icon }}
@@ -101,42 +79,27 @@
     </a>
     } } @else { @for (item of visibleMenuItems(); track item.label) { @switch (item.type) { @case
     ('link') {
-    <a
-      mat-list-item
-      class="sidebar-menu-item"
-      [routerLink]="`/p/${item.route}`"
-      routerLinkActive="selected"
-    >
+    <a mat-list-item class="sidebar-menu-item" [routerLink]="`/p/${item.route}`" routerLinkActive="selected">
       <div class="grid w-full grid-cols-[auto_1fr_auto] items-center gap-2">
         <mat-icon class="icon-standard">
           {{ item.icon }}
         </mat-icon>
         <span class="font-medium">{{ item.label }}</span>
-        <mat-icon
-          class="icon-favorite"
-          [class.active]="isFavorite(item.label)"
-          [class.inactive]="!isFavorite(item.label)"
-          (click)="handleFavorite(favorisItems(), item, $event)"
-        >
+        <mat-icon class="icon-favorite" [class.active]="isFavorite(item.label)"
+          [class.inactive]="!isFavorite(item.label)" (click)="handleFavorite(favorisItems(), item, $event)">
           star
         </mat-icon>
       </div>
     </a>
     } @case ('sub') {
     <div class="flex flex-col overflow-hidden rounded-md transition-all">
-      <div
-        class="cursor-pointer px-3 py-2"
-        [class]="{
+      <div class="cursor-pointer px-3 py-2" [class]="{
                   'sidebar-sub-active': isSubActive(item.children),
                   'sidebar-sub-opened':
                     !isSubActive(item.children) && isSubMenuOpen(item.label),
                   'sidebar-menu-item':
                     !isSubMenuOpen(item.label) && !isSubActive(item.children),
-                }"
-        tabindex="0"
-        role="button"
-        (click)="toggleSubMenu(item.label)"
-      >
+                }" tabindex="0" role="button" (click)="toggleSubMenu(item.label)">
         <div class="grid w-full grid-cols-[auto_1fr_auto_auto] items-center gap-2">
           <mat-icon class="icon-standard">
             {{ item.icon }}
@@ -151,25 +114,22 @@
       @if (isSubMenuOpen(item.label)) {
       <div class="sidebar-sub-items bg-subgroup flex flex-col gap-1 px-1 pt-1 pb-1">
         @for (child of item.children ?? []; track child.label) {
-        <a
-          mat-list-item
-          class="sidebar-menu-item"
-          [routerLink]="`/p/${child.route}`"
-          routerLinkActive="selected"
-          [routerLinkActiveOptions]="{ exact: true }"
-          [matTooltip]="child.label"
-        >
+        <a mat-list-item class="sidebar-menu-item" [routerLink]="`/p/${child.route}`" routerLinkActive="selected"
+          [routerLinkActiveOptions]="{ exact: true }" [matTooltip]="child.label">
           <div class="grid w-full grid-cols-[auto_1fr_auto] gap-2">
             <mat-icon class="icon-standard">
               {{ child.icon }}
             </mat-icon>
-            <span>{{ child.label }}</span>
-            <mat-icon
-              class="icon-favorite"
-              [class.active]="isFavorite(child.label)"
-              [class.inactive]="!isFavorite(child.label)"
-              (click)="handleFavorite(favorisItems(), child, $event)"
-            >
+            <span class="flex-1">{{ child.label }}</span>
+
+            <!-- Badge Notification for Instance Sales -->
+            <span *ngIf="child.label === 'Contrôle des Ventes' && (readyCount$ | async) > 0"
+              class="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-[10px] font-bold text-white shadow-sm">
+              {{ readyCount$ | async }}
+            </span>
+
+            <mat-icon class="icon-favorite" [class.active]="isFavorite(child.label)"
+              [class.inactive]="!isFavorite(child.label)" (click)="handleFavorite(favorisItems(), child, $event)">
               star
             </mat-icon>
           </div>
@@ -192,17 +152,9 @@
 
   <mat-nav-list>
     @for (item of extLinks(); track item.label) {
-    <a
-      mat-list-item
-      class="sidebar-menu-item"
-      [href]="item.externalUrl"
-      target="_blank"
-      [matTooltip]="isCollapsed() ? item.label : null"
-    >
-      <div
-        class="grid w-full gap-2"
-        [class]="isCollapsed() ? 'place-items-center' : 'grid-cols-[auto_1fr]'"
-      >
+    <a mat-list-item class="sidebar-menu-item" [href]="item.externalUrl" target="_blank"
+      [matTooltip]="isCollapsed() ? item.label : null">
+      <div class="grid w-full gap-2" [class]="isCollapsed() ? 'place-items-center' : 'grid-cols-[auto_1fr]'">
         <mat-icon class="icon-standard">{{ item.icon }}</mat-icon>
         @if (!isCollapsed()) {
         <span class="font-medium">{{ item.label }}</span>
@@ -218,17 +170,9 @@
   <mat-divider class="my-2" />
   <mat-nav-list class="pb-4">
     @for (item of footerLinks(); track item.label) {
-    <a
-      mat-list-item
-      class="sidebar-menu-item"
-      [routerLink]="`/p/${item.route}`"
-      routerLinkActive="selected"
-      [matTooltip]="isCollapsed() ? item.label : null"
-    >
-      <div
-        class="grid w-full gap-2"
-        [class]="isCollapsed() ? 'place-items-center' : 'grid-cols-[auto_1fr]'"
-      >
+    <a mat-list-item class="sidebar-menu-item" [routerLink]="`/p/${item.route}`" routerLinkActive="selected"
+      [matTooltip]="isCollapsed() ? item.label : null">
+      <div class="grid w-full gap-2" [class]="isCollapsed() ? 'place-items-center' : 'grid-cols-[auto_1fr]'">
         <mat-icon mat-list-icon class="icon-standard">
           {{ item.icon }}
         </mat-icon>

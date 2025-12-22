@@ -15,6 +15,8 @@ import { Location } from '@angular/common';
 import { StockMovementHistoryDialogComponent } from '../../stock-management/components/stock-movement-history-dialog/stock-movement-history-dialog.component';
 import { StockTransferDialogComponent } from '../../stock-management/components/stock-transfer-dialog/stock-transfer-dialog.component';
 import { ProductService } from '../../stock-management/services/product.service';
+import { ProductStatus } from '../../../shared/interfaces/product.interface';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
     selector: 'app-warehouse-detail',
@@ -29,6 +31,7 @@ import { ProductService } from '../../stock-management/services/product.service'
         MatDialogModule,
         MatFormFieldModule,
         MatInputModule,
+        MatSnackBarModule,
         FormsModule
     ],
     templateUrl: './warehouse-detail.component.html',
@@ -50,7 +53,8 @@ export class WarehouseDetailComponent implements OnInit {
         private router: Router,
         private cdr: ChangeDetectorRef,
         private dialog: MatDialog,
-        private productService: ProductService
+        private productService: ProductService,
+        private snackBar: MatSnackBar
     ) { }
 
     ngOnInit(): void {
@@ -128,23 +132,38 @@ export class WarehouseDetailComponent implements OnInit {
 
     initiateTransfer(product: any): void {
         const dialogRef = this.dialog.open(StockTransferDialogComponent, {
-            width: '400px',
-            data: { product }
+            width: '500px',
+            data: {
+                product,
+                allProducts: this.allProducts
+            }
         });
 
-        dialogRef.afterClosed().subscribe(targetWarehouseId => {
-            if (targetWarehouseId) {
+        dialogRef.afterClosed().subscribe(result => {
+            if (result && result.targetWarehouseId) {
+                // Find the target product in the selected warehouse/center
+                const targetProduct = this.allProducts.find(p =>
+                    p.entrepotId === result.targetWarehouseId &&
+                    p.designation === product.designation &&
+                    p.codeInterne === product.codeInterne
+                );
+
+                if (!targetProduct) {
+                    this.snackBar.open('Le produit correspondant n\'existe pas dans l\'entrepôt de destination. Veuillez d\'abord le créer.', 'Fermer', { duration: 5000 });
+                    return;
+                }
+
                 this.loading = true;
-                this.productService.initiateTransfer(product.id, targetWarehouseId).subscribe({
+                this.productService.initiateTransfer(product.id, targetProduct.id).subscribe({
                     next: () => {
                         this.loading = false;
-                        this.cdr.detectChanges();
-                        // Reload data
+                        this.snackBar.open('Transfert initié ! L\'unité a été retirée de votre stock.', 'Fermer', { duration: 3000 });
                         if (this.entrepot?.id) this.loadEntrepot(this.entrepot.id);
                     },
                     error: (err) => {
                         console.error('Transfer initiation failed:', err);
                         this.loading = false;
+                        this.snackBar.open(err.error?.message || 'Erreur lors de l\'initiation du transfert', 'Fermer', { duration: 3000 });
                         this.cdr.detectChanges();
                     }
                 });
@@ -153,16 +172,73 @@ export class WarehouseDetailComponent implements OnInit {
     }
 
     validateReception(product: any): void {
-        if (confirm('Confirmer la réception de ce produit dans cet entrepôt ?')) {
+        this.receiveTransfer(product);
+    }
+
+    // --- New Transfer LifeCycle Actions ---
+
+    canShip(product: any): boolean {
+        return !!product.specificData?.pendingOutgoing?.some((t: any) => t.status !== 'SHIPPED');
+    }
+
+    canCancel(product: any): boolean {
+        return !!product.specificData?.pendingIncoming && product.specificData.pendingIncoming.status === 'RESERVED';
+    }
+
+    canReceive(product: any): boolean {
+        return !!product.specificData?.pendingIncoming && product.specificData.pendingIncoming.status === 'SHIPPED';
+    }
+
+    shipTransfer(product: any): void {
+        const outgoing = product.specificData?.pendingOutgoing?.find((t: any) => t.status !== 'SHIPPED');
+        if (outgoing) {
+            if (confirm(`Confirmer l'expédition de 1 unité de ${product.designation} ?`)) {
+                this.loading = true;
+                this.productService.shipTransfer(outgoing.targetProductId).subscribe({
+                    next: () => {
+                        this.loading = false;
+                        this.snackBar.open('Expédition validée ! Le produit est "En Transit" côté destinataire.', 'Fermer', { duration: 3000 });
+                        if (this.entrepot?.id) this.loadEntrepot(this.entrepot.id);
+                    },
+                    error: (err) => {
+                        console.error('Shipment failed:', err);
+                        this.loading = false;
+                        this.cdr.detectChanges();
+                    }
+                });
+            }
+        }
+    }
+
+    cancelTransfer(product: any): void {
+        if (confirm(`Annuler le transfert de ${product.designation} ?`)) {
+            this.loading = true;
+            this.productService.cancelTransfer(product.id).subscribe({
+                next: () => {
+                    this.loading = false;
+                    this.snackBar.open('Transfert annulé.', 'Fermer', { duration: 3000 });
+                    if (this.entrepot?.id) this.loadEntrepot(this.entrepot.id);
+                },
+                error: (err) => {
+                    console.error('Cancel failed:', err);
+                    this.loading = false;
+                    this.cdr.detectChanges();
+                }
+            });
+        }
+    }
+
+    receiveTransfer(product: any): void {
+        if (confirm(`Confirmer la réception de ${product.designation} ?`)) {
             this.loading = true;
             this.productService.completeTransfer(product.id).subscribe({
                 next: () => {
                     this.loading = false;
-                    this.cdr.detectChanges();
+                    this.snackBar.open('Produit reçu et ajouté au stock local !', 'Fermer', { duration: 3000 });
                     if (this.entrepot?.id) this.loadEntrepot(this.entrepot.id);
                 },
                 error: (err) => {
-                    console.error('Transfer completion failed:', err);
+                    console.error('Reception failed:', err);
                     this.loading = false;
                     this.cdr.detectChanges();
                 }
@@ -171,8 +247,6 @@ export class WarehouseDetailComponent implements OnInit {
     }
 
     hasPendingTransferToCurrent(product: any): boolean {
-        // Check if product is reserved and targeting THIS warehouse
-        return product.statut === 'RESERVE' &&
-            product.specificData?.pendingTransfer?.targetWarehouseId === this.entrepot?.id;
+        return !!product.specificData?.pendingIncoming || !!product.specificData?.pendingOutgoing?.length;
     }
 }

@@ -35,6 +35,11 @@ export class SalesControlController {
         return this.salesControlService.getStatisticsByVendor(centreId);
     }
 
+    @Get('dashboard-data')
+    async getDashboardData(@Query('userId') userId?: string, @Headers('Tenant') centreId?: string) {
+        return this.salesControlService.getDashboardData(userId, centreId);
+    }
+
     @Post('validate/:id')
     async validateInvoice(@Param('id') id: string) {
         return this.salesControlService.validateInvoice(id);

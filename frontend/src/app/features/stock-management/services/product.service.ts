@@ -25,16 +25,12 @@ export class ProductService {
         let params = new HttpParams();
 
         if (filters) {
-            // Mapping explicit filters to query params supported by backend
-            // Note: Backend currently supports 'entrepotId' via @Query.
-            // Other filters (search, type, brand) need implementation in backend findAll
-            // or we filter client-side for now if backend sends all for an entrepot.
-            // For now, let's pass what we can.
             if (filters.entrepotId) {
                 params = params.set('entrepotId', filters.entrepotId);
             }
-            // For other filters, we might need to implement them in backend or pass them here
-            // if strict filtering is needed server-side.
+            if (filters.global) {
+                params = params.set('global', 'true');
+            }
         }
 
         return this.http.get<Product[]>(this.apiUrl, { params });
@@ -52,8 +48,16 @@ export class ProductService {
         return this.http.delete<boolean>(`${this.apiUrl}/${id}`);
     }
 
-    initiateTransfer(id: string, targetWarehouseId: string): Observable<void> {
-        return this.http.post<void>(`${this.apiUrl}/${id}/initiate-transfer`, { targetWarehouseId });
+    initiateTransfer(sourceProductId: string, targetProductId: string): Observable<void> {
+        return this.http.post<void>(`${this.apiUrl}/${sourceProductId}/transfer`, { targetProductId });
+    }
+
+    shipTransfer(id: string): Observable<void> {
+        return this.http.post<void>(`${this.apiUrl}/${id}/ship`, {});
+    }
+
+    cancelTransfer(id: string): Observable<void> {
+        return this.http.post<void>(`${this.apiUrl}/${id}/cancel`, {});
     }
 
     completeTransfer(id: string): Observable<void> {

@@ -1,0 +1,232 @@
+.dashboard-container {
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+
+        .title-section {
+            h1 {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin: 0;
+                font-size: 28px;
+                font-weight: 600;
+                color: #1a1a1a;
+
+                mat-icon {
+                    font-size: 32px;
+                    width: 32px;
+                    height: 32px;
+                    color: #ff9800;
+                }
+            }
+
+            .subtitle {
+                margin: 4px 0 0 44px;
+                color: #666;
+                font-size: 14px;
+            }
+        }
+    }
+
+    .sales-table-card {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        overflow: hidden;
+
+        .table-container {
+            overflow-x: auto;
+
+            .sales-table {
+                width: 100%;
+                background: white;
+
+                th {
+                    background: #f5f5f5;
+                    font-weight: 600;
+                    color: #333;
+                    padding: 16px;
+                }
+
+                td {
+                    padding: 16px;
+                    border-bottom: 1px solid #e0e0e0;
+                }
+
+                tr.ready-row {
+                    background: #f1f8e9;
+
+                    &:hover {
+                        background: #e8f5e9;
+                    }
+                }
+
+                .client-cell,
+                .products-cell,
+                .date-cell {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+
+                    mat-icon {
+                        color: #757575;
+                        font-size: 20px;
+                        width: 20px;
+                        height: 20px;
+                    }
+                }
+
+                .numero-badge {
+                    display: inline-block;
+                    padding: 4px 12px;
+                    background: #e3f2fd;
+                    color: #1976d2;
+                    border-radius: 12px;
+                    font-weight: 500;
+                    font-size: 13px;
+                }
+
+                .status-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 6px 12px;
+                    border-radius: 16px;
+                    font-size: 13px;
+                    font-weight: 500;
+
+                    mat-icon {
+                        font-size: 18px;
+                        width: 18px;
+                        height: 18px;
+                    }
+
+                    &.status-ready {
+                        background: #c8e6c9;
+                        color: #2e7d32;
+
+                        mat-icon {
+                            color: #2e7d32;
+                        }
+                    }
+
+                    &.status-transit {
+                        background: #bbdefb;
+                        color: #1565c0;
+
+                        mat-icon {
+                            color: #1565c0;
+                        }
+                    }
+
+                    &.status-cancelled {
+                        background: #ffcdd2;
+                        color: #c62828;
+
+                        mat-icon {
+                            color: #c62828;
+                        }
+                    }
+
+                    &.status-unknown {
+                        background: #e0e0e0;
+                        color: #616161;
+
+                        mat-icon {
+                            color: #616161;
+                        }
+                    }
+                }
+
+                .montant-cell {
+                    display: flex;
+                    align-items: baseline;
+                    gap: 4px;
+
+                    .amount {
+                        font-size: 16px;
+                        font-weight: 600;
+                        color: #1a1a1a;
+                    }
+
+                    .currency {
+                        font-size: 12px;
+                        color: #757575;
+                    }
+                }
+
+                .actions-button {
+                    color: #757575;
+
+                    &:hover {
+                        color: #1976d2;
+                    }
+                }
+
+                .disabled-icon {
+                    opacity: 0.4;
+                }
+            }
+
+            .no-data {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 80px 24px;
+                color: #9e9e9e;
+
+                mat-icon {
+                    font-size: 64px;
+                    width: 64px;
+                    height: 64px;
+                    margin-bottom: 16px;
+                    opacity: 0.5;
+                }
+
+                p {
+                    margin: 0;
+                    font-size: 18px;
+                    font-weight: 500;
+                }
+
+                .no-data-subtitle {
+                    font-size: 14px;
+                    margin-top: 8px;
+                }
+            }
+        }
+    }
+}
+
+// Responsive
+@media (max-width: 768px) {
+    .dashboard-container {
+        padding: 16px;
+
+        .header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .sales-table-card {
+            .table-container {
+                .sales-table {
+                    font-size: 13px;
+
+                    th,
+                    td {
+                        padding: 12px 8px;
+                    }
+                }
+            }
+        }
+    }
+}

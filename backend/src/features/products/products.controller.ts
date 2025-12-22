@@ -18,8 +18,13 @@ export class ProductsController {
     }
 
     @Get()
-    findAll(@Query('entrepotId') entrepotId?: string, @Headers('Tenant') centreId?: string) {
-        return this.productsService.findAll(entrepotId, centreId);
+    findAll(
+        @Query('entrepotId') entrepotId?: string,
+        @Query('global') global?: string,
+        @Headers('Tenant') centreId?: string
+    ) {
+        const isGlobal = global === 'true';
+        return this.productsService.findAll(entrepotId, centreId, isGlobal);
     }
 
     @Get(':id')
@@ -37,9 +42,19 @@ export class ProductsController {
         return this.productsService.remove(id);
     }
 
-    @Post(':id/initiate-transfer')
-    initiateTransfer(@Param('id') id: string, @Body('targetWarehouseId') targetWarehouseId: string) {
-        return this.productsService.initiateTransfer(id, targetWarehouseId);
+    @Post(':id/transfer')
+    initiateTransfer(@Param('id') id: string, @Body() body: { targetProductId: string }) {
+        return this.productsService.initiateTransfer(id, body.targetProductId);
+    }
+
+    @Post(':id/ship')
+    shipTransfer(@Param('id') id: string) {
+        return this.productsService.shipTransfer(id);
+    }
+
+    @Post(':id/cancel')
+    cancelTransfer(@Param('id') id: string) {
+        return this.productsService.cancelTransfer(id);
     }
 
     @Post(':id/complete-transfer')

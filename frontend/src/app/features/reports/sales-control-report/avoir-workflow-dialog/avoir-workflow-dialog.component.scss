@@ -1,0 +1,120 @@
+:host {
+    display: block;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.dialog-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fdf2f2;
+    color: #991b1b;
+    padding: 16px 24px;
+    margin: -24px -24px 32px -24px; // Increased bottom margin for more space
+    border-bottom: 1px solid #fee2e2;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+
+    mat-icon {
+        font-size: 28px;
+        width: 28px;
+        height: 28px;
+    }
+}
+
+.intro-text {
+    color: #475569;
+    margin-bottom: 24px;
+    line-height: 1.5;
+}
+
+.item-list {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    // Removed max-height to let dialog adapt to content as requested
+    // overflow-y: auto; 
+
+    .item-row {
+        border-bottom: 1px solid #f1f5f9;
+        height: auto !important;
+        padding: 12px 0;
+
+        &:last-child {
+            border-bottom: none;
+        }
+
+        .item-name {
+            font-weight: 500;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .item-price {
+            font-size: 0.85rem;
+            color: #64748b;
+
+            strong {
+                color: #1e293b;
+            }
+        }
+    }
+}
+
+.action-toggle {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+
+    .status-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: #94a3b8;
+
+        &.active {
+            color: #ef4444;
+        }
+    }
+}
+
+.summary-box {
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .summary-line {
+        display: flex;
+        justify-content: space-between;
+        font-weight: 500;
+
+        .text-danger {
+            color: #ef4444;
+        }
+
+        .text-primary {
+            color: #2563eb;
+        }
+    }
+}
+
+.dialog-actions {
+    padding: 16px 24px 24px 24px; // Added horizontal padding to prevent touching edges
+}
+
+// Ensure mat-dialog-content doesn't have unwanted scrollbars
+::ng-deep .mat-dialog-content {
+    overflow: hidden !important;
+    max-height: none !important;
+}
+
+::ng-deep .mat-dialog-container {
+    overflow: hidden !important;
+}

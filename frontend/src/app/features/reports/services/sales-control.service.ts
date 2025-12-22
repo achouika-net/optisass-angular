@@ -9,10 +9,15 @@ export interface BrouillonInvoice {
     dateEmission: Date;
     totalTTC: number;
     resteAPayer: number;
+    clientId: string;
     client: {
         nom?: string;
         prenom?: string;
         raisonSociale?: string;
+    };
+    fiche?: {
+        id: string;
+        type: string; // MONTURE, LENTILLES
     };
     paiements?: any[];
     lignes?: any[]; // Snapshot of lines
@@ -84,5 +89,14 @@ export class SalesControlService {
 
     archiveInvoice(id: string): Observable<any> {
         return this.http.post(`${this.apiUrl}/archive/${id}`, {});
+    }
+
+    processAvoirWithItems(id: string, itemsToReturn: number[], itemsToKeep: number[]): Observable<any> {
+        return this.http.post(`${API_URL}/factures/${id}/avoir-process`, { itemsToReturn, itemsToKeep });
+    }
+
+    getDashboardData(userId?: string): Observable<any> {
+        const params = userId ? { userId } : {};
+        return this.http.get<any>(`${this.apiUrl}/dashboard-data`, { params });
     }
 }

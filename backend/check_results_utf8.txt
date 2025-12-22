@@ -1,0 +1,13 @@
+﻿--- Centres ---
+Centre OptiSaas Rabat: 83b6f0a2-7615-49ae-a5ad-06274585daba
+Centre OptiSaas Casa: 8e0ccea7-efef-4c29-93da-6e741e062c34
+
+--- Produits Ray-Ban (Toutes centres) ---
+[disponible] [Code: MON7472] Ray-Ban Aviator RB3025 - Stock: 0 - Centre: Centre OptiSaas Rabat
+  SpecificData: {"pont":15,"forme":"aviateur","genre":"homme","branche":140,"calibre":54,"filtres":[],"matiere":"metal","categorie":"solaire","traitements":[],"typeMonture":"cerclee","typeCharniere":"standard"}
+[EN_TRANSIT] [Code: MON7644] Ray-Ban Aviator RB3025 - Stock: 3 - Centre: Centre OptiSaas Casa
+  SpecificData: {"pont":15,"forme":"aviateur","genre":"homme","branche":140,"calibre":54,"filtres":[],"matiere":"metal","categorie":"optique","traitements":[],"typeMonture":"cerclee","typeCharniere":"standard","pendingTransfer":{"date":"2025-12-20T13:39:09.869Z","targetWarehouseId":"d8c54ae8-f31a-43ba-a49f-4969d4c9cf0c"}}
+
+--- Produits en Transit / Réservés ---
+[EN_TRANSIT] [Code: MON7644] Ray-Ban Aviator RB3025 - Centre: Centre OptiSaas Casa
+  SpecificData: {"pont":15,"forme":"aviateur","genre":"homme","branche":140,"calibre":54,"filtres":[],"matiere":"metal","categorie":"optique","traitements":[],"typeMonture":"cerclee","typeCharniere":"standard","pendingTransfer":{"date":"2025-12-20T13:39:09.869Z","targetWarehouseId":"d8c54ae8-f31a-43ba-a49f-4969d4c9cf0c"}}

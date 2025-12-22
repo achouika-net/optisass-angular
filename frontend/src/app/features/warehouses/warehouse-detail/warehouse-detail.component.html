@@ -65,11 +65,20 @@
                 <ng-container matColumnDef="designation">
                     <th mat-header-cell *matHeaderCellDef>Désignation</th>
                     <td mat-cell *matCellDef="let product">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <strong>{{ product.designation }}</strong>
-                            <span *ngIf="hasPendingTransferToCurrent(product)" class="badge-incoming">En Arrivage</span>
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <strong>{{ product.designation }}</strong>
+                                <span *ngIf="product.specificData?.pendingIncoming" class="badge-incoming"
+                                    [class.shipped]="product.specificData.pendingIncoming.status === 'SHIPPED'">
+                                    {{ product.specificData.pendingIncoming.status === 'SHIPPED' ? 'En Transit' :
+                                    'Réservé' }}
+                                </span>
+                                <span *ngIf="product.specificData?.pendingOutgoing?.length" class="badge-outgoing">
+                                    Sortant x{{ product.specificData.pendingOutgoing.length }}
+                                </span>
+                            </div>
+                            <div class="secondary-text">{{ product.marque }} - {{ product.referenceFournisseur }}</div>
                         </div>
-                        <div class="secondary-text">{{ product.marque }} - {{ product.referenceFournisseur }}</div>
                     </td>
                 </ng-container>
 
@@ -106,22 +115,23 @@
                             <mat-icon>history</mat-icon>
                         </button>
 
-                        <!-- Transfer Actions -->
-                        <!-- Validate Reception (Only if pending transfer to HERE) -->
-                        <button mat-icon-button color="accent" *ngIf="hasPendingTransferToCurrent(product)"
-                            (click)="validateReception(product)" matTooltip="Valider la réception">
-                            <mat-icon>check_circle</mat-icon>
-                        </button>
-
-                        <!-- Initiate Transfer (Only if Available) -->
-                        <button mat-icon-button color="primary" *ngIf="product.statut === 'DISPONIBLE'"
-                            (click)="initiateTransfer(product)" matTooltip="Transférer">
+                        <!-- Transfer Life Cycle Actions -->
+                        <button mat-icon-button color="success" *ngIf="canShip(product)" (click)="shipTransfer(product)"
+                            matTooltip="Valider l'expédition">
                             <mat-icon>local_shipping</mat-icon>
+                        </button>
+                        <button mat-icon-button color="warn" *ngIf="canCancel(product)"
+                            (click)="cancelTransfer(product)" matTooltip="Annuler le transfert">
+                            <mat-icon>cancel</mat-icon>
+                        </button>
+                        <button mat-icon-button style="color: #2e7d32;" *ngIf="canReceive(product)"
+                            (click)="receiveTransfer(product)" matTooltip="Confirmer la réception">
+                            <mat-icon>download_for_offline</mat-icon>
                         </button>
 
                         <!-- Edit (Standard) -->
                         <button mat-icon-button matTooltip="Modifier" [routerLink]="['/p/stock', product.id]"
-                            [disabled]="product.statut === 'RESERVE'">
+                            [disabled]="hasPendingTransferToCurrent(product)">
                             <mat-icon>edit</mat-icon>
                         </button>
                     </td>

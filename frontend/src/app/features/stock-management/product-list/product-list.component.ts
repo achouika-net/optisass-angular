@@ -56,6 +56,8 @@ export class ProductListComponent implements OnInit {
         valeurStockTotal: 0,
         produitsStockBas: 0,
         produitsRupture: 0,
+        produitsReserves: 0,
+        produitsEnTransit: 0,
         byType: {
             montures: 0,
             verres: 0,
@@ -94,7 +96,13 @@ export class ProductListComponent implements OnInit {
     loadProducts(): void {
         this.dataSource.data = []; // Reset for stability
         this.productService.findAll(this.filter).subscribe(products => {
-            this.dataSource.data = products;
+            const center = this.currentCentre();
+            if (center) {
+                // Strictly filter by current center to avoid remote leaks in table view
+                this.dataSource.data = products.filter(p => p.entrepot?.centreId === center.id);
+            } else {
+                this.dataSource.data = products;
+            }
         });
     }
 
@@ -108,20 +116,17 @@ export class ProductListComponent implements OnInit {
         this.loadProducts();
     }
 
-    getStatusClass(status: ProductStatus): string {
-        switch (status) {
-            case ProductStatus.DISPONIBLE:
-                return 'status-disponible';
-            case ProductStatus.RESERVE:
-                return 'status-reserve';
-            case ProductStatus.EN_COMMANDE:
-                return 'status-commande';
-            case ProductStatus.RUPTURE:
-                return 'status-rupture';
-            case ProductStatus.OBSOLETE:
-                return 'status-obsolete';
-            default:
-                return '';
+    getStatusClass(status: string): string {
+        if (!status) return '';
+        const s = status.toUpperCase();
+        switch (s) {
+            case 'DISPONIBLE': return 'status-disponible';
+            case 'RESERVE': return 'status-reserve';
+            case 'EN_TRANSIT': return 'status-transit';
+            case 'RUPTURE': return 'status-rupture';
+            case 'EN_COMMANDE': return 'status-commande';
+            case 'OBSOLETE': return 'status-obsolete';
+            default: return '';
         }
     }
 
@@ -146,5 +151,49 @@ export class ProductListComponent implements OnInit {
     printBarcode(product: Product): void {
         // TODO: Implement barcode printing
         console.log('Print barcode for:', product.designation);
+    }
+
+    // --- Transfer Actions ---
+
+    canShip(product: any): boolean {
+        return !!product.specificData?.pendingOutgoing?.some((t: any) => t.status !== 'SHIPPED');
+    }
+
+    canCancel(product: any): boolean {
+        // Can cancel if we are the receiver and it's not shipped yet
+        return !!product.specificData?.pendingIncoming && product.specificData.pendingIncoming.status === 'RESERVED';
+    }
+
+    canReceive(product: any): boolean {
+        // FIX: Only show reception button when product has been SHIPPED (not just RESERVED)
+        return !!product.specificData?.pendingIncoming && product.specificData.pendingIncoming.status === 'SHIPPED';
+    }
+
+    shipTransfer(product: any): void {
+        if (confirm(`Confirmer l'expédition de 1 unité de ${product.designation} ?`)) {
+            // Find the first non-shipped outgoing transfer
+            const outgoing = product.specificData?.pendingOutgoing?.find((t: any) => t.status !== 'SHIPPED');
+            if (outgoing) {
+                this.productService.shipTransfer(outgoing.targetProductId).subscribe(() => {
+                    this.loadProducts();
+                });
+            }
+        }
+    }
+
+    cancelTransfer(product: Product): void {
+        if (confirm(`Annuler la réservation de ${product.designation} ?`)) {
+            this.productService.cancelTransfer(product.id!).subscribe(() => {
+                this.loadProducts();
+            });
+        }
+    }
+
+    receiveTransfer(product: Product): void {
+        if (confirm(`Confirmer la réception de ${product.designation} dans votre stock ?`)) {
+            this.productService.completeTransfer(product.id!).subscribe(() => {
+                this.loadProducts();
+            });
+        }
     }
 }

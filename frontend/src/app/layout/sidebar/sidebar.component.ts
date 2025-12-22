@@ -29,9 +29,13 @@ import {
   UserSelector,
 } from '../../core/store/auth/auth.selectors';
 
+import { InstanceSalesMonitorService } from '../../features/client-management/services/instance-sales-monitor.service';
+import { CommonModule } from '@angular/common';
+
 @Component({
   selector: 'app-sidebar',
   imports: [
+    CommonModule,
     MatSidenavModule,
     MatListModule,
     MatIconModule,
@@ -50,6 +54,7 @@ import {
 export class SidebarComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly store = inject(Store);
+  private readonly monitor = inject(InstanceSalesMonitorService);
 
   readonly isMobile = input.required<boolean>();
   readonly isCollapsed = input.required<boolean>();
@@ -64,6 +69,7 @@ export class SidebarComponent implements OnInit {
   readonly favorisItems = signal<MenuItem[]>([]);
 
   readonly menuItems = signal<MenuItem[]>(MENU);
+  readonly readyCount$ = this.monitor.getReadyToValidateCount();
 
   /** Menu principal filtré (link, sub avec children valides) */
   readonly visibleMenuItems = computed(
@@ -117,6 +123,9 @@ export class SidebarComponent implements OnInit {
    * Au démarrage : ouvre le sous-menu correspondant à l’URL active.
    */
   ngOnInit(): void {
+    // Start monitoring instance sales
+    this.monitor.startPolling();
+
     const opened = this.menuItems()
       .filter((i) => i.type === 'sub')
       .find((i) =>

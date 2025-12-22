@@ -421,7 +421,6 @@ export class PaymentListComponent implements OnInit {
         const resteAPayer = facture.resteAPayer || (facture.totalTTC - (facture.paiements?.reduce((sum: number, p: any) => sum + p.montant, 0) || 0));
 
         const dialogRef = this.dialog.open(PaymentDialogComponent, {
-            width: '800px',
             maxWidth: '90vw',
             data: {
                 resteAPayer: resteAPayer

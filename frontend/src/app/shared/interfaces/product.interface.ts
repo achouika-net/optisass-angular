@@ -9,11 +9,12 @@ export enum ProductType {
 }
 
 export enum ProductStatus {
-    DISPONIBLE = 'disponible',
-    RESERVE = 'reserve',
-    EN_COMMANDE = 'en_commande',
-    RUPTURE = 'rupture',
-    OBSOLETE = 'obsolete'
+    DISPONIBLE = 'DISPONIBLE',
+    RESERVE = 'RESERVE',
+    EN_COMMANDE = 'EN_COMMANDE',
+    EN_TRANSIT = 'EN_TRANSIT',
+    RUPTURE = 'RUPTURE',
+    OBSOLETE = 'OBSOLETE'
 }
 
 /**
@@ -53,6 +54,7 @@ export interface BaseProduct {
     photo?: string;
     statut: ProductStatus;
     utilisateurCreation: string;
+    specificData?: any;
 
     // Warehouse Association
     entrepotId?: string;
@@ -403,6 +405,7 @@ export interface ProductFilters {
     prixMin?: number;
     prixMax?: number;
     search?: string;
+    global?: boolean;
 }
 
 /**
@@ -413,6 +416,8 @@ export interface StockStats {
     valeurStockTotal: number;
     produitsStockBas: number;
     produitsRupture: number;
+    produitsReserves: number;
+    produitsEnTransit: number;
     byType: {
         montures: number;
         verres: number;

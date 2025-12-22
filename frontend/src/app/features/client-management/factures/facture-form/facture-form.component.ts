@@ -440,7 +440,6 @@ export class FactureFormComponent implements OnInit {
         }
 
         const dialogRef = this.dialog.open(PaymentDialogComponent, {
-            width: '800px',
             maxWidth: '90vw',
             data: {
                 resteAPayer: this.resteAPayer,
