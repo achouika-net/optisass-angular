@@ -673,14 +673,12 @@ export class FacturesService implements OnModuleInit {
 
                     if (productToUpdate) {
                         if (item.reason === 'DEFECTUEUX') {
-                            console.log(`📦 [EXCHANGE] Processing DEFECTUEUX return for product ${line.productId}`);
                             // Logic to find corresponding product in Defective Warehouse
                             let defProduct = await tx.product.findFirst({
                                 where: { codeInterne: productToUpdate.codeInterne, entrepotId: defectiveWarehouse.id }
                             });
 
                             if (!defProduct) {
-                                console.log(`📦 [EXCHANGE] Creating new defective product in warehouse ${defectiveWarehouse.id}`);
                                 // Clone to Defective
                                 const { id, entrepotId, createdAt, updatedAt, specificData, ...prodProps } = productToUpdate;
                                 defProduct = await tx.product.create({
@@ -693,9 +691,6 @@ export class FacturesService implements OnModuleInit {
                                         designation: `${productToUpdate.designation} (Défectueux)`
                                     }
                                 });
-                                console.log(`📦 [EXCHANGE] Created defective product: ${defProduct.id}`);
-                            } else {
-                                console.log(`📦 [EXCHANGE] Found existing defective product: ${defProduct.id}`);
                             }
 
                             await tx.product.update({
@@ -705,7 +700,6 @@ export class FacturesService implements OnModuleInit {
                                     statut: 'DISPONIBLE'
                                 }
                             });
-                            console.log(`📦 [EXCHANGE] Incremented stock for defective product ${defProduct.id}`);
 
 
                             // Movement
