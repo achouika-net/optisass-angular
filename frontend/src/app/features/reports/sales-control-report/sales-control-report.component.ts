@@ -208,12 +208,16 @@ export class SalesControlReportComponent implements OnInit {
             }
 
             groups[monthKey].invoices.push(inv);
-            groups[monthKey].totalTTC += (inv.totalTTC || 0);
-            groups[monthKey].totalReste += (inv.resteAPayer || 0);
 
-            if (inv.paiements) {
-                const paid = inv.paiements.reduce((sum, p) => sum + p.montant, 0);
-                groups[monthKey].totalPaid += paid;
+            // Only add to subtotals if invoice is not cancelled
+            if (inv.statut !== 'ANNULEE') {
+                groups[monthKey].totalTTC += (inv.totalTTC || 0);
+                groups[monthKey].totalReste += (inv.resteAPayer || 0);
+
+                if (inv.paiements) {
+                    const paid = inv.paiements.reduce((sum, p) => sum + p.montant, 0);
+                    groups[monthKey].totalPaid += paid;
+                }
             }
         });
 
