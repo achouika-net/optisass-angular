@@ -695,7 +695,10 @@ export class FacturesService implements OnModuleInit {
 
                             await tx.product.update({
                                 where: { id: defProduct.id },
-                                data: { quantiteActuelle: { increment: item.quantiteRetour } }
+                                data: {
+                                    quantiteActuelle: { increment: item.quantiteRetour },
+                                    statut: 'DISPONIBLE'
+                                }
                             });
 
 
