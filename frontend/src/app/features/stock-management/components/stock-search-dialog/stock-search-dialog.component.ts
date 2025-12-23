@@ -70,6 +70,10 @@ export class StockSearchDialogComponent implements OnInit {
     }
 
     ngOnInit(): void {
+        // Remove select column in sales context
+        if (this.context === 'sales') {
+            this.displayedColumns = this.displayedColumns.filter(col => col !== 'select');
+        }
         this.loadWarehouses();
         this.loadProducts();
     }
