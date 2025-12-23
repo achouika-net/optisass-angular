@@ -346,7 +346,7 @@ export class ProductListComponent implements OnInit {
 
                 dialogRef.afterClosed().subscribe(result => {
                     if (result && result.productId) {
-                        this.productService.initiateTransfer(result.productId, product.id!).subscribe({
+                        this.productService.initiateTransfer(result.productId, product.id!, result.quantite).subscribe({
                             next: () => {
                                 this.snackBar.open('Transfert initié avec succès', 'OK', { duration: 3000 });
                                 this.loadProducts();

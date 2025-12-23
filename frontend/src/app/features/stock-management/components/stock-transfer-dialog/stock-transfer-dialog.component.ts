@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
+import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -24,6 +25,7 @@ import { switchMap } from 'rxjs';
         MatDialogModule,
         MatFormFieldModule,
         MatSelectModule,
+        MatInputModule,
         MatButtonModule,
         MatIconModule,
         MatProgressSpinnerModule,
@@ -65,6 +67,15 @@ import { switchMap } from 'rxjs';
                                     {{ w.nom }} ({{ w.type }})
                                 </mat-option>
                             </mat-select>
+                        </mat-form-field>
+
+                        <!-- Quantity -->
+                        <mat-form-field appearance="outline" class="full-width mt-2">
+                            <mat-label>Quantité</mat-label>
+                            <input matInput type="number" formControlName="quantite" min="1">
+                             <mat-error *ngIf="form.get('quantite')?.hasError('max')">
+                                Stock insuffisant (Max: {{ form.get('quantite')?.getError('max').max }})
+                            </mat-error>
                         </mat-form-field>
 
                         <div *ngIf="productLookupLoading" class="text-xs text-blue-500 animate-pulse mt-1">
@@ -151,6 +162,7 @@ export class StockTransferDialogComponent implements OnInit {
             sourceCenterId: [this.data.product.entrepot?.centreId || '', Validators.required],
             sourceWarehouseId: [this.data.product.entrepotId, Validators.required], // Default to current if valid
             targetWarehouseId: ['', Validators.required],
+            quantite: [1, [Validators.required, Validators.min(1)]],
             productId: [this.data.product.id, Validators.required]
         });
     }
@@ -257,6 +269,11 @@ export class StockTransferDialogComponent implements OnInit {
             } else {
                 this.form.patchValue({ productId: product.id });
                 this.form.get('productId')?.setErrors(null);
+
+                // Update quantity validators based on source stock
+                const maxStock = product.quantiteActuelle;
+                this.form.get('quantite')?.setValidators([Validators.required, Validators.min(1), Validators.max(maxStock)]);
+                this.form.get('quantite')?.updateValueAndValidity();
             }
         } else {
             this.form.patchValue({ productId: '' });
@@ -273,6 +290,7 @@ export class StockTransferDialogComponent implements OnInit {
             this.dialogRef.close({
                 productId: this.form.value.productId,
                 targetWarehouseId: this.form.value.targetWarehouseId,
+                quantite: this.form.value.quantite,
                 targetCentreId: this.targetWarehouse?.centreId || this.currentCenter?.id
             });
         }

@@ -43,8 +43,8 @@ export class ProductsController {
     }
 
     @Post(':id/transfer')
-    initiateTransfer(@Param('id') id: string, @Body() body: { targetProductId: string }) {
-        return this.productsService.initiateTransfer(id, body.targetProductId);
+    initiateTransfer(@Param('id') id: string, @Body() body: { targetProductId: string, quantite?: number }) {
+        return this.productsService.initiateTransfer(id, body.targetProductId, body.quantite);
     }
 
     @Post(':id/ship')

@@ -48,8 +48,8 @@ export class ProductService {
         return this.http.delete<boolean>(`${this.apiUrl}/${id}`);
     }
 
-    initiateTransfer(sourceProductId: string, targetProductId: string): Observable<void> {
-        return this.http.post<void>(`${this.apiUrl}/${sourceProductId}/transfer`, { targetProductId });
+    initiateTransfer(sourceProductId: string, targetProductId: string, quantite: number = 1): Observable<void> {
+        return this.http.post<void>(`${this.apiUrl}/${sourceProductId}/transfer`, { targetProductId, quantite });
     }
 
     shipTransfer(id: string): Observable<void> {
