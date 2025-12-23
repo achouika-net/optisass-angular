@@ -775,7 +775,12 @@ export class FacturesService implements OnModuleInit {
                     totalTTC: newTotalTTC,
                     resteAPayer: newTotalTTC,
                     ficheId: original.ficheId, // Re-attach Fiche!
-                    parentFactureId: original.id
+                    parentFactureId: original.id,
+                    proprietes: {
+                        ...(original.proprietes as any || {}),
+                        factureOriginale: original.numero,
+                        raison: 'Echange / Modification'
+                    }
                 }
             });
 
