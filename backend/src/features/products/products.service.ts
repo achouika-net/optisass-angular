@@ -79,16 +79,36 @@ export class ProductsService {
                 ? rawCodeBarres
                 : mainAndRelationalFields.codeInterne;
 
-            return await this.prisma.product.create({
-                data: {
-                    ...mainAndRelationalFields,
-                    // Ensure codeBarres is present (fallback to codeInterne if missing to avoid Prisma error)
-                    codeBarres: codeBarres,
-                    statut: mainAndRelationalFields.statut ?? 'DISPONIBLE',
-                    specificData: newSpecificData,
-                    utilisateurCreation: mainAndRelationalFields.utilisateurCreation || 'system'
-                },
+            // Ensure codeBarres is present (fallback to codeInterne if missing to avoid Prisma error)
+            const resolvedCodeBarres = codeBarres || (mainAndRelationalFields.codeInterne ? mainAndRelationalFields.codeInterne : null);
+
+            return await this.prisma.$transaction(async (tx) => {
+                const product = await tx.product.create({
+                    data: {
+                        ...mainAndRelationalFields,
+                        codeBarres: resolvedCodeBarres!, // Assert non-null as fallback logic handles it or schema allows
+                        statut: mainAndRelationalFields.statut ?? 'DISPONIBLE',
+                        specificData: newSpecificData,
+                        utilisateurCreation: mainAndRelationalFields.utilisateurCreation || 'system'
+                    },
+                });
+
+                if (product.quantiteActuelle > 0) {
+                    await tx.mouvementStock.create({
+                        data: {
+                            type: 'INVENTAIRE',
+                            quantite: product.quantiteActuelle,
+                            produitId: product.id,
+                            entrepotDestinationId: product.entrepotId,
+                            motif: 'Stock Initial (Création Fiche)',
+                            utilisateur: product.utilisateurCreation || 'System'
+                        }
+                    });
+                }
+
+                return product;
             });
+
         } catch (error) {
             console.error('Error creating product:', error);
             // Log deep details if available
@@ -493,7 +513,31 @@ export class ProductsService {
     }
 
     async restock(id: string, quantite: number, motif: string, utilisateur: string = 'System', prixAchatHT?: number, remiseFournisseur?: number) {
-        // ... (existing implementation)
+        const product = await this.prisma.product.findUnique({ where: { id } });
+        if (!product) throw new NotFoundException('Produit non trouvé');
+
+        return this.prisma.$transaction(async (tx) => {
+            await tx.product.update({
+                where: { id },
+                data: {
+                    quantiteActuelle: { increment: quantite },
+                    ...(prixAchatHT !== undefined && { prixAchatHT }),
+                    ...(remiseFournisseur !== undefined && { remiseFournisseur })
+                }
+            });
+
+            return tx.mouvementStock.create({
+                data: {
+                    type: 'ENTREE_ACHAT',
+                    quantite: quantite,
+                    produitId: id,
+                    entrepotDestinationId: product.entrepotId,
+                    motif: motif,
+                    utilisateur: utilisateur,
+                    ...(prixAchatHT !== undefined && { prixAchatUnitaire: prixAchatHT })
+                }
+            });
+        });
     }
 
     async destock(id: string, quantite: number, motif: string, destinationEntrepotId?: string, utilisateur: string = 'System') {

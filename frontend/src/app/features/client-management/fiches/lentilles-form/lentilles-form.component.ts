@@ -370,7 +370,8 @@ export class LentillesFormComponent implements OnInit {
             maxWidth: '100vw',
             data: {
                 type: 'LENTILLE',
-                hidePrices: false
+                hidePrices: false,
+                context: 'sales'
             }
         });
 

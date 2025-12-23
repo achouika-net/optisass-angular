@@ -953,7 +953,8 @@ export class MontureFormComponent implements OnInit {
             width: '90vw',
             maxWidth: '1200px',
             height: '80vh',
-            autoFocus: false
+            autoFocus: false,
+            data: { context: 'sales' }
         });
 
         dialogRef.afterClosed().subscribe(result => {

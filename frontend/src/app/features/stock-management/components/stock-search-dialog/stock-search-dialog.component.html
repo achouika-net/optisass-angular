@@ -180,9 +180,9 @@
                                 <span>Commander & Vendre</span>
                             </button>
 
-                            <!-- Transfer: Show ONLY if (Remote Product) AND Quantity > 0 -->
+                            <!-- Transfer: Show ONLY if (Remote Product) AND Quantity > 0 AND stock-management context -->
                             <button mat-menu-item color="accent"
-                                *ngIf="isRemote(element) && element.quantiteActuelle > 0"
+                                *ngIf="context === 'stock-management' && isRemote(element) && element.quantiteActuelle > 0"
                                 (click)="requestTransfer(element)">
                                 <mat-icon color="accent">local_shipping</mat-icon>
                                 <span>Demander Transfert</span>
@@ -210,8 +210,8 @@
     </mat-dialog-content>
     <mat-dialog-actions align="end" class="gap-2">
         <button mat-button (click)="dialogRef.close()">Fermer</button>
-        <button mat-raised-button color="primary" [disabled]="selection.selected.length === 0"
-            (click)="requestBulkTransfer()">
+        <button *ngIf="context === 'stock-management'" mat-raised-button color="primary"
+            [disabled]="selection.selected.length === 0" (click)="requestBulkTransfer()">
             <mat-icon>swap_horiz</mat-icon>
             Transférer la sélection ({{ selection.selected.length }})
         </button>

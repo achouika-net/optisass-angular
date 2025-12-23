@@ -1,6 +1,6 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, Inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatDialogRef, MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatDialogRef, MatDialog, MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -53,6 +53,7 @@ export class StockSearchDialogComponent implements OnInit {
     warehouses: any[] = [];
     selectedWarehouseId: string | undefined;
     currentCenter: any;
+    context: 'stock-management' | 'sales' = 'stock-management';
 
     constructor(
         public dialogRef: MatDialogRef<StockSearchDialogComponent>,
@@ -61,9 +62,11 @@ export class StockSearchDialogComponent implements OnInit {
         private dialog: MatDialog,
         private snackBar: MatSnackBar,
         private cdr: ChangeDetectorRef,
-        private store: Store
+        private store: Store,
+        @Inject(MAT_DIALOG_DATA) public data?: { context?: 'stock-management' | 'sales' }
     ) {
         this.currentCenter = this.store.selectSignal(UserCurrentCentreSelector)();
+        this.context = data?.context || 'stock-management';
     }
 
     ngOnInit(): void {
