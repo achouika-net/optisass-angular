@@ -117,12 +117,9 @@ export class ProductListComponent implements OnInit {
         this.productService.findAll(this.filter).subscribe(products => {
             const center = this.currentCentre();
             if (center) {
-                // Strictly filter by current center AND exclude defective warehouses from main view
+                // Strictly filter by current center
                 this.dataSource.data = products.filter(p =>
-                    p.entrepot?.centreId === center.id &&
-                    !p.entrepot?.nom?.toLowerCase().includes('défectueux') &&
-                    !p.entrepot?.nom?.toLowerCase().includes('defectueux') &&
-                    p.entrepot?.nom?.toUpperCase() !== 'DÉFECTUEUX'
+                    p.entrepot?.centreId === center.id
                 );
             } else {
                 this.dataSource.data = products;
