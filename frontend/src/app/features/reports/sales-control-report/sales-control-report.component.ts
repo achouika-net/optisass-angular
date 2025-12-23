@@ -156,8 +156,13 @@ export class SalesControlReportComponent implements OnInit {
 
                 this.groupedArchived = this.groupInvoices(results.archived);
 
-                this.statistics = results.stats;
                 this.nonConsolidatedCA = results.nonConsolidatedCA || 0;
+
+                // Inject Non-Consolidated CA into the statistics table (replacing archived)
+                this.statistics = results.stats.map((stat: any) => ({
+                    ...stat,
+                    totalArchived: this.nonConsolidatedCA
+                }));
 
                 this.updateAvailablePeriods();
                 this.calculateMetrics();
