@@ -198,8 +198,8 @@ export class SalesControlService {
         const withPayment = factures.filter(f => (f.numero.startsWith('BRO') || f.numero.startsWith('Devis') || f.numero.startsWith('DEV')) && f.paiements && f.paiements.length > 0 && f.statut !== 'ARCHIVE' && f.statut !== 'ANNULEE');
         const withoutPayment = factures.filter(f => (f.numero.startsWith('BRO') || f.numero.startsWith('Devis') || f.numero.startsWith('DEV')) && (!f.paiements || f.paiements.length === 0) && f.statut !== 'ARCHIVE' && f.statut !== 'ANNULEE');
 
-        // Valid Invoices: Must have FAC prefix
-        const validInvoices = factures.filter(f => f.numero.startsWith('FAC') && f.type === 'FACTURE');
+        // Valid Invoices: Must have FAC prefix and not be cancelled
+        const validInvoices = factures.filter(f => f.numero.startsWith('FAC') && f.type === 'FACTURE' && f.statut !== 'ANNULEE');
 
         // Avoirs: Show all having type AVOIR
         const avoirs = factures.filter(f => f.type === 'AVOIR');
