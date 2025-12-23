@@ -687,6 +687,7 @@ export class FacturesService implements OnModuleInit {
                                         specificData: specificData as any,
                                         entrepot: { connect: { id: defectiveWarehouse.id } },
                                         quantiteActuelle: 0,
+                                        statut: 'DISPONIBLE',
                                         designation: `${productToUpdate.designation} (Défectueux)`
                                     }
                                 });
