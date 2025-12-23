@@ -90,6 +90,12 @@
                                     <mat-icon>print</mat-icon>
                                     <span>Imprimer</span>
                                 </button>
+                                <mat-divider *ngIf="canExchange(facture)"></mat-divider>
+                                <button mat-menu-item (click)="openExchangeDialog(facture)"
+                                    *ngIf="canExchange(facture)">
+                                    <mat-icon>swap_horiz</mat-icon>
+                                    <span>Retour / Échange</span>
+                                </button>
                                 <mat-divider *ngIf="canDelete(facture)"></mat-divider>
                                 <button mat-menu-item class="delete-action" (click)="deleteFacture(facture)"
                                     *ngIf="canDelete(facture)">

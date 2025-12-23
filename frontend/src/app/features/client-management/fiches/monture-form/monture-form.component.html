@@ -447,7 +447,7 @@
                                         aria-label="Obtenir une suggestion IA">Suggestion</button>
                                     <button type="button" class="btn-stock-search"
                                         (click)="openStockSearch(-1, 'verres')"
-                                        *ngIf="isEditMode && !ficheForm.get('verres.differentODOG')?.value"
+                                        [hidden]="ficheForm.get('verres.differentODOG')?.value"
                                         title="Chercher verres en stock">
                                         <mat-icon style="font-size: 18px;">inventory_2</mat-icon> Verres
                                     </button>
@@ -521,7 +521,7 @@
                                     <div class="flex items-center justify-between mb-2">
                                         <h4 class="text-sm font-bold text-gray-700">Œil Droit (OD)</h4>
                                         <button type="button" class="btn-stock-search-mini"
-                                            (click)="openStockSearch(-1, 'od')" *ngIf="isEditMode" title="Stock OD">
+                                            (click)="openStockSearch(-1, 'od')" title="Stock OD">
                                             <mat-icon
                                                 style="font-size: 16px; width: 16px; height: 16px;">inventory_2</mat-icon>
                                         </button>
@@ -569,7 +569,7 @@
                                     <div class="flex items-center justify-between mb-2">
                                         <h4 class="text-sm font-bold text-gray-700">Œil Gauche (OG)</h4>
                                         <button type="button" class="btn-stock-search-mini"
-                                            (click)="openStockSearch(-1, 'og')" *ngIf="isEditMode" title="Stock OG">
+                                            (click)="openStockSearch(-1, 'og')" title="Stock OG">
                                             <mat-icon
                                                 style="font-size: 16px; width: 16px; height: 16px;">inventory_2</mat-icon>
                                         </button>
@@ -701,7 +701,7 @@
                                             <input type="text" formControlName="reference"
                                                 placeholder="Saisir ou chercher">
                                             <button type="button" class="btn-scan" (click)="openStockSearch(i)"
-                                                *ngIf="isEditMode" aria-label="Chercher en Stock">
+                                                aria-label="Chercher en Stock">
                                                 <mat-icon inline
                                                     style="font-size: 18px; margin-right: 4px;">inventory_2</mat-icon>
                                                 Stock
@@ -744,7 +744,7 @@
                                             aria-label="Obtenir une suggestion IA">Suggestion</button>
                                         <button type="button" class="btn-stock-search"
                                             (click)="openStockSearch(i, 'verres')"
-                                            *ngIf="isEditMode && !equipment.get('verres.differentODOG')?.value"
+                                            [hidden]="equipment.get('verres.differentODOG')?.value"
                                             title="Chercher verres en stock">
                                             <mat-icon style="font-size: 18px;">inventory_2</mat-icon> Verres
                                         </button>
@@ -812,7 +812,7 @@
                                         <div class="flex items-center justify-between mb-2">
                                             <h4 class="text-sm font-bold text-gray-700">Œil Droit (OD)</h4>
                                             <button type="button" class="btn-stock-search-mini"
-                                                (click)="openStockSearch(i, 'od')" *ngIf="isEditMode" title="Stock OD">
+                                                (click)="openStockSearch(i, 'od')" title="Stock OD">
                                                 <mat-icon
                                                     style="font-size: 16px; width: 16px; height: 16px;">inventory_2</mat-icon>
                                             </button>
@@ -858,7 +858,7 @@
                                         <div class="flex items-center justify-between mb-2">
                                             <h4 class="text-sm font-bold text-gray-700">Œil Gauche (OG)</h4>
                                             <button type="button" class="btn-stock-search-mini"
-                                                (click)="openStockSearch(i, 'og')" *ngIf="isEditMode" title="Stock OG">
+                                                (click)="openStockSearch(i, 'og')" title="Stock OG">
                                                 <mat-icon
                                                     style="font-size: 16px; width: 16px; height: 16px;">inventory_2</mat-icon>
                                             </button>

@@ -168,15 +168,24 @@
                     <ng-container matColumnDef="actions">
                         <th mat-header-cell *matHeaderCellDef>Actions</th>
                         <td mat-cell *matCellDef="let client">
-                            <button mat-icon-button color="primary" (click)="viewClient(client)" title="Voir">
-                                <mat-icon>visibility</mat-icon>
+                            <button mat-icon-button [matMenuTriggerFor]="menu">
+                                <mat-icon>more_vert</mat-icon>
                             </button>
-                            <button mat-icon-button color="accent" (click)="editClient(client)" title="Éditer">
-                                <mat-icon>edit</mat-icon>
-                            </button>
-                            <button mat-icon-button color="warn" (click)="deleteClient(client)" title="Supprimer">
-                                <mat-icon>delete</mat-icon>
-                            </button>
+                            <mat-menu #menu="matMenu">
+                                <button mat-menu-item color="primary" (click)="viewClient(client)">
+                                    <mat-icon color="primary">visibility</mat-icon>
+                                    <span>Voir détails</span>
+                                </button>
+                                <button mat-menu-item color="accent" (click)="editClient(client)">
+                                    <mat-icon color="accent">edit</mat-icon>
+                                    <span>Modifier</span>
+                                </button>
+                                <mat-divider></mat-divider>
+                                <button mat-menu-item color="warn" (click)="deleteClient(client)">
+                                    <mat-icon color="warn">delete</mat-icon>
+                                    <span>Supprimer</span>
+                                </button>
+                            </mat-menu>
                         </td>
                     </ng-container>
 

@@ -11,6 +11,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSelectModule } from '@angular/material/select';
 import { FormsModule } from '@angular/forms';
 import { Store } from '@ngrx/store';
+import { MatMenuModule } from '@angular/material/menu';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
 import { ProductService } from '../../services/product.service';
 import { WarehousesService } from '../../../warehouses/services/warehouses.service';
@@ -32,6 +33,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
         MatTooltipModule,
         MatSelectModule,
         MatSnackBarModule,
+        MatMenuModule,
         FormsModule
     ],
     templateUrl: './stock-search-dialog.component.html',
@@ -158,6 +160,16 @@ export class StockSearchDialogComponent implements OnInit {
         return '';
     }
 
+    /**
+     * Helper to show validation button directly on the remote row
+     * if a transfer has already been initiated to our center.
+     */
+    hasActiveTransferToUs(remoteProduct: any): boolean {
+        if (!this.isRemote(remoteProduct)) return false;
+        const localProduct = this.findLocalCounterpart(remoteProduct);
+        return !!localProduct?.specificData?.pendingIncoming;
+    }
+
     selectProduct(product: any): void {
         const localProduct = this.findLocalCounterpart(product) || product;
         this.dialogRef.close({ action: 'SELECT', product: localProduct });
@@ -188,7 +200,7 @@ export class StockSearchDialogComponent implements OnInit {
         });
     }
 
-    private findLocalCounterpart(remoteProduct: any): any {
+    public findLocalCounterpart(remoteProduct: any): any {
         return this.allProducts.find(p =>
             p.entrepot?.centreId === this.currentCenter?.id &&
             p.designation === remoteProduct.designation &&
@@ -221,9 +233,14 @@ export class StockSearchDialogComponent implements OnInit {
                 this.productService.initiateTransfer(result.productId, localProduct.id).subscribe({
                     next: () => {
                         this.loading = false;
-                        // Instead of closing, let's refresh to show the new state
-                        this.loadProducts();
-                        this.snackBar.open('Réservation de transfert effectuée avec succès !', 'OK', { duration: 3000 });
+                        this.snackBar.open('Réservation de transfert effectuée et produit sélectionné !', 'OK', { duration: 3000 });
+
+                        // FLUIDITY: Auto-select local product for the fiche immediately after transfer
+                        this.dialogRef.close({
+                            action: 'SELECT',
+                            product: localProduct,
+                            isPendingTransfer: true
+                        });
                     },
                     error: (err) => {
                         console.error('Transfer initiation failed:', err);

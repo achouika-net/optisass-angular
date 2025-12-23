@@ -11,7 +11,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
 import { InstanceSalesMonitorService, InstanceSale } from '../services/instance-sales-monitor.service';
 import { FactureService } from '../services/facture.service';
+import { ProductService } from '../../stock-management/services/product.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 @Component({
     selector: 'app-instance-sales-dashboard',
@@ -37,6 +40,7 @@ export class InstanceSalesDashboardComponent implements OnInit {
     constructor(
         public monitor: InstanceSalesMonitorService,
         private factureService: FactureService,
+        private productService: ProductService,
         private router: Router,
         private snackBar: MatSnackBar
     ) {
@@ -84,7 +88,8 @@ export class InstanceSalesDashboardComponent implements OnInit {
             proprietes: {
                 ...(sale.facture.proprietes || {}),
                 validatedAt: new Date(),
-                isTransferFulfilled: true
+                isTransferFulfilled: true,
+                forceStockDecrement: true // Important to ensure stock is decremented if not already
             }
         } as any;
 
@@ -97,6 +102,53 @@ export class InstanceSalesDashboardComponent implements OnInit {
             error: (err) => {
                 console.error('Error validating sale:', err);
                 this.snackBar.open('Erreur lors de la validation', 'OK', { duration: 3000 });
+            }
+        });
+    }
+
+    validateReception(sale: InstanceSale): void {
+        if (sale.status !== 'IN_TRANSIT') {
+            this.snackBar.open('Aucun transfert en transit pour cette vente', 'OK', { duration: 3000 });
+            return;
+        }
+
+        const confirm = window.confirm(
+            `Confirmer la réception physique des produits pour la vente ${sale.facture.numero} ?\n` +
+            `Ceci mettra à jour le stock local.`
+        );
+
+        if (!confirm) return;
+
+        // Find products that are in transit (SHIPPED status in metadata)
+        const productsToReceive = (sale.products || [])
+            .filter(p => p.specificData?.pendingIncoming?.status === 'SHIPPED');
+
+        if (productsToReceive.length === 0) {
+            this.snackBar.open('Aucun produit prêt à être reçu (en transit)', 'OK', { duration: 3000 });
+            return;
+        }
+
+        // Parallel execution of receptions
+        const requests = productsToReceive.map(p => this.productService.completeTransfer(p.id).pipe(
+            catchError(err => {
+                console.error(`Error receiving product ${p.id}:`, err);
+                return of(null);
+            })
+        ));
+
+        forkJoin(requests).subscribe({
+            next: (results) => {
+                const successCount = results.filter(r => r !== null).length;
+                if (successCount === productsToReceive.length) {
+                    this.snackBar.open('Réception validée avec succès !', 'OK', { duration: 4000 });
+                } else {
+                    this.snackBar.open(`Réception partielle (${successCount}/${productsToReceive.length})`, 'OK', { duration: 4000 });
+                }
+                this.monitor.refreshNow();
+            },
+            error: (err) => {
+                console.error('Error in forkJoin reception:', err);
+                this.snackBar.open('Erreur lors de la confirmation de réception', 'OK', { duration: 3000 });
             }
         });
     }
@@ -147,5 +199,14 @@ export class InstanceSalesDashboardComponent implements OnInit {
         if (lignes.length === 1) return first;
 
         return `${first} +${lignes.length - 1} autre${lignes.length > 2 ? 's' : ''}`;
+    }
+
+    countByStatus(sales: InstanceSale[] | null, status: string): number {
+        if (!sales) return 0;
+        return sales.filter(s => s.status === status).length;
+    }
+
+    hasStatus(sales: InstanceSale[] | null, status: string): boolean {
+        return this.countByStatus(sales, status) > 0;
     }
 }

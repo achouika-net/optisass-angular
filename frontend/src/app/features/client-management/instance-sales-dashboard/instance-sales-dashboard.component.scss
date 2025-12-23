@@ -35,6 +35,76 @@
         }
     }
 
+    .banners-section {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: 24px;
+
+        .info-banner {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            animation: slideIn 0.3s ease-out;
+
+            mat-icon {
+                font-size: 28px;
+                width: 28px;
+                height: 28px;
+                flex-shrink: 0;
+            }
+
+            .banner-text {
+                strong {
+                    display: block;
+                    font-size: 16px;
+                    margin-bottom: 4px;
+                }
+
+                p {
+                    margin: 0;
+                    font-size: 14px;
+                    line-height: 1.4;
+                }
+            }
+
+            &.transit-banner {
+                background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+                border-left: 6px solid #1976d2;
+                color: #0d47a1;
+
+                mat-icon {
+                    color: #1976d2;
+                }
+            }
+
+            &.ready-banner {
+                background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+                border-left: 6px solid #388e3c;
+                color: #1b5e20;
+
+                mat-icon {
+                    color: #388e3c;
+                }
+            }
+        }
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
     .sales-table-card {
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         border-radius: 8px;

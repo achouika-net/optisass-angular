@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
@@ -599,119 +599,126 @@ export class FacturesService implements OnModuleInit {
         }
     }
 
-    async processAvoirWithItems(invoiceId: string, itemsToReturn: number[], itemsToKeep: number[], centreId: string) {
-        console.log(`🔄 Processing Avoir/Rebill for ${invoiceId}. Return: [${itemsToReturn}], Keep: [${itemsToKeep}]`);
+    async createExchange(invoiceId: string, itemsToReturn: { lineIndex: number, quantiteRetour: number, reason: string }[], centreId: string) {
+        console.log(`🔄 [EXCHANGE] Starting Exchange for Facture ${invoiceId}`);
 
         const original = await this.prisma.facture.findUnique({
             where: { id: invoiceId },
-            include: { paiements: true, client: true }
+            include: { paiements: true }
         });
 
-        if (!original) throw new NotFoundException('Facture non trouvée');
+        if (!original) throw new NotFoundException('Facture initiale non trouvée');
 
-        const originalLines = original.lignes as any[];
-        const returnedLines = itemsToReturn.map(idx => originalLines[idx]);
-        const keptLines = itemsToKeep.map(idx => originalLines[idx]);
+        // Parse lines
+        const originalLines = (typeof original.lignes === 'string' ? JSON.parse(original.lignes) : original.lignes) as any[];
 
         return this.prisma.$transaction(async (tx) => {
-            // 1. Create AVOIR for returned items
-            let avoir: Prisma.FactureGetPayload<{}> | null = null;
-            if (returnedLines.length > 0) {
-                const totalHT = returnedLines.reduce((sum, l) => sum + (l.totalHT || (l.totalTTC / (1 + (l.tva || 0.20)))), 0);
-                const totalTTC = returnedLines.reduce((sum, l) => sum + l.totalTTC, 0);
+            // A. Create Full Avoir
+            const avoirNumero = await this.generateNextNumber('AVOIR', tx);
+            const avoir = await tx.facture.create({
+                data: {
+                    numero: avoirNumero,
+                    type: 'AVOIR',
+                    statut: 'VALIDE',
+                    clientId: original.clientId,
+                    parentFactureId: original.id,
+                    dateEmission: new Date(),
+                    totalHT: -original.totalHT,
+                    totalTVA: -original.totalTVA,
+                    totalTTC: -original.totalTTC,
+                    resteAPayer: 0,
+                    lignes: originalLines.map(l => ({
+                        ...l,
+                        prixUnitaireTTC: -l.prixUnitaireTTC,
+                        totalTTC: -l.totalTTC,
+                        description: `Annulation: ${l.description || l.designation}`
+                    })),
+                    notes: `Avoir facture n° : ${original.numero}`,
+                    proprietes: {
+                        factureOriginale: original.numero,
+                        raison: 'Echange / Modification',
+                        ficheId: original.ficheId // Keep trace
+                    },
+                    centreId: original.centreId
+                }
+            });
 
-                const nextAvoirNumero = await this.generateNextNumber('AVOIR', tx);
-                avoir = await tx.facture.create({
-                    data: {
-                        numero: nextAvoirNumero,
-                        type: 'AVOIR',
-                        statut: 'VALIDE',
-                        clientId: original.clientId,
-                        dateEmission: new Date(),
-                        totalHT: -totalHT,
-                        totalTVA: -(totalTTC - totalHT),
-                        totalTTC: -totalTTC,
-                        resteAPayer: 0,
-                        lignes: returnedLines.map(l => ({
-                            ...l,
-                            prixUnitaireTTC: -l.prixUnitaireTTC,
-                            totalTTC: -l.totalTTC,
-                            description: `[RETOUR] ${l.description}`
-                        })),
-                        proprietes: {
-                            factureOriginale: original.numero,
-                            raison: 'Retour client (Contenu modifié)',
-                            isAdvancedAvoir: true
-                        },
-                        centreId: original.centreId
+            // B. Cancel Original & Detach Fiche
+            await tx.facture.update({
+                where: { id: original.id },
+                data: {
+                    statut: 'ANNULEE',
+                    ficheId: null, // Critical: Release Fiche
+                    notes: `Annuler par avoir n° : ${avoir.numero}`
+                }
+            });
+
+            // C. Handle Stock Return for Selected Items
+            const defectiveWarehouse = await this.getOrCreateDefectiveWarehouse(tx, centreId);
+
+            for (const item of itemsToReturn) {
+                const line = originalLines[item.lineIndex];
+                if (line && line.productId) {
+                    // Determine destination
+                    let targetWarehouseId = line.entrepotId; // Default: Origin
+
+                    if (item.reason === 'DEFECTUEUX') {
+                        targetWarehouseId = defectiveWarehouse.id;
                     }
-                });
-                if (avoir) console.log(`✅ Avoir created: ${avoir.numero}`);
 
-                // 2. Move returned items to DEFECTUEUX warehouse
-                const defectiveWarehouse = await this.getOrCreateDefectiveWarehouse(tx, centreId);
-                for (const line of returnedLines) {
-                    if (line.productId) {
-                        // Increment in Defectueux
-                        // We assume we don't fully "restore" to original because user said it goes to Defectueux
-                        // But wait, if it was decremented from Principal, should we increment Principal then move?
-                        // Or just increment Defectueux? 
-                        // If we just increment Defectueux, Principal stays -1. That's correct (the item is gone from Principal).
+                    const productToUpdate = await tx.product.findUnique({ where: { id: line.productId } });
 
-                        await tx.product.updateMany({
-                            where: {
-                                id: line.productId,
-                                // We might need to handle if the product exists in the target warehouse
-                                // Actually, products in this system seem tied to a specific warehouse (entrepotId)
-                                // So we might need to find/create the product in the Defective warehouse or just update its quantity if it was there.
-                                // REFINEMENT: Our products are uniquely identified by ID + Warehouse. 
-                                // To move to Defective, we should find a product with same code in Defective or create one.
-                            },
-                            data: { quantiteActuelle: { increment: line.qte || 1 } }
-                        });
-                        // Simplified: if product is tied to warehouse, we should update the specific product in Defective.
-                        // For now, let's assume we update the quantity of the product record linked to Defective.
-                        // I'll add a more robust find-or-create product logic if needed, but for now I'll use the existing productId
-                        // and just log if it's not the right warehouse (which it likely isn't).
-
-                        // BETTER LOGIC: Find product in Defective with same Internal Code
-                        const sourceProduct = await tx.product.findUnique({ where: { id: line.productId } });
-                        if (sourceProduct) {
-                            let targetProduct = await tx.product.findFirst({
-                                where: {
-                                    codeInterne: sourceProduct.codeInterne,
-                                    entrepotId: defectiveWarehouse.id
-                                }
+                    if (productToUpdate) {
+                        if (item.reason === 'DEFECTUEUX') {
+                            // Logic to find corresponding product in Defective Warehouse
+                            let defProduct = await tx.product.findFirst({
+                                where: { codeInterne: productToUpdate.codeInterne, entrepotId: defectiveWarehouse.id }
                             });
 
-                            if (!targetProduct) {
-                                // Create product in Defective warehouse
-                                const { id: _id, createdAt: _ca, updatedAt: _ua, entrepotId: _eid, ...prodData } = sourceProduct;
-                                targetProduct = await tx.product.create({
+                            if (!defProduct) {
+                                // Clone to Defective
+                                const { id, entrepotId, createdAt, updatedAt, specificData, ...prodProps } = productToUpdate;
+                                defProduct = await tx.product.create({
                                     data: {
-                                        ...prodData,
-                                        entrepotId: defectiveWarehouse.id,
-                                        quantiteActuelle: Number(line.qte) || 1,
-                                        statut: 'RESERVE',
-                                        utilisateurCreation: 'System'
-                                    } as any
-                                });
-                            } else {
-                                await tx.product.update({
-                                    where: { id: targetProduct.id },
-                                    data: { quantiteActuelle: { increment: Number(line.qte) || 1 } }
+                                        ...prodProps,
+                                        specificData: specificData as any,
+                                        entrepot: { connect: { id: defectiveWarehouse.id } },
+                                        quantiteActuelle: 0,
+                                        designation: `${productToUpdate.designation} (Défectueux)`
+                                    }
                                 });
                             }
 
-                            // Create movement
+                            await tx.product.update({
+                                where: { id: defProduct.id },
+                                data: { quantiteActuelle: { increment: item.quantiteRetour } }
+                            });
+
+                            // Movement
                             await tx.mouvementStock.create({
                                 data: {
                                     type: 'ENTREE_RETOUR_CLIENT',
-                                    quantite: Number(line.qte) || 1,
-                                    produitId: targetProduct.id,
+                                    quantite: item.quantiteRetour,
+                                    produitId: defProduct.id,
                                     entrepotDestinationId: defectiveWarehouse.id,
-                                    entrepotSourceId: sourceProduct.entrepotId,
-                                    motif: `Retour de ${original.numero}`,
+                                    motif: `Retour Défectueux ${original.numero}`,
+                                    utilisateur: 'System'
+                                }
+                            });
+                        } else {
+                            // Standard Return to Origin
+                            await tx.product.update({
+                                where: { id: line.productId },
+                                data: { quantiteActuelle: { increment: item.quantiteRetour } }
+                            });
+
+                            await tx.mouvementStock.create({
+                                data: {
+                                    type: 'ENTREE_RETOUR_CLIENT',
+                                    quantite: item.quantiteRetour,
+                                    produitId: line.productId,
+                                    entrepotDestinationId: line.entrepotId,
+                                    motif: `Retour Standard ${original.numero}`,
                                     utilisateur: 'System'
                                 }
                             });
@@ -720,75 +727,78 @@ export class FacturesService implements OnModuleInit {
                 }
             }
 
-            // 3. Create new Draft for kept items
-            let newDraft: Prisma.FactureGetPayload<{}> | null = null;
-            if (keptLines.length > 0) {
-                const totalHT = keptLines.reduce((sum, l) => sum + (l.totalHT || (l.totalTTC / (1 + (l.tva || 0.20)))), 0);
-                const totalTTC = keptLines.reduce((sum, l) => sum + l.totalTTC, 0);
+            // D. Create New Invoice (Replacement)
+            const newLines = originalLines.map((l, index) => {
+                const returned = itemsToReturn.find(r => r.lineIndex === index);
+                if (returned) {
+                    // "le champs disigner pour la monture on le remplir par 'monture client' avec un prix 0 dh"
+                    // Check if it's a frame or if it's explicitly the one to be replaced
+                    const isMonture = l.designation?.toLowerCase().includes('monture') || l.description?.toLowerCase().includes('monture');
 
-                newDraft = await tx.facture.create({
-                    data: {
-                        numero: `Devis-${new Date().getTime()}`,
-                        type: 'DEVIS',
-                        statut: 'BROUILLON',
-                        clientId: original.clientId,
-                        ficheId: original.ficheId, // Keep link to fiche
-                        dateEmission: new Date(),
-                        totalHT: totalHT,
-                        totalTVA: totalTTC - totalHT,
-                        totalTTC: totalTTC,
-                        resteAPayer: totalTTC,
-                        lignes: keptLines,
-                        proprietes: {
-                            ...(original.proprietes as any || {}),
-                            sourceFacture: original.numero,
-                            notes: `Reliquat après retour partiel sur ${original.numero}`
-                        },
-                        centreId: original.centreId
-                    }
-                });
-                if (newDraft) console.log(`✅ New draft created: ${newDraft.numero}`);
-            }
+                    return {
+                        ...l,
+                        designation: isMonture ? 'Monture Client' : (l.designation || l.description),
+                        description: isMonture ? 'Monture Client' : (l.description || l.designation),
+                        prixUnitaireTTC: 0,
+                        totalHT: 0,
+                        totalTVA: 0,
+                        totalTTC: 0,
+                        remise: 0,
+                        productId: null // Detach from stock
+                    };
+                }
+                return l;
+            });
 
-            // 4. Update Original to ANNULEE and unlink
+            // Recalculate Totals
+            const newTotalTTC = newLines.reduce((sum, l) => sum + l.totalTTC, 0);
+            const newTotalHT = newLines.reduce((sum, l) => sum + (l.totalHT || 0), 0);
+            const newTotalTVA = newLines.reduce((sum, l) => sum + (l.totalTVA || 0), 0);
+
+            const newNumero = await this.generateNextNumber('FACTURE', tx);
+            const newInvoice = await tx.facture.create({
+                data: {
+                    numero: newNumero,
+                    type: 'FACTURE',
+                    statut: 'VALIDE',
+                    clientId: original.clientId,
+                    centreId: original.centreId,
+                    dateEmission: new Date(),
+                    lignes: newLines,
+                    totalHT: newTotalHT,
+                    totalTVA: newTotalTVA,
+                    totalTTC: newTotalTTC,
+                    resteAPayer: newTotalTTC,
+                    ficheId: original.ficheId, // Re-attach Fiche!
+                    parentFactureId: original.id
+                }
+            });
+
+            // Transfer Payments
+            const transferredPayments = await tx.paiement.findMany({
+                where: { factureId: original.id }
+            });
+            const totalPaid = transferredPayments.reduce((sum, p) => sum + p.montant, 0);
+
+            await tx.paiement.updateMany({
+                where: { factureId: original.id },
+                data: { factureId: newInvoice.id }
+            });
+
+            // Update resteAPayer on new invoice
             await tx.facture.update({
-                where: { id: original.id },
-                data: {
-                    statut: 'ANNULEE',
-                    ficheId: null,
-                    notes: `Annulée et remplacée par Avoir ${(avoir as any)?.numero || ''} et Devis ${(newDraft as any)?.numero || ''}`
-                }
+                where: { id: newInvoice.id },
+                data: { resteAPayer: Math.max(0, newTotalTTC - totalPaid) }
             });
 
-            return { avoir, newDraft };
+            return {
+                avoir,
+                newInvoice
+            };
         });
     }
 
-    private async getOrCreateDefectiveWarehouse(tx: any, centreId: string) {
-        let warehouse = await tx.entrepot.findFirst({
-            where: {
-                centreId,
-                OR: [
-                    { nom: { contains: 'DEFECTUEUX', mode: 'insensitive' } },
-                    { nom: { contains: 'SAV', mode: 'insensitive' } },
-                    { nom: { contains: 'RETOUR', mode: 'insensitive' } }
-                ]
-            }
-        });
 
-        if (!warehouse) {
-            warehouse = await tx.entrepot.create({
-                data: {
-                    nom: 'Stock Défectueux / Retours',
-                    type: 'SECONDAIRE',
-                    description: 'Entrepôt automatique pour les retours clients et articles défectueux',
-                    centreId
-                }
-            });
-        }
-
-        return warehouse;
-    }
 
     async cleanupExpiredDrafts() {
         console.log('🧹 Cleaning up expired drafts...');
@@ -865,5 +875,23 @@ export class FacturesService implements OnModuleInit {
         } else {
             console.log('✨ No BRO- drafts to rename.');
         }
+    }
+
+    private async getOrCreateDefectiveWarehouse(tx: any, centreId: string) {
+        let warehouse = await tx.entrepot.findFirst({
+            where: { centreId, nom: 'DÉFECTUEUX' }
+        });
+
+        if (!warehouse) {
+            warehouse = await tx.entrepot.create({
+                data: {
+                    nom: 'DÉFECTUEUX',
+                    type: 'TRANSIT',
+                    description: 'Entrepôt pour les retours défectueux (Echange/Avoir)',
+                    centreId: centreId
+                }
+            });
+        }
+        return warehouse;
     }
 }

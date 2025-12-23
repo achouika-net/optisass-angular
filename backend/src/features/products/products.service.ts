@@ -476,4 +476,57 @@ export class ProductsService {
 
         return stats;
     }
+
+    async restock(id: string, quantite: number, motif: string, utilisateur: string = 'System', prixAchatHT?: number, remiseFournisseur?: number) {
+        const product = await this.prisma.product.findUnique({
+            where: { id },
+            include: { entrepot: true }
+        });
+
+        if (!product) throw new NotFoundException('Produit non trouvé');
+
+        // Calculate price after discount
+        const priceAfterDiscount = prixAchatHT && remiseFournisseur
+            ? prixAchatHT * (1 - remiseFournisseur / 100)
+            : prixAchatHT || product.prixAchatHT;
+
+        // Calculate weighted average price
+        const currentStock = product.quantiteActuelle || 0;
+        const currentPrice = product.prixAchatHT || 0;
+        const newQuantity = quantite;
+        const newPrice = priceAfterDiscount;
+
+        const totalValue = (currentStock * currentPrice) + (newQuantity * newPrice);
+        const totalQuantity = currentStock + newQuantity;
+        const weightedAveragePrice = totalQuantity > 0 ? totalValue / totalQuantity : newPrice;
+
+        return this.prisma.$transaction(async (tx) => {
+            // Update product quantity and weighted average price
+            const updatedProduct = await tx.product.update({
+                where: { id },
+                data: {
+                    quantiteActuelle: { increment: quantite },
+                    prixAchatHT: weightedAveragePrice, // Update with weighted average
+                    statut: 'DISPONIBLE' // Always ensure it's available if restocked
+                }
+            });
+
+            // Create stock movement record with detailed pricing information
+            await tx.mouvementStock.create({
+                data: {
+                    type: 'ENTREE_ACHAT',
+                    quantite: quantite,
+                    produitId: id,
+                    entrepotDestinationId: product.entrepotId,
+                    motif: motif || 'Réapprovisionnement manuel',
+                    utilisateur: utilisateur,
+                    prixAchatUnitaire: priceAfterDiscount, // Price after discount
+                    prixVenteUnitaire: product.prixVenteTTC
+                }
+            });
+
+            return updatedProduct;
+        });
+    }
+
 }

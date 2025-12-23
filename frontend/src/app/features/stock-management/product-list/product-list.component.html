@@ -199,31 +199,48 @@
                     <ng-container matColumnDef="actions">
                         <th mat-header-cell *matHeaderCellDef> Actions </th>
                         <td mat-cell *matCellDef="let row">
-                            <button mat-icon-button color="primary" [routerLink]="['/p/stock', row.id]"
-                                matTooltip="Voir détails">
-                                <mat-icon>visibility</mat-icon>
+                            <button mat-icon-button [matMenuTriggerFor]="menu">
+                                <mat-icon>more_vert</mat-icon>
                             </button>
-                            <button mat-icon-button color="accent" [routerLink]="['/p/stock', row.id, 'edit']"
-                                matTooltip="Modifier">
-                                <mat-icon>edit</mat-icon>
-                            </button>
-                            <button mat-icon-button (click)="printBarcode(row)" matTooltip="Imprimer code-barres">
-                                <mat-icon>qr_code_2</mat-icon>
-                            </button>
+                            <mat-menu #menu="matMenu">
+                                <button mat-menu-item color="primary" [routerLink]="['/p/stock', row.id]">
+                                    <mat-icon color="primary">visibility</mat-icon>
+                                    <span>Voir détails</span>
+                                </button>
+                                <button mat-menu-item color="accent" [routerLink]="['/p/stock', row.id, 'edit']">
+                                    <mat-icon color="accent">edit</mat-icon>
+                                    <span>Modifier</span>
+                                </button>
+                                <button mat-menu-item (click)="openStockEntryDialog(row)">
+                                    <mat-icon style="color: #10b981;">add_shopping_cart</mat-icon>
+                                    <span>Entrée en stock</span>
+                                </button>
+                                <button mat-menu-item (click)="openHistoryDialog(row)">
+                                    <mat-icon color="primary">history</mat-icon>
+                                    <span>Historique des mouvements</span>
+                                </button>
+                                <button mat-menu-item (click)="printBarcode(row)">
+                                    <mat-icon>qr_code_2</mat-icon>
+                                    <span>Imprimer code-barres</span>
+                                </button>
 
-                            <!-- Transfer Actions -->
-                            <button mat-icon-button color="success" *ngIf="canShip(row)" (click)="shipTransfer(row)"
-                                matTooltip="Valider l'expédition">
-                                <mat-icon>local_shipping</mat-icon>
-                            </button>
-                            <button mat-icon-button color="warn" *ngIf="canCancel(row)" (click)="cancelTransfer(row)"
-                                matTooltip="Annuler le transfert">
-                                <mat-icon>cancel</mat-icon>
-                            </button>
-                            <button mat-icon-button class="text-green-600" *ngIf="canReceive(row)"
-                                (click)="receiveTransfer(row)" matTooltip="Confirmer la réception">
-                                <mat-icon>download_for_offline</mat-icon>
-                            </button>
+                                <mat-divider *ngIf="canShip(row) || canCancel(row) || canReceive(row)"></mat-divider>
+
+                                <!-- Transfer Actions -->
+                                <button mat-menu-item color="success" *ngIf="canShip(row)" (click)="shipTransfer(row)">
+                                    <mat-icon color="success">local_shipping</mat-icon>
+                                    <span>Valider l'expédition</span>
+                                </button>
+                                <button mat-menu-item color="warn" *ngIf="canCancel(row)" (click)="cancelTransfer(row)">
+                                    <mat-icon color="warn">cancel</mat-icon>
+                                    <span>Annuler le transfert</span>
+                                </button>
+                                <button mat-menu-item class="text-green-600" *ngIf="canReceive(row)"
+                                    (click)="receiveTransfer(row)">
+                                    <mat-icon style="color: #10b981;">download_for_offline</mat-icon>
+                                    <span>Confirmer la réception</span>
+                                </button>
+                            </mat-menu>
                         </td>
                     </ng-container>
 

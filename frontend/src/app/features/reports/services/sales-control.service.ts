@@ -27,6 +27,8 @@ export interface BrouillonInvoice {
         typeVente?: string;
         [key: string]: any;
     };
+    children?: any[];
+    parentFacture?: any;
 }
 
 export interface VendorStatistics {
@@ -91,9 +93,6 @@ export class SalesControlService {
         return this.http.post(`${this.apiUrl}/archive/${id}`, {});
     }
 
-    processAvoirWithItems(id: string, itemsToReturn: number[], itemsToKeep: number[]): Observable<any> {
-        return this.http.post(`${API_URL}/factures/${id}/avoir-process`, { itemsToReturn, itemsToKeep });
-    }
 
     getDashboardData(userId?: string): Observable<any> {
         const params = userId ? { userId } : {};

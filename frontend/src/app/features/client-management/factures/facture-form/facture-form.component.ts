@@ -536,4 +536,53 @@ export class FactureFormComponent implements OnInit {
         };
         return modes[mode] || mode;
     }
+
+    get canExchange(): boolean {
+        const type = this.form.get('type')?.value;
+        const statut = this.form.get('statut')?.value;
+        return type === 'FACTURE' && (statut === 'VALIDE' || statut === 'PAYEE' || statut === 'PARTIEL');
+    }
+
+    openExchangeDialog() {
+        if (!this.id) return;
+
+        import('../invoice-return-dialog/invoice-return-dialog.component').then(m => {
+            const dialogRef = this.dialog.open(m.InvoiceReturnDialogComponent, {
+                width: '800px',
+                data: {
+                    facture: {
+                        id: this.id,
+                        numero: this.form.get('numero')?.value,
+                        lignes: this.lignes.getRawValue()
+                    }
+                }
+            });
+
+            dialogRef.afterClosed().subscribe(result => {
+                if (result) {
+                    this.factureService.exchangeInvoice(this.id!, result.items).subscribe({
+                        next: (res) => {
+                            this.snackBar.open(`Échange effectué : Avoir ${res.avoir.numero} et Facture ${res.newFacture.numero} créés`, 'Fermer', {
+                                duration: 5000
+                            });
+                            // Reload either the whole page or signal parent
+                            if (this.embedded) {
+                                this.onSaved.emit(res.newFacture);
+                                // For embedded mode (like Fiche Monture), we might need to notify parent to reload the whole fiche
+                                // because the invoice ID just changed. 
+                            } else {
+                                this.router.navigate(['/p/clients/factures', res.newFacture.id]);
+                            }
+                        },
+                        error: (err) => {
+                            console.error('Erreur lors de l\'échange:', err);
+                            this.snackBar.open('Erreur lors de l\'échange: ' + (err.error?.message || 'Erreur serveur'), 'Fermer', {
+                                duration: 3000
+                            });
+                        }
+                    });
+                }
+            });
+        });
+    }
 }

@@ -11,7 +11,14 @@ export class StockMovementsService {
             orderBy: { dateMovement: 'desc' },
             include: {
                 entrepotSource: true,
-                entrepotDestination: true
+                entrepotDestination: true,
+                // Include facture to get fiche information
+                facture: {
+                    include: {
+                        fiche: true,
+                        client: true
+                    }
+                }
             }
         });
     }

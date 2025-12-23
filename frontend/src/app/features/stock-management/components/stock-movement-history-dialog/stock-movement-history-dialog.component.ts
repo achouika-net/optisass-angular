@@ -24,7 +24,17 @@ import { Product } from '../../../../shared/interfaces/product.interface';
 })
 export class StockMovementHistoryDialogComponent implements OnInit {
     movements: StockMovement[] = [];
-    displayedColumns: string[] = ['date', 'type', 'quantite', 'motif', 'user'];
+    displayedColumns: string[] = [
+        'dateMovement',
+        'type',
+        'quantite',
+        'prixAchat',
+        'prixVente',
+        'ficheNumero',
+        'clientNom',
+        'motif',
+        'utilisateur'
+    ];
     loading = true;
 
     constructor(
@@ -72,6 +82,8 @@ export class StockMovementHistoryDialogComponent implements OnInit {
             'ENTREE_ACHAT': 'Achat',
             'SORTIE_VENTE': 'Vente',
             'TRANSFERT': 'Transfert',
+            'TRANSFERT_INIT': 'Transfert Init',
+            'RECEPTION': 'Réception',
             'ENTREE_RETOUR_CLIENT': 'Retour Client',
             'SORTIE_RETOUR_FOURNISSEUR': 'Retour Fournisseur',
             'INVENTAIRE': 'Inventaire',
@@ -81,6 +93,27 @@ export class StockMovementHistoryDialogComponent implements OnInit {
     }
 
     isPositive(type: string): boolean {
-        return ['ENTREE_ACHAT', 'ENTREE_RETOUR_CLIENT'].includes(type);
+        return ['ENTREE_ACHAT', 'ENTREE_RETOUR_CLIENT', 'RECEPTION'].includes(type);
+    }
+
+    getClientName(movement: StockMovement): string {
+        if (!movement.facture?.client) return '--';
+
+        const client = movement.facture.client;
+        if (client.raisonSociale) {
+            return client.raisonSociale;
+        }
+        if (client.nom && client.prenom) {
+            return `${client.nom} ${client.prenom}`;
+        }
+        return client.nom || client.prenom || '--';
+    }
+
+    getFicheNumero(movement: StockMovement): string {
+        return movement.facture?.numero || '--';
+    }
+
+    formatPrice(price: number | undefined): string {
+        return price ? `${price.toFixed(2)} DH` : '--';
     }
 }

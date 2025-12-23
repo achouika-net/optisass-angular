@@ -10,6 +10,13 @@
             <div class="actions">
                 <button type="button" mat-stroked-button color="warn" routerLink="/p/clients"
                     *ngIf="!embedded && !isViewMode">Annuler</button>
+
+                <!-- Exchange Action -->
+                <button type="button" mat-raised-button color="accent" (click)="openExchangeDialog()"
+                    *ngIf="isViewMode && canExchange" class="btn-exchange">
+                    <mat-icon>swap_horiz</mat-icon> Retour / Échange
+                </button>
+
                 <button type="submit" mat-raised-button color="primary" [disabled]="form.invalid"
                     *ngIf="!embedded && !isViewMode">
                     <mat-icon>save</mat-icon> Enregistrer

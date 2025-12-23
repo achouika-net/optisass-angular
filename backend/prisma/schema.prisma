@@ -107,7 +107,13 @@ model Facture {
   
   // Relations
   paiements      Paiement[]
+  mouvementsStock MouvementStock[]
   
+  // Linkage for Avoirs and Replacement Invoices
+  parentFactureId String?
+  parentFacture   Facture?   @relation("FactureRelations", fields: [parentFactureId], references: [id])
+  children        Facture[]  @relation("FactureRelations")
+
   // Extras
   montantLettres String?
   notes          String?
@@ -210,8 +216,8 @@ model Entrepot {
 
 model Product {
   id                  String   @id @default(uuid())
-  codeInterne         String   @unique
-  codeBarres          String   @unique
+  codeInterne         String
+  codeBarres          String
   referenceFournisseur String?
   designation         String
   marque              String?
@@ -254,6 +260,9 @@ model Product {
   
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+
+  @@unique([codeInterne, entrepotId])
+  @@unique([codeBarres, entrepotId])
 }
 
 model MouvementStock {
@@ -279,6 +288,7 @@ model MouvementStock {
   fournisseurId String?
   clientId      String?
   factureId     String?
+  facture       Facture? @relation(fields: [factureId], references: [id], onDelete: SetNull)
   
   // Prices at movement time
   prixAchatUnitaire  Float?

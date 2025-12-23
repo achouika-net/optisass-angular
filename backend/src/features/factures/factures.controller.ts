@@ -6,6 +6,15 @@ import { Prisma } from '@prisma/client';
 export class FacturesController {
     constructor(private readonly facturesService: FacturesService) { }
 
+    @Post(':id/exchange')
+    createExchange(
+        @Param('id') id: string,
+        @Body() body: { itemsToReturn: { lineIndex: number, quantiteRetour: number, reason: string }[] },
+        @Headers('Tenant') centreId: string
+    ) {
+        return this.facturesService.createExchange(id, body.itemsToReturn, centreId);
+    }
+
     @Post()
     create(@Body() createFactureDto: Prisma.FactureUncheckedCreateInput, @Headers('Tenant') centreId: string) {
         if (centreId) {
@@ -44,15 +53,6 @@ export class FacturesController {
             where: { id },
             data: updateFactureDto,
         });
-    }
-
-    @Post(':id/avoir-process')
-    processAvoirWithItems(
-        @Param('id') id: string,
-        @Body() body: { itemsToReturn: number[], itemsToKeep: number[] },
-        @Headers('Tenant') centreId: string
-    ) {
-        return this.facturesService.processAvoirWithItems(id, body.itemsToReturn, body.itemsToKeep, centreId);
     }
 
     @Delete(':id')

@@ -70,7 +70,15 @@ export class SalesControlService {
                     }
                 },
                 paiements: true,
-                fiche: true
+                fiche: true,
+                children: {
+                    select: {
+                        id: true,
+                        numero: true,
+                        type: true,
+                        statut: true
+                    }
+                }
             },
             orderBy: {
                 numero: 'desc'
@@ -80,10 +88,9 @@ export class SalesControlService {
 
     // Get AVOIRS and CANCELLED Drafts
     async getAvoirs(userId?: string, centreId?: string) {
-        // User Request: Empty the Avoirs table as legacy logic (Draft -> Avoir) is invalid.
-        // Valid invoices will generate real Avoirs in the future, but for now we hide everything.
+        // Show real Avoirs
         const where: any = {
-            type: 'AVOIR_HIDDEN_LEGACY' // Returns nothing
+            type: 'AVOIR'
         };
 
         if (!centreId) return [];
@@ -100,7 +107,8 @@ export class SalesControlService {
                     }
                 },
                 paiements: true,
-                fiche: true
+                fiche: true,
+                parentFacture: true
             },
             orderBy: {
                 numero: 'desc'
@@ -193,8 +201,8 @@ export class SalesControlService {
         // Valid Invoices: Must have FAC prefix
         const validInvoices = factures.filter(f => f.numero.startsWith('FAC') && f.type === 'FACTURE');
 
-        // Avoirs: User requested to hide legacy ones (match list view)
-        const avoirs = []; // Return empty for now as legacy logic is invalid
+        // Avoirs: Show all having type AVOIR
+        const avoirs = factures.filter(f => f.type === 'AVOIR');
 
         // Cancelled Drafts (Traceability)
         const cancelledDrafts = factures.filter(f => f.statut === 'ANNULEE' && (f.numero.startsWith('BRO') || f.numero.startsWith('Devis')));

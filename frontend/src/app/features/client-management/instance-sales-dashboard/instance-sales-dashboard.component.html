@@ -13,6 +13,33 @@
         </button>
     </div>
 
+    <!-- Informational Banners -->
+    <div class="banners-section" *ngIf="instanceSales$ | async as sales">
+        <!-- BLUE BANNER: In Transit -->
+        <ng-container *ngIf="hasStatus(sales, 'IN_TRANSIT')">
+            <div class="info-banner transit-banner">
+                <mat-icon>local_shipping</mat-icon>
+                <div class="banner-text">
+                    <strong>Arrivages en cours</strong>
+                    <p>{{ countByStatus(sales, 'IN_TRANSIT') }} vente(s) ont des produits en cours d'acheminement.
+                        Confirmez la réception une fois les colis arrivés.</p>
+                </div>
+            </div>
+        </ng-container>
+
+        <!-- GREEN BANNER: Ready for Validation -->
+        <ng-container *ngIf="hasStatus(sales, 'READY')">
+            <div class="info-banner ready-banner">
+                <mat-icon>check_circle</mat-icon>
+                <div class="banner-text">
+                    <strong>Prêt pour Validation</strong>
+                    <p>{{ countByStatus(sales, 'READY') }} vente(s) sont prêtes à être finalisées. Tous les produits ont
+                        été reçus.</p>
+                </div>
+            </div>
+        </ng-container>
+    </div>
+
     <mat-card class="sales-table-card">
         <div class="table-container">
             <table mat-table [dataSource]="instanceSales$ | async" class="sales-table">
@@ -87,10 +114,20 @@
                             <mat-icon>more_vert</mat-icon>
                         </button>
                         <mat-menu #menu="matMenu">
+                            <!-- New: Valider la Réception -->
+                            <button mat-menu-item (click)="validateReception(sale)"
+                                *ngIf="sale.status === 'IN_TRANSIT'">
+                                <mat-icon color="accent">local_shipping</mat-icon>
+                                <span>Valider la réception</span>
+                            </button>
+
+                            <!-- Valider la vente -->
                             <button mat-menu-item (click)="validateSale(sale)" [disabled]="sale.status !== 'READY'">
-                                <mat-icon [class.disabled-icon]="sale.status !== 'READY'">check_circle</mat-icon>
+                                <mat-icon [class.disabled-icon]="sale.status !== 'READY'"
+                                    color="primary">check_circle</mat-icon>
                                 <span>Valider la vente</span>
                             </button>
+
                             <button mat-menu-item (click)="viewDetails(sale)">
                                 <mat-icon>visibility</mat-icon>
                                 <span>Voir les détails</span>

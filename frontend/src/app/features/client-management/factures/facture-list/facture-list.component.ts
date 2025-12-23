@@ -168,4 +168,45 @@ export class FactureListComponent implements OnInit {
         // Allow deletion of all invoices (with warnings for cancelled ones)
         return true;
     }
+
+    openExchangeDialog(facture: any) {
+        // Dynamically import the dialog component
+        import('../invoice-return-dialog/invoice-return-dialog.component').then(m => {
+            const dialogRef = this.dialog.open(m.InvoiceReturnDialogComponent, {
+                width: '800px',
+                maxWidth: '95vw',
+                data: { invoice: facture }
+            });
+
+            dialogRef.afterClosed().subscribe(result => {
+                if (result) {
+                    // result contains: { reason: string, items: [...] }
+                    this.factureService.exchangeInvoice(facture.id, result.items).subscribe({
+                        next: (response) => {
+                            this.snackBar.open(
+                                `Échange effectué. Avoir: ${response.avoir.numero}, Nouvelle facture: ${response.newInvoice.numero}`,
+                                'Fermer',
+                                { duration: 5000 }
+                            );
+                            this.loadFactures();
+                        },
+                        error: (err) => {
+                            console.error('Error processing exchange:', err);
+                            this.snackBar.open(
+                                err.error?.message || 'Erreur lors de l\'échange',
+                                'Fermer',
+                                { duration: 3000 }
+                            );
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    canExchange(facture: any): boolean {
+        // Only allow exchange for validated/paid invoices
+        return facture.type === 'FACTURE' &&
+            (facture.statut === 'VALIDE' || facture.statut === 'PAYEE' || facture.statut === 'PARTIEL');
+    }
 }

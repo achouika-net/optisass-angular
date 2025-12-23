@@ -69,5 +69,9 @@ export class FactureService {
     delete(id: string): Observable<void> {
         return this.http.delete<void>(`${this.apiUrl}/${id}`);
     }
+
+    exchangeInvoice(id: string, itemsToReturn: { lineIndex: number, quantiteRetour: number, reason: string }[]): Observable<any> {
+        return this.http.post(`${this.apiUrl}/${id}/exchange`, { itemsToReturn });
+    }
 }
 

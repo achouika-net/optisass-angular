@@ -9,8 +9,21 @@ export interface StockMovement {
     dateMovement: string;
     motif: string;
     utilisateur: string;
+    prixAchatUnitaire?: number;
+    prixVenteUnitaire?: number;
     entrepotSource?: { nom: string };
     entrepotDestination?: { nom: string };
+    facture?: {
+        numero: string;
+        fiche?: {
+            id: string;
+        };
+        client?: {
+            nom?: string;
+            prenom?: string;
+            raisonSociale?: string;
+        };
+    };
 }
 
 import { API_URL } from '../../../config/api.config';

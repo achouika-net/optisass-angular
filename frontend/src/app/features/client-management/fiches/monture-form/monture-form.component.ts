@@ -957,18 +957,30 @@ export class MontureFormComponent implements OnInit {
         });
 
         dialogRef.afterClosed().subscribe(result => {
-            if (result && result.action === 'SELECT' && result.product) {
+            if (result && (result.action === 'SELECT' || result.action === 'ORDER_AND_SELL') && result.product) {
+                // ONE-CLICK LOGIC: Auto-enable edit mode if we are just viewing
+                if (!this.isEditMode) {
+                    console.log('⚡ [ONE-CLICK] Auto-enabling edit mode for product selection...');
+                    this.isEditMode = true;
+                    this.ficheForm.enable();
+                }
+
                 this.allProducts.push(result.product);
-                this.fillProductDetails(result.product, index, target, result.isPendingTransfer || false);
-            } else if (result && result.action === 'ORDER_AND_SELL' && result.product) {
-                // Handle out-of-stock product order
-                this.allProducts.push(result.product);
-                this.fillProductDetails(result.product, index, target, true); // isPendingTransfer = true
-                this.snackBar.open(
-                    'Produit commandé. La vente sera mise en instance jusqu\'à réception du stock.',
-                    'OK',
-                    { duration: 6000 }
-                );
+                const isPending = result.action === 'ORDER_AND_SELL' || (result.isPendingTransfer || false);
+                this.fillProductDetails(result.product, index, target, isPending);
+
+                if (result.action === 'ORDER_AND_SELL') {
+                    this.snackBar.open(
+                        'Produit commandé. La vente sera mise en instance jusqu\'à réception du stock.',
+                        'OK',
+                        { duration: 6000 }
+                    );
+                }
+
+                // AUTO-SUBMIT: Immediately save the fiche.
+                // We use a small timeout to ensure fillProductDetails has finished patching the form
+                console.log('🚀 [ONE-CLICK] Auto-submitting fiche after selection...');
+                setTimeout(() => this.onSubmit(), 300);
             }
         });
     }

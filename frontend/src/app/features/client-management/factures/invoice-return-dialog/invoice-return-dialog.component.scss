@@ -1,0 +1,49 @@
+.subtitle {
+    font-size: 14px;
+    color: #666;
+}
+
+.items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.item-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+    border-bottom: 1px solid #f0f0f0;
+
+    &:last-child {
+        border-bottom: none;
+    }
+}
+
+.item-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.item-name {
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.item-meta {
+    font-size: 12px;
+    color: #888;
+}
+
+.qty-input {
+    width: 100px;
+    margin-bottom: -1.25em; // Offset MatFormField spacing
+}

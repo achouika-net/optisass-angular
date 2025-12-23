@@ -64,6 +64,15 @@ export class ProductService {
         return this.http.post<void>(`${this.apiUrl}/${id}/complete-transfer`, {});
     }
 
+    restock(id: string, quantite: number, motif: string, prixAchatHT?: number, remiseFournisseur?: number): Observable<void> {
+        return this.http.post<void>(`${this.apiUrl}/${id}/restock`, { quantite, motif, prixAchatHT, remiseFournisseur });
+    }
+
+
+    getStockMovements(productId: string): Observable<any[]> {
+        return this.http.get<any[]>(`${API_URL}/stock-movements/product/${productId}`);
+    }
+
     /**
      * Price Calculations
      */

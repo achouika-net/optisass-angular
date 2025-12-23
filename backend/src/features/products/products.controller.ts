@@ -61,4 +61,10 @@ export class ProductsController {
     completeTransfer(@Param('id') id: string) {
         return this.productsService.completeTransfer(id);
     }
+
+    @Post(':id/restock')
+    restock(@Param('id') id: string, @Body() body: { quantite: number; motif: string; utilisateur?: string; prixAchatHT?: number; remiseFournisseur?: number }) {
+        return this.productsService.restock(id, body.quantite, body.motif, body.utilisateur, body.prixAchatHT, body.remiseFournisseur);
+    }
+
 }

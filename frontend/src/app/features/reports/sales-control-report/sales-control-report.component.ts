@@ -26,7 +26,6 @@ import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../core/store/auth/auth.selectors';
 import { effect } from '@angular/core';
-import { AvoirWorkflowDialogComponent } from './avoir-workflow-dialog/avoir-workflow-dialog.component';
 
 interface MonthlyGroup {
     month: string; // MM/YYYY
@@ -335,6 +334,16 @@ export class SalesControlReportComponent implements OnInit {
         return invoice.paiements.reduce((sum, p) => sum + p.montant, 0);
     }
 
+    getLinkedAvoirNumber(invoice: BrouillonInvoice): string {
+        if (!invoice.children || invoice.children.length === 0) return '-';
+        const avoir = invoice.children.find(c => c.type === 'AVOIR');
+        return avoir ? avoir.numero : '-';
+    }
+
+    getParentFactureNumber(invoice: BrouillonInvoice): string {
+        return invoice.parentFacture ? invoice.parentFacture.numero : '-';
+    }
+
     validateInvoice(invoice: BrouillonInvoice): void {
         this.salesControlService.validateInvoice(invoice.id).subscribe({
             next: () => {
@@ -429,29 +438,39 @@ export class SalesControlReportComponent implements OnInit {
     }
 
     createAvoir(invoice: BrouillonInvoice): void {
-        const dialogRef = this.dialog.open(AvoirWorkflowDialogComponent, {
-            maxWidth: '95vw',
-            data: { invoice }
-        });
-
-        dialogRef.afterClosed().subscribe(result => {
-            if (result) {
-                const { itemsToReturn, itemsToKeep } = result;
-
-                this.loading = true;
-                this.salesControlService.processAvoirWithItems(invoice.id, itemsToReturn, itemsToKeep).subscribe({
-                    next: (res) => {
-                        this.snackBar.open('Avoir créé et reliquat généré', 'OK', { duration: 3000 });
-                        this.loadData();
-                        this.loading = false;
-                    },
-                    error: (err) => {
-                        console.error('Error processing advanced avoir:', err);
-                        this.snackBar.open('Erreur lors du traitement de l\'avoir', 'OK', { duration: 3000 });
-                        this.loading = false;
+        import('../../client-management/factures/invoice-return-dialog/invoice-return-dialog.component').then(m => {
+            const dialogRef = this.dialog.open(m.InvoiceReturnDialogComponent, {
+                width: '800px',
+                data: {
+                    facture: {
+                        id: invoice.id,
+                        numero: invoice.numero,
+                        lignes: invoice.lignes || []
                     }
-                });
-            }
+                }
+            });
+
+            dialogRef.afterClosed().subscribe(result => {
+                if (result) {
+                    this.loading = true;
+                    this.factureService.exchangeInvoice(invoice.id, result.items).subscribe({
+                        next: (res) => {
+                            this.snackBar.open(`Échange effectué : Avoir ${res.avoir.numero} et Facture ${res.newFacture.numero} créés`, 'OK', {
+                                duration: 5000
+                            });
+                            this.loadData();
+                            this.loading = false;
+                        },
+                        error: (err) => {
+                            console.error('Erreur lors de l\'échange:', err);
+                            this.snackBar.open('Erreur lors de l\'échange: ' + (err.error?.message || 'Erreur serveur'), 'OK', {
+                                duration: 3000
+                            });
+                            this.loading = false;
+                        }
+                    });
+                }
+            });
         });
     }
 }

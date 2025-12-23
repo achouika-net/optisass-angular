@@ -136,36 +136,49 @@
                 <ng-container matColumnDef="actions">
                     <th mat-header-cell *matHeaderCellDef> Actions </th>
                     <td mat-cell *matCellDef="let element">
-                        <!-- Select: Show if (Local Product) AND Quantity > 0 -->
-                        <button mat-icon-button color="primary"
-                            *ngIf="!isRemote(element) && element.quantiteActuelle > 0" (click)="selectProduct(element)"
-                            matTooltip="Sélectionner">
-                            <mat-icon>check_circle</mat-icon>
+                        <button mat-icon-button [matMenuTriggerFor]="menu">
+                            <mat-icon>more_vert</mat-icon>
                         </button>
+                        <mat-menu #menu="matMenu">
+                            <!-- Select: Show if (Local Product) AND Quantity > 0 -->
+                            <button mat-menu-item color="primary"
+                                *ngIf="!isRemote(element) && element.quantiteActuelle > 0"
+                                (click)="selectProduct(element)">
+                                <mat-icon color="primary">check_circle</mat-icon>
+                                <span>Sélectionner</span>
+                            </button>
 
-                        <!-- Valider Commande: Show if (Local Product) AND Incoming Transfer exists -->
-                        <button mat-flat-button color="primary" class="btn-validate-order"
-                            *ngIf="!isRemote(element) && element.quantiteActuelle <= 0 && element.specificData?.pendingIncoming"
-                            (click)="selectIncomingProduct(element)"
-                            matTooltip="Valider la vente (en instance de réception)">
-                            <mat-icon>shopping_cart_checkout</mat-icon>
-                            <span>Valider la Vente</span>
-                        </button>
+                            <!-- Valider Commande: Show if (Local Product) AND Incoming Transfer exists -->
+                            <button mat-menu-item color="primary"
+                                *ngIf="!isRemote(element) && element.quantiteActuelle <= 0 && element.specificData?.pendingIncoming"
+                                (click)="selectIncomingProduct(element)">
+                                <mat-icon color="primary">shopping_cart_checkout</mat-icon>
+                                <span>Valider la Vente</span>
+                            </button>
 
-                        <!-- Commander & Vendre: Show if (Local Product) AND RUPTURE (stock = 0, no pending) -->
-                        <button mat-flat-button color="warn" class="btn-order-and-sell"
-                            *ngIf="!isRemote(element) && element.quantiteActuelle === 0 && !element.specificData?.pendingIncoming && element.statut === 'RUPTURE'"
-                            (click)="orderAndSell(element)" matTooltip="Commander ce produit et créer la vente">
-                            <mat-icon>add_shopping_cart</mat-icon>
-                            <span>Commander & Vendre</span>
-                        </button>
+                            <!-- Commander & Vendre: Show if (Local Product) AND RUPTURE (stock = 0, no pending) -->
+                            <button mat-menu-item color="warn"
+                                *ngIf="!isRemote(element) && element.quantiteActuelle === 0 && !element.specificData?.pendingIncoming && element.statut === 'RUPTURE'"
+                                (click)="orderAndSell(element)">
+                                <mat-icon color="warn">add_shopping_cart</mat-icon>
+                                <span>Commander & Vendre</span>
+                            </button>
 
-                        <!-- Transfer: Show ONLY if (Remote Product) AND Quantity > 0 -->
-                        <button mat-icon-button color="accent" *ngIf="isRemote(element) && element.quantiteActuelle > 0"
-                            (click)="requestTransfer(element)"
-                            [matTooltip]="'Demander le transfert vers ' + (currentCenter?.nom || 'mon centre')">
-                            <mat-icon>local_shipping</mat-icon>
-                        </button>
+                            <!-- Transfer: Show ONLY if (Remote Product) AND Quantity > 0 -->
+                            <button mat-menu-item color="accent"
+                                *ngIf="isRemote(element) && element.quantiteActuelle > 0"
+                                (click)="requestTransfer(element)">
+                                <mat-icon color="accent">local_shipping</mat-icon>
+                                <span>Demander Transfert</span>
+                            </button>
+
+                            <!-- Valider Commande (Shortcut for Remote Row): Show if (Remote Product) AND Transfer already initiated to us -->
+                            <button mat-menu-item color="primary" *ngIf="hasActiveTransferToUs(element)"
+                                (click)="selectIncomingProduct(findLocalCounterpart(element))">
+                                <mat-icon color="primary">shopping_cart_checkout</mat-icon>
+                                <span>Valider la Vente (Transfert en cours)</span>
+                            </button>
+                        </mat-menu>
                     </td>
                 </ng-container>
 

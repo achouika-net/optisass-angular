@@ -13,6 +13,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
 
 import { UserService } from '../services/user.service';
 import { User, UserFilters, UserStatus, UserRole } from '../../../shared/interfaces/user.interface';
@@ -34,7 +36,9 @@ import { User, UserFilters, UserStatus, UserRole } from '../../../shared/interfa
         MatIconModule,
         MatTooltipModule,
         MatCardModule,
-        MatDialogModule
+        MatDialogModule,
+        MatMenuModule,
+        MatDividerModule
     ],
     templateUrl: './user-list.component.html',
     styleUrls: ['./user-list.component.scss']
@@ -118,7 +122,8 @@ export class UserListComponent implements OnInit {
      * Delete user with confirmation
      */
     deleteUser(user: User): void {
-        if (confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur ${user.prenom} ${user.nom} ?`)) {
+        const confirmMsg = "Êtes-vous sûr de vouloir supprimer l'utilisateur " + user.prenom + " " + user.nom + " ?";
+        if (confirm(confirmMsg)) {
             this.userService.deleteUser(user.id).subscribe(() => {
                 this.loadUsers();
             });

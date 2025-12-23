@@ -120,13 +120,20 @@
                     <ng-container matColumnDef="actions">
                         <th mat-header-cell *matHeaderCellDef> Actions </th>
                         <td mat-cell *matCellDef="let row">
-                            <button mat-icon-button color="primary" [routerLink]="['/p/users', row.id]"
-                                matTooltip="Voir détails">
-                                <mat-icon>visibility</mat-icon>
+                            <button mat-icon-button [matMenuTriggerFor]="menu">
+                                <mat-icon>more_vert</mat-icon>
                             </button>
-                            <button mat-icon-button color="warn" (click)="deleteUser(row)" matTooltip="Supprimer">
-                                <mat-icon>delete</mat-icon>
-                            </button>
+                            <mat-menu #menu="matMenu">
+                                <button mat-menu-item color="primary" [routerLink]="['/p/users', row.id]">
+                                    <mat-icon color="primary">visibility</mat-icon>
+                                    <span>Voir détails</span>
+                                </button>
+                                <mat-divider></mat-divider>
+                                <button mat-menu-item color="warn" (click)="deleteUser(row)">
+                                    <mat-icon color="warn">delete</mat-icon>
+                                    <span>Supprimer</span>
+                                </button>
+                            </mat-menu>
                         </td>
                     </ng-container>
 

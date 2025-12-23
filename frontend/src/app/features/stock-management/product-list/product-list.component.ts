@@ -5,12 +5,16 @@ import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
 import { MatSortModule, MatSort } from '@angular/material/sort';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { FormsModule } from '@angular/forms';
+import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../core/store/auth/auth.selectors';
 import { Product, ProductType, ProductStatus, ProductFilters, StockStats } from '../../../shared/interfaces/product.interface';
@@ -32,7 +36,11 @@ import { effect } from '@angular/core';
         MatFormFieldModule,
         MatInputModule,
         MatSelectModule,
-        FormsModule
+        FormsModule,
+        MatMenuModule,
+        MatDividerModule,
+        MatDialogModule,
+        MatSnackBarModule
     ],
     templateUrl: './product-list.component.html',
     styleUrls: ['./product-list.component.scss']
@@ -40,6 +48,7 @@ import { effect } from '@angular/core';
 export class ProductListComponent implements OnInit {
     displayedColumns: string[] = ['codeInterne', 'designation', 'marque', 'typeArticle', 'centre', 'entrepot', 'quantiteActuelle', 'prixVenteTTC', 'statut', 'actions'];
     dataSource: MatTableDataSource<Product> = new MatTableDataSource<Product>([]);
+    loading: boolean = false;
 
     @ViewChild(MatPaginator) paginator!: MatPaginator;
     @ViewChild(MatSort) sort!: MatSort;
@@ -72,7 +81,9 @@ export class ProductListComponent implements OnInit {
 
     constructor(
         private productService: ProductService,
-        private store: Store
+        private store: Store,
+        private dialog: MatDialog,
+        private snackBar: MatSnackBar
     ) {
         // Automatically reload when center changes
         effect(() => {
@@ -195,5 +206,54 @@ export class ProductListComponent implements OnInit {
                 this.loadProducts();
             });
         }
+    }
+
+    openStockEntryDialog(product: Product): void {
+        import('../components/stock-entry-dialog/stock-entry-dialog.component').then(m => {
+            const dialogRef = this.dialog.open(m.StockEntryDialogComponent, {
+                width: 'auto',
+                minWidth: '600px',
+                maxWidth: '90vw',
+                panelClass: 'custom-dialog-container',
+                data: { product },
+                autoFocus: false
+            });
+
+            dialogRef.afterClosed().subscribe(result => {
+                if (result) {
+                    this.productService.restock(
+                        product.id!,
+                        result.quantite,
+                        result.motif,
+                        result.prixAchatHT,
+                        result.remiseFournisseur
+                    ).subscribe({
+                        next: () => {
+                            this.snackBar.open('Stock mis à jour avec succès', 'OK', { duration: 3000 });
+                            this.loadProducts();
+                            this.loadStats();
+                        },
+                        error: (err) => {
+                            console.error('Erreur lors de la mise à jour du stock:', err);
+                            this.snackBar.open('Erreur lors de la mise à jour du stock', 'Fermer', { duration: 5000 });
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    openHistoryDialog(product: Product): void {
+        import('../components/stock-movement-history-dialog/stock-movement-history-dialog.component').then(m => {
+            this.dialog.open(m.StockMovementHistoryDialogComponent, {
+                width: '1400px',
+                maxWidth: '98vw',
+                minHeight: '500px',
+                maxHeight: '95vh',
+                panelClass: 'no-scroll-dialog', // Adding custom class to force override
+                data: { product },
+                autoFocus: false
+            });
+        });
     }
 }

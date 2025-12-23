@@ -6,6 +6,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
 import { GroupsService } from '../services/groups.service';
 import { Groupe } from '../../../shared/interfaces/warehouse.interface';
 import { GroupFormDialogComponent } from '../group-form-dialog/group-form-dialog.component';
@@ -21,6 +23,8 @@ import { GroupFormDialogComponent } from '../group-form-dialog/group-form-dialog
         MatIconModule,
         MatCardModule,
         MatDialogModule,
+        MatMenuModule,
+        MatDividerModule,
     ],
     templateUrl: './groups-list.component.html',
     styleUrls: ['./groups-list.component.scss']
