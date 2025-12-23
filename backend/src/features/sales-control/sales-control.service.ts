@@ -251,6 +251,57 @@ export class SalesControlService {
         });
     }
 
+    // Get Non-Consolidated Revenue (CA Non Consolidé)
+    // Sum of discounted sale prices from products returned to defective warehouse from SECONDARY stock
+    async getNonConsolidatedRevenue(centreId?: string): Promise<number> {
+        if (!centreId) return 0;
+
+        // Find defective warehouse for this center
+        const defectiveWarehouse = await this.prisma.entrepot.findFirst({
+            where: {
+                centreId,
+                OR: [
+                    { nom: { equals: 'Entrepot Défectueux', mode: 'insensitive' } },
+                    { nom: { equals: 'DÉFECTUEUX', mode: 'insensitive' } },
+                    { nom: { contains: 'défectueux', mode: 'insensitive' } }
+                ]
+            }
+        });
+
+        if (!defectiveWarehouse) {
+            return 0; // No defective warehouse = no non-consolidated revenue
+        }
+
+        // Get all ENTREE_RETOUR_CLIENT movements to defective warehouse
+        const defectiveReturns = await this.prisma.mouvementStock.findMany({
+            where: {
+                type: 'ENTREE_RETOUR_CLIENT',
+                entrepotDestinationId: defectiveWarehouse.id
+            },
+            include: {
+                produit: {
+                    include: {
+                        entrepot: true // To check if from SECONDAIRE
+                    }
+                }
+            }
+        });
+
+        // Filter only returns from SECONDARY warehouses and sum their discounted prices
+        const total = defectiveReturns.reduce((sum, movement) => {
+            // Check if the product's original warehouse is SECONDARY
+            if (movement.produit?.entrepot?.type === 'SECONDAIRE') {
+                const price = movement.prixVenteUnitaire || 0;
+                const quantity = movement.quantite || 0;
+                return sum + (price * quantity);
+            }
+            return sum;
+        }, 0);
+
+        console.log(`📊 Non-Consolidated Revenue for center ${centreId}: ${total} DH`);
+        return total;
+    }
+
     // Validate a BROUILLON invoice
     async validateInvoice(id: string) {
         // Use the existing update method which handles AVOIR creation
@@ -334,14 +385,16 @@ export class SalesControlService {
                 valid,
                 avoirs,
                 archived,
-                stats
+                stats,
+                nonConsolidatedCA
             ] = await Promise.all([
                 this.getBrouillonWithPayments(userId, centreId),
                 this.getBrouillonWithoutPayments(userId, centreId),
                 this.getValidInvoices(userId, centreId),
                 this.getAvoirs(userId, centreId),
                 this.getArchivedInvoices(userId, centreId),
-                this.getStatisticsByVendor(centreId)
+                this.getStatisticsByVendor(centreId),
+                this.getNonConsolidatedRevenue(centreId)
             ]);
 
             const duration = Date.now() - start;
@@ -353,7 +406,8 @@ export class SalesControlService {
                 valid,
                 avoirs,
                 archived,
-                stats
+                stats,
+                nonConsolidatedCA
             };
         } catch (error) {
             console.error(`❌ [DASHBOARD-SYNC] Error fetching data for center ${centreId}:`, error);

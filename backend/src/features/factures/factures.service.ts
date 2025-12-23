@@ -698,6 +698,7 @@ export class FacturesService implements OnModuleInit {
                                 data: { quantiteActuelle: { increment: item.quantiteRetour } }
                             });
 
+
                             // Movement
                             await tx.mouvementStock.create({
                                 data: {
@@ -706,6 +707,7 @@ export class FacturesService implements OnModuleInit {
                                     produitId: defProduct.id,
                                     entrepotDestinationId: defectiveWarehouse.id,
                                     factureId: original.id,
+                                    prixVenteUnitaire: line.prixUnitaireTTC || 0, // Prix remisé de la ligne
                                     motif: `Retour Défectueux ${original.numero}`,
                                     utilisateur: 'System'
                                 }

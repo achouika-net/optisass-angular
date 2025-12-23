@@ -99,6 +99,9 @@ export class SalesControlReportComponent implements OnInit {
         totalReste: 0
     };
 
+    // Non-Consolidated Revenue
+    nonConsolidatedCA: number = 0;
+
     // Table columns
     columnsWithPayment = ['numero', 'client', 'dateEmission', 'totalTTC', 'montantPaye', 'resteAPayer', 'actions'];
     columnsWithoutPayment = ['numero', 'client', 'dateEmission', 'totalTTC', 'resteAPayer', 'actions'];
@@ -154,6 +157,7 @@ export class SalesControlReportComponent implements OnInit {
                 this.groupedArchived = this.groupInvoices(results.archived);
 
                 this.statistics = results.stats;
+                this.nonConsolidatedCA = results.nonConsolidatedCA || 0;
 
                 this.updateAvailablePeriods();
                 this.calculateMetrics();
