@@ -188,6 +188,14 @@
                                 <span>Demander Transfert</span>
                             </button>
 
+                            <!-- Commander (Sales Context): Show if (Remote Product) AND Quantity > 0 -->
+                            <button mat-menu-item color="accent"
+                                *ngIf="context !== 'stock-management' && isRemote(element) && element.quantiteActuelle > 0"
+                                (click)="requestTransfer(element)">
+                                <mat-icon color="accent">add_shopping_cart</mat-icon>
+                                <span>Commander (Transfert)</span>
+                            </button>
+
                             <!-- Valider Commande (Shortcut for Remote Row): Show if (Remote Product) AND Transfer already initiated to us -->
                             <button mat-menu-item color="primary" *ngIf="hasActiveTransferToUs(element)"
                                 (click)="selectIncomingProduct(findLocalCounterpart(element))">
