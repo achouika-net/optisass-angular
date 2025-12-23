@@ -181,16 +181,25 @@ export class StockTransferDialogComponent implements OnInit {
         );
 
         if (matchingProduct) {
-            this.form.patchValue({ productId: matchingProduct.id });
+            // Check for self-transfer
+            if (matchingProduct.id === this.data.product.id) {
+                this.form.get('productId')?.setValue(null); // Clear value to invalid form
+                this.form.get('productId')?.setErrors({ selfTransfer: true });
+            } else {
+                this.form.patchValue({ productId: matchingProduct.id });
+                this.form.get('productId')?.setErrors(null);
+            }
         } else {
             // If we don't find it (maybe not available in that warehouse), 
             // the form stays invalid for the submit button as productId is required but we might have wrong one
-            // However, if it's the original one, it's fine.
-            if (warehouseId === this.data.product.entrepotId) {
-                this.form.patchValue({ productId: this.data.product.id });
-            } else {
-                this.form.patchValue({ productId: '' });
-            }
+            // However, if it's the original one, it's fine ONLY if we are not transferring to self (which is handled above really)
+            // But wait, if matchingProduct is not found via find(), but we ARE at the source...
+
+            // Logic rewrite:
+            // If warehouseId == data.product.entrepotId, then matchingProduct SHOULD be found (it's data.product).
+            // So the above check covers it.
+
+            this.form.patchValue({ productId: '' });
         }
     }
 

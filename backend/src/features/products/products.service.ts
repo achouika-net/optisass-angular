@@ -284,6 +284,7 @@ export class ProductsService {
         });
 
         if (!sourceProduct || !targetProduct) throw new NotFoundException('Source or Target product not found');
+        if (sourceProductId === targetProductId) throw new Error('Impossible de transférer un produit vers lui-même (Source = Destination).');
         if (sourceProduct.quantiteActuelle < quantite) throw new Error('Stock insuffisant à la source');
 
         const targetSpecificData = (targetProduct.specificData as any) || {};
