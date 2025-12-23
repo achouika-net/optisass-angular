@@ -560,7 +560,12 @@ export class FactureFormComponent implements OnInit {
 
             dialogRef.afterClosed().subscribe(result => {
                 if (result) {
-                    this.factureService.exchangeInvoice(this.id!, result.items).subscribe({
+                    const itemsWithReason = result.items.map((it: any) => ({
+                        ...it,
+                        reason: result.reason
+                    }));
+
+                    this.factureService.exchangeInvoice(this.id!, itemsWithReason).subscribe({
                         next: (res) => {
                             this.snackBar.open(`Échange effectué : Avoir ${res.avoir.numero} et Facture ${res.newFacture.numero} créés`, 'Fermer', {
                                 duration: 5000

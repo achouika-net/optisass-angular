@@ -70,7 +70,12 @@ export class StockSearchDialogComponent implements OnInit {
     loadWarehouses(): void {
         this.warehousesService.findAll().subscribe({
             next: (data) => {
-                this.warehouses = data;
+                // FILTER: Hide defective warehouses from dropdown
+                this.warehouses = data.filter(w =>
+                    !w.nom?.toLowerCase().includes('défectueux') &&
+                    !w.nom?.toLowerCase().includes('defectueux') &&
+                    w.nom?.toUpperCase() !== 'DÉFECTUEUX'
+                );
                 this.cdr.detectChanges();
             },
             error: (err) => console.error('Error loading warehouses', err)
@@ -82,7 +87,12 @@ export class StockSearchDialogComponent implements OnInit {
         // Always load ALL products (GLOBAL) to enable cross-warehouse search
         this.productService.findAll({ global: true }).subscribe({
             next: (products) => {
-                this.allProducts = products;
+                // FILTER: Hide products from defective warehouses
+                this.allProducts = products.filter(p =>
+                    !p.entrepot?.nom?.toLowerCase().includes('défectueux') &&
+                    !p.entrepot?.nom?.toLowerCase().includes('defectueux') &&
+                    p.entrepot?.nom?.toUpperCase() !== 'DÉFECTUEUX'
+                );
                 this.filterProducts();
                 this.loading = false;
                 this.cdr.detectChanges();

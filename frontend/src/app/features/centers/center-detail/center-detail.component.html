@@ -3,13 +3,14 @@
     <mat-card class="center-info-card">
         <mat-card-header>
             <mat-card-title>
-                <div class="title-row">
-                    <h2>{{ centre.nom }}</h2>
-                    <button mat-icon-button [routerLink]="['/p/groups', centre.groupeId]" matTooltip="Retour au groupe">
-                        <mat-icon>arrow_back</mat-icon>
-                    </button>
-                </div>
+                <h2>{{ centre.nom }}</h2>
             </mat-card-title>
+            <div class="header-actions">
+                <button mat-button [routerLink]="['/p/groups', centre.groupeId]" class="back-button">
+                    <mat-icon>arrow_back</mat-icon>
+                    <span>Retour</span>
+                </button>
+            </div>
         </mat-card-header>
         <mat-card-content>
             <div class="info-grid">
@@ -86,7 +87,7 @@
                         <button mat-icon-button (click)="openEditWarehouseDialog(entrepot)" matTooltip="Modifier">
                             <mat-icon>edit</mat-icon>
                         </button>
-                        <button mat-icon-button color="warn" matTooltip="Supprimer">
+                        <button mat-icon-button color="warn" matTooltip="Supprimer" (click)="deleteWarehouse(entrepot)">
                             <mat-icon>delete</mat-icon>
                         </button>
                     </td>

@@ -3,13 +3,14 @@
     <mat-card class="group-info-card">
         <mat-card-header>
             <mat-card-title>
-                <div class="title-row">
-                    <h2>{{ groupe.nom }}</h2>
-                    <button mat-icon-button routerLink="/p/groups" matTooltip="Retour à la liste">
-                        <mat-icon>arrow_back</mat-icon>
-                    </button>
-                </div>
+                <h2>{{ groupe.nom }}</h2>
             </mat-card-title>
+            <div class="header-actions">
+                <button mat-button routerLink="/p/groups" class="back-button">
+                    <mat-icon>arrow_back</mat-icon>
+                    <span>Retour</span>
+                </button>
+            </div>
         </mat-card-header>
         <mat-card-content>
             <div class="info-grid">

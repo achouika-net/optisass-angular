@@ -7,6 +7,7 @@
 /* Stats Grid - Stock specific colors */
 .stats-grid {
     display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 12px;
     margin-bottom: 20px;
 }
@@ -45,6 +46,11 @@
 
 .stat-card-red {
     background: linear-gradient(135deg, #ea4335 0%, #c5221f 100%);
+    color: white;
+}
+
+.stat-card-purple {
+    background: linear-gradient(135deg, #7b1fa2 0%, #4a148c 100%);
     color: white;
 }
 

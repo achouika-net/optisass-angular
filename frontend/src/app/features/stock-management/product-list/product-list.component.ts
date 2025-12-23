@@ -63,6 +63,7 @@ export class ProductListComponent implements OnInit {
     stats: StockStats = {
         totalProduits: 0,
         valeurStockTotal: 0,
+        caNonConsolide: 0,
         produitsStockBas: 0,
         produitsRupture: 0,
         produitsReserves: 0,
@@ -109,8 +110,13 @@ export class ProductListComponent implements OnInit {
         this.productService.findAll(this.filter).subscribe(products => {
             const center = this.currentCentre();
             if (center) {
-                // Strictly filter by current center to avoid remote leaks in table view
-                this.dataSource.data = products.filter(p => p.entrepot?.centreId === center.id);
+                // Strictly filter by current center AND exclude defective warehouses from main view
+                this.dataSource.data = products.filter(p =>
+                    p.entrepot?.centreId === center.id &&
+                    !p.entrepot?.nom?.toLowerCase().includes('défectueux') &&
+                    !p.entrepot?.nom?.toLowerCase().includes('defectueux') &&
+                    p.entrepot?.nom?.toUpperCase() !== 'DÉFECTUEUX'
+                );
             } else {
                 this.dataSource.data = products;
             }
@@ -236,6 +242,41 @@ export class ProductListComponent implements OnInit {
                         error: (err) => {
                             console.error('Erreur lors de la mise à jour du stock:', err);
                             this.snackBar.open('Erreur lors de la mise à jour du stock', 'Fermer', { duration: 5000 });
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    openStockOutDialog(product: Product): void {
+        import('../components/stock-out-dialog/stock-out-dialog.component').then(m => {
+            const dialogRef = this.dialog.open(m.StockOutDialogComponent, {
+                width: 'auto',
+                minWidth: '600px',
+                maxWidth: '90vw',
+                panelClass: 'custom-dialog-container',
+                data: { product },
+                autoFocus: false
+            });
+
+            dialogRef.afterClosed().subscribe(result => {
+                if (result) {
+                    this.productService.destock(
+                        product.id!,
+                        result.quantite,
+                        result.motif,
+                        result.destinationEntrepotId
+                    ).subscribe({
+                        next: () => {
+                            this.snackBar.open('Sortie de stock enregistrée avec succès', 'OK', { duration: 3000 });
+                            this.loadProducts();
+                            this.loadStats();
+                        },
+                        error: (err) => {
+                            console.error('Erreur lors de la sortie de stock:', err);
+                            const errorMsg = err.error?.message || 'Erreur lors de la sortie de stock';
+                            this.snackBar.open(errorMsg, 'Fermer', { duration: 5000 });
                         }
                     });
                 }
