@@ -68,8 +68,8 @@ export class ProductService {
         return this.http.post<void>(`${this.apiUrl}/${id}/restock`, { quantite, motif, prixAchatHT, remiseFournisseur });
     }
 
-    destock(id: string, quantite: number, motif: string, destinationEntrepotId?: string): Observable<void> {
-        return this.http.post<void>(`${this.apiUrl}/${id}/destock`, { quantite, motif, destinationEntrepotId });
+    destock(id: string, quantite: number, motif: string, destinationEntrepotId?: string): Observable<any> {
+        return this.http.post<any>(`${this.apiUrl}/${id}/destock`, { quantite, motif, destinationEntrepotId });
     }
 
 

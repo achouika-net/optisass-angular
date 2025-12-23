@@ -15,11 +15,15 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { WarehousesService } from '../../warehouses/services/warehouses.service';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { SelectionModel } from '@angular/cdk/collections';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../core/store/auth/auth.selectors';
 import { Product, ProductType, ProductStatus, ProductFilters, StockStats } from '../../../shared/interfaces/product.interface';
 import { ProductService } from '../services/product.service';
 import { effect } from '@angular/core';
+import { forkJoin } from 'rxjs';
 
 @Component({
     selector: 'app-product-list',
@@ -40,14 +44,16 @@ import { effect } from '@angular/core';
         MatMenuModule,
         MatDividerModule,
         MatDialogModule,
-        MatSnackBarModule
+        MatSnackBarModule,
+        MatCheckboxModule
     ],
     templateUrl: './product-list.component.html',
     styleUrls: ['./product-list.component.scss']
 })
 export class ProductListComponent implements OnInit {
-    displayedColumns: string[] = ['codeInterne', 'designation', 'marque', 'typeArticle', 'centre', 'entrepot', 'quantiteActuelle', 'prixVenteTTC', 'statut', 'actions'];
+    displayedColumns: string[] = ['select', 'codeInterne', 'designation', 'marque', 'typeArticle', 'centre', 'entrepot', 'quantiteActuelle', 'prixVenteTTC', 'statut', 'actions'];
     dataSource: MatTableDataSource<Product> = new MatTableDataSource<Product>([]);
+    selection = new SelectionModel<Product>(true, []);
     loading: boolean = false;
 
     @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -82,6 +88,7 @@ export class ProductListComponent implements OnInit {
 
     constructor(
         private productService: ProductService,
+        private warehousesService: WarehousesService,
         private store: Store,
         private dialog: MatDialog,
         private snackBar: MatSnackBar
@@ -127,6 +134,30 @@ export class ProductListComponent implements OnInit {
         this.productService.getStockStats().subscribe(stats => {
             this.stats = stats;
         });
+    }
+
+    /** Multi-selection logic */
+    isAllSelected() {
+        const numSelected = this.selection.selected.length;
+        const numRows = this.dataSource.data.length;
+        return numSelected === numRows;
+    }
+
+    masterToggle() {
+        this.isAllSelected() ?
+            this.selection.clear() :
+            this.dataSource.data.forEach(row => this.selection.select(row));
+    }
+
+    checkboxLabel(row?: Product): string {
+        if (!row) {
+            return `${this.isAllSelected() ? 'select' : 'deselect'} all`;
+        }
+        return `${this.selection.isSelected(row) ? 'deselect' : 'select'} row ${row.id}`;
+    }
+
+    hasReceivableItems(): boolean {
+        return this.selection.selected.some(p => this.canReceive(p));
     }
 
     applyFilter(): void {
@@ -217,9 +248,9 @@ export class ProductListComponent implements OnInit {
     openStockEntryDialog(product: Product): void {
         import('../components/stock-entry-dialog/stock-entry-dialog.component').then(m => {
             const dialogRef = this.dialog.open(m.StockEntryDialogComponent, {
-                width: 'auto',
+                width: '60vw',
                 minWidth: '600px',
-                maxWidth: '90vw',
+                maxWidth: '800px',
                 panelClass: 'custom-dialog-container',
                 data: { product },
                 autoFocus: false
@@ -252,9 +283,9 @@ export class ProductListComponent implements OnInit {
     openStockOutDialog(product: Product): void {
         import('../components/stock-out-dialog/stock-out-dialog.component').then(m => {
             const dialogRef = this.dialog.open(m.StockOutDialogComponent, {
-                width: 'auto',
+                width: '60vw',
                 minWidth: '600px',
-                maxWidth: '90vw',
+                maxWidth: '800px',
                 panelClass: 'custom-dialog-container',
                 data: { product },
                 autoFocus: false
@@ -296,5 +327,103 @@ export class ProductListComponent implements OnInit {
                 autoFocus: false
             });
         });
+    }
+
+    openStockTransferDialog(product: Product): void {
+        import('../components/stock-transfer-dialog/stock-transfer-dialog.component').then(m => {
+            // Need local warehouses for transfer
+            this.warehousesService.findAll(this.currentCentre()?.id!).subscribe((warehouses: any[]) => {
+                const dialogRef = this.dialog.open(m.StockTransferDialogComponent, {
+                    width: '60vw',
+                    minWidth: '600px',
+                    maxWidth: '800px',
+                    data: {
+                        product,
+                        allProducts: this.dataSource.data,
+                        localWarehouses: warehouses
+                    }
+                });
+
+                dialogRef.afterClosed().subscribe(result => {
+                    if (result && result.productId) {
+                        this.productService.initiateTransfer(result.productId, product.id!).subscribe({
+                            next: () => {
+                                this.snackBar.open('Transfert initié avec succès', 'OK', { duration: 3000 });
+                                this.loadProducts();
+                            },
+                            error: (err) => {
+                                console.error('Erreur initiation transfert:', err);
+                                this.snackBar.open('Erreur lors de l\'initiation du transfert', 'Fermer', { duration: 5000 });
+                            }
+                        });
+                    }
+                });
+            });
+        });
+    }
+
+    openBulkStockOutDialog(): void {
+        const selected = this.selection.selected;
+        if (selected.length === 0) return;
+
+        import('../components/bulk-stock-out-dialog/bulk-stock-out-dialog.component').then(m => {
+            const dialogRef = this.dialog.open(m.BulkStockOutDialogComponent, {
+                width: '90vw',
+                maxWidth: '1100px',
+                data: { products: selected }
+            });
+
+            dialogRef.afterClosed().subscribe(result => {
+                if (result) {
+                    this.selection.clear();
+                    this.loadProducts();
+                    this.loadStats();
+                }
+            });
+        });
+    }
+
+    openBulkStockTransferDialog(): void {
+        const selected = this.selection.selected;
+        if (selected.length === 0) return;
+
+        import('../components/bulk-stock-transfer-dialog/bulk-stock-transfer-dialog.component').then(m => {
+            const dialogRef = this.dialog.open(m.BulkStockTransferDialogComponent, {
+                width: '90vw',
+                maxWidth: '1100px',
+                data: { products: selected }
+            });
+
+            dialogRef.afterClosed().subscribe(result => {
+                if (result) {
+                    this.selection.clear();
+                    this.loadProducts();
+                    this.loadStats();
+                }
+            });
+        });
+    }
+
+    openBulkReceptionDialog(): void {
+        const selected = this.selection.selected.filter(p => this.canReceive(p));
+        if (selected.length === 0) {
+            this.snackBar.open('Aucun produit à réceptionner parmi la sélection', 'OK', { duration: 3000 });
+            return;
+        }
+
+        if (confirm(`Confirmer la réception de ${selected.length} produit(s) ?`)) {
+            const requests = selected.map(p => this.productService.completeTransfer(p.id!));
+            forkJoin(requests).subscribe({
+                next: () => {
+                    this.snackBar.open(`${selected.length} produit(s) réceptionné(s) avec succès`, 'OK', { duration: 3000 });
+                    this.selection.clear();
+                    this.loadProducts();
+                },
+                error: (err) => {
+                    console.error('Erreur réception groupée:', err);
+                    this.snackBar.open('Erreur lors de la réception groupée', 'Fermer', { duration: 5000 });
+                }
+            });
+        }
     }
 }

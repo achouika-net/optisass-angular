@@ -569,12 +569,13 @@ export class ProductsService {
             });
 
             // 5. If destination provided (or automated), handle the entry there
+            let targetProduct: any = null;
             if (effectiveDestinationId) {
                 const destinationWh = await tx.entrepot.findUnique({ where: { id: effectiveDestinationId } });
                 const isCrossCenter = destinationWh && destinationWh.centreId !== product.entrepot.centreId;
 
                 // Find or create product in target warehouse
-                let targetProduct = await tx.product.findFirst({
+                targetProduct = await tx.product.findFirst({
                     where: { codeInterne: product.codeInterne, entrepotId: effectiveDestinationId }
                 });
 
@@ -653,7 +654,7 @@ export class ProductsService {
                 });
             }
 
-            return updatedProduct;
+            return { source: updatedProduct, target: targetProduct };
         });
     }
 }

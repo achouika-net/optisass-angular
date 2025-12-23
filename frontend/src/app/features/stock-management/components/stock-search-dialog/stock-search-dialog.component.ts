@@ -17,6 +17,8 @@ import { ProductService } from '../../services/product.service';
 import { WarehousesService } from '../../../warehouses/services/warehouses.service';
 import { StockTransferDialogComponent } from '../stock-transfer-dialog/stock-transfer-dialog.component';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { SelectionModel } from '@angular/cdk/collections';
 
 @Component({
     selector: 'app-stock-search-dialog',
@@ -34,6 +36,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
         MatSelectModule,
         MatSnackBarModule,
         MatMenuModule,
+        MatCheckboxModule,
         FormsModule
     ],
     templateUrl: './stock-search-dialog.component.html',
@@ -43,8 +46,9 @@ export class StockSearchDialogComponent implements OnInit {
     searchQuery: string = '';
     allProducts: any[] = [];
     filteredProducts: any[] = [];
+    selection = new SelectionModel<any>(true, []);
     loading = false;
-    displayedColumns: string[] = ['photo', 'designation', 'reference', 'marque', 'location', 'quantity', 'statut', 'actions'];
+    displayedColumns: string[] = ['select', 'photo', 'designation', 'reference', 'marque', 'location', 'quantity', 'statut', 'actions'];
 
     warehouses: any[] = [];
     selectedWarehouseId: string | undefined;
@@ -156,6 +160,26 @@ export class StockSearchDialogComponent implements OnInit {
         }
     }
 
+    /** Multi-selection logic */
+    isAllSelected() {
+        const numSelected = this.selection.selected.length;
+        const numRows = this.filteredProducts.length;
+        return numSelected === numRows;
+    }
+
+    masterToggle() {
+        this.isAllSelected() ?
+            this.selection.clear() :
+            this.filteredProducts.forEach(row => this.selection.select(row));
+    }
+
+    checkboxLabel(row?: any): string {
+        if (!row) {
+            return `${this.isAllSelected() ? 'select' : 'deselect'} all`;
+        }
+        return `${this.selection.isSelected(row) ? 'deselect' : 'select'} row ${row.id}`;
+    }
+
     isRemote(product: any): boolean {
         return this.currentCenter && product.entrepot?.centreId !== this.currentCenter.id;
     }
@@ -221,14 +245,14 @@ export class StockSearchDialogComponent implements OnInit {
     requestTransfer(product: any): void {
         const localProduct = this.findLocalCounterpart(product);
 
-        if (!localProduct) {
-            alert("Aucun produit local correspondant trouvé à " + this.currentCenter?.nom + " pour recevoir ce transfert. Veuillez d'abord créer la fiche produit localement avec la même désignation.");
-            return;
-        }
+        // We no longer block if localProduct is null, because the system will create it.
+        // But we might want to inform the user.
 
         const localWarehouses = this.warehouses.filter(w => w.centreId === this.currentCenter?.id);
         const dialogRef = this.dialog.open(StockTransferDialogComponent, {
-            width: '500px',
+            width: '60vw',
+            minWidth: '600px',
+            maxWidth: '800px',
             data: {
                 product,
                 allProducts: this.allProducts,
@@ -240,15 +264,18 @@ export class StockSearchDialogComponent implements OnInit {
             if (result && result.productId) {
                 this.loading = true;
                 // result.productId is the SOURCE product ID (selected in dialog if multiple warehouses exist)
-                this.productService.initiateTransfer(result.productId, localProduct.id).subscribe({
-                    next: () => {
+                // Use destock with destination warehouse to trigger "find or create" logic in backend
+                this.productService.destock(result.productId, 1, 'Transfert manuel (Initialisé)', result.targetWarehouseId).subscribe({
+                    next: (response) => {
                         this.loading = false;
+                        const targetProduct = response.target || localProduct;
+
                         this.snackBar.open('Réservation de transfert effectuée et produit sélectionné !', 'OK', { duration: 3000 });
 
-                        // FLUIDITY: Auto-select local product for the fiche immediately after transfer
+                        // FLUIDITY: Auto-select newly created or existing local product
                         this.dialogRef.close({
                             action: 'SELECT',
-                            product: localProduct,
+                            product: targetProduct,
                             isPendingTransfer: true
                         });
                     },
@@ -259,6 +286,42 @@ export class StockSearchDialogComponent implements OnInit {
                     }
                 });
             }
+        });
+    }
+
+    requestBulkTransfer(): void {
+        const selected = this.selection.selected;
+        if (selected.length === 0) return;
+
+        // Verify if all selected items are remote
+        const hasLocal = selected.some(p => !this.isRemote(p));
+        if (hasLocal) {
+            if (!confirm('Certains produits sélectionnés sont déjà dans votre centre. Voulez-vous continuer le transfert groupé pour les produits distants uniquement ?')) {
+                return;
+            }
+        }
+
+        const remoteProducts = selected.filter(p => this.isRemote(p));
+        if (remoteProducts.length === 0) {
+            this.snackBar.open('Aucun produit distant à transférer', 'Fermer', { duration: 3000 });
+            return;
+        }
+
+        // We no longer block for missing local counterparts as the backend will create them if needed.
+
+        import('../bulk-stock-transfer-dialog/bulk-stock-transfer-dialog.component').then(m => {
+            const dialogRef = this.dialog.open(m.BulkStockTransferDialogComponent, {
+                width: '90vw',
+                maxWidth: '1100px',
+                data: { products: remoteProducts }
+            });
+
+            dialogRef.afterClosed().subscribe(result => {
+                if (result) {
+                    this.selection.clear();
+                    this.loadProducts(); // Reload to see updated status
+                }
+            });
         });
     }
 }
