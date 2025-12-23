@@ -466,7 +466,9 @@ export class ProductsService {
                     quantite: quantiteRecue,
                     produitId: targetProductId,
                     entrepotDestinationId: targetProduct.entrepotId,
-                    motif: 'Confirmation réception transfert',
+                    prixAchatUnitaire: targetProduct.prixAchatHT,
+                    prixVenteUnitaire: targetProduct.prixVenteTTC,
+                    motif: 'Réception',
                     utilisateur: 'System'
                 }
             });
@@ -690,7 +692,7 @@ export class ProductsService {
                         produitId: targetProduct.id,
                         entrepotSourceId: product.entrepotId,
                         entrepotDestinationId: effectiveDestinationId,
-                        motif: `Transfert depuis ${product.entrepot.nom}: ${motif}`,
+                        motif: 'Transfert',
                         utilisateur: utilisateur,
                         prixAchatUnitaire: product.prixAchatHT,
                         prixVenteUnitaire: product.prixVenteTTC
