@@ -279,18 +279,15 @@ export class SalesControlService {
                 entrepotDestinationId: defectiveWarehouse.id
             },
             include: {
-                produit: {
-                    include: {
-                        entrepot: true // To check if from SECONDAIRE
-                    }
-                }
+                produit: true,
+                entrepotSource: true // Check origin (Secondary vs Principal)
             }
         });
 
         // Filter only returns from SECONDARY warehouses and sum their discounted prices
         const total = defectiveReturns.reduce((sum, movement) => {
-            // Check if the product's original warehouse is SECONDARY
-            if (movement.produit?.entrepot?.type === 'SECONDAIRE') {
+            // Check if the movement source warehouse is SECONDARY
+            if (movement.entrepotSource?.type === 'SECONDAIRE') {
                 const price = movement.prixVenteUnitaire || 0;
                 const quantity = movement.quantite || 0;
                 return sum + (price * quantity);

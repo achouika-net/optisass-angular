@@ -709,6 +709,7 @@ export class FacturesService implements OnModuleInit {
                                     quantite: item.quantiteRetour,
                                     produitId: defProduct.id,
                                     entrepotDestinationId: defectiveWarehouse.id,
+                                    entrepotSourceId: productToUpdate.entrepotId, // Track origin for Secondary Stock revenue calc
                                     factureId: original.id,
                                     prixVenteUnitaire: line.prixUnitaireTTC || 0, // Prix remisé de la ligne
                                     motif: `Retour Défectueux ${original.numero}`,
