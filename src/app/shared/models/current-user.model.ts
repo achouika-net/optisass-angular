@@ -1,17 +1,18 @@
-import { ICenter } from './center.model';
+import { ITenant } from './center.model';
 
 export interface ICurrentUser {
-  id: number;
-  first_name: string;
-  last_name: string;
-  address: string;
-  mobile: string;
+  id: string;              // UUID
   email: string;
-  is_callcenter: boolean;
-  remember_token: string;
-  menu_favoris: string;
-  centers: ICenter[];
-  avatar?: string | null;
+  firstName: string;
+  lastName: string;
+  isOwner: boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  tenants: ITenant[];      // Remplace "centers"
+
+  // Propriétés optionnelles (pas encore dans le backend NestJS)
+  avatar?: string;         // Base64 image
+  is_callcenter?: boolean; // Legacy field
 }
 
 export type CurrentUserState = ICurrentUser | null;
@@ -24,5 +25,5 @@ export const INITIAL_CURRENT_USER: CurrentUserState = null;
  * @returns true si l'utilisateur est valide, false sinon
  */
 export function isValidUser(user: CurrentUserState): user is ICurrentUser {
-  return user !== null && typeof user.id === 'number' && user.id > 0;
+  return user !== null && typeof user.id === 'string' && user.id.length > 0;
 }

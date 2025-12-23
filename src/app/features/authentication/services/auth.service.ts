@@ -1,10 +1,11 @@
 import { HttpClient, HttpResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { ILoginRequest, IResetPasswordConfirmRequest } from '@app/models';
-import { ICurrentUser, IJwtTokens } from '@app/models';
+import { ICurrentUser, IJwtTokens, ILoginResponse } from '@app/models';
 import { Observable } from 'rxjs/internal/Observable';
 import { Router } from '@angular/router';
-import { API_URL, LOGIN_API_URL } from '@app/config';
+import { API_URL, LOGIN_API_URL, ME_API_URL, REFRESH_TOKEN_API_URL } from '@app/config';
+import { map } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root',
@@ -16,10 +17,10 @@ export class AuthService {
   /**
    * connecter l'utilisateur
    * @param {ILoginRequest} data
-   * @return {IJwtTokens}
+   * @return {ILoginResponse} - Contient accessToken, refreshToken et user partiel
    */
-  login(data: ILoginRequest): Observable<IJwtTokens> {
-    return this.#http.post<IJwtTokens>(`${LOGIN_API_URL}`, data);
+  login(data: ILoginRequest): Observable<ILoginResponse> {
+    return this.#http.post<ILoginResponse>(`${LOGIN_API_URL}`, data)
   }
 
   /**
@@ -27,7 +28,7 @@ export class AuthService {
    * @return Observable<ICurrentUser>
    */
   getCurrentUser(): Observable<ICurrentUser> {
-    return this.#http.get<ICurrentUser>(`${API_URL}/me`);
+    return this.#http.get<ICurrentUser>(`${ME_API_URL}`);
   }
 
   /**
@@ -65,13 +66,13 @@ export class AuthService {
 
   /**
    * récuperer un nouveau accessToken à l'aide du refreshToken
-   * @param refresh_token
+   * @param refreshToken
    * @return Observable<IJwtTokens>
    */
-  refreshToken(refresh_token: string): Observable<IJwtTokens> {
-    return this.#http.post<IJwtTokens>(`${API_URL}/refresh_token`, {
-      refresh_token,
-    });
+  refreshToken(refreshToken: string): Observable<IJwtTokens> {
+    return this.#http.post<{ status: number; message: string; data: IJwtTokens }>(`${REFRESH_TOKEN_API_URL}`, {
+      refreshToken,
+    }).pipe(map((response) => response.data));
   }
 
   /**

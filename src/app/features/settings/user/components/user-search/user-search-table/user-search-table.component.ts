@@ -27,14 +27,13 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MatIconButton } from '@angular/material/button';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatIcon } from '@angular/material/icon';
-import { NoDataSearchComponent, StatusIllustrationComponent } from '@app/components';
+import { NoDataSearchComponent, StatusIllustrationComponent, ConfirmationPopupComponent } from '@app/components';
 import { MatDialog } from '@angular/material/dialog';
 import { filter, tap } from 'rxjs/operators';
-import { ConfirmationPopupComponent } from '../../../../../../shared/components/confirmation-popup/confirmation-popup.component';
-import { GetElementFromResourcePipe } from '../../../../../../shared/pipes/get-element-from-resource.pipe';
 import { ResponsiveTableDirective } from '@app/directives';
-import { ICenter, IRole } from '@app/models';
+import { IRole } from '@app/models';
 import { WrapFnPipe } from '@app/pipes';
+import { AuthStore } from '@app/core/store';
 
 @Component({
   selector: 'app-user-search-table',
@@ -68,6 +67,7 @@ import { WrapFnPipe } from '@app/pipes';
 })
 export class UserSearchTableComponent {
   #userStore = inject(UserStore);
+  #authStore = inject(AuthStore);
   route = inject(ActivatedRoute);
   #dialog = inject(MatDialog);
   #translate = inject(TranslateService);
@@ -85,8 +85,8 @@ export class UserSearchTableComponent {
     'action',
   ]).asReadonly();
   showPaginator = computed<boolean>(() => this.users()?.meta.total > MIN_PAGE_SIZE_OPTIONS);
-  // TO DO: replace with current center of the store when multi-center management is implemented
-  currentCenter = signal<ICenter>({ id: 5905 } as ICenter);
+  // Utilise le currentCenter du AuthStore
+  currentCenter = this.#authStore.currentCenter;
 
   /**
    * pagination
@@ -130,10 +130,11 @@ export class UserSearchTableComponent {
 
   getUserRoleOfCurrentCenter(
     roles: IRole[],
-    centers: { id: number; role_id: number }[],
-    currentCenterId: number
+    centers: { id: string | number; role_id: number }[],
+    currentCenterId: string | number | null | undefined
   ): string {
-    const roleId = centers.find(({ id }) => id === currentCenterId)?.role_id;
+    if (!currentCenterId) return '';
+    const roleId = centers.find(({ id }) => String(id) === String(currentCenterId))?.role_id;
     return roles.find(({ id }) => id === roleId)?.name || '';
   }
 }

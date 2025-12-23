@@ -14,8 +14,8 @@ interface SettingsState {
 const initialState: SettingsState = {
   language: 'fr',
   theme: 'default',
-  logo: null,
-  smallLogo: null,
+  logo: 'logos/autosur-logo-transparent.png', // Logo par défaut
+  smallLogo: 'logos/autosur-logo-transparent-small.png', // Logo petit par défaut pour sidebar
   backgrounds: ['background/auth-bg-1.jpg', 'background/auth-bg-2.jpg'],
 };
 
@@ -68,9 +68,16 @@ export const SettingsStore = signalStore(
       const stored = persistenceService.get<SettingsState>('SETTINGS');
 
       if (stored) {
-        patchState(store, stored);
-        store.setTheme(stored.theme);
-        store.setLanguage(stored.language);
+        // Migration : remplacer les logos null/undefined par les valeurs par défaut
+        const migratedSettings: SettingsState = {
+          ...stored,
+          logo: stored.logo ?? initialState.logo,
+          smallLogo: stored.smallLogo ?? initialState.smallLogo,
+        };
+
+        patchState(store, migratedSettings);
+        store.setTheme(migratedSettings.theme);
+        store.setLanguage(migratedSettings.language);
       } else {
         translate.use(store.language());
       }

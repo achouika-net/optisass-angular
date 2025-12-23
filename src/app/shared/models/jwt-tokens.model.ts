@@ -1,6 +1,6 @@
 export interface IJwtTokens {
-  token: string;
-  refresh_token: string;
+  accessToken: string;
+  refreshToken: string;
 }
 
 export type JwtTokensState = IJwtTokens | null;
@@ -15,9 +15,9 @@ export const INITIAL_JWT_TOKENS: JwtTokensState = null;
 export function isValidTokens(tokens: JwtTokensState): tokens is IJwtTokens {
   return (
     tokens !== null &&
-    typeof tokens.token === 'string' &&
-    tokens.token.length > 0 &&
-    typeof tokens.refresh_token === 'string' &&
-    tokens.refresh_token.length > 0
+    typeof tokens.accessToken === 'string' &&
+    tokens.accessToken.length > 0 &&
+    typeof tokens.refreshToken === 'string' &&
+    tokens.refreshToken.length > 0
   );
 }
