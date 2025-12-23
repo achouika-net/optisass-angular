@@ -184,6 +184,8 @@ export class FacturesService implements OnModuleInit {
                         quantite: moveQty,
                         produitId: product.id,
                         entrepotSourceId: product.entrepotId,
+                        factureId: fullInvoice.id,
+                        prixVenteUnitaire: fullInvoice.type === 'AVOIR' ? undefined : line.prixUnitaireTTC,
                         motif: `${fullInvoice.type} ${fullInvoice.numero} (${fullInvoice.statut})`,
                         utilisateur: 'System'
                     }
@@ -285,6 +287,7 @@ export class FacturesService implements OnModuleInit {
                     data: {
                         produitId: line.productId,
                         entrepotSourceId: line.entrepotId, // Correct field name
+                        factureId: invoice.id,
                         type: 'AJUSTEMENT',
                         quantite: 1,
                         motif: `Annulation vente ${invoice.numero} - Transfert annulé`,
@@ -701,6 +704,7 @@ export class FacturesService implements OnModuleInit {
                                     quantite: item.quantiteRetour,
                                     produitId: defProduct.id,
                                     entrepotDestinationId: defectiveWarehouse.id,
+                                    factureId: original.id,
                                     motif: `Retour Défectueux ${original.numero}`,
                                     utilisateur: 'System'
                                 }
@@ -718,6 +722,7 @@ export class FacturesService implements OnModuleInit {
                                     quantite: item.quantiteRetour,
                                     produitId: line.productId,
                                     entrepotDestinationId: line.entrepotId,
+                                    factureId: original.id,
                                     motif: `Retour Standard ${original.numero}`,
                                     utilisateur: 'System'
                                 }
