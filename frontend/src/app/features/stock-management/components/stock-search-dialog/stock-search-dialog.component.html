@@ -42,7 +42,7 @@
                 <span style="font-size: 0.9em;">
                     {{ getSenderCenterName() ? 'Affichage des produits du centre distant sélectionné.' : 'Affichage des
                     produits disponibles dans les autres centres.' }}
-                    Un transfert est recommandé pour réserver ce produit.
+                    Le système créera automatiquement les fiches locales si elles n'existent pas encore.
                 </span>
             </div>
         </div>
@@ -53,6 +53,22 @@
             </div>
 
             <table mat-table [dataSource]="filteredProducts" *ngIf="!loading && filteredProducts.length > 0">
+
+                <!-- Checkbox Column -->
+                <ng-container matColumnDef="select">
+                    <th mat-header-cell *matHeaderCellDef>
+                        <mat-checkbox (change)="$event ? masterToggle() : null"
+                            [checked]="selection.hasValue() && isAllSelected()"
+                            [indeterminate]="selection.hasValue() && !isAllSelected()" [aria-label]="checkboxLabel()">
+                        </mat-checkbox>
+                    </th>
+                    <td mat-cell *matCellDef="let row">
+                        <mat-checkbox (click)="$event.stopPropagation()"
+                            (change)="$event ? selection.toggle(row) : null" [checked]="selection.isSelected(row)"
+                            [aria-label]="checkboxLabel(row)">
+                        </mat-checkbox>
+                    </td>
+                </ng-container>
 
                 <!-- Photo Column -->
                 <ng-container matColumnDef="photo">
@@ -192,6 +208,12 @@
             </div>
         </div>
     </mat-dialog-content>
-    <mat-dialog-actions align="end">
-        <button mat-button mat-dialog-close>Fermer</button>
+    <mat-dialog-actions align="end" class="gap-2">
+        <button mat-button (click)="dialogRef.close()">Fermer</button>
+        <button mat-raised-button color="primary" [disabled]="selection.selected.length === 0"
+            (click)="requestBulkTransfer()">
+            <mat-icon>swap_horiz</mat-icon>
+            Transférer la sélection ({{ selection.selected.length }})
+        </button>
     </mat-dialog-actions>
+</div>

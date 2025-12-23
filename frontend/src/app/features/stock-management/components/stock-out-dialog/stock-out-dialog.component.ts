@@ -61,29 +61,12 @@ import { Centre, Entrepot } from '../../../../shared/interfaces/warehouse.interf
             <mat-select formControlName="typeSortie">
               <mat-option value="AJUSTEMENT">Ajustement d'inventaire</mat-option>
               <mat-option value="CASSE">Casse / Produit défectueux</mat-option>
-              <mat-option value="TRANSFERT">Transfert (autre centre/dépôt)</mat-option>
               <mat-option value="RETOUR_FOURNISSEUR">Retour fournisseur</mat-option>
               <mat-option value="AUTRE">Autre motif</mat-option>
             </mat-select>
           </mat-form-field>
         </div>
 
-        <!-- Row 2: Transfer Destination (Conditional) -->
-        <div *ngIf="form.get('typeSortie')?.value === 'TRANSFERT'" class="grid grid-cols-2 gap-4 w-full p-4 bg-gray-50 rounded border border-gray-200">
-           <mat-form-field appearance="outline" class="w-full">
-             <mat-label>Centre de destination</mat-label>
-             <mat-select formControlName="targetCentreId" (selectionChange)="onCentreChange($event.value)">
-               <mat-option *ngFor="let c of centres" [value]="c.id">{{ c.nom }}</mat-option>
-             </mat-select>
-           </mat-form-field>
-
-           <mat-form-field appearance="outline" class="w-full">
-             <mat-label>Entrepôt de destination</mat-label>
-             <mat-select formControlName="destinationEntrepotId">
-               <mat-option *ngFor="let e of targetWarehouses" [value]="e.id">{{ e.nom }}</mat-option>
-             </mat-select>
-           </mat-form-field>
-        </div>
 
         <!-- Row 3: Motif / Justification -->
         <mat-form-field appearance="outline" class="w-full">
@@ -141,18 +124,9 @@ export class StockOutDialogComponent implements OnInit {
 
     // Handle Type change logic
     this.form.get('typeSortie')?.valueChanges.subscribe(value => {
-      const centreCtrl = this.form.get('targetCentreId');
       const warehouseCtrl = this.form.get('destinationEntrepotId');
 
-      if (value === 'TRANSFERT') {
-        centreCtrl?.setValidators([Validators.required]);
-        warehouseCtrl?.setValidators([Validators.required]);
-        // Reset if it was set for CASSE
-        if (warehouseCtrl?.value && !centreCtrl?.value) {
-          warehouseCtrl.setValue(null);
-        }
-      } else if (value === 'CASSE') {
-        // Automatically set to defective warehouse of current center
+      if (value === 'CASSE') {
         const centreId = this.data.product.entrepot?.centreId;
         if (centreId) {
           this.warehousesService.findAll(centreId).subscribe((warehouses: Entrepot[]) => {
@@ -166,16 +140,9 @@ export class StockOutDialogComponent implements OnInit {
             }
           });
         }
-        centreCtrl?.clearValidators();
-        warehouseCtrl?.clearValidators();
       } else {
-        centreCtrl?.clearValidators();
-        warehouseCtrl?.clearValidators();
-        centreCtrl?.setValue(null);
         warehouseCtrl?.setValue(null);
       }
-      centreCtrl?.updateValueAndValidity();
-      warehouseCtrl?.updateValueAndValidity();
     });
   }
 
@@ -208,7 +175,7 @@ export class StockOutDialogComponent implements OnInit {
       this.dialogRef.close({
         quantite: val.quantite,
         motif: finalMotif,
-        destinationEntrepotId: (val.typeSortie === 'TRANSFERT' || val.typeSortie === 'CASSE') ? val.destinationEntrepotId : null
+        destinationEntrepotId: val.typeSortie === 'CASSE' ? val.destinationEntrepotId : null
       });
     }
   }
