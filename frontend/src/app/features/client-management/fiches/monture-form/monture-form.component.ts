@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Observable, of, BehaviorSubject, firstValueFrom } from 'rxjs';
 import { FormBuilder, FormGroup, AbstractControl, ReactiveFormsModule, Validators, FormArray, FormControl } from '@angular/forms';
@@ -24,13 +24,13 @@ import { FicheMontureCreate, TypeFiche, StatutFiche, TypeEquipement, SuggestionI
 import { FactureService, Facture } from '../../services/facture.service';
 import { FactureFormComponent } from '../../factures/facture-form/facture-form.component';
 import { PaymentListComponent } from '../../payments/payment-list/payment-list.component';
-import { map, switchMap, tap, catchError, take } from 'rxjs/operators';
+import { map, switchMap, tap, catchError, take, takeUntil } from 'rxjs/operators';
 import { getLensSuggestion, Correction, FrameData, calculateLensPrice, determineLensType } from '../../utils/lensLogic';
 import { getLensMaterials, getLensIndices } from '../../utils/lensDatabase';
 import { StockSearchDialogComponent } from '../../../stock-management/components/stock-search-dialog/stock-search-dialog.component';
 import { ProductService } from '../../../stock-management/services/product.service';
 import { Product, ProductStatus } from '../../../../shared/interfaces/product.interface';
-import { forkJoin } from 'rxjs';
+import { forkJoin, timer, Subject } from 'rxjs';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
 
@@ -75,7 +75,7 @@ interface PrescriptionFile {
     styleUrls: ['./monture-form.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class MontureFormComponent implements OnInit {
+export class MontureFormComponent implements OnInit, OnDestroy {
     @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
     @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
     @ViewChild('canvasElement') canvasElement!: ElementRef<HTMLCanvasElement>;
@@ -166,6 +166,8 @@ export class MontureFormComponent implements OnInit {
     clientFactures$: Observable<Facture[]> | null = null;
     private linkedFactureSubject = new BehaviorSubject<Facture | null>(null);
     linkedFacture$ = this.linkedFactureSubject.asObservable();
+
+    private destroy$ = new Subject<void>();
 
     get isSaleEnInstance(): boolean {
         return this.linkedFactureSubject.value?.statut === 'VENTE_EN_INSTANCE';
@@ -319,6 +321,21 @@ export class MontureFormComponent implements OnInit {
                 this.checkReceptionForInstance(this.currentFiche);
             }
         });
+
+        // POLLING: Check reception status every 5 seconds if waiting
+        timer(5000, 5000).pipe(
+            takeUntil(this.destroy$)
+        ).subscribe(() => {
+            if ((this.isReserved || this.isTransit) && !this.receptionComplete && this.currentFiche) {
+                console.log('🔄 [POLLING] Checking reception status...');
+                this.checkReceptionForInstance(this.currentFiche);
+            }
+        });
+    }
+
+    ngOnDestroy(): void {
+        this.destroy$.next();
+        this.destroy$.complete();
     }
 
     // New: Check if products in an INSTANCE sale are now received OR if transfer was cancelled
