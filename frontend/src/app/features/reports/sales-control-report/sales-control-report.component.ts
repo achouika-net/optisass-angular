@@ -453,7 +453,12 @@ export class SalesControlReportComponent implements OnInit {
             dialogRef.afterClosed().subscribe(result => {
                 if (result) {
                     this.loading = true;
-                    this.factureService.exchangeInvoice(invoice.id, result.items).subscribe({
+                    const itemsWithReason = result.items.map((it: any) => ({
+                        ...it,
+                        reason: result.reason
+                    }));
+
+                    this.factureService.exchangeInvoice(invoice.id, itemsWithReason).subscribe({
                         next: (res) => {
                             this.snackBar.open(`Échange effectué : Avoir ${res.avoir.numero} et Facture ${res.newFacture.numero} créés`, 'OK', {
                                 duration: 5000

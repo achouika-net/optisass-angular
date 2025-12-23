@@ -19,7 +19,7 @@
     </div>
 
     <!-- Statistics Cards -->
-    <div class="stats-grid grid grid-cols-4 gap-4 mb-6">
+    <div class="stats-grid mb-6">
         <mat-card class="stat-card stat-card-orange">
             <mat-card-content>
                 <div class="stat-value">{{ stats.totalProduits }}</div>
@@ -28,8 +28,14 @@
         </mat-card>
         <mat-card class="stat-card stat-card-green">
             <mat-card-content>
-                <div class="stat-value">{{ stats.valeurStockTotal | number:'1.2-2' }} DH</div>
+                <div class="stat-value">{{ stats.valeurStockTotal | number:'1.2-2' }}</div>
                 <div class="stat-label">Valeur du stock</div>
+            </mat-card-content>
+        </mat-card>
+        <mat-card class="stat-card stat-card-purple">
+            <mat-card-content>
+                <div class="stat-value">{{ stats.caNonConsolide | number:'1.2-2' }}</div>
+                <div class="stat-label">CA Non Consolidé</div>
             </mat-card-content>
         </mat-card>
         <mat-card class="stat-card stat-card-yellow">
@@ -212,8 +218,12 @@
                                     <span>Modifier</span>
                                 </button>
                                 <button mat-menu-item (click)="openStockEntryDialog(row)">
-                                    <mat-icon style="color: #10b981;">add_shopping_cart</mat-icon>
-                                    <span>Entrée en stock</span>
+                                    <mat-icon color="primary">add_shopping_cart</mat-icon>
+                                    <span>Entrée de stock</span>
+                                </button>
+                                <button mat-menu-item (click)="openStockOutDialog(row)">
+                                    <mat-icon color="warn">remove_shopping_cart</mat-icon>
+                                    <span>Sortie de stock</span>
                                 </button>
                                 <button mat-menu-item (click)="openHistoryDialog(row)">
                                     <mat-icon color="primary">history</mat-icon>

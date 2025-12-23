@@ -180,8 +180,13 @@ export class FactureListComponent implements OnInit {
 
             dialogRef.afterClosed().subscribe(result => {
                 if (result) {
+                    const itemsWithReason = result.items.map((it: any) => ({
+                        ...it,
+                        reason: result.reason
+                    }));
+
                     // result contains: { reason: string, items: [...] }
-                    this.factureService.exchangeInvoice(facture.id, result.items).subscribe({
+                    this.factureService.exchangeInvoice(facture.id, itemsWithReason).subscribe({
                         next: (response) => {
                             this.snackBar.open(
                                 `Échange effectué. Avoir: ${response.avoir.numero}, Nouvelle facture: ${response.newInvoice.numero}`,

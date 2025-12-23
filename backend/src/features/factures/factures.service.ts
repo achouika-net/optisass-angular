@@ -879,15 +879,22 @@ export class FacturesService implements OnModuleInit {
 
     private async getOrCreateDefectiveWarehouse(tx: any, centreId: string) {
         let warehouse = await tx.entrepot.findFirst({
-            where: { centreId, nom: 'DÉFECTUEUX' }
+            where: {
+                centreId,
+                OR: [
+                    { nom: { equals: 'Entrepot Défectueux', mode: 'insensitive' } },
+                    { nom: { equals: 'DÉFECTUEUX', mode: 'insensitive' } },
+                    { nom: { contains: 'défectueux', mode: 'insensitive' } }
+                ]
+            }
         });
 
         if (!warehouse) {
             warehouse = await tx.entrepot.create({
                 data: {
-                    nom: 'DÉFECTUEUX',
+                    nom: 'Entrepot Défectueux',
                     type: 'TRANSIT',
-                    description: 'Entrepôt pour les retours défectueux (Echange/Avoir)',
+                    description: 'Entrepôt pour les retours défectueux et sorties de stock non consolidées',
                     centreId: centreId
                 }
             });

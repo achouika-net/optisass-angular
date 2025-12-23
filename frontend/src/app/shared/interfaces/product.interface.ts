@@ -414,6 +414,7 @@ export interface ProductFilters {
 export interface StockStats {
     totalProduits: number;
     valeurStockTotal: number;
+    caNonConsolide: number;
     produitsStockBas: number;
     produitsRupture: number;
     produitsReserves: number;

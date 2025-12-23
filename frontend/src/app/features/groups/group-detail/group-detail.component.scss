@@ -12,6 +12,17 @@ mat-card-header {
 
 .header-actions {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.back-button {
+    color: #666;
+
+    &:hover {
+        color: #3f51b5;
+    }
 }
 
 .group-info-card {

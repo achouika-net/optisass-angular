@@ -3,13 +3,14 @@
     <mat-card class="warehouse-info-card">
         <mat-card-header>
             <mat-card-title>
-                <div class="title-row">
-                    <h2>{{ entrepot.nom }}</h2>
-                    <button mat-icon-button (click)="goBack()" matTooltip="Retour au centre">
-                        <mat-icon>arrow_back</mat-icon>
-                    </button>
-                </div>
+                <h2>{{ entrepot.nom }}</h2>
             </mat-card-title>
+            <div class="header-actions">
+                <button mat-button (click)="goBack()" class="back-button">
+                    <mat-icon>arrow_back</mat-icon>
+                    <span>Retour</span>
+                </button>
+            </div>
             <mat-card-subtitle>
                 <span class="badge" [ngClass]="entrepot.type?.toLowerCase()">{{ entrepot.type }}</span>
             </mat-card-subtitle>

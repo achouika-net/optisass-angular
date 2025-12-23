@@ -67,4 +67,9 @@ export class ProductsController {
         return this.productsService.restock(id, body.quantite, body.motif, body.utilisateur, body.prixAchatHT, body.remiseFournisseur);
     }
 
+    @Post(':id/destock')
+    destock(@Param('id') id: string, @Body() body: { quantite: number; motif: string; destinationEntrepotId?: string; utilisateur?: string }) {
+        return this.productsService.destock(id, body.quantite, body.motif, body.destinationEntrepotId, body.utilisateur);
+    }
+
 }
