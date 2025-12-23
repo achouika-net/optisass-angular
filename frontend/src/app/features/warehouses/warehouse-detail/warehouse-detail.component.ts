@@ -68,8 +68,10 @@ export class WarehouseDetailComponent implements OnInit {
         this.loading = true;
         this.warehousesService.findOne(id).subscribe({
             next: (data) => {
+                console.log('📦 [WarehouseDetail] Data received:', data);
                 this.entrepot = data;
                 this.allProducts = data.produits || [];
+                console.log('📦 [WarehouseDetail] Products loaded:', this.allProducts.length);
                 this.applyFilter(); // Initial filter apply (show all)
                 this.loading = false;
                 this.cdr.detectChanges();
