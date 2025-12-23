@@ -95,7 +95,7 @@
           <mat-select [field]="centerRolefield.center_id">
             @for (center of centers(); track center.id) {
             <mat-option [value]="center.id">
-              {{ center.numero_affaire }} - {{ center.name }}
+              {{ center.name }}
             </mat-option>
             }
           </mat-select>

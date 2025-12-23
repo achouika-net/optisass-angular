@@ -10,5 +10,5 @@ export const REFRESH_TOKEN_API_URL = `${API_URL}/client/auth/refresh`;
 // Other endpoints
 export const CLIENTS_API_URL = `${API_URL}/clients`;
 export const ROLES_API_URL = `${API_URL}/roles`;
-export const USERS_API_URL = `${API_URL}/users`;
+export const USERS_API_URL = `${API_URL}/client/users`;
 export const API_ADDRESS_URL = `${API_URL}/adresse`;
