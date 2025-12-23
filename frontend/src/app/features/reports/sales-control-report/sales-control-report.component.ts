@@ -267,6 +267,11 @@ export class SalesControlReportComponent implements OnInit {
         const sumInvoices = (groups: MonthlyGroup[]) => {
             groups.forEach(g => {
                 g.invoices.forEach(inv => {
+                    // Exclude cancelled invoices from calculations
+                    if (inv.statut === 'ANNULEE') {
+                        return;
+                    }
+
                     if (this.isInvoiceVisible(inv)) {
                         this.metrics.totalCA += (inv.totalTTC || 0);
                         const paid = inv.paiements ? inv.paiements.reduce((sum, p) => sum + p.montant, 0) : 0;
