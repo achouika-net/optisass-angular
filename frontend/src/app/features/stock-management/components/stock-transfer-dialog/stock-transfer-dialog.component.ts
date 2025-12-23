@@ -12,6 +12,9 @@ import { Entrepot } from '../../../../shared/interfaces/warehouse.interface';
 import { Product } from '../../../../shared/interfaces/product.interface';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
+import { CentersService } from '../../../centers/services/centers.service';
+import { ProductService } from '../../services/product.service';
+import { switchMap } from 'rxjs';
 
 @Component({
     selector: 'app-stock-transfer-dialog',
@@ -42,10 +45,20 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
                 <!-- SENDER -->
                 <div class="center-box sender">
                     <div class="label"><mat-icon inline>outbound</mat-icon> Expéditeur (Source)</div>
-                    <div class="center-name">{{ data.product.entrepot?.centre?.nom || 'Centre distant' }}</div>
                     
                     <form [formGroup]="form" class="transfer-form">
+                        <!-- Sender Center Selection -->
                         <mat-form-field appearance="outline" class="full-width mt-2">
+                             <mat-label>Centre Source</mat-label>
+                             <mat-select formControlName="sourceCenterId" (selectionChange)="onCenterChange($event.value)">
+                                 <mat-option *ngFor="let c of centers" [value]="c.id">
+                                     {{ c.nom }}
+                                 </mat-option>
+                             </mat-select>
+                        </mat-form-field>
+
+                        <!-- Sender Warehouse Selection -->
+                        <mat-form-field appearance="outline" class="full-width mt-1">
                             <mat-label>Entrepôt d'origine</mat-label>
                             <mat-select formControlName="sourceWarehouseId" (selectionChange)="onSourceChange($event.value)">
                                 <mat-option *ngFor="let w of senderWarehouses" [value]="w.id">
@@ -53,6 +66,13 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
                                 </mat-option>
                             </mat-select>
                         </mat-form-field>
+
+                        <div *ngIf="productLookupLoading" class="text-xs text-blue-500 animate-pulse mt-1">
+                            Recherche du produit dans l'entrepôt source...
+                        </div>
+                         <div *ngIf="!form.get('productId')?.value && !productLookupLoading && form.get('sourceWarehouseId')?.value" class="text-xs text-red-500 mt-1">
+                            Ce produit n'est pas disponible dans l'entrepôt sélectionné.
+                        </div>
                     </form>
                 </div>
 
@@ -90,7 +110,7 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
         </mat-dialog-content>
         <mat-dialog-actions align="end">
             <button mat-button (click)="cancel()">Annuler</button>
-            <button mat-raised-button color="primary" (click)="confirm()" [disabled]="form.invalid || loading">
+            <button mat-raised-button color="primary" (click)="confirm()" [disabled]="form.invalid || loading || productLookupLoading">
                 Confirmer le transfert
             </button>
         </mat-dialog-actions>
@@ -109,39 +129,63 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
 })
 export class StockTransferDialogComponent implements OnInit {
     form: FormGroup;
+    centers: any[] = [];
     senderWarehouses: Entrepot[] = [];
     targetWarehouse: Entrepot | undefined;
     sourceWarehouseType: string = '';
     currentCenter: any;
     loading = false;
+    productLookupLoading = false;
 
     constructor(
         public dialogRef: MatDialogRef<StockTransferDialogComponent>,
         @Inject(MAT_DIALOG_DATA) public data: { product: any, allProducts: any[], localWarehouses: any[] },
         private fb: FormBuilder,
         private warehousesService: WarehousesService,
+        private centersService: CentersService,
+        private productService: ProductService,
         private store: Store
     ) {
         this.currentCenter = this.store.selectSignal(UserCurrentCentreSelector)();
         this.form = this.fb.group({
-            sourceWarehouseId: [this.data.product.entrepotId, Validators.required],
+            sourceCenterId: [this.data.product.entrepot?.centreId || '', Validators.required],
+            sourceWarehouseId: [this.data.product.entrepotId, Validators.required], // Default to current if valid
             targetWarehouseId: ['', Validators.required],
             productId: [this.data.product.id, Validators.required]
         });
     }
 
     ngOnInit(): void {
-        this.loadSenderWarehouses();
+        this.loadCenters();
+        // Initial setup based on passed product's center
+        this.loadSenderWarehouses(this.data.product.entrepot?.centreId);
+        // We trigger onSourceChange to setup target calculation, BUT we skip product lookup loop if it's the same ID
+        // Actually, onSourceChange logic relies on "sourceWarehouseId" change
+        // We manually call it to sync state
         this.onSourceChange(this.data.product.entrepotId);
     }
 
-    loadSenderWarehouses(): void {
-        const senderCenterId = this.data.product.entrepot?.centreId;
-        if (!senderCenterId) return;
+    loadCenters(): void {
+        this.centersService.findAll().subscribe(centers => {
+            this.centers = centers;
+        });
+    }
+
+    onCenterChange(centreId: string): void {
+        this.form.patchValue({ sourceWarehouseId: '' }); // Reset warehouse
+        this.loadSenderWarehouses(centreId);
+    }
+
+    loadSenderWarehouses(centreId: string): void {
+        if (!centreId) return;
 
         this.loading = true;
-        this.warehousesService.findAll(senderCenterId).subscribe({
+        this.warehousesService.findAll(centreId).subscribe({
             next: (warehouses) => {
+                // Filter out warehouses if they match the TARGET warehouse logic
+                // But target is not fully determined yet.
+                // At minimum, we should filter out the target if it is exactly the same warehouse instance?
+                // But for now, we leave it, and validation logic handles self-transfer blocking.
                 this.senderWarehouses = warehouses;
                 this.loading = false;
             },
@@ -153,8 +197,12 @@ export class StockTransferDialogComponent implements OnInit {
     }
 
     onSourceChange(warehouseId: string): void {
-        const sourceWh = this.senderWarehouses.find(w => w.id === warehouseId) || this.data.product.entrepot;
-        if (!sourceWh) return;
+        const sourceWh = this.senderWarehouses.find(w => w.id === warehouseId) || (warehouseId === this.data.product.entrepotId ? this.data.product.entrepot : null);
+
+        if (!sourceWh) {
+            // Maybe warehouses list is not yet loaded or mismatch.
+            return;
+        }
 
         this.sourceWarehouseType = sourceWh.type;
 
@@ -173,32 +221,44 @@ export class StockTransferDialogComponent implements OnInit {
         }
 
         // 2. Find systematic product ID in the new source warehouse
-        // We look for same designation AND same internal code in that warehouse
-        const matchingProduct = this.data.allProducts.find(p =>
+        // First, check local cache (if we selected the center we came from or if data.allProducts has it)
+        let matchingProduct = this.data.allProducts.find(p =>
             p.entrepotId === warehouseId &&
-            p.designation === this.data.product.designation &&
             p.codeInterne === this.data.product.codeInterne
         );
 
         if (matchingProduct) {
+            this.setMatchingProduct(matchingProduct);
+        } else {
+            // Need to fetch from backend
+            this.productLookupLoading = true;
+            this.form.patchValue({ productId: '' }); // Clear while loading
+
+            this.productService.findAll({ entrepotId: warehouseId }).subscribe({
+                next: (products) => {
+                    matchingProduct = products.find(p => p.codeInterne === this.data.product.codeInterne);
+                    this.setMatchingProduct(matchingProduct);
+                    this.productLookupLoading = false;
+                },
+                error: (err) => {
+                    console.error('Error fetching remote products', err);
+                    this.productLookupLoading = false;
+                }
+            });
+        }
+    }
+
+    setMatchingProduct(product: any): void {
+        if (product) {
             // Check for self-transfer
-            if (matchingProduct.id === this.data.product.id) {
-                this.form.get('productId')?.setValue(null); // Clear value to invalid form
+            if (product.id === this.data.product.id) {
+                this.form.get('productId')?.setValue(null);
                 this.form.get('productId')?.setErrors({ selfTransfer: true });
             } else {
-                this.form.patchValue({ productId: matchingProduct.id });
+                this.form.patchValue({ productId: product.id });
                 this.form.get('productId')?.setErrors(null);
             }
         } else {
-            // If we don't find it (maybe not available in that warehouse), 
-            // the form stays invalid for the submit button as productId is required but we might have wrong one
-            // However, if it's the original one, it's fine ONLY if we are not transferring to self (which is handled above really)
-            // But wait, if matchingProduct is not found via find(), but we ARE at the source...
-
-            // Logic rewrite:
-            // If warehouseId == data.product.entrepotId, then matchingProduct SHOULD be found (it's data.product).
-            // So the above check covers it.
-
             this.form.patchValue({ productId: '' });
         }
     }
