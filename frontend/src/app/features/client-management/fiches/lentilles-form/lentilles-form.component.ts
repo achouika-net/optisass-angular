@@ -421,6 +421,19 @@ export class LentillesFormComponent implements OnInit {
             return;
         }
 
+        // [FIX] Check if invoice is already validated - skip prompt if already VALIDE
+        try {
+            const factures = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId || '' }));
+            const currentFacture = factures.find(f => f.ficheId === this.ficheId);
+
+            if (currentFacture && (currentFacture.statut === 'VALIDE' || currentFacture.type === 'FACTURE')) {
+                console.log('✅ Invoice already validated. Skipping validation prompt.');
+                return;
+            }
+        } catch (e) {
+            console.error('Error checking invoice status:', e);
+        }
+
         const warehouses = [...new Set(productsWithStock.map(p => p.entrepotNom || p.entrepotType))].join(' / ');
         const message = `Vente effectuée depuis l'entrepôt : ${warehouses}.\n\nSouhaitez-vous VALIDER la vente ou la LAISSER EN INSTANCE ?`;
 
