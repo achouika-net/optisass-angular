@@ -123,16 +123,14 @@ export class ProductsService {
         const where: any = {};
 
         if (!centreId && !entrepotId && !globalSearch) return []; // Isolation
-        if (entrepotId) where.entrepotId = entrepotId;
+        if (entrepotId) {
+            where.entrepotId = entrepotId;
+        } else if (!globalSearch && centreId) {
+            where.entrepot = { centreId };
+        }
 
-        // Only apply centre scope if NOT a global search
-        // For performance, we still want to limit but we must include items targeting this centre
-        // Since Prisma OR with JSON path is tricky, we fetch items from current centre OR all reserved/in-transit
-        // and filter in memory.
         const products = await this.prisma.product.findMany({
-            where: globalSearch ? {} : {
-                entrepot: { centreId }
-            },
+            where,
             orderBy: { createdAt: 'desc' },
             include: {
                 entrepot: {
@@ -287,6 +285,8 @@ export class ProductsService {
         if (sourceProductId === targetProductId) throw new Error('Impossible de transférer un produit vers lui-même (Source = Destination).');
         if (sourceProduct.quantiteActuelle < quantite) throw new Error('Stock insuffisant à la source');
 
+        console.log(`[TRANSFER] Init from ${sourceProduct.entrepot?.centre?.nom} (${sourceProductId}) to ${targetProduct.entrepot?.centre?.nom} (${targetProductId}) Qty: ${quantite}`);
+
         const targetSpecificData = (targetProduct.specificData as any) || {};
         const updatedTargetData = {
             ...targetSpecificData,
@@ -388,13 +388,17 @@ export class ProductsService {
 
         if (!sourceProductId) throw new Error('Informations de source manquantes');
 
+        const quantiteARendre = targetSd.pendingIncoming?.quantite || 1;
         const { pendingIncoming: _, ...cleanedTargetSd } = targetSd;
 
         return this.prisma.$transaction(async (tx) => {
-            // Return 1 unit to source
+            // Return N units to source
             await tx.product.update({
                 where: { id: sourceProductId },
-                data: { quantiteActuelle: { increment: 1 } }
+                data: {
+                    quantiteActuelle: { increment: quantiteARendre },
+                    statut: 'DISPONIBLE' // Assuming stock becomes > 0, or at least not reserved. Ideally check.
+                }
             });
 
             // Clean source metadata
@@ -410,10 +414,21 @@ export class ProductsService {
                 }
             }
 
-            // Clear target metadata
+            // Clear target metadata and reset status
+            // We need to check current stock to decide status?
+            // Since we are un-reserving, and assuming we didn't add stock yet (since it wasn't received).
+            // If stock is 0, it should be RUPTURE. If stock > 0, DISPONIBLE.
+            // But we can't easily check stock inside update without fetch.
+            // So let's fetch first? Or blindly set based on fetching targetProduct before.
+
+            const newStatus = targetProduct.quantiteActuelle > 0 ? 'DISPONIBLE' : 'RUPTURE';
+
             return tx.product.update({
                 where: { id: targetProductId },
-                data: { specificData: cleanedTargetSd }
+                data: {
+                    specificData: cleanedTargetSd,
+                    statut: newStatus
+                }
             });
         });
     }

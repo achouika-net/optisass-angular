@@ -68,7 +68,7 @@ export class WarehousesService {
             where: {
                 statut: 'RESERVE',
                 specificData: {
-                    path: ['pendingTransfer', 'targetWarehouseId'],
+                    path: ['pendingIncoming', 'targetWarehouseId'],
                     equals: id
                 }
             }
