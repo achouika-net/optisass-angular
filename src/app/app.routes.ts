@@ -1,9 +1,11 @@
 import { Routes } from '@angular/router';
 import { AuthGuard } from './core/guards/auth.guard';
+import { UnAuthGuard } from './core/guards/unAuth.guard';
 
 export const routes: Routes = [
   {
     path: '',
+    canActivate: [UnAuthGuard],
     loadComponent: () => import('./layout/public-layout/public-layout.component'),
     children: [
       {

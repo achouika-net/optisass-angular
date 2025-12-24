@@ -246,6 +246,12 @@ export const AuthStore = signalStore(
           user: stored.user,
           currentCenter: stored.currentCenter,
         });
+
+        // Si on a un token en localStorage, appeler /me pour vérifier/rafraîchir la session
+        // Cela couvre le cas du refresh de page ou du redémarrage de l'app
+        if (stored.jwtTokens?.accessToken) {
+          store.getCurrentUser();
+        }
       }
 
       effect(() => {
