@@ -4,5 +4,11 @@
     "no": "No",
     "noData": "No Data here",
     "versionning": "Versionning"
+  },
+  "authentication": {
+    "getCurrentUserError": "Error retrieving current user",
+    "noTenantError": "No center is associated with your account",
+    "getOptionsError": "Error loading navigation. Please log in again",
+    "refreshTokenError": "Error refreshing token. Please log in again"
   }
 }

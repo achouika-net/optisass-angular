@@ -14,10 +14,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButton } from '@angular/material/button';
 import { MatDivider } from '@angular/material/divider';
 import { filter, map, startWith } from 'rxjs/operators';
-import { MenuItem } from '@app/models';
-import { MENU } from '../../config/menu.config';
 import { NavigationHistoryService } from '../../core/navigation-history/navigation-history.service';
-import { findMenuItemByUrl } from '@app/helpers';
+import { findRouteByUrl } from '@app/helpers';
+import { AuthStore } from '@app/core/store';
+import { IClientRoute } from '@optisaas/opti-saas-lib';
 
 @Component({
   selector: 'app-breadcrumb',
@@ -30,8 +30,11 @@ export class BreadcrumbComponent {
   #activatedRoute = inject(ActivatedRoute);
   #history = inject(NavigationHistoryService);
   #titleService = inject(Title);
+  #authStore = inject(AuthStore);
   readonly isMobile = input.required<boolean>();
-  private readonly menuItems = signal<MenuItem[]>(MENU);
+
+  // Accès direct aux routes disponibles depuis le store (déjà un computed signal via Proxy)
+  private readonly routes = this.#authStore.navigation;
 
   // Signal qui écoute l'URL actuelle via les événements du router
   private readonly currentUrl = toSignal(
@@ -54,19 +57,22 @@ export class BreadcrumbComponent {
     const url = this.currentUrl();
     const data = this.routeData() as Record<string, any>;
     const dataTitle: string = data?.['title'];
-    const trail: Partial<MenuItem>[] = [];
+    const trail: Partial<IClientRoute>[] = [];
     const segments = url.split('/');
     let currentPath = '';
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i];
       currentPath = currentPath ? `${currentPath}/${segment}` : segment;
-      const menuItem = findMenuItemByUrl(this.menuItems(), currentPath);
-      if (menuItem) {
-        trail.push(menuItem);
+      const route = findRouteByUrl(this.routes(), currentPath);
+      if (route) {
+        trail.push(route);
       } else if (i === segments.length - 1 && dataTitle) {
         trail.push({
           label: dataTitle,
-          route: currentPath,
+          path: currentPath,
+          type: 'link',
+          id: currentPath,
+          authorizations_needed: [],
         });
       } else {
         break;

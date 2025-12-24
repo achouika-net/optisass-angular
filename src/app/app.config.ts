@@ -1,5 +1,6 @@
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
 import { provideTranslateService } from '@ngx-translate/core';
 import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
@@ -19,6 +20,9 @@ export const appConfig: ApplicationConfig = {
 
     // Router Configuration
     provideRouter(routes, withComponentInputBinding(), withViewTransitions()),
+
+    // Animations (requis pour Material Design & ngx-toastr)
+    provideAnimations(),
 
     // HTTP Client Configuration
     provideHttpClient(

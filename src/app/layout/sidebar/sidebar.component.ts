@@ -19,11 +19,9 @@ import { MatListModule } from '@angular/material/list';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
-import { userHasAccessToItem } from '@app/helpers';
-import { MenuItem } from '@app/models';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AuthStore } from '@app/core/store';
-import { MENU } from '../../config/menu.config';
+import { IClientRoute } from '@optisaas/opti-saas-lib';
 
 @Component({
   selector: 'app-sidebar',
@@ -49,82 +47,69 @@ export class SidebarComponent implements OnInit {
 
   readonly isMobile = input.required<boolean>();
   readonly isCollapsed = input.required<boolean>();
-  readonly userRole = this.authStore.userRole;
   readonly openSubMenu = signal<string | null>(null);
   readonly favoritesOpen = signal(true);
-  readonly favorisItems = signal<MenuItem[]>([]);
+  readonly favorisItems = signal<IClientRoute[]>([]);
 
-  readonly menuItems = signal<MenuItem[]>(MENU);
+  // Accès direct aux routes disponibles depuis le store (déjà un computed signal via Proxy)
+  readonly routes = this.authStore.navigation;
 
-  /** Menu principal filtré (link, sub avec children valides) */
+  /** Menu principal filtré (link, collapse avec children valides) */
   readonly visibleMenuItems = computed(
     () =>
-      this.menuItems()
-        .filter(
-          (item) => ['link', 'sub'].includes(item.type) && this.hasAccess(item)
-        )
-        .map((item) => {
-          if (item.type === 'sub' && item.children) {
-            const filtered = item.children.filter((child) =>
-              this.hasAccess(child)
+      this.routes()
+        .filter((route) => ['link', 'collapse'].includes(route.type))
+        .map((route) => {
+          if (route.type === 'collapse' && route.children) {
+            const filtered = route.children.filter((child) =>
+              ['link', 'collapse-link'].includes(child.type)
             );
-            return filtered.length > 0 ? { ...item, children: filtered } : null;
+            return filtered.length > 0 ? { ...route, children: filtered } : null;
           }
-          return item;
+          return route;
         })
-        .filter(Boolean) as MenuItem[]
+        .filter(Boolean) as IClientRoute[]
   );
 
   /** Menu à afficher dans le mode collapsed */
   readonly flatMenuItemsForCollapsed = computed(() =>
-    this.menuItems().flatMap((item) => {
-      if (!this.hasAccess(item)) return [];
+    this.routes().flatMap((route) => {
+      if (route.type === 'link') return [route];
 
-      if (item.type === 'link') return [item];
-
-      if (item.type === 'sub' && item.children?.length) {
-        return item.children.filter((child) => this.hasAccess(child));
+      if (route.type === 'collapse' && route.children?.length) {
+        return route.children.filter((child) =>
+          ['link', 'collapse-link'].includes(child.type)
+        );
       }
 
       return [];
     })
   );
 
-  /** Liens rapides (extLink) */
+  /** Liens rapides (collapse-link externe) */
   readonly extLinks = computed(() =>
-    this.menuItems().filter(
-      (item) => item.type === 'extLink' && this.hasAccess(item)
-    )
+    this.routes().filter((route) => route.type === 'collapse-link')
   );
 
-  /** Liens de bas de page (footer) */
+  /** Liens de bas de page (à implémenter si nécessaire) */
   readonly footerLinks = computed(() =>
-    this.menuItems().filter(
-      (item) => item.type === 'footer' && this.hasAccess(item)
-    )
+    this.routes().filter((route) => route.type === 'link' && route.id === 'a-propos')
   );
 
   /**
    * Au démarrage : ouvre le sous-menu correspondant à l'URL active.
    */
   ngOnInit(): void {
-    const opened = this.menuItems()
-      .filter((i) => i.type === 'sub')
-      .find((i) =>
-        i.children?.some((child) =>
-          this.router.url.startsWith(`/p/${child.route}`)
+    const opened = this.routes()
+      .filter((route) => route.type === 'collapse')
+      .find((route) =>
+        route.children?.some((child) =>
+          this.router.url.startsWith(`/p/${child.path}`)
         )
       );
     if (opened) {
       this.openSubMenu.set(opened.label);
     }
-  }
-
-  /**
-   * Vérifie si l'utilisateur a accès à un item donné.
-   */
-  private hasAccess(item: MenuItem): boolean {
-    return userHasAccessToItem(item, this.userRole());
   }
 
   /**
@@ -137,7 +122,7 @@ export class SidebarComponent implements OnInit {
   /**
    * Met à jour l'ordre des favoris suite à un drag&drop.
    */
-  dropFavorite(event: CdkDragDrop<MenuItem[]>): void {
+  dropFavorite(event: CdkDragDrop<IClientRoute[]>): void {
     const current = [...this.favorisItems()];
     moveItemInArray(current, event.previousIndex, event.currentIndex);
     this.favorisItems.set(current);
@@ -153,14 +138,14 @@ export class SidebarComponent implements OnInit {
   /**
    * Ajoute ou retire un item des favoris.
    */
-  handleFavorite(favoriteItems: MenuItem[], item: MenuItem, e: Event): void {
+  handleFavorite(favoriteItems: IClientRoute[], route: IClientRoute, e: Event): void {
     e.stopPropagation();
     e.preventDefault();
-    const isFav = this.isFavorite(item.label);
+    const isFav = this.isFavorite(route.label);
     if (isFav) {
-      this.removeFavorite(item.label);
+      this.removeFavorite(route.label);
     } else {
-      this.favorisItems.set([...favoriteItems, item]);
+      this.favorisItems.set([...favoriteItems, route]);
     }
   }
 
@@ -181,10 +166,10 @@ export class SidebarComponent implements OnInit {
   /**
    * Vérifie si l'un des enfants du sous-menu est actif (route match).
    */
-  isSubActive(children?: MenuItem[]): boolean {
+  isSubActive(children?: IClientRoute[]): boolean {
     if (!children) return false;
     return children.some((child) =>
-      this.router.url.startsWith(`/p/${child.route}`)
+      this.router.url.startsWith(`/p/${child.path}`)
     );
   }
 }

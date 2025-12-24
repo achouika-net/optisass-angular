@@ -28,7 +28,7 @@
           @if (item !== breadcrumbItems().at(-1)) {
             <div class="flex items-center gap-1">
               <a
-                [routerLink]="item.route"
+                [routerLink]="item.path"
                 class="text-primary cursor-pointer font-medium uppercase hover:underline"
               >
                 {{ item.label }}

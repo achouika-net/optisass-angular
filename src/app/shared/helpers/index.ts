@@ -3,7 +3,7 @@ export * from './date.helper';
 export * from './file.helper';
 export * from './form.helper';
 export * from './local-storage.helper';
-export * from './menu.helper';
+export * from './route.helper';
 export * from './object.helper';
 export * from './query.helper';
 export * from './sort.helper';

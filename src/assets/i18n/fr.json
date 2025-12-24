@@ -218,7 +218,9 @@
     "unexpectedLoginError": "Une erreur inattendue est survenue lors de la tentative de connexion",
     "resetPasswordSuccess": "Votre nouveau mot de passe a bien été pris en compte",
     "tooManyRequest": "Vous avez dépassé le nombre maximal de requêtes autorisées. Veuillez réessayer ultérieurement dans ",
-    "refreshTokenError": "Erreur lors du rafraîchissement du token. Veuillez vous reconnecter"
+    "refreshTokenError": "Erreur lors du rafraîchissement du token. Veuillez vous reconnecter",
+    "noTenantError": "Aucun centre n'est associé à votre compte",
+    "getOptionsError": "Erreur lors du chargement de la navigation. Veuillez vous reconnecter"
   },
   "immatriculationControl": {
     "immatriculation": "Immatriculation",
