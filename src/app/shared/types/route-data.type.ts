@@ -7,7 +7,7 @@ import { ResourceAuthorizations } from '@optisaas/opti-saas-lib';
  */
 export interface RouteData {
   /** Clé i18n pour le breadcrumb (ex: 'breadcrumb.users') */
-  breadcrumb?: string;
+  breadcrumb: string;
   /** Liste des autorisations requises pour accéder à la route */
   authorizationsNeeded?: ResourceAuthorizations[];
 }

@@ -44,7 +44,9 @@
     "cancel": "Cancel",
     "save": "Save",
     "exportPdf": "Export PDF",
-    "exportXls": "Export XLS"
+    "exportXls": "Export XLS",
+    "search": "Search",
+    "reset": "Reset"
   },
   "error": {
     "invalidImageType": "Please select a valid image",

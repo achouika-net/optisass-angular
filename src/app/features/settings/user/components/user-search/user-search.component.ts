@@ -34,7 +34,7 @@ export default class UserSearchComponent implements OnInit {
       permissions: [PermissionType.EXPORT],
     },
     {
-      label: 'user.addUser',
+      label: 'user.add',
       direction: 'right',
       action: 'addUser',
       permissions: [PermissionType.WRITE],

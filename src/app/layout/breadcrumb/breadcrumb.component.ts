@@ -88,7 +88,7 @@ export class BreadcrumbComponent {
   /** Titre de la page (dernier élément du breadcrumb) */
   readonly pageTitle = computed(() => {
     const items = this.breadcrumbItems();
-    return items.length > 0 ? items[items.length - 1].label : 'Agenda';
+    return items.length > 0 ? items[items.length - 1].label : '';
   });
 
   constructor() {
