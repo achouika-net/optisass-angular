@@ -1,0 +1,82 @@
+<div class="container">
+    <div class="header">
+        <h1 class="text-2xl font-bold">Dépenses & Achats</h1>
+        <button mat-raised-button color="primary" (click)="openExpenseDialog()">
+            <mat-icon>add</mat-icon> Nouvelle Dépense
+        </button>
+    </div>
+
+    <mat-card>
+        <div *ngIf="loading" class="p-4 text-center">Chargement...</div>
+
+        <div *ngIf="!loading && expenses.length === 0" class="p-4 text-center text-gray-500">
+            Aucune dépense enregistrée.
+        </div>
+
+        <table mat-table [dataSource]="expenses" *ngIf="!loading && expenses.length > 0">
+
+            <!-- Date Column -->
+            <ng-container matColumnDef="date">
+                <th mat-header-cell *matHeaderCellDef> Date </th>
+                <td mat-cell *matCellDef="let element"> {{element.date | date:'dd/MM/yyyy'}} </td>
+            </ng-container>
+
+            <!-- Categorie Column -->
+            <ng-container matColumnDef="categorie">
+                <th mat-header-cell *matHeaderCellDef> Catégorie </th>
+                <td mat-cell *matCellDef="let element">
+                    <span class="px-2 py-1 rounded bg-gray-100 text-xs">{{element.categorie}}</span>
+                </td>
+            </ng-container>
+
+            <!-- Description Column -->
+            <ng-container matColumnDef="description">
+                <th mat-header-cell *matHeaderCellDef> Description </th>
+                <td mat-cell *matCellDef="let element"> {{element.description || '-'}} </td>
+            </ng-container>
+
+            <!-- Centre Column -->
+            <ng-container matColumnDef="centre">
+                <th mat-header-cell *matHeaderCellDef> Centre </th>
+                <td mat-cell *matCellDef="let element"> {{element.centre?.nom || '-'}} </td>
+            </ng-container>
+
+            <!-- Mode Paiement Column -->
+            <ng-container matColumnDef="modePaiement">
+                <th mat-header-cell *matHeaderCellDef> Mode </th>
+                <td mat-cell *matCellDef="let element">
+                    <mat-chip-option [ngClass]="getModePaiementClass(element.modePaiement)" [selectable]="false">
+                        {{element.modePaiement}}
+                    </mat-chip-option>
+                </td>
+            </ng-container>
+
+            <!-- Montant Column -->
+            <ng-container matColumnDef="montant">
+                <th mat-header-cell *matHeaderCellDef style="text-align: right;"> Montant </th>
+                <td mat-cell *matCellDef="let element" style="text-align: right;" class="montant-cell text-red-600">
+                    -{{element.montant | number:'1.2-2'}} DH
+                </td>
+            </ng-container>
+
+            <!-- Actions Column -->
+            <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef style="text-align: right;"> Actions </th>
+                <td mat-cell *matCellDef="let element" style="text-align: right;">
+                    <div class="actions">
+                        <button mat-icon-button color="primary" (click)="openExpenseDialog(element)"
+                            matTooltip="Modifier">
+                            <mat-icon>edit</mat-icon>
+                        </button>
+                        <button mat-icon-button color="warn" (click)="deleteExpense(element)" matTooltip="Supprimer">
+                            <mat-icon>delete</mat-icon>
+                        </button>
+                    </div>
+                </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        </table>
+    </mat-card>
+</div>

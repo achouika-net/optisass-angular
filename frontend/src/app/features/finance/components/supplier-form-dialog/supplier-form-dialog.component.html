@@ -1,0 +1,123 @@
+<h2 mat-dialog-title>{{ isEditMode ? 'Modifier' : 'Nouveau' }} Fournisseur</h2>
+
+<form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <mat-dialog-content>
+        <mat-tab-group>
+            <!-- Onglet Général -->
+            <mat-tab label="Général">
+                <div class="row pt-4">
+                    <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Nom de l'entreprise</mat-label>
+                        <input matInput formControlName="nom" placeholder="Ex: Optique Distribution" required>
+                        <mat-error *ngIf="form.get('nom')?.hasError('required')">Le nom est requis</mat-error>
+                    </mat-form-field>
+                </div>
+
+                <div class="row">
+                    <mat-form-field appearance="outline" class="col">
+                        <mat-label>Contact principal</mat-label>
+                        <input matInput formControlName="contact" placeholder="Nom du responsable">
+                        <mat-icon matSuffix>person</mat-icon>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="col">
+                        <mat-label>Téléphone</mat-label>
+                        <input matInput formControlName="telephone" placeholder="06...">
+                        <mat-icon matSuffix>phone</mat-icon>
+                    </mat-form-field>
+                </div>
+
+                <div class="row">
+                    <mat-form-field appearance="outline" class="col">
+                        <mat-label>Email</mat-label>
+                        <input matInput formControlName="email" type="email">
+                        <mat-icon matSuffix>email</mat-icon>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="col">
+                        <mat-label>Site Web</mat-label>
+                        <input matInput formControlName="siteWeb">
+                        <mat-icon matSuffix>language</mat-icon>
+                    </mat-form-field>
+                </div>
+
+                <div class="row">
+                    <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Adresse</mat-label>
+                        <textarea matInput formControlName="adresse" rows="2"></textarea>
+                    </mat-form-field>
+                </div>
+
+                <div class="row">
+                    <mat-form-field appearance="outline" class="col">
+                        <mat-label>Ville</mat-label>
+                        <input matInput formControlName="ville">
+                    </mat-form-field>
+                </div>
+            </mat-tab>
+
+            <!-- Onglet Fiscal & Légal -->
+            <mat-tab label="Fiscal & Légal">
+                <div class="row pt-4">
+                    <mat-form-field appearance="outline" class="col">
+                        <mat-label>I.C.E</mat-label>
+                        <input matInput formControlName="ice">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col">
+                        <mat-label>R.C</mat-label>
+                        <input matInput formControlName="rc">
+                    </mat-form-field>
+                </div>
+
+                <div class="row">
+                    <mat-form-field appearance="outline" class="col">
+                        <mat-label>Identifiant Fiscal</mat-label>
+                        <input matInput formControlName="identifiantFiscal">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col">
+                        <mat-label>Patente</mat-label>
+                        <input matInput formControlName="patente">
+                    </mat-form-field>
+                </div>
+
+                <div class="row">
+                    <mat-form-field appearance="outline" class="col">
+                        <mat-label>CNSS</mat-label>
+                        <input matInput formControlName="cnss">
+                    </mat-form-field>
+                </div>
+            </mat-tab>
+
+            <!-- Onglet Paiement -->
+            <mat-tab label="Paiement">
+                <div class="row pt-4">
+                    <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Banque</mat-label>
+                        <input matInput formControlName="banque">
+                        <mat-icon matSuffix>account_balance</mat-icon>
+                    </mat-form-field>
+                </div>
+
+                <div class="row">
+                    <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>R.I.B</mat-label>
+                        <input matInput formControlName="rib">
+                    </mat-form-field>
+                </div>
+
+                <div class="row">
+                    <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Conditions de paiement</mat-label>
+                        <textarea matInput formControlName="conditionsPaiement"
+                            placeholder="Ex: 30 jours fin de mois..."></textarea>
+                    </mat-form-field>
+                </div>
+            </mat-tab>
+        </mat-tab-group>
+    </mat-dialog-content>
+
+    <mat-dialog-actions align="end">
+        <button mat-button type="button" (click)="onCancel()">Annuler</button>
+        <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid">Enregistrer</button>
+    </mat-dialog-actions>
+</form>

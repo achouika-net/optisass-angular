@@ -1,0 +1,65 @@
+<h2 mat-dialog-title>{{ isEditMode ? 'Modifier' : 'Nouvelle' }} Dépense</h2>
+
+<form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <mat-dialog-content>
+        <div class="row pt-2">
+            <mat-form-field appearance="outline" class="col">
+                <mat-label>Date</mat-label>
+                <input matInput [matDatepicker]="picker" formControlName="date" required>
+                <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+                <mat-datepicker #picker></mat-datepicker>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col">
+                <mat-label>Montant (MAD)</mat-label>
+                <input matInput type="number" formControlName="montant" required min="0">
+                <mat-icon matSuffix>attach_money</mat-icon>
+            </mat-form-field>
+        </div>
+
+        <div class="row">
+            <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Magasin / Centre</mat-label>
+                <mat-select formControlName="centreId" required>
+                    <mat-option *ngFor="let center of centers" [value]="center.id">
+                        {{ center.nom }}
+                    </mat-option>
+                </mat-select>
+            </mat-form-field>
+        </div>
+
+        <div class="row">
+            <mat-form-field appearance="outline" class="col">
+                <mat-label>Catégorie</mat-label>
+                <mat-select formControlName="categorie" required>
+                    <mat-option *ngFor="let cat of categories" [value]="cat">
+                        {{ cat }}
+                    </mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col">
+                <mat-label>Mode de paiement</mat-label>
+                <mat-select formControlName="modePaiement" required>
+                    <mat-option *ngFor="let mode of paymentMethods" [value]="mode">
+                        {{ mode }}
+                    </mat-option>
+                </mat-select>
+            </mat-form-field>
+        </div>
+
+        <div class="row">
+            <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Description / Motif</mat-label>
+                <textarea matInput formControlName="description" rows="3"
+                    placeholder="Détails de la dépense..."></textarea>
+            </mat-form-field>
+        </div>
+
+    </mat-dialog-content>
+
+    <mat-dialog-actions align="end">
+        <button mat-button type="button" (click)="onCancel()">Annuler</button>
+        <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid">Enregistrer</button>
+    </mat-dialog-actions>
+</form>
