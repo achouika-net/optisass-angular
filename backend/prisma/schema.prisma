@@ -142,6 +142,7 @@ model Centre {
   clients     Client[]
   entrepots   Entrepot[]
   factures    Facture[]
+  depenses    Depense[]
 
   @@unique([groupeId, nom])
 }
@@ -285,4 +286,86 @@ model RewardRedemption {
   redeemedAt  DateTime @default(now())
   redeemedBy  String?
   client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+model Fournisseur {
+  id                  String               @id @default(uuid())
+  nom                 String
+  contact             String?
+  email               String?
+  telephone           String?
+  adresse             String?
+  ville               String?
+  siteWeb             String?
+  ice                 String?              // Identifiant Commun de l'Entreprise
+  rc                  String?              // Registre du Commerce
+  identifiantFiscal   String?
+  patente             String?
+  cnss                String?
+  rib                 String?
+  banque              String?
+  conditionsPaiement  String?              // Ex: 30 jours, 60 jours...
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  factures            FactureFournisseur[]
+}
+
+model Depense {
+  id                  String               @id @default(uuid())
+  date                DateTime             @default(now())
+  montant             Float
+  categorie           String               // LOYER, ELECTRICITE, EAU, SALAIRE, ACHAT_marchandise, AUTRE...
+  description         String?
+  modePaiement        String               // ESPECES, CHEQUE, VIREMENT, CARTE
+  statut              String               // BROUILLON, VALIDEE, PAYEE, ANNULEE
+  justificatifUrl     String?
+  centreId            String
+  centre              Centre               @relation(fields: [centreId], references: [id])
+  factureFournisseurId String?             @unique
+  factureFournisseur  FactureFournisseur?  @relation(fields: [factureFournisseurId], references: [id])
+  echeanceId          String?              @unique
+  echeance            EcheancePaiement?    @relation(fields: [echeanceId], references: [id])
+  creePar             String?              // ID utilisateur
+  validePar           String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model FactureFournisseur {
+  id                  String               @id @default(uuid())
+  numeroFacture       String
+  dateEmission        DateTime
+  dateEcheance        DateTime?
+  montantHT           Float
+  montantTVA          Float
+  montantTTC          Float
+  devise              String               @default("MAD")
+  statut              String               // EN_ATTENTE, VALIDEE, PARTIELLE, PAYEE, RETARD, ANNULEE
+  type                String               // ACHAT_STOCK, FRAIS_GENERAUX, IMMOBILISATION
+  pieceJointeUrl      String?
+  fournisseurId       String
+  fournisseur         Fournisseur          @relation(fields: [fournisseurId], references: [id])
+  depense             Depense?
+  echeances           EcheancePaiement[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  
+  @@unique([fournisseurId, numeroFacture])
+}
+
+model EcheancePaiement {
+  id                  String               @id @default(uuid())
+  reference           String?              // Numéro chèque ou LCN
+  type                String               // CHEQUE, LCN, VIREMENT, ESPECES
+  dateEcheance        DateTime
+  dateEncaissement    DateTime?
+  montant             Float
+  statut              String               // EN_ATTENTE, DEPOSE, ENCAISSE, REJETE, ANNULE
+  banque              String?              // Banque du magasin
+  remarque            String?
+  factureFournisseurId String?
+  factureFournisseur  FactureFournisseur?  @relation(fields: [factureFournisseurId], references: [id])
+  depense             Depense?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 }

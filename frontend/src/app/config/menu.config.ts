@@ -27,6 +27,38 @@ export const MENU: MenuItem[] = [
     route: 'online-payments',
   },
   {
+    label: 'Finance',
+    icon: 'account_balance_wallet', // ou 'attach_money'
+    type: 'sub',
+    route: 'finance',
+    children: [
+      {
+        label: 'Dépenses',
+        icon: 'receipt_long',
+        type: 'subchild',
+        route: 'finance/expenses',
+      },
+      {
+        label: 'Factures Frn.',
+        icon: 'description',
+        type: 'subchild',
+        route: 'finance/invoices',
+      },
+      {
+        label: 'Fournisseurs',
+        icon: 'local_shipping',
+        type: 'subchild',
+        route: 'finance/suppliers',
+      },
+      // {
+      //   label: 'Trésorerie',
+      //   icon: 'savings',
+      //   type: 'subchild',
+      //   route: 'finance/dashboard',
+      // }
+    ]
+  },
+  {
     label: 'Commercial',
     icon: 'people',
     type: 'sub',
