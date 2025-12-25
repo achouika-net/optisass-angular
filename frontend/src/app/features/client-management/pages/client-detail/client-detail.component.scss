@@ -1,0 +1,567 @@
+// Variables
+$primary-color: #5C6BC0; // Example purple/blue from screenshot
+$text-color: #333;
+$label-color: #666;
+$border-color: #e0e0e0;
+$bg-color: #f5f5f5;
+$white: #ffffff;
+
+// Keep readonly/disabled fields readable with white background
+::ng-deep {
+
+    .readonly-state input,
+    .readonly-state textarea,
+    .readonly-state .mat-mdc-input-element {
+        background-color: white !important;
+        color: #1e293b !important;
+        opacity: 1 !important;
+        -webkit-text-fill-color: #1e293b !important;
+    }
+
+    .readonly-state .mat-mdc-select-value {
+        color: #1e293b !important;
+    }
+
+    // Allow line breaks in correction and type verre columns
+    .mat-column-nomenclature,
+    .mat-column-typeVerre {
+        white-space: pre-line;
+        line-height: 1.5 !important;
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
+    }
+
+    // Align content left, but keep headers centered
+    .mat-column-nomenclature.mat-cell,
+    .mat-column-typeVerre.mat-cell {
+        text-align: left !important;
+        vertical-align: top !important;
+    }
+
+    // Style for multi-line content in table cells
+    .table-multiline {
+        line-height: 1.5;
+    }
+}
+
+:host {
+    display: block;
+    height: 100vh;
+    background-color: $bg-color;
+    display: flex;
+    flex-direction: column;
+}
+
+.dossier-client-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+// Header
+.header {
+    background-color: #7d7d7d; // Dark grey header
+    color: $white;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 60px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    .header-content {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+
+        h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 500;
+            text-decoration: underline;
+            text-underline-offset: 4px;
+
+            .client-name-subtitle {
+                font-size: 0.85em;
+                font-weight: 400;
+                color: rgba(255, 255, 255, 0.95);
+                margin-left: 12px;
+                text-decoration: none;
+                display: inline-block;
+
+                .client-phone {
+                    margin-left: 8px;
+                    font-size: 0.9em;
+                    opacity: 0.9;
+
+                    mat-icon {
+                        font-size: 18px;
+                        width: 18px;
+                        height: 18px;
+                        vertical-align: text-bottom;
+                        margin-right: 4px;
+                    }
+                }
+            }
+        }
+
+        .status-badge {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background-color: #9e9e9e; // Default grey
+            color: white;
+
+            &.actif {
+                background-color: #66BB6A; // Green
+            }
+
+            &.inactif {
+                background-color: #FF7043; // Orange
+            }
+        }
+    }
+
+    .header-actions {
+        .complete-profile-btn {
+            color: $white;
+            border-color: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.1);
+
+            &:hover {
+                background: rgba(255, 255, 255, 0.2);
+            }
+
+            mat-icon {
+                margin-right: 4px;
+            }
+        }
+    }
+
+    .close-btn {
+        color: $white;
+    }
+}
+
+// Stats Cards
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    padding: 0 20px 20px 20px;
+
+    .stat-card {
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+        mat-card-content {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        &.stat-card-blue {
+            background: linear-gradient(135deg, #42A5F5, #1976D2);
+        }
+
+        &.stat-card-green {
+            background: linear-gradient(135deg, #66BB6A, #388E3C);
+        }
+
+        &.stat-card-red {
+            background: linear-gradient(135deg, #EF5350, #D32F2F);
+        }
+
+        &.stat-card-purple {
+            background: linear-gradient(135deg, #AB47BC, #7B1FA2);
+        }
+    }
+}
+
+.main-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    padding: 20px;
+    gap: 20px;
+}
+
+// Main Content Section (Tabs)
+.content-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: transparent;
+
+    .client-tabs {
+        flex: 1;
+        background: $white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+
+        ::ng-deep .mat-mdc-tab-body-wrapper {
+            flex: 1;
+        }
+    }
+}
+
+.form-container {
+    padding: 24px;
+    overflow-y: auto;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+// Form Elements
+.form-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+
+    &.three-cols {
+        mat-form-field {
+            flex: 1;
+        }
+    }
+
+    &.two-cols {
+        mat-form-field {
+            flex: 1;
+        }
+    }
+}
+
+mat-form-field {
+    width: 100%;
+    font-size: 14px;
+
+    // Make inputs look cleaner
+    ::ng-deep .mdc-text-field--outlined {
+        --mdc-outlined-text-field-container-shape: 4px;
+        background-color: #fff;
+    }
+}
+
+.section-title {
+    color: #444;
+    font-weight: 700;
+    font-size: 14px;
+    margin-top: 24px;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+
+    &::before {
+        content: '';
+        display: block;
+        width: 4px;
+        height: 16px; // Blue pipe
+        background-color: $primary-color;
+        margin-right: 8px;
+        border-radius: 2px;
+    }
+}
+
+// Medical Tab
+.medical-container {
+    padding: 0; // Padding handled by internal columns? Or keep standard padding.
+    // Actually standard padding is better.
+    padding: 24px;
+}
+
+.medical-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+
+    // .medical-col removed (empty)
+}
+
+.field-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 8px;
+    margin-top: 16px;
+
+    &.mt-4 {
+        margin-top: 24px;
+    }
+}
+
+.custom-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start; // Force left alignment
+    margin-left: 20px; // Optional: small indent? Better to be strictly left as requested "a gauche"
+    // Actually the user said "redresser a gauche", likely meaning they are currently centered or too far right.
+    // I'll stick to strict left alignment, maybe 0 margin.
+    margin-left: 0;
+
+    mat-radio-button {
+        margin-right: 16px;
+    }
+}
+
+.readonly-state {
+    pointer-events: none;
+    // tab-index is not a valid CSS property, creating lint error. Removed.
+
+    // Maintain default colors instead of disabled grey
+    ::ng-deep .mat-mdc-checkbox-disabled .mat-mdc-checkbox-label {
+        color: rgba(0, 0, 0, 0.87) !important;
+    }
+}
+
+.checkbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start; // Force left alignment
+}
+
+.checkbox-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+
+::ng-deep .mat-mdc-checkbox-label {
+    font-size: 13px;
+}
+
+::ng-deep .mat-mdc-radio-button .mdc-label {
+    font-size: 13px;
+}
+
+// Moderate checkbox size reduction
+::ng-deep .mat-mdc-checkbox {
+    .mdc-checkbox {
+        width: 16px;
+        height: 16px;
+    }
+
+    .mdc-checkbox__background {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+// Moderate radio button size reduction
+::ng-deep .mat-mdc-radio-button {
+    .mdc-radio {
+        width: 16px;
+        height: 16px;
+    }
+
+    .mdc-radio__background {
+        width: 16px;
+        height: 16px;
+    }
+
+    .mdc-radio__outer-circle,
+    .mdc-radio__inner-circle {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+.notes-field textarea {
+    resize: none;
+}
+
+// Styles obsolètes supprimés
+
+
+/* --- New Styles for Layout Refinement --- */
+
+.mt-4 {
+    margin-top: 24px !important;
+}
+
+.main-actions-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px 20px 20px;
+    margin-top: 20px; // Add space between stats and buttons
+
+    .creation-actions {
+        display: flex;
+        gap: 16px;
+    }
+
+    .global-actions {
+        display: flex;
+    }
+
+    button {
+        height: 42px;
+        font-weight: 500;
+        text-transform: uppercase;
+        font-size: 13px;
+
+        .mat-icon {
+            margin-right: 8px;
+        }
+
+        &.btn-success {
+            background-color: #2E7D32 !important;
+            color: white !important;
+        }
+    }
+}
+
+// Table Header Colors Override & Restoration
+table.mat-mdc-table {
+    width: 100%; // Restore full width
+
+    .mat-mdc-header-row {
+        background-color: #546e7a !important; // Blue Grey 600 (Softer)
+        min-height: 48px;
+    }
+
+    .mat-mdc-header-cell {
+        background-color: #546e7a !important; // Force cell background
+        color: white !important;
+        font-weight: 600;
+        font-size: 13px;
+        text-transform: uppercase;
+    }
+
+    .mat-mdc-cell {
+        font-size: 13px;
+    }
+}
+
+// Reward Alert Banner
+.reward-alert-banner {
+    background: linear-gradient(135deg, #673ab7, #512da8);
+    color: white;
+    margin: 20px 20px 0 20px;
+    padding: 20px 24px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(103, 58, 183, 0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    // animation: slideDown 0.5s ease-out;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -10%;
+        width: 200px;
+        height: 200px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .reward-alert-content {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        z-index: 1;
+
+        .reward-icon-wrapper {
+            width: 56px;
+            height: 56px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            .reward-icon {
+                font-size: 32px;
+                width: 32px;
+                height: 32px;
+                color: #ffd740; // Gold
+            }
+        }
+
+        .reward-text {
+            .reward-title {
+                font-size: 18px;
+                font-weight: 700;
+                margin-bottom: 4px;
+                color: #ffd740; // Gold for title
+            }
+
+            .reward-subtitle {
+                font-size: 14px;
+                opacity: 0.95; // Slightly lower opacity for subtitle
+            }
+        }
+    }
+
+    .reward-actions {
+        display: flex;
+        gap: 12px;
+        z-index: 1;
+
+        button {
+            height: 48px;
+            padding: 0 24px;
+            font-weight: 600;
+            border-radius: 24px;
+
+            &.btn-reward-discount {
+                background-color: white;
+                color: #673ab7;
+            }
+
+            &.btn-reward-cash {
+                background-color: #ffd740; // Gold
+                color: #3e2723;
+            }
+
+            mat-icon {
+                margin-right: 8px;
+            }
+        }
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

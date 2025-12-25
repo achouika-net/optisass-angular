@@ -161,3 +161,45 @@ mat-card-header {
     padding: 40px;
     color: #666;
 }
+
+// Utilities
+.text-right {
+    text-align: right;
+    justify-content: flex-end;
+
+    // Ensure content within mat-cell is aligned if it's not flex
+    &.mat-mdc-header-cell,
+    &.mat-mdc-cell,
+    &.mat-mdc-footer-cell {
+        text-align: right;
+        justify-content: flex-end;
+    }
+}
+
+.custom-footer-row {
+    background-color: #f5f5f5;
+
+    td {
+        font-weight: bold !important;
+        color: #333;
+        border-top: 2px solid #ddd;
+    }
+}
+
+.filters-container {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    padding: 8px 0;
+
+    mat-form-field {
+        font-size: 14px;
+
+        // Remove bottom margin to align better
+        .mat-mdc-form-field-wrapper {
+            padding-bottom: 0;
+        }
+    }
+}

@@ -1,15 +1,16 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Put, Query } from '@nestjs/common';
 import { FichesService } from './fiches.service';
-import { Prisma } from '@prisma/client';
+import { CreateFicheDto } from './dto/create-fiche.dto';
+import { UpdateFicheDto } from './dto/update-fiche.dto';
 
 @Controller('fiches')
 export class FichesController {
     constructor(private readonly fichesService: FichesService) { }
 
     @Post()
-    create(@Body() createFicheDto: Prisma.FicheCreateInput) {
+    create(@Body() createFicheDto: CreateFicheDto) {
         console.log('📥 Received fiche data:', JSON.stringify(createFicheDto, null, 2));
-        return this.fichesService.create(createFicheDto);
+        return this.fichesService.create(createFicheDto as any);
     }
 
     @Get()
@@ -26,8 +27,8 @@ export class FichesController {
     }
 
     @Put(':id')
-    update(@Param('id') id: string, @Body() updateFicheDto: any) {
-        return this.fichesService.update(id, updateFicheDto);
+    update(@Param('id') id: string, @Body() updateFicheDto: UpdateFicheDto) {
+        return this.fichesService.update(id, updateFicheDto as any);
     }
 
     @Delete(':id')

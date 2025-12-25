@@ -1,0 +1,271 @@
+<div class="facture-form-container">
+    <form [formGroup]="form" (ngSubmit)="save()">
+
+        <!-- Header -->
+        <div class="header">
+            <div class="title-section">
+                <h2 *ngIf="!id || id === 'new'">Nouveau Document</h2>
+                <h2 *ngIf="id && id !== 'new'">{{form.get('type')?.value}} {{form.get('numero')?.value}}</h2>
+            </div>
+            <div class="actions">
+                <button type="button" mat-stroked-button color="warn" routerLink="/p/clients"
+                    *ngIf="!embedded && !isViewMode">Annuler</button>
+
+                <!-- Exchange Action -->
+                <button type="button" mat-raised-button color="accent" (click)="openExchangeDialog()"
+                    *ngIf="isViewMode && canExchange" class="btn-exchange no-print">
+                    <mat-icon>swap_horiz</mat-icon> Retour / Échange
+                </button>
+
+                <!-- Print Action -->
+                <button type="button" mat-raised-button color="primary" (click)="print()"
+                    *ngIf="isViewMode && id && id !== 'new'" class="btn-print no-print">
+                    <mat-icon>print</mat-icon> Imprimer
+                </button>
+
+                <button type="submit" mat-raised-button color="primary" [disabled]="form.invalid"
+                    *ngIf="!embedded && !isViewMode">
+                    <mat-icon>save</mat-icon> Enregistrer
+                </button>
+                <button type="button" mat-stroked-button routerLink="/p/clients" *ngIf="!embedded && isViewMode"
+                    class="no-print">Retour</button>
+            </div>
+        </div>
+
+        <!-- PRINT HEADER (Visible only when printing) -->
+        <div class="print-header">
+            <div class="company-info">
+                <div class="logo-placeholder">
+                    <mat-icon>visibility</mat-icon>
+                    <span class="brand-name">OPTISASS</span>
+                </div>
+                <div class="details">
+                    <p class="company-name"><strong>OPTISASS - OPTICIEN LUNETIER</strong></p>
+                    <p>Adresse de l'établissement - Ville, Maroc</p>
+                    <p>Tél: +212 X XX XX XX XX / Email: contact@optisass.com</p>
+                    <p>ICE: 00XXXXXXXXXXXXX | IF: XXXXXXX | RC: XXXXXX</p>
+                </div>
+            </div>
+
+            <div class="document-summary">
+                <div class="doc-title">
+                    <h1 *ngIf="form.get('type')?.value === 'FACTURE'">FACTURE</h1>
+                    <h1 *ngIf="form.get('type')?.value === 'DEVIS'">DEVIS</h1>
+                    <h1 *ngIf="form.get('type')?.value === 'AVOIR'">AVOIR</h1>
+                    <h1 *ngIf="form.get('type')?.value === 'BL'">BON DE LIVRAISON</h1>
+                </div>
+                <div class="doc-details">
+                    <div class="detail-row">
+                        <span class="label">Numéro:</span>
+                        <span class="value">{{ form.get('numero')?.value }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Date:</span>
+                        <span class="value">{{ form.get('dateEmission')?.value | date:'dd/MM/yyyy' }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="client-info" *ngIf="client">
+                <div class="client-box">
+                    <h3 class="box-title">Client:</h3>
+                    <p class="client-name"><strong>{{ client.nom }} {{ client.prenom }}</strong></p>
+                    <p *ngIf="client.adresse">{{ client.adresse }}</p>
+                    <p *ngIf="client.ville">{{ client.ville }}</p>
+                    <p *ngIf="client.telephone">Tél: {{ client.telephone }}</p>
+                    <p *ngIf="client.ice">ICE: {{ client.ice }}</p>
+                </div>
+            </div>
+        </div>
+
+        <mat-card class="content-card">
+            <div class="form-row triple">
+                <!-- Type -->
+                <mat-form-field appearance="outline">
+                    <mat-label>Type de Document</mat-label>
+                    <mat-select formControlName="type">
+                        <mat-option value="FACTURE">Facture</mat-option>
+                        <mat-option value="DEVIS">Devis</mat-option>
+                        <mat-option value="AVOIR">Avoir</mat-option>
+                        <mat-option value="BL">Bon de Livraison</mat-option>
+                    </mat-select>
+                </mat-form-field>
+
+                <!-- Statut -->
+                <mat-form-field appearance="outline" *ngIf="!isViewMode">
+                    <mat-label>Statut</mat-label>
+                    <mat-select formControlName="statut">
+                        <mat-option value="BROUILLON">Brouillon</mat-option>
+                        <mat-option value="VALIDE">Validé</mat-option>
+                        <mat-option value="PAYEE">Payée</mat-option>
+                        <mat-option value="ANNULEE">Annulée</mat-option>
+                    </mat-select>
+                </mat-form-field>
+
+                <div class="status-display" *ngIf="isViewMode">
+                    <span class="badgex badge-{{form.get('statut')?.value | lowercase}}">
+                        {{ form.get('statut')?.value }}
+                    </span>
+                </div>
+
+                <!-- Date -->
+                <mat-form-field appearance="outline">
+                    <mat-label>Date d'émission</mat-label>
+                    <input matInput [matDatepicker]="picker" formControlName="dateEmission">
+                    <mat-datepicker-toggle matIconSuffix [for]="picker" [disabled]="isViewMode"></mat-datepicker-toggle>
+                    <mat-datepicker #picker></mat-datepicker>
+                </mat-form-field>
+            </div>
+
+            <mat-divider style="margin: 20px 0"></mat-divider>
+
+            <!-- Lines -->
+            <h3>Lignes du document</h3>
+            <div class="lines-container" formArrayName="lignes">
+                <div class="line-header">
+                    <div class="col-desc">Description</div>
+                    <div class="col-qty">Qté</div>
+                    <div class="col-price">P.U TTC</div>
+                    <div class="col-disc">Remise (DH)</div>
+                    <div class="col-total">Total TTC</div>
+                    <div class="col-action"></div>
+                </div>
+
+                <div *ngFor="let line of lignes.controls; let i=index" [formGroupName]="i" class="line-row">
+                    <div class="col-desc">
+                        <input type="text" formControlName="description" placeholder="Description du produit/service">
+                    </div>
+                    <div class="col-qty">
+                        <input type="number" formControlName="qte" (change)="onLineChange(i)" min="1">
+                    </div>
+                    <div class="col-price">
+                        <input type="number" formControlName="prixUnitaireTTC" (change)="onLineChange(i)" min="0">
+                    </div>
+                    <div class="col-disc">
+                        <input type="number" formControlName="remise" (change)="onLineChange(i)">
+                    </div>
+                    <div class="col-total">
+                        <span class="total-display">{{ line.get('totalTTC')?.value | number:'1.2-2' }} DH</span>
+                    </div>
+                    <div class="col-action">
+                        <button type="button" mat-icon-button color="warn" (click)="removeLine(i)" *ngIf="!isViewMode">
+                            <mat-icon>delete</mat-icon>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="add-line-btn">
+                <button type="button" mat-button color="primary" (click)="addLine()" *ngIf="!isViewMode && !embedded">
+                    <mat-icon>add</mat-icon> Ajouter une ligne
+                </button>
+            </div>
+
+            <mat-divider style="margin: 20px 0"></mat-divider>
+
+            <!-- Totals -->
+            <div class="footer-section">
+                <div class="footer-left">
+                    <div class="nomenclature-section" *ngIf="form.get('proprietes.nomenclature')?.value">
+                        <strong>Détail Nomenclature:</strong><br>
+                        {{ form.get('proprietes.nomenclature')?.value }}
+                    </div>
+
+                    <div class="montant-lettres" *ngIf="montantLettres">
+                        <strong>Arrêter {{ form.get('type')?.value === 'DEVIS' ? 'le présent devis' :
+                            (form.get('type')?.value === 'FACTURE' ? 'la présente facture' : 'le présent document') }} à
+                            la somme de :</strong><br>
+                        {{ montantLettres }}
+                    </div>
+                </div>
+                <div class="footer-right">
+                    <div class="loyalty-spend-section" *ngIf="pointsFideliteClient > 0 && !isViewMode">
+                        <div class="loyalty-balance">
+                            <mat-icon color="primary"
+                                style="vertical-align: middle; margin-right: 5px;">stars</mat-icon>
+                            <span>Points Fidélité: <strong>{{ pointsFideliteClient }} pts</strong></span>
+                        </div>
+                        <div class="points-input-row" formGroupName="proprietes">
+                            <mat-form-field appearance="outline" class="points-input">
+                                <mat-label>Points à utiliser</mat-label>
+                                <input matInput type="number" formControlName="pointsUtilises"
+                                    (change)="calculateTotals()" [max]="pointsFideliteClient" min="0">
+                                <span matSuffix>pts</span>
+                            </mat-form-field>
+                        </div>
+                    </div>
+
+                    <div class="discount-section" formGroupName="proprietes" [class.view-mode]="isViewMode">
+                        <div class="discount-inputs" *ngIf="!isViewMode">
+                            <mat-form-field appearance="outline" class="discount-type">
+                                <mat-label>Type Remise</mat-label>
+                                <mat-select formControlName="remiseGlobalType" (selectionChange)="calculateTotals()">
+                                    <mat-option value="PERCENT">%</mat-option>
+                                    <mat-option value="AMOUNT">DH</mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                            <mat-form-field appearance="outline" class="discount-value">
+                                <mat-label>Valeur Remise</mat-label>
+                                <input matInput type="number" formControlName="remiseGlobalValue"
+                                    (change)="calculateTotals()" min="0">
+                            </mat-form-field>
+
+                        </div>
+                        <div class="discount-calculation"
+                            *ngIf="form.get('proprietes.remiseGlobalValue')?.value > 0 && form.get('proprietes.remiseGlobalType')?.value === 'PERCENT'">
+                            <span class="calc-label">Montant déduit:</span>
+                            <span class="calc-value">-{{ calculatedGlobalDiscount | number:'1.2-2' }} DH</span>
+                        </div>
+                        <div class="discount-display"
+                            *ngIf="isViewMode && form.get('proprietes.remiseGlobalValue')?.value > 0">
+                            <span>Remise Globale:</span>
+                            <span>
+                                {{ form.get('proprietes.remiseGlobalValue')?.value }}
+                                {{ form.get('proprietes.remiseGlobalType')?.value === 'PERCENT' ? '%' : 'DH' }}
+                            </span>
+                            <span class="view-calc"
+                                *ngIf="form.get('proprietes.remiseGlobalType')?.value === 'PERCENT'">
+                                (-{{ (calculatedGlobalDiscount - (form.get('proprietes.pointsUtilises')?.value || 0)) |
+                                number:'1.2-2' }} DH)
+                            </span>
+                        </div>
+                        <div class="discount-display"
+                            *ngIf="isViewMode && form.get('proprietes.pointsUtilises')?.value > 0">
+                            <span>Points Fidelio:</span>
+                            <span>
+                                -{{ form.get('proprietes.pointsUtilises')?.value | number:'1.2-2' }} DH
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="total-row">
+                        <span>Total HT:</span>
+                        <span>{{ totalHT | number:'1.2-2' }} DH</span>
+                    </div>
+                    <div class="total-row">
+                        <span>TVA (20%):</span>
+                        <span>{{ totalTVA | number:'1.2-2' }} DH</span>
+                    </div>
+                    <div class="total-row main">
+                        <span>Total TTC:</span>
+                        <span>{{ totalTTC | number:'1.2-2' }} DH</span>
+                    </div>
+                </div>
+            </div>
+
+
+        </mat-card>
+
+        <!-- PRINT SIGNATURES -->
+        <div class="print-signatures">
+            <div class="signature-box">
+                <p>Signature du Client</p>
+                <div class="sig-line"></div>
+            </div>
+            <div class="signature-box">
+                <p>Signature et Cachet du Magasin</p>
+                <div class="sig-line"></div>
+            </div>
+        </div>
+    </form>
+</div>

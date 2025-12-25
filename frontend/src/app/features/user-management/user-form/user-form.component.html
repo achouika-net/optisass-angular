@@ -171,7 +171,7 @@
 
                         <mat-form-field class="entrepot-field" *ngIf="getEntrepotsForCentre(i).length > 0">
                             <mat-label>Entrepôts</mat-label>
-                            <mat-select formControlName="entrepotIds" multiple>
+                            <mat-select formControlName="entrepotIds" multiple (selectionChange)="onEntrepotsChange(i)">
                                 <mat-select-trigger>
                                     {{ (centreRole.get('entrepotIds')?.value?.length || 0) + ' sélectionné(s)' }}
                                 </mat-select-trigger>

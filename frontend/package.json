@@ -46,6 +46,7 @@
         "@tensorflow-models/face-landmarks-detection": "^1.0.6",
         "@tensorflow/tfjs": "^4.22.0",
         "@types/node": "^24.10.1",
+        "chart.js": "^4.5.1",
         "crypto-ts": "^1.0.2",
         "date-fns": "^4.1.0",
         "ngx-toastr": "^19.1.0",

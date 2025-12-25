@@ -1,0 +1,136 @@
+<div class="loyalty-config-container animate__animated animate__fadeIn">
+    <!-- Header with Action -->
+    <div class="config-header">
+        <div class="title-section">
+            <mat-icon class="title-icon">loyalty</mat-icon>
+            <div class="title-text">
+                <h1>Paramétrage du système Fidelio</h1>
+                <p>Définissez les règles de calcul et les bonus d'attribution des points</p>
+            </div>
+        </div>
+        <div class="action-section">
+            <button *ngIf="!isEditing" mat-raised-button color="primary" class="edit-btn" (click)="startEditing()">
+                <mat-icon>edit</mat-icon>
+                <span>Modifier</span>
+            </button>
+            <div *ngIf="isEditing" class="edit-actions">
+                <button mat-button (click)="cancelEditing()" [disabled]="loading">
+                    Annuler
+                </button>
+                <button mat-raised-button color="primary" class="save-btn" [disabled]="loading" (click)="saveConfig()">
+                    <mat-icon>{{ loading ? 'sync' : 'save' }}</mat-icon>
+                    <span>Enregistrer</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <mat-divider class="mb-6"></mat-divider>
+
+    <div class="config-content">
+        <div class="config-grid">
+            <!-- Points par Achat -->
+            <mat-card class="config-card">
+                <mat-card-header>
+                    <div mat-card-avatar class="icon-avatar earn">
+                        <mat-icon>shopping_cart</mat-icon>
+                    </div>
+                    <mat-card-title>Achats Clients</mat-card-title>
+                    <mat-card-subtitle>Points sur le montant TTC</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="field-container mt-4">
+                        <mat-form-field appearance="outline" class="w-full">
+                            <mat-label>Ratio Points par DH</mat-label>
+                            <input matInput type="number" [(ngModel)]="config.pointsPerDH"
+                                [ngModelOptions]="{standalone: true}" step="0.01" min="0" [disabled]="!isEditing">
+                            <span matSuffix class="suffix-text">pts / DH</span>
+                            <mat-hint>Ex: 0.1 pts/DH = 10 pts pour 100 DH</mat-hint>
+                        </mat-form-field>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- Parrainage -->
+            <mat-card class="config-card">
+                <mat-card-header>
+                    <div mat-card-avatar class="icon-avatar referral">
+                        <mat-icon>group_add</mat-icon>
+                    </div>
+                    <mat-card-title>Parrainage</mat-card-title>
+                    <mat-card-subtitle>Bonus d'invitation</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="fields-row mt-4">
+                        <mat-form-field appearance="outline">
+                            <mat-label>Bonus Parrain</mat-label>
+                            <input matInput type="number" [(ngModel)]="config.referrerBonus"
+                                [ngModelOptions]="{standalone: true}" min="0" [disabled]="!isEditing">
+                            <span matSuffix class="suffix-text">pts</span>
+                        </mat-form-field>
+
+                        <mat-form-field appearance="outline">
+                            <mat-label>Bonus Filleul</mat-label>
+                            <input matInput type="number" [(ngModel)]="config.refereeBonus"
+                                [ngModelOptions]="{standalone: true}" min="0" [disabled]="!isEditing">
+                            <span matSuffix class="suffix-text">pts</span>
+                        </mat-form-field>
+                    </div>
+                    <mat-hint class="block mt-2">Attribués lors du 1er achat du filleul</mat-hint>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- Dossier Médical -->
+            <mat-card class="config-card">
+                <mat-card-header>
+                    <div mat-card-avatar class="icon-avatar folder">
+                        <mat-icon>assignment_ind</mat-icon>
+                    </div>
+                    <mat-card-title>Dossier Médical</mat-card-title>
+                    <mat-card-subtitle>Points à la création</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="field-container mt-4">
+                        <mat-form-field appearance="outline" class="w-full">
+                            <mat-label>Points / Création</mat-label>
+                            <input matInput type="number" [(ngModel)]="config.folderCreationBonus"
+                                [ngModelOptions]="{standalone: true}" min="0" [disabled]="!isEditing">
+                            <span matSuffix class="suffix-text">pts</span>
+                            <mat-hint>Points au client dès l'enregistrement.</mat-hint>
+                        </mat-form-field>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- Récompenses & Objectifs -->
+            <mat-card class="config-card">
+                <mat-card-header>
+                    <div mat-card-avatar class="icon-avatar reward">
+                        <mat-icon>card_giftcard</mat-icon>
+                    </div>
+                    <mat-card-title>Récompenses</mat-card-title>
+                    <mat-card-subtitle>Seuil et conversion</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="fields-row mt-4">
+                        <mat-form-field appearance="outline">
+                            <mat-label>Seuil d'objectif</mat-label>
+                            <input matInput type="number" [(ngModel)]="config.rewardThreshold"
+                                [ngModelOptions]="{standalone: true}" min="0" [disabled]="!isEditing">
+                            <span matSuffix class="suffix-text">pts</span>
+                            <mat-hint>Points requis pour échanger</mat-hint>
+                        </mat-form-field>
+
+                        <mat-form-field appearance="outline">
+                            <mat-label>Conversion</mat-label>
+                            <input matInput type="number" [(ngModel)]="config.pointsToMADRatio"
+                                [ngModelOptions]="{standalone: true}" step="0.01" min="0" [disabled]="!isEditing">
+                            <span matSuffix class="suffix-text">MAD / pt</span>
+                            <mat-hint>Valeur en MAD par point</mat-hint>
+                        </mat-form-field>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+        </div>
+    </div>
+</div>

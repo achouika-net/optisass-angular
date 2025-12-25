@@ -1,0 +1,324 @@
+<div class="product-list-container p-6">
+    <!-- Header & Actions -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold m-0">Gestion du Stock</h1>
+        <div class="flex gap-2">
+            <button mat-raised-button class="export-btn" (click)="exportXLS()">
+                <mat-icon>file_download</mat-icon>
+                Exporter
+            </button>
+            <button mat-raised-button class="tree-btn" routerLink="/p/stock/tree" color="accent">
+                <mat-icon>account_tree</mat-icon>
+                Vue Arborescence
+            </button>
+            <button mat-raised-button class="add-btn" routerLink="/p/stock/new">
+                <mat-icon>add</mat-icon>
+                Ajouter un produit
+            </button>
+        </div>
+    </div>
+
+    <!-- Bulk Actions (Floating if items selected) -->
+    <div *ngIf="selection.hasValue()"
+        class="bulk-actions-banner mb-6 p-4 bg-primary/10 rounded-lg border border-primary/20 flex justify-between items-center animate-in fade-in slide-in-from-top-4 duration-300">
+        <div class="flex items-center gap-2">
+            <span class="font-bold text-primary">{{ selection.selected.length }}</span>
+            <span class="text-sm font-medium">produit(s) sélectionné(s)</span>
+        </div>
+        <div class="flex gap-2">
+            <button mat-raised-button color="primary" (click)="openBulkStockTransferDialog()">
+                <mat-icon>swap_horiz</mat-icon>
+                Transfert groupé
+            </button>
+            <button mat-raised-button class="reception-btn" (click)="openBulkReceptionDialog()"
+                *ngIf="hasReceivableItems()">
+                <mat-icon>login</mat-icon>
+                Réception groupée
+            </button>
+            <button mat-raised-button color="warn" (click)="openBulkStockOutDialog()">
+                <mat-icon>remove_shopping_cart</mat-icon>
+                Sortie groupée
+            </button>
+            <button mat-button (click)="selection.clear()">
+                Annuler
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid mb-6">
+        <mat-card class="stat-card stat-card-orange">
+            <mat-card-content>
+                <div class="stat-value">{{ stats.totalProduits }}</div>
+                <div class="stat-label">Produits en stock</div>
+            </mat-card-content>
+        </mat-card>
+        <mat-card class="stat-card stat-card-green">
+            <mat-card-content>
+                <div class="stat-value">{{ stats.valeurStockTotal | number:'1.2-2' }}</div>
+                <div class="stat-label">Valeur du stock (HT)</div>
+            </mat-card-content>
+        </mat-card>
+        <mat-card class="stat-card stat-card-purple">
+            <mat-card-content>
+                <div class="stat-value">{{ stats.caNonConsolide | number:'1.2-2' }}</div>
+                <div class="stat-label">CA Non Consolidé (HT)</div>
+            </mat-card-content>
+        </mat-card>
+        <mat-card class="stat-card stat-card-yellow">
+            <mat-card-content>
+                <div class="stat-value">{{ stats.produitsStockBas }}</div>
+                <div class="stat-label">Stock bas</div>
+            </mat-card-content>
+        </mat-card>
+        <mat-card class="stat-card stat-card-red">
+            <mat-card-content>
+                <div class="stat-value">{{ stats.produitsRupture }}</div>
+                <div class="stat-label">Rupture de stock</div>
+            </mat-card-content>
+        </mat-card>
+    </div>
+
+    <!-- Filters -->
+    <mat-card class="filter-card mb-6">
+        <mat-card-content class="filter-content">
+            <div class="filter-row">
+                <div class="filter-field">
+                    <label class="filter-label">Type de produit</label>
+                    <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                        <mat-select [(ngModel)]="filter.typeArticle" (selectionChange)="applyFilter()">
+                            <mat-option value="">Tous</mat-option>
+                            <mat-option *ngFor="let type of productTypes" [value]="type">
+                                {{ type | titlecase }}
+                            </mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                </div>
+
+                <div class="filter-field">
+                    <label class="filter-label">Statut</label>
+                    <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                        <mat-select [(ngModel)]="filter.statut" (selectionChange)="applyFilter()">
+                            <mat-option value="">Tous</mat-option>
+                            <mat-option *ngFor="let status of productStatuses" [value]="status">
+                                {{ status | titlecase }}
+                            </mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                </div>
+
+                <div class="filter-field">
+                    <label class="filter-label">Marque</label>
+                    <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                        <input matInput [(ngModel)]="filter.marque" (keyup.enter)="applyFilter()"
+                            placeholder="Marque...">
+                    </mat-form-field>
+                </div>
+
+                <div class="filter-field">
+                    <label class="filter-label">Modèle</label>
+                    <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
+                        <input matInput [(ngModel)]="filter.search" (keyup.enter)="applyFilter()"
+                            placeholder="Code, désignation...">
+                    </mat-form-field>
+                </div>
+            </div>
+
+            <!-- Search Button Row -->
+            <div class="flex justify-end mt-4">
+                <button mat-raised-button class="search-btn" (click)="applyFilter()">
+                    <mat-icon>search</mat-icon>
+                    Rechercher
+                </button>
+            </div>
+        </mat-card-content>
+    </mat-card>
+
+    <!-- Data Table -->
+    <mat-card>
+        <mat-card-content>
+            <div class="table-container">
+                <table mat-table [dataSource]="dataSource" matSort class="products-table w-full">
+
+                    <!-- Checkbox Column -->
+                    <ng-container matColumnDef="select">
+                        <th mat-header-cell *matHeaderCellDef>
+                            <mat-checkbox (change)="$event ? masterToggle() : null"
+                                [checked]="selection.hasValue() && isAllSelected()"
+                                [indeterminate]="selection.hasValue() && !isAllSelected()"
+                                [aria-label]="checkboxLabel()">
+                            </mat-checkbox>
+                        </th>
+                        <td mat-cell *matCellDef="let row">
+                            <mat-checkbox (click)="$event.stopPropagation()"
+                                (change)="$event ? selection.toggle(row) : null" [checked]="selection.isSelected(row)"
+                                [aria-label]="checkboxLabel(row)">
+                            </mat-checkbox>
+                        </td>
+                    </ng-container>
+
+                    <!-- Code Column -->
+                    <ng-container matColumnDef="codeInterne">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header> Code </th>
+                        <td mat-cell *matCellDef="let row"> {{row.codeInterne}} </td>
+                    </ng-container>
+
+                    <!-- Designation Column -->
+                    <ng-container matColumnDef="designation">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header> Désignation </th>
+                        <td mat-cell *matCellDef="let row"> {{row.designation}} </td>
+                    </ng-container>
+
+                    <!-- Brand Column -->
+                    <ng-container matColumnDef="marque">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header> Marque </th>
+                        <td mat-cell *matCellDef="let row"> {{row.marque || '--'}} </td>
+                    </ng-container>
+
+                    <!-- Type Column -->
+                    <ng-container matColumnDef="typeArticle">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header> Type </th>
+                        <td mat-cell *matCellDef="let row"> {{row.typeArticle | titlecase}} </td>
+                    </ng-container>
+
+                    <!-- Centre Column -->
+                    <ng-container matColumnDef="centre">
+                        <th mat-header-cell *matHeaderCellDef> Centre </th>
+                        <td mat-cell *matCellDef="let row"> {{row.entrepot?.centre?.nom || '--'}} </td>
+                    </ng-container>
+
+                    <!-- Entrepot Column -->
+                    <ng-container matColumnDef="entrepot">
+                        <th mat-header-cell *matHeaderCellDef> Entrepôt </th>
+                        <td mat-cell *matCellDef="let row"> {{row.entrepot?.nom || '--'}} </td>
+                    </ng-container>
+
+                    <!-- Stock Column -->
+                    <ng-container matColumnDef="quantiteActuelle">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header> Stock </th>
+                        <td mat-cell *matCellDef="let row">
+                            <span [ngClass]="getStockClass(row)">
+                                {{row.quantiteActuelle}}
+                            </span>
+                        </td>
+                    </ng-container>
+
+                    <!-- Price Column -->
+                    <ng-container matColumnDef="prixVenteTTC">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header> Prix TTC </th>
+                        <td mat-cell *matCellDef="let row"> {{formatPrice(row.prixVenteTTC)}} </td>
+                    </ng-container>
+
+                    <!-- Status Column -->
+                    <ng-container matColumnDef="statut">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header> Statut </th>
+                        <td mat-cell *matCellDef="let row">
+                            <div class="flex flex-col gap-1 items-start">
+                                <span class="status-badge"
+                                    [ngClass]="(row.quantiteActuelle <= 0 && row.statut?.toUpperCase() === 'DISPONIBLE') ? 'status-rupture' : getStatusClass(row.statut)">
+                                    {{ (row.quantiteActuelle <= 0 && row.statut?.toUpperCase()==='DISPONIBLE'
+                                        ? 'RUPTURE' : row.statut) | titlecase }} </span>
+
+                                        <!-- Incoming Indicator (Local Row) -->
+                                        <span *ngIf="row.specificData?.pendingIncoming"
+                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold uppercase border border-blue-100"
+                                            [class.animate-pulse]="row.specificData.pendingIncoming.status === 'SHIPPED'">
+                                            <mat-icon
+                                                style="font-size: 12px; height: 12px; width: 12px;">login</mat-icon>
+                                            <ng-container *ngIf="row.specificData.pendingIncoming.status === 'SHIPPED'">
+                                                Arrivage
+                                            </ng-container>
+                                            <ng-container
+                                                *ngIf="row.specificData.pendingIncoming.status === 'RESERVED'">
+                                                {{ row.quantiteActuelle <= 0 ? 'RUPTURE → RÉSERVÉ' : 'RÉSERVÉ' }}
+                                                    </ng-container>
+                                        </span>
+
+                                        <!-- Outgoing Indicator (Source Row) -->
+                                        <span *ngIf="row.specificData?.pendingOutgoing?.length > 0"
+                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 text-[10px] font-bold uppercase border border-orange-100">
+                                            <mat-icon
+                                                style="font-size: 12px; height: 12px; width: 12px;">outbound</mat-icon>
+                                            Expédition x{{ row.specificData.pendingOutgoing.length }}
+                                        </span>
+                            </div>
+                        </td>
+                    </ng-container>
+
+                    <!-- Actions Column -->
+                    <ng-container matColumnDef="actions">
+                        <th mat-header-cell *matHeaderCellDef> Actions </th>
+                        <td mat-cell *matCellDef="let row">
+                            <button mat-icon-button [matMenuTriggerFor]="menu">
+                                <mat-icon>more_vert</mat-icon>
+                            </button>
+                            <mat-menu #menu="matMenu">
+                                <button mat-menu-item color="primary" [routerLink]="['/p/stock', row.id]">
+                                    <mat-icon color="primary">visibility</mat-icon>
+                                    <span>Voir détails</span>
+                                </button>
+                                <button mat-menu-item color="accent" [routerLink]="['/p/stock', row.id, 'edit']">
+                                    <mat-icon color="accent">edit</mat-icon>
+                                    <span>Modifier</span>
+                                </button>
+                                <button mat-menu-item (click)="openStockEntryDialog(row)">
+                                    <mat-icon color="primary">add_shopping_cart</mat-icon>
+                                    <span>Entrée de stock</span>
+                                </button>
+                                <button mat-menu-item (click)="openStockOutDialog(row)">
+                                    <mat-icon color="warn">remove_shopping_cart</mat-icon>
+                                    <span>Sortie de stock</span>
+                                </button>
+                                <button mat-menu-item (click)="openStockTransferDialog(row)">
+                                    <mat-icon color="accent">swap_horiz</mat-icon>
+                                    <span>Transférer le produit</span>
+                                </button>
+                                <button mat-menu-item (click)="openHistoryDialog(row)">
+                                    <mat-icon color="primary">history</mat-icon>
+                                    <span>Historique des mouvements</span>
+                                </button>
+                                <button mat-menu-item (click)="printBarcode(row)">
+                                    <mat-icon>qr_code_2</mat-icon>
+                                    <span>Imprimer code-barres</span>
+                                </button>
+
+                                <mat-divider *ngIf="canShip(row) || canCancel(row) || canReceive(row)"></mat-divider>
+
+                                <!-- Transfer Actions -->
+                                <button mat-menu-item color="success" *ngIf="canShip(row)" (click)="shipTransfer(row)">
+                                    <mat-icon color="success">local_shipping</mat-icon>
+                                    <span>Valider l'expédition</span>
+                                </button>
+                                <button mat-menu-item color="warn" *ngIf="canCancel(row)" (click)="cancelTransfer(row)">
+                                    <mat-icon color="warn">cancel</mat-icon>
+                                    <span>Annuler le transfert</span>
+                                </button>
+                                <button mat-menu-item class="text-green-600" *ngIf="canReceive(row)"
+                                    (click)="receiveTransfer(row)">
+                                    <mat-icon style="color: #10b981;">download_for_offline</mat-icon>
+                                    <span>Confirmer la réception</span>
+                                </button>
+
+                                <mat-divider></mat-divider>
+                                <button mat-menu-item color="warn" (click)="deleteProduct(row)">
+                                    <mat-icon color="warn">delete</mat-icon>
+                                    <span>Supprimer définitivement</span>
+                                </button>
+                            </mat-menu>
+                        </td>
+                    </ng-container>
+
+                    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+
+                    <!-- Row shown when there is no matching data. -->
+                    <tr class="mat-row" *matNoDataRow>
+                        <td class="mat-cell" colspan="10">Aucun produit trouvé</td>
+                    </tr>
+                </table>
+            </div>
+
+            <mat-paginator [pageSizeOptions]="[10, 25, 50, 100]" aria-label="Select page of products"></mat-paginator>
+        </mat-card-content>
+    </mat-card>
+</div>

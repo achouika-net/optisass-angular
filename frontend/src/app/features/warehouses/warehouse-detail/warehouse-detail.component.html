@@ -44,14 +44,6 @@
                 <h3>Produits en Stock ({{ entrepot.produits?.length || 0 }})</h3>
             </mat-card-title>
             <div class="header-actions">
-                <mat-form-field appearance="outline" class="search-field dense-form-field">
-                    <mat-label>Rechercher produit...</mat-label>
-                    <input matInput [(ngModel)]="filterText" (keyup)="applyFilter()" placeholder="Ex: Ray-ban, Ref...">
-                    <button mat-icon-button matSuffix *ngIf="filterText" (click)="filterText=''; applyFilter()">
-                        <mat-icon>close</mat-icon>
-                    </button>
-                    <mat-icon matSuffix *ngIf="!filterText">search</mat-icon>
-                </mat-form-field>
 
                 <button mat-raised-button color="accent" (click)="navigateToAddProduct()">
                     <mat-icon>add_shopping_cart</mat-icon>
@@ -60,8 +52,43 @@
             </div>
         </mat-card-header>
         <mat-card-content>
+            <!-- Filters -->
+            <div class="filters-container">
+
+                <mat-form-field appearance="outline" class="dense-form-field" style="width: 200px;">
+                    <mat-label>Période</mat-label>
+                    <mat-select [(ngModel)]="selectedPeriod" (selectionChange)="onPeriodChange()">
+                        <mat-option value="all">Tout le temps</mat-option>
+                        <mat-option value="today">Aujourd'hui</mat-option>
+                        <mat-option value="week">Cette semaine</mat-option>
+                        <mat-option value="month">Ce mois</mat-option>
+                        <mat-option value="custom">Entre deux dates</mat-option>
+                    </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="dense-form-field" style="width: 280px;"
+                    *ngIf="selectedPeriod === 'custom'">
+                    <mat-label>Sélectionner dates</mat-label>
+                    <mat-date-range-input [rangePicker]="picker">
+                        <input matStartDate placeholder="Début" [(ngModel)]="startDate" (dateChange)="applyFilter()">
+                        <input matEndDate placeholder="Fin" [(ngModel)]="endDate" (dateChange)="applyFilter()">
+                    </mat-date-range-input>
+                    <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+                    <mat-date-range-picker #picker></mat-date-range-picker>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="dense-form-field" style="width: 200px;">
+                    <mat-label>Entrepôt Source</mat-label>
+                    <mat-select [(ngModel)]="selectedSourceWarehouse" (selectionChange)="applyFilter()">
+                        <mat-option [value]="null">Tous</mat-option>
+                        <mat-option *ngFor="let src of sourceWarehouses" [value]="src">{{ src }}</mat-option>
+                    </mat-select>
+                </mat-form-field>
+            </div>
+
             <table mat-table [dataSource]="entrepot.produits || []"
                 *ngIf="entrepot.produits && entrepot.produits.length > 0" class="products-table">
+
                 <!-- Designation Column -->
                 <ng-container matColumnDef="designation">
                     <th mat-header-cell *matHeaderCellDef>Désignation</th>
@@ -81,30 +108,47 @@
                             <div class="secondary-text">{{ product.marque }} - {{ product.referenceFournisseur }}</div>
                         </div>
                     </td>
+                    <td mat-footer-cell *matFooterCellDef> </td>
                 </ng-container>
 
                 <!-- Code Column -->
                 <ng-container matColumnDef="codeInterne">
                     <th mat-header-cell *matHeaderCellDef>Code</th>
                     <td mat-cell *matCellDef="let product">{{ product.codeInterne }}</td>
+                    <td mat-footer-cell *matFooterCellDef> </td>
+                </ng-container>
+
+                <!-- Source Column -->
+                <ng-container matColumnDef="sourceEntrepot">
+                    <th mat-header-cell *matHeaderCellDef> Source </th>
+                    <td mat-cell *matCellDef="let element"> {{ getProductSource(element) || '-' }} </td>
+                    <td mat-footer-cell *matFooterCellDef> </td>
+                </ng-container>
+
+                <!-- Date Column -->
+                <ng-container matColumnDef="dateOperation">
+                    <th mat-header-cell *matHeaderCellDef> Date Opération </th>
+                    <td mat-cell *matCellDef="let element"> {{ getProductDate(element) | date:'dd/MM/yyyy HH:mm' }}
+                    </td>
+                    <td mat-footer-cell *matFooterCellDef> <strong>Total</strong> </td>
                 </ng-container>
 
                 <!-- Quantity Column -->
                 <ng-container matColumnDef="quantiteActuelle">
                     <th mat-header-cell *matHeaderCellDef>Quantité</th>
-                    <td mat-cell *matCellDef="let product"
-                        [class.low-stock]="product.quantiteActuelle <= product.seuilAlerte">
+                    <td mat-cell *matCellDef="let product">
                         {{ product.quantiteActuelle }}
-                        <mat-icon *ngIf="product.quantiteActuelle <= product.seuilAlerte" class="warning-icon"
-                            matTooltip="Stock faible">warning</mat-icon>
                     </td>
+                    <td mat-footer-cell *matFooterCellDef> <strong>{{ totalQuantity }}</strong> </td>
                 </ng-container>
 
                 <!-- Price Column -->
                 <ng-container matColumnDef="prixVenteHT">
-                    <th mat-header-cell *matHeaderCellDef>Prix Vente HT</th>
-                    <td mat-cell *matCellDef="let product">{{ product.prixVenteHT | currency:'MAD':'symbol':'1.2-2' }}
+                    <th mat-header-cell *matHeaderCellDef>Prix Vente TTC</th>
+                    <td mat-cell *matCellDef="let product">{{ product.prixVenteTTC | currency:'MAD':'symbol':'1.2-2' }}
                     </td>
+                    <td mat-footer-cell *matFooterCellDef> <strong>{{ totalValue | currency:'MAD':'symbol':'1.2-2'
+                            }}</strong> </td>
                 </ng-container>
 
                 <!-- Actions Column -->
@@ -136,10 +180,12 @@
                             <mat-icon>edit</mat-icon>
                         </button>
                     </td>
+                    <td mat-footer-cell *matFooterCellDef> </td>
                 </ng-container>
 
                 <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
                 <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+                <tr mat-footer-row *matFooterRowDef="displayedColumns" class="custom-footer-row"></tr>
             </table>
 
             <div *ngIf="!entrepot.produits || entrepot.produits.length === 0" class="no-data">

@@ -264,8 +264,47 @@ export class ProductsService {
     }
 
     async remove(id: string) {
-        // Check if exists
-        await this.findOne(id);
+        const product = await this.prisma.product.findUnique({
+            where: { id },
+            include: {
+                mouvements: { take: 1 },
+                _count: {
+                    select: { mouvements: true }
+                }
+            }
+        });
+
+        if (!product) {
+            throw new NotFoundException(`Produit non trouvé`);
+        }
+
+        // 1. Check for Stock
+        if (product.quantiteActuelle > 0) {
+            throw new Error(`Suppression impossible : ce produit possède encore du stock (${product.quantiteActuelle}). Veuillez d'abord sortir le stock manuellement.`);
+        }
+
+        // 2. Check for Mouvements (History)
+        if (product._count.mouvements > 0) {
+            throw new Error(`Suppression impossible : ce produit possède un historique de mouvements de stock (${product._count.mouvements}). Pour la traçabilité, vous ne pouvez pas le supprimer.`);
+        }
+
+        // 3. Check for Invoices (JSON probe)
+        // Since Prisma doesn't support easy JsonPath filtering across all dialects in a simple way,
+        // we can use a more generic check or findMany but that's expensive.
+        // However, given the requirement, we MUST ensure it's not used.
+        const allInvoices = await this.prisma.facture.findMany({
+            select: { id: true, numero: true, lignes: true }
+        });
+
+        const linkedInvoice = allInvoices.find(inv => {
+            const lines = (typeof inv.lignes === 'string' ? JSON.parse(inv.lignes) : inv.lignes) as any[];
+            return lines.some(line => line.productId === id);
+        });
+
+        if (linkedInvoice) {
+            throw new Error(`Suppression impossible : ce produit est référencé dans la facture ${linkedInvoice.numero}.`);
+        }
+
         return this.prisma.product.delete({
             where: { id },
         });
@@ -496,6 +535,7 @@ export class ProductsService {
             return {
                 totalProduits: 0,
                 valeurStockTotal: 0,
+                caNonConsolide: 0,
                 produitsStockBas: 0,
                 produitsRupture: 0,
                 produitsReserves: 0,
@@ -509,23 +549,44 @@ export class ProductsService {
         });
 
         const stats = {
-            totalProduits: allProducts.reduce((acc, p) => acc + p.quantiteActuelle, 0),
-            valeurStockTotal: allProducts.reduce((acc, p) => acc + (p.quantiteActuelle * (p.prixAchatHT || 0)), 0),
-            caNonConsolide: allProducts.reduce((acc, p) => {
-                const isDefective = p.entrepot?.nom?.toLowerCase().includes('défectueux') ||
-                    p.entrepot?.nom?.toLowerCase().includes('defectueux') ||
-                    p.entrepot?.nom?.toUpperCase() === 'DÉFECTUEUX';
-
-                if (isDefective) {
-                    return acc + (p.quantiteActuelle * (p.prixVenteTTC || 0));
-                }
-                return acc;
-            }, 0),
-            produitsStockBas: allProducts.filter(p => p.quantiteActuelle > 0 && p.quantiteActuelle <= p.seuilAlerte).length,
-            produitsRupture: allProducts.filter(p => p.quantiteActuelle <= 0).length,
-            produitsReserves: allProducts.filter(p => (p.specificData as any)?.pendingIncoming?.status === 'RESERVED').length,
-            produitsEnTransit: allProducts.filter(p => (p.specificData as any)?.pendingIncoming?.status === 'SHIPPED').length
+            totalProduits: 0,
+            valeurStockTotal: 0,
+            caNonConsolide: 0,
+            produitsStockBas: 0,
+            produitsRupture: 0,
+            produitsReserves: 0,
+            produitsEnTransit: 0
         };
+
+        allProducts.forEach(p => {
+            const isDefective = p.entrepot?.nom?.toLowerCase().includes('défectueux') ||
+                p.entrepot?.nom?.toLowerCase().includes('defectueux') ||
+                p.entrepot?.nom?.toUpperCase() === 'DÉFECTUEUX';
+
+            if (isDefective) {
+                stats.caNonConsolide += (p.quantiteActuelle * (p.prixVenteHT || 0));
+            } else {
+                // Main stats only for salable stock
+                stats.totalProduits += p.quantiteActuelle;
+                stats.valeurStockTotal += (p.quantiteActuelle * (p.prixAchatHT || 0));
+
+                if (p.quantiteActuelle > 0 && p.quantiteActuelle <= p.seuilAlerte) {
+                    stats.produitsStockBas++;
+                }
+
+                if (p.quantiteActuelle <= 0) {
+                    stats.produitsRupture++;
+                }
+
+                const sd = (p.specificData as any) || {};
+                if (sd.pendingIncoming?.status === 'RESERVED') {
+                    stats.produitsReserves++;
+                }
+                if (sd.pendingIncoming?.status === 'SHIPPED') {
+                    stats.produitsEnTransit++;
+                }
+            }
+        });
 
         return stats;
     }

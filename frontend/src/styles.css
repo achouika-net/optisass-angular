@@ -4,6 +4,7 @@ html,
 body {
   height: 100%;
 }
+
 body {
   margin: 0;
   font-family: var(--bodyfont);
@@ -14,7 +15,8 @@ body {
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));
   row-gap: calc(var(--spacing) * 1);
-  @media (width >= 1279.98px) {
+
+  @media (width >=1279.98px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: calc(var(--spacing) * 5);
   }
@@ -24,11 +26,78 @@ body {
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));
   row-gap: calc(var(--spacing) * 1);
-  @media (width >= 959.98px) {
+
+  @media (width >=959.98px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: calc(var(--spacing) * 5);
   }
-  @media (width >= 1279.98px) {
+
+  @media (width >=1279.98px) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media print {
+  @page {
+    margin: 0;
+    /* Remove browser default margins */
+    size: auto;
+    /* Use content size */
+  }
+
+  /* Hide Application Shell - Specific Elements */
+  mat-toolbar,
+  .mat-toolbar,
+  mat-sidenav,
+  .mat-sidenav,
+  app-sidebar,
+  app-breadcrumb,
+  app-topbar-actions,
+  /* .mat-drawer-container MUST BE VISIBLE as it wraps content */
+  .mat-drawer,
+  /* This hides the sidebar wrapper */
+  .mat-drawer-side,
+  img[alt="homepage-logo"],
+  button,
+  .no-print,
+  .cdk-overlay-container {
+    display: none !important;
+  }
+
+  /* Reset Layout / Flow for Print */
+  body,
+  html,
+  mat-sidenav-container,
+  mat-sidenav-content,
+  .mat-drawer-container,
+  .mat-drawer-content,
+  main {
+    background-color: white !important;
+    background: white !important;
+    height: auto !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    position: static !important;
+    display: block !important;
+
+    /* Remove Flexbox/Grid constraints that might clip content */
+    flex: none !important;
+    transform: none !important;
+  }
+
+  /* Specific resets for fixed positioning which breaks print flow */
+  .fixed,
+  .sticky,
+  .absolute {
+    position: static !important;
+  }
+
+  /* Ensure content is visible and expands */
+  main {
+    width: 100% !important;
+    max-width: none !important;
   }
 }

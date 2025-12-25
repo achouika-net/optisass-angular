@@ -69,6 +69,18 @@
                 <mat-option value="CUSTOM">Personnalisé</mat-option>
             </mat-select>
         </mat-form-field>
+
+        <!-- Client Search Filter -->
+        <mat-form-field appearance="outline" class="density-compact filter-field" style="width: 100%;">
+            <mat-label>Filtrer par Client</mat-label>
+            <input matInput [(ngModel)]="clientSearch" (input)="onFilterChange()" placeholder="Rechercher un client...">
+            <mat-icon matPrefix>search</mat-icon>
+            <button *ngIf="clientSearch" matSuffix mat-icon-button aria-label="Clear"
+                (click)="clientSearch=''; onFilterChange()">
+                <mat-icon>close</mat-icon>
+            </button>
+        </mat-form-field>
+
         <button mat-icon-button (click)="loadData()" [disabled]="loading" matTooltip="Actualiser les données"
             color="primary">
             <mat-icon [class.refresh-loading]="loading">refresh</mat-icon>
@@ -191,6 +203,10 @@
                                                 <mat-icon>more_vert</mat-icon>
                                             </button>
                                             <mat-menu #menu="matMenu">
+                                                <button mat-menu-item (click)="viewDocument(invoice)">
+                                                    <mat-icon color="primary">description</mat-icon>
+                                                    <span>Voir document</span>
+                                                </button>
                                                 <button mat-menu-item (click)="openPaymentDialog(invoice)"
                                                     *ngIf="invoice.resteAPayer > 0">
                                                     <mat-icon color="primary">payments</mat-icon>
@@ -303,6 +319,10 @@
                                                 <mat-icon>more_vert</mat-icon>
                                             </button>
                                             <mat-menu #menu="matMenu">
+                                                <button mat-menu-item (click)="viewDocument(invoice)">
+                                                    <mat-icon color="primary">description</mat-icon>
+                                                    <span>Voir document</span>
+                                                </button>
                                                 <button mat-menu-item (click)="openPaymentDialog(invoice)"
                                                     *ngIf="invoice.totalTTC > 0">
                                                     <mat-icon color="primary">payments</mat-icon>
@@ -424,6 +444,10 @@
                                                 <mat-icon>more_vert</mat-icon>
                                             </button>
                                             <mat-menu #menu="matMenu">
+                                                <button mat-menu-item (click)="viewDocument(invoice)">
+                                                    <mat-icon color="primary">description</mat-icon>
+                                                    <span>Voir document</span>
+                                                </button>
                                                 <button mat-menu-item (click)="openPaymentDialog(invoice)"
                                                     *ngIf="invoice.resteAPayer > 0">
                                                     <mat-icon color="primary">payments</mat-icon>
@@ -528,6 +552,10 @@
                                                 <mat-icon>more_vert</mat-icon>
                                             </button>
                                             <mat-menu #menu="matMenu">
+                                                <button mat-menu-item (click)="viewDocument(invoice)">
+                                                    <mat-icon color="primary">description</mat-icon>
+                                                    <span>Voir document</span>
+                                                </button>
                                                 <button mat-menu-item (click)="viewFiche(invoice)">
                                                     <mat-icon color="accent">visibility</mat-icon>
                                                     <span>Afficher Fiche</span>
@@ -563,87 +591,6 @@
             </div>
         </mat-tab>
 
-        <!-- Tab 5: Archivées (Undeclared Sales) -->
-        <mat-tab>
-            <ng-template mat-tab-label>
-                <mat-icon class="mr-2">archive</mat-icon>
-                Ventes Non Consolidées ({{ groupedArchived.length > 0 ? (groupedArchived[0].invoices.length || 0) : 0
-                }})
-            </ng-template>
-
-            <div class="tab-content">
-                <div class="modern-table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Ref Fiche</th>
-                                <th>Numéro</th>
-                                <th>Client</th>
-                                <th>Date</th>
-                                <th>Total TTC</th>
-                                <th>Reste à Payer</th>
-                                <th>Stock Décrémenté?</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <ng-container *ngFor="let group of groupedArchived">
-                                <ng-container *ngIf="isGroupVisible(group)">
-                                    <!-- Month Header -->
-                                    <tr class="bg-light">
-                                        <td colspan="8"
-                                            class="py-2 px-3 font-semibold text-gray-700 bg-gray-50 border-b">
-                                            <div class="flex items-center">
-                                                <mat-icon class="mr-2 text-sm text-gray-500">calendar_today</mat-icon>
-                                                {{ group.month }}
-                                            </div>
-                                        </td>
-                                    </tr>
-
-                                    <!-- Invoices -->
-                                    <tr *ngFor="let invoice of group.invoices">
-                                        <td>{{
-                                            (invoice.ficheId || invoice.proprietes?.['ficheId'])?.substring(0, 12) }}
-                                        </td>
-                                        <td>{{ invoice.numero }}</td>
-                                        <td>{{ getClientName(invoice) }}</td>
-                                        <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
-                                        <td>{{ invoice.totalTTC | number:'1.2-2' }} DH</td>
-                                        <td class="font-weight-bold">{{ invoice.resteAPayer | number:'1.2-2' }} DH</td>
-                                        <td>
-                                            <span class="badge badge-warning"
-                                                *ngIf="invoice.proprietes?.['forceStockDecrement']">OUI</span>
-                                            <span class="badge badge-secondary"
-                                                *ngIf="!invoice.proprietes?.['forceStockDecrement']">NON</span>
-                                        </td>
-                                        <td>
-                                            <button mat-icon-button [matMenuTriggerFor]="menu">
-                                                <mat-icon>more_vert</mat-icon>
-                                            </button>
-                                            <mat-menu #menu="matMenu">
-                                                <button mat-menu-item (click)="viewFiche(invoice)">
-                                                    <mat-icon color="accent">visibility</mat-icon>
-                                                    <span>Afficher Fiche</span>
-                                                </button>
-                                            </mat-menu>
-                                        </td>
-                                    </tr>
-                                </ng-container>
-                            </ng-container>
-
-                            <tr *ngIf="groupedArchived.length === 0">
-                                <td colspan="8">
-                                    <div class="empty-state">
-                                        <mat-icon>archive</mat-icon>
-                                        <h3>Aucune facture archivée</h3>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </mat-tab>
 
         <!-- Tab 3: Statistics -->
         <mat-tab>
@@ -663,7 +610,7 @@
                                 <th>Factures Validées</th>
                                 <th>Avoirs</th>
                                 <th>CA consolidé</th>
-                                <th>CA Non Consolidé</th>
+                                <th>CA Non Consolidé (HT)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -701,12 +648,11 @@
                                         *ngIf="!stat.countAvoir || stat.countAvoir === 0">-</span>
                                 </td>
                                 <td class="text-center text-bold">{{ stat.totalAmount | number:'1.2-2' }} DH</td>
-                                <td class="text-center text-bold text-warning">{{ (stat.totalArchived || 0) |
-                                    number:'1.2-2' }} DH
-                                </td>
+                                <td class="text-center text-bold" style="color: #f57c00;">{{ stockStats?.caNonConsolide
+                                    | number:'1.2-2' }} DH</td>
                             </tr>
                             <tr *ngIf="statistics.length === 0">
-                                <td colspan="7">
+                                <td colspan="8">
                                     <div class="empty-state">
                                         <mat-icon>bar_chart</mat-icon>
                                         <h3>Aucune donnée</h3>

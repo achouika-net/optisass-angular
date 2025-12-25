@@ -158,6 +158,12 @@ export const MENU: MenuItem[] = [
         route: 'users',
       },
       {
+        label: 'Paramétrage Fidelio',
+        icon: 'loyalty',
+        type: 'subchild',
+        route: 'settings/loyalty',
+      },
+      {
         label: 'Groupes & Entrepôts',
         icon: 'warehouse',
         type: 'subchild',

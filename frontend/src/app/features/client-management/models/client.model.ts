@@ -189,6 +189,10 @@ export interface ClientBase {
     dateCreation?: Date;
     derniereVisite?: Date;
     pointsFidelite?: number;
+    parrainId?: string;
+    parrain?: any;
+    filleuls?: any[];
+    pointsHistory?: any[];
 }
 
 // Client Particulier

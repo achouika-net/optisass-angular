@@ -47,7 +47,17 @@ export class WarehousesService {
                         groupe: true,
                     },
                 },
-                produits: true,
+                produits: {
+                    include: {
+                        mouvements: {
+                            take: 1,
+                            orderBy: { createdAt: 'desc' },
+                            include: {
+                                entrepotSource: true
+                            }
+                        }
+                    }
+                },
                 _count: {
                     select: {
                         produits: true,

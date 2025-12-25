@@ -1,107 +1,23 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Put, Query, Headers } from '@nestjs/common';
 import { ClientsService } from './clients.service';
-import { Prisma } from '@prisma/client';
+import { CreateClientDto } from './dto/create-client.dto';
+import { UpdateClientDto } from './dto/update-client.dto';
 
 @Controller('clients')
 export class ClientsController {
     constructor(private readonly clientsService: ClientsService) { }
 
-    private mapPayloadToDto(body: any) {
-        // Extract ALL fields from frontend
-        const {
-            type,
-            typeClient,
-            titre,
-            nom,
-            prenom,
-            typePieceIdentite,
-            numeroPieceIdentite,
-            cinParent,
-            dateNaissance,
-            telephone,
-            email,
-            ville,
-            adresse,
-            codePostal,
-            statut,
-            couvertureSociale,
-            dossierMedical,
-            groupeFamille,
-            // Professional fields
-            raisonSociale,
-            identifiantFiscal,
-            ice,
-            registreCommerce,
-            patente,
-            tvaAssujetti,
-            numeroAutorisation,
-            siteWeb,
-            typePartenariat,
-            facturationGroupee,
-            convention,
-            contacts,
-        } = body;
-
-        const finalType = typeClient || type;
-
-        // Build DTO with ALL available fields
-        const dto: any = {
-            typeClient: finalType,
-            civilite: titre, // Map titre -> civilite
-            nom,
-            prenom,
-            typePieceIdentite,
-            numeroPieceIdentite,
-            cinParent,
-            dateNaissance: dateNaissance ? new Date(dateNaissance) : undefined,
-            telephone,
-            email,
-            ville,
-            adresse,
-            codePostal,
-            statut,
-            couvertureSociale,
-            dossierMedical,
-            groupeFamille,
-            // Professional fields
-            raisonSociale,
-            identifiantFiscal,
-            ice,
-            registreCommerce,
-            patente,
-            tvaAssujetti,
-            numeroAutorisation,
-            siteWeb,
-            convention,
-            contacts,
-        };
-
-        // Remove undefined values to avoid Prisma errors
-        Object.keys(dto).forEach(key => {
-            if (dto[key] === undefined) {
-                delete dto[key];
-            }
-        });
-
-        return dto;
-    }
-
     @Post()
-    async create(@Body() body: any, @Headers('Tenant') centreId: string) {
-        console.log('📥 CREATE Incoming payload:', JSON.stringify(body, null, 2));
+    async create(@Body() createClientDto: CreateClientDto, @Headers('Tenant') centreId: string) {
+        console.log('📥 CREATE Incoming payload:', JSON.stringify(createClientDto, null, 2));
 
-        if (!centreId) {
-            console.warn('⚠️ No Tenant/Centre ID provided in headers');
-            // Optionally throw error or allow global (but user wants strict scoping)
+        // Attach centreId if provided in headers
+        if (centreId) {
+            createClientDto.centreId = centreId;
         }
 
         try {
-            const createClientDto = this.mapPayloadToDto(body);
-            // Attach centreId
-            if (centreId) {
-                createClientDto['centreId'] = centreId;
-            }
-            console.log('🔄 Mapped CREATE DTO:', JSON.stringify(createClientDto, null, 2));
+            console.log('🔄 Processed CREATE DTO:', JSON.stringify(createClientDto, null, 2));
             return await this.clientsService.create(createClientDto);
         } catch (error) {
             console.error('❌ CREATE CLIENT ERROR:', error);
@@ -120,14 +36,11 @@ export class ClientsController {
     }
 
     @Put(':id')
-    async update(@Param('id') id: string, @Body() body: any) {
-        console.log('📥 UPDATE Incoming payload:', JSON.stringify(body, null, 2));
+    async update(@Param('id') id: string, @Body() updateClientDto: UpdateClientDto) {
+        console.log('📥 UPDATE Incoming payload:', JSON.stringify(updateClientDto, null, 2));
 
         try {
-            // Apply the same mapping/cleaning logic as Create
-            const updateClientDto = this.mapPayloadToDto(body);
-            console.log('🔄 Mapped UPDATE DTO:', JSON.stringify(updateClientDto, null, 2));
-
+            console.log('🔄 Processed UPDATE DTO:', JSON.stringify(updateClientDto, null, 2));
             return await this.clientsService.update(id, updateClientDto);
         } catch (error) {
             console.error('❌ UPDATE CLIENT ERROR:', error);

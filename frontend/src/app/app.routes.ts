@@ -49,6 +49,14 @@ export const routes: Routes = [
         path: 'reports/sales-control',
         loadComponent: () => import('./features/reports/sales-control-report/sales-control-report.component').then(m => m.SalesControlReportComponent),
       },
+      {
+        path: 'settings/loyalty',
+        loadComponent: () => import('./features/settings/loyalty-config/loyalty-config.component').then(m => m.LoyaltyConfigComponent),
+      },
+      {
+        path: 'stats',
+        loadComponent: () => import('./features/reports/advanced-stats/advanced-stats.component').then(m => m.AdvancedStatsComponent),
+      },
     ],
   },
   {

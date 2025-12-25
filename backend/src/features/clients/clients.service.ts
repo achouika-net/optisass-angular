@@ -1,15 +1,38 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { LoyaltyService } from '../loyalty/loyalty.service';
 import { Prisma } from '@prisma/client';
+import { CreateClientDto } from './dto/create-client.dto';
+import { UpdateClientDto } from './dto/update-client.dto';
 
 @Injectable()
 export class ClientsService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private loyaltyService: LoyaltyService
+    ) { }
 
-    async create(data: Prisma.ClientCreateInput) {
-        return this.prisma.client.create({
-            data,
+    async create(createClientDto: CreateClientDto) {
+        // Validate centre existence
+        const centreId = createClientDto.centreId;
+        if (centreId) {
+            const centreExists = await this.prisma.centre.findUnique({
+                where: { id: centreId }
+            });
+            if (!centreExists) {
+                throw new BadRequestException(`Centre non trouvé (${centreId}). Votre session est peut-être obsolète. Veuillez vous déconnecter et vous reconnecter pour rafraîchir vos accès.`);
+            }
+        }
+
+        const client = await this.prisma.client.create({
+            data: createClientDto as unknown as Prisma.ClientCreateInput,
         });
+
+        if (client.parrainId) {
+            await this.loyaltyService.awardReferralBonus(client.parrainId, client.id);
+        }
+
+        return client;
     }
 
     async findAll(nom?: string, centreId?: string) {
@@ -40,21 +63,25 @@ export class ClientsService {
             where: { id },
             include: {
                 fiches: true,
+                parrain: true,
+                filleuls: true,
+                pointsHistory: {
+                    include: { facture: true },
+                    orderBy: { date: 'desc' }
+                }
             },
         });
     }
 
-    async update(id: string, data: Prisma.ClientUpdateInput) {
+    async update(id: string, updateClientDto: UpdateClientDto) {
         return this.prisma.client.update({
             where: { id },
-            data,
+            data: updateClientDto as unknown as Prisma.ClientUpdateInput,
         });
     }
 
     async remove(id: string) {
         // 1. Check for **VALID** Invoices (FISCAL INTEGRITY - First Test)
-        // User rule: "le premier test sera pour facture valide"
-
         const clientValidInvoices = await this.prisma.facture.findMany({
             where: {
                 clientId: id,
@@ -64,9 +91,6 @@ export class ClientsService {
         });
 
         if (clientValidInvoices.length > 0) {
-            // Client has valid invoices. We must verify they are the LAST ones globally.
-            // "stricetement interdit de suprimer touts le process meme les paiments" if not last.
-
             const globalLastValidInvoices = await this.prisma.facture.findMany({
                 where: {
                     statut: { in: ['VALIDE', 'PAYEE', 'PARTIEL'] }
@@ -88,7 +112,6 @@ export class ClientsService {
         }
 
         // 2. Check for **OPEN** Fiches (OPERATIONAL SAFETY)
-        // User rule: "on doit pas supprimer un dossier client qui a une fiche ouverte"
         const openFichesCount = await this.prisma.fiche.count({
             where: {
                 clientId: id,
@@ -101,33 +124,16 @@ export class ClientsService {
         }
 
         // 3. SAFE EXECUTION: Cascade Delete
-        // Order: Paiements -> Factures -> Fiches -> Client
         return this.prisma.$transaction(async (tx) => {
-
-            // Delete payments linked to client invoices
-            // (Actually Prisma generic cascade on Facture deletion handles this usually, but explicit is cleaner if relationships vary)
-            // We'll rely on Prisma schema cascades if configured, but let's be thorough.
-            // Actually, we can just delete Invoices and Fiches. 
-            // Fiche -> Facture relation is 1-1 or 1-N.
-            // Client -> Fiche (Cascade)
-            // Client -> Facture (Restrict usually?)
-
-            // Let's delete invoices manually first
             const invoices = await tx.facture.findMany({ where: { clientId: id } });
             const invoiceIds = invoices.map(i => i.id);
 
-            // Delete payments
             if (invoiceIds.length > 0) {
                 await tx.paiement.deleteMany({ where: { factureId: { in: invoiceIds } } });
             }
 
-            // Delete invoices
             await tx.facture.deleteMany({ where: { clientId: id } });
-
-            // Delete fiches
             await tx.fiche.deleteMany({ where: { clientId: id } });
-
-            // Delete client
             return tx.client.delete({ where: { id } });
         });
     }

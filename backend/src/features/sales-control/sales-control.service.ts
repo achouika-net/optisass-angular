@@ -177,8 +177,7 @@ export class SalesControlService {
             countValid: 0,
             countAvoir: 0,
             countCancelled: 0,
-            totalAmount: 0,
-            totalArchived: 0
+            totalAmount: 0
         }];
         where.centreId = centreId;
 
@@ -200,15 +199,17 @@ export class SalesControlService {
 
         // Valid Invoices: Must have FAC prefix and not be cancelled
         const validInvoices = factures.filter(f => f.numero.startsWith('FAC') && f.type === 'FACTURE' && f.statut !== 'ANNULEE');
-
         // Avoirs: Show all having type AVOIR
         const avoirs = factures.filter(f => f.type === 'AVOIR');
-
         // Cancelled Drafts (Traceability)
         const cancelledDrafts = factures.filter(f => f.statut === 'ANNULEE' && (f.numero.startsWith('BRO') || f.numero.startsWith('Devis')));
 
-        // Archived Invoices (Undeclared Revenue)
-        const archivedInvoices = factures.filter(f => f.statut === 'ARCHIVE');
+        // Valid Invoices + Avoirs for CA Calculation
+        // Formula: sum(totalTTC) of all non-draft invoices, including those balanced by Avoirs
+        const caRelevant = factures.filter(f =>
+            (f.numero.startsWith('FAC') || f.type === 'AVOIR') &&
+            f.statut !== 'ARCHIVE'
+        );
 
         return [{
             vendorId: 'all',
@@ -218,86 +219,10 @@ export class SalesControlService {
             countValid: validInvoices.length,
             countAvoir: avoirs.length,
             countCancelled: cancelledDrafts.length,
-            totalAmount: validInvoices.reduce((sum, f) => sum + (f.totalTTC || 0), 0),
-            totalArchived: archivedInvoices.reduce((sum, f) => sum + (f.totalTTC || 0), 0)
+            totalAmount: caRelevant.reduce((sum, f) => sum + (f.totalTTC || 0), 0)
         }];
     }
 
-    // Get ARCHIVED invoices (for calculation but hidden from lists)
-    async getArchivedInvoices(userId?: string, centreId?: string) {
-        const where: any = {
-            statut: 'ARCHIVE'
-        };
-
-        if (!centreId) return [];
-        where.centreId = centreId;
-
-        return this.prisma.facture.findMany({
-            where,
-            include: {
-                client: {
-                    select: {
-                        nom: true,
-                        prenom: true,
-                        raisonSociale: true
-                    }
-                },
-                paiements: true,
-                fiche: true
-            },
-            orderBy: {
-                dateEmission: 'desc'
-            }
-        });
-    }
-
-    // Get Non-Consolidated Revenue (CA Non Consolidé)
-    // Sum of discounted sale prices from products returned to defective warehouse from SECONDARY stock
-    async getNonConsolidatedRevenue(centreId?: string): Promise<number> {
-        if (!centreId) return 0;
-
-        // Find defective warehouse for this center
-        const defectiveWarehouse = await this.prisma.entrepot.findFirst({
-            where: {
-                centreId,
-                OR: [
-                    { nom: { equals: 'Entrepot Défectueux', mode: 'insensitive' } },
-                    { nom: { equals: 'DÉFECTUEUX', mode: 'insensitive' } },
-                    { nom: { contains: 'défectueux', mode: 'insensitive' } }
-                ]
-            }
-        });
-
-        if (!defectiveWarehouse) {
-            return 0; // No defective warehouse = no non-consolidated revenue
-        }
-
-        // Get all ENTREE_RETOUR_CLIENT movements to defective warehouse
-        const defectiveReturns = await this.prisma.mouvementStock.findMany({
-            where: {
-                type: 'ENTREE_RETOUR_CLIENT',
-                entrepotDestinationId: defectiveWarehouse.id
-            },
-            include: {
-                produit: true,
-                entrepotSource: true // Check origin (Secondary vs Principal)
-            }
-        });
-
-        // Filter only returns from SECONDARY warehouses and sum their discounted prices
-        const total = defectiveReturns.reduce((sum, movement) => {
-            // Check if the movement source warehouse is SECONDARY
-            if (movement.entrepotSource?.type === 'SECONDAIRE') {
-                const price = movement.prixVenteUnitaire || 0;
-                const quantity = movement.quantite || 0;
-                return sum + (price * quantity);
-            }
-            return sum;
-        }, 0);
-
-        console.log(`📊 Non-Consolidated Revenue for center ${centreId}: ${total} DH`);
-        return total;
-    }
 
     // Validate a BROUILLON invoice
     async validateInvoice(id: string) {
@@ -313,33 +238,6 @@ export class SalesControlService {
         });
     }
 
-    // Archive a BROUILLON invoice (Undeclared Sale)
-    async archiveInvoice(id: string) {
-        const facture = await this.prisma.facture.findUnique({
-            where: { id },
-            include: { paiements: true } // Check payments?
-        });
-
-        if (!facture) {
-            throw new Error('Facture not found');
-        }
-
-        // Logic check: Only allow if fully paid? Or mixed?
-        // User said: "une fois le devis recois un paiement"
-        // We assume logic is usually "Paid" but system allows action.
-
-        return this.prisma.facture.update({
-            where: { id },
-            data: {
-                statut: 'ARCHIVE',
-                proprietes: {
-                    ...(facture.proprietes as any || {}),
-                    dateArchivage: new Date(),
-                    raison: 'Vente non déclarée (Stock Secondaire)'
-                }
-            }
-        });
-    }
 
     // Declare as gift (create 0 DH invoice)
     async declareAsGift(id: string) {
@@ -381,17 +279,13 @@ export class SalesControlService {
                 withoutPayments,
                 valid,
                 avoirs,
-                archived,
-                stats,
-                nonConsolidatedCA
+                stats
             ] = await Promise.all([
                 this.getBrouillonWithPayments(userId, centreId),
                 this.getBrouillonWithoutPayments(userId, centreId),
                 this.getValidInvoices(userId, centreId),
                 this.getAvoirs(userId, centreId),
-                this.getArchivedInvoices(userId, centreId),
-                this.getStatisticsByVendor(centreId),
-                this.getNonConsolidatedRevenue(centreId)
+                this.getStatisticsByVendor(centreId)
             ]);
 
             const duration = Date.now() - start;
@@ -402,9 +296,7 @@ export class SalesControlService {
                 withoutPayments,
                 valid,
                 avoirs,
-                archived,
-                stats,
-                nonConsolidatedCA
+                stats
             };
         } catch (error) {
             console.error(`❌ [DASHBOARD-SYNC] Error fetching data for center ${centreId}:`, error);

@@ -1,5 +1,12 @@
 export function numberToFrench(num: number): string {
     if (num === 0) return 'zéro';
+
+    let isNegative = false;
+    if (num < 0) {
+        isNegative = true;
+        num = Math.abs(num);
+    }
+
     const UNITS = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf'];
     const TEENS = ['dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
     const TENS = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante-dix', 'quatre-vingt', 'quatre-vingt-dix'];
@@ -68,6 +75,10 @@ export function numberToFrench(num: number): string {
 
     if (decimalPart > 0) {
         result += ' et ' + convertLessThanOneThousand(decimalPart) + ' Centimes';
+    }
+
+    if (isNegative) {
+        result = 'moins ' + result;
     }
 
     return result.charAt(0).toUpperCase() + result.slice(1);

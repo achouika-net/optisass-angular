@@ -1,0 +1,119 @@
+<div class="facture-list-container">
+    <div class="header-actions">
+        <h2>Factures & Devis</h2>
+        <button mat-raised-button color="primary" [matMenuTriggerFor]="createMenu">
+            <mat-icon>add</mat-icon>
+            Nouveau Document
+        </button>
+        <mat-menu #createMenu="matMenu">
+            <button mat-menu-item [routerLink]="['/p/clients/factures/new']"
+                [queryParams]="{ clientId: clientId, type: 'DEVIS' }">
+                <mat-icon>description</mat-icon> Nouveau Devis
+            </button>
+            <button mat-menu-item (click)="createAvoir()">
+                <mat-icon>receipt</mat-icon> Nouvel Avoir
+            </button>
+        </mat-menu>
+    </div>
+
+    <mat-tab-group (selectedTabChange)="onTabChange($event)">
+        <mat-tab label="Ventes validées">
+            <ng-template matTabContent>
+                <ng-container *ngTemplateOutlet="listTable"></ng-container>
+            </ng-template>
+        </mat-tab>
+        <mat-tab label="Ventes en instance">
+            <ng-template matTabContent>
+                <ng-container *ngTemplateOutlet="listTable"></ng-container>
+            </ng-template>
+        </mat-tab>
+        <mat-tab label="Devis sans paiement">
+            <ng-template matTabContent>
+                <ng-container *ngTemplateOutlet="listTable"></ng-container>
+            </ng-template>
+        </mat-tab>
+    </mat-tab-group>
+
+    <ng-template #listTable>
+        <div class="modern-table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Numéro</th>
+                        <th>Type</th>
+                        <th>Date</th>
+                        <th>Client</th>
+                        <th>Statut</th>
+                        <th>Total TTC</th>
+                        <th>Reste à payer</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let facture of filteredDataSource">
+                        <td>{{ facture.numero }}</td>
+                        <td>
+                            <span class="badge" [ngClass]="'badge-' + facture.type.toLowerCase()">
+                                {{ facture.type }}
+                            </span>
+                        </td>
+                        <td>{{ facture.dateEmission | date:'dd/MM/yyyy' }}</td>
+                        <td>{{ facture.client?.nom }} {{ facture.client?.prenom }}</td>
+                        <td>
+                            <span class="badge" [ngClass]="'badge-' + facture.statut.toLowerCase()">
+                                {{ facture.statut }}
+                            </span>
+                        </td>
+                        <td>{{ facture.totalTTC | number:'1.2-2' }} DH</td>
+                        <td>
+                            <span [class.text-success]="facture.resteAPayer === 0"
+                                [class.text-warning]="facture.resteAPayer > 0">
+                                {{ facture.resteAPayer | number:'1.2-2' }} DH
+                            </span>
+                        </td>
+                        <td>
+                            <button mat-icon-button [matMenuTriggerFor]="menu" class="action-menu-trigger">
+                                <mat-icon>more_vert</mat-icon>
+                            </button>
+                            <mat-menu #menu="matMenu">
+                                <button mat-menu-item [routerLink]="['/p/clients/factures', facture.id]"
+                                    [queryParams]="{mode: 'view'}">
+                                    <mat-icon>visibility</mat-icon>
+                                    <span>Voir</span>
+                                </button>
+                                <button mat-menu-item [routerLink]="['/p/clients/factures', facture.id]"
+                                    *ngIf="canEdit(facture)">
+                                    <mat-icon>edit</mat-icon>
+                                    <span>Modifier</span>
+                                </button>
+                                <button mat-menu-item (click)="printFacture(facture)">
+                                    <mat-icon>print</mat-icon>
+                                    <span>Imprimer</span>
+                                </button>
+                                <mat-divider *ngIf="canExchange(facture)"></mat-divider>
+                                <button mat-menu-item (click)="openExchangeDialog(facture)"
+                                    *ngIf="canExchange(facture)">
+                                    <mat-icon>swap_horiz</mat-icon>
+                                    <span>Retour / Échange</span>
+                                </button>
+                                <mat-divider *ngIf="canDelete(facture)"></mat-divider>
+                                <button mat-menu-item class="delete-action" (click)="deleteFacture(facture)"
+                                    *ngIf="canDelete(facture)">
+                                    <mat-icon>delete</mat-icon>
+                                    <span>Supprimer</span>
+                                </button>
+                            </mat-menu>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Empty State -->
+            <div class="empty-state" *ngIf="!filteredDataSource || filteredDataSource.length === 0">
+                <mat-icon>receipt_long</mat-icon>
+                <h3>Aucun document</h3>
+                <p>Aucun document trouvé dans cette catégorie</p>
+            </div>
+        </div>
+    </ng-template>
+</div>

@@ -1,0 +1,206 @@
+.loyalty-config-container {
+    padding: 0; // Padding handled by parent container usually, but here we add consistency
+    max-width: 100%; // Maximiser l'utilisation de l'espace
+    margin: 0 auto;
+
+    .config-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 24px 0;
+
+        .title-section {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+
+            .title-icon {
+                font-size: 36px;
+                width: 36px;
+                height: 36px;
+                color: var(--primary-color, #3f51b5);
+            }
+
+            .title-text {
+                h1 {
+                    margin: 0;
+                    font-size: 22px;
+                    font-weight: 600;
+                    color: #2c3e50;
+                }
+
+                p {
+                    margin: 4px 0 0;
+                    font-size: 15px;
+                    color: #7f8c8d;
+                }
+            }
+        }
+
+        .action-section {
+            .save-btn {
+                height: 44px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 0 24px;
+                border-radius: 6px;
+                font-weight: 500;
+                font-size: 15px;
+
+                mat-icon {
+                    font-size: 20px;
+                    width: 20px;
+                    height: 20px;
+                }
+            }
+        }
+    }
+
+    .config-content {
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); // 4 colonnes horizontales
+            gap: 20px;
+
+            .config-card {
+                height: 100%;
+                border-radius: 12px;
+                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+                border: 1px solid #edf2f7;
+                transition: transform 0.2s, box-shadow 0.2s;
+
+                &:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+                }
+
+                mat-card-header {
+                    padding: 20px 20px 16px;
+                }
+
+                mat-card-content {
+                    padding: 0 20px 20px;
+                }
+
+                .icon-avatar {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 10px;
+                    width: 48px;
+                    height: 48px;
+
+                    mat-icon {
+                        font-size: 26px;
+                        width: 26px;
+                        height: 26px;
+                    }
+
+                    &.earn {
+                        background-color: #ebfbee;
+                        color: #2f9e44;
+                    }
+
+                    &.referral {
+                        background-color: #e7f5ff;
+                        color: #1565c0;
+                    }
+
+                    &.folder {
+                        background-color: #fff4e6;
+                        color: #d9480f;
+                    }
+
+                    &.reward {
+                        background-color: #fce4ec;
+                        color: #c2185b;
+                    }
+                }
+
+                mat-card-title {
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: #4a5568;
+                }
+
+                mat-card-subtitle {
+                    font-size: 13px;
+                }
+
+                .fields-row {
+                    display: grid;
+                    grid-template-columns: 1fr;
+                    gap: 16px;
+                }
+
+                // Fix suffix touching the frame - CRITICAL FIX
+                ::ng-deep {
+                    .mat-mdc-form-field {
+                        font-size: 15px;
+                    }
+
+                    .mat-mdc-text-field-wrapper {
+                        background-color: white !important;
+                    }
+
+                    .mat-mdc-form-field-infix {
+                        padding-top: 16px !important;
+                        padding-bottom: 16px !important;
+                        min-height: 48px;
+                    }
+
+                    .mat-mdc-form-field-suffix {
+                        padding-right: 48px !important; // Augmenté pour éviter de toucher le cadre
+                        padding-left: 16px !important;
+                        display: flex;
+                        align-items: center;
+                    }
+
+                    input.mat-mdc-input-element {
+                        font-size: 15px;
+                        padding-right: 8px;
+                    }
+                }
+
+                .suffix-text {
+                    color: #718096;
+                    font-weight: 500;
+                    font-size: 13px;
+                    margin-right: 8px; // Marge de sécurité supplémentaire
+                    white-space: nowrap;
+                    display: inline-flex;
+                    align-items: center;
+                }
+            }
+
+            .full-width {
+                grid-column: span 1;
+            }
+        }
+    }
+}
+
+.max-w-xs {
+    max-width: 100%;
+}
+
+.w-full {
+    width: 100%;
+}
+
+.mt-4 {
+    margin-top: 1rem;
+}
+
+.mt-2 {
+    margin-top: 0.5rem;
+}
+
+.mb-6 {
+    margin-bottom: 1.5rem;
+}
+
+.block {
+    display: block;
+}

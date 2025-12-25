@@ -1,0 +1,164 @@
+<div class="advanced-stats-container">
+    <div class="header">
+        <h1>
+            <mat-icon>query_stats</mat-icon>
+            Statistiques Avancées
+        </h1>
+        <button mat-raised-button color="primary" (click)="loadData()" [disabled]="loading">
+            <mat-icon>refresh</mat-icon>
+            Actualiser
+        </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-section">
+        <mat-form-field appearance="outline">
+            <mat-label>Période</mat-label>
+            <mat-select [(ngModel)]="selectedPeriod" (selectionChange)="onPeriodChange()">
+                <mat-option value="daily">Journalier</mat-option>
+                <mat-option value="monthly">Mensuel</mat-option>
+                <mat-option value="yearly">Annuel</mat-option>
+            </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+            <mat-label>Date Début</mat-label>
+            <input matInput [matDatepicker]="startPicker" [(ngModel)]="startDate" (dateChange)="onDateRangeChange()">
+            <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
+            <mat-datepicker #startPicker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+            <mat-label>Date Fin</mat-label>
+            <input matInput [matDatepicker]="endPicker" [(ngModel)]="endDate" (dateChange)="onDateRangeChange()">
+            <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
+            <mat-datepicker #endPicker></mat-datepicker>
+        </mat-form-field>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div *ngIf="loading" class="loading-overlay">
+        <mat-icon class="spinner">refresh</mat-icon>
+        <p>Chargement des statistiques...</p>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards" *ngIf="summary && !loading">
+        <mat-card class="stat-card blue">
+            <mat-card-content>
+                <div class="stat-icon">
+                    <mat-icon>monetization_on</mat-icon>
+                </div>
+                <div class="stat-info">
+                    <p class="stat-label">CA Total</p>
+                    <h2 class="stat-value">{{ summary.totalRevenue | number:'1.2-2' }} DH</h2>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="stat-card green">
+            <mat-card-content>
+                <div class="stat-icon">
+                    <mat-icon>inventory_2</mat-icon>
+                </div>
+                <div class="stat-info">
+                    <p class="stat-label">Total Produits</p>
+                    <h2 class="stat-value">{{ summary.totalProducts | number }}</h2>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="stat-card orange">
+            <mat-card-content>
+                <div class="stat-icon">
+                    <mat-icon>people</mat-icon>
+                </div>
+                <div class="stat-info">
+                    <p class="stat-label">Total Clients</p>
+                    <h2 class="stat-value">{{ summary.totalClients | number }}</h2>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="stat-card purple">
+            <mat-card-content>
+                <div class="stat-icon">
+                    <mat-icon>trending_up</mat-icon>
+                </div>
+                <div class="stat-info">
+                    <p class="stat-label">Taux de Conversion</p>
+                    <h2 class="stat-value">{{ summary.conversionRate | number:'1.1-1' }}%</h2>
+                </div>
+            </mat-card-content>
+        </mat-card>
+    </div>
+
+    <!-- Charts Grid -->
+    <div class="charts-grid" *ngIf="!loading">
+        <mat-card class="chart-card">
+            <mat-card-header>
+                <mat-card-title>Évolution du CA</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="chart-container">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="chart-card">
+            <mat-card-header>
+                <mat-card-title>Répartition par Type de Produit</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="chart-container">
+                    <canvas id="productChart"></canvas>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="chart-card">
+            <mat-card-header>
+                <mat-card-title>Taux de Conversion</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="chart-container">
+                    <canvas id="conversionChart"></canvas>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="chart-card">
+            <mat-card-header>
+                <mat-card-title>Stock par Entrepôt</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="chart-container">
+                    <canvas id="stockChart"></canvas>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="chart-card">
+            <mat-card-header>
+                <mat-card-title>Top 10 Clients</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="chart-container">
+                    <canvas id="clientsChart"></canvas>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="chart-card">
+            <mat-card-header>
+                <mat-card-title>Méthodes de Paiement</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="chart-container">
+                    <canvas id="paymentsChart"></canvas>
+                </div>
+            </mat-card-content>
+        </mat-card>
+    </div>
+</div>

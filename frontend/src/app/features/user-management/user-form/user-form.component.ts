@@ -144,8 +144,26 @@ export class UserFormComponent implements OnInit {
         if (centre) {
             this.centreRoles.at(index).patchValue({
                 centreName: centre.nom,
-                entrepotIds: [] // Reset warehouses when center changes
+                entrepotIds: [], // Reset warehouses when center changes
+                entrepotNames: []
             });
+        }
+    }
+
+    /**
+     * Update warehouse names when warehouses are selected
+     */
+    onEntrepotsChange(index: number): void {
+        const centreId = this.centreRoles.at(index).get('centreId')?.value;
+        const entrepotIds = this.centreRoles.at(index).get('entrepotIds')?.value as string[];
+        const centre = this.centres().find(c => c.id === centreId);
+
+        if (centre && entrepotIds) {
+            const names = centre.entrepots
+                .filter(e => entrepotIds.includes(e.id))
+                .map(e => e.nom);
+
+            this.centreRoles.at(index).get('entrepotNames')?.setValue(names);
         }
     }
 
@@ -212,7 +230,21 @@ export class UserFormComponent implements OnInit {
             return;
         }
 
-        const userData = this.userForm.value;
+        // Clean up data before sending
+        const formValue = this.userForm.value;
+        const userData = { ...formValue };
+
+        // Process centreRoles to remove empty IDs and ensure names are up to date
+        if (userData.centreRoles) {
+            userData.centreRoles = userData.centreRoles.map((role: any) => {
+                const cleanedRole = { ...role };
+                // Remove id if it's empty (for creation)
+                if (!cleanedRole.id) {
+                    delete cleanedRole.id;
+                }
+                return cleanedRole;
+            });
+        }
 
         const action = this.isEditMode && this.userId
             ? this.userService.updateUser(this.userId, userData)

@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Headers } from '@nestjs/common';
 import { FacturesService } from './factures.service';
-import { Prisma } from '@prisma/client';
+import { CreateFactureDto } from './dto/create-facture.dto';
+import { UpdateFactureDto } from './dto/update-facture.dto';
 
 @Controller('factures')
 export class FacturesController {
@@ -16,9 +17,9 @@ export class FacturesController {
     }
 
     @Post()
-    create(@Body() createFactureDto: Prisma.FactureUncheckedCreateInput, @Headers('Tenant') centreId: string) {
+    create(@Body() createFactureDto: CreateFactureDto, @Headers('Tenant') centreId: string) {
         if (centreId) {
-            (createFactureDto as any).centreId = centreId;
+            createFactureDto.centreId = centreId;
         }
         return this.facturesService.create(createFactureDto);
     }
@@ -48,7 +49,7 @@ export class FacturesController {
     }
 
     @Patch(':id')
-    update(@Param('id') id: string, @Body() updateFactureDto: Prisma.FactureUpdateInput) {
+    update(@Param('id') id: string, @Body() updateFactureDto: UpdateFactureDto) {
         return this.facturesService.update({
             where: { id },
             data: updateFactureDto,

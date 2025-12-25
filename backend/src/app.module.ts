@@ -14,6 +14,8 @@ import { StockMovementsModule } from './features/stock-movements/stock-movements
 import { UsersModule } from './features/users/users.module';
 
 import { ProductsModule } from './features/products/products.module';
+import { LoyaltyModule } from './features/loyalty/loyalty.module';
+import { StatsModule } from './features/stats/stats.module';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaService } from './prisma/prisma.service';
 
@@ -31,6 +33,8 @@ import { PrismaService } from './prisma/prisma.service';
     FichesModule,
     SalesControlModule,
     UsersModule,
+    LoyaltyModule,
+    StatsModule,
   ],
   controllers: [],
   providers: [],

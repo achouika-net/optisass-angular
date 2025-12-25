@@ -1,0 +1,315 @@
+/* Product Form Styles - Material Design Pro */
+.product-form-container {
+    padding: 0;
+    background: #f8f9fa;
+}
+
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.form-title {
+    font-size: 24px;
+    font-weight: 500;
+    color: #202124;
+    margin: 0;
+}
+
+.back-btn {
+    color: #5f6368;
+}
+
+.form-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .3), 0 1px 3px 1px rgba(60, 64, 67, .15);
+}
+
+.form-content {
+    padding: 32px;
+}
+
+.section {
+    margin-bottom: 32px;
+}
+
+.section:last-child {
+    margin-bottom: 0;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: #fb8c00;
+    margin: 0 0 20px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #fb8c00;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 16px;
+}
+
+.form-row:last-child {
+    margin-bottom: 0;
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-field-large {
+    grid-column: span 2;
+}
+
+.field-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #5f6368;
+    margin-bottom: 6px;
+    min-height: 18px;
+}
+
+.w-full {
+    width: 100%;
+}
+
+.no-label-field ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+    display: none;
+}
+
+/* Price Display Cards */
+.price-display {
+    margin-top: 24px;
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.price-card {
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.price-ht {
+    background: linear-gradient(135deg, #00897b 0%, #00695c 100%);
+    color: white;
+}
+
+.price-ttc {
+    background: linear-gradient(135deg, #fb8c00 0%, #ef6c00 100%);
+    color: white;
+}
+
+.price-label {
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0.9;
+    margin-bottom: 8px;
+}
+
+.price-value {
+    font-size: 28px;
+    font-weight: 700;
+}
+
+/* Form Actions */
+.form-actions {
+    padding: 20px 32px;
+    background: #f8f9fa;
+    border-top: 1px solid #e0e0e0;
+}
+
+.cancel-btn {
+    color: #5f6368;
+    margin-right: 12px;
+}
+
+.submit-btn {
+    min-width: 120px;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .form-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .form-field-large {
+        grid-column: span 2;
+    }
+}
+
+@media (max-width: 768px) {
+    .form-content {
+        padding: 20px;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .form-field-large {
+        grid-column: span 1;
+    }
+}
+
+/* Layout for General Info Form */
+.info-layout-form {
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+}
+
+.info-fields {
+    flex: 1;
+}
+
+.form-field-full {
+    grid-column: 1 / -1;
+}
+
+.info-photo-preview {
+    width: 250px;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+.photo-preview-container {
+    width: 100%;
+    aspect-ratio: 1;
+    background: #f1f3f4;
+    border-radius: 8px;
+    border: 1px solid #dadce0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+
+.preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.preview-label {
+    font-size: 13px;
+    color: #5f6368;
+    margin: 0;
+}
+
+/* Responsive for Info Layout */
+@media (max-width: 900px) {
+    .info-layout-form {
+        flex-direction: column;
+    }
+
+    .info-photo-preview {
+        width: 100%;
+        max-width: 300px;
+        margin: 0 auto 20px auto;
+    }
+}
+
+.photo-actions {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 12px;
+}
+
+/* Stepper Customization */
+::ng-deep .mat-horizontal-stepper-header-container {
+    margin-bottom: 24px;
+}
+
+::ng-deep .mat-step-header {
+    background: transparent !important;
+}
+
+::ng-deep .mat-step-label {
+    font-weight: 500 !important;
+}
+
+.step-container {
+    padding: 16px 0;
+}
+
+.step-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 32px;
+}
+
+.mt-6 {
+    margin-top: 24px;
+}
+
+.flex {
+    display: flex;
+}
+
+.gap-3 {
+    gap: 12px;
+}
+
+/* Price Summary Header */
+.price-summary-header {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.price-header-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+
+    &.ht {
+        border-left: 4px solid #00897b;
+
+        .value {
+            color: #00897b;
+        }
+    }
+
+    &.ttc {
+        border-left: 4px solid #fb8c00;
+
+        .value {
+            color: #fb8c00;
+        }
+    }
+
+    .label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #5f6368;
+        font-weight: 500;
+        margin-bottom: 4px;
+    }
+
+    .value {
+        font-size: 20px;
+        font-weight: 700;
+    }
+}

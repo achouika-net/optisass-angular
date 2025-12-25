@@ -11,11 +11,12 @@ import { SalesControlService, BrouillonInvoice, VendorStatistics } from '../serv
 import { RouterModule, Router } from '@angular/router';
 import { forkJoin, Subject, switchMap, tap } from 'rxjs';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { PaymentDialogComponent } from '../../client-management/factures/payment-dialog/payment-dialog.component';
+import { PaymentDialogComponent } from '../../client-management/dialogs/payment-dialog/payment-dialog.component';
 import { PaiementService } from '../../client-management/services/paiement.service';
 import { FactureService } from '../../client-management/services/facture.service';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { ProductService } from '../../stock-management/services/product.service';
 
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -77,6 +78,7 @@ export class SalesControlReportComponent implements OnInit {
     groupedArchived: MonthlyGroup[] = [];
 
     statistics: VendorStatistics[] = [];
+    stockStats: any = null;
 
     // Filter State
     filterType: 'DAILY' | 'MONTHLY' | 'SEMESTER' | 'YEARLY' | 'CUSTOM' | 'ALL' = 'MONTHLY';
@@ -99,8 +101,11 @@ export class SalesControlReportComponent implements OnInit {
         totalReste: 0
     };
 
-    // Non-Consolidated Revenue
-    nonConsolidatedCA: number = 0;
+    // Non-Consolidated Revenue - [REMOVED]
+    // nonConsolidatedCA: number = 0;
+
+    // Filter State
+    clientSearch: string = '';
 
     // Table columns
     columnsWithPayment = ['numero', 'client', 'dateEmission', 'totalTTC', 'montantPaye', 'resteAPayer', 'actions'];
@@ -120,7 +125,8 @@ export class SalesControlReportComponent implements OnInit {
         private snackBar: MatSnackBar,
         private router: Router,
         private dialog: MatDialog,
-        private store: Store
+        private store: Store,
+        private productService: ProductService
     ) {
         // Automatically reload when center changes
         effect(() => {
@@ -154,15 +160,10 @@ export class SalesControlReportComponent implements OnInit {
                 this.invoicesAvoir = results.avoirs;
                 this.groupedAvoir = this.groupInvoices(results.avoirs);
 
-                this.groupedArchived = this.groupInvoices(results.archived);
+                this.groupedArchived = []; // Tab removed
 
-                this.nonConsolidatedCA = results.nonConsolidatedCA || 0;
-
-                // Inject Non-Consolidated CA into the statistics table (replacing archived)
-                this.statistics = results.stats.map((stat: any) => ({
-                    ...stat,
-                    totalArchived: this.nonConsolidatedCA
-                }));
+                // Inject statistics
+                this.statistics = results.stats;
 
                 this.updateAvailablePeriods();
                 this.calculateMetrics();
@@ -192,6 +193,15 @@ export class SalesControlReportComponent implements OnInit {
         this.groupedAvoir = [];
         this.groupedArchived = [];
         this.statistics = [];
+        this.clientSearch = '';
+
+        // Load stock stats for CA Non Consolidé
+        this.productService.getStockStats().subscribe({
+            next: (stats) => {
+                this.stockStats = stats;
+            },
+            error: (err) => console.error('Error loading stock stats:', err)
+        });
 
         // Trigger the refresh stream
         this.refresh$.next();
@@ -277,36 +287,59 @@ export class SalesControlReportComponent implements OnInit {
             totalReste: 0
         };
 
-        const sumInvoices = (groups: MonthlyGroup[]) => {
-            groups.forEach(g => {
-                g.invoices.forEach(inv => {
-                    // Exclude cancelled invoices from calculations
-                    if (inv.statut === 'ANNULEE') {
-                        return;
-                    }
+        // 1. Calculate Turnover (CA) and Reste à Payer
+        // We only sum Validated Invoices and Avoirs for CA Global
+        // Important: We include ANNULEE status for CA to balance their offsetting Avoirs,
+        // but we exclude them from the Balance (Reste à Payer).
+        const allRelevantGroups = [...this.groupedValid, ...this.groupedAvoir];
 
-                    if (this.isInvoiceVisible(inv)) {
-                        this.metrics.totalCA += (inv.totalTTC || 0);
-                        const paid = inv.paiements ? inv.paiements.reduce((sum, p) => sum + p.montant, 0) : 0;
-                        this.metrics.totalPaid += paid;
+        allRelevantGroups.forEach(g => {
+            g.invoices.forEach(inv => {
+                if (this.isInvoiceVisible(inv)) {
+                    // Include in CA if Valid, Avoir or even Annulee (to balance Avoirs)
+                    this.metrics.totalCA += (inv.totalTTC || 0);
+
+                    // ONLY include in Reste if NOT Annulee
+                    if (inv.statut !== 'ANNULEE') {
                         this.metrics.totalReste += (inv.resteAPayer || 0);
                     }
-                });
+                }
             });
-        };
+        });
 
-        // sumInvoices(this.groupedWithPayment); // Excluded as per user request: cards show validated sales ONLY
-        // sumInvoices(this.groupedWithoutPayment);
-        sumInvoices(this.groupedValid);
-        // sumInvoices(this.groupedArchived);
+        // 2. Calculate Total Encaissé (Cash Flow of the period)
+        const allInvoicePools = [
+            ...this.invoicesWithPayment,
+            ...this.invoicesValid,
+            ...this.invoicesAvoir
+        ];
+
+        const processedPaymentIds = new Set<string>();
+
+        allInvoicePools.forEach(inv => {
+            if (inv.paiements) {
+                inv.paiements.forEach(p => {
+                    if (this.isDateVisible(new Date(p.date)) && !processedPaymentIds.has(p.id)) {
+                        this.metrics.totalPaid += (p.montant || 0);
+                        processedPaymentIds.add(p.id);
+
+                        if (p.montant < 0) {
+                            console.log('🏦 [DEBUG] Negative payment found in Sales Control:', p);
+                        }
+                    }
+                });
+            }
+        });
+
+        console.log('📊 [DEBUG] Metrics calculated:', this.metrics);
     }
 
     onFilterChange() {
         this.calculateMetrics();
     }
 
-    isInvoiceVisible(invoice: BrouillonInvoice): boolean {
-        const date = new Date(invoice.dateEmission);
+    isDateVisible(date: Date): boolean {
+        if (!date) return false;
 
         switch (this.filterType) {
             case 'ALL':
@@ -332,6 +365,21 @@ export class SalesControlReportComponent implements OnInit {
             default:
                 return true;
         }
+    }
+
+    isInvoiceVisible(invoice: BrouillonInvoice): boolean {
+        // 1. Date filter
+        const dateMatch = this.isDateVisible(new Date(invoice.dateEmission));
+        if (!dateMatch) return false;
+
+        // 2. Client filter
+        if (this.clientSearch && this.clientSearch.trim() !== '') {
+            const search = this.clientSearch.toLowerCase().trim();
+            const clientName = this.getClientName(invoice).toLowerCase();
+            if (!clientName.includes(search)) return false;
+        }
+
+        return true;
     }
 
     isGroupVisible(group: MonthlyGroup): boolean {
@@ -455,8 +503,13 @@ export class SalesControlReportComponent implements OnInit {
         }
     }
 
+    viewDocument(invoice: BrouillonInvoice): void {
+        // Navigate to the invoice detail page in view mode
+        this.router.navigate(['/p/clients/factures', invoice.id], { queryParams: { mode: 'view' } });
+    }
+
     createAvoir(invoice: BrouillonInvoice): void {
-        import('../../client-management/factures/invoice-return-dialog/invoice-return-dialog.component').then(m => {
+        import('../../client-management/dialogs/invoice-return-dialog/invoice-return-dialog.component').then(m => {
             const dialogRef = this.dialog.open(m.InvoiceReturnDialogComponent, {
                 width: '800px',
                 data: {

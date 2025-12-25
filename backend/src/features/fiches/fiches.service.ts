@@ -2,12 +2,14 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { FacturesService } from '../factures/factures.service';
+import { LoyaltyService } from '../loyalty/loyalty.service';
 
 @Injectable()
 export class FichesService {
     constructor(
         private prisma: PrismaService,
-        private facturesService: FacturesService
+        private facturesService: FacturesService,
+        private loyaltyService: LoyaltyService
     ) { }
 
     async create(data: Prisma.FicheCreateInput) {
@@ -110,6 +112,15 @@ export class FichesService {
                 }
             } catch (invError) {
                 console.error('⚠️ Failed to check invoice existence:', invError);
+            }
+
+            // 6. Award Loyalty Points for Folder Creation
+            console.log('💎 Triggering loyalty points for folder creation. Client:', clientId, 'Fiche:', result.id);
+            try {
+                await this.loyaltyService.awardPointsForFolderCreation(clientId as string, result.id);
+                console.log('✅ Loyalty points trigger finished.');
+            } catch (pError) {
+                console.error('⚠️ Failed to award loyalty points:', pError);
             }
 
             return this.unpackContent(result);
