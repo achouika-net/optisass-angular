@@ -1,5 +1,6 @@
 import { IResource } from '@app/models';
 
+export const APP_NAME = 'OPTIC SAAS';
 export const CRYPT_KEY = 'SomeRondomKey';
 export const BACKGROUND_IMAGE_REFRESH = 15000; //15s';
 export const PASSWORD_MIN_LENGTH = 12;

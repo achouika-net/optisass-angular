@@ -5,7 +5,6 @@ import {
   effect,
   inject,
   input,
-  signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router, RouterLink } from '@angular/router';
@@ -14,93 +13,92 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButton } from '@angular/material/button';
 import { MatDivider } from '@angular/material/divider';
 import { filter, map, startWith } from 'rxjs/operators';
+import { TranslateService } from '@ngx-translate/core';
 import { NavigationHistoryService } from '../../core/navigation-history/navigation-history.service';
-import { findRouteByUrl } from '@app/helpers';
-import { AuthStore } from '@app/core/store';
-import { IClientRoute } from '@optisaas/opti-saas-lib';
+import { BreadcrumbItem } from '@app/models';
+import { APP_NAME } from '../../config/global.config';
 
 @Component({
   selector: 'app-breadcrumb',
-  imports: [MatIconModule, RouterLink, MatDivider, MatButton],
+  imports: [MatIconModule, MatDivider, MatButton, RouterLink],
   templateUrl: './breadcrumb.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BreadcrumbComponent {
-  #router = inject(Router);
-  #activatedRoute = inject(ActivatedRoute);
-  #history = inject(NavigationHistoryService);
-  #titleService = inject(Title);
-  #authStore = inject(AuthStore);
+  readonly #router = inject(Router);
+  readonly #activatedRoute = inject(ActivatedRoute);
+  readonly #history = inject(NavigationHistoryService);
+  readonly #titleService = inject(Title);
+  readonly #translate = inject(TranslateService);
+
   readonly isMobile = input.required<boolean>();
 
-  // Accès direct aux routes disponibles depuis le store (déjà un computed signal via Proxy)
-  private readonly routes = this.#authStore.navigation;
-
-  // Signal qui écoute l'URL actuelle via les événements du router
-  private readonly currentUrl = toSignal(
+  /** Signal déclenché à chaque changement de navigation */
+  private readonly navigationEnd = toSignal(
     this.#router.events.pipe(
       filter((e): e is NavigationEnd => e instanceof NavigationEnd),
       startWith(null),
-      map(() => this.#router.url.replace(/^\/p\//, ''))
+      map(() => this.#router.url)
     ),
-    { initialValue: this.#router.url.replace(/^\/p\//, '') }
+    { initialValue: this.#router.url }
   );
 
-  // Signal qui écoute les données de la route active
-  readonly routeData = toSignal(this.#activatedRoute.data, { initialValue: {} as Record<string, any> });
-
+  /** URL précédente pour le bouton retour */
   readonly previousUrl = computed(() => {
-    this.currentUrl();
+    this.navigationEnd();
     return this.#history.getPreviousUrl();
   });
-  readonly breadcrumbItems = computed(() => {
-    const url = this.currentUrl();
-    const data = this.routeData() as Record<string, any>;
-    const dataTitle: string = data?.['title'];
-    const trail: Partial<IClientRoute>[] = [];
-    const segments = url.split('/');
-    let currentPath = '';
-    for (let i = 0; i < segments.length; i++) {
-      const segment = segments[i];
-      currentPath = currentPath ? `${currentPath}/${segment}` : segment;
-      const route = findRouteByUrl(this.routes(), currentPath);
-      if (route) {
-        trail.push(route);
-      } else if (i === segments.length - 1 && dataTitle) {
-        trail.push({
-          label: dataTitle,
-          path: currentPath,
-          type: 'link',
-          id: currentPath,
-          authorizations_needed: [],
-        });
-      } else {
-        break;
+
+  /**
+   * Construit le breadcrumb en parcourant la chaîne firstChild
+   * Chaque segment de route peut avoir data.breadcrumb (clé i18n)
+   */
+  readonly breadcrumbItems = computed<BreadcrumbItem[]>(() => {
+    this.navigationEnd(); // Déclenche le recalcul à chaque navigation
+
+    const breadcrumbs: BreadcrumbItem[] = [];
+    const seenKeys = new Set<string>();
+    let url = '';
+    let route: ActivatedRoute | null = this.#activatedRoute.root;
+
+    // Parcourt la chaîne des routes actives via firstChild
+    while (route) {
+      const segments = route.snapshot.url.map((s) => s.path);
+
+      if (segments.length > 0) {
+        url = `${url}/${segments.join('/')}`;
       }
+
+      // Utilise routeConfig.data pour éviter l'héritage des données parentes
+      const breadcrumbKey = route.routeConfig?.data?.['breadcrumb'] as string | undefined;
+
+      // Évite les doublons en vérifiant si la clé a déjà été ajoutée
+      if (breadcrumbKey && !seenKeys.has(breadcrumbKey)) {
+        seenKeys.add(breadcrumbKey);
+        const label = this.#translate.instant(breadcrumbKey);
+        breadcrumbs.push({ label, url });
+      }
+
+      route = route.firstChild;
     }
 
-    return trail;
+    return breadcrumbs;
   });
 
+  /** Titre de la page (dernier élément du breadcrumb) */
   readonly pageTitle = computed(() => {
-    const breadcrumb = this.breadcrumbItems();
-    if (breadcrumb.length) {
-      return breadcrumb[breadcrumb.length - 1].label;
-    }
-    const data = this.routeData() as Record<string, any>;
-    const dataTitle = data?.['title'];
-    return dataTitle || 'Agenda';
+    const items = this.breadcrumbItems();
+    return items.length > 0 ? items[items.length - 1].label : 'Agenda';
   });
 
   constructor() {
     effect(() => {
-      this.#titleService.setTitle(`Agenda - ${this.pageTitle()}`);
+      this.#titleService.setTitle(`${APP_NAME} - ${this.pageTitle()}`);
     });
   }
 
   /**
-   * Navigue vers la précédente URL (stockée en mémoire).
-   * @returns void
+   * Navigue vers la précédente URL (stockée en mémoire)
    */
   goBack(): void {
     this.#history.goBack();

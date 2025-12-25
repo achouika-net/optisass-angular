@@ -19,9 +19,9 @@ import { MatListModule } from '@angular/material/list';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { MenuItem } from '@app/models';
 import { TranslatePipe } from '@ngx-translate/core';
-import { AuthStore } from '@app/core/store';
-import { IClientRoute } from '@optisaas/opti-saas-lib';
+import { MENU } from '../../config/menu.config';
 
 @Component({
   selector: 'app-sidebar',
@@ -43,68 +43,61 @@ import { IClientRoute } from '@optisaas/opti-saas-lib';
 })
 export class SidebarComponent implements OnInit {
   private readonly router = inject(Router);
-  private readonly authStore = inject(AuthStore);
 
   readonly isMobile = input.required<boolean>();
   readonly isCollapsed = input.required<boolean>();
   readonly openSubMenu = signal<string | null>(null);
   readonly favoritesOpen = signal(true);
-  readonly favorisItems = signal<IClientRoute[]>([]);
+  readonly favorisItems = signal<MenuItem[]>([]);
 
-  // Accès direct aux routes disponibles depuis le store (déjà un computed signal via Proxy)
-  readonly routes = this.authStore.navigation;
+  readonly menuItems = signal<MenuItem[]>(MENU);
 
-  /** Menu principal filtré (link, collapse avec children valides) */
-  readonly visibleMenuItems = computed(
-    () =>
-      this.routes()
-        .filter((route) => ['link', 'collapse'].includes(route.type))
-        .map((route) => {
-          if (route.type === 'collapse' && route.children) {
-            const filtered = route.children.filter((child) =>
-              ['link', 'collapse-link'].includes(child.type)
-            );
-            return filtered.length > 0 ? { ...route, children: filtered } : null;
-          }
-          return route;
-        })
-        .filter(Boolean) as IClientRoute[]
+  /** Menu principal filtré (link, sub avec children valides) */
+  readonly visibleMenuItems = computed(() =>
+    this.menuItems()
+      .filter((item) => ['link', 'sub'].includes(item.type))
+      .map((item) => {
+        if (item.type === 'sub' && item.children) {
+          return item.children.length > 0 ? item : null;
+        }
+        return item;
+      })
+      .filter(Boolean) as MenuItem[]
   );
 
   /** Menu à afficher dans le mode collapsed */
   readonly flatMenuItemsForCollapsed = computed(() =>
-    this.routes().flatMap((route) => {
-      if (route.type === 'link') return [route];
+    this.menuItems().flatMap((item) => {
+      if (item.type === 'link') return [item];
 
-      if (route.type === 'collapse' && route.children?.length) {
-        return route.children.filter((child) =>
-          ['link', 'collapse-link'].includes(child.type)
-        );
+      if (item.type === 'sub' && item.children?.length) {
+        return item.children;
       }
 
       return [];
     })
   );
 
-  /** Liens rapides (collapse-link externe) */
+  /** Liens rapides (extLink) */
   readonly extLinks = computed(() =>
-    this.routes().filter((route) => route.type === 'collapse-link')
+    this.menuItems().filter((item) => item.type === 'extLink')
   );
 
-  /** Liens de bas de page (à implémenter si nécessaire) */
+  /** Liens de bas de page (footer) */
   readonly footerLinks = computed(() =>
-    this.routes().filter((route) => route.type === 'link' && route.id === 'a-propos')
+    this.menuItems().filter((item) => item.type === 'footer')
   );
 
   /**
-   * Au démarrage : ouvre le sous-menu correspondant à l'URL active.
+   * Au démarrage, ouvre le sous-menu correspondant à l'URL active.
+   * @returns void
    */
   ngOnInit(): void {
-    const opened = this.routes()
-      .filter((route) => route.type === 'collapse')
-      .find((route) =>
-        route.children?.some((child) =>
-          this.router.url.startsWith(`/p/${child.path}`)
+    const opened = this.menuItems()
+      .filter((item) => item.type === 'sub')
+      .find((item) =>
+        item.children?.some((child) =>
+          this.router.url.startsWith(`/p/${child.route}`)
         )
       );
     if (opened) {
@@ -114,6 +107,8 @@ export class SidebarComponent implements OnInit {
 
   /**
    * Vérifie si un item est marqué comme favori.
+   * @param label - Le libellé de l'item à vérifier
+   * @returns true si l'item est dans les favoris, false sinon
    */
   isFavorite(label: string): boolean {
     return this.favorisItems().some((f) => f.label === label);
@@ -121,8 +116,10 @@ export class SidebarComponent implements OnInit {
 
   /**
    * Met à jour l'ordre des favoris suite à un drag&drop.
+   * @param event - L'événement de drag&drop contenant les indices de déplacement
+   * @returns void
    */
-  dropFavorite(event: CdkDragDrop<IClientRoute[]>): void {
+  dropFavorite(event: CdkDragDrop<MenuItem[]>): void {
     const current = [...this.favorisItems()];
     moveItemInArray(current, event.previousIndex, event.currentIndex);
     this.favorisItems.set(current);
@@ -130,6 +127,8 @@ export class SidebarComponent implements OnInit {
 
   /**
    * Supprime un élément des favoris.
+   * @param label - Le libellé de l'item à supprimer
+   * @returns void
    */
   removeFavorite(label: string): void {
     this.favorisItems.set(this.favorisItems().filter((f) => f.label !== label));
@@ -137,20 +136,26 @@ export class SidebarComponent implements OnInit {
 
   /**
    * Ajoute ou retire un item des favoris.
+   * @param favoriteItems - La liste actuelle des favoris
+   * @param item - L'item à ajouter ou retirer
+   * @param e - L'événement DOM à stopper
+   * @returns void
    */
-  handleFavorite(favoriteItems: IClientRoute[], route: IClientRoute, e: Event): void {
+  handleFavorite(favoriteItems: MenuItem[], item: MenuItem, e: Event): void {
     e.stopPropagation();
     e.preventDefault();
-    const isFav = this.isFavorite(route.label);
+    const isFav = this.isFavorite(item.label);
     if (isFav) {
-      this.removeFavorite(route.label);
+      this.removeFavorite(item.label);
     } else {
-      this.favorisItems.set([...favoriteItems, route]);
+      this.favorisItems.set([...favoriteItems, item]);
     }
   }
 
   /**
    * Ouvre ou ferme manuellement un sous-menu.
+   * @param label - Le libellé du sous-menu à basculer
+   * @returns void
    */
   toggleSubMenu(label: string): void {
     this.openSubMenu.update((current) => (current === label ? null : label));
@@ -158,6 +163,8 @@ export class SidebarComponent implements OnInit {
 
   /**
    * Vérifie si un sous-menu est actuellement ouvert.
+   * @param label - Le libellé du sous-menu à vérifier
+   * @returns true si le sous-menu est ouvert, false sinon
    */
   isSubMenuOpen(label: string): boolean {
     return this.openSubMenu() === label;
@@ -165,11 +172,13 @@ export class SidebarComponent implements OnInit {
 
   /**
    * Vérifie si l'un des enfants du sous-menu est actif (route match).
+   * @param children - La liste des enfants du sous-menu
+   * @returns true si au moins un enfant correspond à l'URL active, false sinon
    */
-  isSubActive(children?: IClientRoute[]): boolean {
+  isSubActive(children?: MenuItem[]): boolean {
     if (!children) return false;
     return children.some((child) =>
-      this.router.url.startsWith(`/p/${child.path}`)
+      this.router.url.startsWith(`/p/${child.route}`)
     );
   }
 }

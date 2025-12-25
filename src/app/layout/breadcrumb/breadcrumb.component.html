@@ -1,9 +1,9 @@
 <div
   class="flex flex-col justify-between gap-1 bg-white px-6 py-1 shadow-sm sm:flex-row sm:items-center"
 >
-  <!-- 📛 Titre à gauche -->
+  <!-- Titre à gauche -->
   <h2 class="text-primary text-xl font-extrabold tracking-wide uppercase">
-    {{ breadcrumbItems().at(-1)?.label }}
+    {{ pageTitle() }}
   </h2>
 
   @if (!isMobile()) {
@@ -23,17 +23,15 @@
         ></mat-divider>
       }
 
-      @for (item of breadcrumbItems(); track item.label) {
+      @for (item of breadcrumbItems(); track item.url; let last = $last) {
         <ng-container>
-          @if (item !== breadcrumbItems().at(-1)) {
-            <div class="flex items-center gap-1">
-              <a
-                [routerLink]="item.path"
-                class="text-primary cursor-pointer font-medium uppercase hover:underline"
-              >
-                {{ item.label }}
-              </a>
-            </div>
+          @if (!last) {
+            <a
+              [routerLink]="item.url"
+              class="text-primary cursor-pointer font-medium uppercase hover:underline"
+            >
+              {{ item.label }}
+            </a>
             <mat-icon class="pb-1 text-xl text-gray-600">
               chevron_right
             </mat-icon>

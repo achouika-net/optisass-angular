@@ -5,7 +5,7 @@ import { tapResponse } from '@ngrx/operators';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
-import { pipe, switchMap, tap } from 'rxjs';
+import { catchError, EMPTY, pipe, switchMap, tap } from 'rxjs';
 import {
   createWsErrorWithMessage,
   CurrentUserState,
@@ -14,6 +14,7 @@ import {
   IJwtTokens,
   ILoginRequest,
   ILoginResponse,
+  IUserOptions,
   INITIAL_CURRENT_USER,
   INITIAL_JWT_TOKENS,
   INITIAL_WS_ERROR,
@@ -21,7 +22,7 @@ import {
   JwtTokensState,
   WsErrorState,
 } from '@app/models';
-import { IClientRoute, ResourceAuthorizations } from '@optisaas/opti-saas-lib';
+import { ResourceAuthorizations } from '@optisaas/opti-saas-lib';
 import { AuthService } from '../../features/authentication/services/auth.service';
 import { StatePersistenceService } from '../services';
 import { refreshTokenSubject, cancelAllPendingRequests } from '../interceptors/jwt.interceptor';
@@ -30,8 +31,7 @@ interface AuthState {
   jwtTokens: JwtTokensState;
   user: CurrentUserState;
   currentCenter: ICenter | null;
-  navigation: IClientRoute[];
-  userPermissions: ResourceAuthorizations[];
+  userAuthorizations: ResourceAuthorizations[];
   error: WsErrorState;
   refreshTokenInProgress: boolean;
 }
@@ -40,8 +40,7 @@ const initialState: AuthState = {
   jwtTokens: INITIAL_JWT_TOKENS,
   user: INITIAL_CURRENT_USER,
   currentCenter: null,
-  navigation: [],
-  userPermissions: [],
+  userAuthorizations: [],
   error: INITIAL_WS_ERROR,
   refreshTokenInProgress: false,
 };
@@ -61,13 +60,6 @@ export const AuthStore = signalStore(
     currentTenantId: computed(() => store.currentCenter()?.id ?? null),
     currentTenantName: computed(() => store.currentCenter()?.name ?? null),
 
-    // Navigation dynamique
-    hasNavigation: computed(() => store.navigation().length > 0),
-    // Note: Pour accéder aux routes, utiliser directement authStore.navigation()
-    // Note: Pour accéder aux permissions, utiliser directement authStore.userPermissions()
-    // Ces propriétés sont déjà des computed signals créés par le Proxy de withState
-
-    // @deprecated - Propriétés de compatibilité (backend NestJS ne retourne plus ces champs)
     // À supprimer progressivement
     userRole: computed((): null => null), // TODO: Implémenter la gestion des rôles dans backend NestJS
     tenant: computed(() => store.currentCenter()?.dbSchema ?? null), // Utilise dbSchema comme fallback
@@ -104,8 +96,6 @@ export const AuthStore = signalStore(
                     };
 
                     patchState(store, { jwtTokens, error: null });
-
-                    // Appeler getCurrentUser pour récupérer l'utilisateur complet avec tenants
                     methods.getCurrentUser();
                   },
                   error: (error: HttpErrorResponse) => {
@@ -131,7 +121,6 @@ export const AuthStore = signalStore(
         logout(redirect = true): void {
           // Nettoyer le localStorage avant de réinitialiser l'état
           persistenceService.remove('AUTH');
-
           // Réinitialiser l'état du store
           patchState(store, initialState);
 
@@ -148,54 +137,81 @@ export const AuthStore = signalStore(
         },
 
         /**
-         * Récupère les informations de l'utilisateur connecté
-         * Chaîne automatiquement avec getClientOptions() si succès
+         * Récupère les informations de l'utilisateur connecté puis ses autorisations
          * @returns Observable qui émet les informations utilisateur
          */
         getCurrentUser: rxMethod<void>(
           pipe(
             switchMap(() =>
               authService.getCurrentUser().pipe(
-                tapResponse({
-                  next: (user: ICurrentUser) => {
-                    // Sélectionne le premier tenant comme tenant actif
-                    // Le backend NestJS ne retourne pas de flag "active", on prend le premier
-                    const currentCenter = user.tenants[0] ?? null;
+                tap((user: ICurrentUser) => {
+                  // Sélectionne le premier tenant comme tenant actif
+                  const currentCenter = user.tenants[0] ?? null;
 
-                    patchState(store, {
-                      user,
-                      currentCenter,
-                      error: null,
-                    });
+                  patchState(store, {
+                    user,
+                    currentCenter,
+                    error: null,
+                  });
 
-                    // Chaîner avec getClientOptions() pour récupérer la navigation
-                    if (currentCenter) {
-                      methods.getClientOptions();
-                    } else {
-                      // Pas de tenant disponible → erreur
-                      patchState(store, {
-                        error: createWsErrorWithMessage(
-                          { status: 400 } as HttpErrorResponse,
-                          translate.instant('authentication.noTenantError')
-                        ),
-                      });
-                      void router.navigate(['/login']);
-                    }
-                  },
-                  error: (error: HttpErrorResponse) => {
-                    // Si l'appel /me échoue après un login réussi, l'état d'authentification est corrompu
-                    // On déconnecte l'utilisateur et on le redirige vers la page de login
-                    patchState(store, {
-                      error: createWsErrorWithMessage(
-                        error,
-                        translate.instant('authentication.getCurrentUserError')
-                      ),
-                      jwtTokens: INITIAL_JWT_TOKENS,
-                      user: INITIAL_CURRENT_USER,
-                    });
+                  // Appeler getUserOptions pour récupérer les autorisations
+                  methods.getUserOptions();
+                }),
+                catchError((error: HttpErrorResponse) => {
+                  // Ignorer les erreurs 401 - l'interceptor gère le refresh token
+                  if (error.status === 401) {
+                    return EMPTY;
+                  }
 
-                    void router.navigate(['/login']);
-                  },
+                  // Autres erreurs : l'état d'authentification est corrompu
+                  patchState(store, {
+                    error: createWsErrorWithMessage(
+                      error,
+                      translate.instant('authentication.getCurrentUserError')
+                    ),
+                    jwtTokens: INITIAL_JWT_TOKENS,
+                    user: INITIAL_CURRENT_USER,
+                  });
+
+                  void router.navigate(['/login']);
+                  return EMPTY;
+                })
+              )
+            )
+          )
+        ),
+
+        /**
+         * Récupère les autorisations de l'utilisateur pour le tenant courant
+         * @returns Observable qui émet les autorisations utilisateur
+         */
+        getUserOptions: rxMethod<void>(
+          pipe(
+            switchMap(() =>
+              authService.getUserOptions().pipe(
+                tap((userOptions: IUserOptions) => {
+                  patchState(store, {
+                    userAuthorizations: userOptions.authorizations,
+                  });
+
+                  void router.navigate(['/p']);
+                }),
+                catchError((error: HttpErrorResponse) => {
+                  // Ignorer les erreurs 401 - l'interceptor gère le refresh token
+                  if (error.status === 401) {
+                    return EMPTY;
+                  }
+
+                  // Autres erreurs : logout
+                  patchState(store, {
+                    error: createWsErrorWithMessage(
+                      error,
+                      translate.instant('authentication.getUserOptionsError')
+                    ),
+                  });
+
+                  methods.logout(true);
+                  return EMPTY;
                 })
               )
             )
@@ -254,49 +270,6 @@ export const AuthStore = signalStore(
         resetError(): void {
           patchState(store, { error: null });
         },
-
-        /**
-         * Récupère les options client (navigation/menu + permissions) pour le tenant courant
-         * Note: Le header Tenant est ajouté automatiquement par TenantInterceptor
-         * @returns Observable qui émet la structure de navigation et les permissions
-         */
-        getClientOptions: rxMethod<void>(
-          pipe(
-            switchMap(() =>
-              authService.getClientOptions().pipe(
-                tapResponse({
-                  next: (clientOptions) => {
-                    patchState(store, {
-                      navigation: clientOptions.routes,
-                      userPermissions: clientOptions.userPermissions,
-                      error: null,
-                    });
-
-                    // Redirection vers /p uniquement après succès du chargement de la navigation
-                    void router.navigate(['/p']);
-                  },
-                  error: (error: HttpErrorResponse) => {
-                    // Sans navigation, l'application est inutilisable
-                    // On déconnecte l'utilisateur et on le redirige vers login
-                    patchState(store, {
-                      error: createWsErrorWithMessage(
-                        error,
-                        translate.instant('authentication.getOptionsError')
-                      ),
-                      jwtTokens: INITIAL_JWT_TOKENS,
-                      user: INITIAL_CURRENT_USER,
-                      currentCenter: null,
-                      navigation: [],
-                      userPermissions: [],
-                    });
-
-                    void router.navigate(['/login']);
-                  },
-                })
-              )
-            )
-          )
-        ),
       };
 
       return methods;
@@ -312,12 +285,13 @@ export const AuthStore = signalStore(
           jwtTokens: stored.jwtTokens,
           user: stored.user,
           currentCenter: stored.currentCenter,
+          userAuthorizations: stored.userAuthorizations ?? [],
         });
 
-        // Si on a un token en localStorage, appeler /me pour vérifier/rafraîchir la session
-        // Cela couvre le cas du refresh de page ou du redémarrage de l'app
+        // Appeler /me pour rafraîchir les données utilisateur
+        // Le setTimeout(0) permet à l'app de s'initialiser complètement
         if (stored.jwtTokens?.accessToken) {
-          store.getCurrentUser();
+          setTimeout(() => store.getCurrentUser(), 0);
         }
       }
 
@@ -326,6 +300,7 @@ export const AuthStore = signalStore(
           jwtTokens: store.jwtTokens(),
           user: store.user(),
           currentCenter: store.currentCenter(),
+          userAuthorizations: store.userAuthorizations(),
         };
         persistenceService.set('AUTH', state);
       });

@@ -4,73 +4,46 @@ import {
   CanActivateChildFn,
   CanActivateFn,
   Router,
-  RouterStateSnapshot,
 } from '@angular/router';
 import { AuthStore } from '@app/core/store';
-import { IClientRoute, ResourceAuthorizations } from '@optisaas/opti-saas-lib';
+import { RouteData } from '@app/types';
 
 export const PermissionCanActivateGuard: CanActivateFn = (
-  next: ActivatedRouteSnapshot,
-  state: RouterStateSnapshot
-): boolean => checkPermission(state.url);
+  route: ActivatedRouteSnapshot
+): boolean => checkPermission(route);
 
 export const PermissionCanActivateChildGuard: CanActivateChildFn = (
-  next: ActivatedRouteSnapshot,
-  state: RouterStateSnapshot
-): boolean => checkPermission(state.url);
+  route: ActivatedRouteSnapshot
+): boolean => checkPermission(route);
 
 /**
- * Recherche une route dans l'arbre de navigation de manière récursive
+ * Vérifie si l'utilisateur a les autorisations nécessaires pour accéder à la route
+ * @param route - La route à vérifier
+ * @returns true si l'accès est autorisé, false sinon
  */
-const findRouteByPath = (routes: IClientRoute[], path: string): IClientRoute | null => {
-  const cleanPath = path.replace(/^\/+/, '').replace(/^p\//, '');
-
-  for (const route of routes) {
-    // Vérifier si le path correspond
-    const routePath = route.path?.replace(/^\/+/, '');
-    if (routePath === cleanPath) {
-      return route;
-    }
-
-    // Rechercher récursivement dans les enfants
-    if (route.children?.length) {
-      const found = findRouteByPath(route.children, cleanPath);
-      if (found) return found;
-    }
-  }
-
-  return null;
-};
-
-const checkPermission = (url: string): boolean => {
+const checkPermission = (route: ActivatedRouteSnapshot): boolean => {
   const router = inject(Router);
   const authStore = inject(AuthStore);
-  const routes = authStore.navigation();
-  const userPermissions = authStore.userPermissions();
+  const userAuthorizations = authStore.userAuthorizations();
 
-  // Rechercher la route demandée
-  const route = findRouteByPath(routes, url);
+  // Récupérer les autorisations requises depuis route.data (typé avec RouteData)
+  const routeData = route.data as RouteData;
+  const authorizationsNeeded = routeData.authorizationsNeeded ?? [];
 
-  // Si la route n'existe pas dans availableRoutes, accès refusé
-  // (le backend a déjà filtré les routes selon les permissions globales)
-  if (!route) {
-    void router.navigate(['page-not-found']);
-    return false;
+  // Si aucune autorisation requise, accès autorisé
+  if (authorizationsNeeded.length === 0) {
+    return true;
   }
 
-  // Double vérification : si la route nécessite des permissions spécifiques,
-  // vérifier que l'utilisateur les possède toutes
-  const routePermissions = (route as IClientRoute & { authorizations_needed?: ResourceAuthorizations[] }).authorizations_needed;
-  if (routePermissions && routePermissions.length > 0) {
-    const hasAllPermissions = routePermissions.every((permission: ResourceAuthorizations) =>
-      userPermissions.includes(permission)
-    );
+  // Vérifier que l'utilisateur a TOUTES les autorisations requises
+  const hasAllAuthorizations = authorizationsNeeded.every((auth) =>
+    userAuthorizations.includes(auth)
+  );
 
-    if (!hasAllPermissions) {
-      void router.navigate(['page-not-found']);
-      return false;
-    }
+  if (hasAllAuthorizations) {
+    return true;
   }
 
-  return true;
+  void router.navigate(['page-not-found']);
+  return false;
 };

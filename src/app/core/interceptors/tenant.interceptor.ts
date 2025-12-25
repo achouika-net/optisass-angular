@@ -38,7 +38,7 @@ export const TenantInterceptor: HttpInterceptorFn = (request, next) => {
   }
 
   const reqClone = request.clone({
-    headers: request.headers.set('Tenant', tenant),
+    headers: request.headers.set('x-tenant-id', tenant),
   });
 
   return next(reqClone);

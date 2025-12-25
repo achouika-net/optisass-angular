@@ -1,6 +1,6 @@
 import { HttpClient, HttpResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { ILoginRequest, IResetPasswordConfirmRequest, IClientOptions } from '@app/models';
+import { ILoginRequest, IResetPasswordConfirmRequest, IUserOptions } from '@app/models';
 import { ICurrentUser, IJwtTokens, ILoginResponse } from '@app/models';
 import { Observable, delay, of } from 'rxjs';
 import { Router } from '@angular/router';
@@ -12,7 +12,6 @@ import {
   REFRESH_TOKEN_API_URL,
 } from '@app/config';
 import { map } from 'rxjs/operators';
-import { MOCK_CLIENT_OPTIONS } from '../../../core/mocks/client-options.mock';
 
 @Injectable({
   providedIn: 'root',
@@ -97,15 +96,21 @@ export class AuthService {
   }
 
   /**
-   * Récupère les options client (navigation/menu dynamique + permissions) pour le tenant courant
-   * Note: Le header Tenant est ajouté automatiquement par TenantInterceptor
-   * @returns Observable<IClientOptions> - Navigation et permissions de l'utilisateur
+   * Récupère les options utilisateur (autorisations) pour le tenant courant
+   * @returns Observable<IUserOptions> - Autorisations de l'utilisateur
    */
-  getClientOptions(): Observable<IClientOptions> {
+  getUserOptions(): Observable<IUserOptions> {
     // TODO: Remplacer par l'appel API réel quand le backend sera prêt
-    // return this.#http.get<IClientOptions>(USER_OPTIONS_API_URL);
+    // return this.#http.get<IUserOptions>(USER_OPTIONS_API_URL);
 
-    // Mock temporaire avec navigation et permissions
-    return of(MOCK_CLIENT_OPTIONS).pipe(delay(300));
+    // Mock temporaire avec autorisations uniquement
+    return of({
+      authorizations: [
+        'CLIENTS_READ',
+        'USERS_READ',
+        'USERS_CREATE',
+        'USERS_UPDATE',
+      ],
+    } as IUserOptions).pipe(delay(300));
   }
 }

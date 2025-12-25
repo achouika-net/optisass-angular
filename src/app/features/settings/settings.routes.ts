@@ -1,16 +1,18 @@
-import { Route } from '@angular/router';
-import { PermissionCanActivateGuard } from '../../core/guards/permission.guard';
+import { PermissionCanActivateChildGuard } from '../../core/guards/permission.guard';
+import { TypedRoute } from '@app/types';
 
 export default [
   {
     path: '',
-    canActivate: [PermissionCanActivateGuard],
+    canActivateChild: [PermissionCanActivateChildGuard],
     children: [
       { path: '', redirectTo: 'users', pathMatch: 'full' },
       {
         path: 'users',
+        data: { breadcrumb: 'breadcrumb.users' },
         loadChildren: () => import('./user/user.routes'),
+        canActivateChild: [PermissionCanActivateChildGuard],
       },
     ],
   },
-] as Route[];
+] satisfies TypedRoute[];

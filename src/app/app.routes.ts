@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { AuthGuard } from './core/guards/auth.guard';
 import { UnAuthGuard } from './core/guards/unAuth.guard';
+import { TypedRoute } from '@app/types';
 
 export const routes: Routes = [
   {
@@ -27,8 +28,9 @@ export const routes: Routes = [
       },
       {
         path: 'settings',
+        data: { breadcrumb: 'breadcrumb.settings' },
         loadChildren: () => import('./features/settings/settings.routes'),
-      },
+      } satisfies TypedRoute,
     ],
   },
   {
