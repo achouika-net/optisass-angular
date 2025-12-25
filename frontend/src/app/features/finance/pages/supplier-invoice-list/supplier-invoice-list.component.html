@@ -1,0 +1,88 @@
+<div class="container">
+    <div class="header">
+        <h1 class="text-2xl font-bold">Factures Fournisseurs</h1>
+        <button mat-raised-button color="primary" (click)="openInvoiceDialog()">
+            <mat-icon>add</mat-icon> Saisir Facture
+        </button>
+    </div>
+
+    <mat-card>
+        <div *ngIf="loading" class="p-4 text-center">Chargement...</div>
+
+        <div *ngIf="!loading && invoices.length === 0" class="p-4 text-center text-gray-500">
+            Aucune facture trouvée.
+        </div>
+
+        <table mat-table [dataSource]="invoices" *ngIf="!loading && invoices.length > 0">
+
+            <!-- Date Column -->
+            <ng-container matColumnDef="date">
+                <th mat-header-cell *matHeaderCellDef> Date Émiss. </th>
+                <td mat-cell *matCellDef="let element"> {{element.dateEmission | date:'dd/MM/yyyy'}} </td>
+            </ng-container>
+
+            <!-- Numero Column -->
+            <ng-container matColumnDef="numero">
+                <th mat-header-cell *matHeaderCellDef> N° Facture </th>
+                <td mat-cell *matCellDef="let element">
+                    <div class="font-bold">{{element.numeroFacture}}</div>
+                    <div class="text-xs text-gray-400" *ngIf="element.dateEcheance">Échéance: {{element.dateEcheance |
+                        date:'dd/MM/yyyy'}}</div>
+                </td>
+            </ng-container>
+
+            <!-- Fournisseur Column -->
+            <ng-container matColumnDef="fournisseur">
+                <th mat-header-cell *matHeaderCellDef> Fournisseur </th>
+                <td mat-cell *matCellDef="let element"> {{element.fournisseur?.nom}} </td>
+            </ng-container>
+
+            <!-- Type Column -->
+            <ng-container matColumnDef="type">
+                <th mat-header-cell *matHeaderCellDef> Type </th>
+                <td mat-cell *matCellDef="let element">
+                    <span class="text-xs uppercase text-gray-500">{{element.type}}</span>
+                </td>
+            </ng-container>
+
+            <!-- Statut Column -->
+            <ng-container matColumnDef="statut">
+                <th mat-header-cell *matHeaderCellDef> Statut </th>
+                <td mat-cell *matCellDef="let element">
+                    <span [ngClass]="getStatusClass(element.statut)"
+                        class="statut-chip px-2 py-1 rounded-full font-semibold">
+                        {{element.statut}}
+                    </span>
+                </td>
+            </ng-container>
+
+            <!-- Montant Column -->
+            <ng-container matColumnDef="montant">
+                <th mat-header-cell *matHeaderCellDef style="text-align: right;"> Montant TTC </th>
+                <td mat-cell *matCellDef="let element" class="montant-cell">
+                    {{element.montantTTC | number:'1.2-2'}} DH
+                    <div class="text-xs font-normal text-gray-400">HT: {{element.montantHT | number:'1.2-2'}}</div>
+                </td>
+            </ng-container>
+
+            <!-- Actions Column -->
+            <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef style="text-align: right;"> Actions </th>
+                <td mat-cell *matCellDef="let element" style="text-align: right;">
+                    <div class="flex justify-end gap-2">
+                        <button mat-icon-button color="primary" matTooltip="Voir/Éditer"
+                            (click)="openInvoiceDialog(element)">
+                            <mat-icon>visibility</mat-icon>
+                        </button>
+                        <button mat-icon-button color="accent" matTooltip="Télécharger" *ngIf="element.pieceJointeUrl">
+                            <mat-icon>download</mat-icon>
+                        </button>
+                    </div>
+                </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        </table>
+    </mat-card>
+</div>

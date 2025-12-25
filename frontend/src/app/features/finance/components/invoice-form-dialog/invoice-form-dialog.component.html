@@ -1,0 +1,143 @@
+<h2 mat-dialog-title>{{ isEditMode ? 'Modifier' : 'Saisir' }} Facture Fournisseur</h2>
+
+<form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <mat-dialog-content>
+        <!-- Section Infos Facture -->
+        <div class="row pt-2">
+            <mat-form-field appearance="outline" class="col">
+                <mat-label>Fournisseur</mat-label>
+                <mat-select formControlName="fournisseurId" required>
+                    <mat-option *ngFor="let s of suppliers" [value]="s.id">{{ s.nom }}</mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col">
+                <mat-label>N° Facture</mat-label>
+                <input matInput formControlName="numeroFacture" required>
+            </mat-form-field>
+        </div>
+
+        <div class="row">
+            <mat-form-field appearance="outline" class="col">
+                <mat-label>Date Émission</mat-label>
+                <input matInput [matDatepicker]="dE" formControlName="dateEmission" required>
+                <mat-datepicker-toggle matSuffix [for]="dE"></mat-datepicker-toggle>
+                <mat-datepicker #dE></mat-datepicker>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col">
+                <mat-label>Type</mat-label>
+                <mat-select formControlName="type" required>
+                    <mat-option *ngFor="let t of invoiceTypes" [value]="t">{{ t }}</mat-option>
+                </mat-select>
+            </mat-form-field>
+        </div>
+
+        <div class="row">
+            <mat-form-field appearance="outline" class="col">
+                <mat-label>Montant HT</mat-label>
+                <input matInput type="number" formControlName="montantHT" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col">
+                <mat-label>Montant TVA</mat-label>
+                <input matInput type="number" formControlName="montantTVA" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col">
+                <mat-label>Montant TTC</mat-label>
+                <input matInput type="number" formControlName="montantTTC" readonly>
+            </mat-form-field>
+        </div>
+
+        <div class="row">
+            <mat-form-field appearance="outline" class="col">
+                <mat-label>Statut Facture</mat-label>
+                <mat-select formControlName="statut" required>
+                    <mat-option *ngFor="let s of invoiceStatus" [value]="s">{{ s }}</mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col">
+                <mat-label>Échéance Globale (Optionnel)</mat-label>
+                <input matInput [matDatepicker]="dEc" formControlName="dateEcheance">
+                <mat-datepicker-toggle matSuffix [for]="dEc"></mat-datepicker-toggle>
+                <mat-datepicker #dEc></mat-datepicker>
+            </mat-form-field>
+        </div>
+
+        <mat-divider class="my-4"></mat-divider>
+
+        <!-- Section Échéances (Paiements) -->
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="m-0 font-bold">Échéances de Paiement (Chèques / LCN)</h3>
+            <button type="button" mat-stroked-button color="primary" (click)="addEcheance()">
+                <mat-icon>add</mat-icon> Ajouter Échéance
+            </button>
+        </div>
+
+        <div formArrayName="echeances">
+            <div *ngFor="let e of echeances.controls; let i=index" [formGroupName]="i" class="echeance-row">
+                <div class="row">
+                    <mat-form-field appearance="fill" class="col">
+                        <mat-label>Type</mat-label>
+                        <mat-select formControlName="type" required>
+                            <mat-option *ngFor="let p of paymentMethods" [value]="p">{{ p }}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="fill" class="col">
+                        <mat-label>Date Échéance</mat-label>
+                        <input matInput [matDatepicker]="pE" formControlName="dateEcheance" required>
+                        <mat-datepicker-toggle matSuffix [for]="pE"></mat-datepicker-toggle>
+                        <mat-datepicker #pE></mat-datepicker>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="fill" class="col">
+                        <mat-label>Montant</mat-label>
+                        <input matInput type="number" formControlName="montant" required>
+                    </mat-form-field>
+
+                    <button type="button" mat-icon-button (click)="removeEcheance(i)" class="delete-btn">
+                        <mat-icon>delete</mat-icon>
+                    </button>
+                </div>
+
+                <div class="row">
+                    <mat-form-field appearance="fill" class="col">
+                        <mat-label>Référence (N° Chèque/LCN)</mat-label>
+                        <input matInput formControlName="reference">
+                    </mat-form-field>
+
+                    <mat-form-field appearance="fill" class="col">
+                        <mat-label>Banque</mat-label>
+                        <input matInput formControlName="banque">
+                    </mat-form-field>
+
+                    <mat-form-field appearance="fill" class="col">
+                        <mat-label>Statut</mat-label>
+                        <mat-select formControlName="statut" required>
+                            <mat-option *ngFor="let s of echeanceStatus" [value]="s">{{ s }}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                </div>
+            </div>
+        </div>
+
+        <div class="sum-footer">
+            <span>Total Échéances: {{ totalEcheances | number:'1.2-2' }} DH</span>
+            <span [class.diff-error]="diffTTC !== 0">
+                Reste à ventiler: {{ diffTTC | number:'1.2-2' }} DH
+                <mat-icon *ngIf="diffTTC !== 0" matTooltip="Le total des échéances doit correspondre au TTC"
+                    color="warn" style="font-size: 16px; width: 16px; height: 16px;">warning</mat-icon>
+            </span>
+        </div>
+
+    </mat-dialog-content>
+
+    <mat-dialog-actions align="end">
+        <button mat-button type="button" (click)="onCancel()">Annuler</button>
+        <button mat-raised-button color="primary" type="submit"
+            [disabled]="form.invalid || diffTTC !== 0">Enregistrer</button>
+    </mat-dialog-actions>
+</form>

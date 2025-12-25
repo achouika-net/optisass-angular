@@ -19,6 +19,7 @@ import { StatsModule } from './features/stats/stats.module';
 import { SuppliersModule } from './features/suppliers/suppliers.module';
 import { ExpensesModule } from './features/expenses/expenses.module';
 import { SupplierInvoicesModule } from './features/supplier-invoices/supplier-invoices.module';
+import { TreasuryModule } from './features/treasury/treasury.module';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaService } from './prisma/prisma.service';
 
@@ -41,6 +42,7 @@ import { PrismaService } from './prisma/prisma.service';
     SuppliersModule,
     ExpensesModule,
     SupplierInvoicesModule,
+    TreasuryModule,
   ],
   controllers: [],
   providers: [],

@@ -71,4 +71,15 @@ export class FinanceService {
     getInvoice(id: string): Observable<SupplierInvoice> {
         return this.http.get<SupplierInvoice>(`${this.apiUrl}/supplier-invoices/${id}`);
     }
+
+    // --- Treasury ---
+    getTreasurySummary(year: number, month: number, centreId?: string): Observable<any> {
+        let params = new HttpParams().set('year', year.toString()).set('month', month.toString());
+        if (centreId) params = params.set('centreId', centreId);
+        return this.http.get<any>(`${this.apiUrl}/treasury/summary`, { params });
+    }
+
+    getYearlyProjection(year: number): Observable<any[]> {
+        return this.http.get<any[]>(`${this.apiUrl}/treasury/projection`, { params: { year: year.toString() } });
+    }
 }

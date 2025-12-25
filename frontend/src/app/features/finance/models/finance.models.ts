@@ -10,6 +10,8 @@ export interface Supplier {
     ice?: string;
     rc?: string;
     identifiantFiscal?: string;
+    patente?: string;
+    cnss?: string;
     banque?: string;
     rib?: string;
     conditionsPaiement?: string;

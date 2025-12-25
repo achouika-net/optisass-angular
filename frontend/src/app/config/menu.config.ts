@@ -50,12 +50,12 @@ export const MENU: MenuItem[] = [
         type: 'subchild',
         route: 'finance/suppliers',
       },
-      // {
-      //   label: 'Trésorerie',
-      //   icon: 'savings',
-      //   type: 'subchild',
-      //   route: 'finance/dashboard',
-      // }
+      {
+        label: 'Trésorerie',
+        icon: 'savings',
+        type: 'subchild',
+        route: 'finance/dashboard',
+      }
     ]
   },
   {
