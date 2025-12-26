@@ -117,6 +117,8 @@
     "resetPasswordSuccess": "Votre nouveau mot de passe a bien été pris en compte",
     "tooManyRequest": "Vous avez dépassé le nombre maximal de requêtes autorisées. Veuillez réessayer ultérieurement dans ",
     "refreshTokenError": "Erreur lors du rafraîchissement du token. Veuillez vous reconnecter",
+    "sessionExpired": "Votre session a expiré. Merci de vous reconnecter",
+    "unexpectedError": "Une erreur est survenue. Merci de contacter le support si le problème persiste",
     "noTenantError": "Aucun centre n'est associé à votre compte",
     "getUserOptionsError": "Erreur lors de la récupération des autorisations. Veuillez vous reconnecter"
   },

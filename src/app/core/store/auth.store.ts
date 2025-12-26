@@ -27,13 +27,18 @@ import { AuthService } from '../../features/authentication/services/auth.service
 import { StatePersistenceService } from '../services';
 import { refreshTokenSubject, cancelAllPendingRequests } from '../interceptors/jwt.interceptor';
 
-interface AuthState {
+export interface AuthState {
   jwtTokens: JwtTokensState;
   user: CurrentUserState;
   currentCenter: ICenter | null;
   userAuthorizations: ResourceAuthorizations[];
   error: WsErrorState;
   refreshTokenInProgress: boolean;
+  isSessionRestoring: boolean;
+}
+
+interface SessionOptions {
+  isRestoreSession?: boolean;
 }
 
 const initialState: AuthState = {
@@ -43,6 +48,7 @@ const initialState: AuthState = {
   userAuthorizations: [],
   error: INITIAL_WS_ERROR,
   refreshTokenInProgress: false,
+  isSessionRestoring: false,
 };
 
 export const AuthStore = signalStore(
@@ -52,7 +58,7 @@ export const AuthStore = signalStore(
 
   withComputed((store) => ({
     isAuthenticated: computed(
-      () => isValidUser(store.user()) && store.jwtTokens() !== null && !!store.jwtTokens()?.accessToken
+      () => isValidUser(store.user()) && store.userAuthorizations().length > 0 && store.jwtTokens() !== null && !!store.jwtTokens()?.accessToken
     ),
 
     // Nouvelles propriétés alignées avec backend NestJS
@@ -78,36 +84,36 @@ export const AuthStore = signalStore(
       // Créer une référence aux méthodes pour pouvoir les appeler entre elles
       const methods = {
         /**
-         * Authentifie l'utilisateur avec email et mot de passe
+         * Authentifie l'utilisateur avec email et mot de passe.
+         * Enchaîne : login → getCurrentUser → getUserOptions → redirection vers /p
          * @param request - Les identifiants de connexion (email et password)
-         * @returns Observable qui émet lors de la réussite ou l'échec de l'authentification
          */
         login: rxMethod<ILoginRequest>(
           pipe(
             tap(() => patchState(store, { error: null })),
             switchMap((request) =>
               authService.login(request).pipe(
-                tapResponse({
-                  next: (loginResponse: ILoginResponse) => {
-                    // Extraire les tokens de la réponse
-                    const jwtTokens: IJwtTokens = {
-                      accessToken: loginResponse.accessToken,
-                      refreshToken: loginResponse.refreshToken,
-                    };
+                tap((loginResponse: ILoginResponse) => {
+                  const jwtTokens: IJwtTokens = {
+                    accessToken: loginResponse.accessToken,
+                    refreshToken: loginResponse.refreshToken,
+                  };
+                  patchState(store, { jwtTokens, error: null });
 
-                    patchState(store, { jwtTokens, error: null });
-                    methods.getCurrentUser();
-                  },
-                  error: (error: HttpErrorResponse) => {
-                    const message =
-                      error.status === 401
-                        ? translate.instant('authentication.loginError')
-                        : translate.instant('authentication.unexpectedLoginError');
+                  // Appeler getCurrentUser qui va enchaîner avec getUserOptions
+                  // isRestoreSession = false car c'est un login, pas un restore
+                  methods.getCurrentUser({ isRestoreSession: false });
+                }),
+                catchError((error: HttpErrorResponse) => {
+                  const message =
+                    error.status === 401
+                      ? translate.instant('authentication.loginError')
+                      : translate.instant('authentication.unexpectedLoginError');
 
-                    patchState(store, {
-                      error: createWsErrorWithMessage(error, message),
-                    });
-                  },
+                  patchState(store, {
+                    error: createWsErrorWithMessage(error, message),
+                  });
+                  return EMPTY;
                 })
               )
             )
@@ -137,25 +143,19 @@ export const AuthStore = signalStore(
         },
 
         /**
-         * Récupère les informations de l'utilisateur connecté puis ses autorisations
-         * @returns Observable qui émet les informations utilisateur
+         * Récupère les informations de l'utilisateur connecté puis appelle getUserOptions
+         * @param options.isRestoreSession - Si true, c'est une restauration de session (pas de redirect)
          */
-        getCurrentUser: rxMethod<void>(
+        getCurrentUser: rxMethod<SessionOptions>(
           pipe(
-            switchMap(() =>
+            switchMap((options) =>
               authService.getCurrentUser().pipe(
                 tap((user: ICurrentUser) => {
-                  // Sélectionne le premier tenant comme tenant actif
                   const currentCenter = user.tenants[0] ?? null;
+                  patchState(store, { user, currentCenter, error: null });
 
-                  patchState(store, {
-                    user,
-                    currentCenter,
-                    error: null,
-                  });
-
-                  // Appeler getUserOptions pour récupérer les autorisations
-                  methods.getUserOptions();
+                  // Appeler getUserOptions avec les mêmes options
+                  methods.getUserOptions({ isRestoreSession: options.isRestoreSession });
                 }),
                 catchError((error: HttpErrorResponse) => {
                   // Ignorer les erreurs 401 - l'interceptor gère le refresh token
@@ -163,17 +163,14 @@ export const AuthStore = signalStore(
                     return EMPTY;
                   }
 
-                  // Autres erreurs : l'état d'authentification est corrompu
                   patchState(store, {
-                    error: createWsErrorWithMessage(
-                      error,
-                      translate.instant('authentication.getCurrentUserError')
-                    ),
+                    error: createWsErrorWithMessage(error, translate.instant('authentication.getCurrentUserError')),
                     jwtTokens: INITIAL_JWT_TOKENS,
                     user: INITIAL_CURRENT_USER,
+                    isSessionRestoring: false,
                   });
 
-                  void router.navigate(['/login']);
+                  methods.logout(true);
                   return EMPTY;
                 })
               )
@@ -183,18 +180,22 @@ export const AuthStore = signalStore(
 
         /**
          * Récupère les autorisations de l'utilisateur pour le tenant courant
-         * @returns Observable qui émet les autorisations utilisateur
+         * @param options.isRestoreSession - Si true, c'est une restauration de session (pas de redirect)
          */
-        getUserOptions: rxMethod<void>(
+        getUserOptions: rxMethod<SessionOptions>(
           pipe(
-            switchMap(() =>
+            switchMap((options) =>
               authService.getUserOptions().pipe(
                 tap((userOptions: IUserOptions) => {
                   patchState(store, {
                     userAuthorizations: userOptions.authorizations,
+                    // Mettre isSessionRestoring à false seulement si c'est une restauration de session
+                    ...(options.isRestoreSession && { isSessionRestoring: false }),
                   });
-
-                  void router.navigate(['/p']);
+                  // Rediriger vers /p seulement après un login (pas après restore)
+                  if (!options.isRestoreSession) {
+                    void router.navigate(['/p']);
+                  }
                 }),
                 catchError((error: HttpErrorResponse) => {
                   // Ignorer les erreurs 401 - l'interceptor gère le refresh token
@@ -202,12 +203,9 @@ export const AuthStore = signalStore(
                     return EMPTY;
                   }
 
-                  // Autres erreurs : logout
                   patchState(store, {
-                    error: createWsErrorWithMessage(
-                      error,
-                      translate.instant('authentication.getUserOptionsError')
-                    ),
+                    error: createWsErrorWithMessage(error, translate.instant('authentication.getUserOptionsError')),
+                    isSessionRestoring: false,
                   });
 
                   methods.logout(true);
@@ -239,12 +237,16 @@ export const AuthStore = signalStore(
                     refreshTokenSubject.next(jwtTokens.accessToken);
                   },
                   error: (error: HttpErrorResponse) => {
+                    // Message d'erreur selon le type d'erreur
+                    const message =
+                      error.status === 401 || error.status === 403
+                        ? translate.instant('authentication.sessionExpired')
+                        : translate.instant('authentication.unexpectedError');
+
                     patchState(store, {
-                      error: createWsErrorWithMessage(
-                        error,
-                        translate.instant('authentication.refreshTokenError')
-                      ),
+                      error: createWsErrorWithMessage(error, message),
                       refreshTokenInProgress: false,
+                      isSessionRestoring: false,
                     });
 
                     cancelAllPendingRequests();
@@ -278,29 +280,19 @@ export const AuthStore = signalStore(
 
   withHooks({
     onInit(store, persistenceService = inject(StatePersistenceService)) {
-      const stored = persistenceService.get<AuthState>('AUTH');
+      // Restaurer les tokens depuis localStorage (la restauration de session est gérée par provideAppInitializer)
+      const stored = persistenceService.get<Pick<AuthState, 'jwtTokens'>>('AUTH');
 
-      if (stored) {
+      if (stored?.jwtTokens?.accessToken) {
         patchState(store, {
           jwtTokens: stored.jwtTokens,
-          user: stored.user,
-          currentCenter: stored.currentCenter,
-          userAuthorizations: stored.userAuthorizations ?? [],
+          isSessionRestoring: true,
         });
-
-        // Appeler /me pour rafraîchir les données utilisateur
-        // Le setTimeout(0) permet à l'app de s'initialiser complètement
-        if (stored.jwtTokens?.accessToken) {
-          setTimeout(() => store.getCurrentUser(), 0);
-        }
       }
-
+      // Persister uniquement les tokens dans localStorage
       effect(() => {
-        const state: Partial<AuthState> = {
+        const state: Pick<AuthState, 'jwtTokens'> = {
           jwtTokens: store.jwtTokens(),
-          user: store.user(),
-          currentCenter: store.currentCenter(),
-          userAuthorizations: store.userAuthorizations(),
         };
         persistenceService.set('AUTH', state);
       });

@@ -117,6 +117,8 @@
     "resetPasswordSuccess": "Your new password has been saved",
     "tooManyRequest": "You have exceeded the maximum number of allowed requests. Please try again later in ",
     "refreshTokenError": "Error refreshing token. Please log in again",
+    "sessionExpired": "Your session has expired. Please log in again",
+    "unexpectedError": "An error occurred. Please contact support if the problem persists",
     "noTenantError": "No center is associated with your account",
     "getUserOptionsError": "Error retrieving authorizations. Please log in again"
   },
