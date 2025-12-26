@@ -76,9 +76,9 @@ export class AuthService {
    * @return Observable<IJwtTokens>
    */
   refreshToken(refreshToken: string): Observable<IJwtTokens> {
-    return this.#http.post<{ status: number; message: string; data: IJwtTokens }>(`${REFRESH_TOKEN_API_URL}`, {
+    return this.#http.post<IJwtTokens>(`${REFRESH_TOKEN_API_URL}`, {
       refreshToken,
-    }).pipe(map((response) => response.data));
+    }).pipe(map((response) => response));
   }
 
   /**
