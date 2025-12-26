@@ -33,16 +33,10 @@ export const MENU: MenuItem[] = [
     route: 'finance',
     children: [
       {
-        label: 'Dépenses',
-        icon: 'receipt_long',
+        label: 'Paiements',
+        icon: 'payments',
         type: 'subchild',
-        route: 'finance/expenses',
-      },
-      {
-        label: 'Factures Frn.',
-        icon: 'description',
-        type: 'subchild',
-        route: 'finance/invoices',
+        route: 'finance/payments',
       },
       {
         label: 'Fournisseurs',
@@ -101,13 +95,6 @@ export const MENU: MenuItem[] = [
         route: 'commercial/promotions',
       },
     ],
-  },
-  {
-    label: 'Paiements',
-    icon: 'payments',
-    type: 'link',
-    route: 'paiements',
-    roles: [4, 3, 2],
   },
   {
     label: 'Historique',

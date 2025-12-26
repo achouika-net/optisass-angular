@@ -11,6 +11,8 @@ import { Centre } from '../../../shared/interfaces/warehouse.interface';
 import { WarehouseFormDialogComponent } from '../../warehouses/warehouse-form-dialog/warehouse-form-dialog.component';
 import { WarehousesService } from '../../warehouses/services/warehouses.service';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
 
 @Component({
     selector: 'app-center-detail',
@@ -23,7 +25,9 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
         MatIconModule,
         MatTableModule,
         MatDialogModule,
-        MatSnackBarModule
+        MatSnackBarModule,
+        MatMenuModule,
+        MatDividerModule
     ],
     templateUrl: './center-detail.component.html',
     styleUrls: ['./center-detail.component.scss']

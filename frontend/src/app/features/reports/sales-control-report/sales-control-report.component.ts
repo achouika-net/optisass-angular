@@ -15,6 +15,7 @@ import { PaymentDialogComponent } from '../../client-management/dialogs/payment-
 import { PaiementService } from '../../client-management/services/paiement.service';
 import { FactureService } from '../../client-management/services/facture.service';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ProductService } from '../../stock-management/services/product.service';
 
@@ -58,6 +59,7 @@ interface MonthlyGroup {
         MatInputModule,
         MatDialogModule,
         MatMenuModule,
+        MatDividerModule,
         MatTooltipModule
     ],
     templateUrl: './sales-control-report.component.html',

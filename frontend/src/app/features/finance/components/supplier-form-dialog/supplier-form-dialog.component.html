@@ -1,123 +1,254 @@
-<h2 mat-dialog-title>{{ isEditMode ? 'Modifier' : 'Nouveau' }} Fournisseur</h2>
+<div class="p-6" [class.h-full]="dialogRef">
+    <mat-card class="!shadow-sm !border !border-gray-200">
+        <div class="premium-dialog-header">
+            <h2 class="premium-dialog-title">
+                {{ isViewMode ? 'Détails du Fournisseur' : (isEditMode ? 'Modifier Fournisseur' : 'Nouveau Fournisseur')
+                }}
+            </h2>
+            <button mat-icon-button (click)="onCancel()" *ngIf="dialogRef">
+                <mat-icon>close</mat-icon>
+            </button>
+        </div>
 
-<form [formGroup]="form" (ngSubmit)="onSubmit()">
-    <mat-dialog-content>
-        <mat-tab-group>
-            <!-- Onglet Général -->
-            <mat-tab label="Général">
-                <div class="row pt-4">
-                    <mat-form-field appearance="outline" class="full-width">
-                        <mat-label>Nom de l'entreprise</mat-label>
-                        <input matInput formControlName="nom" placeholder="Ex: Optique Distribution" required>
-                        <mat-error *ngIf="form.get('nom')?.hasError('required')">Le nom est requis</mat-error>
-                    </mat-form-field>
-                </div>
+        <mat-progress-bar mode="indeterminate" *ngIf="submitting"></mat-progress-bar>
 
-                <div class="row">
-                    <mat-form-field appearance="outline" class="col">
-                        <mat-label>Contact principal</mat-label>
-                        <input matInput formControlName="contact" placeholder="Nom du responsable">
-                        <mat-icon matSuffix>person</mat-icon>
-                    </mat-form-field>
+        <mat-card-content class="!p-0">
+            <form [formGroup]="form">
+                <mat-horizontal-stepper linear #stepper>
+                    <!-- ÉTAPE 1 : IDENTITÉ & FISCALITÉ -->
+                    <mat-step [stepControl]="form">
+                        <ng-template matStepLabel>Identité & Fiscalité</ng-template>
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold mb-4 text-indigo-700 flex items-center">
+                                <mat-icon class="mr-2">business</mat-icon> Identité professionnelle
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                <mat-form-field appearance="outline" class="md:col-span-2">
+                                    <mat-label>Raison sociale *</mat-label>
+                                    <input matInput formControlName="nom" placeholder="Nom de l'entreprise">
+                                    <mat-error *ngIf="form.get('nom')?.hasError('required')">La raison sociale est
+                                        obligatoire</mat-error>
+                                </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="col">
-                        <mat-label>Téléphone</mat-label>
-                        <input matInput formControlName="telephone" placeholder="06...">
-                        <mat-icon matSuffix>phone</mat-icon>
-                    </mat-form-field>
-                </div>
+                                <mat-form-field appearance="outline" class="md:col-span-2">
+                                    <mat-label>Contact principal (Nom & Prénom)</mat-label>
+                                    <input matInput formControlName="contact" placeholder="Ex: Jean Dupont">
+                                </mat-form-field>
 
-                <div class="row">
-                    <mat-form-field appearance="outline" class="col">
-                        <mat-label>Email</mat-label>
-                        <input matInput formControlName="email" type="email">
-                        <mat-icon matSuffix>email</mat-icon>
-                    </mat-form-field>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Identifiant fiscal (IF)</mat-label>
+                                    <input matInput formControlName="identifiantFiscal" placeholder="IF">
+                                </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="col">
-                        <mat-label>Site Web</mat-label>
-                        <input matInput formControlName="siteWeb">
-                        <mat-icon matSuffix>language</mat-icon>
-                    </mat-form-field>
-                </div>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>ICE</mat-label>
+                                    <input matInput formControlName="ice"
+                                        placeholder="Identifiant Commun de l'Entreprise">
+                                </mat-form-field>
 
-                <div class="row">
-                    <mat-form-field appearance="outline" class="full-width">
-                        <mat-label>Adresse</mat-label>
-                        <textarea matInput formControlName="adresse" rows="2"></textarea>
-                    </mat-form-field>
-                </div>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Registre de Commerce (RC)</mat-label>
+                                    <input matInput formControlName="rc" placeholder="RC">
+                                </mat-form-field>
 
-                <div class="row">
-                    <mat-form-field appearance="outline" class="col">
-                        <mat-label>Ville</mat-label>
-                        <input matInput formControlName="ville">
-                    </mat-form-field>
-                </div>
-            </mat-tab>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Patente</mat-label>
+                                    <input matInput formControlName="patente" placeholder="Patente">
+                                </mat-form-field>
 
-            <!-- Onglet Fiscal & Légal -->
-            <mat-tab label="Fiscal & Légal">
-                <div class="row pt-4">
-                    <mat-form-field appearance="outline" class="col">
-                        <mat-label>I.C.E</mat-label>
-                        <input matInput formControlName="ice">
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="col">
-                        <mat-label>R.C</mat-label>
-                        <input matInput formControlName="rc">
-                    </mat-form-field>
-                </div>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>CNSS</mat-label>
+                                    <input matInput formControlName="cnss" placeholder="CNSS">
+                                </mat-form-field>
 
-                <div class="row">
-                    <mat-form-field appearance="outline" class="col">
-                        <mat-label>Identifiant Fiscal</mat-label>
-                        <input matInput formControlName="identifiantFiscal">
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="col">
-                        <mat-label>Patente</mat-label>
-                        <input matInput formControlName="patente">
-                    </mat-form-field>
-                </div>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>SIRET</mat-label>
+                                    <input matInput formControlName="siret" placeholder="SIRET">
+                                </mat-form-field>
+                            </div>
 
-                <div class="row">
-                    <mat-form-field appearance="outline" class="col">
-                        <mat-label>CNSS</mat-label>
-                        <input matInput formControlName="cnss">
-                    </mat-form-field>
-                </div>
-            </mat-tab>
+                            <div class="flex justify-end mt-4">
+                                <button mat-stroked-button color="primary" (click)="onCancel()" class="mr-2">{{
+                                    isViewMode ? 'Fermer' : 'Annuler' }}</button>
+                                <button mat-raised-button color="primary" matStepperNext>
+                                    Suivant <mat-icon>arrow_forward</mat-icon>
+                                </button>
+                            </div>
+                        </div>
+                    </mat-step>
 
-            <!-- Onglet Paiement -->
-            <mat-tab label="Paiement">
-                <div class="row pt-4">
-                    <mat-form-field appearance="outline" class="full-width">
-                        <mat-label>Banque</mat-label>
-                        <input matInput formControlName="banque">
-                        <mat-icon matSuffix>account_balance</mat-icon>
-                    </mat-form-field>
-                </div>
+                    <!-- ÉTAPE 2 : DONNÉES FINANCIÈRES -->
+                    <mat-step>
+                        <ng-template matStepLabel>Données Financières</ng-template>
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold mb-4 text-indigo-700 flex items-center">
+                                <mat-icon class="mr-2">account_balance</mat-icon> Coordonnées Bancaires
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Banque</mat-label>
+                                    <input matInput formControlName="banque" placeholder="Nom de la banque">
+                                </mat-form-field>
 
-                <div class="row">
-                    <mat-form-field appearance="outline" class="full-width">
-                        <mat-label>R.I.B</mat-label>
-                        <input matInput formControlName="rib">
-                    </mat-form-field>
-                </div>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>RIB (24 chiffres)</mat-label>
+                                    <input matInput formControlName="rib" placeholder="24 chiffres">
+                                </mat-form-field>
+                            </div>
 
-                <div class="row">
-                    <mat-form-field appearance="outline" class="full-width">
-                        <mat-label>Conditions de paiement</mat-label>
-                        <textarea matInput formControlName="conditionsPaiement"
-                            placeholder="Ex: 30 jours fin de mois..."></textarea>
-                    </mat-form-field>
-                </div>
-            </mat-tab>
-        </mat-tab-group>
-    </mat-dialog-content>
+                            <h3 class="text-lg font-semibold mb-4 text-indigo-700 border-t pt-6 flex items-center">
+                                <mat-icon class="mr-2">payments</mat-icon> Détails du Paiement
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" formGroupName="convention">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Modalités de paiement</mat-label>
+                                    <mat-select formControlName="modalitePaiement" multiple>
+                                        <mat-option *ngFor="let mode of modalitesPaiement" [value]="mode">{{ mode
+                                            }}</mat-option>
+                                    </mat-select>
+                                </mat-form-field>
 
-    <mat-dialog-actions align="end">
-        <button mat-button type="button" (click)="onCancel()">Annuler</button>
-        <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid">Enregistrer</button>
-    </mat-dialog-actions>
-</form>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Échéances de paiement</mat-label>
+                                    <mat-select formControlName="echeancePaiement" multiple>
+                                        <mat-option *ngFor="let e of echeancesPaiement" [value]="e">{{ e }}</mat-option>
+                                    </mat-select>
+                                </mat-form-field>
+                            </div>
+
+                            <div class="flex justify-between mt-4">
+                                <button mat-button matStepperPrevious>
+                                    <mat-icon>arrow_back</mat-icon> Précédent
+                                </button>
+                                <button mat-raised-button color="primary" matStepperNext>
+                                    Suivant <mat-icon>arrow_forward</mat-icon>
+                                </button>
+                            </div>
+                        </div>
+                    </mat-step>
+
+                    <!-- ÉTAPE 3 : CONTACTS & LOCALISATION -->
+                    <mat-step>
+                        <ng-template matStepLabel>Contacts & Localisation</ng-template>
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold mb-4 text-indigo-700 flex items-center">
+                                <mat-icon class="mr-2">location_on</mat-icon> Coordonnées & Localisation
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Téléphone</mat-label>
+                                    <input matInput formControlName="telephone" placeholder="06...">
+                                </mat-form-field>
+
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Email</mat-label>
+                                    <input matInput formControlName="email" placeholder="email@fournisseur.com">
+                                    <mat-error *ngIf="form.get('email')?.hasError('email')">Email invalide</mat-error>
+                                </mat-form-field>
+
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Ville</mat-label>
+                                    <input matInput formControlName="ville" placeholder="Ville">
+                                </mat-form-field>
+
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Site Web</mat-label>
+                                    <input matInput formControlName="siteWeb" placeholder="https://...">
+                                </mat-form-field>
+
+                                <mat-form-field appearance="outline" class="md:col-span-2">
+                                    <mat-label>Adresse</mat-label>
+                                    <textarea matInput formControlName="adresse" rows="2"></textarea>
+                                </mat-form-field>
+                            </div>
+
+                            <h3 class="text-lg font-semibold mb-4 text-indigo-700 border-t pt-6 flex items-center">
+                                <mat-icon class="mr-2">group</mat-icon> Liste des contacts internes
+                            </h3>
+
+                            <div class="flex justify-end mb-4" *ngIf="!isViewMode">
+                                <button mat-stroked-button color="primary" type="button" (click)="addContact()">
+                                    <mat-icon>add</mat-icon> Ajouter un contact
+                                </button>
+                            </div>
+
+                            <div formArrayName="contacts">
+                                <div *ngFor="let contact of contacts.controls; let i=index" [formGroupName]="i"
+                                    class="mb-6 p-6 bg-gray-50 rounded-xl relative border border-gray-100">
+
+                                    <div class="flex justify-between items-center mb-4 border-b pb-2">
+                                        <h4 class="font-bold text-indigo-600 uppercase">Contact #{{ i + 1 }}</h4>
+                                        <button mat-icon-button color="warn" (click)="removeContact(i)"
+                                            *ngIf="!isViewMode" matTooltip="Supprimer ce contact">
+                                            <mat-icon>delete</mat-icon>
+                                        </button>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <mat-form-field appearance="outline">
+                                            <mat-label>Nom *</mat-label>
+                                            <input matInput formControlName="nom">
+                                        </mat-form-field>
+                                        <mat-form-field appearance="outline">
+                                            <mat-label>Prénom</mat-label>
+                                            <input matInput formControlName="prenom">
+                                        </mat-form-field>
+                                        <mat-form-field appearance="outline">
+                                            <mat-label>Fonction</mat-label>
+                                            <input matInput formControlName="fonction"
+                                                placeholder="Ex: Comptable, Commercial...">
+                                        </mat-form-field>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                        <mat-form-field appearance="outline">
+                                            <mat-label>Téléphone</mat-label>
+                                            <input matInput formControlName="telephone">
+                                        </mat-form-field>
+                                        <mat-form-field appearance="outline">
+                                            <mat-label>Email</mat-label>
+                                            <input matInput formControlName="email">
+                                        </mat-form-field>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                                        <mat-form-field appearance="outline">
+                                            <mat-label>Canal préféré</mat-label>
+                                            <mat-select formControlName="canal">
+                                                <mat-option *ngFor="let c of canauxCommunication" [value]="c">{{ c
+                                                    }}</mat-option>
+                                            </mat-select>
+                                        </mat-form-field>
+                                        <mat-form-field appearance="outline" class="md:col-span-2">
+                                            <mat-label>Sujets de contact</mat-label>
+                                            <mat-select formControlName="taches" multiple>
+                                                <mat-option *ngFor="let t of tachesContact" [value]="t">{{ t
+                                                    }}</mat-option>
+                                            </mat-select>
+                                        </mat-form-field>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div *ngIf="contacts.length === 0"
+                                class="text-center p-12 border-2 border-dashed rounded-xl text-gray-400">
+                                <mat-icon class="!w-12 !h-12 !text-5xl mb-4 opacity-20">contact_phone</mat-icon>
+                                <p>Aucun contact enregistré pour ce fournisseur.</p>
+                            </div>
+
+                            <div class="flex justify-between mt-8 border-t pt-6">
+                                <button mat-button matStepperPrevious>
+                                    <mat-icon>arrow_back</mat-icon> Précédent
+                                </button>
+                                <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="form.invalid"
+                                    class="!px-12" *ngIf="!isViewMode">
+                                    {{ isEditMode ? 'Enregistrer les modifications' : 'Créer le Fournisseur' }}
+                                </button>
+                            </div>
+                        </div>
+                    </mat-step>
+                </mat-horizontal-stepper>
+            </form>
+        </mat-card-content>
+    </mat-card>
+</div>

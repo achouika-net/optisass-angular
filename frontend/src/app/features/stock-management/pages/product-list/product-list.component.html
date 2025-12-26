@@ -1,17 +1,20 @@
 <div class="product-list-container p-6">
     <!-- Header & Actions -->
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold m-0">Gestion du Stock</h1>
+        <h1 class="text-2xl font-bold m-0 flex items-center gap-2">
+            <mat-icon color="primary">inventory_2</mat-icon>
+            Gestion des Stocks & Produits
+        </h1>
         <div class="flex gap-2">
-            <button mat-raised-button class="export-btn" (click)="exportXLS()">
+            <button mat-stroked-button color="primary" (click)="exportXLS()">
                 <mat-icon>file_download</mat-icon>
                 Exporter
             </button>
-            <button mat-raised-button class="tree-btn" routerLink="/p/stock/tree" color="accent">
+            <button mat-raised-button color="accent" routerLink="/p/stock/tree">
                 <mat-icon>account_tree</mat-icon>
                 Vue Arborescence
             </button>
-            <button mat-raised-button class="add-btn" routerLink="/p/stock/new">
+            <button mat-raised-button color="primary" routerLink="/p/stock/new">
                 <mat-icon>add</mat-icon>
                 Ajouter un produit
             </button>
@@ -80,7 +83,7 @@
     </div>
 
     <!-- Filters -->
-    <mat-card class="filter-card mb-6">
+    <mat-card class="filter-card mb-6 !shadow-sm !border !border-gray-200">
         <mat-card-content class="filter-content">
             <div class="filter-row">
                 <div class="filter-field">
@@ -135,7 +138,7 @@
     </mat-card>
 
     <!-- Data Table -->
-    <mat-card>
+    <mat-card class="!shadow-sm !border !border-gray-200">
         <mat-card-content>
             <div class="table-container">
                 <table mat-table [dataSource]="dataSource" matSort class="products-table w-full">
@@ -253,20 +256,20 @@
                                 <mat-icon>more_vert</mat-icon>
                             </button>
                             <mat-menu #menu="matMenu">
-                                <button mat-menu-item color="primary" [routerLink]="['/p/stock', row.id]">
-                                    <mat-icon color="primary">visibility</mat-icon>
-                                    <span>Voir détails</span>
+                                <button mat-menu-item [routerLink]="['/p/stock', row.id]">
+                                    <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
+                                    <span>Visualiser</span>
                                 </button>
-                                <button mat-menu-item color="accent" [routerLink]="['/p/stock', row.id, 'edit']">
-                                    <mat-icon color="accent">edit</mat-icon>
+                                <button mat-menu-item [routerLink]="['/p/stock', row.id, 'edit']">
+                                    <mat-icon class="premium-menu-icon-edit">edit</mat-icon>
                                     <span>Modifier</span>
                                 </button>
                                 <button mat-menu-item (click)="openStockEntryDialog(row)">
-                                    <mat-icon color="primary">add_shopping_cart</mat-icon>
+                                    <mat-icon style="color: #059669 !important;">add_shopping_cart</mat-icon>
                                     <span>Entrée de stock</span>
                                 </button>
                                 <button mat-menu-item (click)="openStockOutDialog(row)">
-                                    <mat-icon color="warn">remove_shopping_cart</mat-icon>
+                                    <mat-icon style="color: #ea580c !important;">remove_shopping_cart</mat-icon>
                                     <span>Sortie de stock</span>
                                 </button>
                                 <button mat-menu-item (click)="openStockTransferDialog(row)">
@@ -274,7 +277,7 @@
                                     <span>Transférer le produit</span>
                                 </button>
                                 <button mat-menu-item (click)="openHistoryDialog(row)">
-                                    <mat-icon color="primary">history</mat-icon>
+                                    <mat-icon style="color: #4b5563 !important;">history</mat-icon>
                                     <span>Historique des mouvements</span>
                                 </button>
                                 <button mat-menu-item (click)="printBarcode(row)">
@@ -300,9 +303,9 @@
                                 </button>
 
                                 <mat-divider></mat-divider>
-                                <button mat-menu-item color="warn" (click)="deleteProduct(row)">
-                                    <mat-icon color="warn">delete</mat-icon>
-                                    <span>Supprimer définitivement</span>
+                                <button mat-menu-item (click)="deleteProduct(row)">
+                                    <mat-icon class="premium-menu-icon-delete">delete</mat-icon>
+                                    <span>Supprimer</span>
                                 </button>
                             </mat-menu>
                         </td>

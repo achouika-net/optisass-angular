@@ -12,18 +12,34 @@ export const routes: Routes = [
     },
     {
         path: 'suppliers',
-        component: SupplierListComponent
+        children: [
+            { path: '', component: SupplierListComponent },
+            { path: 'new', loadComponent: () => import('./components/supplier-form-dialog/supplier-form-dialog.component').then(m => m.SupplierFormDialogComponent) },
+            { path: 'edit/:id', loadComponent: () => import('./components/supplier-form-dialog/supplier-form-dialog.component').then(m => m.SupplierFormDialogComponent) }
+        ]
     },
     {
         path: 'expenses',
-        component: ExpenseListComponent
+        children: [
+            { path: '', component: ExpenseListComponent },
+            { path: 'new', loadComponent: () => import('./components/expense-form-dialog/expense-form-dialog.component').then(m => m.ExpenseFormDialogComponent) },
+            { path: 'edit/:id', loadComponent: () => import('./components/expense-form-dialog/expense-form-dialog.component').then(m => m.ExpenseFormDialogComponent) }
+        ]
     },
     {
         path: 'invoices',
-        component: SupplierInvoiceListComponent
+        children: [
+            { path: '', component: SupplierInvoiceListComponent },
+            { path: 'new', loadComponent: () => import('./components/invoice-form-dialog/invoice-form-dialog.component').then(m => m.InvoiceFormDialogComponent) },
+            { path: 'edit/:id', loadComponent: () => import('./components/invoice-form-dialog/invoice-form-dialog.component').then(m => m.InvoiceFormDialogComponent) }
+        ]
     },
     {
         path: 'dashboard',
         component: FinanceDashboardComponent
+    },
+    {
+        path: 'payments',
+        loadComponent: () => import('./pages/outgoing-payment-list/outgoing-payment-list.component').then(m => m.OutgoingPaymentListComponent)
     }
 ];

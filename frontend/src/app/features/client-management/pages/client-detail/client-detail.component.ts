@@ -13,6 +13,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
 import { FormsModule } from '@angular/forms';
 import { ClientManagementService } from '../../services/client.service';
 import { FicheService } from '../../services/fiche.service';
@@ -40,6 +42,8 @@ import { PaymentListComponent } from '../../components/payment-list/payment-list
     MatCheckboxModule,
     MatRadioModule,
     MatDialogModule,
+    MatMenuModule,
+    MatDividerModule,
     FormsModule,
     FactureListComponent,
     PaymentListComponent

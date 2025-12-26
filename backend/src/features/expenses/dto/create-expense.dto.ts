@@ -24,6 +24,14 @@ export class CreateExpenseDto {
     @IsString()
     justificatifUrl?: string;
 
+    @IsOptional()
+    @IsString()
+    reference?: string;
+
+    @IsOptional()
+    @IsDateString()
+    dateEcheance?: string;
+
     @IsUUID()
     centreId: string;
 

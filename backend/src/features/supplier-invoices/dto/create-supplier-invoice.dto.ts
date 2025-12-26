@@ -53,6 +53,10 @@ export class CreateSupplierInvoiceDto {
     fournisseurId: string;
 
     @IsOptional()
+    @IsUUID()
+    centreId?: string;
+
+    @IsOptional()
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => CreateEcheanceDto)

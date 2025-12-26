@@ -1,65 +1,115 @@
-<h2 mat-dialog-title>{{ isEditMode ? 'Modifier' : 'Nouvelle' }} Dépense</h2>
+<div class="p-6" [class.h-full]="dialogRef">
+    <mat-card class="!shadow-sm !border !border-gray-200">
+        <mat-card-header class="mb-6 !flex items-center">
+            <div class="flex-1">
+                <mat-card-title class="!text-2xl !font-bold">
+                    {{ isViewMode ? 'Détails de la Dépense' : (isEditMode ? 'Modifier Dépense' : 'Nouvelle Dépense') }}
+                </mat-card-title>
+                <mat-card-subtitle>
+                    Enregistrement d'une dépense directe
+                </mat-card-subtitle>
+            </div>
+            <button mat-icon-button (click)="onCancel()" *ngIf="dialogRef">
+                <mat-icon>close</mat-icon>
+            </button>
+        </mat-card-header>
 
-<form [formGroup]="form" (ngSubmit)="onSubmit()">
-    <mat-dialog-content>
-        <div class="row pt-2">
-            <mat-form-field appearance="outline" class="col">
-                <mat-label>Date</mat-label>
-                <input matInput [matDatepicker]="picker" formControlName="date" required>
-                <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-                <mat-datepicker #picker></mat-datepicker>
-            </mat-form-field>
+        <mat-progress-bar mode="indeterminate" *ngIf="submitting"></mat-progress-bar>
 
-            <mat-form-field appearance="outline" class="col">
-                <mat-label>Montant (MAD)</mat-label>
-                <input matInput type="number" formControlName="montant" required min="0">
-                <mat-icon matSuffix>attach_money</mat-icon>
-            </mat-form-field>
-        </div>
+        <mat-card-content>
+            <form [formGroup]="form" class="mt-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <mat-form-field appearance="outline">
+                        <mat-label>Centre de profit *</mat-label>
+                        <mat-select formControlName="centreId">
+                            <mat-option *ngFor="let center of centers" [value]="center.id">
+                                {{ center.nom }}
+                            </mat-option>
+                        </mat-select>
+                        <mat-error *ngIf="form.get('centreId')?.hasError('required')">Le centre est
+                            obligatoire</mat-error>
+                    </mat-form-field>
 
-        <div class="row">
-            <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Magasin / Centre</mat-label>
-                <mat-select formControlName="centreId" required>
-                    <mat-option *ngFor="let center of centers" [value]="center.id">
-                        {{ center.nom }}
-                    </mat-option>
-                </mat-select>
-            </mat-form-field>
-        </div>
+                    <mat-form-field appearance="outline">
+                        <mat-label>Fournisseur (Optionnel)</mat-label>
+                        <mat-select formControlName="fournisseurId">
+                            <mat-option value="">-- Aucun --</mat-option>
+                            <mat-option *ngFor="let s of suppliers" [value]="s.id">{{ s.nom }}</mat-option>
+                        </mat-select>
+                        <mat-icon matSuffix>business</mat-icon>
+                    </mat-form-field>
 
-        <div class="row">
-            <mat-form-field appearance="outline" class="col">
-                <mat-label>Catégorie</mat-label>
-                <mat-select formControlName="categorie" required>
-                    <mat-option *ngFor="let cat of categories" [value]="cat">
-                        {{ cat }}
-                    </mat-option>
-                </mat-select>
-            </mat-form-field>
+                    <mat-form-field appearance="outline">
+                        <mat-label>Catégorie de dépense *</mat-label>
+                        <input type="text" placeholder="Sélectionner ou saisir..." matInput formControlName="categorie"
+                            [matAutocomplete]="auto">
+                        <mat-autocomplete #auto="matAutocomplete">
+                            <mat-option *ngFor="let cat of filteredCategories | async" [value]="cat">
+                                {{ cat }}
+                            </mat-option>
+                        </mat-autocomplete>
+                        <mat-error *ngIf="form.get('categorie')?.hasError('required')">La catégorie est
+                            obligatoire</mat-error>
+                    </mat-form-field>
 
-            <mat-form-field appearance="outline" class="col">
-                <mat-label>Mode de paiement</mat-label>
-                <mat-select formControlName="modePaiement" required>
-                    <mat-option *ngFor="let mode of paymentMethods" [value]="mode">
-                        {{ mode }}
-                    </mat-option>
-                </mat-select>
-            </mat-form-field>
-        </div>
+                    <mat-form-field appearance="outline">
+                        <mat-label>Date de la dépense *</mat-label>
+                        <input matInput [matDatepicker]="picker" formControlName="date">
+                        <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+                        <mat-datepicker #picker></mat-datepicker>
+                    </mat-form-field>
 
-        <div class="row">
-            <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Description / Motif</mat-label>
-                <textarea matInput formControlName="description" rows="3"
-                    placeholder="Détails de la dépense..."></textarea>
-            </mat-form-field>
-        </div>
+                    <mat-form-field appearance="outline">
+                        <mat-label>Montant (MAD) *</mat-label>
+                        <input matInput type="number" formControlName="montant" placeholder="0.00">
+                        <mat-icon matPrefix class="mr-2 opacity-50">payments</mat-icon>
+                        <mat-error *ngIf="form.get('montant')?.hasError('required')">Le montant est
+                            obligatoire</mat-error>
+                    </mat-form-field>
 
-    </mat-dialog-content>
+                    <mat-form-field appearance="outline">
+                        <mat-label>Mode de paiement *</mat-label>
+                        <mat-select formControlName="modePaiement">
+                            <mat-option *ngFor="let method of paymentMethods" [value]="method">{{ method }}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
 
-    <mat-dialog-actions align="end">
-        <button mat-button type="button" (click)="onCancel()">Annuler</button>
-        <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid">Enregistrer</button>
-    </mat-dialog-actions>
-</form>
+                    <mat-form-field appearance="outline" *ngIf="showReference">
+                        <mat-label>{{ form.get('modePaiement')?.value === 'CARTE' ? 'Référence transaction' : 'Numéro
+                            (Chèque/LCN)' }}</mat-label>
+                        <input matInput formControlName="reference" placeholder="Ex: 1234567">
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" *ngIf="showEcheance">
+                        <mat-label>Date d'échéance</mat-label>
+                        <input matInput [matDatepicker]="echeancePicker" formControlName="dateEcheance">
+                        <mat-datepicker-toggle matIconSuffix [for]="echeancePicker"></mat-datepicker-toggle>
+                        <mat-datepicker #echeancePicker></mat-datepicker>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                        <mat-label>Statut</mat-label>
+                        <mat-select formControlName="statut">
+                            <mat-option value="VALIDEE">Validée</mat-option>
+                            <mat-option value="BROUILLON">Brouillon</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                </div>
+
+                <mat-form-field appearance="outline" class="w-full">
+                    <mat-label>Description / Notes</mat-label>
+                    <textarea matInput formControlName="description" rows="3"
+                        placeholder="Détails de la dépense..."></textarea>
+                </mat-form-field>
+            </form>
+        </mat-card-content>
+
+        <mat-card-actions align="end" class="p-6 border-t">
+            <button mat-button (click)="onCancel()" class="mr-2">{{ isViewMode ? 'Fermer' : 'Annuler' }}</button>
+            <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="form.invalid" class="!px-10"
+                *ngIf="!isViewMode">
+                <mat-icon>save</mat-icon> {{ isEditMode ? 'Enregistrer les modifications' : 'Enregistrer la Dépense' }}
+            </button>
+        </mat-card-actions>
+    </mat-card>
+</div>

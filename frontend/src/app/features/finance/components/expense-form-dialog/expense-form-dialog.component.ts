@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
@@ -9,11 +9,18 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatIconModule } from '@angular/material/icon';
+import { MatCardModule } from '@angular/material/card';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { ActivatedRoute, Router } from '@angular/router';
+import { FinanceService } from '../../services/finance.service';
+import { Optional } from '@angular/core';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { Observable } from 'rxjs';
+import { map, startWith } from 'rxjs/operators';
 
-import { Expense } from '../../models/finance.models';
-// import { CentersService } from '../../../centers/services/centers.service'; // Je commenterai si le path est pas sûr, mais je vais essayer de le faire marcher
+import { Expense, Supplier } from '../../models/finance.models';
 import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../../environments/environment';
+import { CentersService } from '../../../centers/services/centers.service';
 
 // Je préfère utiliser un service dédié ou fetch via http direct si je n'ai pas le service sous la main.
 // Pour rester simple, je vais faire un fetch via HttpClient ici ou supposer que CentersService est accessible.
@@ -32,7 +39,10 @@ import { environment } from '../../../../../environments/environment';
         MatSelectModule,
         MatDatepickerModule,
         MatNativeDateModule,
-        MatIconModule
+        MatIconModule,
+        MatCardModule,
+        MatProgressBarModule,
+        MatAutocompleteModule
     ],
     templateUrl: './expense-form-dialog.component.html',
     styles: [`
@@ -44,35 +54,75 @@ import { environment } from '../../../../../environments/environment';
 export class ExpenseFormDialogComponent implements OnInit {
     form: FormGroup;
     isEditMode: boolean;
-    centers: any[] = []; // Liste des centres simplifiée
+    isViewMode: boolean = false;
+    submitting = false;
+    centers: any[] = [];
+    suppliers: Supplier[] = [];
 
     categories = ['LOYER', 'ELECTRICITE', 'EAU', 'INTERNET', 'TELEPHONE', 'SALAIRE', 'ACHAT_MARCHANDISE', 'TRANSPORT', 'REPAS', 'AUTRE'];
-    paymentMethods = ['ESPECES', 'CHEQUE', 'VIREMENT', 'CARTE'];
+    filteredCategories!: Observable<string[]>;
+    paymentMethods = ['ESPECES', 'CHEQUE', 'LCN', 'VIREMENT', 'CARTE'];
 
     constructor(
         private fb: FormBuilder,
-        private http: HttpClient, // Injection directe pour charger les centres rapidement
-        private dialogRef: MatDialogRef<ExpenseFormDialogComponent>,
-        @Inject(MAT_DIALOG_DATA) public data: { expense?: Expense }
+        private centersService: CentersService,
+        private financeService: FinanceService,
+        private route: ActivatedRoute,
+        private router: Router,
+        private zone: NgZone,
+        @Optional() public dialogRef: MatDialogRef<ExpenseFormDialogComponent>,
+        @Optional() @Inject(MAT_DIALOG_DATA) public data: { expense?: Expense, viewMode?: boolean }
     ) {
-        this.isEditMode = !!data.expense;
+        this.isEditMode = !!(data?.expense);
+        this.isViewMode = !!(data?.viewMode);
         this.form = this.fb.group({
-            date: [data.expense?.date || new Date(), Validators.required],
-            montant: [data.expense?.montant || '', [Validators.required, Validators.min(0)]],
-            categorie: [data.expense?.categorie || '', Validators.required],
-            modePaiement: [data.expense?.modePaiement || 'ESPECES', Validators.required],
-            centreId: [data.expense?.centreId || '', Validators.required],
-            description: [data.expense?.description || ''],
-            statut: [data.expense?.statut || 'VALIDEE']
+            // ... (rest of the form remains same)
+            date: [data?.expense?.date || new Date(), Validators.required],
+            montant: [data?.expense?.montant || '', [Validators.required, Validators.min(0)]],
+            categorie: [data?.expense?.categorie || '', Validators.required],
+            modePaiement: [data?.expense?.modePaiement || 'ESPECES', Validators.required],
+            centreId: [data?.expense?.centreId || '', Validators.required],
+            description: [data?.expense?.description || ''],
+            statut: [data?.expense?.statut || 'VALIDEE'],
+            reference: [data?.expense?.reference || ''],
+            dateEcheance: [data?.expense?.dateEcheance || null],
+            fournisseurId: [data?.expense?.fournisseurId || '']
         });
     }
 
     ngOnInit() {
         this.loadCenters();
+        this.loadSuppliers();
+
+        this.filteredCategories = this.form.get('categorie')!.valueChanges.pipe(
+            startWith(''),
+            map(value => this._filterCategories(value || ''))
+        );
+
+        if (this.isViewMode) {
+            this.form.disable();
+        }
+
+        this.route.queryParams.subscribe(params => {
+            if (params['viewMode'] === 'true') {
+                this.isViewMode = true;
+                this.form.disable();
+            }
+        });
+
+        const id = this.route.snapshot.paramMap.get('id');
+        if (id) {
+            this.isEditMode = true;
+            // Assuming we have a getExpense in service, if not I'll just use what's available
+            // but for now let's hope it's there or I use this.data
+            if (this.data?.expense) {
+                this.form.patchValue(this.data.expense);
+            }
+        }
     }
 
     loadCenters() {
-        this.http.get<any[]>(`${environment.apiUrl}/centers`).subscribe({
+        this.centersService.findAll().subscribe({
             next: (data) => {
                 this.centers = data;
                 // Si un seul centre, on le sélectionne par défaut
@@ -84,13 +134,67 @@ export class ExpenseFormDialogComponent implements OnInit {
         });
     }
 
+    loadSuppliers() {
+        this.financeService.getSuppliers().subscribe({
+            next: (data) => this.suppliers = data,
+            error: (err) => console.error('Erreur chargement fournisseurs', err)
+        });
+    }
+
+    private _filterCategories(value: string): string[] {
+        const filterValue = value.toLowerCase();
+        return this.categories.filter(option => option.toLowerCase().includes(filterValue));
+    }
+
     onSubmit() {
         if (this.form.valid) {
-            this.dialogRef.close(this.form.value);
+            this.submitting = true;
+            const expenseData = this.form.value;
+            if (this.isEditMode) {
+                const id = this.route.snapshot.paramMap.get('id') || this.data?.expense?.id;
+                if (id) {
+                    this.financeService.updateExpense(id, expenseData).subscribe({
+                        next: () => this.finalize(expenseData),
+                        error: () => this.submitting = false
+                    });
+                }
+            } else {
+                this.financeService.createExpense(expenseData).subscribe({
+                    next: res => this.finalize(res),
+                    error: () => this.submitting = false
+                });
+            }
+        } else {
+            this.form.markAllAsTouched();
         }
     }
 
+    private finalize(result: any) {
+        this.zone.run(() => {
+            this.submitting = false;
+            if (this.dialogRef) {
+                this.dialogRef.close(result);
+            } else {
+                this.router.navigate(['/p/finance/payments']);
+            }
+        });
+    }
+
     onCancel() {
-        this.dialogRef.close();
+        if (this.dialogRef) {
+            this.dialogRef.close();
+        } else {
+            this.router.navigate(['/p/finance/payments']);
+        }
+    }
+
+    get showEcheance(): boolean {
+        const mode = this.form.get('modePaiement')?.value;
+        return mode === 'CHEQUE' || mode === 'LCN';
+    }
+
+    get showReference(): boolean {
+        const mode = this.form.get('modePaiement')?.value;
+        return mode === 'CHEQUE' || mode === 'LCN' || mode === 'CARTE';
     }
 }

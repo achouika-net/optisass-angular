@@ -19,6 +19,8 @@ import { StockMovementHistoryDialogComponent } from '../../stock-management/dial
 import { StockTransferDialogComponent } from '../../stock-management/dialogs/stock-transfer-dialog/stock-transfer-dialog.component';
 import { ProductService } from '../../stock-management/services/product.service';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
 
 @Component({
     selector: 'app-warehouse-detail',
@@ -37,7 +39,9 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
         FormsModule,
         MatDatepickerModule,
         MatNativeDateModule,
-        MatSelectModule
+        MatSelectModule,
+        MatMenuModule,
+        MatDividerModule
     ],
     templateUrl: './warehouse-detail.component.html',
     styleUrls: ['./warehouse-detail.component.scss']

@@ -204,30 +204,31 @@
                                             </button>
                                             <mat-menu #menu="matMenu">
                                                 <button mat-menu-item (click)="viewDocument(invoice)">
-                                                    <mat-icon color="primary">description</mat-icon>
+                                                    <mat-icon class="premium-menu-icon-view">description</mat-icon>
                                                     <span>Voir document</span>
                                                 </button>
                                                 <button mat-menu-item (click)="openPaymentDialog(invoice)"
                                                     *ngIf="invoice.resteAPayer > 0">
-                                                    <mat-icon color="primary">payments</mat-icon>
+                                                    <mat-icon style="color: #4f46e5 !important;">payments</mat-icon>
                                                     <span>Paiement</span>
                                                 </button>
                                                 <button mat-menu-item (click)="viewFiche(invoice)">
-                                                    <mat-icon color="accent">visibility</mat-icon>
+                                                    <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
                                                     <span>Afficher Fiche</span>
                                                 </button>
+                                                <mat-divider></mat-divider>
                                                 <button mat-menu-item (click)="validateInvoice(invoice)">
-                                                    <mat-icon color="success"
-                                                        style="color: #10b981;">check_circle</mat-icon>
+                                                    <mat-icon style="color: #10b981 !important;">check_circle</mat-icon>
                                                     <span>Valider (Passer Commande)</span>
                                                 </button>
                                                 <button mat-menu-item (click)="createAvoir(invoice)">
-                                                    <mat-icon color="warn">assignment_return</mat-icon>
+                                                    <mat-icon
+                                                        class="premium-menu-icon-delete">assignment_return</mat-icon>
                                                     <span>Créer Avoir (Annuler)</span>
                                                 </button>
                                                 <button mat-menu-item (click)="archiveInvoice(invoice)"
                                                     *ngIf="canArchive(invoice)">
-                                                    <mat-icon>inventory_2</mat-icon>
+                                                    <mat-icon style="color: #4b5563 !important;">inventory_2</mat-icon>
                                                     <span>Archiver (Consolider)</span>
                                                 </button>
                                             </mat-menu>
@@ -320,31 +321,33 @@
                                             </button>
                                             <mat-menu #menu="matMenu">
                                                 <button mat-menu-item (click)="viewDocument(invoice)">
-                                                    <mat-icon color="primary">description</mat-icon>
+                                                    <mat-icon class="premium-menu-icon-view">description</mat-icon>
                                                     <span>Voir document</span>
                                                 </button>
                                                 <button mat-menu-item (click)="openPaymentDialog(invoice)"
                                                     *ngIf="invoice.totalTTC > 0">
-                                                    <mat-icon color="primary">payments</mat-icon>
+                                                    <mat-icon style="color: #4f46e5 !important;">payments</mat-icon>
                                                     <span>Paiement</span>
                                                 </button>
                                                 <button mat-menu-item (click)="viewFiche(invoice)">
-                                                    <mat-icon color="accent">visibility</mat-icon>
+                                                    <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
                                                     <span>Afficher Fiche</span>
                                                 </button>
+                                                <mat-divider></mat-divider>
                                                 <button mat-menu-item (click)="validateInvoice(invoice)"
                                                     *ngIf="invoice.totalTTC > 0">
-                                                    <mat-icon color="success"
-                                                        style="color: #10b981;">check_circle</mat-icon>
+                                                    <mat-icon style="color: #10b981 !important;">check_circle</mat-icon>
                                                     <span>Valider (Passer Commande)</span>
                                                 </button>
                                                 <button mat-menu-item (click)="declareAsGift(invoice)"
                                                     *ngIf="invoice.totalTTC > 0">
-                                                    <mat-icon color="info">card_giftcard</mat-icon>
+                                                    <mat-icon
+                                                        style="color: #4b5563 !important;">card_giftcard</mat-icon>
                                                     <span>Déclarer comme Offert</span>
                                                 </button>
                                                 <button mat-menu-item (click)="createAvoir(invoice)">
-                                                    <mat-icon color="warn">assignment_return</mat-icon>
+                                                    <mat-icon
+                                                        class="premium-menu-icon-delete">assignment_return</mat-icon>
                                                     <span>Créer Avoir (Annuler)</span>
                                                 </button>
                                             </mat-menu>
@@ -445,20 +448,22 @@
                                             </button>
                                             <mat-menu #menu="matMenu">
                                                 <button mat-menu-item (click)="viewDocument(invoice)">
-                                                    <mat-icon color="primary">description</mat-icon>
+                                                    <mat-icon class="premium-menu-icon-view">description</mat-icon>
                                                     <span>Voir document</span>
                                                 </button>
                                                 <button mat-menu-item (click)="openPaymentDialog(invoice)"
                                                     *ngIf="invoice.resteAPayer > 0">
-                                                    <mat-icon color="primary">payments</mat-icon>
+                                                    <mat-icon style="color: #4f46e5 !important;">payments</mat-icon>
                                                     <span>Paiement</span>
                                                 </button>
                                                 <button mat-menu-item (click)="viewFiche(invoice)">
-                                                    <mat-icon color="accent">visibility</mat-icon>
+                                                    <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
                                                     <span>Afficher Fiche</span>
                                                 </button>
+                                                <mat-divider></mat-divider>
                                                 <button mat-menu-item (click)="createAvoir(invoice)">
-                                                    <mat-icon color="warn">assignment_return</mat-icon>
+                                                    <mat-icon
+                                                        class="premium-menu-icon-delete">assignment_return</mat-icon>
                                                     <span>Créer Avoir (Annuler)</span>
                                                 </button>
                                             </mat-menu>
@@ -553,11 +558,11 @@
                                             </button>
                                             <mat-menu #menu="matMenu">
                                                 <button mat-menu-item (click)="viewDocument(invoice)">
-                                                    <mat-icon color="primary">description</mat-icon>
+                                                    <mat-icon class="premium-menu-icon-view">description</mat-icon>
                                                     <span>Voir document</span>
                                                 </button>
                                                 <button mat-menu-item (click)="viewFiche(invoice)">
-                                                    <mat-icon color="accent">visibility</mat-icon>
+                                                    <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
                                                     <span>Afficher Fiche</span>
                                                 </button>
                                             </mat-menu>

@@ -6,6 +6,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
 import { GroupsService } from '../services/groups.service';
 import { Groupe } from '../../../shared/interfaces/warehouse.interface';
 import { CenterFormDialogComponent } from '../../centers/center-form-dialog/center-form-dialog.component';
@@ -21,6 +23,8 @@ import { CenterFormDialogComponent } from '../../centers/center-form-dialog/cent
         MatIconModule,
         MatTableModule,
         MatDialogModule,
+        MatMenuModule,
+        MatDividerModule
     ],
     templateUrl: './group-detail.component.html',
     styleUrls: ['./group-detail.component.scss']

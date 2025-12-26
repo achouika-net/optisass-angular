@@ -37,6 +37,59 @@ body {
   }
 }
 
+/* Premium UI Design System Classes */
+.premium-menu-icon-view {
+  color: #9333ea !important;
+}
+
+/* Purple-600 */
+.premium-menu-icon-edit {
+  color: #2563eb !important;
+}
+
+/* Blue-600 */
+.premium-menu-icon-delete {
+  color: #dc2626 !important;
+}
+
+/* Red-600 */
+
+.premium-dialog-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 16px 24px !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+  margin-bottom: 0 !important;
+}
+
+.premium-dialog-title {
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  margin: 0 !important;
+}
+
+.premium-dialog-content {
+  padding: 24px !important;
+}
+
+.premium-dialog-actions {
+  padding: 16px 24px !important;
+  border-top: 1px solid #f3f4f6 !important;
+  margin-bottom: 0 !important;
+}
+
+/* View Mode Field Visibility Override */
+.mat-mdc-text-field-wrapper.mdc-text-field--disabled .mdc-text-field__input {
+  color: rgba(0, 0, 0, 0.87) !important;
+  -webkit-text-fill-color: rgba(0, 0, 0, 0.87) !important;
+}
+
+.mat-mdc-text-field-wrapper.mdc-text-field--disabled .mat-mdc-select-value-text {
+  color: rgba(0, 0, 0, 0.87) !important;
+  -webkit-text-fill-color: rgba(0, 0, 0, 0.87) !important;
+}
+
 @media print {
   @page {
     margin: 0;

@@ -7,8 +7,32 @@ export class ExpensesService {
     constructor(private prisma: PrismaService) { }
 
     async create(createExpenseDto: CreateExpenseDto) {
-        return this.prisma.depense.create({
-            data: createExpenseDto,
+        const { reference, dateEcheance, ...data } = createExpenseDto;
+
+        return this.prisma.$transaction(async (tx) => {
+            let echeanceId: string | undefined = undefined;
+
+            if ((data.modePaiement === 'CHEQUE' || data.modePaiement === 'LCN') && dateEcheance) {
+                const echeance = await tx.echeancePaiement.create({
+                    data: {
+                        type: data.modePaiement,
+                        reference: reference,
+                        dateEcheance: new Date(dateEcheance),
+                        montant: data.montant,
+                        statut: 'EN_ATTENTE',
+                    }
+                });
+                echeanceId = echeance.id;
+            }
+
+            return tx.depense.create({
+                data: {
+                    ...data,
+                    reference,
+                    dateEcheance: dateEcheance ? new Date(dateEcheance) : null,
+                    echeanceId: echeanceId
+                },
+            });
         });
     }
 

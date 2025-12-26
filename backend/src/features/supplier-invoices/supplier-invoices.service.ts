@@ -9,9 +9,13 @@ export class SupplierInvoicesService {
     async create(createDto: CreateSupplierInvoiceDto) {
         const { echeances, ...invoiceData } = createDto;
 
+        const status = this.calculateInvoiceStatus(invoiceData.montantTTC, echeances || []);
+
         return this.prisma.factureFournisseur.create({
             data: {
                 ...invoiceData,
+                statut: status,
+                centreId: invoiceData.centreId, // Explicitly map it
                 echeances: echeances ? {
                     create: echeances
                 } : undefined
@@ -44,16 +48,59 @@ export class SupplierInvoicesService {
             include: {
                 fournisseur: true,
                 echeances: true,
-                depense: true
+                depenses: true
             }
         });
     }
 
     async update(id: string, updateDto: any) {
-        return this.prisma.factureFournisseur.update({
-            where: { id },
-            data: updateDto,
+        const { echeances, ...invoiceData } = updateDto;
+
+        return this.prisma.$transaction(async (tx) => {
+            if (echeances) {
+                // Pour simplifier, on supprime les anciennes échéances et on recrée
+                await tx.echeancePaiement.deleteMany({
+                    where: { factureFournisseurId: id }
+                });
+            }
+
+            const status = this.calculateInvoiceStatus(invoiceData.montantTTC || 0, echeances || []);
+
+            return tx.factureFournisseur.update({
+                where: { id },
+                data: {
+                    ...invoiceData,
+                    statut: status,
+                    echeances: echeances ? {
+                        create: echeances
+                    } : undefined
+                },
+                include: {
+                    echeances: true
+                }
+            });
         });
+    }
+
+    private calculateInvoiceStatus(totalTTC: number, echeances: any[]): string {
+        if (!echeances || echeances.length === 0) return 'EN_ATTENTE';
+
+        // Filter out cancelled ones
+        const activeEcheances = echeances.filter(e => e.statut !== 'ANNULE');
+        if (activeEcheances.length === 0) return 'EN_ATTENTE';
+
+        const totalPaid = activeEcheances
+            .filter(e => e.statut === 'ENCAISSE')
+            .reduce((sum, e) => sum + (e.montant || 0), 0);
+
+        if (totalPaid >= totalTTC && totalTTC > 0) {
+            return 'PAYEE';
+        }
+
+        // Even if not yet 'ENCAISSE', if there are payments, it's not 'EN_ATTENTE'
+        // If they cover the total, it's a good sign, we can call it 'PARTIELLE'
+        // effectively acknowledging the payment is recorded/scheduled.
+        return 'PARTIELLE';
     }
 
     async remove(id: string) {

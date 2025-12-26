@@ -1,12 +1,15 @@
 <div class="container">
     <div class="header">
-        <h1 class="text-2xl font-bold">Fournisseurs</h1>
+        <h1 class="text-2xl font-bold flex items-center gap-2">
+            <mat-icon color="primary">local_shipping</mat-icon>
+            Gestion des Fournisseurs
+        </h1>
         <button mat-raised-button color="primary" (click)="openSupplierDialog()">
             <mat-icon>add</mat-icon> Nouveau Fournisseur
         </button>
     </div>
 
-    <mat-card>
+    <mat-card class="!shadow-sm !border !border-gray-200">
         <div *ngIf="loading" class="p-4 text-center">Chargement...</div>
 
         <div *ngIf="!loading && suppliers.length === 0" class="p-4 text-center text-gray-500">
@@ -24,10 +27,12 @@
                 </td>
             </ng-container>
 
-            <!-- Contact Column -->
             <ng-container matColumnDef="contact">
                 <th mat-header-cell *matHeaderCellDef> Contact </th>
-                <td mat-cell *matCellDef="let element"> {{element.contact || '-'}} </td>
+                <td mat-cell *matCellDef="let element">
+                    {{element.contact || (element.contacts && element.contacts.length > 0 ? element.contacts[0].nom + '
+                    ' + element.contacts[0].prenom : '-')}}
+                </td>
             </ng-container>
 
             <!-- Telephone Column -->
@@ -46,15 +51,24 @@
             <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef style="text-align: right;"> Actions </th>
                 <td mat-cell *matCellDef="let element" style="text-align: right;">
-                    <div class="actions justify-end">
-                        <button mat-icon-button color="primary" (click)="openSupplierDialog(element)"
-                            matTooltip="Modifier">
-                            <mat-icon>edit</mat-icon>
+                    <button mat-icon-button [matMenuTriggerFor]="menu">
+                        <mat-icon>more_vert</mat-icon>
+                    </button>
+                    <mat-menu #menu="matMenu">
+                        <button mat-menu-item (click)="openSupplierDialog(element, true)">
+                            <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
+                            <span>Visualiser</span>
                         </button>
-                        <button mat-icon-button color="warn" (click)="deleteSupplier(element)" matTooltip="Supprimer">
-                            <mat-icon>delete</mat-icon>
+                        <button mat-menu-item (click)="openSupplierDialog(element, false)">
+                            <mat-icon class="premium-menu-icon-edit">edit</mat-icon>
+                            <span>Modifier</span>
                         </button>
-                    </div>
+                        <mat-divider></mat-divider>
+                        <button mat-menu-item (click)="deleteSupplier(element)">
+                            <mat-icon class="premium-menu-icon-delete">delete</mat-icon>
+                            <span>Supprimer</span>
+                        </button>
+                    </mat-menu>
                 </td>
             </ng-container>
 

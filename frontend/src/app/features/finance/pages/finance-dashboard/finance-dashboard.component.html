@@ -1,9 +1,22 @@
 <div class="container">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">Trésorerie & Plafonds</h1>
-        <div class="flex gap-4">
-            <span class="text-gray-500 py-2">Mois: {{currentMonth}}/{{currentYear}}</span>
-            <button mat-icon-button (click)="loadData()"><mat-icon>refresh</mat-icon></button>
+        <div class="flex items-center gap-3">
+            <mat-form-field appearance="outline" class="!mb-0 !pb-0 !w-40 dense-form-field">
+                <mat-label>Mois</mat-label>
+                <mat-select [(ngModel)]="currentMonth" (selectionChange)="loadData()">
+                    <mat-option *ngFor="let m of months" [value]="m.value">{{ m.label }}</mat-option>
+                </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="!mb-0 !pb-0 !w-32 dense-form-field">
+                <mat-label>Année</mat-label>
+                <mat-select [(ngModel)]="currentYear" (selectionChange)="loadData()">
+                    <mat-option *ngFor="let y of years" [value]="y">{{ y }}</mat-option>
+                </mat-select>
+            </mat-form-field>
+            <button mat-icon-button class="text-gray-500" (click)="loadData()" matTooltip="Actualiser">
+                <mat-icon>refresh</mat-icon>
+            </button>
         </div>
     </div>
 
@@ -11,27 +24,80 @@
 
     <div *ngIf="summary && !loading">
         <div class="grid">
-            <mat-card class="card-metric border-l-4 border-blue-500">
-                <div class="metric-label">Dépenses Directes</div>
-                <div class="metric-value text-blue-600">{{ summary.totalDirectExpenses | number:'1.2-2' }} DH</div>
-                <div class="text-xs text-gray-400">Espèces / Carte</div>
+            <!-- Recettes -->
+            <mat-card class="card-metric border-l-4 border-green-500">
+                <div class="metric-label flex items-center justify-center gap-1">
+                    Recettes du Mois
+                    <mat-icon class="!text-xs text-gray-400"
+                        matTooltip="Total des paiements (Cash + Chèques) datés de ce mois.">help_outline</mat-icon>
+                </div>
+                <div class="metric-value text-green-600">{{ summary.totalIncoming | number:'1.2-2' }} DH</div>
+                <div class="flex flex-col gap-1 text-sm text-gray-500 font-medium">
+                    <div class="flex justify-between px-4">
+                        <span>Encaissé:</span>
+                        <span class="text-green-700">{{ summary.totalIncomingCashed | number:'1.2-2' }} DH</span>
+                    </div>
+                    <div class="flex justify-between px-4">
+                        <span>En coffre (Chèques/LCN):</span>
+                        <span class="text-orange-600">{{ summary.totalIncomingPending | number:'1.2-2' }} DH</span>
+                    </div>
+                </div>
             </mat-card>
 
+            <!-- Dépenses -->
             <mat-card class="card-metric border-l-4 border-orange-500">
-                <div class="metric-label">Échéances Prévues</div>
-                <div class="metric-value text-orange-600">{{ summary.totalEcheances | number:'1.2-2' }} DH</div>
-                <div class="text-xs text-gray-400">Chèques / LCN</div>
+                <div class="metric-label flex items-center justify-center gap-1">
+                    Dépenses du Mois
+                    <mat-icon class="!text-xs text-gray-400"
+                        matTooltip="Total des charges et échéances fournisseurs prévues ce mois.">help_outline</mat-icon>
+                </div>
+                <div class="metric-value text-orange-600">{{ summary.totalExpenses | number:'1.2-2' }} DH</div>
+                <div class="flex flex-col gap-1 text-sm text-gray-500 font-medium">
+                    <div class="flex justify-between px-4">
+                        <span>Réglé:</span>
+                        <span class="text-green-700">{{ summary.totalExpensesCashed | number:'1.2-2' }} DH</span>
+                    </div>
+                    <div class="flex justify-between px-4">
+                        <span>À débiter (Chèques/LCN):</span>
+                        <span class="text-orange-600">{{ summary.totalOutgoingPending | number:'1.2-2' }} DH</span>
+                    </div>
+                </div>
             </mat-card>
 
+            <!-- Solde -->
+            <mat-card class="card-metric border-l-4"
+                [ngClass]="summary.balanceReal >= 0 ? 'border-blue-500' : 'border-red-500'">
+                <div class="metric-label flex items-center justify-center gap-1">
+                    Solde Réel (Cash-Flow)
+                    <mat-icon class="!text-xs text-gray-400"
+                        matTooltip="Différence entre l'argent réellement encaissé et l'argent réellement payé ce mois.">help_outline</mat-icon>
+                </div>
+                <div class="metric-value" [ngClass]="summary.balanceReal >= 0 ? 'text-blue-600' : 'text-red-600'">
+                    {{ summary.balanceReal | number:'1.2-2' }} DH
+                </div>
+                <div class="text-sm text-gray-500">
+                    Projeté (fin de mois): <span class="font-bold">{{ summary.balance | number:'1.2-2' }} DH</span>
+                </div>
+            </mat-card>
+
+            <!-- Plafond -->
             <mat-card class="card-metric border-l-4 border-purple-500">
-                <div class="metric-label">Consommation Plafond</div>
+                <div class="metric-label">Contrôle Plafond Dépenses</div>
                 <div class="metric-value" [ngClass]="percentageUsed > 100 ? 'text-red-500' : 'text-purple-600'">
-                    {{ summary.totalProjected | number:'1.2-2' }} DH
+                    {{ summary.totalExpenses | number:'1.2-2' }} DH
                 </div>
                 <div class="threshold-container px-4">
                     <div class="threshold-label">
                         <span>{{ percentageUsed.toFixed(1) }}% du plafond</span>
-                        <span>Max: {{ monthlyThreshold | number }} DH</span>
+                        <div class="flex items-center gap-2">
+                            <span *ngIf="!editingThreshold">Max: {{ monthlyThreshold | number }} DH</span>
+                            <input *ngIf="editingThreshold" type="number" [(ngModel)]="newThreshold"
+                                class="w-16 border rounded px-1 text-xs" (keyup.enter)="saveThreshold()">
+                            <button mat-icon-button class="!w-4 !h-4"
+                                (click)="editingThreshold ? saveThreshold() : toggleEditThreshold()">
+                                <mat-icon class="!text-[12px]">{{ editingThreshold ? 'check' : 'edit' }}</mat-icon>
+                            </button>
+                        </div>
                     </div>
                     <mat-progress-bar [mode]="'determinate'" [value]="percentageUsed"
                         [color]="thresholdColor"></mat-progress-bar>
@@ -39,21 +105,74 @@
             </mat-card>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <mat-card class="p-4">
-                <h3 class="font-bold mb-4">Répartition des Dépenses par Catégorie</h3>
-                <div class="chart-container">
-                    <canvas #categoryChart></canvas>
-                </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <mat-card class="lg:col-span-2 !rounded-2xl !shadow-sm !border-none overflow-hidden">
+                <mat-card-header class="!px-6 !pt-6">
+                    <mat-card-title class="!text-xl !font-bold flex items-center gap-2">
+                        <mat-icon class="text-indigo-500">pie_chart</mat-icon>
+                        Répartition des Dépenses par Catégorie
+                    </mat-card-title>
+                </mat-card-header>
+                <mat-card-content class="!p-6">
+                    <div class="flex flex-col md:flex-row items-center gap-8">
+                        <!-- Chart container -->
+                        <div class="relative w-full md:w-1/2 h-[300px]">
+                            <canvas #categoryChart></canvas>
+                        </div>
+
+                        <!-- Legend List -->
+                        <div class="w-full md:w-1/2 flex flex-col gap-3">
+                            <div *ngFor="let cat of summary?.categories; let i = index"
+                                class="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-gray-100 hover:bg-white hover:shadow-md transition-all">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-4 h-4 rounded-full"
+                                        [style.background-color]="chartColors[i % chartColors.length]"></div>
+                                    <span class="font-medium text-[15px]">{{ cat.name }}</span>
+                                </div>
+                                <div class="flex flex-col items-end">
+                                    <span class="font-bold text-[16px]">{{ cat.value | number:'1.0-0' }} DH</span>
+                                    <span class="text-xs text-gray-400">Total HT</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </mat-card-content>
             </mat-card>
+
+            <mat-card
+                class="!rounded-2xl !shadow-sm !border-none bg-indigo-900 text-white p-6 justify-center flex flex-col">
+                <div class="flex items-center gap-3 mb-4 opacity-80">
+                    <mat-icon>lightbulb</mat-icon>
+                    <span class="text-sm font-medium uppercase tracking-wider">Insight Trésorerie</span>
+                </div>
+                <h3 class="text-2xl font-bold mb-4 leading-tight">Optimisez vos flux de trésorerie</h3>
+                <p class="text-indigo-100 text-[15px] leading-relaxed mb-6">
+                    La catégorie <span class="font-bold text-white">"{{ (summary?.categories?.[0]?.name) ||
+                        'Principale' }}"</span>
+                    représente la plus grande partie de vos dépenses ce mois-ci.
+                </p>
+                <button mat-flat-button class="!bg-white !text-indigo-900 !rounded-xl !py-6 !font-bold">
+                    Voir les détails
+                </button>
+            </mat-card>
+        </div>
+        <div *ngIf="!summary?.categories?.length"
+            class="flex flex-col items-center justify-center h-[300px] text-gray-400">
+            <mat-icon style="font-size: 48px; width: 48px; height: 48px;">pie_chart_outline</mat-icon>
+            <p class="mt-2 text-sm italic">Aucune dépense directe pour cette période</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
 
             <mat-card class="p-4 flex flex-col justify-center items-center">
                 <mat-icon style="font-size: 64px; width: 64px; height: 64px;"
-                    color="primary">health_and_safety</mat-icon>
-                <h3 class="font-bold mt-4">Santé Financière</h3>
-                <div class="text-center text-gray-500 p-4">
-                    {{ percentageUsed > 100 ? 'Attention: Vous avez dépassé votre plafond mensuel !' :
-                    percentageUsed > 80 ? 'Vigilance: Vous approchez de votre plafond mensuel.' :
+                    [style.color]="healthColor">health_and_safety</mat-icon>
+                <h3 class="font-bold mt-4" [style.color]="healthColor">Santé Financière</h3>
+                <div class="text-center p-4 font-medium"
+                    [style.color]="healthColor === 'primary' ? '#666' : healthColor">
+                    {{ percentageUsed > 100 ? 'Attention : Vous avez dépassé votre plafond mensuel !' :
+                    percentageUsed > 80 ? 'Vigilance : Vous approchez de votre plafond mensuel.' :
                     'Tout est sous contrôle. Votre trésorerie est saine.' }}
                 </div>
             </mat-card>

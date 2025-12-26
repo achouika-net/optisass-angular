@@ -1,14 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../../../environments/environment';
+import { API_URL } from '../../../config/api.config';
 import { Supplier, Expense, SupplierInvoice, ExpenseDTO, SupplierInvoiceDTO } from '../models/finance.models';
 
 @Injectable({
     providedIn: 'root'
 })
 export class FinanceService {
-    private apiUrl = environment.apiUrl;
+    private apiUrl = API_URL;
 
     constructor(private http: HttpClient) { }
 
@@ -43,6 +43,10 @@ export class FinanceService {
         return this.http.get<Expense[]>(`${this.apiUrl}/expenses`, { params });
     }
 
+    getExpense(id: string): Observable<Expense> {
+        return this.http.get<Expense>(`${this.apiUrl}/expenses/${id}`);
+    }
+
     createExpense(expense: ExpenseDTO): Observable<Expense> {
         return this.http.post<Expense>(`${this.apiUrl}/expenses`, expense);
     }
@@ -72,6 +76,14 @@ export class FinanceService {
         return this.http.get<SupplierInvoice>(`${this.apiUrl}/supplier-invoices/${id}`);
     }
 
+    updateInvoice(id: string, invoice: any): Observable<SupplierInvoice> {
+        return this.http.put<SupplierInvoice>(`${this.apiUrl}/supplier-invoices/${id}`, invoice);
+    }
+
+    deleteInvoice(id: string): Observable<void> {
+        return this.http.delete<void>(`${this.apiUrl}/supplier-invoices/${id}`);
+    }
+
     // --- Treasury ---
     getTreasurySummary(year: number, month: number, centreId?: string): Observable<any> {
         let params = new HttpParams().set('year', year.toString()).set('month', month.toString());
@@ -81,5 +93,21 @@ export class FinanceService {
 
     getYearlyProjection(year: number): Observable<any[]> {
         return this.http.get<any[]>(`${this.apiUrl}/treasury/projection`, { params: { year: year.toString() } });
+    }
+
+    getTreasuryConfig(): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/treasury/config`);
+    }
+
+    updateTreasuryConfig(threshold: number): Observable<any> {
+        return this.http.post<any>(`${this.apiUrl}/treasury/config`, { monthlyThreshold: threshold });
+    }
+
+    getConsolidatedOutgoings(filters: any): Observable<any[]> {
+        return this.http.get<any[]>(`${this.apiUrl}/treasury/consolidated-outgoings`, { params: filters });
+    }
+
+    getConsolidatedIncomings(filters: any): Observable<any[]> {
+        return this.http.get<any[]>(`${this.apiUrl}/treasury/consolidated-incomings`, { params: filters });
     }
 }

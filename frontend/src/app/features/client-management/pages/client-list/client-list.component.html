@@ -1,13 +1,16 @@
 <div class="client-management-container p-6">
     <!-- Header & Actions -->
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold m-0">Gestion Dossier Client</h1>
+        <h1 class="text-2xl font-bold m-0 flex items-center gap-2">
+            <mat-icon color="primary">people</mat-icon>
+            Gestion des Dossiers Clients
+        </h1>
         <div class="flex gap-2">
-            <button mat-raised-button class="export-btn" (click)="exportClients()">
+            <button mat-stroked-button color="primary" (click)="exportClients()">
                 <mat-icon>download</mat-icon>
                 Exporter
             </button>
-            <button mat-raised-button class="add-btn" (click)="addClient()">
+            <button mat-raised-button color="primary" (click)="addClient()">
                 <mat-icon>add</mat-icon>
                 Ajouter un client
             </button>
@@ -46,7 +49,7 @@
     </div>
 
     <!-- Search Section -->
-    <mat-card class="search-card mb-6">
+    <mat-card class="search-card mb-6 !shadow-sm !border !border-gray-200">
         <mat-card-content>
             <form [formGroup]="searchForm" (ngSubmit)="onSearch()" class="search-form">
                 <div class="grid grid-cols-4 gap-4 items-end">
@@ -107,7 +110,7 @@
     </mat-card>
 
     <!-- Data Table -->
-    <mat-card>
+    <mat-card class="!shadow-sm !border !border-gray-200">
         <mat-card-content>
             <div class="table-container">
                 <table mat-table [dataSource]="clients()" class="w-full">
@@ -171,18 +174,18 @@
                                 <mat-icon>more_vert</mat-icon>
                             </button>
                             <mat-menu #menu="matMenu">
-                                <button mat-menu-item color="primary" (click)="viewClient(client)">
-                                    <mat-icon color="primary">visibility</mat-icon>
-                                    <span>Voir détails</span>
+                                <button mat-menu-item (click)="viewClient(client)">
+                                    <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
+                                    <span>Visualiser</span>
                                 </button>
-                                <button mat-menu-item color="accent" (click)="editClient(client)">
-                                    <mat-icon color="accent">edit</mat-icon>
+                                <button mat-menu-item (click)="editClient(client)">
+                                    <mat-icon class="premium-menu-icon-edit">edit</mat-icon>
                                     <span>Modifier</span>
                                 </button>
                                 <mat-divider></mat-divider>
-                                <button mat-menu-item color="warn" (click)="deleteClient(client)">
-                                    <mat-icon color="warn">delete</mat-icon>
-                                    <span>Supprimer le client</span>
+                                <button mat-menu-item (click)="deleteClient(client)">
+                                    <mat-icon class="premium-menu-icon-delete">delete</mat-icon>
+                                    <span>Supprimer</span>
                                 </button>
                             </mat-menu>
                         </td>

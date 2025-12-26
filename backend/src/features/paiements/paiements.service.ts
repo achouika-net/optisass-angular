@@ -27,9 +27,19 @@ export class PaiementsService {
             );
         }
 
-        // 3. Créer le paiement
+        // 3. Déterminer le statut par défaut si non fourni
+        let finalStatut = createPaiementDto.statut;
+        if (!finalStatut) {
+            finalStatut = (createPaiementDto.mode === 'ESPECES' || createPaiementDto.mode === 'CARTE')
+                ? 'ENCAISSE'
+                : 'EN_ATTENTE';
+        }
+
         const paiement = await this.prisma.paiement.create({
-            data: createPaiementDto
+            data: {
+                ...createPaiementDto,
+                statut: finalStatut
+            }
         });
 
         // 4. Mettre à jour le reste à payer et le statut de la facture

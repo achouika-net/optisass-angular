@@ -1,21 +1,22 @@
-<div class="groups-container">
-    <mat-card>
-        <mat-card-header>
-            <mat-card-title>
-                <h2>Gestion des Groupes</h2>
-            </mat-card-title>
-            <div class="header-actions">
-                <button mat-raised-button color="primary" (click)="openCreateDialog()">
-                    <mat-icon>add</mat-icon>
-                    Nouveau Groupe
-                </button>
-            </div>
-        </mat-card-header>
+<div class="groups-container p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold m-0 flex items-center gap-2">
+            <mat-icon color="primary">groups</mat-icon>
+            Gestion des Groupes
+        </h1>
+        <div class="header-actions">
+            <button mat-raised-button color="primary" (click)="openCreateDialog()">
+                <mat-icon>add</mat-icon>
+                Nouveau Groupe
+            </button>
+        </div>
+    </div>
 
+    <mat-card class="!shadow-sm !border !border-gray-200">
         <mat-card-content>
-            <div *ngIf="loading" class="loading">Chargement...</div>
+            <div *ngIf="loading" class="p-4 text-center">Chargement...</div>
 
-            <table mat-table [dataSource]="groupes" *ngIf="!loading" class="groups-table">
+            <table mat-table [dataSource]="groupes" *ngIf="!loading && groupes.length > 0" class="w-full">
                 <!-- Nom Column -->
                 <ng-container matColumnDef="nom">
                     <th mat-header-cell *matHeaderCellDef>Nom</th>
@@ -52,23 +53,23 @@
 
                 <!-- Actions Column -->
                 <ng-container matColumnDef="actions">
-                    <th mat-header-cell *matHeaderCellDef>Actions</th>
-                    <td mat-cell *matCellDef="let groupe">
+                    <th mat-header-cell *matHeaderCellDef style="text-align: right;">Actions</th>
+                    <td mat-cell *matCellDef="let groupe" style="text-align: right;">
                         <button mat-icon-button [matMenuTriggerFor]="menu">
                             <mat-icon>more_vert</mat-icon>
                         </button>
                         <mat-menu #menu="matMenu">
-                            <button mat-menu-item color="primary" [routerLink]="['/p/groups', groupe.id]">
-                                <mat-icon color="primary">visibility</mat-icon>
-                                <span>Voir détails</span>
+                            <button mat-menu-item [routerLink]="['/p/groups', groupe.id]">
+                                <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
+                                <span>Visualiser</span>
                             </button>
-                            <button mat-menu-item color="accent" (click)="openEditDialog(groupe)">
-                                <mat-icon color="accent">edit</mat-icon>
+                            <button mat-menu-item (click)="openEditDialog(groupe)">
+                                <mat-icon class="premium-menu-icon-edit">edit</mat-icon>
                                 <span>Modifier</span>
                             </button>
                             <mat-divider></mat-divider>
-                            <button mat-menu-item color="warn" (click)="deleteGroupe(groupe.id!)">
-                                <mat-icon color="warn">delete</mat-icon>
+                            <button mat-menu-item (click)="deleteGroupe(groupe.id!)">
+                                <mat-icon class="premium-menu-icon-delete">delete</mat-icon>
                                 <span>Supprimer</span>
                             </button>
                         </mat-menu>
@@ -79,9 +80,9 @@
                 <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
             </table>
 
-            <div *ngIf="!loading && groupes.length === 0" class="no-data">
-                <mat-icon>inbox</mat-icon>
-                <p>Aucun groupe trouvé</p>
+            <div *ngIf="!loading && groupes.length === 0" class="text-center p-12">
+                <mat-icon class="!w-12 !h-12 !text-5xl mb-4 opacity-20">inventory</mat-icon>
+                <p class="text-gray-500 mb-4">Aucun groupe trouvé</p>
                 <button mat-raised-button color="primary" (click)="openCreateDialog()">
                     Créer le premier groupe
                 </button>

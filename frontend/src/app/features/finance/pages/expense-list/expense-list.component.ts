@@ -1,17 +1,19 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { Router } from '@angular/router';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { FinanceService } from '../../services/finance.service';
 import { Expense } from '../../models/finance.models';
 import { ExpenseFormDialogComponent } from '../../components/expense-form-dialog/expense-form-dialog.component';
+import { Store } from '@ngrx/store';
+import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
 
 @Component({
   selector: 'app-expense-list',
@@ -22,7 +24,6 @@ import { ExpenseFormDialogComponent } from '../../components/expense-form-dialog
     MatButtonModule,
     MatIconModule,
     MatTableModule,
-    MatDialogModule,
     MatSnackBarModule,
     MatChipsModule,
     MatTooltipModule
@@ -42,20 +43,30 @@ export class ExpenseListComponent implements OnInit {
   expenses: Expense[] = [];
   displayedColumns: string[] = ['date', 'categorie', 'description', 'centre', 'modePaiement', 'montant', 'actions'];
   loading = false;
+  currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
 
   constructor(
     private financeService: FinanceService,
-    private dialog: MatDialog,
-    private snackBar: MatSnackBar
-  ) { }
+    private router: Router,
+    private snackBar: MatSnackBar,
+    private store: Store
+  ) {
+    effect(() => {
+      const center = this.currentCentre();
+      if (center?.id) {
+        this.loadExpenses();
+      }
+    });
+  }
 
   ngOnInit(): void {
-    this.loadExpenses();
+    // Handled by effect
   }
 
   loadExpenses() {
     this.loading = true;
-    this.financeService.getExpenses().subscribe({
+    const filters = { centreId: this.currentCentre()?.id };
+    this.financeService.getExpenses(filters).subscribe({
       next: (data) => {
         this.expenses = data;
         this.loading = false;
@@ -69,20 +80,11 @@ export class ExpenseListComponent implements OnInit {
   }
 
   openExpenseDialog(expense?: Expense) {
-    const dialogRef = this.dialog.open(ExpenseFormDialogComponent, {
-      width: '600px',
-      data: { expense }
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        if (expense) {
-          this.updateExpense(expense.id, result);
-        } else {
-          this.createExpense(result);
-        }
-      }
-    });
+    if (expense) {
+      this.router.navigate(['/p/finance/expenses/edit', expense.id]);
+    } else {
+      this.router.navigate(['/p/finance/expenses/new']);
+    }
   }
 
   createExpense(data: any) {

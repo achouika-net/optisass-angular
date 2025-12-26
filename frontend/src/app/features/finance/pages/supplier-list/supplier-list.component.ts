@@ -4,8 +4,12 @@ import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { Router, RouterModule } from '@angular/router';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 import { FinanceService } from '../../services/finance.service';
 import { Supplier } from '../../models/finance.models';
@@ -20,8 +24,12 @@ import { SupplierFormDialogComponent } from '../../components/supplier-form-dial
     MatButtonModule,
     MatIconModule,
     MatTableModule,
+    MatSnackBarModule,
+    MatMenuModule,
+    MatDividerModule,
+    MatTooltipModule,
     MatDialogModule,
-    MatSnackBarModule
+    RouterModule
   ],
   templateUrl: './supplier-list.component.html',
   styles: [`
@@ -38,8 +46,9 @@ export class SupplierListComponent implements OnInit {
 
   constructor(
     private financeService: FinanceService,
-    private dialog: MatDialog,
-    private snackBar: MatSnackBar
+    private router: Router,
+    private snackBar: MatSnackBar,
+    private dialog: MatDialog
   ) { }
 
   ngOnInit(): void {
@@ -61,19 +70,17 @@ export class SupplierListComponent implements OnInit {
     });
   }
 
-  openSupplierDialog(supplier?: Supplier) {
+  openSupplierDialog(supplier?: Supplier, viewMode: boolean = false) {
     const dialogRef = this.dialog.open(SupplierFormDialogComponent, {
-      width: '600px',
-      data: { supplier }
+      width: '1000px',
+      maxWidth: '95vw',
+      height: '90vh',
+      data: { supplier, viewMode }
     });
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        if (supplier) {
-          this.updateSupplier(supplier.id, result);
-        } else {
-          this.createSupplier(result);
-        }
+        this.loadSuppliers();
       }
     });
   }

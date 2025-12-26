@@ -108,6 +108,8 @@ model Paiement {
   tiersCin      String?
   remarque      String?
   pieceJointe   String?
+  statut        String    @default("ENCAISSE") // EN_ATTENTE, ENCAISSE, REJETE, ANNULE
+  dateEncaissement DateTime?
   factureId     String
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -143,6 +145,7 @@ model Centre {
   entrepots   Entrepot[]
   factures    Facture[]
   depenses    Depense[]
+  facturesFournisseurs FactureFournisseur[]
 
   @@unique([groupeId, nom])
 }
@@ -301,13 +304,17 @@ model Fournisseur {
   rc                  String?              // Registre du Commerce
   identifiantFiscal   String?
   patente             String?
+  siret               String?
   cnss                String?
   rib                 String?
   banque              String?
   conditionsPaiement  String?              // Ex: 30 jours, 60 jours...
+  contacts            Json?
+  convention          Json?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   factures            FactureFournisseur[]
+  depenses            Depense[]
 }
 
 model Depense {
@@ -316,11 +323,15 @@ model Depense {
   montant             Float
   categorie           String               // LOYER, ELECTRICITE, EAU, SALAIRE, ACHAT_marchandise, AUTRE...
   description         String?
-  modePaiement        String               // ESPECES, CHEQUE, VIREMENT, CARTE
+  modePaiement        String               // ESPECES, CHEQUE, VIREMENT, CARTE, LCN
   statut              String               // BROUILLON, VALIDEE, PAYEE, ANNULEE
   justificatifUrl     String?
+  reference           String?              // Numéro chèque ou LCN, ou ref carte
+  dateEcheance        DateTime?            // Pour chèque et LCN
   centreId            String
   centre              Centre               @relation(fields: [centreId], references: [id])
+  fournisseurId       String?
+  fournisseur         Fournisseur?         @relation(fields: [fournisseurId], references: [id])
   factureFournisseurId String?             @unique
   factureFournisseur  FactureFournisseur?  @relation(fields: [factureFournisseurId], references: [id])
   echeanceId          String?              @unique
@@ -332,24 +343,25 @@ model Depense {
 }
 
 model FactureFournisseur {
-  id                  String               @id @default(uuid())
-  numeroFacture       String
-  dateEmission        DateTime
-  dateEcheance        DateTime?
-  montantHT           Float
-  montantTVA          Float
-  montantTTC          Float
-  devise              String               @default("MAD")
-  statut              String               // EN_ATTENTE, VALIDEE, PARTIELLE, PAYEE, RETARD, ANNULEE
-  type                String               // ACHAT_STOCK, FRAIS_GENERAUX, IMMOBILISATION
-  pieceJointeUrl      String?
-  fournisseurId       String
-  fournisseur         Fournisseur          @relation(fields: [fournisseurId], references: [id])
-  depense             Depense?
-  echeances           EcheancePaiement[]
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  
+  id               String    @id @default(uuid())
+  numeroFacture    String    @unique
+  dateEmission     DateTime
+  dateEcheance     DateTime?
+  montantHT        Float
+  montantTVA       Float
+  montantTTC       Float
+  statut           String    @default("A_PAYER")
+  type             String    @default("ACHAT_STOCK")
+  fournisseurId    String
+  centreId         String?   // New field
+  fournisseur      Fournisseur @relation(fields: [fournisseurId], references: [id])
+  centre           Centre?    @relation(fields: [centreId], references: [id])
+  depenses         Depense[]
+  pieceJointeUrl   String?
+  echeances        EcheancePaiement[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
   @@unique([fournisseurId, numeroFacture])
 }
 
@@ -368,4 +380,10 @@ model EcheancePaiement {
   depense             Depense?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+}
+
+model FinanceConfig {
+  id                  String   @id @default(uuid())
+  monthlyThreshold    Float    @default(50000)
+  updatedAt           DateTime @updatedAt
 }

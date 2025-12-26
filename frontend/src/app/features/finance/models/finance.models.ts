@@ -12,11 +12,24 @@ export interface Supplier {
     identifiantFiscal?: string;
     patente?: string;
     cnss?: string;
+    siret?: string;
     banque?: string;
     rib?: string;
     conditionsPaiement?: string;
+    contacts?: SupplierContact[];
+    convention?: any;
     createdAt?: string;
     updatedAt?: string;
+}
+
+export interface SupplierContact {
+    nom: string;
+    prenom: string;
+    fonction: string;
+    telephone: string;
+    email: string;
+    taches?: string[];
+    canal?: string;
 }
 
 export interface Expense {
@@ -28,8 +41,12 @@ export interface Expense {
     modePaiement: string;
     statut: string;
     justificatifUrl?: string;
+    reference?: string;
+    dateEcheance?: string;
     centreId: string;
     centre?: { nom: string };
+    fournisseurId?: string;
+    fournisseur?: { nom: string };
     factureFournisseur?: { numeroFacture: string, fournisseur: { nom: string } };
     createdAt?: string;
 }
@@ -42,7 +59,10 @@ export interface ExpenseDTO {
     modePaiement: string;
     statut: string;
     justificatifUrl?: string;
+    reference?: string;
+    dateEcheance?: string;
     centreId: string;
+    fournisseurId?: string;
     factureFournisseurId?: string;
 }
 
@@ -58,6 +78,7 @@ export interface SupplierInvoice {
     type: string;
     pieceJointeUrl?: string;
     fournisseurId: string;
+    centreId?: string;
     fournisseur?: Supplier;
     echeances?: Echeance[];
     createdAt?: string;
@@ -84,6 +105,7 @@ export interface SupplierInvoiceDTO {
     statut: string;
     type: string;
     fournisseurId: string;
+    centreId?: string;
     pieceJointeUrl?: string;
     echeances?: Echeance[];
 }

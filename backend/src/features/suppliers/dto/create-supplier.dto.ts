@@ -50,6 +50,10 @@ export class CreateSupplierDto {
 
     @IsOptional()
     @IsString()
+    siret?: string;
+
+    @IsOptional()
+    @IsString()
     rib?: string;
 
     @IsOptional()
@@ -59,4 +63,10 @@ export class CreateSupplierDto {
     @IsOptional()
     @IsString()
     conditionsPaiement?: string;
+
+    @IsOptional()
+    contacts?: any;
+
+    @IsOptional()
+    convention?: any;
 }

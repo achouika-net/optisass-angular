@@ -51,4 +51,12 @@ export class CreatePaiementDto {
     @IsOptional()
     @IsString()
     pieceJointe?: string;
+
+    @IsOptional()
+    @IsString()
+    statut?: string;
+
+    @IsOptional()
+    @IsDateString()
+    dateEncaissement?: string;
 }
