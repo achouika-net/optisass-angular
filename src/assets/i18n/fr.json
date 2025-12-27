@@ -1,10 +1,28 @@
 {
-  "breadcrumb": {
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "advancedSearch": "Recherche Avancée",
+    "advancedStats": "Statistiques Avancées",
+    "commercial": "Commercial",
+    "clients": "Clients",
+    "codePromo": "Code Promotion",
+    "promotions": "Promotions",
+    "mailsAndSms": "Mails et SMS",
+    "mailsParams": "Paramètres Mails",
+    "mailsTemplates": "Templates Mails",
+    "smsParams": "Paramètres SMS",
+    "smsTemplates": "Templates SMS",
+    "smsStats": "Statistiques SMS",
     "settings": "Paramétrage",
     "users": "Gestion des utilisateurs",
     "users_list": "Liste",
     "users_add": "Ajouter",
-    "users_detail": "Détail"
+    "users_detail": "Détail",
+    "holidays": "Congés et jours Fériés",
+    "externalLink1": "External Link 1",
+    "help": "Aide",
+    "about": "À propos",
+    "mainMenu": "Menu principal"
   },
   "commun": {
     "yes": "Oui",

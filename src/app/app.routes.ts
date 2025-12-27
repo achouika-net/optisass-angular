@@ -28,7 +28,7 @@ export const routes: Routes = [
       },
       {
         path: 'settings',
-        data: { breadcrumb: 'breadcrumb.settings' },
+        data: { breadcrumb: 'nav.settings' },
         loadChildren: () => import('./features/settings/settings.routes'),
       } satisfies TypedRoute,
     ],

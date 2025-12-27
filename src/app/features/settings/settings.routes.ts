@@ -9,7 +9,7 @@ export default [
       { path: '', redirectTo: 'users', pathMatch: 'full' },
       {
         path: 'users',
-        data: { breadcrumb: 'breadcrumb.users' },
+        data: { breadcrumb: 'nav.users' },
         loadChildren: () => import('./user/user.routes'),
         canActivateChild: [PermissionCanActivateChildGuard],
       },

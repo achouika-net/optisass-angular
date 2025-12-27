@@ -13,14 +13,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButton } from '@angular/material/button';
 import { MatDivider } from '@angular/material/divider';
 import { filter, map, startWith } from 'rxjs/operators';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateModule } from '@ngx-translate/core';
 import { NavigationHistoryService } from '../../core/navigation-history/navigation-history.service';
 import { BreadcrumbItem } from '@app/models';
 import { APP_NAME } from '../../config/global.config';
 
 @Component({
   selector: 'app-breadcrumb',
-  imports: [MatIconModule, MatDivider, MatButton, RouterLink],
+  imports: [MatIconModule, MatDivider, MatButton, RouterLink, TranslateModule],
   templateUrl: './breadcrumb.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -29,7 +29,6 @@ export class BreadcrumbComponent {
   readonly #activatedRoute = inject(ActivatedRoute);
   readonly #history = inject(NavigationHistoryService);
   readonly #titleService = inject(Title);
-  readonly #translate = inject(TranslateService);
 
   readonly isMobile = input.required<boolean>();
 
@@ -75,8 +74,8 @@ export class BreadcrumbComponent {
       // Évite les doublons en vérifiant si la clé a déjà été ajoutée
       if (breadcrumbKey && !seenKeys.has(breadcrumbKey)) {
         seenKeys.add(breadcrumbKey);
-        const label = this.#translate.instant(breadcrumbKey);
-        breadcrumbs.push({ label, url });
+        // Stocker la clé i18n, le pipe translate la traduira dans le template
+        breadcrumbs.push({ label: breadcrumbKey, url });
       }
 
       route = route.firstChild;

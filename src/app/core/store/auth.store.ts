@@ -20,8 +20,11 @@ import {
   INITIAL_WS_ERROR,
   isValidUser,
   JwtTokensState,
+  MenuItem,
   WsErrorState,
 } from '@app/models';
+import { filterMenuByAuthorizations } from '@app/helpers';
+import { MENU } from '../../config/menu.config';
 import { ResourceAuthorizations } from '@optisaas/opti-saas-lib';
 import { AuthService } from '../../features/authentication/services/auth.service';
 import { StatePersistenceService } from '../services';
@@ -71,6 +74,13 @@ export const AuthStore = signalStore(
     tenant: computed(() => store.currentCenter()?.dbSchema ?? null), // Utilise dbSchema comme fallback
     menuFavoris: computed((): null => null), // TODO: Ajouter au backend NestJS si nécessaire
     userCenters: computed(() => store.user()?.tenants ?? []), // Alias de userTenants
+
+    // Menu filtré selon les permissions utilisateur
+    /**
+     * Menu complet filtré selon les permissions utilisateur.
+     * Recalculé automatiquement quand userAuthorizations change.
+     */
+    filteredMenu: computed((): MenuItem[] => filterMenuByAuthorizations(MENU, store.userAuthorizations())),
   })),
 
   withMethods(

@@ -20,8 +20,8 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { MenuItem } from '@app/models';
+import { AuthStore } from '@app/core/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { MENU } from '../../config/menu.config';
 
 @Component({
   selector: 'app-sidebar',
@@ -43,6 +43,7 @@ import { MENU } from '../../config/menu.config';
 })
 export class SidebarComponent implements OnInit {
   private readonly router = inject(Router);
+  private readonly authStore = inject(AuthStore);
 
   readonly isMobile = input.required<boolean>();
   readonly isCollapsed = input.required<boolean>();
@@ -50,19 +51,12 @@ export class SidebarComponent implements OnInit {
   readonly favoritesOpen = signal(true);
   readonly favorisItems = signal<MenuItem[]>([]);
 
-  readonly menuItems = signal<MenuItem[]>(MENU);
+  /** Menu filtré selon les permissions utilisateur */
+  readonly menuItems = this.authStore.filteredMenu;
 
-  /** Menu principal filtré (link, sub avec children valides) */
+  /** Menu principal (link + sub), extLink et footer exclus */
   readonly visibleMenuItems = computed(() =>
-    this.menuItems()
-      .filter((item) => ['link', 'sub'].includes(item.type))
-      .map((item) => {
-        if (item.type === 'sub' && item.children) {
-          return item.children.length > 0 ? item : null;
-        }
-        return item;
-      })
-      .filter(Boolean) as MenuItem[]
+    this.menuItems().filter((item) => ['link', 'sub'].includes(item.type))
   );
 
   /** Menu à afficher dans le mode collapsed */
@@ -87,6 +81,15 @@ export class SidebarComponent implements OnInit {
   readonly footerLinks = computed(() =>
     this.menuItems().filter((item) => item.type === 'footer')
   );
+
+  /**
+   * Favoris filtrés selon les permissions.
+   * Supprime automatiquement les favoris dont l'utilisateur n'a plus les droits.
+   */
+  readonly filteredFavorites = computed(() => {
+    const allowedLabels = new Set(this.flatMenuItemsForCollapsed().map((item) => item.label));
+    return this.favorisItems().filter((fav) => allowedLabels.has(fav.label));
+  });
 
   /**
    * Au démarrage, ouvre le sous-menu correspondant à l'URL active.

@@ -1,7 +1,7 @@
 <mat-divider class="mb-8" [class]="isCollapsed() ? 'mx-0' : 'mx-8'"/>
 <div [class]="isCollapsed() ? 'mx-0' : 'mx-2'">
-  <!-- SECTION FAVORIS -->
-  @if (favorisItems().length) { @if (!isCollapsed()) {
+  <!-- SECTION FAVORIS (filtrés selon les permissions) -->
+  @if (filteredFavorites().length) { @if (!isCollapsed()) {
   <div mat-subheader class="text-xs font-semibold tracking-wide text-gray-400 uppercase">
     {{ 'commun.myFavorites' | translate }}
   </div>
@@ -13,7 +13,7 @@
       cdkDropList
       (cdkDropListDropped)="dropFavorite($event)"
     >
-      @for (item of favorisItems(); track item.label) {
+      @for (item of filteredFavorites(); track item.label) {
       <div class="favorite-item-wrapper" cdkDrag>
         <a
           mat-list-item
@@ -25,7 +25,7 @@
             <mat-icon class="icon-standard">
               {{ item.icon }}
             </mat-icon>
-            <span class="font-medium">{{ item.label }}</span>
+            <span class="font-medium">{{ item.label | translate }}</span>
             <mat-icon class="icon-remove-favorite" (click)="removeFavorite(item.label)">
               delete
             </mat-icon>
@@ -39,13 +39,13 @@
       <div class="mb-2 flex items-center justify-center">
         <mat-icon class="icon-standard text-[18px] text-gray-400"> star </mat-icon>
       </div>
-      @for (item of favorisItems(); track item.label) {
+      @for (item of filteredFavorites(); track item.label) {
       <a
         mat-list-item
         class="sidebar-menu-item flex items-center justify-center"
         [routerLink]="`/p/${item.route}`"
         routerLinkActive="selected"
-        [matTooltip]="isCollapsed() ? item.label : null"
+        [matTooltip]="isCollapsed() ? (item.label | translate) : null"
       >
         <mat-icon class="icon-standard">{{ item.icon }}</mat-icon>
       </a>
@@ -56,14 +56,14 @@
   }
 
   <!-- Séparation Favoris / Menu principal -->
-  @if (favorisItems().length) {
+  @if (filteredFavorites().length) {
   <mat-divider class="my-2" />
   }
 
   <!-- TITRE Menu principal -->
   @if (!isCollapsed()) {
   <div mat-subheader class="text-xs font-semibold tracking-wide text-gray-400 uppercase">
-    Menu principal
+    {{ 'nav.mainMenu' | translate }}
   </div>
   }
 
@@ -76,7 +76,7 @@
       [routerLink]="`/p/${item.route}`"
       routerLinkActive="selected"
       [routerLinkActiveOptions]="{ exact: true }"
-      [matTooltip]="item.label"
+      [matTooltip]="item.label | translate"
     >
       <div class="place-items-center">
         <mat-icon class="icon-standard">
@@ -96,7 +96,7 @@
         <mat-icon class="icon-standard">
           {{ item.icon }}
         </mat-icon>
-        <span class="font-medium">{{ item.label }}</span>
+        <span class="font-medium">{{ item.label | translate }}</span>
         <mat-icon
           class="icon-favorite"
           [class.active]="isFavorite(item.label)"
@@ -126,7 +126,7 @@
           <mat-icon class="icon-standard">
             {{ item.icon }}
           </mat-icon>
-          <span class="font-medium">{{ item.label }}</span>
+          <span class="font-medium">{{ item.label | translate }}</span>
           <mat-icon class="icon-standard">
             {{ openSubMenu() === item.label ? 'expand_less' : 'expand_more' }}
           </mat-icon>
@@ -142,13 +142,13 @@
           [routerLink]="`/p/${child.route}`"
           routerLinkActive="selected"
           [routerLinkActiveOptions]="{ exact: true }"
-          [matTooltip]="child.label"
+          [matTooltip]="child.label | translate"
         >
           <div class="grid w-full grid-cols-[auto_1fr_auto] gap-2">
             <mat-icon class="icon-standard">
               {{ child.icon }}
             </mat-icon>
-            <span>{{ child.label }}</span>
+            <span>{{ child.label | translate }}</span>
             <mat-icon
               class="icon-favorite"
               [class.active]="isFavorite(child.label)"
@@ -182,7 +182,7 @@
       class="sidebar-menu-item"
       [href]="item.externalUrl"
       target="_blank"
-      [matTooltip]="isCollapsed() ? item.label : null"
+      [matTooltip]="isCollapsed() ? (item.label | translate) : null"
     >
       <div
         class="grid w-full gap-2"
@@ -190,7 +190,7 @@
       >
         <mat-icon class="icon-standard">{{ item.icon }}</mat-icon>
         @if (!isCollapsed()) {
-        <span class="font-medium">{{ item.label }}</span>
+        <span class="font-medium">{{ item.label | translate }}</span>
         }
       </div>
     </a>
@@ -208,7 +208,7 @@
       class="sidebar-menu-item"
       [routerLink]="`/p/${item.route}`"
       routerLinkActive="selected"
-      [matTooltip]="isCollapsed() ? item.label : null"
+      [matTooltip]="isCollapsed() ? (item.label | translate) : null"
     >
       <div
         class="grid w-full gap-2"
@@ -218,7 +218,7 @@
           {{ item.icon }}
         </mat-icon>
         @if (!isCollapsed()) {
-        <div mat-line class="font-medium">{{ item.label }}</div>
+        <div mat-line class="font-medium">{{ item.label | translate }}</div>
         }
       </div>
     </a>

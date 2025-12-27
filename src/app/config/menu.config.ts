@@ -1,44 +1,47 @@
 import { MenuItem } from '@app/models';
+import { ROUTE_PERMISSIONS } from './permissions.config';
 
 export const MENU: MenuItem[] = [
   {
-    label: 'Tableau de bord',
+    label: 'nav.dashboard',
     icon: 'dashboard',
     type: 'link',
     route: 'dashboard',
+    authorizationsNeeded: ROUTE_PERMISSIONS['dashboard'],
   },
   {
-    label: 'Recherche Avancée',
+    label: 'nav.advancedSearch',
     icon: 'search',
     type: 'link',
     route: 'appointments',
   },
   {
-    label: 'Statistiques Avancées',
+    label: 'nav.advancedStats',
     icon: 'query_stats',
     type: 'link',
     route: 'stats',
   },
   {
-    label: 'Commercial',
+    label: 'nav.commercial',
     icon: 'people',
     type: 'sub',
     route: 'commercial',
     children: [
       {
-        label: 'Clients',
+        label: 'nav.clients',
         icon: 'person',
         type: 'link',
         route: 'commercial/client',
+        authorizationsNeeded: ROUTE_PERMISSIONS['commercial/client'],
       },
       {
-        label: 'Code Promotion',
+        label: 'nav.codePromo',
         icon: 'confirmation_number',
         type: 'subchild',
         route: 'commercial/code-promo',
       },
       {
-        label: 'Promotions',
+        label: 'nav.promotions',
         icon: 'loyalty',
         type: 'subchild',
         route: 'commercial/promotions',
@@ -46,36 +49,36 @@ export const MENU: MenuItem[] = [
     ],
   },
   {
-    label: 'Mails et SMS',
+    label: 'nav.mailsAndSms',
     icon: 'mail',
     type: 'sub',
     children: [
       {
-        label: 'Paramètres Mails',
+        label: 'nav.mailsParams',
         icon: 'settings',
         type: 'subchild',
         route: 'communication/mails/parametres',
       },
       {
-        label: 'Templates Mails',
+        label: 'nav.mailsTemplates',
         icon: 'article',
         type: 'subchild',
         route: 'communication/mails/templates',
       },
       {
-        label: 'Paramètres SMS',
+        label: 'nav.smsParams',
         icon: 'settings',
         type: 'subchild',
         route: 'communication/sms/parametres',
       },
       {
-        label: 'Templates SMS',
+        label: 'nav.smsTemplates',
         icon: 'sms',
         type: 'subchild',
         route: 'communication/sms/templates',
       },
       {
-        label: 'Statistiques SMS',
+        label: 'nav.smsStats',
         icon: 'bar_chart',
         type: 'subchild',
         route: 'communication/sms/statistiques',
@@ -83,39 +86,40 @@ export const MENU: MenuItem[] = [
     ],
   },
   {
-    label: 'Paramétrage',
+    label: 'nav.settings',
     icon: 'settings',
     type: 'sub',
     route: 'settings',
     children: [
       {
-        label: 'Gestion des utilisateurs',
-        icon: 'Person',
+        label: 'nav.users',
+        icon: 'person',
         type: 'link',
         route: 'settings/users',
+        authorizationsNeeded: ROUTE_PERMISSIONS['settings/users'],
       },
       {
-        label: 'Congés et jours Fériés',
+        label: 'nav.holidays',
         icon: 'calendar_month',
         type: 'link',
         route: 'settings/holiday',
-      }
+      },
     ],
   },
   {
-    label: 'External Link 1',
+    label: 'nav.externalLink1',
     icon: 'credit_card',
     type: 'extLink',
     externalUrl: 'https://www.youtube.com',
   },
   {
-    label: 'Aide',
+    label: 'nav.help',
     icon: 'help_outline',
     type: 'footer',
     route: 'aide',
   },
   {
-    label: 'À propos',
+    label: 'nav.about',
     icon: 'info',
     type: 'footer',
     route: 'a-propos',

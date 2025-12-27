@@ -3,7 +3,7 @@
 >
   <!-- Titre à gauche -->
   <h2 class="text-primary text-xl font-extrabold tracking-wide uppercase">
-    {{ pageTitle() }}
+    {{ pageTitle() | translate }}
   </h2>
 
   @if (!isMobile()) {
@@ -30,14 +30,14 @@
               [routerLink]="item.url"
               class="text-primary cursor-pointer font-medium uppercase hover:underline"
             >
-              {{ item.label }}
+              {{ item.label | translate }}
             </a>
             <mat-icon class="pb-1 text-xl text-gray-600">
               chevron_right
             </mat-icon>
           } @else {
             <span class="font-medium text-gray-400 uppercase">
-              {{ item.label }}
+              {{ item.label | translate }}
             </span>
           }
         </ng-container>
