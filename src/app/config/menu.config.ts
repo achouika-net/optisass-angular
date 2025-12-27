@@ -1,13 +1,16 @@
 import { MenuItem } from '@app/models';
-import { ROUTE_PERMISSIONS } from './permissions.config';
 
+/**
+ * Configuration du menu de l'application.
+ * Les routes sont typées avec AppRoute (via MenuItem).
+ * Les permissions sont gérées centralement dans APP_ROUTES.
+ */
 export const MENU: MenuItem[] = [
   {
     label: 'nav.dashboard',
     icon: 'dashboard',
     type: 'link',
     route: 'dashboard',
-    authorizationsNeeded: ROUTE_PERMISSIONS['dashboard'],
   },
   {
     label: 'nav.advancedSearch',
@@ -25,14 +28,12 @@ export const MENU: MenuItem[] = [
     label: 'nav.commercial',
     icon: 'people',
     type: 'sub',
-    route: 'commercial',
     children: [
       {
         label: 'nav.clients',
         icon: 'person',
         type: 'link',
         route: 'commercial/client',
-        authorizationsNeeded: ROUTE_PERMISSIONS['commercial/client'],
       },
       {
         label: 'nav.codePromo',
@@ -89,14 +90,12 @@ export const MENU: MenuItem[] = [
     label: 'nav.settings',
     icon: 'settings',
     type: 'sub',
-    route: 'settings',
     children: [
       {
         label: 'nav.users',
         icon: 'person',
         type: 'link',
         route: 'settings/users',
-        authorizationsNeeded: ROUTE_PERMISSIONS['settings/users'],
       },
       {
         label: 'nav.holidays',
