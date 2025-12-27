@@ -100,17 +100,6 @@ export class AuthService {
    * @returns Observable<IUserOptions> - Autorisations de l'utilisateur
    */
   getUserOptions(): Observable<IUserOptions> {
-    // TODO: Remplacer par l'appel API réel quand le backend sera prêt
-    // return this.#http.get<IUserOptions>(USER_OPTIONS_API_URL);
-
-    // Mock temporaire avec autorisations uniquement
-    return of({
-      authorizations: [
-        'CLIENTS_READ',
-        'USERS_READ',
-        'USERS_CREATE',
-        'USERS_UPDATE',
-      ],
-    } as IUserOptions).pipe(delay(300));
+    return this.#http.get<IUserOptions>(USER_OPTIONS_API_URL);
   }
 }

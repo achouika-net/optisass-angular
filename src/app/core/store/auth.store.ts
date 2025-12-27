@@ -71,7 +71,7 @@ export const AuthStore = signalStore(
 
     // À supprimer progressivement
     userRole: computed((): null => null), // TODO: Implémenter la gestion des rôles dans backend NestJS
-    tenant: computed(() => store.currentCenter()?.dbSchema ?? null), // Utilise dbSchema comme fallback
+    tenant: computed(() => store.currentCenter()?.id ?? null),
     menuFavoris: computed((): null => null), // TODO: Ajouter au backend NestJS si nécessaire
     userCenters: computed(() => store.user()?.tenants ?? []), // Alias de userTenants
 

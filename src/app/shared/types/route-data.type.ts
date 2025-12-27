@@ -9,7 +9,7 @@ export interface RouteData {
   /** Clé i18n pour le breadcrumb (ex: 'nav.users') */
   breadcrumb: string;
   /** Liste des autorisations requises pour accéder à la route */
-  authorizationsNeeded?: ResourceAuthorizations[];
+  authorizationsNeeded?: readonly ResourceAuthorizations[];
 }
 
 /**
