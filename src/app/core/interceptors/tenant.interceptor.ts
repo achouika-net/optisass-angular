@@ -30,7 +30,7 @@ export const TenantInterceptor: HttpInterceptorFn = (request, next) => {
   }
 
   const authStore = inject(AuthStore);
-  const tenant = authStore.tenant()?.toString();
+  const tenant = authStore.currentTenant()?.id?.toString();
 
   // Ajouter le header Tenant seulement si le tenant existe
   if (!tenant) {

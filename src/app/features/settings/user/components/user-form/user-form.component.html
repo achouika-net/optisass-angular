@@ -87,15 +87,15 @@
         </button>
       </div>
 
-      @for (centerRolefield of form.center_roles; track $index ) {
+      @for (tenantRolefield of form.center_roles; track $index ) {
       <div class="mb-3 flex gap-3 items-start rounded border border-gray-200 p-3">
         <!-- Centre Select -->
         <mat-form-field appFieldControlLabel class="flex-1">
           <mat-label>{{ 'commun.center' | translate }}</mat-label>
-          <mat-select [field]="centerRolefield.center_id">
-            @for (center of centers(); track center.id) {
-            <mat-option [value]="center.id">
-              {{ center.name }}
+          <mat-select [field]="tenantRolefield.center_id">
+            @for (tenant of tenants(); track tenant.id) {
+            <mat-option [value]="tenant.id">
+              {{ tenant.name | uppercase }}
             </mat-option>
             }
           </mat-select>
@@ -104,7 +104,7 @@
         <!-- Role Select -->
         <mat-form-field appFieldControlLabel class="flex-1">
           <mat-label>{{ 'commun.role' | translate }}</mat-label>
-          <mat-select [field]="centerRolefield.role_id">
+          <mat-select [field]="tenantRolefield.role_id">
             @for (role of roles(); track role.id) {
             <mat-option [value]="role.id">{{ role.name }}</mat-option>
             }

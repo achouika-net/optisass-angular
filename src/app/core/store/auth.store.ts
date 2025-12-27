@@ -9,7 +9,6 @@ import { catchError, EMPTY, pipe, switchMap, tap } from 'rxjs';
 import {
   createWsErrorWithMessage,
   CurrentUserState,
-  ICenter,
   ICurrentUser,
   IJwtTokens,
   ILoginRequest,
@@ -21,7 +20,7 @@ import {
   isValidUser,
   JwtTokensState,
   MenuItem,
-  WsErrorState,
+  WsErrorState, ITenant,
 } from '@app/models';
 import { filterMenuByAuthorizations } from '@app/helpers';
 import { MENU } from '../../config/menu.config';
@@ -33,7 +32,7 @@ import { refreshTokenSubject, cancelAllPendingRequests } from '../interceptors/j
 export interface AuthState {
   jwtTokens: JwtTokensState;
   user: CurrentUserState;
-  currentCenter: ICenter | null;
+  currentTenant: ITenant | null;
   userAuthorizations: ResourceAuthorizations[];
   error: WsErrorState;
   refreshTokenInProgress: boolean;
@@ -47,7 +46,7 @@ interface SessionOptions {
 const initialState: AuthState = {
   jwtTokens: INITIAL_JWT_TOKENS,
   user: INITIAL_CURRENT_USER,
-  currentCenter: null,
+  currentTenant: null,
   userAuthorizations: [],
   error: INITIAL_WS_ERROR,
   refreshTokenInProgress: false,
@@ -63,17 +62,7 @@ export const AuthStore = signalStore(
     isAuthenticated: computed(
       () => isValidUser(store.user()) && store.userAuthorizations().length > 0 && store.jwtTokens() !== null && !!store.jwtTokens()?.accessToken
     ),
-
-    // Nouvelles propriétés alignées avec backend NestJS
     userTenants: computed(() => store.user()?.tenants ?? []),
-    currentTenantId: computed(() => store.currentCenter()?.id ?? null),
-    currentTenantName: computed(() => store.currentCenter()?.name ?? null),
-
-    // À supprimer progressivement
-    userRole: computed((): null => null), // TODO: Implémenter la gestion des rôles dans backend NestJS
-    tenant: computed(() => store.currentCenter()?.id ?? null),
-    menuFavoris: computed((): null => null), // TODO: Ajouter au backend NestJS si nécessaire
-    userCenters: computed(() => store.user()?.tenants ?? []), // Alias de userTenants
 
     // Menu filtré selon les permissions utilisateur
     /**
@@ -161,8 +150,8 @@ export const AuthStore = signalStore(
             switchMap((options) =>
               authService.getCurrentUser().pipe(
                 tap((user: ICurrentUser) => {
-                  const currentCenter = user.tenants[0] ?? null;
-                  patchState(store, { user, currentCenter, error: null });
+                  const currentTenant = user.tenants[0] ?? null;
+                  patchState(store, { user, currentTenant, error: null });
 
                   // Appeler getUserOptions avec les mêmes options
                   methods.getUserOptions({ isRestoreSession: options.isRestoreSession });
@@ -269,11 +258,11 @@ export const AuthStore = signalStore(
         ),
 
         /**
-         * Définit le centre courant de l'utilisateur
-         * @param currentCenter - Le centre à définir comme courant
+         * Définit le tenant courant de l'utilisateur
+         * @param currentTenant - Letenant à définir comme courant
          */
-        setCurrentCenter(currentCenter: ICenter): void {
-          patchState(store, { currentCenter });
+        setCurrentTenant(currentTenant: ITenant): void {
+          patchState(store, { currentTenant });
         },
 
         /**

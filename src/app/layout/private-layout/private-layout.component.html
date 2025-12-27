@@ -126,25 +126,25 @@
         }
         <button class="m-6" mat-icon-button><mat-icon>search</mat-icon></button>
         <div class="flex-1"></div>
-        @if (currentCentre()?.name) {
+        @if (currentTenant()?.name) {
         <button
           matButton="outlined"
           class="mr-2 min-w-24 rounded-sm text-center border-on-primary font-semibold  md:min-w-56"
           [matMenuTriggerFor]="centersMenu"
-          [disabled]="centres().length === 1"
+          [disabled]="tenants().length === 1"
         >
-          {{ currentCentre()?.name.toUpperCase() }}
+          {{ currentTenant()?.name.toUpperCase() }}
         </button>
         <mat-menu #centersMenu="matMenu" class="min-w-56">
-          @for (centre of centres(); track centre.id) {
+          @for (tenant of tenants(); track tenant.id) {
           <button
             class="text-center"
             mat-menu-item
-            [disabled]="centre.id === currentCentre().id"
-            (click)="selectCenter(centre)"
+            [disabled]="tenant.id === currentTenant().id"
+            (click)="selectTenant(tenant)"
           >
             <span class="font-semibold">
-              {{ centre?.name.toUpperCase() }}
+              {{ tenant?.name.toUpperCase() }}
             </span>
           </button>
           }

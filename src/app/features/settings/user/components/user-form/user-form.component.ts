@@ -11,10 +11,11 @@ import { MatSelectModule } from '@angular/material/select';
 import { FieldErrorComponent, PhotoUploadComponent } from '@app/components';
 import { EMAIL_PATTERN, MOBILE_PATTERN } from '@app/config';
 import { FieldControlLabelDirective } from '@app/directives';
-import { ICenter, ICivilite, IRole } from '@app/models';
+import { ICivilite, IRole } from '@app/models';
 import { TranslateModule } from '@ngx-translate/core';
 import { UserStore } from '../../user.store';
 import { AuthStore } from '@app/core/store';
+import {UpperCasePipe} from '@angular/common';
 
 interface ICentreRole {
   center_id: number;
@@ -53,6 +54,7 @@ interface IUserForm {
     FieldControlLabelDirective,
     FieldErrorComponent,
     PhotoUploadComponent,
+    UpperCasePipe,
   ],
 })
 export class UserFormComponent {
@@ -60,7 +62,7 @@ export class UserFormComponent {
   #userStore = inject(UserStore);
 
   civilites = signal([]);
-  centers = this.#authStore.userCenters;
+  tenants = this.#authStore.userTenants;
   roles: Signal<IRole[]> = this.#userStore.state.roles;
 
   userFormModel = signal<IUserForm>({

@@ -1,4 +1,4 @@
-import { ITenant } from './center.model';
+import { ITenant } from './tenant.model';
 
 export interface ICurrentUser {
   id: string;              // UUID
@@ -8,7 +8,7 @@ export interface ICurrentUser {
   isOwner: boolean;
   createdAt: Date | string;
   updatedAt: Date | string;
-  tenants: ITenant[];      // Remplace "centers"
+  tenants: ITenant[];      // Remplace "tenants"
 
   // Propriétés optionnelles (pas encore dans le backend NestJS)
   avatar?: string;         // Base64 image

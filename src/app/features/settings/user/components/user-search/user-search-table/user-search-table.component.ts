@@ -85,8 +85,8 @@ export class UserSearchTableComponent {
     'action',
   ]).asReadonly();
   showPaginator = computed<boolean>(() => this.users()?.meta.total > MIN_PAGE_SIZE_OPTIONS);
-  // Utilise le currentCenter du AuthStore
-  currentCenter = this.#authStore.currentCenter;
+  // Utilise le currentTenant du AuthStore
+  currentTenant = this.#authStore.currentTenant;
 
   /**
    * pagination
@@ -128,13 +128,13 @@ export class UserSearchTableComponent {
       .subscribe();
   }
 
-  getUserRoleOfCurrentCenter(
+  getUserRoleOfCurrentTenant(
     roles: IRole[],
-    centers: { id: string | number; role_id: number }[],
-    currentCenterId: string | number | null | undefined
+    tenants: { id: string | number; role_id: number }[],
+    currentTenantId: string | number | null | undefined
   ): string {
-    if (!currentCenterId) return '';
-    const roleId = centers.find(({ id }) => String(id) === String(currentCenterId))?.role_id;
+    if (!currentTenantId) return '';
+    const roleId = tenants.find(({ id }) => String(id) === String(currentTenantId))?.role_id;
     return roles.find(({ id }) => id === roleId)?.name || '';
   }
 }

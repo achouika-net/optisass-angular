@@ -13,7 +13,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { ConfirmationPopupComponent } from '@app/components';
 import { AuthStore, SettingsStore } from '@app/core/store';
-import { ICenter } from '@app/models';
+import {ITenant} from '@app/models';
 import { TranslateService } from '@ngx-translate/core';
 import { map } from 'rxjs';
 import { BreadcrumbComponent } from '../breadcrumb/breadcrumb.component';
@@ -49,8 +49,8 @@ export default class PrivateLayoutComponent {
 
   logo = this.#settingsStore.logo;
   circleLogo = this.#settingsStore.smallLogo;
-  centres = this.#authStore.userCenters;
-  currentCentre = this.#authStore.currentCenter;
+  tenants = this.#authStore.userTenants;
+  currentTenant = this.#authStore.currentTenant;
 
   // Mobile: < 600px
   readonly #isHandset = toSignal(
@@ -88,7 +88,7 @@ export default class PrivateLayoutComponent {
   /**
    * Sélectionner un centre après confirmation
    */
-  selectCenter(currentCenter: ICenter): void {
+  selectTenant(currentTenant: ITenant): void {
     this.#dialog
       .open(ConfirmationPopupComponent, {
         data: {
@@ -102,7 +102,7 @@ export default class PrivateLayoutComponent {
       .subscribe((result) => {
         if (!result) return;
 
-        this.#authStore.setCurrentCenter(currentCenter);
+        this.#authStore.setCurrentTenant(currentTenant);
       });
   }
 }

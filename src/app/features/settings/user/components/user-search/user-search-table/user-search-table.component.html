@@ -51,7 +51,7 @@
           {{ 'commun.role' | translate }}
         </th>
         <td mat-cell *matCellDef="let element">
-          {{ getUserRoleOfCurrentCenter | wrapFn : roles() : element.centres : currentCenter().id }}
+          {{ getUserRoleOfCurrentTenant | wrapFn : roles() : element.centres : currentTenant().id }}
         </td>
       </ng-container>
 
