@@ -81,9 +81,12 @@ import { ExpenseFormDialogComponent } from '../../components/expense-form-dialog
 })
 export class OutgoingPaymentListComponent implements OnInit {
     payments: any[] = [];
-    activeTab: 'OUTGOING' | 'INCOMING' = 'OUTGOING';
+    activeTab: 'OUTGOING' | 'INCOMING' | 'UNPAID_CLIENTS' = 'OUTGOING';
 
     get displayedColumns(): string[] {
+        if (this.activeTab === 'UNPAID_CLIENTS') {
+            return ['date', 'source', 'libelle', 'client', 'montant', 'reste', 'statut', 'actions'];
+        }
         const base = ['date', 'source', 'libelle', 'type'];
         const middle = this.activeTab === 'OUTGOING' ? 'fournisseur' : 'client';
         return [...base, middle, 'montant', 'statut', 'actions'];
@@ -99,15 +102,15 @@ export class OutgoingPaymentListComponent implements OnInit {
         'ACHAT_STOCK', 'FRAIS_GENERAUX', 'IMMOBILISATION'
     ];
 
-    filters = {
+    filters: any = {
+        source: '',
         fournisseurId: '',
         type: '',
-        source: '',
-        startDate: '',
-        endDate: '',
+        startDate: new Date(),
+        endDate: new Date(),
         centreId: ''
     };
-
+    selectedPeriod: string = 'TODAY';
     constructor(
         private financeService: FinanceService,
         private router: Router,
@@ -118,8 +121,8 @@ export class OutgoingPaymentListComponent implements OnInit {
         // Automatically reload when center changes
         effect(() => {
             const center = this.currentCentre();
-            if (center?.id) {
-                console.log(`[PAYMENTS-SYNC] Center detected: ${center.id}, triggering load...`);
+            if (center?.id && center.id !== this.filters.centreId) {
+                console.log(`[PAYMENTS-SYNC] Center changed to: ${center.id}, triggering load...`);
                 this.filters.centreId = center.id;
                 this.loadPayments();
             }
@@ -129,20 +132,28 @@ export class OutgoingPaymentListComponent implements OnInit {
     ngOnInit(): void {
         this.loadSuppliers();
 
-        // Fallback: If center is already set but effect hasn't triggered yet
-        const currentCenter = this.currentCentre();
-        if (currentCenter?.id && !this.filters.centreId) {
-            console.log(`[PAYMENTS-INIT] Center already set: ${currentCenter.id}, loading payments...`);
-            this.filters.centreId = currentCenter.id;
+        // One-time init: If center is already set, it will be handled by the effect or here.
+        // But the effect runs once on init anyway, so let's simplify.
+        const center = this.currentCentre();
+        if (center?.id) {
+            this.filters.centreId = center.id;
+        }
+
+        // Initialize filters but don't call loadPayments if center is already being handled by effect
+        this.applyPredefinedPeriod('TODAY', false); // New flag to skip load
+
+        // If center IS NOT set yet, we might need a first load with empty center? 
+        // No, center is required for most meaningful results.
+        if (!center?.id) {
             this.loadPayments();
         }
     }
 
     openInvoiceDialog() {
         const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
-            width: '1000px',
+            width: '1200px',
             maxWidth: '95vw',
-            height: '90vh',
+            maxHeight: '90vh',
             data: {}
         });
 
@@ -172,7 +183,11 @@ export class OutgoingPaymentListComponent implements OnInit {
     }
 
     onTabChange(event: any) {
-        this.activeTab = event.index === 0 ? 'OUTGOING' : 'INCOMING';
+        const index = event.index;
+        if (index === 0) this.activeTab = 'OUTGOING';
+        else if (index === 1) this.activeTab = 'INCOMING';
+        else this.activeTab = 'UNPAID_CLIENTS';
+
         this.loadPayments();
     }
 
@@ -180,37 +195,127 @@ export class OutgoingPaymentListComponent implements OnInit {
         this.loading = true;
         console.log(`[PAYMENTS-LOAD] Loading ${this.activeTab} payments with filters:`, this.filters);
 
-        const request = this.activeTab === 'OUTGOING'
-            ? this.financeService.getConsolidatedOutgoings(this.filters)
-            : this.financeService.getConsolidatedIncomings(this.filters);
+        const formatDate = (d: any) => {
+            if (!d) return '';
+            const dt = new Date(d);
+            if (isNaN(dt.getTime())) return '';
+            const year = dt.getFullYear();
+            const month = (dt.getMonth() + 1).toString().padStart(2, '0');
+            const day = dt.getDate().toString().padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        const params = {
+            ...this.filters,
+            startDate: formatDate(this.filters.startDate),
+            endDate: formatDate(this.filters.endDate)
+        };
+
+        let request;
+        if (this.activeTab === 'OUTGOING') {
+            request = this.financeService.getConsolidatedOutgoings(params);
+        } else if (this.activeTab === 'INCOMING') {
+            request = this.financeService.getConsolidatedIncomings(params);
+        } else {
+            request = this.financeService.getUnpaidClientInvoices(params);
+        }
 
         request.subscribe({
             next: (data) => {
-                console.log(`[PAYMENTS-LOAD] Received ${data.length} ${this.activeTab} payments`);
-                this.payments = data;
+                console.log(`[PAYMENTS-LOAD] Received ${data.length} records for ${this.activeTab}`);
+
+                if (this.activeTab === 'UNPAID_CLIENTS') {
+                    // Map raw Factures to Table Model
+                    this.payments = data.map((f: any) => ({
+                        id: f.id,
+                        date: f.createdAt,
+                        source: 'FACTURE_CLIENT',
+                        libelle: `Reste Facture ${f.numero}`,
+                        type: f.type,
+                        client: f.client,
+                        montant: f.totalTTC,
+                        resteAPayer: f.resteAPayer,
+                        statut: f.statut,
+                        numero: f.numero
+                    }));
+                } else {
+                    this.payments = data;
+                }
+
                 this.loading = false;
             },
             error: (err) => {
-                console.error('[PAYMENTS-LOAD] Error loading payments:', err);
-                this.snackBar.open('Erreur lors du chargement des paiements', 'Fermer', { duration: 3000 });
+                console.error('[PAYMENTS-LOAD] Error loading data:', err);
+                this.snackBar.open('Erreur lors du chargement des données', 'Fermer', { duration: 3000 });
                 this.loading = false;
             }
         });
     }
 
-    applyFilters() {
-        this.loadPayments();
+    private filterTimeout: any;
+    applyFilters(immediate: boolean = false) {
+        if (this.filterTimeout) clearTimeout(this.filterTimeout);
+
+        if (immediate) {
+            this.loadPayments();
+            return;
+        }
+
+        // If dates are changed manually, set period to custom
+        this.selectedPeriod = 'CUSTOM';
+
+        this.filterTimeout = setTimeout(() => {
+            this.loadPayments();
+        }, 300);
+    }
+
+    applyPredefinedPeriod(period: string, load: boolean = true) {
+        this.selectedPeriod = period;
+        const now = new Date();
+        const start = new Date();
+        const end = new Date();
+
+        switch (period) {
+            case 'TODAY':
+                break; // Both are today
+            case 'YESTERDAY':
+                start.setDate(now.getDate() - 1);
+                end.setDate(now.getDate() - 1);
+                break;
+            case 'THIS_WEEK':
+                const day = now.getDay(); // 0 is Sun
+                const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+                start.setDate(diff);
+                break;
+            case 'THIS_MONTH':
+                start.setDate(1);
+                break;
+            case 'ALL':
+                this.filters.startDate = '';
+                this.filters.endDate = '';
+                this.loadPayments();
+                return;
+        }
+
+        if (period !== 'ALL') {
+            this.filters.startDate = start;
+            this.filters.endDate = end;
+        }
+        if (load) {
+            this.loadPayments();
+        }
     }
 
     resetFilters() {
         this.filters = {
+            source: '',
             fournisseurId: '',
             type: '',
-            source: '',
-            startDate: '',
-            endDate: '',
+            startDate: new Date(),
+            endDate: new Date(),
             centreId: this.currentCentre()?.id || ''
         };
+        this.selectedPeriod = 'TODAY';
         this.loadPayments();
     }
 
@@ -224,9 +329,9 @@ export class OutgoingPaymentListComponent implements OnInit {
         if (payment.source === 'FACTURE') {
             this.financeService.getInvoice(payment.id).subscribe(invoice => {
                 const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
-                    width: '1000px',
+                    width: '1200px',
                     maxWidth: '95vw',
-                    height: '90vh',
+                    maxHeight: '90vh',
                     data: {
                         invoice: {
                             ...invoice,
@@ -259,6 +364,21 @@ export class OutgoingPaymentListComponent implements OnInit {
                         this.loadPayments();
                     }
                 });
+            });
+        }
+    }
+
+    validatePayment(payment: any) {
+        if (confirm('Voulez-vous confirmer l\'encaissement de ce paiement ?')) {
+            this.financeService.validatePayment(payment.id).subscribe({
+                next: () => {
+                    this.snackBar.open('Paiement validé avec succès', 'Fermer', { duration: 3000 });
+                    this.loadPayments();
+                },
+                error: (err) => {
+                    console.error('Error validating payment:', err);
+                    this.snackBar.open('Erreur lors de la validation', 'Fermer', { duration: 3000 });
+                }
             });
         }
     }
@@ -313,5 +433,9 @@ export class OutgoingPaymentListComponent implements OnInit {
 
     getSourceClass(source: string): string {
         return source === 'FACTURE' ? 'bg-purple-100 text-purple-800' : 'bg-cyan-100 text-cyan-800';
+    }
+
+    trackByPayment(index: number, item: any): string {
+        return item.id + item.source;
     }
 }

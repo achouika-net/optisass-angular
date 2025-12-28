@@ -66,52 +66,19 @@ export class PaiementsService {
         let stockUpdated = false;
         const updatedLines: any[] = [];
 
-        for (const line of currentLines) {
-            // Check if line has product and NOT processed
-            if (line.productId && line.qte > 0 && !line.stockProcessed) {
-                const product = await this.prisma.product.findUnique({
-                    where: { id: line.productId },
-                    include: { entrepot: true }
-                });
+        /* 
+           [FIX] Disabled Stock Decrement on Payment to prevent Double Counting.
+           Stock should ONLY be decremented upon Facture/BL Validation, not Payment.
+           Previous logic caused double decrement for Secondary warehouses when user Paid then Validated.
+        */
 
-                if (product && product.entrepot && product.entrepot.type === 'SECONDAIRE') {
-                    console.log(`📉 Decrementing Secondary Stock (Payment): ${product.designation} (-${line.qte})`);
+        // Return untouched lines as we don't process stock here anymore
+        // updatedLines.push(...currentLines); 
+        // passing currentLines directly is not enough if we assume we need to return 'paiement'
+        // actually the loop was building updatedLines to update the invoice.
+        // We can skip the whole update block.
 
-                    await this.prisma.$transaction([
-                        this.prisma.product.update({
-                            where: { id: product.id },
-                            data: { quantiteActuelle: { decrement: line.qte } }
-                        }),
-                        this.prisma.mouvementStock.create({
-                            data: {
-                                type: 'SORTIE_VENTE',
-                                quantite: -line.qte,
-                                produitId: product.id,
-                                entrepotSourceId: product.entrepotId,
-                                motif: `Paiement Devis ${facture.numero}`,
-                                utilisateur: 'System'
-                            }
-                        })
-                    ]);
-
-                    // Mark line as processed
-                    updatedLines.push({ ...line, stockProcessed: true });
-                    stockUpdated = true;
-                } else {
-                    updatedLines.push(line);
-                }
-            } else {
-                updatedLines.push(line);
-            }
-        }
-
-        if (stockUpdated) {
-            await this.prisma.facture.update({
-                where: { id: factureId },
-                data: { lignes: updatedLines }
-            });
-            console.log('✅ Updated Invoice Lines with stockProcessed flags.');
-        }
+        return paiement;
 
         return paiement;
     }

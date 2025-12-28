@@ -41,5 +41,9 @@ export const routes: Routes = [
     {
         path: 'payments',
         loadComponent: () => import('./pages/outgoing-payment-list/outgoing-payment-list.component').then(m => m.OutgoingPaymentListComponent)
+    },
+    {
+        path: 'sales-control',
+        loadComponent: () => import('../reports/sales-control-report/sales-control-report.component').then(m => m.SalesControlReportComponent)
     }
 ];

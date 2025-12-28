@@ -1,6 +1,6 @@
-import { Component, Inject, OnInit, NgZone, Optional } from '@angular/core';
+import { Component, Inject, OnInit, NgZone, Optional, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormArray } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormArray, FormControl } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -22,6 +22,18 @@ import { FinanceService } from '../../services/finance.service';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { Observable } from 'rxjs';
 import { map, startWith } from 'rxjs/operators';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { CameraCaptureDialogComponent } from '../../../../shared/components/camera-capture/camera-capture-dialog.component';
+import { MatDialog } from '@angular/material/dialog';
+
+interface AttachmentFile {
+    name: string;
+    type: string;
+    size: number;
+    preview: string | SafeResourceUrl;
+    file: File;
+    uploadDate: Date;
+}
 
 @Component({
     selector: 'app-invoice-form-dialog',
@@ -84,6 +96,12 @@ import { map, startWith } from 'rxjs/operators';
     ::ng-deep .mat-mdc-text-field-wrapper.mdc-text-field--disabled .mdc-floating-label {
         color: rgba(0, 0, 0, 0.6) !important;
     }
+    ::ng-deep .dense-field .mat-mdc-form-field-subscript-wrapper {
+        display: none;
+    }
+    ::ng-deep .dense-field .mat-mdc-form-field-wrapper {
+        padding-bottom: 0;
+    } 
   `]
 })
 export class InvoiceFormDialogComponent implements OnInit {
@@ -96,11 +114,24 @@ export class InvoiceFormDialogComponent implements OnInit {
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
     currentMonth = new Date().getMonth() + 1;
 
-    invoiceTypes = ['ACHAT_STOCK', 'FRAIS_GENERAUX', 'IMMOBILISATION', 'AUTRE'];
+    invoiceTypes = [
+        'ACHAT_VERRE_OPTIQUE', 'ACHAT_MONTURES_OPTIQUE', 'ACHAT_MONTURES_SOLAIRE',
+        'ACHAT_LENTILLES', 'ACHAT_PRODUITS', 'COTISATION_AMO_CNSS',
+        'ACHAT_STOCK', 'FRAIS_GENERAUX', 'IMMOBILISATION', 'AUTRE'
+    ];
     filteredTypes!: Observable<string[]>;
     invoiceStatus = ['EN_ATTENTE', 'VALIDEE', 'PARTIELLE', 'PAYEE', 'ANNULEE'];
     paymentMethods = ['ESPECES', 'CHEQUE', 'LCN', 'VIREMENT', 'CARTE'];
     echeanceStatus = ['EN_ATTENTE', 'DEPOSE', 'ENCAISSE', 'REJETE', 'ANNULE'];
+
+    // Supplier Autocomplete
+    supplierCtrl = new FormControl('');
+    filteredSuppliers!: Observable<Supplier[]>;
+
+    @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+
+    attachmentFiles: AttachmentFile[] = [];
+    viewingFile: AttachmentFile | null = null;
 
     constructor(
         private fb: FormBuilder,
@@ -109,6 +140,9 @@ export class InvoiceFormDialogComponent implements OnInit {
         private router: Router,
         private zone: NgZone,
         private store: Store,
+        private sanitizer: DomSanitizer,
+        private cdr: ChangeDetectorRef,
+        private dialog: MatDialog,
         @Optional() public dialogRef: MatDialogRef<InvoiceFormDialogComponent>,
         @Optional() @Inject(MAT_DIALOG_DATA) public data: { invoice?: SupplierInvoice }
     ) {
@@ -209,12 +243,52 @@ export class InvoiceFormDialogComponent implements OnInit {
 
         // Auto-update status when echeances or amounts change
         this.echeances.valueChanges.subscribe(() => this.autoUpdateStatus());
-        this.detailsGroup.get('montantTTC')?.valueChanges.subscribe(() => this.autoUpdateStatus());
+        this.detailsGroup.get('montantTTC')?.valueChanges.subscribe(() => {
+            this.autoUpdateStatus();
+            // Auto-redistribute amount across existing echeances
+            this.redistributeAmountAcrossEcheances();
+        });
 
         this.filteredTypes = this.detailsGroup.get('type')!.valueChanges.pipe(
             startWith(''),
             map(value => this._filterTypes(value || ''))
         );
+    }
+
+    loadSuppliers() {
+        this.financeService.getSuppliers().subscribe({
+            next: (data) => {
+                this.suppliers = data;
+                this.setupSupplierFilter();
+
+                // If editing and has provider
+                const currentId = this.detailsGroup.get('fournisseurId')?.value;
+                if (currentId) {
+                    const s = this.suppliers.find(x => x.id === currentId);
+                    if (s) this.supplierCtrl.setValue(s.nom);
+                }
+            },
+            error: (err) => console.error('Erreur chargement fournisseurs', err)
+        });
+    }
+
+    setupSupplierFilter() {
+        this.filteredSuppliers = this.supplierCtrl.valueChanges.pipe(
+            startWith(''),
+            map(value => {
+                const name = typeof value === 'string' ? value : (value as any)?.nom;
+                return name ? this._filterSuppliers(name as string) : this.suppliers.slice();
+            })
+        );
+    }
+
+    private _filterSuppliers(name: string): Supplier[] {
+        const filterValue = name.toLowerCase();
+        return this.suppliers.filter((option: Supplier) => option.nom.toLowerCase().includes(filterValue));
+    }
+
+    displayFn(supplier: Supplier): string {
+        return supplier && supplier.nom ? supplier.nom : '';
     }
 
     private _filterTypes(value: string): string[] {
@@ -234,62 +308,97 @@ export class InvoiceFormDialogComponent implements OnInit {
         return this.paymentGroup.get('echeances') as FormArray;
     }
 
-    loadSuppliers() {
-        this.financeService.getSuppliers().subscribe({
-            next: (data) => {
-                this.suppliers = data;
-                if (this.form.get('fournisseurId')?.value) {
-                    this.onSupplierChange(this.form.get('fournisseurId')?.value);
-                }
-            },
-            error: (err) => console.error('Erreur chargement fournisseurs', err)
-        });
-    }
+
 
     onSupplierChange(id: string) {
+        console.log('[InvoiceForm] ========== onSupplierChange CALLED ==========');
+
         this.selectedSupplier = this.suppliers.find(s => s.id === id) || null;
 
-        // Auto-schedule payment terms if available and creating new invoice
+        // Auto-schedule payment terms if available and creating new invoice logic
         if (this.selectedSupplier && this.echeances.length === 0 && !this.isEditMode) {
-            const conditions = this.selectedSupplier.conditionsPaiement;
+            const echeanceArray = this.selectedSupplier.convention?.echeancePaiement || [];
+            const conditions = (echeanceArray[0] || this.selectedSupplier.conditionsPaiement2 || this.selectedSupplier.conditionsPaiement || '').trim();
 
-            if (conditions === 'Comptant' || conditions === 'Espèces') {
+            if (!conditions) return;
+
+            const conditionsLower = conditions.toLowerCase();
+            let finalDate = new Date(); // Default basis
+
+            if (conditionsLower === 'comptant' || conditionsLower === 'espèces') {
                 this.addEcheance({
                     type: 'ESPECES',
-                    dateEcheance: new Date().toISOString(),
+                    dateEcheance: finalDate.toISOString(),
                     statut: 'EN_ATTENTE',
-                    montant: 0 // Will clearly indicate need to fill
+                    montant: 0
                 });
-            } else if (conditions?.includes('30 jours')) {
-                const date = new Date();
-                date.setDate(date.getDate() + 30);
+            } else if (conditionsLower.includes('30 jours') || conditionsLower.includes('30jours')) {
+                finalDate.setDate(finalDate.getDate() + 30);
                 this.addEcheance({
                     type: 'CHEQUE',
-                    dateEcheance: date.toISOString(),
+                    dateEcheance: finalDate.toISOString(),
                     statut: 'EN_ATTENTE',
                     montant: 0
                 });
-            } else if (conditions?.includes('60 jours')) {
-                const date = new Date();
-                date.setDate(date.getDate() + 60);
-                this.addEcheance({
-                    type: 'LCN',
-                    dateEcheance: date.toISOString(),
-                    statut: 'EN_ATTENTE',
-                    montant: 0
-                });
-            } else if (conditions?.includes('Fin de mois')) {
-                const date = new Date();
+            } else if (conditionsLower.includes('60 jours') || conditionsLower.includes('60jours')) {
+                finalDate.setDate(finalDate.getDate() + 60);
+                // Generate 2 payments: 30, 60 days
+                for (let i = 1; i <= 2; i++) {
+                    const date = new Date();
+                    date.setDate(date.getDate() + (30 * i));
+                    this.addEcheance({
+                        type: 'LCN',
+                        dateEcheance: date.toISOString(),
+                        statut: 'EN_ATTENTE',
+                        montant: 0
+                    });
+                }
+            } else if (conditionsLower.includes('90 jours') || conditionsLower.includes('90jours')) {
+                finalDate.setDate(finalDate.getDate() + 90);
+                // Generate 3 payments: 30, 60, 90 days
+                for (let i = 1; i <= 3; i++) {
+                    const date = new Date();
+                    date.setDate(date.getDate() + (30 * i));
+                    this.addEcheance({
+                        type: 'CHEQUE',
+                        dateEcheance: date.toISOString(),
+                        statut: 'EN_ATTENTE',
+                        montant: 0
+                    });
+                }
+            } else if (conditionsLower.includes('fin de mois')) {
                 // Last day of current month
-                date.setMonth(date.getMonth() + 1);
-                date.setDate(0);
+                finalDate.setMonth(finalDate.getMonth() + 1);
+                finalDate.setDate(0);
                 this.addEcheance({
                     type: 'VIREMENT',
-                    dateEcheance: date.toISOString(),
+                    dateEcheance: finalDate.toISOString(),
                     statut: 'EN_ATTENTE',
                     montant: 0
                 });
             }
+
+            // Fix 1: Always update the invoice due date
+            this.detailsGroup.get('dateEcheance')?.setValue(finalDate);
+
+            // Fix 2: Always trigger redistribution to set amounts
+            // This ensures that even if montantTTC was already set, the new installments get their share
+            this.redistributeAmountAcrossEcheances();
+        }
+    }
+
+    private redistributeAmountAcrossEcheances() {
+        const montantTTC = this.detailsGroup.get('montantTTC')?.value || 0;
+        const echeancesCount = this.echeances.length;
+
+        if (echeancesCount > 0 && montantTTC > 0) {
+            const montantParEcheance = Math.round((montantTTC / echeancesCount) * 100) / 100;
+
+            this.echeances.controls.forEach((control, index) => {
+                control.patchValue({ montant: montantParEcheance }, { emitEvent: false });
+            });
+
+            console.log(`[InvoiceForm] Redistributed ${montantTTC} MAD across ${echeancesCount} installments (${montantParEcheance} each)`);
         }
     }
 
@@ -371,34 +480,77 @@ export class InvoiceFormDialogComponent implements OnInit {
     onSubmit() {
         if (this.form.valid) {
             this.submitting = true;
-            const detailsData = this.detailsGroup.value;
-            const paymentData = this.paymentGroup.value;
-
-            const invoiceData = {
-                ...detailsData,
-                ...paymentData
-            };
-
-            delete invoiceData.tauxTVA; // Frontend only helper
-
-            if (this.isEditMode) {
-                const id = this.route.snapshot.paramMap.get('id') || this.data?.invoice?.id;
-                if (id) {
-                    this.financeService.updateInvoice(id, invoiceData).subscribe({
-                        next: () => this.finalize(invoiceData),
-                        error: () => this.submitting = false
-                    });
-                } else {
-                    this.finalize(invoiceData);
-                }
-            } else {
-                this.financeService.createInvoice(invoiceData).subscribe({
-                    next: res => this.finalize(res),
-                    error: () => this.submitting = false
-                });
-            }
+            this.handleSupplierAndSave();
         } else {
             this.form.markAllAsTouched();
+        }
+    }
+
+    private handleSupplierAndSave() {
+        const supplierInput = this.supplierCtrl.value;
+        // If empty, proceed without supplier (though it is required in form, but handle cleanly)
+        if (!supplierInput) {
+            this.detailsGroup.patchValue({ fournisseurId: null }); // Will likely fail validation if required
+            this.saveInvoice();
+            return;
+        }
+
+        // Check if selected existing
+        if (typeof supplierInput === 'object' && supplierInput && 'id' in supplierInput) {
+            const s = supplierInput as Supplier;
+            this.detailsGroup.patchValue({ fournisseurId: s.id });
+            this.saveInvoice();
+            return;
+        }
+
+        // It is a string
+        const name = String(supplierInput);
+        const existing = this.suppliers.find(s => s.nom.toLowerCase() === name.toLowerCase());
+        if (existing) {
+            this.detailsGroup.patchValue({ fournisseurId: existing.id });
+            this.saveInvoice();
+            return;
+        }
+
+        // Creating new supplier
+        this.financeService.createSupplier({ nom: name }).subscribe({
+            next: (newSupplier) => {
+                this.detailsGroup.patchValue({ fournisseurId: newSupplier.id });
+                this.saveInvoice();
+            },
+            error: (err) => {
+                console.error('Error creating supplier', err);
+                this.submitting = false;
+            }
+        });
+    }
+
+    private saveInvoice() {
+        const detailsData = this.detailsGroup.value;
+        const paymentData = this.paymentGroup.value;
+
+        const invoiceData = {
+            ...detailsData,
+            ...paymentData
+        };
+
+        delete invoiceData.tauxTVA;
+
+        if (this.isEditMode) {
+            const id = this.route.snapshot.paramMap.get('id') || this.data?.invoice?.id;
+            if (id) {
+                this.financeService.updateInvoice(id, invoiceData).subscribe({
+                    next: () => this.finalize(invoiceData),
+                    error: () => this.submitting = false
+                });
+            } else {
+                this.finalize(invoiceData);
+            }
+        } else {
+            this.financeService.createInvoice(invoiceData).subscribe({
+                next: res => this.finalize(res),
+                error: () => this.submitting = false
+            });
         }
     }
 
@@ -419,5 +571,105 @@ export class InvoiceFormDialogComponent implements OnInit {
         } else {
             this.router.navigate(['/p/finance/payments']);
         }
+    }
+
+    // File Upload Methods
+    openFileUpload(): void {
+        this.fileInput.nativeElement.click();
+    }
+
+    onFilesSelected(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        if (!input.files) return;
+
+        Array.from(input.files).forEach(file => {
+            if (file.size > 10 * 1024 * 1024) {
+                alert(`Le fichier ${file.name} est trop volumineux (max 10MB)`);
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const preview = file.type === 'application/pdf'
+                    ? this.sanitizer.bypassSecurityTrustResourceUrl(e.target?.result as string)
+                    : e.target?.result as string;
+
+                const attachmentFile: AttachmentFile = {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    preview,
+                    file,
+                    uploadDate: new Date()
+                };
+                this.attachmentFiles.push(attachmentFile);
+                this.cdr.markForCheck();
+            };
+            reader.readAsDataURL(file);
+        });
+        input.value = '';
+    }
+
+    viewFile(file: AttachmentFile): void {
+        this.viewingFile = file;
+        this.cdr.markForCheck();
+    }
+
+    closeViewer(): void {
+        this.viewingFile = null;
+        this.cdr.markForCheck();
+    }
+
+    deleteFile(index: number): void {
+        if (confirm('Supprimer ce document ?')) {
+            this.attachmentFiles.splice(index, 1);
+            this.cdr.markForCheck();
+        }
+    }
+
+    formatFileSize(bytes: number): string {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    // Camera Methods
+    async openCamera(): Promise<void> {
+        const dialogRef = this.dialog.open(CameraCaptureDialogComponent, {
+            width: '800px',
+            disableClose: true
+        });
+
+        dialogRef.afterClosed().subscribe(dataUrl => {
+            if (dataUrl) {
+                this.handleCapturedPhoto(dataUrl);
+            }
+        });
+    }
+
+    private handleCapturedPhoto(dataUrl: string): void {
+        const file = this.dataURLtoFile(dataUrl, `photo_${Date.now()}.jpg`);
+        const attachmentFile: AttachmentFile = {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            preview: dataUrl,
+            file,
+            uploadDate: new Date()
+        };
+        this.attachmentFiles.push(attachmentFile);
+        this.cdr.markForCheck();
+    }
+
+    private dataURLtoFile(dataurl: string, filename: string): File {
+        const arr = dataurl.split(',');
+        const mime = arr[0].match(/:(.*?);/)![1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new File([u8arr], filename, { type: mime });
     }
 }

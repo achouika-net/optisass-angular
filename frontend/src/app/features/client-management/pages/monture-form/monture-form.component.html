@@ -48,41 +48,47 @@
     </div>
     <!-- Tabs Navigation -->
     <div class="tabs-nav">
-        <button type="button" class="tab-btn" [class.active]="activeTab === 0" (click)="setActiveTab(0)">
+        <button type="button" class="tab-btn" [class.active]="activeTab === 0" (click)="setActiveTab(0)"
+            [disabled]="!isTabAccessible(0)" [class.disabled]="!isTabAccessible(0)">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path
                     d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
             </svg>
             Ordonnance
         </button>
-        <button type="button" class="tab-btn" [class.active]="activeTab === 1" (click)="setActiveTab(1)">
+        <button type="button" class="tab-btn" [class.active]="activeTab === 1" (click)="setActiveTab(1)"
+            [disabled]="!isTabAccessible(1)" [class.disabled]="!isTabAccessible(1)">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path
                     d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
             </svg>
-            Monture & Verres
+            Montures et Verres
         </button>
-        <button type="button" class="tab-btn" [class.active]="activeTab === 2" (click)="setActiveTab(2)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6z" />
-            </svg>
-            Fiche Montage
-        </button>
-        <button type="button" class="tab-btn" [class.active]="activeTab === 3" (click)="setActiveTab(3)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                    d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
-            </svg>
-            Facturation
-        </button>
-        <button type="button" class="tab-btn" [class.active]="activeTab === 4" (click)="setActiveTab(4)">
+        <button type="button" class="tab-btn" [class.active]="activeTab === 2" (click)="setActiveTab(2)"
+            [disabled]="!isTabAccessible(2)" [class.disabled]="!isTabAccessible(2)">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path
                     d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
             </svg>
             Paiements
         </button>
-        <button type="button" class="tab-btn" [class.active]="activeTab === 5" (click)="setActiveTab(5)">
+        <button type="button" class="tab-btn" [class.active]="activeTab === 3" (click)="setActiveTab(3)"
+            [disabled]="!isTabAccessible(3)" [class.disabled]="!isTabAccessible(3)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                    d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
+            </svg>
+            Facturation
+        </button>
+        <button type="button" class="tab-btn" [class.active]="activeTab === 4" (click)="setActiveTab(4)"
+            [disabled]="!isTabAccessible(4)" [class.disabled]="!isTabAccessible(4)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6z" />
+            </svg>
+            Fiche Montage
+        </button>
+        <button type="button" class="tab-btn" [class.active]="activeTab === 5" (click)="setActiveTab(5)"
+            [disabled]="!isTabAccessible(5)" [class.disabled]="!isTabAccessible(5)">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path
                     d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
@@ -311,9 +317,13 @@
                 <div class="header-actions-inline">
                     <mat-form-field appearance="outline" style="width: 280px;">
                         <mat-label>Date Livraison Estimée</mat-label>
-                        <input matInput [matDatepicker]="pickerLivraisonVente" formControlName="dateLivraisonEstimee">
+                        <input matInput [matDatepicker]="pickerLivraisonVente" formControlName="dateLivraisonEstimee"
+                            [min]="minDate">
                         <mat-datepicker-toggle matSuffix [for]="pickerLivraisonVente"></mat-datepicker-toggle>
                         <mat-datepicker #pickerLivraisonVente></mat-datepicker>
+                        <mat-error *ngIf="ficheForm.get('dateLivraisonEstimee')?.hasError('matDatepickerMin')">
+                            La date ne peut pas être dans le passé
+                        </mat-error>
                     </mat-form-field>
                 </div>
             </div>
@@ -908,8 +918,57 @@
                 </div>
             </div>
         </div>
-        <!-- ONGLET 3: FICHE MONTAGE -->
+        <!-- ONGLET 3: PAIEMENTS -->
         <div class="tab-content" *ngIf="activeTab === 2">
+            <div class="tab-header">
+                <div class="icon-box">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3>Historique des Paiements</h3>
+                    <p>Suivi des règlements pour ce dossier</p>
+                </div>
+            </div>
+            <div class="payment-container" style="padding: 24px;">
+                <app-payment-list [clientId]="clientId || client?.id" [ficheId]="ficheId"
+                    (paymentAdded)="onPaymentAdded()"></app-payment-list>
+            </div>
+        </div>
+
+        <!-- ONGLET 4: FACTURATION -->
+        <div class="tab-content" [hidden]="activeTab !== 3">
+            <div class="tab-header">
+                <div class="icon-box">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3>Facturation</h3>
+                    <p>Gérer les factures et devis du client</p>
+                </div>
+            </div>
+            <div class="facturation-container" *ngIf="linkedFacture$ | async as linkedFacture; else newFactureTemplate">
+                <app-facture-form [factureId]="linkedFacture.id" [embedded]="true" (onSaved)="onInvoiceSaved($event)"
+                    [isReadonly]="!isEditMode">
+                </app-facture-form>
+            </div>
+            <ng-template #newFactureTemplate>
+                <div class="facturation-container">
+                    <app-facture-form [clientIdInput]="clientId" [ficheIdInput]="ficheId" [initialLines]="initialLines"
+                        [embedded]="true" (onSaved)="onInvoiceSaved($event)" [nomenclature]="nomenclatureString"
+                        [isReadonly]="!isEditMode">
+                    </app-facture-form>
+                </div>
+            </ng-template>
+        </div>
+
+        <!-- ONGLET 5: FICHE MONTAGE -->
+        <div class="tab-content" [hidden]="activeTab !== 4">
             <div class="tab-header">
                 <div class="icon-box">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -1200,77 +1259,30 @@
                     <div>
                         <h4 class="flex items-center gap-2 font-bold text-gray-700 mb-4">
                             <span class="w-2 h-2 rounded-full bg-blue-600"></span>
-                            Prototype de Calibrage Visuel
+                            Calibrage Visuel & Centrage
                             <button type="button"
                                 class="ml-auto bg-blue-600 text-white px-3 py-1 text-xs rounded shadow hover:bg-blue-700 transition"
                                 (click)="openVirtualCentering()">
                                 Centrage Virtuel (Tablette)
                             </button>
+                            <button type="button" class="btn-outline-blue" (click)="calibrationInput.click()"
+                                *ngIf="isEditMode">
+                                <mat-icon class="text-sm">upload</mat-icon> Importer Gabarit
+                            </button>
+                            <input #calibrationInput type="file" accept="image/*" class="hidden"
+                                (change)="onCalibrationImageUpload($event)">
                         </h4>
                         <div class="canvas-container bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
-                            <canvas #frameCanvas width="600" height="300" class="w-full h-auto"></canvas>
-                            <!-- Legend Overlay -->
-                            <div
-                                class="absolute bottom-4 left-0 w-full flex justify-center gap-4 text-xs font-bold bg-white/80 backdrop-blur py-2">
-                                <span class="text-blue-600">EP OG: 32mm</span>
-                                <span class="text-gray-800">Pont: 15mm</span>
-                                <span class="text-blue-600">EP OD: 32mm</span>
-                            </div>
-                            <!-- Height Indicators (Mock Visuals for prototype match) -->
-                            <!-- We rely on canvas drawing but can add overlay markers if needed. For now keeping canvas. -->
+                            <canvas #frameCanvasElement width="800" height="500" class="w-full h-auto"></canvas>
+                            <!-- Dynamic drawing provides labels -->
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>
-        <!-- ONGLET 3: FACTURATION -->
-        <div class="tab-content" [hidden]="activeTab !== 3">
-            <div class="tab-header">
-                <div class="icon-box">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
-                    </svg>
-                </div>
-                <div>
-                    <h3>Facturation</h3>
-                    <p>Gérer les factures et devis du client</p>
-                </div>
-            </div>
-            <div class="facturation-container" *ngIf="linkedFacture$ | async as linkedFacture; else newFactureTemplate">
-                <app-facture-form [factureId]="linkedFacture.id" [embedded]="true" (onSaved)="onInvoiceSaved($event)"
-                    [isReadonly]="!isEditMode">
-                </app-facture-form>
-            </div>
-            <ng-template #newFactureTemplate>
-                <div class="facturation-container">
-                    <app-facture-form [clientIdInput]="clientId" [ficheIdInput]="ficheId" [initialLines]="initialLines"
-                        [embedded]="true" (onSaved)="onInvoiceSaved($event)" [nomenclature]="nomenclatureString"
-                        [isReadonly]="!isEditMode">
-                    </app-facture-form>
-                </div>
-            </ng-template>
-        </div>
-        <!-- ONGLET 4: PAIEMENTS -->
-        <div class="tab-content" *ngIf="activeTab === 4">
-            <div class="tab-header">
-                <div class="icon-box">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
-                    </svg>
-                </div>
-                <div>
-                    <h3>Historique des Paiements</h3>
-                    <p>Suivi des règlements pour ce dossier</p>
-                </div>
-            </div>
-            <div class="payment-container" style="padding: 24px;">
-                <app-payment-list [clientId]="clientId || client?.id" [ficheId]="ficheId"
-                    (paymentAdded)="onPaymentAdded()"></app-payment-list>
-            </div>
-        </div>
-        <!-- ONGLET 5: SUIVI COMMANDE -->
+
+        <!-- ONGLET 6: SUIVI COMMANDE -->
         <div class="tab-content" *ngIf="activeTab === 5" formGroupName="suiviCommande">
             <div class="tab-header">
                 <div class="icon-box-purple">
@@ -1402,8 +1414,10 @@
         <div class="footer-nav">
             <button type="button" class="btn-secondary" (click)="prevTab()" [disabled]="activeTab === 0">←
                 Précédent</button>
-            <button type="button" class="btn-primary" (click)="nextTab()">Suivant
-                →</button>
+            <button type="button" class="btn-primary" (click)="nextTab()" [disabled]="loading">
+                {{ activeTab === 5 ? 'Fermer' : 'Suivant' }}
+                <span *ngIf="activeTab < 5">→</span>
+            </button>
         </div>
     </form>
     <!-- File Viewer Modal -->
@@ -1525,10 +1539,10 @@
             </div>
         </div>
 
-        <div class="centering-canvas-preview" *ngIf="centeringCanvas">
+        <div class="centering-canvas-preview" *ngIf="frameCanvas">
             <h4>Prévisualisation du Montage</h4>
             <div class="canvas-container-print">
-                <img [src]="centeringCanvas.nativeElement.toDataURL()" *ngIf="centeringCanvas" class="print-canvas-img">
+                <img [src]="getFrameCanvasDataUrl()" *ngIf="frameCanvas" class="print-canvas-img">
             </div>
         </div>
 

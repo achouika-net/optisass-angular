@@ -61,6 +61,45 @@
 
                         <!-- Info Prescription -->
                         <mat-card class="section-card mb-4">
+                            <mat-card-header class="flex justify-between items-center mb-4 px-4 pt-4">
+                                <mat-card-title>Détails Ordonnance</mat-card-title>
+                                <div class="flex gap-2" *ngIf="isEditMode">
+                                    <button type="button" mat-raised-button color="primary" (click)="openFileUpload()">
+                                        <mat-icon>upload_file</mat-icon>
+                                        Importer
+                                    </button>
+                                    <button type="button" mat-raised-button color="accent" (click)="openCamera()">
+                                        <mat-icon>photo_camera</mat-icon>
+                                        Photo
+                                    </button>
+                                </div>
+                            </mat-card-header>
+
+                            <!-- Loading Overlay for OCR -->
+                            <div class="ocr-loading" *ngIf="isProcessingOcr">
+                                <mat-spinner diameter="40"></mat-spinner>
+                                <span>Analyse de l'ordonnance en cours...</span>
+                            </div>
+
+                            <input #fileInput type="file" accept="image/*,application/pdf" multiple class="hidden"
+                                (change)="onFilesSelected($event)">
+
+                            <!-- Files List -->
+                            <div class="px-4 mb-4" *ngIf="prescriptionFiles.length > 0">
+                                <div class="files-grid">
+                                    <div *ngFor="let file of prescriptionFiles; let i = index" class="file-chip">
+                                        <mat-icon class="file-icon">
+                                            {{ file.type.startsWith('image/') ? 'image' : 'picture_as_pdf' }}
+                                        </mat-icon>
+                                        <span class="file-name" (click)="viewFile(file)">{{ file.name }}</span>
+                                        <button mat-icon-button class="mini-btn-delete" (click)="deleteFile(i)"
+                                            *ngIf="isEditMode">
+                                            <mat-icon>close</mat-icon>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
                             <mat-card-content class="grid-3">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Date de prescription</mat-label>
@@ -692,4 +731,22 @@
             </mat-tab>
         </mat-tab-group>
     </form>
+
+
+    <!-- File Viewer Modal -->
+    <div class="file-viewer-overlay" *ngIf="viewingFile" (click)="closeViewer()">
+        <div class="file-viewer-content" (click)="$event.stopPropagation()">
+            <div class="viewer-header">
+                <h3>{{ viewingFile.name }}</h3>
+                <button mat-icon-button (click)="closeViewer()">
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
+            <div class="viewer-body">
+                <img *ngIf="viewingFile.type.startsWith('image/')" [src]="viewingFile.preview" class="preview-image">
+                <iframe *ngIf="viewingFile.type === 'application/pdf'" [src]="viewingFile.preview"
+                    class="preview-pdf"></iframe>
+            </div>
+        </div>
+    </div>
 </div>

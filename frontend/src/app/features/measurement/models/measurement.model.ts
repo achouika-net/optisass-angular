@@ -37,6 +37,7 @@ export interface Measurement {
     wrapDeg?: number;
     frameHeightMm?: number; // Hauteur totale du verre (B)
     pupils?: Pupils;
+    imageDataUrl?: string; // Base64 data of the captured frame
     timestamp?: number;
 }
 

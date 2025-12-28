@@ -79,8 +79,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
     @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
     @ViewChild('canvasElement') canvasElement!: ElementRef<HTMLCanvasElement>;
-    @ViewChild('centeringCanvas') centeringCanvas!: ElementRef<HTMLCanvasElement>;
-    @ViewChild('frameCanvas') frameCanvas!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('frameCanvasElement') frameCanvas!: ElementRef<HTMLCanvasElement>;
     @ViewChild(FactureFormComponent) factureComponent!: FactureFormComponent;
     @ViewChild(PaymentListComponent) paymentListComponent!: PaymentListComponent;
 
@@ -105,6 +104,30 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     lensMaterials: string[] = getLensMaterials();
 
     dateToday = new Date();
+
+    get minDate(): Date {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }
+
+    isTabAccessible(index: number): boolean {
+        if (index <= 1) return true;
+
+        // Requirements for moving past tab 1 (Montures et Verres)
+        // 1. Must be saved in database
+        if (!this.ficheId || this.ficheId === 'new') return false;
+
+        // 2. Must have valid delivery date
+        const dateVal = this.ficheForm.get('dateLivraisonEstimee')?.value;
+        if (!dateVal) return false;
+
+        const selectedDate = new Date(dateVal);
+        selectedDate.setHours(0, 0, 0, 0);
+        if (selectedDate < this.minDate) return false;
+
+        return true;
+    }
 
     get formEquipementPrincipal(): FormGroup {
         return this.equipements.at(0) as FormGroup;
@@ -265,8 +288,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     ngOnInit(): void {
         // Draw frame visualization when tab changes to Fiche Montage
         this.ficheForm.valueChanges.subscribe(() => {
-            if (this.activeTab === 2) {
-                setTimeout(() => this.drawFrameVisualization(), 100);
+            if (this.activeTab === 4) {
+                setTimeout(() => this.updateFrameCanvasVisualization(), 100);
             }
         });
         this.route.paramMap.subscribe(params => {
@@ -1249,6 +1272,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 hauteurOD: [20, [Validators.required, Validators.min(10), Validators.max(30)]],
                 hauteurOG: [20, [Validators.required, Validators.min(10), Validators.max(30)]],
                 diametreEffectif: ['65/70'],
+                capturedImage: [null], // [NEW] Base64 image from centering tablet
                 remarques: ['']
             }),
             suggestions: [[]],
@@ -1759,8 +1783,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         // Trigger visuals
         setTimeout(() => {
             this.calculateLensPrices();
-            this.drawFrameVisualization();
-            if (this.activeTab === 2) this.drawCenteringCanvas();
+            this.updateFrameCanvasVisualization();
         }, 500);
 
         // Force UI update (OnPush strategy might miss patchValue with emitEvent: false)
@@ -1768,17 +1791,29 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     }
 
     setActiveTab(index: number): void {
-        this.activeTab = index;
-        // Draw canvas when switching to Fiche Montage tab
-        if (index === 2) {
-            setTimeout(() => {
-                this.drawFrameVisualization();
-            }, 100);
+        if (!this.isTabAccessible(index)) {
+            this.snackBar.open('Veuillez saisir une date de livraison valide dans l\'onglet "Montures et Verres"', 'Fermer', { duration: 3000 });
+            return;
         }
+
+        this.activeTab = index;
+
+        // Load payments when switching to Payment tab
+        if (index === 2 && this.paymentListComponent) {
+            this.paymentListComponent.loadPayments();
+        }
+
         // Load invoices when switching to Billing tab
         if (index === 3 && this.client) {
             this.updateInitialLines();
             this.loadClientFactures();
+        }
+
+        // Draw canvas when switching to Fiche Montage tab
+        if (index === 4) {
+            setTimeout(() => {
+                this.updateFrameCanvasVisualization();
+            }, 100);
         }
         this.cdr.markForCheck();
     }
@@ -2033,30 +2068,58 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
     nextTab(): void {
         const targetTab = this.activeTab + 1;
-        if (targetTab === 4) {
+
+        // Validation for date if on tab 1 or moving to tab 2+
+        if (!this.isTabAccessible(targetTab)) {
+            if (!this.ficheId || this.ficheId === 'new') {
+                this.snackBar.open('Veuillez enregistrer la fiche avant de passer aux paiements/facturation', 'Fermer', { duration: 4000 });
+                return;
+            }
+
+            const dateVal = this.ficheForm.get('dateLivraisonEstimee')?.value;
+            if (!dateVal) {
+                this.snackBar.open('Veuillez saisir une date de livraison estimée', 'Fermer', { duration: 3000 });
+            } else {
+                this.snackBar.open('La date de livraison ne peut pas être dans le passé', 'Fermer', { duration: 3000 });
+            }
+            return;
+        }
+
+        // If on the last tab (Suivi Commande), close
+        if (this.activeTab === 5) {
+            this.goBack();
+            return;
+        }
+
+        // Logic for specific tab transitions
+        if (targetTab === 4) { // Moving to Fiche Montage
+            setTimeout(() => this.updateFrameCanvasVisualization(), 100);
+        }
+
+        if (targetTab === 3) { // Moving to Facturation
+            this.generateInvoiceLines();
+            // Optional: Auto-save if new? 
             if (this.factureComponent && (!this.factureComponent.id || this.factureComponent.id === 'new')) {
                 if (this.factureComponent.form.value.lignes.length > 0) {
                     this.factureComponent.saveAsObservable().subscribe(() => {
                         this.activeTab = targetTab;
-                        setTimeout(() => {
-                            if (this.paymentListComponent) this.paymentListComponent.loadPayments();
-                        }, 200);
                     });
                     return;
                 }
             }
         }
-        if (this.activeTab < 4) {
+
+        if (this.activeTab < 5) {
             this.activeTab++;
-            if (this.activeTab === 2) setTimeout(() => this.drawFrameVisualization(), 100);
-            if (this.activeTab === 3) this.generateInvoiceLines();
+            // Trigger specific logic for target tab
+            this.setActiveTab(this.activeTab);
         }
     }
 
     prevTab(): void {
         if (this.activeTab > 0) {
             this.activeTab--;
-            if (this.activeTab === 2) setTimeout(() => this.drawFrameVisualization(), 100);
+            this.setActiveTab(this.activeTab);
         }
     }
 
@@ -2502,17 +2565,24 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 this.loading = false;
                 console.log('Fiche saved:', fiche);
 
-                // FIX: Patch form with saved data to ensure UI reflects backend state (prevents fields clearing)
+                // Stay in edit mode and update state
+                this.isEditMode = true;
+                this.ficheId = fiche.id;
+                this.currentFiche = fiche;
                 this.patchForm(fiche);
 
-                // Fix: Ensure form is disabled after save (View Mode)
-                if (!wasNew) {
-                    this.ficheForm.disable();
-                    this.isEditMode = false;
+                this.snackBar.open('Fiche enregistrée avec succès', 'OK', { duration: 3000 });
+
+                if (wasNew) {
+                    this.router.navigate(['/p/clients', this.clientId, 'fiche-monture', fiche.id], {
+                        replaceUrl: true,
+                        // Avoid full component re-init if possible by explicitly handling the ID update
+                    });
                 }
 
-                if (wasNew) { // Use captured state
-                    this.router.navigate(['/p/clients', this.clientId, 'fiche-monture', fiche.id], { replaceUrl: true });
+                // If on early tabs, auto-advance to Payments
+                if (this.activeTab < 2) {
+                    this.setActiveTab(2);
                 }
             },
             error: (err) => {
@@ -2674,7 +2744,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         const lines = this.getInvoiceLines();
 
         // [FIX] Guard against missing Product IDs
-        const missingIds = lines.filter(l => !l.productId && (l.description.includes('Monture') || l.description.includes('Verre')));
+        // Only warn for FRAMES (Monture) as Lenses (Verres) are often ordered without stock management
+        const missingIds = lines.filter(l => !l.productId && l.description.includes('Monture'));
         if (missingIds.length > 0) {
             console.error('❌ [VALIDATION] Missing ProductID for lines:', missingIds);
             const confirmNoStock = confirm(
@@ -2784,12 +2855,12 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
         // Initialize canvas drawing with longer delay to ensure DOM is ready
         setTimeout(() => {
-            this.drawFrameVisualization();
+            this.updateFrameCanvasVisualization();
         }, 500);
 
         // Listen to montage form changes for real-time canvas updates
         this.ficheForm.get('montage')?.valueChanges.subscribe(() => {
-            this.drawFrameVisualization();
+            this.updateFrameCanvasVisualization();
         });
     }
 
@@ -2848,104 +2919,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         });
     }
 
-    /**
-     * Draw centering canvas with OD/OG circles and crosshairs
-     */
-    drawCenteringCanvas(): void {
-        console.log('drawCenteringCanvas called');
 
-        if (!this.centeringCanvas) {
-            console.warn('Canvas ViewChild not initialized');
-            return;
-        }
-
-        const canvas = this.centeringCanvas.nativeElement;
-        console.log('Canvas element:', canvas);
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-            console.error('Could not get 2D context');
-            return;
-        }
-
-        console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
-
-        // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Get values from form
-        const pdOD = this.ficheForm.get('montage.ecartPupillaireOD')?.value || 32;
-        const pdOG = this.ficheForm.get('montage.ecartPupillaireOG')?.value || 32;
-        const hauteurOD = this.ficheForm.get('montage.hauteurOD')?.value || 20;
-        const hauteurOG = this.ficheForm.get('montage.hauteurOG')?.value || 20;
-
-        // Scale: 1mm = 4px
-        const scale = 4;
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-
-        // Calculate positions
-        const odX = centerX - (pdOD * scale / 2);
-        const ogX = centerX + (pdOG * scale / 2);
-        const odY = centerY - (hauteurOD * scale / 2);
-        const ogY = centerY - (hauteurOG * scale / 2);
-
-        // Draw OD circle (blue)
-        ctx.strokeStyle = '#4f46e5';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(odX, odY, 30, 0, 2 * Math.PI);
-        ctx.stroke();
-
-        // Draw OD crosshair
-        ctx.strokeStyle = '#4f46e5';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(odX - 15, odY);
-        ctx.lineTo(odX + 15, odY);
-        ctx.moveTo(odX, odY - 15);
-        ctx.lineTo(odX, odY + 15);
-        ctx.stroke();
-
-        // Draw OG circle (green)
-        ctx.strokeStyle = '#10b981';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(ogX, ogY, 30, 0, 2 * Math.PI);
-        ctx.stroke();
-
-        // Draw OG crosshair
-        ctx.strokeStyle = '#10b981';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(ogX - 15, ogY);
-        ctx.lineTo(ogX + 15, ogY);
-        ctx.moveTo(ogX, ogY - 15);
-        ctx.lineTo(ogX, ogY + 15);
-        ctx.stroke();
-
-        // Draw labels
-        ctx.font = 'bold 14px Inter, sans-serif';
-        ctx.fillStyle = '#4f46e5';
-        ctx.fillText('OD', odX - 10, odY - 40);
-        ctx.fillStyle = '#10b981';
-        ctx.fillText('OG', ogX - 10, ogY - 40);
-
-        // Draw center reference line
-        ctx.strokeStyle = '#94a3b8';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.moveTo(centerX, 0);
-        ctx.lineTo(centerX, canvas.height);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Draw scale indicator
-        ctx.font = '12px Inter, sans-serif';
-        ctx.fillStyle = '#64748b';
-        ctx.fillText('Échelle: 1mm = 4px', 10, canvas.height - 10);
-    }
 
     /**
      * Open virtual centering modal with camera measurement
@@ -2982,7 +2956,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                                 ecartPupillaireOD: measurement.pdRightMm.toFixed(1), // Keep 1 decimal
                                 ecartPupillaireOG: measurement.pdLeftMm.toFixed(1),
                                 hauteurOD: measurement.heightRightMm ? measurement.heightRightMm.toFixed(1) : null,
-                                hauteurOG: measurement.heightLeftMm ? measurement.heightLeftMm.toFixed(1) : null
+                                hauteurOG: measurement.heightLeftMm ? measurement.heightLeftMm.toFixed(1) : null,
+                                capturedImage: measurement.imageDataUrl || null
                             },
                             // Sync Ecarts to Ordonnance tab as well
                             ordonnance: {
@@ -2993,7 +2968,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
                         // Redraw canvas with new values
                         setTimeout(() => {
-                            this.drawCenteringCanvas();
+                            this.updateFrameCanvasVisualization();
                         }, 100);
 
                         this.cdr.markForCheck();
@@ -3007,245 +2982,86 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     }
 
     /**
-     * Draw frame visualization with TWO LENSES and measurement indicators
+     * Draw frame visualization using a static high-fidelity reference background
+     * OD (Right eye) is on the LEFT of the sheet (Technical Convention)
      */
-    drawFrameVisualization(): void {
-        // Only draw if we are on the correct tab and canvas exists
-        if (this.activeTab !== 2 || !this.frameCanvas || !this.frameCanvas.nativeElement) {
-            return;
-        }
+    updateFrameCanvasVisualization(): void {
+        if (!this.frameCanvas || !this.frameCanvas.nativeElement) return;
 
         const canvas = this.frameCanvas.nativeElement;
-        // console.log('Canvas element:', canvas); // Reduce logs
-        console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
-
         const ctx = canvas.getContext('2d');
-        if (!ctx) {
-            console.error('Could not get 2D context');
-            return;
-        }
+        if (!ctx) return;
 
-        // Clear canvas with WHITE background (save ink!)
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Assets & Data
+        const customImage = this.ficheForm.get('montage.capturedImage')?.value;
+        const bgSource = customImage || 'assets/calibration-reference.png';
 
-        // Get frame data
+        const epOD = parseFloat(this.ficheForm.get('montage.ecartPupillaireOD')?.value) || 32;
+        const epOG = parseFloat(this.ficheForm.get('montage.ecartPupillaireOG')?.value) || 32;
+        const hOD = parseFloat(this.ficheForm.get('montage.hauteurOD')?.value) || 20;
+        const hOG = parseFloat(this.ficheForm.get('montage.hauteurOG')?.value) || 20;
         const taille = this.ficheForm.get('monture.taille')?.value || '52-18-140';
         const [calibreStr, pontStr] = taille.split('-');
         const calibre = parseInt(calibreStr) || 52;
         const pont = parseInt(pontStr) || 18;
 
-        const hauteurOD = this.ficheForm.get('montage.hauteurOD')?.value || 20;
-        const hauteurOG = this.ficheForm.get('montage.hauteurOG')?.value || 20;
-        const epOD = this.ficheForm.get('montage.ecartPupillaireOD')?.value || 32;
-        const epOG = this.ficheForm.get('montage.ecartPupillaireOG')?.value || 32;
+        const img = new Image();
+        img.src = bgSource;
+        img.onload = () => {
+            // Draw Background
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear previous frame
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        // Get mounting type for frame adjustment
-        const typeMontage = this.ficheForm.get('montage.typeMontage')?.value || '';
-
-        // Frame width adjustment based on mounting type (simplified)
-        let frameAdjustment = 0;
-        if (typeMontage.includes('Percé') || typeMontage.includes('Nylor')) {
-            frameAdjustment = 0; // 0mm for rimless/drilled (no frame)
-        } else {
-            frameAdjustment = 5; // +5mm for framed (Cerclé, Demi-Cerclé, Complet)
-        }
-
-        // Canvas dimensions and scale
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        const scale = 3.5; // 1mm = 3.5px (increased for better visibility)
-
-        // Lens dimensions
-        const lensWidth = calibre * scale;
-        const lensHeight = lensWidth * 0.65;
-        const bridgeWidth = pont * scale;
-
-        // Calculate positions for TWO LENSES
-        const leftLensX = centerX - bridgeWidth / 2 - lensWidth / 2;
-        const rightLensX = centerX + bridgeWidth / 2 + lensWidth / 2;
-        const lensY = centerY;
-
-        // Helper function to draw rounded rectangle
-        const drawRoundedRect = (x: number, y: number, width: number, height: number, radius: number) => {
-            ctx.beginPath();
-            ctx.moveTo(x + radius, y);
-            ctx.lineTo(x + width - radius, y);
-            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-            ctx.lineTo(x + width, y + height - radius);
-            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-            ctx.lineTo(x + radius, y + height);
-            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-            ctx.lineTo(x, y + radius);
-            ctx.quadraticCurveTo(x, y, x + radius, y);
-            ctx.stroke();
-        };
-
-        // Draw LEFT LENS (OG)
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2.5;
-        drawRoundedRect(leftLensX - lensWidth / 2, lensY - lensHeight / 2, lensWidth, lensHeight, 15);
-
-        // Draw RIGHT LENS (OD)
-        drawRoundedRect(rightLensX - lensWidth / 2, lensY - lensHeight / 2, lensWidth, lensHeight, 15);
-
-        // Draw BRIDGE
-        ctx.strokeStyle = '#666666';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(leftLensX + lensWidth / 2, lensY - 10);
-        ctx.lineTo(rightLensX - lensWidth / 2, lensY - 10);
-        ctx.stroke();
-
-        // RED LINE - Bridge center (vertical)
-        ctx.strokeStyle = '#FF0000';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(centerX, lensY - lensHeight / 2 - 30);
-        ctx.lineTo(centerX, lensY + lensHeight / 2 + 30);
-        ctx.stroke();
-
-        // ORANGE LINES - Frame total width (vertical at outer edges with adjustment)
-        ctx.strokeStyle = '#FF8800';
-        ctx.lineWidth = 3;
-        const adjustmentScaled = frameAdjustment * scale;
-        const leftEdge = leftLensX - lensWidth / 2 - adjustmentScaled / 2;
-        const rightEdge = rightLensX + lensWidth / 2 + adjustmentScaled / 2;
-        ctx.beginPath();
-        ctx.moveTo(leftEdge, lensY - lensHeight / 2 - 20);
-        ctx.lineTo(leftEdge, lensY + lensHeight / 2 + 20);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(rightEdge, lensY - lensHeight / 2 - 20);
-        ctx.lineTo(rightEdge, lensY + lensHeight / 2 + 20);
-        ctx.stroke();
-
-        // PUPIL POSITIONS (centers of each lens)
-        const pupilODX = rightLensX;
-        const pupilOGX = leftLensX;
-        const pupilY = lensY; // Center height
-
-        // BLUE DOTTED LINE - Distance between pupils (EP horizontal)
-        ctx.strokeStyle = '#0066FF';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]); // Dotted line
-        ctx.beginPath();
-        ctx.moveTo(pupilOGX, pupilY);
-        ctx.lineTo(pupilODX, pupilY);
-        ctx.stroke();
-        ctx.setLineDash([]); // Reset to solid
-
-        // Draw pupil markers (small circles)
-        ctx.fillStyle = '#0066FF';
-        ctx.beginPath();
-        ctx.arc(pupilODX, pupilY, 4, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(pupilOGX, pupilY, 4, 0, 2 * Math.PI);
-        ctx.fill();
-
-        // BLUE VERTICAL LINES - Height from pupil to bottom of lens
-        const bottomOD = lensY + lensHeight / 2;
-        const bottomOG = lensY + lensHeight / 2;
-
-        ctx.strokeStyle = '#0066FF';
-        ctx.lineWidth = 2;
-        // OD height
-        ctx.beginPath();
-        ctx.moveTo(pupilODX, pupilY);
-        ctx.lineTo(pupilODX, bottomOD);
-        ctx.stroke();
-        // OG height
-        ctx.beginPath();
-        ctx.moveTo(pupilOGX, pupilY);
-        ctx.lineTo(pupilOGX, bottomOG);
-        ctx.stroke();
-
-        // Labels
-        ctx.fillStyle = '#000000';
-        ctx.font = 'bold 12px Arial';
-        ctx.textAlign = 'center';
-
-        // Caliber label (bottom center)
-        ctx.fillText(`${calibre}mm`, centerX, lensY + lensHeight / 2 + 50);
-
-        // Bridge label (top center)
-        ctx.font = '11px Arial';
-        ctx.fillText(`Pont: ${pont}mm`, centerX, lensY - lensHeight / 2 - 35);
-
-        // EP labels (separate for OD and OG)
-        ctx.font = 'bold 11px Arial';
-        ctx.fillStyle = '#0066FF';
-        ctx.textAlign = 'center';
-        // EP OD (right side)
-        ctx.fillText(`EP OD: ${epOD}mm`, rightLensX, lensY - lensHeight / 2 - 50);
-        // EP OG (left side)
-        ctx.fillText(`EP OG: ${epOG}mm`, leftLensX, lensY - lensHeight / 2 - 50);
-
-        // Height labels
-        ctx.font = '10px Arial';
-        ctx.textAlign = 'left';
-        ctx.fillText(`H: ${hauteurOD}mm`, pupilODX + 8, (pupilY + bottomOD) / 2);
-        ctx.fillText(`H: ${hauteurOG}mm`, pupilOGX + 8, (pupilY + bottomOG) / 2);
-
-        // Lens labels
-        ctx.font = 'bold 12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#3b82f6';
-        ctx.fillText('OD', rightLensX, lensY - lensHeight / 2 + 20);
-        ctx.fillStyle = '#22c55e';
-        ctx.fillText('OG', leftLensX, lensY - lensHeight / 2 + 20);
-
-        // Calculate total width for later use
-        const totalWidth = calibre * 2 + pont + frameAdjustment;
-
-        // Helper function to draw dimension line with arrows
-        const drawDimension = (x1: number, y: number, x2: number, label: string, color: string) => {
-            const arrowSize = 6;
-
-            // Main horizontal line
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(x1, y);
-            ctx.lineTo(x2, y);
-            ctx.stroke();
-
-            // Left arrow
-            ctx.beginPath();
-            ctx.moveTo(x1, y);
-            ctx.lineTo(x1 + arrowSize, y - arrowSize);
-            ctx.lineTo(x1 + arrowSize, y + arrowSize);
-            ctx.closePath();
-            ctx.fillStyle = color;
-            ctx.fill();
-
-            // Right arrow
-            ctx.beginPath();
-            ctx.moveTo(x2, y);
-            ctx.lineTo(x2 - arrowSize, y - arrowSize);
-            ctx.lineTo(x2 - arrowSize, y + arrowSize);
-            ctx.closePath();
-            ctx.fill();
-
-            // Label
-            ctx.fillStyle = color;
-            ctx.font = 'bold 10px Arial';
+            // Overlay Measurements at fixed technical positions matching the reference image
+            ctx.font = 'bold 24px "Outfit", sans-serif';
+            ctx.fillStyle = '#0ea5e9'; // Modern Cyan matching reference arrows
             ctx.textAlign = 'center';
-            ctx.fillText(label, (x1 + x2) / 2, y - 8);
+
+            // 1. EP Labels (Bottom Center-ish Arrows)
+            ctx.fillText(`${epOD}`, 320, 370); // OD Position on arrows
+            ctx.fillText(`${epOG}`, 480, 370); // OG Position on arrows
+
+            // 2. Height Labels (Inside lenses, near vertical arrows)
+            ctx.fillStyle = '#ef4444'; // Modern Red for Heights
+            ctx.fillText(`${hOD}`, 235, 290); // Left lens (OD)
+            ctx.fillText(`${hOG}`, 565, 290); // Right lens (OG)
+
+            // 3. Calibre / Pont Labels (Top)
+            ctx.fillStyle = '#1e293b'; // Darker for top labels
+            ctx.font = 'bold 20px "Outfit", sans-serif';
+            ctx.fillText(`${calibre}`, 280, 110); // Calibre OD
+            ctx.fillText(`${calibre}`, 520, 110); // Calibre OG
+            ctx.fillText(`${pont}`, 400, 110);   // Pont
+
+            ctx.font = 'italic 10px monospace';
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.4)';
+            ctx.fillText('TECHNICAL_SYNC_ACTIVE: REF_V1.0', 100, 20);
         };
+    }
 
-        // COTATION 1: Largeur du verre (calibre) - EN BAS du verre OG
-        const dimensionY1 = lensY + lensHeight / 2 + 40; // Below the lens
-        const dimensionX1Start = leftLensX - lensWidth / 2;
-        const dimensionX1End = leftLensX + lensWidth / 2;
-        drawDimension(dimensionX1Start, dimensionY1, dimensionX1End, `${calibre}mm`, '#000000');
+    onCalibrationImageUpload(event: Event): void {
+        const file = (event.target as HTMLInputElement).files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e: any) => {
+                this.ficheForm.patchValue({
+                    montage: { capturedImage: e.target.result }
+                });
+                this.updateFrameCanvasVisualization();
+            };
+            reader.readAsDataURL(file);
+        }
+    }
 
-        // COTATION 2: Largeur totale de la monture - en bas (plus bas pour meilleure visibilité)
-        const dimensionY2 = lensY + lensHeight / 2 + 100; // Increased from 80 to 100
-        const totalLeftEdge = leftLensX - lensWidth / 2 - adjustmentScaled / 2;
-        const totalRightEdge = rightLensX + lensWidth / 2 + adjustmentScaled / 2;
-        drawDimension(totalLeftEdge, dimensionY2, totalRightEdge, `Largeur totale: ${totalWidth}mm`, '#FF8800');
+    /**
+     * Helper to get canvas data URL for print templates
+     */
+    getFrameCanvasDataUrl(): string {
+        try {
+            return this.frameCanvas?.nativeElement?.toDataURL() || '';
+        } catch (e) {
+            return '';
+        }
     }
 
     /**
@@ -3282,3 +3098,4 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         this.printFicheMontage();
     }
 }
+

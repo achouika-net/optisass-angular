@@ -194,7 +194,8 @@ export class ClientDetailComponent implements OnInit {
         }, 0);
         const reste = activeFactures.reduce((sum, f) => {
           if (f.type === 'FACTURE' || (f.type === 'DEVIS' && (f.statut === 'VENTE_EN_INSTANCE' || f.statut === 'ARCHIVE'))) {
-            return sum + (f.resteAPayer || 0);
+            const val = typeof f.resteAPayer === 'string' ? parseFloat(f.resteAPayer) : (f.resteAPayer || 0);
+            return sum + val;
           }
           return sum;
         }, 0);

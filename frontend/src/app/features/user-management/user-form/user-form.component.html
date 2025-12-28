@@ -88,23 +88,8 @@
                         <div class="photo-section">
                             <label class="section-label">Photo de profil</label>
 
-                            <!-- Camera View -->
-                            <div class="camera-container-compact" *ngIf="showCamera">
-                                <video #cameraVideo id="cameraVideo" autoplay playsinline
-                                    class="camera-video-compact"></video>
-                                <div class="camera-controls-compact">
-                                    <button mat-icon-button color="primary" type="button" (click)="capturePhoto()"
-                                        matTooltip="Capturer">
-                                        <mat-icon>camera</mat-icon>
-                                    </button>
-                                    <button mat-icon-button type="button" (click)="closeCamera()" matTooltip="Annuler">
-                                        <mat-icon>close</mat-icon>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Photo Preview or Placeholder -->
-                            <div class="photo-display" *ngIf="!showCamera">
+                            <div class="photo-display">
+                                <!-- Photo Preview or Placeholder -->
                                 <div class="photo-preview-compact"
                                     *ngIf="photoPreview || userForm.get('photoUrl')?.value">
                                     <img [src]="photoPreview || userForm.get('photoUrl')?.value"
@@ -136,7 +121,6 @@
                         </div>
                     </div>
                 </div>
-
             </mat-card-content>
         </mat-card>
 

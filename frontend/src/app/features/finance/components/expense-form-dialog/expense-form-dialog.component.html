@@ -32,11 +32,16 @@
 
                     <mat-form-field appearance="outline">
                         <mat-label>Fournisseur (Optionnel)</mat-label>
-                        <mat-select formControlName="fournisseurId">
-                            <mat-option value="">-- Aucun --</mat-option>
-                            <mat-option *ngFor="let s of suppliers" [value]="s.id">{{ s.nom }}</mat-option>
-                        </mat-select>
-                        <mat-icon matSuffix>business</mat-icon>
+                        <input type="text" placeholder="Sélectionner ou saisir..." matInput [formControl]="supplierCtrl"
+                            [matAutocomplete]="autoSupplier">
+                        <mat-autocomplete #autoSupplier="matAutocomplete" [displayWith]="displayFn">
+                            <mat-option *ngFor="let s of filteredSuppliers | async" [value]="s">
+                                {{ s.nom }}
+                            </mat-option>
+                        </mat-autocomplete>
+                        <mat-icon matSuffix class="cursor-pointer" (click)="supplierCtrl.setValue('')"
+                            *ngIf="supplierCtrl.value">close</mat-icon>
+                        <mat-icon matSuffix *ngIf="!supplierCtrl.value">business</mat-icon>
                     </mat-form-field>
 
                     <mat-form-field appearance="outline">

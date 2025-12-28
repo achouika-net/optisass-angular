@@ -93,6 +93,8 @@ model Facture {
   mouvementsStock MouvementStock[]
   paiements       Paiement[]
   pointsHistory   PointsHistory[]
+
+  @@index([centreId])
 }
 
 model Paiement {
@@ -114,6 +116,11 @@ model Paiement {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   facture       Facture   @relation(fields: [factureId], references: [id], onDelete: Cascade)
+
+  @@index([date])
+  @@index([mode])
+  @@index([statut])
+  @@index([factureId])
 }
 
 model Groupe {
@@ -340,6 +347,9 @@ model Depense {
   validePar           String?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+
+  @@index([date])
+  @@index([centreId])
 }
 
 model FactureFournisseur {
@@ -363,6 +373,8 @@ model FactureFournisseur {
   updatedAt        DateTime  @updatedAt
 
   @@unique([fournisseurId, numeroFacture])
+  @@index([dateEmission])
+  @@index([centreId])
 }
 
 model EcheancePaiement {
@@ -380,6 +392,9 @@ model EcheancePaiement {
   depense             Depense?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+
+  @@index([dateEcheance])
+  @@index([statut])
 }
 
 model FinanceConfig {

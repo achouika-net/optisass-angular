@@ -366,10 +366,23 @@ export class PaymentListComponent implements OnInit {
 
             // 1. Setup Impayés (Global View only)
             if (!isFicheMode) {
-                this.impayes = factures.filter(f =>
-                    (f.type === 'FACTURE' || (f.type === 'DEVIS' && (f.statut === 'VENTE_EN_INSTANCE' || f.statut === 'ARCHIVE'))) &&
-                    (f.resteAPayer || 0) > 0
-                );
+                console.log('$$$ [PaymentList] Filtering Debts from', factures.length, 'invoices.');
+                this.impayes = factures.filter(f => {
+                    const isFacture = f.type === 'FACTURE';
+                    const isDevis = f.type === 'DEVIS' && (f.statut === 'VENTE_EN_INSTANCE' || f.statut === 'ARCHIVE');
+                    // [DEBUG] Ensure resteAPayer is treated as number
+                    const reste = typeof f.resteAPayer === 'string' ? parseFloat(f.resteAPayer) : (f.resteAPayer || 0);
+                    const hasDebt = reste > 0.05; // Tolerance for float precision
+
+                    // Log potential candidates to debug why they might be excluded
+                    if (isFacture || isDevis) {
+                        const kept = (isFacture || isDevis) && hasDebt;
+                        console.log(`   -> Doc ${f.numero} (${f.type}/${f.statut}): Reste=${f.resteAPayer} (Parsed=${reste}) => Kept? ${kept}`);
+                    }
+
+                    return (isFacture || isDevis) && hasDebt;
+                });
+                console.log('$$$ [PaymentList] Final Impayes:', this.impayes.length);
                 this.impayesDataSource.data = this.impayes;
             } else {
                 this.impayes = [];

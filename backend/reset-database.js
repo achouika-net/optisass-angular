@@ -48,8 +48,8 @@ async function resetDatabase() {
         console.log(`   ✓ Deleted ${depenses.count} records`);
 
         console.log('📦 Deleting Products...');
-        const produits = await prisma.produit.deleteMany({});
-        console.log(`   ✓ Deleted ${produits.count} records`);
+        const products = await prisma.product.deleteMany({});
+        console.log(`   ✓ Deleted ${products.count} records`);
 
         console.log('\n✅ Database reset completed successfully!');
         console.log('\n📊 Summary:');
@@ -60,7 +60,7 @@ async function resetDatabase() {
         console.log(`   - Dépenses: ${depenses.count}`);
         console.log(`   - Factures Fournisseurs: ${facturesFournisseurs.count}`);
         console.log(`   - Échéances: ${echeances.count}`);
-        console.log(`   - Produits: ${produits.count}`);
+        console.log(`   - Produits: ${products.count}`);
         console.log(`   - Mouvements Stock: ${stockMovements.count}`);
         console.log(`   - Points History: ${pointsHistory.count}`);
         console.log(`   - Reward Redemptions: ${rewards.count}`);

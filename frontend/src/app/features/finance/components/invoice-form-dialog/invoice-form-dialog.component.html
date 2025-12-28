@@ -26,14 +26,20 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                                 <mat-form-field appearance="outline" class="md:col-span-2">
                                     <mat-label>Fournisseur *</mat-label>
-                                    <mat-select formControlName="fournisseurId">
-                                        <mat-option *ngFor="let s of suppliers" [value]="s.id">
+                                    <input type="text" placeholder="Sélectionner ou saisir..." matInput
+                                        [formControl]="supplierCtrl" [matAutocomplete]="autoSupplier">
+                                    <mat-autocomplete #autoSupplier="matAutocomplete" [displayWith]="displayFn"
+                                        (optionSelected)="onSupplierChange($event.option.value?.id)">
+                                        <mat-option *ngFor="let s of filteredSuppliers | async" [value]="s">
                                             {{ s.nom }}
                                             <span *ngIf="s.ville" class="text-xs text-gray-500"> ({{ s.ville }})</span>
                                         </mat-option>
-                                    </mat-select>
+                                    </mat-autocomplete>
+                                    <mat-icon matSuffix class="cursor-pointer" (click)="supplierCtrl.setValue('')"
+                                        *ngIf="supplierCtrl.value">close</mat-icon>
+                                    <mat-icon matSuffix *ngIf="!supplierCtrl.value">business</mat-icon>
                                     <mat-error
-                                        *ngIf="detailsGroup.get('fournisseurId')?.hasError('required')">Requis</mat-error>
+                                        *ngIf="detailsGroup.get('fournisseurId')?.hasError('required') && !supplierCtrl.value">Requis</mat-error>
                                 </mat-form-field>
 
                                 <mat-form-field appearance="outline">
@@ -72,8 +78,9 @@
                             <div
                                 class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 pt-6 border-t bg-gray-50 p-4 rounded-xl">
                                 <mat-form-field appearance="outline">
-                                    <mat-label>Montant HT *</mat-label>
-                                    <input matInput type="number" formControlName="montantHT">
+                                    <mat-label>Total TTC *</mat-label>
+                                    <input matInput type="number" formControlName="montantTTC">
+                                    <mat-hint>Saisissez le montant TTC</mat-hint>
                                 </mat-form-field>
 
                                 <mat-form-field appearance="outline">
@@ -88,22 +95,66 @@
                                 </mat-form-field>
 
                                 <mat-form-field appearance="outline">
-                                    <mat-label>Montant TVA</mat-label>
-                                    <input matInput type="number" formControlName="montantTVA">
+                                    <mat-label>Montant HT</mat-label>
+                                    <input matInput type="number" formControlName="montantHT" readonly>
+                                    <mat-hint>Calculé automatiquement</mat-hint>
                                 </mat-form-field>
 
                                 <mat-form-field appearance="outline">
-                                    <mat-label>Total TTC (Auto)</mat-label>
-                                    <input matInput type="number" formControlName="montantTTC" readonly
-                                        class="font-bold">
+                                    <mat-label>Montant TVA</mat-label>
+                                    <input matInput type="number" formControlName="montantTVA" readonly>
                                 </mat-form-field>
                             </div>
 
-                            <mat-form-field appearance="outline" class="w-full">
-                                <mat-label>URL Justificatif (PDF/Image)</mat-label>
-                                <input matInput formControlName="pieceJointeUrl" placeholder="http://...">
-                                <mat-icon matSuffix>link</mat-icon>
-                            </mat-form-field>
+                            <!-- Pièces jointes -->
+                            <div class="mb-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="text-sm font-semibold text-gray-700">Pièces jointes</h4>
+                                    <div class="flex gap-2">
+                                        <button type="button" mat-raised-button color="primary"
+                                            (click)="openFileUpload()">
+                                            <mat-icon>upload_file</mat-icon>
+                                            Importer Files
+                                        </button>
+                                        <button type="button" mat-raised-button color="accent" (click)="openCamera()">
+                                            <mat-icon>photo_camera</mat-icon>
+                                            Prendre une photo
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <input #fileInput type="file" accept="image/*,application/pdf" multiple class="hidden"
+                                    (change)="onFilesSelected($event)">
+
+                                <!-- Liste des fichiers -->
+                                <div *ngIf="attachmentFiles.length > 0" class="space-y-2">
+                                    <div *ngFor="let file of attachmentFiles; let i = index"
+                                        class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                        <div class="flex items-center gap-3">
+                                            <mat-icon class="text-gray-600">
+                                                {{ file.type.startsWith('image/') ? 'image' : 'picture_as_pdf' }}
+                                            </mat-icon>
+                                            <div>
+                                                <a href="javascript:void(0)" (click)="viewFile(file)"
+                                                    class="text-blue-600 hover:underline font-medium">
+                                                    {{ file.name }}
+                                                </a>
+                                                <p class="text-xs text-gray-500">{{ formatFileSize(file.size) }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button type="button" mat-icon-button (click)="viewFile(file)"
+                                                matTooltip="Visualiser">
+                                                <mat-icon>visibility</mat-icon>
+                                            </button>
+                                            <button type="button" mat-icon-button color="warn" (click)="deleteFile(i)"
+                                                matTooltip="Supprimer">
+                                                <mat-icon>delete</mat-icon>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </form>
 
                         <div class="flex justify-end mt-6">
@@ -133,17 +184,17 @@
 
                         <div class="space-y-4">
                             <div *ngFor="let eg of echeances.controls; let i=index" [formGroup]="$any(eg)"
-                                class="p-6 bg-gray-50 border border-gray-100 rounded-xl relative">
-                                <div class="flex justify-between items-center mb-4 border-b pb-2">
-                                    <h4 class="text-sm font-bold text-gray-700 uppercase">Échéance #{{i+1}}</h4>
+                                class="p-2 bg-gray-50 border border-gray-100 rounded-lg relative mb-2">
+                                <div class="flex justify-between items-center mb-2 border-b pb-1">
+                                    <h4 class="text-xs font-bold text-gray-700 uppercase">Échéance #{{i+1}}</h4>
                                     <button mat-icon-button color="warn" (click)="removeEcheance(i)" *ngIf="!isViewMode"
-                                        matTooltip="Supprimer l'échéance">
+                                        matTooltip="Supprimer l'échéance" class="scale-75">
                                         <mat-icon>delete</mat-icon>
                                     </button>
                                 </div>
 
-                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <mat-form-field appearance="outline">
+                                <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
+                                    <mat-form-field appearance="outline" class="dense-field">
                                         <mat-label>Mode *</mat-label>
                                         <mat-select formControlName="type">
                                             <mat-option *ngFor="let m of paymentMethods" [value]="m">{{ m
@@ -151,21 +202,26 @@
                                         </mat-select>
                                     </mat-form-field>
 
-                                    <mat-form-field appearance="outline">
+                                    <mat-form-field appearance="outline" class="dense-field">
                                         <mat-label>Date *</mat-label>
                                         <input matInput [matDatepicker]="pick" formControlName="dateEcheance">
                                         <mat-datepicker-toggle matIconSuffix [for]="pick"></mat-datepicker-toggle>
                                         <mat-datepicker #pick></mat-datepicker>
                                     </mat-form-field>
 
-                                    <mat-form-field appearance="outline">
+                                    <mat-form-field appearance="outline" class="dense-field">
                                         <mat-label>Montant *</mat-label>
                                         <input matInput type="number" formControlName="montant">
                                     </mat-form-field>
 
-                                    <mat-form-field appearance="outline">
-                                        <mat-label>Réf / Banque *</mat-label>
-                                        <input matInput formControlName="banque" placeholder="Réf ou Banque">
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>N° Pièce</mat-label>
+                                        <input matInput formControlName="reference" placeholder="N° Chèque/LCN">
+                                    </mat-form-field>
+
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Banque</mat-label>
+                                        <input matInput formControlName="banque" placeholder="Nom de la banque">
                                     </mat-form-field>
                                 </div>
                             </div>
@@ -212,4 +268,25 @@
             </mat-stepper>
         </mat-card-content>
     </mat-card>
+
+
+    <!-- File Viewer Modal -->
+    <div *ngIf="viewingFile" class="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
+        (click)="closeViewer()">
+        <div class="bg-white rounded-lg p-6 max-w-6xl w-full max-h-[90vh] overflow-auto"
+            (click)="$event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">{{ viewingFile.name }}</h3>
+                <button type="button" mat-icon-button (click)="closeViewer()">
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
+            <div class="flex justify-center">
+                <img *ngIf="viewingFile.type.startsWith('image/')" [src]="viewingFile.preview"
+                    class="max-w-full max-h-[70vh] object-contain">
+                <iframe *ngIf="viewingFile.type === 'application/pdf'" [src]="viewingFile.preview"
+                    class="w-full h-[70vh]"></iframe>
+            </div>
+        </div>
+    </div>
 </div>

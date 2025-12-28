@@ -1,4 +1,6 @@
-import { Component, OnInit, computed, inject } from '@angular/core';
+import { Component, OnInit, computed, inject, ChangeDetectorRef } from '@angular/core';
+import { CameraCaptureDialogComponent } from '../../../shared/components/camera-capture/camera-capture-dialog.component';
+import { MatDialog } from '@angular/material/dialog';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormArray } from '@angular/forms';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
@@ -46,7 +48,6 @@ export class UserFormComponent implements OnInit {
     // Photo upload
     selectedPhoto: File | null = null;
     photoPreview: string | null = null;
-    showCamera = false; // Toggle camera view
 
     // Enums for dropdowns
     civilites = Object.values(Civilite);
@@ -65,7 +66,9 @@ export class UserFormComponent implements OnInit {
         private userService: UserService,
         private router: Router,
         private route: ActivatedRoute,
-        private snackBar: MatSnackBar
+        private snackBar: MatSnackBar,
+        private dialog: MatDialog,
+        private cdr: ChangeDetectorRef
     ) {
         this.userForm = this.createForm();
     }
@@ -308,7 +311,6 @@ export class UserFormComponent implements OnInit {
     removePhoto(): void {
         this.selectedPhoto = null;
         this.photoPreview = null;
-        this.showCamera = false;
         this.userForm.patchValue({ photoUrl: '' });
     }
 
@@ -316,89 +318,53 @@ export class UserFormComponent implements OnInit {
      * Open camera for photo capture
      */
     async openCamera(): Promise<void> {
-        this.showCamera = true;
+        const dialogRef = this.dialog.open(CameraCaptureDialogComponent, {
+            width: '800px',
+            disableClose: true
+        });
 
-        // Wait for DOM to update
-        setTimeout(async () => {
-            try {
-                const video = document.getElementById('cameraVideo') as HTMLVideoElement;
-                if (video) {
-                    // Request camera access
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            facingMode: 'user', // Front camera for selfies
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        }
-                    });
-
-                    video.srcObject = stream;
-                }
-            } catch (error) {
-                console.error('Error accessing camera:', error);
-                alert('Impossible d\'accéder à la caméra. Veuillez vérifier les permissions.');
-                this.showCamera = false;
+        dialogRef.afterClosed().subscribe(dataUrl => {
+            if (dataUrl) {
+                this.handleCapturedPhoto(dataUrl);
             }
-        }, 100);
+        });
     }
 
-    /**
-     * Capture photo from camera
-     */
-    async capturePhoto(): Promise<void> {
-        const video = document.getElementById('cameraVideo') as HTMLVideoElement;
-        const canvas = document.createElement('canvas');
+    private async handleCapturedPhoto(dataUrl: string): Promise<void> {
+        try {
+            // Compress image
+            this.photoPreview = await this.compressImage(dataUrl);
+            this.userForm.patchValue({ photoUrl: this.photoPreview });
 
-        if (video && video.videoWidth > 0) {
-            // Set canvas dimensions to match video
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-
-            // Draw current video frame to canvas
-            const context = canvas.getContext('2d');
-            if (context) {
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                // Convert canvas to blob
-                canvas.toBlob(async (blob) => {
-                    if (blob) {
-                        // Create preview
-                        const reader = new FileReader();
-                        reader.onload = async (e) => {
-                            const originalDataUrl = e.target?.result as string;
-                            try {
-                                // Compress image
-                                this.photoPreview = await this.compressImage(originalDataUrl);
-                                this.userForm.patchValue({ photoUrl: this.photoPreview });
-                                this.closeCamera();
-                            } catch (err) {
-                                console.error('Compression error:', err);
-                                this.photoPreview = originalDataUrl;
-                                this.userForm.patchValue({ photoUrl: this.photoPreview });
-                                this.closeCamera();
-                            }
-                        };
-                        reader.readAsDataURL(blob);
-
-                        // Store as file (we could store the compressed blob here too if needed)
-                        this.selectedPhoto = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
-                    }
-                }, 'image/jpeg', 0.9);
-            }
+            // Store as file
+            this.selectedPhoto = this.dataURLtoFile(this.photoPreview, 'camera-photo.jpg');
+            this.cdr.markForCheck();
+        } catch (err) {
+            console.error('Photo handling error:', err);
+            this.photoPreview = dataUrl;
+            this.userForm.patchValue({ photoUrl: this.photoPreview });
+            this.selectedPhoto = this.dataURLtoFile(dataUrl, 'camera-photo.jpg');
+            this.cdr.markForCheck();
         }
     }
 
+    private dataURLtoFile(dataurl: string, filename: string): File {
+        const arr = dataurl.split(',');
+        const mime = arr[0].match(/:(.*?);/)![1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new File([u8arr], filename, { type: mime });
+    }
+
     /**
-     * Close camera and stop stream
+     * Close camera - Placeholder for compatibility if needed, but no longer used internally
      */
     closeCamera(): void {
-        const video = document.getElementById('cameraVideo') as HTMLVideoElement;
-        if (video && video.srcObject) {
-            const stream = video.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
-            video.srcObject = null;
-        }
-        this.showCamera = false;
+        // No longer needed as dialog handles its own closure
     }
 
     /**
@@ -446,7 +412,6 @@ export class UserFormComponent implements OnInit {
      * Cancel and go back
      */
     onCancel(): void {
-        this.closeCamera(); // Stop camera if active
         this.router.navigate(['/p/users']);
     }
 }

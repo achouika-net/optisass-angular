@@ -12,6 +12,8 @@ import { FormsModule } from '@angular/forms';
 import { FinanceService } from '../../services/finance.service';
 import { Chart, registerables } from 'chart.js';
 import { Store } from '@ngrx/store';
+import { forkJoin } from 'rxjs';
+import { ChangeDetectorRef } from '@angular/core';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
 
 Chart.register(...registerables);
@@ -48,9 +50,10 @@ Chart.register(...registerables);
   `]
 })
 export class FinanceDashboardComponent implements OnInit, AfterViewInit {
-    @ViewChild('categoryChart') categoryChartRef!: ElementRef;
+    @ViewChild('healthChart') healthChartRef!: ElementRef;
 
-    private categoryChart: Chart | null = null;
+    private healthChart: Chart | null = null;
+
     summary: any = null;
     loading = false;
     currentYear = new Date().getFullYear();
@@ -80,8 +83,9 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
 
     constructor(
         private financeService: FinanceService,
+        private store: Store,
         private zone: NgZone,
-        private store: Store
+        private cd: ChangeDetectorRef
     ) {
         // Build year list
         const startYear = 2023;
@@ -128,13 +132,25 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
     loadData() {
         this.loading = true;
         const centreId = this.currentCentre()?.id;
-        this.financeService.getTreasurySummary(this.currentYear, this.currentMonth, centreId).subscribe({
-            next: (data) => {
+
+        forkJoin({
+            monthly: this.financeService.getTreasurySummary(this.currentYear, this.currentMonth, centreId),
+            yearly: this.financeService.getYearlyProjection(this.currentYear)
+        }).subscribe({
+            next: ({ monthly, yearly }) => {
                 this.zone.run(() => {
-                    this.summary = data;
-                    this.monthlyThreshold = data.monthlyThreshold || 50000;
-                    setTimeout(() => this.updateChart(data.categories), 0);
+                    console.log('Dashboard Data Loaded:', { monthly, yearly });
+                    this.summary = monthly;
+                    this.monthlyThreshold = monthly.monthlyThreshold || 50000;
                     this.loading = false;
+                    this.cd.detectChanges(); // Force view update
+
+                    // Update charts after DOM is rendered
+                    setTimeout(() => {
+                        console.log('Initializing charts...');
+                        // this.updateCategoryChart(monthly.categories); // Removed
+                        this.updateHealthChart(yearly);
+                    }, 100);
                 });
             },
             error: (err) => {
@@ -146,30 +162,123 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         });
     }
 
-    updateChart(categories: any[]) {
-        if (this.categoryChart) {
-            this.categoryChart.destroy();
+
+
+    updateHealthChart(yearlyData: any[]) {
+        console.log('updateHealthChart called with:', yearlyData);
+        if (this.healthChart) {
+            this.healthChart.destroy();
         }
 
-        const ctx = this.categoryChartRef.nativeElement.getContext('2d');
-        this.categoryChart = new Chart(ctx, {
-            type: 'pie',
+        if (!this.healthChartRef?.nativeElement) {
+            console.error('Health Chart Ref is missing!', this.healthChartRef);
+            return;
+        }
+
+        console.log('Health Chart Ref found, creating chart...');
+
+
+        // Prepare data for 12 months (ensure alignment with labels)
+        const labels = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+        const expenses = new Array(12).fill(0);
+        const ceiling = this.monthlyThreshold;
+
+        // Fill real data
+        if (Array.isArray(yearlyData)) {
+            yearlyData.forEach(item => {
+                if (item.month >= 1 && item.month <= 12) {
+                    expenses[item.month - 1] = item.totalExpenses || 0;
+                }
+            });
+        }
+
+        // Determine colors based on ceiling
+        const backgroundColors = expenses.map(val => {
+            const p = (val / ceiling) * 100;
+            if (p > 100) return '#ef4444'; // Red-500
+            if (p > 80) return '#f97316';  // Orange-500
+            return '#22c55e';              // Green-500
+        });
+
+        const ctx = this.healthChartRef.nativeElement.getContext('2d');
+        this.healthChart = new Chart(ctx, {
+            type: 'bar',
             data: {
-                labels: categories.map(c => c.name),
-                datasets: [{
-                    data: categories.map(c => c.value),
-                    backgroundColor: this.chartColors
-                }]
+                labels: labels,
+                datasets: [
+                    {
+                        type: 'line',
+                        label: 'Plafond',
+                        data: new Array(12).fill(ceiling),
+                        borderColor: '#9ca3af', // Gray-400
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false,
+                        order: 0
+                    },
+                    {
+                        type: 'bar',
+                        label: 'Dépenses',
+                        data: expenses,
+                        backgroundColor: backgroundColors,
+                        borderRadius: 4,
+                        barPercentage: 0.6,
+                        order: 1
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false }, // Hide default legend
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: { usePointStyle: true, boxWidth: 8 }
+                    },
                     tooltip: {
-                        bodyFont: { size: 14 },
-                        titleFont: { size: 16 }
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: (context) => {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'MAD' }).format(context.parsed.y);
+                                }
+                                return label;
+                            }
+                        }
                     }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: '#f3f4f6'
+                        },
+                        ticks: {
+                            callback: (value) => {
+                                if (typeof value === 'number' && value >= 1000) {
+                                    return (value / 1000) + 'k';
+                                }
+                                return value;
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
                 }
             }
         });

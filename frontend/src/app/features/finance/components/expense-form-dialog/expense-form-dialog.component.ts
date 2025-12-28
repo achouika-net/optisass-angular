@@ -1,6 +1,6 @@
 import { Component, Inject, OnInit, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormControl } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -59,8 +59,17 @@ export class ExpenseFormDialogComponent implements OnInit {
     centers: any[] = [];
     suppliers: Supplier[] = [];
 
-    categories = ['LOYER', 'ELECTRICITE', 'EAU', 'INTERNET', 'TELEPHONE', 'SALAIRE', 'ACHAT_MARCHANDISE', 'TRANSPORT', 'REPAS', 'AUTRE'];
+    categories = [
+        'ACHAT_VERRE_OPTIQUE', 'ACHAT_MONTURES_OPTIQUE', 'ACHAT_MONTURES_SOLAIRE',
+        'ACHAT_LENTILLES', 'ACHAT_PRODUITS', 'COTISATION_AMO_CNSS',
+        'LOYER', 'ELECTRICITE', 'EAU', 'INTERNET', 'TELEPHONE', 'SALAIRE',
+        'ACHAT_MARCHANDISE', 'TRANSPORT', 'REPAS', 'AUTRE'
+    ];
     filteredCategories!: Observable<string[]>;
+
+    // Supplier Autocomplete
+    supplierCtrl = new FormControl('');
+    filteredSuppliers!: Observable<Supplier[]>;
     paymentMethods = ['ESPECES', 'CHEQUE', 'LCN', 'VIREMENT', 'CARTE'];
 
     constructor(
@@ -136,9 +145,34 @@ export class ExpenseFormDialogComponent implements OnInit {
 
     loadSuppliers() {
         this.financeService.getSuppliers().subscribe({
-            next: (data) => this.suppliers = data,
+            next: (data) => {
+                this.suppliers = data;
+                this.setupSupplierFilter();
+
+                // If editing and has provider
+                const currentId = this.form.get('fournisseurId')?.value;
+                if (currentId) {
+                    const s = this.suppliers.find(x => x.id === currentId);
+                    if (s) this.supplierCtrl.setValue(s.nom); // OR set object if using displayWith
+                }
+            },
             error: (err) => console.error('Erreur chargement fournisseurs', err)
         });
+    }
+
+    setupSupplierFilter() {
+        this.filteredSuppliers = this.supplierCtrl.valueChanges.pipe(
+            startWith(''),
+            map(value => {
+                const name = typeof value === 'string' ? value : (value as any)?.nom;
+                return name ? this._filterSuppliers(name as string) : this.suppliers.slice();
+            })
+        );
+    }
+
+    private _filterSuppliers(name: string): Supplier[] {
+        const filterValue = name.toLowerCase();
+        return this.suppliers.filter((option: Supplier) => option.nom.toLowerCase().includes(filterValue));
     }
 
     private _filterCategories(value: string): string[] {
@@ -149,23 +183,67 @@ export class ExpenseFormDialogComponent implements OnInit {
     onSubmit() {
         if (this.form.valid) {
             this.submitting = true;
-            const expenseData = this.form.value;
-            if (this.isEditMode) {
-                const id = this.route.snapshot.paramMap.get('id') || this.data?.expense?.id;
-                if (id) {
-                    this.financeService.updateExpense(id, expenseData).subscribe({
-                        next: () => this.finalize(expenseData),
-                        error: () => this.submitting = false
-                    });
-                }
-            } else {
-                this.financeService.createExpense(expenseData).subscribe({
-                    next: res => this.finalize(res),
+            this.handleSupplierAndSave();
+        } else {
+            this.form.markAllAsTouched();
+        }
+    }
+
+    private handleSupplierAndSave() {
+        const supplierInput = this.supplierCtrl.value;
+        // If empty, proceed without supplier
+        if (!supplierInput) {
+            this.form.patchValue({ fournisseurId: null });
+            this.saveExpense();
+            return;
+        }
+
+        // Check if selected existing
+        if (typeof supplierInput === 'object' && supplierInput && 'id' in supplierInput) {
+            const s = supplierInput as Supplier;
+            this.form.patchValue({ fournisseurId: s.id });
+            this.saveExpense();
+            return;
+        }
+
+        // It is a string
+        const name = String(supplierInput);
+        // Check if it matches an existing one by name (case insensitive)
+        const existing = this.suppliers.find(s => s.nom.toLowerCase() === name.toLowerCase());
+        if (existing) {
+            this.form.patchValue({ fournisseurId: existing.id });
+            this.saveExpense();
+            return;
+        }
+
+        // Creating new supplier
+        this.financeService.createSupplier({ nom: name }).subscribe({
+            next: (newSupplier) => {
+                this.form.patchValue({ fournisseurId: newSupplier.id });
+                this.saveExpense();
+            },
+            error: (err) => {
+                console.error('Error creating supplier', err);
+                this.submitting = false; // Stop on error
+            }
+        });
+    }
+
+    private saveExpense() {
+        const expenseData = this.form.value;
+        if (this.isEditMode) {
+            const id = this.route.snapshot.paramMap.get('id') || this.data?.expense?.id;
+            if (id) {
+                this.financeService.updateExpense(id, expenseData).subscribe({
+                    next: () => this.finalize(expenseData),
                     error: () => this.submitting = false
                 });
             }
         } else {
-            this.form.markAllAsTouched();
+            this.financeService.createExpense(expenseData).subscribe({
+                next: res => this.finalize(res),
+                error: () => this.submitting = false
+            });
         }
     }
 
@@ -196,5 +274,9 @@ export class ExpenseFormDialogComponent implements OnInit {
     get showReference(): boolean {
         const mode = this.form.get('modePaiement')?.value;
         return mode === 'CHEQUE' || mode === 'LCN' || mode === 'CARTE';
+    }
+
+    displayFn(supplier: Supplier): string {
+        return supplier && supplier.nom ? supplier.nom : '';
     }
 }

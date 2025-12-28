@@ -49,6 +49,12 @@ export const MENU: MenuItem[] = [
         icon: 'savings',
         type: 'subchild',
         route: 'finance/dashboard',
+      },
+      {
+        label: 'Contrôle des Ventes',
+        icon: 'policy',
+        type: 'subchild',
+        route: 'finance/sales-control',
       }
     ]
   },
@@ -70,12 +76,7 @@ export const MENU: MenuItem[] = [
         type: 'subchild',
         route: 'stock',
       },
-      {
-        label: 'Contrôle des Ventes',
-        icon: 'policy',
-        type: 'subchild',
-        route: 'reports/sales-control',
-      },
+
       {
         label: 'Catégories',
         icon: 'category',

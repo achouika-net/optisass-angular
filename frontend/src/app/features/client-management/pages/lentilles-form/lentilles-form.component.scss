@@ -1027,3 +1027,215 @@
         }
     }
 }
+
+// File Upload & Camera Styles
+.gap-2 {
+    gap: 8px;
+}
+
+.flex {
+    display: flex;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.hidden {
+    display: none;
+}
+
+.pt-4 {
+    padding-top: 16px;
+}
+
+.px-4 {
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+.ocr-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 20px;
+    background: #f0f9ff;
+    color: #0369a1;
+    font-weight: 500;
+    margin: 0 16px 16px 16px;
+    border-radius: 8px;
+    border: 1px dashed #bae6fd;
+}
+
+.files-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.file-chip {
+    display: flex;
+    align-items: center;
+    background: #f1f5f9;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s;
+
+    &:hover {
+        background: #e2e8f0;
+    }
+
+    .file-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+        margin-right: 8px;
+        color: #475569;
+    }
+
+    .file-name {
+        font-size: 13px;
+        font-weight: 500;
+        color: #334155;
+        cursor: pointer;
+        margin-right: 8px;
+        max-width: 200px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        &:hover {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+    }
+
+    .mini-btn-delete {
+        width: 24px;
+        height: 24px;
+        line-height: 24px;
+        color: #94a3b8;
+
+        mat-icon {
+            font-size: 16px;
+        }
+
+        &:hover {
+            color: #ef4444;
+        }
+    }
+}
+
+// Camera Modal
+.camera-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    .camera-modal {
+        position: relative;
+        width: 100%;
+        max-width: 800px;
+        background: black;
+        border-radius: 12px;
+        overflow: hidden;
+
+        video {
+            width: 100%;
+            display: block;
+        }
+
+        .camera-actions {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            padding: 20px;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+
+            .capture-btn {
+                transform: scale(1.2);
+            }
+        }
+    }
+}
+
+// File Viewer Modal
+.file-viewer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+
+    .file-viewer-content {
+        background: white;
+        width: 100%;
+        max-width: 1000px;
+        height: 90vh;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+
+        .viewer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            background: white;
+
+            h3 {
+                margin: 0;
+                font-size: 16px;
+                color: #1e293b;
+            }
+        }
+
+        .viewer-body {
+            flex: 1;
+            background: #f1f5f9;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+
+            .preview-image {
+                max-width: 100%;
+                max-height: 100%;
+                object-fit: contain;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+
+            .preview-pdf {
+                width: 100%;
+                height: 100%;
+                border: none;
+            }
+        }
+    }
+}

@@ -45,10 +45,7 @@ export const routes: Routes = [
         path: 'users',
         loadChildren: () => import('./features/user-management/user-management.routes').then(m => m.userManagementRoutes),
       },
-      {
-        path: 'reports/sales-control',
-        loadComponent: () => import('./features/reports/sales-control-report/sales-control-report.component').then(m => m.SalesControlReportComponent),
-      },
+
       {
         path: 'settings/loyalty',
         loadComponent: () => import('./features/settings/loyalty-config/loyalty-config.component').then(m => m.LoyaltyConfigComponent),

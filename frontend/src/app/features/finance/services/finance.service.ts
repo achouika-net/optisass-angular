@@ -110,4 +110,19 @@ export class FinanceService {
     getConsolidatedIncomings(filters: any): Observable<any[]> {
         return this.http.get<any[]>(`${this.apiUrl}/treasury/consolidated-incomings`, { params: filters });
     }
+
+    getUnpaidClientInvoices(filters?: any): Observable<any[]> {
+        let params = new HttpParams().set('unpaid', 'true');
+        if (filters?.startDate) params = params.set('startDate', filters.startDate); // Use createdAt filters if backend supports?
+        // Note: FacturesController.findAll doesn't explicitely handle startDate/endDate yet in my recent edit.
+        // It relies on generic filters? No, I only added clientId, type, statut.
+        // If I want date filtering, I need to add it to backend too.
+        // For now, let's just fetch unpaid to show the list.
+
+        return this.http.get<any[]>(`${this.apiUrl}/factures`, { params });
+    }
+
+    validatePayment(id: string): Observable<any> {
+        return this.http.patch(`${this.apiUrl}/paiements/${id}`, { statut: 'ENCAISSE' });
+    }
 }

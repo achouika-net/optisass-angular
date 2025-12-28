@@ -1,4 +1,5 @@
-import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
+import { CameraCaptureDialogComponent } from '../../../../shared/components/camera-capture/camera-capture-dialog.component';
 import { CommonModule } from '@angular/common';
 import { AdaptationModerneComponent } from './components/adaptation-moderne/adaptation-moderne.component';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -24,9 +25,20 @@ import { ContactLensType, ContactLensUsage } from '../../../../shared/interfaces
 import { FactureFormComponent } from '../facture-form/facture-form.component';
 import { PaymentListComponent } from '../../components/payment-list/payment-list.component';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
 import { StockSearchDialogComponent } from '../../../stock-management/dialogs/stock-search-dialog/stock-search-dialog.component';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+
+interface PrescriptionFile {
+    name: string;
+    type: string;
+    size: number;
+    preview: string | SafeResourceUrl;
+    file: File;
+    uploadDate: Date;
+}
 
 @Component({
     selector: 'app-lentilles-form',
@@ -51,7 +63,8 @@ import { StockSearchDialogComponent } from '../../../stock-management/dialogs/st
         AdaptationModerneComponent,
         FactureFormComponent,
         PaymentListComponent,
-        MatDialogModule
+        MatDialogModule,
+        MatProgressSpinnerModule
     ],
     templateUrl: './lentilles-form.component.html',
     styleUrls: ['./lentilles-form.component.scss'],
@@ -73,6 +86,13 @@ export class LentillesFormComponent implements OnInit {
     // Linked Invoice
     linkedFacture: any = null;
 
+    // File Upload & OCR
+    @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+
+    prescriptionFiles: PrescriptionFile[] = [];
+    isProcessingOcr = false;
+    viewingFile: PrescriptionFile | null = null;
+
     constructor(
         private fb: FormBuilder,
         private route: ActivatedRoute,
@@ -82,7 +102,8 @@ export class LentillesFormComponent implements OnInit {
         private factureService: FactureService,
         private dialog: MatDialog,
         private snackBar: MatSnackBar,
-        private cdr: ChangeDetectorRef
+        private cdr: ChangeDetectorRef,
+        private sanitizer: DomSanitizer
     ) {
         this.ficheForm = this.initForm();
     }
@@ -601,4 +622,166 @@ export class LentillesFormComponent implements OnInit {
     onSuggestionGenerated(suggestion: any): void {
         // Suggestion handled by child, potentially trigger re-calc of visual aid
     }
+
+    // --- File Upload & OCR Logic ---
+
+    openFileUpload(): void {
+        this.fileInput.nativeElement.click();
+    }
+
+    onFilesSelected(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        if (!input.files || input.files.length === 0) return;
+
+        Array.from(input.files).forEach(file => {
+            if (file.size > 10 * 1024 * 1024) {
+                alert(`Le fichier ${file.name} est trop volumineux (max 10MB)`);
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const preview = file.type === 'application/pdf'
+                    ? this.sanitizer.bypassSecurityTrustResourceUrl(e.target?.result as string)
+                    : e.target?.result as string;
+
+                const prescriptionFile: PrescriptionFile = {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    preview,
+                    file,
+                    uploadDate: new Date()
+                };
+                this.prescriptionFiles.push(prescriptionFile);
+
+                // Auto-trigger OCR for images
+                if (file.type.startsWith('image/')) {
+                    this.extractData(prescriptionFile);
+                }
+
+                this.cdr.markForCheck();
+            };
+            reader.readAsDataURL(file);
+        });
+        input.value = '';
+    }
+
+    async extractData(file: PrescriptionFile): Promise<void> {
+        if (!file.type.startsWith('image/')) return;
+
+        this.isProcessingOcr = true;
+        this.cdr.markForCheck();
+
+        try {
+            // Import OCR functions dynamically
+            const { extractTextFromImage, parsePrescriptionText } = await import('../../utils/ocr-extractor');
+
+            const text = await extractTextFromImage(file.file);
+            console.log('Texte extrait (OCR):', text);
+
+            const parsed = parsePrescriptionText(text);
+            console.log('Données parsées (OCR):', parsed);
+
+            // Update Form
+            this.ficheForm.patchValue({
+                ordonnance: {
+                    od: parsed.od,
+                    og: parsed.og
+                },
+                lentilles: {
+                    od: {
+                        sphere: parsed.od?.sphere,
+                        cylindre: parsed.od?.cylinder,
+                        axe: parsed.od?.axis,
+                        addition: parsed.od?.addition,
+                        rayon: parsed.od?.rayon,
+                        diametre: parsed.od?.diametre
+                    },
+                    og: {
+                        sphere: parsed.og?.sphere,
+                        cylindre: parsed.og?.cylinder,
+                        axe: parsed.og?.axis,
+                        addition: parsed.og?.addition,
+                        rayon: parsed.og?.rayon,
+                        diametre: parsed.og?.diametre
+                    }
+                }
+            });
+
+            this.snackBar.open('Ordonnance analysée avec succès', 'OK', { duration: 3000 });
+        } catch (error) {
+            console.error('Erreur OCR:', error);
+            this.snackBar.open('Impossible de lire l\'ordonnance', 'Erreur', { duration: 3000 });
+        } finally {
+            this.isProcessingOcr = false;
+            this.cdr.markForCheck();
+        }
+    }
+
+    viewFile(file: PrescriptionFile): void {
+        this.viewingFile = file;
+        this.cdr.markForCheck();
+    }
+
+    closeViewer(): void {
+        this.viewingFile = null;
+        this.cdr.markForCheck();
+    }
+
+    deleteFile(index: number): void {
+        if (confirm('Supprimer ce document ?')) {
+            this.prescriptionFiles.splice(index, 1);
+            this.cdr.markForCheck();
+        }
+    }
+
+    formatFileSize(bytes: number): string {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    // --- Camera Methods ---
+    async openCamera(): Promise<void> {
+        const dialogRef = this.dialog.open(CameraCaptureDialogComponent, {
+            width: '800px',
+            disableClose: true
+        });
+
+        dialogRef.afterClosed().subscribe(dataUrl => {
+            if (dataUrl) {
+                this.handleCapturedPhoto(dataUrl);
+            }
+        });
+    }
+
+    private handleCapturedPhoto(dataUrl: string): void {
+        const file = this.dataURLtoFile(dataUrl, `photo_${Date.now()}.jpg`);
+        const prescriptionFile: PrescriptionFile = {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            preview: dataUrl,
+            file,
+            uploadDate: new Date()
+        };
+        this.prescriptionFiles.push(prescriptionFile);
+        this.extractData(prescriptionFile); // Auto OCR on capture
+        this.cdr.markForCheck();
+    }
+
+    private dataURLtoFile(dataurl: string, filename: string): File {
+        const arr = dataurl.split(',');
+        const mime = arr[0].match(/:(.*?);/)![1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new File([u8arr], filename, { type: mime });
+    }
+
+
 }

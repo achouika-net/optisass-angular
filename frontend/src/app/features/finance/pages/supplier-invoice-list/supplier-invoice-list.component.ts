@@ -86,9 +86,9 @@ export class SupplierInvoiceListComponent implements OnInit {
 
   openInvoiceDialog(invoice?: SupplierInvoice, viewMode: boolean = false) {
     const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
-      width: '1000px',
+      width: '1200px',
       maxWidth: '95vw',
-      height: '90vh',
+      maxHeight: '90vh', // Auto height with max limit
       data: { invoice, viewMode }
     });
 

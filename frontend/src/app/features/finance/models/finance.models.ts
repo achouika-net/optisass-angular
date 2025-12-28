@@ -16,6 +16,7 @@ export interface Supplier {
     banque?: string;
     rib?: string;
     conditionsPaiement?: string;
+    conditionsPaiement2?: string;  // Temporary field for migration
     contacts?: SupplierContact[];
     convention?: any;
     createdAt?: string;

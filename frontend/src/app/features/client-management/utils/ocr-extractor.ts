@@ -85,8 +85,8 @@ async function preprocessImage(file: File | string): Promise<string> {
  * Reworked to share logic with manual paste if needed, but keeping this simple for now.
  */
 export function parsePrescriptionText(text: string): {
-    od?: { sphere?: string; cylinder?: string; axis?: string; addition?: string };
-    og?: { sphere?: string; cylinder?: string; axis?: string; addition?: string };
+    od?: { sphere?: string; cylinder?: string; axis?: string; addition?: string; rayon?: string; diametre?: string };
+    og?: { sphere?: string; cylinder?: string; axis?: string; addition?: string; rayon?: string; diametre?: string };
     ep?: string;
 } {
     const result: any = { od: {}, og: {} };
@@ -95,7 +95,6 @@ export function parsePrescriptionText(text: string): {
     const normalized = text.toUpperCase().replace(/\s+/g, ' ');
 
     // Look for OD (Oeil Droit / Right Eye) values
-    // Match patterns like "OD: +2.00 -0.50 90" or "OD +2.00"
     const odMatch = normalized.match(/OD[:\s]+([+-]?\d+[.,]?\d*)\s*([+-]?\d+[.,]?\d*)?\s*(\d+)?/);
     if (odMatch) {
         result.od.sphere = odMatch[1]?.replace(',', '.');
@@ -111,7 +110,7 @@ export function parsePrescriptionText(text: string): {
         if (ogMatch[3]) result.og.axis = ogMatch[3];
     }
 
-    // Look for Addition (often common to both)
+    // Look for Addition (Common)
     const addMatch = normalized.match(/ADD[:\s]+([+-]?\d+[.,]?\d*)/);
     if (addMatch) {
         const addition = addMatch[1].replace(',', '.');
@@ -119,10 +118,30 @@ export function parsePrescriptionText(text: string): {
         result.og.addition = addition;
     }
 
-    // Look for EP (Ecart Pupillaire)
+    // Look for EP
     const epMatch = normalized.match(/EP[:\s]+(\d+[.,]?\d*)/);
     if (epMatch) {
         result.ep = epMatch[1].replace(',', '.');
+    }
+
+    // --- Contact Lens Parameters ---
+
+    // BC / Rayon (Search for BC or Rayon or K patterns)
+    // Matches: BC 8.6, r:8.4, 8.60 mm
+    const bcMatch = normalized.match(/(?:BC|RAYON|R|K)[:\s]+(\d+[.,]?\d*)/);
+    if (bcMatch) {
+        const rayon = bcMatch[1].replace(',', '.');
+        result.od.rayon = rayon;
+        result.og.rayon = rayon; // Assuming symmetric unless specified otherwise
+    }
+
+    // DIA / Diameter
+    // Matches: DIA 14.0, Ø 14.2, Diam 14.0
+    const diaMatch = normalized.match(/(?:DIA|DIAM|Ø)[:\s]+(\d+[.,]?\d*)/);
+    if (diaMatch) {
+        const diametre = diaMatch[1].replace(',', '.');
+        result.od.diametre = diametre;
+        result.og.diametre = diametre;
     }
 
     return result;

@@ -364,10 +364,16 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
             this.capturedImage = new Image();
-            this.capturedImage.src = canvas.toDataURL('image/png');
+            const dataUrl = canvas.toDataURL('image/png');
+            this.capturedImage.src = dataUrl;
             this.capturedPupils = this.latestMeasurement.pupils;
             // Deep copy landmarks to prevent reference updates
             this.capturedLandmarks = [...this.currentLandmarks];
+
+            // Assign image data to measurement for returning to parent
+            if (this.latestMeasurement) {
+                this.latestMeasurement.imageDataUrl = dataUrl;
+            }
 
             this.isCaptured = true;
             this.isDraggingFrameLeft = false;

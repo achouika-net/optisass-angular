@@ -9,13 +9,14 @@ export class TreasuryService {
         const startDate = new Date(year, month - 1, 1);
         const endDate = new Date(year, month, 0, 23, 59, 59);
 
-        const [expenses, echeances, incoming, incomingCashed, echeancesCashed, incomingPending, echeancesPending, categoryStats, invoiceCategoryStats, config] = await Promise.all([
-            // Outgoings (Direct Expenses: Cash/Card)
+        const results = await Promise.all([
+            // Outgoings (Direct Expenses: Any mode but NOT linked to an Echeance)
+            // This captures Cash/Card and also Cheques that were not scheduled (Immediate)
             this.prisma.depense.aggregate({
                 where: {
                     date: { gte: startDate, lte: endDate },
                     centreId: centreId,
-                    modePaiement: { in: ['ESPECES', 'CARTE'] }
+                    echeanceId: null
                 },
                 _sum: { montant: true }
             }),
@@ -33,30 +34,42 @@ export class TreasuryService {
                 },
                 _sum: { montant: true }
             }),
-            // Total Incoming Expected (Client Payments dated this month)
-            this.prisma.paiement.findMany({
+            // [OPTIMIZED] Total Incoming Expected: Standard vs Avoir
+            this.prisma.paiement.aggregate({
                 where: {
                     date: { gte: startDate, lte: endDate },
                     statut: { not: 'ANNULE' },
-                    ...(centreId ? { facture: { centreId } } : {})
+                    facture: { type: { not: 'AVOIR' }, ...(centreId ? { centreId } : {}) }
                 },
-                select: {
-                    montant: true,
-                    facture: { select: { type: true } }
-                }
+                _sum: { montant: true }
             }),
-            // Incoming Actually Cashed
-            this.prisma.paiement.findMany({
+            this.prisma.paiement.aggregate({
+                where: {
+                    date: { gte: startDate, lte: endDate },
+                    statut: { not: 'ANNULE' },
+                    facture: { type: 'AVOIR', ...(centreId ? { centreId } : {}) }
+                },
+                _sum: { montant: true }
+            }),
+
+            // [OPTIMIZED] Incoming Actually Cashed: Standard vs Avoir
+            this.prisma.paiement.aggregate({
                 where: {
                     date: { gte: startDate, lte: endDate },
                     statut: 'ENCAISSE',
-                    ...(centreId ? { facture: { centreId } } : {})
+                    facture: { type: { not: 'AVOIR' }, ...(centreId ? { centreId } : {}) }
                 },
-                select: {
-                    montant: true,
-                    facture: { select: { type: true } }
-                }
+                _sum: { montant: true }
             }),
+            this.prisma.paiement.aggregate({
+                where: {
+                    date: { gte: startDate, lte: endDate },
+                    statut: 'ENCAISSE',
+                    facture: { type: 'AVOIR', ...(centreId ? { centreId } : {}) }
+                },
+                _sum: { montant: true }
+            }),
+
             // Outgoing Actually Cashed
             this.prisma.echeancePaiement.aggregate({
                 where: {
@@ -71,17 +84,23 @@ export class TreasuryService {
                 },
                 _sum: { montant: true }
             }),
-            // Globally Pending Incoming
-            this.prisma.paiement.findMany({
+
+            // [OPTIMIZED] Globally Pending Incoming: Standard vs Avoir
+            this.prisma.paiement.aggregate({
                 where: {
                     statut: 'EN_ATTENTE',
-                    ...(centreId ? { facture: { centreId } } : {})
+                    facture: { type: { not: 'AVOIR' }, ...(centreId ? { centreId } : {}) }
                 },
-                select: {
-                    montant: true,
-                    facture: { select: { type: true } }
-                }
+                _sum: { montant: true }
             }),
+            this.prisma.paiement.aggregate({
+                where: {
+                    statut: 'EN_ATTENTE',
+                    facture: { type: 'AVOIR', ...(centreId ? { centreId } : {}) }
+                },
+                _sum: { montant: true }
+            }),
+
             // Globally Pending Outgoing
             this.prisma.echeancePaiement.aggregate({
                 where: {
@@ -99,7 +118,8 @@ export class TreasuryService {
                 by: ['categorie'],
                 where: {
                     date: { gte: startDate, lte: endDate },
-                    ...(centreId ? { centreId } : {})
+                    centreId: centreId,
+
                 },
                 _sum: { montant: true }
             }),
@@ -109,36 +129,89 @@ export class TreasuryService {
                     dateEmission: { gte: startDate, lte: endDate },
                     ...(centreId ? { centreId } : {})
                 },
-                _sum: { montantHT: true }
+                _sum: { montantTTC: true }
             }),
-            this.prisma.financeConfig.findFirst()
+            this.prisma.financeConfig.findFirst(),
+            // [NEW] Cash Incoming (Standard)
+            this.prisma.paiement.aggregate({
+                where: {
+                    date: { gte: startDate, lte: endDate },
+                    statut: 'ENCAISSE',
+                    mode: 'ESPECES',
+                    facture: { type: { not: 'AVOIR' }, ...(centreId ? { centreId } : {}) }
+                },
+                _sum: { montant: true }
+            }),
+            // [NEW] Cash Incoming (Avoir)
+            this.prisma.paiement.aggregate({
+                where: {
+                    date: { gte: startDate, lte: endDate },
+                    statut: 'ENCAISSE',
+                    mode: 'ESPECES',
+                    facture: { type: 'AVOIR', ...(centreId ? { centreId } : {}) }
+                },
+                _sum: { montant: true }
+            }),
+            // [NEW] Card Incoming (Standard)
+            this.prisma.paiement.aggregate({
+                where: {
+                    date: { gte: startDate, lte: endDate },
+                    statut: 'ENCAISSE',
+                    mode: 'CARTE',
+                    facture: { type: { not: 'AVOIR' }, ...(centreId ? { centreId } : {}) }
+                },
+                _sum: { montant: true }
+            }),
+            // [NEW] Card Incoming (Avoir)
+            this.prisma.paiement.aggregate({
+                where: {
+                    date: { gte: startDate, lte: endDate },
+                    statut: 'ENCAISSE',
+                    mode: 'CARTE',
+                    facture: { type: 'AVOIR', ...(centreId ? { centreId } : {}) }
+                },
+                _sum: { montant: true }
+            })
         ]);
+
+        const expenses = results[0];
+        const echeances = results[1];
+        const incomingStandard = (results[2] as any)._sum.montant || 0;
+        const incomingAvoir = (results[3] as any)._sum.montant || 0;
+        const incomingCashedStandard = (results[4] as any)._sum.montant || 0;
+        const incomingCashedAvoir = (results[5] as any)._sum.montant || 0;
+
+        // echeancesCashed is results[6]
+        const echeancesCashed = results[6];
+
+        const incomingPendingStandard = (results[7] as any)._sum.montant || 0;
+        const incomingPendingAvoir = (results[8] as any)._sum.montant || 0;
+
+        const echeancesPending = results[9];
+        const categoryStats = results[10];
+        const invoiceCategoryStats = results[11];
+        const config = results[12] as any;
 
         const monthlyThreshold = config?.monthlyThreshold || 50000;
 
-        // Helper function to calculate payment total with credit note handling
-        const calculatePaymentTotal = (payments: Array<{ montant: number; facture: { type: string } }>) => {
-            return payments.reduce((sum, p) => {
-                const multiplier = p.facture.type === 'AVOIR' ? -1 : 1;
-                return sum + (p.montant * multiplier);
-            }, 0);
-        };
-
-        const totalInvoicedHT = invoiceCategoryStats.reduce((acc, curr) => acc + (curr._sum.montantHT || 0), 0);
+        // Calculations
+        // [FIX] Treasury View: Expenses = Direct Expenses + Scheduled Payments (Echeances)
+        // Previously it was Invoiced HT, which is Accounting View (based on emission date)
+        const totalScheduled = (echeances as any)._sum?.montant || 0;
         const totalDirectExpenses = expenses._sum?.montant || 0;
-        const totalExpenses = totalDirectExpenses + totalInvoicedHT;
+        const totalExpenses = totalDirectExpenses + totalScheduled;
 
-        const totalIncoming = calculatePaymentTotal(incoming);
+        const totalIncoming = incomingStandard - incomingAvoir;
         const balance = totalIncoming - totalExpenses;
 
         const totalExpensesCashed = (expenses._sum?.montant || 0) + (echeancesCashed._sum?.montant || 0);
-        const totalIncomingCashed = calculatePaymentTotal(incomingCashed);
+        const totalIncomingCashed = incomingCashedStandard - incomingCashedAvoir;
         const balanceReal = totalIncomingCashed - totalExpensesCashed;
 
         // Combine categories
         const combinedCategoriesMap = new Map<string, number>();
-        categoryStats.forEach(c => combinedCategoriesMap.set(c.categorie, (combinedCategoriesMap.get(c.categorie) || 0) + (c._sum.montant || 0)));
-        invoiceCategoryStats.forEach(c => combinedCategoriesMap.set(c.type, (combinedCategoriesMap.get(c.type) || 0) + (c._sum.montantHT || 0)));
+        (categoryStats as any[]).forEach(c => combinedCategoriesMap.set(c.categorie, (combinedCategoriesMap.get(c.categorie) || 0) + (c._sum.montant || 0)));
+        (invoiceCategoryStats as any[]).forEach(c => combinedCategoriesMap.set(c.type, (combinedCategoriesMap.get(c.type) || 0) + (c._sum.montantTTC || 0)));
 
         const categories = Array.from(combinedCategoriesMap.entries()).map(([name, value]) => ({ name, value }));
 
@@ -151,10 +224,12 @@ export class TreasuryService {
             totalIncomingCashed,
             balance,
             balanceReal,
-            totalIncomingPending: calculatePaymentTotal(incomingPending),
+            totalIncomingPending: incomingPendingStandard - incomingPendingAvoir,
             totalOutgoingPending: echeancesPending._sum?.montant || 0,
             monthlyThreshold,
-            categories
+            categories,
+            incomingCash: ((results[13] as any)._sum.montant || 0) - ((results[14] as any)._sum.montant || 0),
+            incomingCard: ((results[15] as any)._sum.montant || 0) - ((results[16] as any)._sum.montant || 0)
         };
     }
 
@@ -189,11 +264,23 @@ export class TreasuryService {
 
         if (filters.startDate || filters.endDate) {
             const dateRange: any = {};
-            if (filters.startDate) dateRange.gte = new Date(filters.startDate);
-            if (filters.endDate) dateRange.lte = new Date(filters.endDate);
+            if (filters.startDate) {
+                const start = new Date(filters.startDate);
+                start.setHours(0, 0, 0, 0);
+                dateRange.gte = start;
+            }
+            if (filters.endDate) {
+                const end = new Date(filters.endDate);
+                end.setHours(23, 59, 59, 999);
+                dateRange.lte = end;
+            }
             where.date = dateRange;
         }
 
+        console.log('[TREASURY-INCOMINGS] Filters:', filters);
+        console.log('[TREASURY-INCOMINGS] Where:', JSON.stringify(where, null, 2));
+
+        const startTime = Date.now();
         const payments = await this.prisma.paiement.findMany({
             where,
             include: {
@@ -206,6 +293,8 @@ export class TreasuryService {
             orderBy: { date: 'desc' },
             take: 100
         });
+
+        console.log(`[TREASURY-INCOMINGS] Query took ${Date.now() - startTime}ms. Found ${payments.length} records.`);
 
         return payments.map(p => {
             const isAvoir = p.facture.type === 'AVOIR';
@@ -233,7 +322,7 @@ export class TreasuryService {
 
     async getConsolidatedOutgoings(filters: { fournisseurId?: string; type?: string; startDate?: string; endDate?: string; source?: string; centreId?: string }) {
         const whereExpense: any = filters.centreId ? { centreId: filters.centreId } : {};
-        const whereInvoice: any = {};
+        const whereInvoice: any = filters.centreId ? { centreId: filters.centreId } : {};
 
         if (filters.fournisseurId) {
             whereExpense.OR = [
@@ -250,12 +339,25 @@ export class TreasuryService {
 
         if (filters.startDate || filters.endDate) {
             const dateRange: any = {};
-            if (filters.startDate) dateRange.gte = new Date(filters.startDate);
-            if (filters.endDate) dateRange.lte = new Date(filters.endDate);
+            if (filters.startDate) {
+                const start = new Date(filters.startDate);
+                start.setHours(0, 0, 0, 0);
+                dateRange.gte = start;
+            }
+            if (filters.endDate) {
+                const end = new Date(filters.endDate);
+                end.setHours(23, 59, 59, 999);
+                dateRange.lte = end;
+            }
             whereExpense.date = dateRange;
             whereInvoice.dateEmission = dateRange;
         }
 
+        console.log('[TREASURY-OUTGOINGS] Filters:', filters);
+        console.log('[TREASURY-OUTGOINGS] Expense Where:', JSON.stringify(whereExpense, null, 2));
+        console.log('[TREASURY-OUTGOINGS] Invoice Where:', JSON.stringify(whereInvoice, null, 2));
+
+        const startTime = Date.now();
         const [expenses, invoices] = await Promise.all([
             filters.source === 'FACTURE' ? Promise.resolve([]) : this.prisma.depense.findMany({
                 where: whereExpense,
@@ -277,6 +379,8 @@ export class TreasuryService {
             })
         ]);
 
+        console.log(`[TREASURY-OUTGOINGS] Query took ${Date.now() - startTime}ms. Found ${expenses.length} exp, ${invoices.length} inv.`);
+
         const consolidated = [
             ...expenses.map(e => ({
                 id: e.id,
@@ -284,7 +388,7 @@ export class TreasuryService {
                 libelle: e.description || e.categorie,
                 type: e.categorie,
                 fournisseur: e.fournisseur?.nom || e.factureFournisseur?.fournisseur?.nom || 'N/A',
-                montant: e.montant,
+                montant: Number(e.montant),
                 statut: e.statut,
                 source: 'DEPENSE',
                 modePaiement: e.modePaiement,
@@ -298,13 +402,13 @@ export class TreasuryService {
                 libelle: i.numeroFacture,
                 type: i.type,
                 fournisseur: i.fournisseur.nom,
-                montant: i.montantTTC,
+                montant: Number(i.montantTTC),
                 statut: i.statut,
                 source: 'FACTURE',
                 modePaiement: 'VOIR_ECHEANCES',
                 reference: i.numeroFacture,
                 dateEcheance: i.dateEcheance,
-                montantHT: i.montantHT
+                montantHT: Number(i.montantHT)
             }))
         ];
 
@@ -312,8 +416,43 @@ export class TreasuryService {
     }
 
     async getYearlyProjection(year: number) {
-        // Pour un graphique d'évolution sur l'année
-        const months = Array.from({ length: 12 }, (_, i) => i + 1);
-        return Promise.all(months.map(m => this.getMonthlySummary(year, m)));
+        const startDate = new Date(year, 0, 1);
+        const endDate = new Date(year, 11, 31, 23, 59, 59);
+
+        // Fetch all data for the year in parallel (Optimization: 2 queries instead of 132)
+        const [expenses, echeances] = await Promise.all([
+            this.prisma.depense.findMany({
+                where: {
+                    date: { gte: startDate, lte: endDate },
+                    echeanceId: null // Only expenses NOT linked to an Echeance
+                },
+                select: { date: true, montant: true }
+            }),
+            this.prisma.echeancePaiement.findMany({
+                where: {
+                    dateEcheance: { gte: startDate, lte: endDate },
+                    statut: { not: 'ANNULE' }
+                },
+                select: { dateEcheance: true, montant: true }
+            })
+        ]);
+
+        // Aggregate by month in memory
+        const monthlyData = new Array(12).fill(0).map((_, i) => ({
+            month: i + 1,
+            totalExpenses: 0
+        }));
+
+        expenses.forEach(e => {
+            const m = new Date(e.date).getMonth();
+            if (m >= 0 && m < 12) monthlyData[m].totalExpenses += Number(e.montant || 0);
+        });
+
+        echeances.forEach(e => {
+            const m = new Date(e.dateEcheance).getMonth();
+            if (m >= 0 && m < 12) monthlyData[m].totalExpenses += Number(e.montant || 0);
+        });
+
+        return monthlyData;
     }
 }
