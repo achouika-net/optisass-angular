@@ -1,0 +1,51 @@
+<mat-card>
+  <mat-card-content>
+    <form (submit)="$event.preventDefault(); search()">
+      <div class="search-form-grid">
+        <!-- Nom -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'commun.lastName' | translate }}</mat-label>
+          <input matInput [field]="searchForm().nom" />
+        </mat-form-field>
+
+        <!-- Prénom -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'commun.firstName' | translate }}</mat-label>
+          <input matInput [field]="searchForm().prenom" />
+        </mat-form-field>
+
+        <!-- Entreprise -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'client.entreprise' | translate }}</mat-label>
+          <input matInput [field]="searchForm().entreprise" />
+        </mat-form-field>
+
+        <!-- Status -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'commun.status' | translate }}</mat-label>
+          <mat-select [field]="searchForm().actif">
+            @for (state of states(); track state.code) {
+            <mat-option [value]="state.code">
+              {{`commun.${state.libelle}` | translate }}
+            </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+      <div class="flex flex-1 items-center justify-end gap-2.5">
+        <button matButton class="tertiary" (click)="search()" type="submit">
+          {{ 'commun.search' | translate }}
+        </button>
+        <button
+          mat-icon-button
+          class="text-primary"
+          [matTooltip]="'commun.reset' | translate"
+          (click)="resetSearchForm()"
+          type="button"
+        >
+          <mat-icon>autorenew</mat-icon>
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>

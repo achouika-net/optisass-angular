@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { UserStore } from '../user.store';
+import { ClientService } from '../services/client.service';
+import { ClientStore } from '../client.store';
 
 @Component({
-  selector: 'app-user',
+  selector: 'app-client',
   imports: [RouterOutlet],
   template: ` <router-outlet /> `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [UserStore],
+  providers: [ClientService, ClientStore],
 })
-export default class UserComponent {}
+export default class ClientComponent {}
