@@ -3004,7 +3004,6 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         const [calibreStr, pontStr, brancheStr] = taille.split('-');
         const calibre = parseInt(calibreStr) || 52;
         const pont = parseInt(pontStr) || 18;
-        const hauteurVerre = Math.round(calibre * 0.72); // Frame height approximation
 
         const img = new Image();
         img.src = bgSource;
@@ -3022,23 +3021,17 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             ctx.fillText(`${epOD}`, 320, 370); // OD Position on arrows
             ctx.fillText(`${epOG}`, 480, 370); // OG Position on arrows
 
-            // 2. Height Labels (Inside lenses, near vertical arrows)
-            ctx.fillStyle = '#ef4444'; // Modern Red for Heights
-            ctx.fillText(`${hOD}`, 235, 290); // Left lens (OD)
-            ctx.fillText(`${hOG}`, 565, 290); // Right lens (OG)
+            // 2. Hauteur Verre (Height Labels from Virtual Centering - Inside lenses, near vertical arrows)
+            ctx.fillStyle = '#ef4444'; // Modern Red for Heights (same as "Hauteur Verre" in virtual centering)
+            ctx.fillText(`${hOD}`, 235, 290); // Left lens (OD) - This is the "Hauteur Verre" from centering
+            ctx.fillText(`${hOG}`, 565, 290); // Right lens (OG) - This is the "Hauteur Verre" from centering
 
-            // 3. Calibre / Pont / Hauteur Verre Labels (Top)
+            // 3. Calibre / Pont Labels (Top)
             ctx.fillStyle = '#1e293b'; // Darker for top labels
             ctx.font = 'bold 20px "Outfit", sans-serif';
             ctx.fillText(`${calibre}`, 280, 110); // Calibre OD
             ctx.fillText(`${calibre}`, 520, 110); // Calibre OG
             ctx.fillText(`${pont}`, 400, 110);   // Pont
-
-            // 4. Hauteur Verre (Frame Height) - Vertical measurement on sides
-            ctx.fillStyle = '#10b981'; // Green for frame height
-            ctx.font = 'bold 18px "Outfit", sans-serif';
-            ctx.fillText(`${hauteurVerre}`, 150, 250); // Left side (OD)
-            ctx.fillText(`${hauteurVerre}`, 650, 250); // Right side (OG)
 
             ctx.font = 'italic 10px monospace';
             ctx.fillStyle = 'rgba(15, 23, 42, 0.4)';
