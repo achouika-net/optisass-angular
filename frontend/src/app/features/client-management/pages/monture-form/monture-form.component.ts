@@ -2962,7 +2962,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                             // Sync Ecarts to Ordonnance tab as well
                             ordonnance: {
                                 od: { ep: measurement.pdRightMm.toFixed(1) },
-                                og: { ep: measurement.pdLeftMm.toFixed(1) }
+                                og: { ep: measurement.pdLeftMm.toFixed(1) },
+                                // Persist frame total height for reference
+                                hauteurVerre: measurement.frameHeightMm ? measurement.frameHeightMm.toFixed(1) : null
                             }
                         });
 
@@ -3022,11 +3024,20 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             ctx.fillText(`${epOG}`, 480, 370); // OG Position on arrows
 
             // 2. Hauteur Verre (Height Labels from Virtual Centering - Inside lenses, near vertical arrows)
-            ctx.fillStyle = '#ef4444'; // Modern Red for Heights (same as "Hauteur Verre" in virtual centering)
-            ctx.fillText(`${hOD}`, 235, 290); // Left lens (OD) - This is the "Hauteur Verre" from centering
-            ctx.fillText(`${hOG}`, 565, 290); // Right lens (OG) - This is the "Hauteur Verre" from centering
+            ctx.fillStyle = '#ef4444'; // Modern Red for Heights (Pupillary Height)
+            ctx.fillText(`${hOD}`, 235, 290); // Left lens (OD) - Pupillary Height
+            ctx.fillText(`${hOG}`, 565, 290); // Right lens (OG) - Pupillary Height
 
-            // 3. Calibre / Pont Labels (Top)
+            // 3. Hauteur Monture (Total Frame Height B-Dimension - Green on outer arrows)
+            // Use captured Total Height if available, otherwise fallback/hide
+            const hTotal = parseFloat(this.ficheForm.get('montage.hauteurVerre')?.value);
+            if (!isNaN(hTotal)) {
+                ctx.fillStyle = '#22c55e'; // Modern Green for Frame Height
+                ctx.fillText(`${hTotal}`, 85, 300);  // Left Outer Arrow (OD side)
+                ctx.fillText(`${hTotal}`, 715, 300); // Right Outer Arrow (OG side)
+            }
+
+            // 4. Calibre / Pont Labels (Top)
             ctx.fillStyle = '#1e293b'; // Darker for top labels
             ctx.font = 'bold 20px "Outfit", sans-serif';
             ctx.fillText(`${calibre}`, 280, 110); // Calibre OD
@@ -3035,7 +3046,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
             ctx.font = 'italic 10px monospace';
             ctx.fillStyle = 'rgba(15, 23, 42, 0.4)';
-            ctx.fillText('TECHNICAL_SYNC_ACTIVE: REF_V1.0', 100, 20);
+            ctx.fillText('TECHNICAL_SYNC_ACTIVE: REF_V1.1', 100, 20);
         };
     }
 
