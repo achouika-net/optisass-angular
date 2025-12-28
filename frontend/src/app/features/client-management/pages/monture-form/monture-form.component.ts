@@ -286,6 +286,13 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     }
 
     ngOnInit(): void {
+        // FIX: Ensure 'hauteurVerre' control exists in 'montage' group immediately
+        // This ensures correct data binding when loading existing fiches
+        const montageGroup = this.ficheForm.get('montage') as FormGroup;
+        if (montageGroup && !montageGroup.contains('hauteurVerre')) {
+            montageGroup.addControl('hauteurVerre', new FormControl(null));
+        }
+
         // Draw frame visualization when tab changes to Fiche Montage
         this.ficheForm.valueChanges.subscribe(() => {
             if (this.activeTab === 4) {
@@ -2950,6 +2957,13 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
                 dialogRef.afterClosed().subscribe((measurement) => {
                     if (measurement) {
+                        // FIX: Ensure 'hauteurVerre' control exists in 'montage' group to accept the value
+                        const montageGroup = this.ficheForm.get('montage') as FormGroup;
+                        if (montageGroup && !montageGroup.contains('hauteurVerre')) {
+                            console.log('🔧 [FIX] Adding missing control: hauteurVerre to montage group');
+                            montageGroup.addControl('hauteurVerre', new FormControl(null));
+                        }
+
                         // Populate form with measurements (Precise values)
                         this.ficheForm.patchValue({
                             montage: {
@@ -3030,11 +3044,16 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
             // 3. Hauteur Monture (Total Frame Height B-Dimension - Green on outer arrows)
             // Use captured Total Height if available, otherwise fallback/hide
-            const hTotal = parseFloat(this.ficheForm.get('montage.hauteurVerre')?.value);
+            const hTotalVal = this.ficheForm.get('montage.hauteurVerre')?.value;
+            const hTotal = parseFloat(hTotalVal);
+
+            // Console log for debugging
+            // console.log('✏️ Drawing Frame M Height:', hTotal, 'Raw:', hTotalVal);
+
             if (!isNaN(hTotal)) {
                 ctx.fillStyle = '#22c55e'; // Modern Green for Frame Height
-                ctx.fillText(`${hTotal}`, 85, 300);  // Left Outer Arrow (OD side)
-                ctx.fillText(`${hTotal}`, 715, 300); // Right Outer Arrow (OG side)
+                ctx.fillText(`${hTotal}`, 70, 260);  // Left Outer Arrow (OD side) - Adjusted position
+                ctx.fillText(`${hTotal}`, 730, 260); // Right Outer Arrow (OG side) - Adjusted position
             }
 
             // 4. Calibre / Pont Labels (Top)
