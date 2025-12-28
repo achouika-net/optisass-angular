@@ -3043,6 +3043,14 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         const calibre = parseInt(calibreStr) || 52;
         const pont = parseInt(pontStr) || 18;
 
+        // [PERSISTENCE FIX] Check if value exists in currentFiche but dropped from Form
+        // This handles cases where loadFiche mapping might have missed the field despite initForm fix
+        if (this.currentFiche && (this.currentFiche as any).montage?.hauteurVerre && !this.ficheForm.get('montage.hauteurVerre')?.value) {
+            const savedVal = (this.currentFiche as any).montage.hauteurVerre;
+            console.log('♻️ [PERSISTENCE] Restoring hauteurVerre from saved fiche:', savedVal);
+            this.ficheForm.get('montage')?.patchValue({ hauteurVerre: savedVal }, { emitEvent: false });
+        }
+
         const img = new Image();
         img.src = bgSource;
         img.onload = () => {
