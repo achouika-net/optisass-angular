@@ -177,14 +177,6 @@ export class FichesService {
         // We must extract it correctly, falling back to looseData (flat) if not nested.
         const incomingContent = (looseData.content && typeof looseData.content === 'object') ? looseData.content : looseData;
 
-        // DEBUG LOGS
-        console.log('🔄 [UPDATE DEBUG] Incoming Data Keys:', Object.keys(looseData));
-        if (incomingContent.montage) {
-            console.log('🔍 [UPDATE DEBUG] Incoming Montage:', JSON.stringify(incomingContent.montage, null, 2));
-        } else {
-            console.log('⚠️ [UPDATE DEBUG] No Montage data in incoming content');
-        }
-
         const content = {
             ordonnance: incomingContent.ordonnance !== undefined ? incomingContent.ordonnance : currentContent.ordonnance,
             monture: incomingContent.monture !== undefined ? incomingContent.monture : currentContent.monture,
@@ -193,10 +185,6 @@ export class FichesService {
             suggestions: incomingContent.suggestions !== undefined ? incomingContent.suggestions : currentContent.suggestions,
             equipements: incomingContent.equipements !== undefined ? incomingContent.equipements : currentContent.equipements,
         };
-
-        if (content.montage?.hauteurVerre) {
-            console.log('✅ [UPDATE DEBUG] Preserving hauterVerre:', content.montage.hauteurVerre);
-        }
 
         const updateData: any = {
             statut: data.statut,
@@ -208,8 +196,6 @@ export class FichesService {
         };
         // Add optional fields if present
         if ((data as any).clientId) updateData.clientId = (data as any).clientId;
-
-        console.log('💾 [UPDATE DEBUG] Final Update Payload (Montage):', JSON.stringify(updateData.content.montage, null, 2));
 
         const result = await this.prisma.fiche.update({
             where: { id },

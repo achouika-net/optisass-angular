@@ -1694,6 +1694,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
     private patchForm(fiche: any): void {
         // Patch Form Values
+        console.log('📦 [PATCH] Patching Montage Data:', fiche.montage);
         this.ficheForm.patchValue({
             ordonnance: fiche.ordonnance,
             monture: fiche.monture,
@@ -3075,7 +3076,14 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
             // 3. Hauteur Monture (Total Frame Height B-Dimension - Green on outer arrows)
             // Use captured Total Height if available, otherwise fallback/hide
-            const hTotalVal = this.ficheForm.get('montage.hauteurVerre')?.value;
+            let hTotalVal = this.ficheForm.get('montage.hauteurVerre')?.value;
+
+            // [display fix] Force fallback to currentFiche if form is empty
+            if ((!hTotalVal || hTotalVal === '') && this.currentFiche && (this.currentFiche as any).montage?.hauteurVerre) {
+                hTotalVal = (this.currentFiche as any).montage.hauteurVerre;
+                console.log('✅ [DISPLAY] Using saved value from Fiche directly:', hTotalVal);
+            }
+
             let hTotal = parseFloat(hTotalVal);
 
             // Fallback to local storage if form failed
