@@ -210,6 +210,10 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
     nomenclatureString: string | null = null;
     showFacture = false;
+
+    // Local storage for frame height in case form control fails
+    private lastMeasFrameHeight: number | null = null;
+
     // Paste text dialog removed
 
     // Paste text dialog removed
@@ -2957,6 +2961,12 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
                 dialogRef.afterClosed().subscribe((measurement) => {
                     if (measurement) {
+                        console.log('🔍 [DEBUG] Measurement received from modal:', measurement);
+                        console.log('🔍 [DEBUG] frameHeightMm:', measurement.frameHeightMm);
+
+                        // Fallback storage
+                        this.lastMeasFrameHeight = measurement.frameHeightMm || null;
+
                         // FIX: Ensure 'hauteurVerre' control exists in 'montage' group to accept the value
                         const montageGroup = this.ficheForm.get('montage') as FormGroup;
                         if (montageGroup && !montageGroup.contains('hauteurVerre')) {
@@ -3045,10 +3055,16 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             // 3. Hauteur Monture (Total Frame Height B-Dimension - Green on outer arrows)
             // Use captured Total Height if available, otherwise fallback/hide
             const hTotalVal = this.ficheForm.get('montage.hauteurVerre')?.value;
-            const hTotal = parseFloat(hTotalVal);
+            let hTotal = parseFloat(hTotalVal);
+
+            // Fallback to local storage if form failed
+            if (isNaN(hTotal) && this.lastMeasFrameHeight !== null) {
+                hTotal = this.lastMeasFrameHeight;
+                console.log('⚠️ Using local fallback for Frame Height:', hTotal);
+            }
 
             // Console log for debugging
-            // console.log('✏️ Drawing Frame M Height:', hTotal, 'Raw:', hTotalVal);
+            console.log('✏️ Drawing Frame M Height:', hTotal, 'Raw:', hTotalVal);
 
             if (!isNaN(hTotal)) {
                 ctx.fillStyle = '#22c55e'; // Modern Green for Frame Height
