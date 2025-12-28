@@ -86,9 +86,13 @@ export default class PrivateLayoutComponent {
   }
 
   /**
-   * Sélectionner un centre après confirmation
+   * Sélectionner un centre après confirmation.
+   * Appelle switchTenant qui :
+   * - Recharge les autorisations utilisateur
+   * - Redirige vers une route de fallback si nécessaire
+   * - Affiche un toast de confirmation ou d'avertissement
    */
-  selectTenant(currentTenant: ITenant): void {
+  selectTenant(tenant: ITenant): void {
     this.#dialog
       .open(ConfirmationPopupComponent, {
         data: {
@@ -102,7 +106,7 @@ export default class PrivateLayoutComponent {
       .subscribe((result) => {
         if (!result) return;
 
-        this.#authStore.setCurrentTenant(currentTenant);
+        this.#authStore.switchTenant(tenant);
       });
   }
 }

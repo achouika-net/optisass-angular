@@ -57,6 +57,7 @@
               }
             ],
             "styles": [
+              "node_modules/ngx-toastr/toastr.css",
               "src/styles.css",
               "src/assets/styles/styles.scss"
             ]

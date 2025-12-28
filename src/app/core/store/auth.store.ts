@@ -26,8 +26,9 @@ import { filterMenuByAuthorizations } from '@app/helpers';
 import { MENU } from '../../config/menu.config';
 import { ResourceAuthorizations } from '@optisaas/opti-saas-lib';
 import { AuthService } from '../../features/authentication/services/auth.service';
-import { StatePersistenceService } from '../services';
+import { RouteAuthService, StatePersistenceService } from '../services';
 import { refreshTokenSubject, cancelAllPendingRequests } from '../interceptors/jwt.interceptor';
+import { calculateFallbackRoute } from '@app/helpers';
 
 export interface AuthState {
   jwtTokens: JwtTokensState;
@@ -78,7 +79,8 @@ export const AuthStore = signalStore(
       authService = inject(AuthService),
       router = inject(Router),
       translate = inject(TranslateService),
-      persistenceService = inject(StatePersistenceService)
+      persistenceService = inject(StatePersistenceService),
+      routeAuthService = inject(RouteAuthService)
     ) => {
       // Créer une référence aux méthodes pour pouvoir les appeler entre elles
       const methods = {
@@ -258,12 +260,60 @@ export const AuthStore = signalStore(
         ),
 
         /**
-         * Définit le tenant courant de l'utilisateur
-         * @param currentTenant - Letenant à définir comme courant
+         * Change le tenant courant et recharge les autorisations utilisateur.
+         * Gère la redirection vers une route de fallback si l'utilisateur perd
+         * l'accès à la route courante.
+         *
+         * Processus :
+         * 1. Met à jour currentTenant (pour que TenantInterceptor utilise le nouveau tenant)
+         * 2. Appelle GET /users/options pour récupérer les nouvelles autorisations
+         * 3. Calcule la route de fallback AVANT de mettre à jour userAuthorizations
+         * 4. Met à jour userAuthorizations (filteredMenu recalculé automatiquement)
+         * 5. Si nécessaire, navigue vers le fallback avec toast
+         *
+         * @param tenant - Le nouveau tenant à activer
          */
-        setCurrentTenant(currentTenant: ITenant): void {
-          patchState(store, { currentTenant });
-        },
+        switchTenant: rxMethod<ITenant>(
+          pipe(
+            switchMap((tenant: ITenant) => {
+              // Étape 1 : Capturer l'URL courante et mettre à jour le tenant
+              const currentUrl = routeAuthService.getCurrentUrl();
+              patchState(store, { currentTenant: tenant, error: null });
+
+              // Étape 2 : Appeler l'API pour récupérer les nouvelles autorisations
+              return authService.getUserOptions().pipe(
+                tap((userOptions: IUserOptions) => {
+                  // Étape 3 : Calculer le fallback AVANT de mettre à jour les autorisations
+                  const newAuthorizations = userOptions.authorizations;
+                  const fallbackRoute = calculateFallbackRoute(currentUrl, newAuthorizations);
+
+                  // Étape 4 : Mettre à jour les autorisations
+                  patchState(store, { userAuthorizations: newAuthorizations });
+
+                  // Étape 5 : Naviguer si nécessaire ou afficher succès
+                  if (fallbackRoute) {
+                    routeAuthService.navigateToFallbackRoute(fallbackRoute);
+                  } else {
+                    routeAuthService.showTenantSwitchSuccess();
+                  }
+                }),
+                catchError((error: HttpErrorResponse) => {
+                  // Ignorer les erreurs 401 - l'interceptor gère le refresh token
+                  if (error.status === 401) {
+                    return EMPTY;
+                  }
+
+                  patchState(store, {
+                    error: createWsErrorWithMessage(error, translate.instant('tenant.switchError')),
+                  });
+                  routeAuthService.showTenantSwitchError();
+
+                  return EMPTY;
+                })
+              );
+            })
+          )
+        ),
 
         /**
          * Réinitialise les erreurs

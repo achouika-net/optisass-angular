@@ -140,6 +140,13 @@
     "noTenantError": "No center is associated with your account",
     "getUserOptionsError": "Error retrieving authorizations. Please log in again"
   },
+  "tenant": {
+    "switched": "Center changed successfully",
+    "switchError": "Error changing center"
+  },
+  "permissions": {
+    "noAccessToModule": "You don't have access to this module in this center"
+  },
   "user": {
     "add": "Add a user",
     "centersAndRoles": "Centers and Roles",

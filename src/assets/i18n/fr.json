@@ -140,6 +140,13 @@
     "noTenantError": "Aucun centre n'est associé à votre compte",
     "getUserOptionsError": "Erreur lors de la récupération des autorisations. Veuillez vous reconnecter"
   },
+  "tenant": {
+    "switched": "Centre changé avec succès",
+    "switchError": "Erreur lors du changement de centre"
+  },
+  "permissions": {
+    "noAccessToModule": "Vous n'avez pas accès à ce module dans ce centre"
+  },
   "user": {
     "add": "Ajouter un utilisateur",
     "centersAndRoles": "Centres et Rôles",
