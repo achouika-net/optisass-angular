@@ -1284,7 +1284,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 hauteurOG: [20, [Validators.required, Validators.min(10), Validators.max(30)]],
                 diametreEffectif: ['65/70'],
                 capturedImage: [null], // [NEW] Base64 image from centering tablet
-                remarques: ['']
+                remarques: [''],
+                hauteurVerre: [null] // [NEW] Total frame height (B-dimension) persisted
             }),
             suggestions: [[]],
             equipements: this.fb.array([]),
