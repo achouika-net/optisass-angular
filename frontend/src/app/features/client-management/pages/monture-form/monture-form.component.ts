@@ -2879,8 +2879,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
     /**
      * Silently updates the fiche in the backend without triggering full validation/navigation
+     * @param reload Whether to reload the fiche data from server after update (default: true)
      */
-    saveFicheSilently(): void {
+    saveFicheSilently(reload: boolean = true): void {
         if (!this.ficheId || this.ficheId === 'new' || !this.clientId) return;
 
         const formValue = this.ficheForm.getRawValue();
@@ -2918,10 +2919,16 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         console.log('📤 [RECEPTION] Sending silent update to background...', { monture: formValue.monture?.productId });
         this.ficheService.updateFiche(this.ficheId, ficheData).subscribe({
             next: (res) => {
-                console.log('✅ [RECEPTION] Fiche synced with local IDs. Reloading data...');
-                this.snackBar.open('IDs Produits synchronisés (Centre Principal)', 'OK', { duration: 2000 });
-                // We reload to break the mapping loop and ensure all states (including currentFiche) are fresh
-                this.loadFiche();
+                console.log('✅ [RECEPTION] Fiche synced with local IDs.');
+                if (reload) {
+                    console.log('🔄 Reloading data...');
+                    this.snackBar.open('Données sauvegardées', 'OK', { duration: 2000 });
+                    // We reload to break the mapping loop and ensure all states (including currentFiche) are fresh
+                    this.loadFiche();
+                } else {
+                    // Update currentFiche locally to reflect saved state without full reload
+                    this.currentFiche = { ...this.currentFiche, ...ficheData };
+                }
             },
             error: (err) => {
                 console.error('❌ [RECEPTION] Error in silent update:', err);
@@ -2995,6 +3002,10 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                         // Redraw canvas with new values
                         setTimeout(() => {
                             this.updateFrameCanvasVisualization();
+
+                            // AUTO-SAVE: Persist calibration data immediately
+                            console.log('💾 Auto-saving calibration data...');
+                            this.saveFicheSilently(false); // Don't reload to avoid UI flicker
                         }, 100);
 
                         this.cdr.markForCheck();
