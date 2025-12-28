@@ -2578,8 +2578,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 this.loading = false;
                 console.log('Fiche saved:', fiche);
 
-                // Stay in edit mode and update state
-                this.isEditMode = true;
+                // Return to view mode after successful save
+                this.isEditMode = false;
+                this.ficheForm.disable();
                 this.ficheId = fiche.id;
                 this.currentFiche = fiche;
                 this.patchForm(fiche);
