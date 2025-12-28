@@ -1265,12 +1265,6 @@
                                 (click)="openVirtualCentering()">
                                 Centrage Virtuel (Tablette)
                             </button>
-                            <button type="button" class="btn-outline-blue" (click)="calibrationInput.click()"
-                                *ngIf="isEditMode">
-                                <mat-icon class="text-sm">upload</mat-icon> Importer Gabarit
-                            </button>
-                            <input #calibrationInput type="file" accept="image/*" class="hidden"
-                                (change)="onCalibrationImageUpload($event)">
                         </h4>
                         <div class="canvas-container bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
                             <canvas #frameCanvasElement width="800" height="500" class="w-full h-auto"></canvas>
