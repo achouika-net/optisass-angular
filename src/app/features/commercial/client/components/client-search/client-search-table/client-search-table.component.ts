@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MIN_PAGE_SIZE_OPTIONS } from '@app/config';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSort, MatSortHeader, Sort } from '@angular/material/sort';
@@ -26,7 +20,11 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MatIconButton } from '@angular/material/button';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatIcon } from '@angular/material/icon';
-import { NoDataSearchComponent, StatusIllustrationComponent, ConfirmationPopupComponent } from '@app/components';
+import {
+  NoDataSearchComponent,
+  StatusIllustrationComponent,
+  ConfirmationPopupComponent,
+} from '@app/components';
 import { MatDialog } from '@angular/material/dialog';
 import { filter, tap } from 'rxjs/operators';
 import { ResponsiveTableDirective } from '@app/directives';
@@ -70,12 +68,14 @@ export class ClientSearchTableComponent {
   sort = this.#clientStore.state.sort;
   page = this.#clientStore.state.pageEvent;
   displayedColumns = signal([
-    'nom',
-    'prenom',
-    'email',
-    'telephone',
-    'entreprise',
-    'actif',
+    'clientTypeId',
+    'title',
+    'lastName',
+    'firstName',
+    'phone',
+    'idDocument',
+    'city',
+    'active',
     'action',
   ]).asReadonly();
   showPaginator = computed<boolean>(() => this.clients()?.meta.total > MIN_PAGE_SIZE_OPTIONS);

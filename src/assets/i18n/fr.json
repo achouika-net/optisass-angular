@@ -197,7 +197,13 @@
   },
   "client": {
     "add": "Ajouter un client",
-    "entreprise": "Entreprise",
+    "clientType": "Type de client",
+    "type": "Type",
+    "title": "Titre",
+    "idDocument": "Pièce d'identité",
+    "familyGroup": "Groupe famille",
+    "city": "Ville",
+    "company": "Entreprise",
     "errors": {
       "searchClients": "Une erreur est survenue lors de la recherche des clients",
       "getClient": "Une erreur est survenue lors de la récupération du client",

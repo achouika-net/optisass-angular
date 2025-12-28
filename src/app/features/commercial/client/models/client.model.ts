@@ -1,9 +1,12 @@
 export interface IClient {
   id: number;
-  nom: string;
-  prenom: string;
-  email: string;
-  telephone: string;
-  entreprise: string;
-  actif: boolean;
+  clientTypeId: number;
+  title: string;
+  lastName: string;
+  firstName: string;
+  phone: string;
+  idDocument: string;
+  familyGroup: string;
+  city: string;
+  active: boolean;
 }

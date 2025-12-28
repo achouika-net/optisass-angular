@@ -197,7 +197,13 @@
   },
   "client": {
     "add": "Add a client",
-    "entreprise": "Company",
+    "clientType": "Client type",
+    "type": "Type",
+    "title": "Title",
+    "idDocument": "ID document",
+    "familyGroup": "Family group",
+    "city": "City",
+    "company": "Company",
     "errors": {
       "searchClients": "An error occurred while searching for clients",
       "getClient": "An error occurred while retrieving the client",

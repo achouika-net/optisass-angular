@@ -27,7 +27,7 @@ const initialState: ClientState = {
   clients: null,
   client: null,
   searchForm: new ClientSearch(),
-  sort: { active: 'nom', direction: 'desc' },
+  sort: { active: 'lastName', direction: 'desc' },
   pageEvent: {
     pageIndex: 0,
     pageSize: DEFAULT_PAGE_SIZE,

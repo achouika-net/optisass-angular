@@ -46,6 +46,7 @@ export class ClientSearchFormComponent {
   readonly searchForm = input.required<FieldTree<IClientSearch>>();
   #searchValue: Signal<IClientSearch> = this.#clientStore.state.searchForm;
   states = signal<IResource[]>(States).asReadonly();
+  clientTypes = signal<IResource[]>([]).asReadonly();
 
   constructor() {
     effect(() => {
