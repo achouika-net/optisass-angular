@@ -32,6 +32,25 @@ export class CreateFicheDto {
     @IsOptional()
     content?: any;
 
+    // Explicitly allow sub-objects to pass whitelist validation
+    @IsOptional()
+    montage?: any;
+
+    @IsOptional()
+    verres?: any;
+
+    @IsOptional()
+    monture?: any;
+
+    @IsOptional()
+    ordonnance?: any;
+
+    @IsOptional()
+    suggestions?: any;
+
+    @IsOptional()
+    equipements?: any;
+
     // Support for loose fields that frontend might send
     [key: string]: any;
 }
