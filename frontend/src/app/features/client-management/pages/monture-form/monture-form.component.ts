@@ -3069,8 +3069,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             if (!isNaN(hTotal)) {
                 ctx.fillStyle = '#22c55e'; // Modern Green for Frame Height
                 const displayVal = hTotal.toFixed(1); // Format to 1 decimal
-                ctx.fillText(`${displayVal}`, 70, 260);  // Left Outer Arrow (OD side)
-                ctx.fillText(`${displayVal}`, 730, 260); // Right Outer Arrow (OG side)
+                ctx.fillText(`${displayVal}`, 70, 320);  // Left Outer Arrow (OD side) - Moved down below arrow (was 260)
+                ctx.fillText(`${displayVal}`, 730, 320); // Right Outer Arrow (OG side) - Moved down below arrow (was 260)
             }
 
             // 4. Calibre / Pont Labels (Top)
