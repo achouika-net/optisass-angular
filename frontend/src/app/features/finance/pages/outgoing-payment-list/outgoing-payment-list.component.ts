@@ -95,6 +95,14 @@ export class OutgoingPaymentListComponent implements OnInit {
     loading = false;
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
 
+    // Subtotals
+    subtotals = {
+        totalTTC: 0,
+        totalHT: 0,
+        totalReste: 0,
+        count: 0
+    };
+
     suppliers: Supplier[] = [];
     types: string[] = [
         'LOYER', 'ELECTRICITE', 'EAU', 'INTERNET', 'TELEPHONE', 'SALAIRE',
@@ -242,6 +250,7 @@ export class OutgoingPaymentListComponent implements OnInit {
                     this.payments = data;
                 }
 
+                this.calculateSubtotals();
                 this.loading = false;
             },
             error: (err) => {
@@ -249,6 +258,25 @@ export class OutgoingPaymentListComponent implements OnInit {
                 this.snackBar.open('Erreur lors du chargement des données', 'Fermer', { duration: 3000 });
                 this.loading = false;
             }
+        });
+    }
+
+    calculateSubtotals() {
+        this.subtotals = {
+            totalTTC: 0,
+            totalHT: 0,
+            totalReste: 0,
+            count: this.payments.length
+        };
+
+        this.payments.forEach(p => {
+            const ttc = p.totalTTC || (p.montant < 0 ? -p.montant : p.montant) || 0;
+            const ht = p.totalHT || p.montantHT || 0;
+            const reste = p.resteAPayer || 0;
+
+            this.subtotals.totalTTC += ttc;
+            this.subtotals.totalHT += ht;
+            this.subtotals.totalReste += reste;
         });
     }
 

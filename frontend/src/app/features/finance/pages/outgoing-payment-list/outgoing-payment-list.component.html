@@ -99,6 +99,38 @@
         </mat-card-content>
     </mat-card>
 
+    <!-- Subtotals Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+            <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Nombre d'opérations</span>
+            <span class="text-2xl font-black text-slate-800">{{ subtotals.count }}</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+            <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total TTC</span>
+            <span class="text-2xl font-black"
+                [ngClass]="(activeTab === 'OUTGOING') ? 'text-red-600' : 'text-green-600'">
+                {{ subtotals.totalTTC | number:'1.2-2' }} DH
+            </span>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center"
+            *ngIf="activeTab === 'OUTGOING'">
+            <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total HT</span>
+            <span class="text-2xl font-black text-slate-700">
+                {{ subtotals.totalHT | number:'1.2-2' }} DH
+            </span>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center"
+            *ngIf="activeTab === 'UNPAID_CLIENTS'">
+            <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total Reste à Payer</span>
+            <span class="text-2xl font-black text-orange-600">
+                {{ subtotals.totalReste | number:'1.2-2' }} DH
+            </span>
+        </div>
+    </div>
+
     <mat-card>
         <div class="overflow-x-auto">
             <table mat-table [dataSource]="payments" class="mat-elevation-z0" [trackBy]="trackByPayment">

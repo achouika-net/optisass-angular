@@ -85,6 +85,12 @@
                         <input matInput formControlName="reference" placeholder="Ex: 1234567">
                     </mat-form-field>
 
+                    <mat-form-field appearance="outline"
+                        *ngIf="showReference && (form.get('modePaiement')?.value === 'CHEQUE' || form.get('modePaiement')?.value === 'LCN')">
+                        <mat-label>Banque de la pièce</mat-label>
+                        <input matInput formControlName="banque" placeholder="Ex: Attijariwafa Bank">
+                    </mat-form-field>
+
                     <mat-form-field appearance="outline" *ngIf="showEcheance">
                         <mat-label>Date d'échéance</mat-label>
                         <input matInput [matDatepicker]="echeancePicker" formControlName="dateEcheance">

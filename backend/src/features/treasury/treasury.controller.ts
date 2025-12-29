@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Param } from '@nestjs/common';
 import { TreasuryService } from './treasury.service';
 
 @Controller('treasury')
@@ -23,13 +23,15 @@ export class TreasuryController {
         @Query('clientId') clientId?: string,
         @Query('startDate') startDate?: string,
         @Query('endDate') endDate?: string,
-        @Query('centreId') centreId?: string
+        @Query('centreId') centreId?: string,
+        @Query('mode') mode?: string
     ) {
         return this.treasuryService.getConsolidatedIncomings({
             clientId,
             startDate,
             endDate,
-            centreId
+            centreId,
+            mode
         });
     }
 
@@ -40,7 +42,8 @@ export class TreasuryController {
         @Query('startDate') startDate?: string,
         @Query('endDate') endDate?: string,
         @Query('source') source?: string,
-        @Query('centreId') centreId?: string
+        @Query('centreId') centreId?: string,
+        @Query('mode') mode?: string
     ) {
         return this.treasuryService.getConsolidatedOutgoings({
             fournisseurId,
@@ -48,7 +51,8 @@ export class TreasuryController {
             startDate,
             endDate,
             source,
-            centreId
+            centreId,
+            mode
         });
     }
 
@@ -65,5 +69,10 @@ export class TreasuryController {
     @Post('config')
     updateConfig(@Body('monthlyThreshold') threshold: number) {
         return this.treasuryService.updateConfig(threshold);
+    }
+
+    @Post('echeances/:id/validate')
+    validateEcheance(@Param('id') id: string, @Body('statut') statut: string) {
+        return this.treasuryService.updateEcheanceStatus(id, statut || 'ENCAISSE');
     }
 }

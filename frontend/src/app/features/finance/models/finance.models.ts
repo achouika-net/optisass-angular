@@ -43,6 +43,7 @@ export interface Expense {
     statut: string;
     justificatifUrl?: string;
     reference?: string;
+    banque?: string;
     dateEcheance?: string;
     centreId: string;
     centre?: { nom: string };
@@ -61,6 +62,7 @@ export interface ExpenseDTO {
     statut: string;
     justificatifUrl?: string;
     reference?: string;
+    banque?: string;
     dateEcheance?: string;
     centreId: string;
     fournisseurId?: string;

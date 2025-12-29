@@ -20,6 +20,7 @@ export class ExpensesService {
                         dateEcheance: new Date(dateEcheance),
                         montant: data.montant,
                         statut: 'EN_ATTENTE',
+                        banque: data.banque,
                     }
                 });
                 echeanceId = echeance.id;

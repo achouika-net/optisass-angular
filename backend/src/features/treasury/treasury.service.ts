@@ -249,10 +249,15 @@ export class TreasuryService {
         });
     }
 
-    async getConsolidatedIncomings(filters: { clientId?: string; startDate?: string; endDate?: string; centreId?: string }) {
+    async getConsolidatedIncomings(filters: { clientId?: string; startDate?: string; endDate?: string; centreId?: string; mode?: string }) {
         const where: any = {
             statut: { not: 'ANNULE' }
         };
+
+        if (filters.mode) {
+            const modes = filters.mode.split(',');
+            where.mode = { in: modes };
+        }
 
         if (filters.centreId) {
             where.facture = { centreId: filters.centreId };
@@ -313,14 +318,56 @@ export class TreasuryService {
                 source: 'FACTURE_CLIENT',
                 modePaiement: p.mode,
                 reference: p.reference,
-                dateVersement: p.dateVersement,
+                dateVersement: p.dateVersement, // Planned date
+                dateEncaissement: p.dateEncaissement, // Actual date
                 banque: p.banque,
                 isAvoir
             };
         });
     }
 
-    async getConsolidatedOutgoings(filters: { fournisseurId?: string; type?: string; startDate?: string; endDate?: string; source?: string; centreId?: string }) {
+    async getConsolidatedOutgoings(filters: { fournisseurId?: string; type?: string; startDate?: string; endDate?: string; source?: string; centreId?: string; mode?: string }) {
+        // If mode (CHEQUE, LCN) is provided, we fetch individual pieces (EcheancePaiement)
+        if (filters.mode && (filters.mode.includes('CHEQUE') || filters.mode.includes('LCN'))) {
+            const where: any = {
+                type: { in: filters.mode.split(',') }
+            };
+
+            if (filters.startDate || filters.endDate) {
+                const dateRange: any = {};
+                if (filters.startDate) dateRange.gte = new Date(filters.startDate);
+                if (filters.endDate) dateRange.lte = new Date(filters.endDate);
+                where.dateEcheance = dateRange;
+            }
+
+            const pieces = await this.prisma.echeancePaiement.findMany({
+                where,
+                include: {
+                    factureFournisseur: { include: { fournisseur: { select: { nom: true } } } },
+                    depense: { include: { fournisseur: { select: { nom: true } } } }
+                },
+                orderBy: { dateEcheance: 'desc' }
+            });
+
+            return pieces.map(p => ({
+                id: p.id,
+                date: p.dateEcheance,
+                libelle: p.factureFournisseur?.numeroFacture || p.depense?.description || p.depense?.categorie || 'N/A',
+                type: p.type,
+                fournisseur: p.factureFournisseur?.fournisseur?.nom || p.depense?.fournisseur?.nom || 'N/A',
+                montant: p.montant,
+                statut: p.statut,
+                source: p.factureFournisseur ? 'FACTURE' : 'DEPENSE',
+                modePaiement: p.type,
+                reference: p.reference,
+                banque: p.banque,
+                dateEcheance: p.dateEcheance, // Valeur
+                dateEncaissement: p.dateEncaissement, // Actual
+                createdAt: p.createdAt // Creation date
+            }));
+        }
+
+        // Default behavior (group by invoice/expense)
         const whereExpense: any = filters.centreId ? { centreId: filters.centreId } : {};
         const whereInvoice: any = filters.centreId ? { centreId: filters.centreId } : {};
 
@@ -353,18 +400,14 @@ export class TreasuryService {
             whereInvoice.dateEmission = dateRange;
         }
 
-        console.log('[TREASURY-OUTGOINGS] Filters:', filters);
-        console.log('[TREASURY-OUTGOINGS] Expense Where:', JSON.stringify(whereExpense, null, 2));
-        console.log('[TREASURY-OUTGOINGS] Invoice Where:', JSON.stringify(whereInvoice, null, 2));
-
-        const startTime = Date.now();
         const [expenses, invoices] = await Promise.all([
             filters.source === 'FACTURE' ? Promise.resolve([]) : this.prisma.depense.findMany({
                 where: whereExpense,
                 include: {
                     centre: { select: { nom: true } },
                     fournisseur: { select: { nom: true } },
-                    factureFournisseur: { include: { fournisseur: { select: { nom: true } } } }
+                    factureFournisseur: { include: { fournisseur: { select: { nom: true } } } },
+                    echeance: true
                 },
                 orderBy: { date: 'desc' },
                 take: 100
@@ -379,8 +422,6 @@ export class TreasuryService {
             })
         ]);
 
-        console.log(`[TREASURY-OUTGOINGS] Query took ${Date.now() - startTime}ms. Found ${expenses.length} exp, ${invoices.length} inv.`);
-
         const consolidated = [
             ...expenses.map(e => ({
                 id: e.id,
@@ -393,7 +434,9 @@ export class TreasuryService {
                 source: 'DEPENSE',
                 modePaiement: e.modePaiement,
                 reference: e.reference,
+                banque: e.echeance?.banque || null,
                 dateEcheance: e.dateEcheance,
+                dateEncaissement: e.echeance?.dateEncaissement || null,
                 montantHT: null
             })),
             ...invoices.map(i => ({
@@ -408,6 +451,7 @@ export class TreasuryService {
                 modePaiement: 'VOIR_ECHEANCES',
                 reference: i.numeroFacture,
                 dateEcheance: i.dateEcheance,
+                dateEncaissement: null,
                 montantHT: Number(i.montantHT)
             }))
         ];
@@ -454,5 +498,17 @@ export class TreasuryService {
         });
 
         return monthlyData;
+    }
+
+    async updateEcheanceStatus(id: string, statut: string) {
+        const data: any = { statut };
+        if (statut === 'ENCAISSE' || statut === 'PAYE') {
+            data.dateEncaissement = new Date();
+        }
+
+        return this.prisma.echeancePaiement.update({
+            where: { id },
+            data
+        });
     }
 }

@@ -141,6 +141,11 @@ export class PaiementsService {
             });
         }
 
+        // Automatically set dateEncaissement if status changes to ENCAISSE
+        if (updatePaiementDto.statut === 'ENCAISSE' && paiement.statut !== 'ENCAISSE' && !updatePaiementDto.dateEncaissement) {
+            updatePaiementDto.dateEncaissement = new Date().toISOString();
+        }
+
         return this.prisma.paiement.update({
             where: { id },
             data: updatePaiementDto

@@ -15,6 +15,10 @@ class CreateEcheanceDto {
     @IsString()
     reference?: string;
 
+    @IsOptional()
+    @IsString()
+    banque?: string;
+
     @IsString()
     statut: string;
 }

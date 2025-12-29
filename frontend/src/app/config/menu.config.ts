@@ -55,6 +55,12 @@ export const MENU: MenuItem[] = [
         icon: 'policy',
         type: 'subchild',
         route: 'finance/sales-control',
+      },
+      {
+        label: 'Portefeuille',
+        icon: 'wallet',
+        type: 'subchild',
+        route: 'finance/portfolio',
       }
     ]
   },

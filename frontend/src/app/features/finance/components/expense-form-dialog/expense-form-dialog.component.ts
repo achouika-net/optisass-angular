@@ -94,6 +94,7 @@ export class ExpenseFormDialogComponent implements OnInit {
             description: [data?.expense?.description || ''],
             statut: [data?.expense?.statut || 'VALIDEE'],
             reference: [data?.expense?.reference || ''],
+            banque: [data?.expense?.banque || ''],
             dateEcheance: [data?.expense?.dateEcheance || null],
             fournisseurId: [data?.expense?.fournisseurId || '']
         });

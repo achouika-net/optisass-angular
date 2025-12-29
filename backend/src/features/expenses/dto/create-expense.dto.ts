@@ -42,4 +42,8 @@ export class CreateExpenseDto {
     @IsOptional()
     @IsString()
     creePar?: string;
+
+    @IsOptional()
+    @IsString()
+    banque?: string;
 }

@@ -125,4 +125,8 @@ export class FinanceService {
     validatePayment(id: string): Observable<any> {
         return this.http.patch(`${this.apiUrl}/paiements/${id}`, { statut: 'ENCAISSE' });
     }
+
+    validateEcheance(id: string, statut: string = 'ENCAISSE'): Observable<any> {
+        return this.http.post(`${this.apiUrl}/treasury/echeances/${id}/validate`, { statut });
+    }
 }

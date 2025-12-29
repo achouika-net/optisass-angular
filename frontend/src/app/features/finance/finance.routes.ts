@@ -45,5 +45,9 @@ export const routes: Routes = [
     {
         path: 'sales-control',
         loadComponent: () => import('../reports/sales-control-report/sales-control-report.component').then(m => m.SalesControlReportComponent)
+    },
+    {
+        path: 'portfolio',
+        loadComponent: () => import('./pages/portfolio-management/portfolio-management.component').then(m => m.PortfolioManagementComponent)
     }
 ];

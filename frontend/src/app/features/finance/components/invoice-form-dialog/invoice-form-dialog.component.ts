@@ -170,6 +170,11 @@ export class InvoiceFormDialogComponent implements OnInit {
         if (data?.invoice?.echeances) {
             data.invoice.echeances.forEach(e => this.addEcheance(e));
         }
+
+        if (data?.invoice?.fournisseur) {
+            this.supplierCtrl.setValue(data.invoice.fournisseur.nom);
+            this.selectedSupplier = data.invoice.fournisseur;
+        }
     }
 
     ngOnInit() {
@@ -179,12 +184,14 @@ export class InvoiceFormDialogComponent implements OnInit {
         if ((this.data?.invoice as any)?.viewMode) {
             this.isViewMode = true;
             this.form.disable();
+            this.supplierCtrl.disable();
         }
 
         this.route.queryParams.subscribe(params => {
             if (params['viewMode'] === 'true') {
                 this.isViewMode = true;
                 this.form.disable();
+                this.supplierCtrl.disable();
             }
         });
 
@@ -211,10 +218,16 @@ export class InvoiceFormDialogComponent implements OnInit {
                 this.echeances.clear();
                 invoice.echeances?.forEach(e => this.addEcheance(e));
 
+                if (invoice.fournisseur) {
+                    this.supplierCtrl.setValue(invoice.fournisseur.nom);
+                    this.selectedSupplier = invoice.fournisseur;
+                }
+
                 this.autoUpdateStatus();
 
                 if (this.isViewMode) {
                     this.form.disable();
+                    this.supplierCtrl.disable();
                 }
             });
         }
@@ -253,6 +266,31 @@ export class InvoiceFormDialogComponent implements OnInit {
             startWith(''),
             map(value => this._filterTypes(value || ''))
         );
+
+        // SYNC: Update ID when selection changes in autocomplete
+        this.supplierCtrl.valueChanges.subscribe(value => {
+            if (typeof value === 'object' && value && 'id' in (value as any)) {
+                this.detailsGroup.patchValue({ fournisseurId: (value as any).id }, { emitEvent: false });
+                this.selectedSupplier = value as Supplier;
+            } else if (!value) {
+                this.detailsGroup.patchValue({ fournisseurId: null }, { emitEvent: false });
+                this.selectedSupplier = null;
+            }
+        });
+
+        // SYNC: Update text when ID changes (e.g. from patchValue or loading)
+        this.detailsGroup.get('fournisseurId')?.valueChanges.subscribe(id => {
+            if (id && this.suppliers.length > 0) {
+                const s = this.suppliers.find(x => x.id === id);
+                if (s && this.supplierCtrl.value !== s.nom) {
+                    this.supplierCtrl.setValue(s.nom, { emitEvent: false });
+                    this.selectedSupplier = s;
+                }
+            } else if (!id) {
+                this.supplierCtrl.setValue('', { emitEvent: false });
+                this.selectedSupplier = null;
+            }
+        });
     }
 
     loadSuppliers() {
@@ -287,8 +325,10 @@ export class InvoiceFormDialogComponent implements OnInit {
         return this.suppliers.filter((option: Supplier) => option.nom.toLowerCase().includes(filterValue));
     }
 
-    displayFn(supplier: Supplier): string {
-        return supplier && supplier.nom ? supplier.nom : '';
+    displayFn(supplier: any): string {
+        if (!supplier) return '';
+        if (typeof supplier === 'string') return supplier;
+        return supplier.nom || '';
     }
 
     private _filterTypes(value: string): string[] {

@@ -110,7 +110,7 @@
                             <div class="mb-6">
                                 <div class="flex items-center justify-between mb-4">
                                     <h4 class="text-sm font-semibold text-gray-700">Pièces jointes</h4>
-                                    <div class="flex gap-2">
+                                    <div class="flex gap-2" *ngIf="!isViewMode">
                                         <button type="button" mat-raised-button color="primary"
                                             (click)="openFileUpload()">
                                             <mat-icon>upload_file</mat-icon>
@@ -148,7 +148,7 @@
                                                 <mat-icon>visibility</mat-icon>
                                             </button>
                                             <button type="button" mat-icon-button color="warn" (click)="deleteFile(i)"
-                                                matTooltip="Supprimer">
+                                                matTooltip="Supprimer" *ngIf="!isViewMode">
                                                 <mat-icon>delete</mat-icon>
                                             </button>
                                         </div>
