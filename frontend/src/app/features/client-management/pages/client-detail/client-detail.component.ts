@@ -24,6 +24,18 @@ import { Client, TypeClient, ClientParticulier, ClientProfessionnel, ClientAnony
 import { FactureListComponent } from '../facture-list/facture-list.component';
 import { FicheClient, StatutFiche, TypeFiche } from '../../models/fiche-client.model';
 import { PaymentListComponent } from '../../components/payment-list/payment-list.component';
+import { CameraCaptureDialogComponent } from '../../../../shared/components/camera-capture/camera-capture-dialog.component';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
+
+export interface Attachment {
+  id: string;
+  name: string;
+  type: string;
+  url: string;
+  date: string;
+  size?: number;
+}
 
 @Component({
   selector: 'app-client-detail',
@@ -46,7 +58,9 @@ import { PaymentListComponent } from '../../components/payment-list/payment-list
     MatDividerModule,
     FormsModule,
     FactureListComponent,
-    PaymentListComponent
+    PaymentListComponent,
+    MatSnackBarModule,
+    MatTooltipModule
   ],
   templateUrl: './client-detail.component.html',
   styleUrls: ['./client-detail.component.scss']
@@ -57,6 +71,9 @@ export class ClientDetailComponent implements OnInit {
   fiches: FicheClient[] = [];
   loading = true;
   isEditMode = false;
+
+  // Attachments Support
+  attachments = signal<Attachment[]>([]);
 
   get clientDisplayName(): string {
     if (!this.client) return '';
@@ -114,7 +131,8 @@ export class ClientDetailComponent implements OnInit {
     private factureService: FactureService,
     private loyaltyService: LoyaltyService,
     private cdr: ChangeDetectorRef,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar
   ) {
     this.clientId = this.route.snapshot.paramMap.get('id');
   }
@@ -152,6 +170,11 @@ export class ClientDetailComponent implements OnInit {
         if (client && (client as any).pointsHistory) {
           this.pointsHistory.set((client as any).pointsHistory);
         }
+
+        // Load attachments from JSON field
+        const dossierMedical = (client as any).dossierMedical || {};
+        const clientAttachments = dossierMedical.attachments || [];
+        this.attachments.set(clientAttachments);
 
         // Check reward eligibility
         this.checkRewardEligibility();
@@ -344,6 +367,120 @@ export class ClientDetailComponent implements OnInit {
   completeProfile(): void {
     if (!this.clientId) return;
     this.router.navigate(['/p/clients', this.clientId, 'edit']);
+  }
+
+  // --- Header Actions ---
+
+  createFacture(): void {
+    this.router.navigate(['/p/clients/factures/new'], {
+      queryParams: { clientId: this.clientId }
+    });
+  }
+
+  // --- Attachment Methods ---
+
+  openCamera(): void {
+    const dialogRef = this.dialog.open(CameraCaptureDialogComponent, {
+      width: '600px',
+      maxWidth: '95vw'
+    });
+
+    dialogRef.afterClosed().subscribe(dataUrl => {
+      if (dataUrl) {
+        this.saveAttachment({
+          id: crypto.randomUUID(),
+          name: `Photo_${new Date().getTime()}.jpg`,
+          type: 'image/jpeg',
+          url: dataUrl,
+          date: new Date().toISOString()
+        });
+      }
+    });
+  }
+
+  onFileSelected(event: any): void {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e: any) => {
+        this.saveAttachment({
+          id: crypto.randomUUID(),
+          name: file.name,
+          type: file.type,
+          url: e.target.result,
+          date: new Date().toISOString(),
+          size: file.size
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  private saveAttachment(newFile: any): void {
+    if (!this.client || !this.clientId) return;
+
+    const currentAttachments = this.attachments();
+    const updatedAttachments = [...currentAttachments, newFile];
+
+    // Persist in dossierMedical JSON
+    const updatedDossierMedical = {
+      ...(this.client as any).dossierMedical,
+      attachments: updatedAttachments
+    };
+
+    this.clientService.updateClient(this.clientId, {
+      dossierMedical: updatedDossierMedical
+    } as any).subscribe({
+      next: () => {
+        this.attachments.set(updatedAttachments);
+        this.snackBar.open('Fichier ajouté avec succès', 'Fermer', { duration: 3000 });
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        console.error('Error saving attachment:', err);
+        this.snackBar.open('Erreur lors de l\'ajout du fichier', 'Fermer', { duration: 3000 });
+      }
+    });
+  }
+
+  deleteAttachment(attachmentId: string): void {
+    if (!confirm('Voulez-vous vraiment supprimer ce fichier ?')) return;
+    if (!this.client || !this.clientId) return;
+
+    const updatedAttachments = this.attachments().filter(a => a.id !== attachmentId);
+
+    const updatedDossierMedical = {
+      ...(this.client as any).dossierMedical,
+      attachments: updatedAttachments
+    };
+
+    this.clientService.updateClient(this.clientId, {
+      dossierMedical: updatedDossierMedical
+    } as any).subscribe({
+      next: () => {
+        this.attachments.set(updatedAttachments);
+        this.snackBar.open('Fichier supprimé', 'Fermer', { duration: 3000 });
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        console.error('Error deleting attachment:', err);
+        this.snackBar.open('Erreur lors de la suppression', 'Fermer', { duration: 3000 });
+      }
+    });
+  }
+
+  downloadAttachment(attachment: any): void {
+    // For images/PDFs in dataUrl, we can open in new tab or trigger download
+    const link = document.createElement('a');
+    link.href = attachment.url;
+    link.download = attachment.name;
+    link.click();
+  }
+
+  getFileIcon(type: string): string {
+    if (type.startsWith('image/')) return 'image';
+    if (type === 'application/pdf') return 'picture_as_pdf';
+    return 'insert_drive_file';
   }
 
   toggleEditMode(): void {
