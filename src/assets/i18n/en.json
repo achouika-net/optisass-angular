@@ -19,6 +19,10 @@
     "users_add": "Add",
     "users_detail": "Detail",
     "holidays": "Holidays & Public Days",
+    "warehouses": "Warehouse Management",
+    "warehouses_list": "List",
+    "warehouses_add": "Add",
+    "warehouses_detail": "Detail",
     "externalLink1": "External Link 1",
     "help": "Help",
     "about": "About",
@@ -146,6 +150,24 @@
   },
   "permissions": {
     "noAccessToModule": "You don't have access to this module in this center"
+  },
+  "warehouse": {
+    "add": "Add a warehouse",
+    "name": "Name",
+    "capacity": "Capacity (m²)",
+    "address": "Address",
+    "type": "Type",
+    "types": {
+      "PRINCIPALE": "Main",
+      "SECONDAIRE": "Secondary"
+    },
+    "errors": {
+      "searchWarehouses": "An error occurred while searching for warehouses",
+      "getWarehouse": "An error occurred while retrieving the warehouse",
+      "addWarehouse": "An error occurred while creating the warehouse",
+      "updateWarehouse": "An error occurred while updating the warehouse",
+      "deleteWarehouse": "An error occurred while deleting the warehouse"
+    }
   },
   "user": {
     "add": "Add a user",

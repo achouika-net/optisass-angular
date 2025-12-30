@@ -27,6 +27,9 @@ export const APP_ROUTES = {
   'a-propos': [],
   'settings/users/add': ['USERS_CREATE'],
   'settings/users/:id': ['USERS_READ'],
+  'settings/warehouses': [],
+  'settings/warehouses/add': [],
+  'settings/warehouses/:id': [],
 } as const satisfies Record<string, readonly ResourceAuthorizations[]>;
 
 /**

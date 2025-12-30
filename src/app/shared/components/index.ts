@@ -5,4 +5,5 @@ export * from './field-error/field-error.component';
 export * from './form-control-error/form-control-error.component';
 export * from './no-data-search/no-data-search.component';
 export * from './photo-upload/photo-upload.component';
+export * from './address-autocomplete';
 export * from './status-illustration/status-illustration.component';

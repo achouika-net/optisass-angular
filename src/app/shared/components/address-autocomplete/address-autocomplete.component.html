@@ -1,32 +1,86 @@
-<mat-form-field appFieldControlLabel>
-  <mat-label>{{ label() }}</mat-label>
-  <input
-    [formControl]="addressControl"
-    [placeholder]="
-      addressControl.enabled && 'commun.enterAddressForSearch' | translate
-    "
-    (input)="input.set($any($event.target).value)"
-    appMarkRequiredFormControlAsDirty
-    [matAutocomplete]="auto"
-    matInput
-  />
-  <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayFn">
-    @if (addressResource.isLoading()) {
-      <mat-option disabled>
-        {{ 'commun.loading' | translate }}
-      </mat-option>
+@if (!hidden()) {
+  <mat-form-field class="w-full" appearance="outline">
+    <mat-label>{{ label() }}</mat-label>
+
+    <input
+      matInput
+      type="text"
+      [attr.name]="name()"
+      [value]="inputValue()"
+      [placeholder]="placeholder()"
+      [disabled]="disabled()"
+      [readonly]="readonly()"
+      [required]="required()"
+      [matAutocomplete]="auto"
+      (input)="onInput($event)"
+      (blur)="onBlur()"
+    />
+
+    <!-- Loading spinner - uses rxResource.isLoading() Signal directly -->
+    @if (addressResource.isLoading() || pending()) {
+      <mat-spinner matSuffix diameter="20" />
     }
-    @for (address of addressResource.value(); track address.id) {
-      <mat-option [value]="address">
-        {{ displayFn(address) }}
-      </mat-option>
-    } @empty {
-      @if (!addressResource.isLoading()) {
-        <mat-option [value]="null">
-          {{ message() || 'commun.addressNotFound' | translate }}
+
+    <!-- Clear button -->
+    @if (inputValue() && !disabled() && !readonly()) {
+      <button
+        type="button"
+        matSuffix
+        mat-icon-button
+        aria-label="Clear"
+        (click)="clear()"
+      >
+        <mat-icon>close</mat-icon>
+      </button>
+    }
+
+    <!-- Autocomplete panel -->
+    <mat-autocomplete
+      #auto="matAutocomplete"
+      [displayWith]="displayFn"
+      (optionSelected)="onOptionSelected($event)"
+    >
+      @if (addressResource.isLoading()) {
+        <mat-option disabled>
+          {{ 'commun.loading' | translate }}
         </mat-option>
+      } @else {
+        @for (address of addressResource.value(); track address.id) {
+          <mat-option [value]="address">
+            <div class="address-option">
+              <mat-icon class="address-icon">location_on</mat-icon>
+              <div class="address-text">
+                <span class="address-main">{{ address.formatted }}</span>
+                @if (address.city && address.postcode) {
+                  <span class="address-secondary">
+                    {{ address.postcode }} {{ address.city }}
+                  </span>
+                }
+              </div>
+            </div>
+          </mat-option>
+        } @empty {
+          @if (inputValue()?.length >= minSearchLength()) {
+            <mat-option disabled>
+              {{ 'commun.addressNotFound' | translate }}
+            </mat-option>
+          }
+        }
       }
+    </mat-autocomplete>
+
+    <!-- Hint message -->
+    @if (hintMessage()) {
+      <mat-hint>{{ hintMessage() }}</mat-hint>
     }
-  </mat-autocomplete>
-  <mat-error [errors]="addressControl.errors" app-form-control-error />
-</mat-form-field>
+
+    <!-- Error messages from form validation -->
+    @if (showError()) {
+      <mat-error>
+        @for (error of errors(); track $index) {
+          {{ error.message || ('validators.' + error.kind | translate) }}
+        }
+      </mat-error>
+    }
+  </mat-form-field>
+}

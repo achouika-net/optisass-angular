@@ -13,6 +13,12 @@ export default [
         loadChildren: () => import('./user/user.routes'),
         canActivateChild: [PermissionCanActivateChildGuard],
       },
+      {
+        path: 'warehouses',
+        data: { breadcrumb: 'nav.warehouses' },
+        loadChildren: () => import('./warehouse/warehouse.routes'),
+        canActivateChild: [PermissionCanActivateChildGuard],
+      },
     ],
   },
 ] satisfies TypedRoute[];

@@ -2,240 +2,173 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  DestroyRef,
   effect,
   inject,
   input,
+  model,
   output,
-  OutputEmitterRef,
-  Signal,
   signal,
-  viewChild,
-  AfterViewInit,
 } from '@angular/core';
-import {
-  AsyncValidatorFn,
-  ControlValueAccessor,
-  FormControl,
-  NG_VALIDATORS,
-  NG_VALUE_ACCESSOR,
-  ReactiveFormsModule,
-  ValidationErrors,
-  Validator,
-  ValidatorFn,
-} from '@angular/forms';
-import { MatAutocompleteModule, MatAutocompleteTrigger } from '@angular/material/autocomplete';
+import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { FormValueControl, ValidationError } from '@angular/forms/signals';
+import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
+import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import {
-  FieldControlLabelDirective,
-  MarkRequiredFormControlAsDirtyDirective,
-} from '@app/directives';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { FormControlErrorComponent } from '@app/components';
-import { Address, IAddress } from './address.model';
-import { rxResource, takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { debounceTime, map, tap } from 'rxjs/operators';
-import { catchError, of } from 'rxjs';
-import { ToastrService } from 'ngx-toastr';
-import { AddressService } from './address.service';
-import { MIN_LENGTH_SEARCH } from '@app/config';
-import { MatOptionSelectionChange } from '@angular/material/core';
+import { debounceTime, distinctUntilChanged } from 'rxjs';
+import { GeoapifyAddressService } from './geoapify-address.service';
+import { IAddressOption } from './geoapify-address.model';
 
+/**
+ * Signal Forms compatible address autocomplete component.
+ * Uses rxResource for efficient async data fetching with automatic loading/error states.
+ *
+ * @example
+ * <app-address-autocomplete
+ *   [field]="warehouseForm.address"
+ *   [label]="'warehouse.address' | translate"
+ * />
+ */
 @Component({
   selector: 'app-address-autocomplete',
   templateUrl: './address-autocomplete.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    FieldControlLabelDirective,
-    TranslateModule,
-    ReactiveFormsModule,
-    MatAutocompleteModule,
     MatFormFieldModule,
     MatInputModule,
-    FormControlErrorComponent,
-    MatSlideToggleModule,
-    MarkRequiredFormControlAsDirtyDirective,
-  ],
-  providers: [
-    {
-      provide: NG_VALUE_ACCESSOR,
-      useExisting: AddressAutocompleteComponent,
-      multi: true,
-    },
-    {
-      provide: NG_VALIDATORS,
-      useExisting: AddressAutocompleteComponent,
-      multi: true,
-    },
-    AddressService,
+    MatAutocompleteModule,
+    MatIconModule,
+    MatButtonModule,
+    MatProgressSpinnerModule,
+    TranslateModule,
   ],
 })
-export class AddressAutocompleteComponent
-  implements ControlValueAccessor, Validator, AfterViewInit
-{
-  #addressService = inject(AddressService);
-  #toastr = inject(ToastrService);
-  #translate = inject(TranslateService);
-  #destroyRef = inject(DestroyRef);
-  public formControlName = input<string>();
-  public validatorFn = input.required<ValidatorFn>();
-  public asyncValidatorFn = input<AsyncValidatorFn>(null);
-  public selectAddressOutput: OutputEmitterRef<IAddress> = output<IAddress>();
-  addressControl = new FormControl<string | IAddress>(null);
-  trigger = viewChild(MatAutocompleteTrigger);
-  onChange: (value: string | IAddress) => void;
-  onTouch: () => void;
-  onValidationChange: () => void;
-  atLeastMessage = (value: string, minLength = MIN_LENGTH_SEARCH): string => {
-    return this.#translate.instant('validators.atLeast', {
-      value: minLength - (value?.length ?? 0),
-    });
-  };
-  message: Signal<string> = computed(() => {
-    const value = this.input();
-    if (typeof value === 'string' && value?.trim().length < MIN_LENGTH_SEARCH) {
-      return this.atLeastMessage(value.trim());
+export class AddressAutocompleteComponent implements FormValueControl<string | null> {
+  readonly #addressService = inject(GeoapifyAddressService);
+  readonly #translate = inject(TranslateService);
+
+  // ===== FormValueControl REQUIRED =====
+
+  value = model<string | null>(null);
+
+  // ===== FormUiControl OPTIONAL (auto-bound by [field] directive) =====
+
+  touched = input<boolean>(false);
+  dirty = input<boolean>(false);
+  errors = input<readonly ValidationError.WithOptionalField[]>([]);
+  valid = input<boolean>(true);
+  invalid = input<boolean>(false);
+  pending = input<boolean>(false);
+  disabled = input<boolean>(false);
+  readonly = input<boolean>(false);
+  hidden = input<boolean>(false);
+  required = input<boolean>(false);
+  name = input<string>();
+
+  // ===== COMPONENT-SPECIFIC INPUTS =====
+
+  label = input<string>(this.#translate.instant('commun.address'));
+  placeholder = input<string>(this.#translate.instant('commun.enterAddressForSearch'));
+  minSearchLength = input<number>(3);
+  countryCode = input<string>('ma');
+
+  // ===== OUTPUTS =====
+
+  addressSelected = output<IAddressOption>();
+  blurred = output<void>();
+
+  readonly inputValue = signal<string>('');
+  readonly internalTouched = signal<boolean>(false);
+
+  readonly #debouncedQuery = toSignal(
+    toObservable(this.inputValue).pipe(debounceTime(400), distinctUntilChanged()),
+    { initialValue: '' }
+  );
+
+  readonly addressResource = rxResource({
+    params: () => ({
+      query: this.#debouncedQuery(),
+      countryCode: this.countryCode(),
+      minLength: this.minSearchLength(),
+    }),
+    stream: ({ params }) =>
+      this.#addressService.searchAddresses(params.query, params.minLength, params.countryCode),
+    defaultValue: [],
+  });
+
+  readonly isTouched = computed(() => this.touched() || this.internalTouched());
+  readonly showError = computed(() => this.isTouched() && this.invalid());
+
+  readonly hintMessage = computed(() => {
+    const inputLen = this.inputValue()?.length || 0;
+    const minLen = this.minSearchLength();
+    if (inputLen > 0 && inputLen < minLen) {
+      return this.#translate.instant('validators.atLeast', { value: minLen - inputLen });
     }
     return '';
-  });
-  input = signal<string | IAddress>('');
-  label = input<string>(this.#translate.instant('commun.address'));
-  debouncedInput = toSignal(toObservable(this.input).pipe(debounceTime(600)));
-  #searchParams = computed<{ input: string | IAddress }>(() => ({
-    input: this.debouncedInput(),
-  }));
-
-  addressResource = rxResource<IAddress[], { input: string | IAddress }>({
-    params: () => this.#searchParams(),
-    stream: ({ params }) => {
-      if (params.input && typeof params.input !== 'string') {
-        return of([params.input]);
-      }
-      const input = (params.input as string) || '';
-      if (input.length < MIN_LENGTH_SEARCH) {
-        return of([]);
-      }
-
-      return this.#addressService.searchAdress(input).pipe(
-        map((result: IAddress[]) => {
-          result.unshift(new Address(input));
-          return result;
-        }),
-        catchError(() => {
-          this.#toastr.error(this.#translate.instant('error.searchAddress'));
-          return of([]);
-        })
-      );
-    },
-    defaultValue: [],
   });
 
   constructor() {
     effect(() => {
-      this.addressControl.setValidators(this.validatorFn());
-      this.addressControl.markAsTouched();
-    });
-    effect(() => {
-      this.addressControl.setAsyncValidators(this.asyncValidatorFn());
-      this.addressControl.markAsTouched();
+      const val = this.value();
+      if (val && val !== this.inputValue()) {
+        this.inputValue.set(val);
+      }
     });
   }
 
+  // ===== EVENT HANDLERS =====
+
   /**
-   * to write a value into a form control
-   * @param value string
+   * Gère la saisie utilisateur dans l'input
+   * @param event - Événement input natif
    */
-  writeValue(value: string): void {
-    this.addressControl.setValue(value);
-    this.input.set(value);
+  onInput(event: Event): void {
+    this.inputValue.set((event.target as HTMLInputElement).value);
   }
 
   /**
-   * report the value back to the parent form by calling a callback
-   * @param fn
+   * Gère la sélection d'une adresse dans l'autocomplete
+   * @param event - Événement de sélection Material Autocomplete
    */
-  registerOnChange(fn: (value: string | IAddress) => void) {
-    this.onChange = fn;
+  onOptionSelected(event: MatAutocompleteSelectedEvent): void {
+    const address = event.option.value as IAddressOption;
+    this.value.set(address.formatted);
+    this.inputValue.set(address.formatted);
+    this.addressSelected.emit(address);
   }
 
   /**
-   * @param {() => void} fn
+   * Gère la perte de focus de l'input
+   * Met à jour la valeur si l'utilisateur a saisi sans sélectionner
    */
-  registerOnValidatorChange?(fn: () => void): void {
-    this.onValidationChange = fn;
-  }
-
-  /**
-   * report to the parent form that the control was touched
-   * @param fn
-   */
-  registerOnTouched(fn: () => void) {
-    this.onTouch = fn;
-  }
-
-  /**
-   * Sets the disabled state of the form control.
-   * @param isDisabled Whether the form control should be disabled or not.
-   */
-  setDisabledState(isDisabled: boolean): void {
-    if (isDisabled) {
-      this.addressControl.disable();
+  onBlur(): void {
+    this.internalTouched.set(true);
+    const input = this.inputValue();
+    if (input && input !== this.value()) {
+      this.value.set(input);
     }
+    this.blurred.emit();
   }
 
   /**
-   * @returns {ValidationErrors}
+   * Efface la valeur de l'input
    */
-  validate(): ValidationErrors {
-    return !this.addressControl.valid ? this.addressControl.errors : null;
+  clear(): void {
+    this.value.set(null);
+    this.inputValue.set('');
   }
 
   /**
-   * Specify the value of the option in the autocomplete
-   * @param {IAddress | string} address
-   * @return {string}
+   * Fonction d'affichage pour l'autocomplete Material
+   * @param option - Option sélectionnée (IAddressOption ou string)
+   * @returns Texte à afficher dans l'input
    */
-  displayFn(address: IAddress | string): string {
-    if (!address) {
-      return null;
-    }
-    return typeof address === 'string'
-      ? address
-      : `${address?.adresse} ${address?.cp || address?.ville ? ' ,' : ''} ${address?.cp} ${
-          address?.ville
-        }`.trim();
-  }
-
-  ngAfterViewInit() {
-    this.onOpenAutoComplete();
-  }
-
-  /**
-   * à l'ouverture de autocompletePanel on s'abonne à l'event panelClosingActions afin
-   * de forcer la selection depuis le panel donc soit
-   * on récupére la valeur de l'option sélectionner, soit on
-   * sélectionne la première option disponible , si l'utilisateur n'a pas choisi d'option,
-   * sinon on vide le champ si la recherche n'a pas de résultat
-   */
-  onOpenAutoComplete(): void {
-    this.trigger()
-      .panelClosingActions.pipe(
-        takeUntilDestroyed(this.#destroyRef),
-        tap((e: MatOptionSelectionChange | null) => {
-          const address: IAddress = e ? e.source.value : this.addressResource.value()[0] ?? null;
-          this.addressControl.setValue(address);
-          this.onChange(this.displayFn(address));
-          this.selectAddressOutput.emit({
-            ...address,
-            adresse: this.displayFn(address),
-          });
-          this.onTouch();
-          this.input.set(address);
-          this.trigger().closePanel();
-        })
-      )
-      .subscribe();
-  }
+  displayFn = (option: IAddressOption | string): string => {
+    if (!option) return '';
+    return typeof option === 'string' ? option : option.formatted;
+  };
 }

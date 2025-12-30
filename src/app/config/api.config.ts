@@ -14,4 +14,5 @@ export const USER_OPTIONS_API_URL = `${API_URL}/auth/options`;
 export const CLIENTS_API_URL = `${API_URL}/clients`;
 export const ROLES_API_URL = `${API_URL}/roles`;
 export const USERS_API_URL = `${API_URL}/users`;
+export const WAREHOUSES_API_URL = `${API_URL}/warehouses`;
 export const API_ADDRESS_URL = `${API_URL}/adresse`;

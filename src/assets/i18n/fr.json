@@ -19,6 +19,10 @@
     "users_add": "Ajouter",
     "users_detail": "Détail",
     "holidays": "Congés et jours Fériés",
+    "warehouses": "Gestion des entrepôts",
+    "warehouses_list": "Liste",
+    "warehouses_add": "Ajouter",
+    "warehouses_detail": "Détail",
     "externalLink1": "External Link 1",
     "help": "Aide",
     "about": "À propos",
@@ -146,6 +150,24 @@
   },
   "permissions": {
     "noAccessToModule": "Vous n'avez pas accès à ce module dans ce centre"
+  },
+  "warehouse": {
+    "add": "Ajouter un entrepôt",
+    "name": "Nom",
+    "capacity": "Capacité (m²)",
+    "address": "Adresse",
+    "type": "Type",
+    "types": {
+      "PRINCIPALE": "Principale",
+      "SECONDAIRE": "Secondaire"
+    },
+    "errors": {
+      "searchWarehouses": "Une erreur est survenue lors de la recherche des entrepôts",
+      "getWarehouse": "Une erreur est survenue lors de la récupération de l'entrepôt",
+      "addWarehouse": "Une erreur est survenue lors de la création de l'entrepôt",
+      "updateWarehouse": "Une erreur est survenue lors de la modification de l'entrepôt",
+      "deleteWarehouse": "Une erreur est survenue lors de la suppression de l'entrepôt"
+    }
   },
   "user": {
     "add": "Ajouter un utilisateur",

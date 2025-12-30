@@ -103,6 +103,12 @@ export const MENU: MenuItem[] = [
         type: 'link',
         route: 'settings/holiday',
       },
+      {
+        label: 'nav.warehouses',
+        icon: 'warehouse',
+        type: 'link',
+        route: 'settings/warehouses',
+      },
     ],
   },
   {

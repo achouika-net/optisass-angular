@@ -1,0 +1,39 @@
+<mat-card>
+  <mat-card-content>
+    <form (submit)="$event.preventDefault(); search()">
+      <div class="search-form-grid">
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'warehouse.name' | translate }}</mat-label>
+          <input matInput [field]="searchForm().name" />
+        </mat-form-field>
+
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'warehouse.type' | translate }}</mat-label>
+          <mat-select [field]="searchForm().type">
+            <mat-option [value]="null">{{ 'commun.all' | translate }}</mat-option>
+            @for (type of warehouseTypes(); track type) {
+              <mat-option [value]="type">
+                {{ 'warehouse.types.' + type | translate }}
+              </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="flex flex-1 items-center justify-end gap-2.5">
+        <button mat-button class="tertiary" type="submit">
+          {{ 'commun.search' | translate }}
+        </button>
+        <button
+          mat-icon-button
+          class="text-primary"
+          [matTooltip]="'commun.reset' | translate"
+          (click)="resetSearchForm()"
+          type="button"
+        >
+          <mat-icon>autorenew</mat-icon>
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>
