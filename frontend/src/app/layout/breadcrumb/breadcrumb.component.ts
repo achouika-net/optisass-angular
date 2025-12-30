@@ -86,12 +86,22 @@ export class BreadcrumbComponent {
   }
 
   /**
-   * Navigate back to clients list
+   * Navigate back
    * @returns void
    */
   goBack(): void {
-    // Navigate directly to clients list instead of using history
-    // to avoid navigating to empty/intermediate pages
-    this.#router.navigate(['/p/clients']);
+    const url = this.currentUrl();
+    if (url.startsWith('finance')) {
+      this.#router.navigate(['/p/finance/caisse']);
+    } else if (url.startsWith('settings/caisses')) {
+      this.#router.navigate(['/p/finance/caisse']);
+    } else {
+      // Use history if available, else fallback to clients
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        this.#router.navigate(['/p/clients']);
+      }
+    }
   }
 }

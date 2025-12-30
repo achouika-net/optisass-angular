@@ -46,4 +46,8 @@ export class CreateExpenseDto {
     @IsOptional()
     @IsString()
     banque?: string;
+
+    @IsOptional()
+    @IsUUID()
+    fournisseurId?: string;
 }

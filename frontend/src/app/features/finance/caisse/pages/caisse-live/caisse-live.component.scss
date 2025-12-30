@@ -1,0 +1,156 @@
+.caisse-live-container {
+    padding: 24px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+
+    h1 {
+        font-size: 24px;
+        font-weight: 500;
+        margin: 0;
+    }
+
+    .subtitle {
+        color: #666;
+        font-size: 14px;
+    }
+}
+
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+
+    .summary-card {
+        .label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .value {
+            font-size: 24px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .subtext {
+            font-size: 12px;
+            color: #888;
+        }
+
+        &.total-caisse {
+            border-left: 4px solid #2196F3;
+        }
+
+        &.comptable {
+            border-left: 4px solid #4CAF50;
+
+            .value {
+                color: #2E7D32;
+            }
+        }
+
+        &.interne {
+            border-left: 4px solid #FF9800;
+
+            .value {
+                color: #EF6C00;
+            }
+        }
+
+        &.depenses {
+            border-left: 4px solid #F44336;
+
+            .value {
+                color: #C62828;
+            }
+        }
+
+        &.banque {
+            border-left: 4px solid #673AB7;
+            background-color: #F3E5F5;
+
+            .value {
+                color: #4527A0;
+            }
+        }
+
+        &.transfers {
+            border-left: 4px solid #00BCD4;
+            background-color: #E0F7FA;
+
+            .value {
+                color: #00838F;
+            }
+        }
+    }
+}
+
+.quick-actions {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+
+    .action-btn {
+        padding: 24px 32px;
+        font-size: 16px;
+
+        mat-icon {
+            margin-right: 8px;
+        }
+    }
+}
+
+.operations-card {
+    .type-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+
+        &.ENCAISSEMENT {
+            background-color: #E8F5E9;
+            color: #2E7D32;
+        }
+
+        &.DECAISSEMENT {
+            background-color: #FFEBEE;
+            color: #C62828;
+        }
+    }
+
+    .monitor-badge {
+        display: inline-block;
+        margin-left: 8px;
+        background-color: #FFF3E0;
+        color: #EF6C00;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 10px;
+        border: 1px solid #FFE0B2;
+    }
+
+    .negative {
+        color: #C62828;
+    }
+}
+
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 400px;
+
+    p {
+        margin-top: 16px;
+        color: #666;
+    }
+}

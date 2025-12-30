@@ -1,0 +1,259 @@
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Router, ActivatedRoute } from '@angular/router';
+import { MatCardModule } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTableModule } from '@angular/material/table';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { JourneeCaisseService } from '../../services/journee-caisse.service';
+import { OperationCaisseService } from '../../services/operation-caisse.service';
+import { OperationFormDialogComponent } from '../../components/operation-form-dialog/operation-form-dialog.component';
+import { JourneeResume, OperationCaisse, OperationType, TypeOperation } from '../../models/caisse.model';
+import { interval, Subscription, EMPTY, forkJoin, of } from 'rxjs';
+import { switchMap, catchError, timeout, finalize } from 'rxjs/operators';
+
+@Component({
+    selector: 'app-caisse-live',
+    standalone: true,
+    imports: [
+        CommonModule,
+        MatCardModule,
+        MatButtonModule,
+        MatIconModule,
+        MatTableModule,
+        MatDialogModule,
+        MatProgressSpinnerModule,
+        MatSnackBarModule
+    ],
+    templateUrl: './caisse-live.component.html',
+    styleUrls: ['./caisse-live.component.scss'],
+})
+export class CaisseLiveComponent implements OnInit, OnDestroy {
+    journeeId: string | null = null;
+    resume: JourneeResume | null = null;
+    operations: OperationCaisse[] = [];
+    loading = true;
+    errorLoading = false;
+    refreshSubscription?: Subscription;
+
+    displayedColumns: string[] = ['date', 'type', 'montant', 'moyen', 'reference', 'motif', 'utilisateur', 'actions'];
+    protected readonly OperationType = OperationType;
+
+    constructor(
+        private route: ActivatedRoute,
+        private router: Router,
+        private journeeService: JourneeCaisseService,
+        private operationService: OperationCaisseService,
+        private dialog: MatDialog,
+        private snackBar: MatSnackBar,
+        private cdr: ChangeDetectorRef,
+        private zone: NgZone
+    ) { }
+
+    ngOnInit(): void {
+        this.route.params.subscribe((params) => {
+            this.journeeId = params['id'];
+            if (this.journeeId) {
+                this.loadData();
+                this.startAutoRefresh();
+            }
+        });
+    }
+
+    ngOnDestroy(): void {
+        if (this.refreshSubscription) {
+            this.refreshSubscription.unsubscribe();
+        }
+    }
+
+    loadData(): void {
+        if (!this.journeeId) return;
+
+        this.zone.run(() => {
+            console.log('[CaisseLive] Starting data load for:', this.journeeId);
+            this.loading = true;
+            this.errorLoading = false;
+            this.cdr.markForCheck();
+
+            // 1. Fetch Resume (Priority)
+            this.journeeService.getResume(this.journeeId!).pipe(
+                timeout(7000),
+                catchError(err => {
+                    console.error('[CaisseLive] Resume fetch failed:', err);
+                    this.errorLoading = true;
+                    this.cdr.detectChanges();
+                    return of(null);
+                }),
+                finalize(() => {
+                    this.loading = false;
+                    this.cdr.markForCheck();
+                    this.cdr.detectChanges();
+                })
+            ).subscribe((resume: JourneeResume | null) => {
+                if (resume) {
+                    console.log('[CaisseLive] Resume loaded');
+                    this.resume = resume;
+                    this.cdr.markForCheck();
+                    this.cdr.detectChanges();
+                }
+            });
+
+            // 2. Fetch Operations (Secondary)
+            this.operationService.findByJournee(this.journeeId!).pipe(
+                timeout(15000),
+                catchError(err => {
+                    console.error('[CaisseLive] Operations fetch failed:', err);
+                    return of([]);
+                }),
+                finalize(() => {
+                    this.cdr.markForCheck();
+                    this.cdr.detectChanges();
+                })
+            ).subscribe((ops: OperationCaisse[]) => {
+                console.log('[CaisseLive] Operations loaded count:', ops.length);
+                this.operations = ops;
+                this.cdr.markForCheck();
+                this.cdr.detectChanges();
+            });
+        });
+    }
+
+    startAutoRefresh(): void {
+        // Refresh totals every 30 seconds (fast summary call)
+        this.refreshSubscription = interval(30000)
+            .pipe(
+                switchMap(() => {
+                    if (this.journeeId && this.resume) {
+                        return this.journeeService.getResume(this.journeeId).pipe(
+                            catchError(err => {
+                                console.error('Auto-refresh failed', err);
+                                return EMPTY;
+                            })
+                        );
+                    }
+                    return EMPTY;
+                })
+            )
+            .subscribe((resume) => {
+                if (resume) {
+                    this.resume = resume as JourneeResume;
+                }
+            });
+    }
+
+    openOperationDialog(type: OperationType): void {
+        if (!this.journeeId || !this.resume) return;
+
+        if (this.resume.journee.statut === 'FERMEE') {
+            this.snackBar.open('La caisse est fermée', 'OK', { duration: 3000 });
+            return;
+        }
+
+        const dialogRef = this.dialog.open(OperationFormDialogComponent, {
+            width: '600px',
+            data: {
+                journeeId: this.journeeId,
+                type: type,
+                caisseType: (this.resume as any).journee.caisse.type
+            },
+        });
+
+        dialogRef.afterClosed().subscribe((result) => {
+            if (result) {
+                this.loadData(); // Refresh data after operation
+                this.snackBar.open('Opération enregistrée', 'OK', { duration: 3000 });
+            }
+        });
+    }
+
+    closeCaisse(): void {
+        if (this.journeeId) {
+            this.router.navigate(['/finance/caisse/cloture', this.journeeId]);
+        }
+    }
+
+    deleteOperation(op: OperationCaisse): void {
+        if (!confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) return;
+
+        this.operationService.remove(op.id).subscribe({
+            next: () => {
+                this.loadData();
+                this.snackBar.open('Opération supprimée', 'OK', { duration: 3000 });
+            },
+            error: (error) => {
+                console.error('Error deleting operation', error);
+                this.snackBar.open(
+                    error.error?.message || 'Erreur lors de la suppression',
+                    'Fermer',
+                    { duration: 3000 }
+                );
+            }
+        });
+    }
+
+    getSolde(): number {
+        if (!this.resume) return 0;
+        const r = this.resume as any;
+        // The physical cash balance is: Initial Fund + Cash Sales + Received Internal Transfers - Expenses
+        // We EXCLUDE totalVentesCarte as it's handled by the bank.
+        return (r.fondInitial || 0) + (r.totalVentesEspeces || 0) + (r.totalInterne || 0) - (r.totalDepenses || 0);
+    }
+
+    openTransferDialog(): void {
+        if (!this.journeeId || !this.resume) return;
+
+        // 1. Get list of available OPEN "DEPENSES" caisses in the same center
+        this.journeeService.findByCentre(this.resume.journee.centre.id).subscribe({
+            next: (sessions) => {
+                const openDepenses = sessions.filter(s => s.statut === 'OUVERTE' && (s.caisse as any).type === 'DEPENSES');
+
+                if (openDepenses.length === 0) {
+                    this.snackBar.open('Aucune caisse de dépenses n\'est actuellement ouverte.', 'OK', { duration: 5000 });
+                    return;
+                }
+
+                // For simplicity now, use a prompt. Or a dedicated dialog if preferred.
+                const amountStr = prompt('Montant à transférer vers la caisse de dépenses (DH) :');
+                if (!amountStr) return;
+                const amount = parseFloat(amountStr);
+
+                if (isNaN(amount) || amount <= 0) {
+                    this.snackBar.open('Montant invalide', 'OK', { duration: 3000 });
+                    return;
+                }
+
+                if (amount > this.getSolde()) {
+                    this.snackBar.open('Le montant dépasse le solde disponible', 'OK', { duration: 3000 });
+                    return;
+                }
+
+                // Take the first open depenses caisse for now or let user choose (simplified)
+                const targetSession = openDepenses[0];
+
+                this.operationService.transfer({
+                    amount,
+                    fromJourneeId: this.journeeId!,
+                    toJourneeId: targetSession.id,
+                    utilisateur: this.resume?.journee.caissier || 'Responsable'
+                }).subscribe({
+                    next: () => {
+                        this.loadData();
+                        this.snackBar.open(`Transfert de ${amount} DH effectué vers ${targetSession.caisse.nom}`, 'OK', { duration: 5000 });
+                    },
+                    error: (error) => {
+                        console.error('Transfer failed', error);
+                        this.snackBar.open('Échec du transfert : ' + (error.error?.message || 'Erreur inconnue'), 'Fermer', { duration: 5000 });
+                    }
+                });
+            }
+        });
+    }
+
+    // Cast helper for template
+    asAny(val: any): any {
+        return val;
+    }
+}

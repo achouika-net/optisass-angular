@@ -33,7 +33,13 @@ export const MENU: MenuItem[] = [
     route: 'finance',
     children: [
       {
-        label: 'Paiements',
+        label: 'Caisse',
+        icon: 'point_of_sale',
+        type: 'subchild',
+        route: 'finance/caisse',
+      },
+      {
+        label: 'Gestion Dépenses',
         icon: 'payments',
         type: 'subchild',
         route: 'finance/payments',
@@ -61,6 +67,12 @@ export const MENU: MenuItem[] = [
         icon: 'wallet',
         type: 'subchild',
         route: 'finance/portfolio',
+      },
+      {
+        label: "Demandes d'alimentation",
+        icon: 'request_quote',
+        type: 'subchild',
+        route: 'finance/funding-requests',
       }
     ]
   },
@@ -194,6 +206,12 @@ export const MENU: MenuItem[] = [
         icon: 'warehouse',
         type: 'subchild',
         route: 'groups',
+      },
+      {
+        label: 'Gestion des Caisses',
+        icon: 'point_of_sale',
+        type: 'subchild',
+        route: 'settings/caisses',
       },
       {
         label: 'Agenda contrôleur',

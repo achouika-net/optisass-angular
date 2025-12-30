@@ -1,0 +1,79 @@
+<div class="caisse-list-container">
+    <div class="header">
+        <h1>Mes Caisses</h1>
+        <button mat-raised-button color="primary" (click)="openCreateDialog()" *ngIf="isManagementMode">
+            <mat-icon>add</mat-icon>
+            Nouvelle Caisse
+        </button>
+    </div>
+
+    <div *ngIf="loading" class="loading-spinner">
+        <mat-spinner diameter="40"></mat-spinner>
+    </div>
+
+    <div class="grid-container" *ngIf="!loading">
+        <div *ngFor="let group of groupedCaisses" class="center-group">
+            <h2 class="center-header">
+                <mat-icon>location_on</mat-icon>
+                Centre : {{ group.centerName }}
+            </h2>
+            <div class="cards-grid">
+                <mat-card *ngFor="let caisse of group.caisses" class="caisse-card">
+                    <mat-card-header>
+                        <div mat-card-avatar class="caisse-avatar">
+                            <mat-icon>point_of_sale</mat-icon>
+                        </div>
+                        <mat-card-title>{{ caisse.nom }}</mat-card-title>
+                        <mat-card-subtitle>
+                            {{ caisse.centre?.nom }} |
+                            <span class="type-tag" [ngClass]="caisse.type">
+                                {{ caisse.type === 'PRINCIPALE' ? 'Principale' : 'Dépenses' }}
+                            </span>
+                        </mat-card-subtitle>
+                    </mat-card-header>
+
+                    <mat-card-content>
+                        <p class="description">{{ caisse.description || 'Aucune description' }}</p>
+
+                        <div class="status-indicator">
+                            <mat-chip-set>
+                                <mat-chip [color]="getOpenSession(caisse) ? 'accent' : 'warn'" selected>
+                                    {{ getOpenSession(caisse) ? 'OUVERTE' : 'FERMÉE' }}
+                                </mat-chip>
+                            </mat-chip-set>
+                        </div>
+                    </mat-card-content>
+
+                    <mat-card-actions align="end" class="actions-container">
+                        <ng-container *ngIf="isManagementMode">
+                            <button mat-icon-button color="primary" (click)="editCaisse(caisse)" matTooltip="Modifier">
+                                <mat-icon>edit</mat-icon>
+                            </button>
+                            <button mat-icon-button color="warn" (click)="deleteCaisse(caisse)" matTooltip="Supprimer">
+                                <mat-icon>delete</mat-icon>
+                            </button>
+                        </ng-container>
+
+                        <span class="spacer"></span>
+
+                        <button mat-button color="primary" *ngIf="!getOpenSession(caisse)"
+                            (click)="openSession(caisse.id)">
+                            OUVRIR LA CAISSE
+                        </button>
+
+                        <button mat-raised-button color="primary" *ngIf="getOpenSession(caisse)"
+                            (click)="viewSession(getOpenSession(caisse)!)">
+                            ACCÉDER À LA CAISSE
+                        </button>
+                    </mat-card-actions>
+                </mat-card>
+            </div>
+            <mat-divider class="group-divider"></mat-divider>
+        </div>
+    </div>
+
+    <div *ngIf="!loading && caisses.length === 0" class="empty-state">
+        <mat-icon>info</mat-icon>
+        <p>Aucune caisse trouvée pour votre centre.</p>
+    </div>
+</div>

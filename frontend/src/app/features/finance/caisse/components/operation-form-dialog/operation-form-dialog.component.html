@@ -1,0 +1,87 @@
+<h2 mat-dialog-title>
+    {{ form.get('type')?.value === 'ENCAISSEMENT' ? 'Nouvel Encaissement' : 'Nouveau Décaissement' }}
+</h2>
+
+<form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <mat-dialog-content>
+        <div class="form-row">
+            <mat-form-field appearance="outline" class="half-width">
+                <mat-label>Type d'opération</mat-label>
+                <mat-select formControlName="type">
+                    <mat-option *ngFor="let type of types" [value]="type">
+                        {{ type === 'ENCAISSEMENT' ? 'Encaissement' : 'Décaissement' }}
+                    </mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="half-width" *ngIf="canCreateInterne">
+                <mat-label>Catégorie</mat-label>
+                <mat-select formControlName="typeOperation">
+                    <mat-option value="COMPTABLE">CA Comptable</mat-option>
+                    <mat-option value="INTERNE">Opération Interne</mat-option>
+                </mat-select>
+            </mat-form-field>
+        </div>
+
+        <!-- Warning for Interne -->
+        <div class="warning-box" *ngIf="form.get('typeOperation')?.value === 'INTERNE'">
+            <mat-icon>warning</mat-icon>
+            <span>Cette opération ne sera pas exportée en comptabilité.</span>
+        </div>
+
+        <div class="form-row">
+            <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Montant (DH)</mat-label>
+                <mat-icon matPrefix>payments</mat-icon>
+                <input matInput type="number" formControlName="montant" min="0">
+                <mat-error *ngIf="form.get('montant')?.hasError('required')">
+                    Le montant est obligatoire
+                </mat-error>
+            </mat-form-field>
+        </div>
+
+        <div class="form-row">
+            <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Moyen de paiement</mat-label>
+                <mat-select formControlName="moyenPaiement">
+                    <mat-option *ngFor="let moyen of moyensPaiement" [value]="moyen">
+                        {{ moyen }}
+                    </mat-option>
+                </mat-select>
+            </mat-form-field>
+        </div>
+
+        <div class="form-row">
+            <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Référence (Optionnel)</mat-label>
+                <input matInput formControlName="reference" placeholder="N° Chèque, Ref Carte...">
+            </mat-form-field>
+        </div>
+
+        <div class="form-row" *ngIf="form.get('type')?.value === 'DECAISSEMENT'">
+            <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Motif du décaissement</mat-label>
+
+                @if (data.caisseType === 'PRINCIPALE') {
+                <mat-select formControlName="motif">
+                    <mat-option *ngFor="let p of presets" [value]="p">{{ p }}</mat-option>
+                </mat-select>
+                } @else {
+                <textarea matInput formControlName="motif" rows="2"
+                    placeholder="Pourquoi cette sortie dargent ?"></textarea>
+                }
+
+                <mat-error *ngIf="form.get('motif')?.hasError('required')">
+                    Le motif est obligatoire pour les décaissements
+                </mat-error>
+            </mat-form-field>
+        </div>
+    </mat-dialog-content>
+
+    <mat-dialog-actions align="end">
+        <button mat-button type="button" (click)="onCancel()">Annuler</button>
+        <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || loading">
+            {{ loading ? 'Enregistrement...' : 'Valider' }}
+        </button>
+    </mat-dialog-actions>
+</form>

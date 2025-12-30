@@ -7,7 +7,7 @@ import { FinanceDashboardComponent } from './pages/finance-dashboard/finance-das
 export const routes: Routes = [
     {
         path: '',
-        redirectTo: 'expenses',
+        redirectTo: 'caisse',
         pathMatch: 'full'
     },
     {
@@ -49,5 +49,18 @@ export const routes: Routes = [
     {
         path: 'portfolio',
         loadComponent: () => import('./pages/portfolio-management/portfolio-management.component').then(m => m.PortfolioManagementComponent)
+    },
+    {
+        path: 'caisse',
+        children: [
+            { path: '', loadComponent: () => import('./caisse/pages/caisse-list/caisse-list.component').then(m => m.CaisseListComponent) },
+            { path: 'ouvrir', loadComponent: () => import('./caisse/pages/ouverture-caisse/ouverture-caisse.component').then(m => m.OuvertureCaisseComponent) },
+            { path: 'live/:id', loadComponent: () => import('./caisse/pages/caisse-live/caisse-live.component').then(m => m.CaisseLiveComponent) },
+            { path: 'cloture/:id', loadComponent: () => import('./caisse/pages/cloture-caisse/cloture-caisse.component').then(m => m.ClotureCaisseComponent) }
+        ]
+    },
+    {
+        path: 'funding-requests',
+        loadComponent: () => import('./pages/funding-request-list/funding-request-list.component').then(m => m.FundingRequestListComponent)
     }
 ];

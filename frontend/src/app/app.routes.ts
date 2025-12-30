@@ -51,6 +51,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/settings/loyalty-config/loyalty-config.component').then(m => m.LoyaltyConfigComponent),
       },
       {
+        path: 'settings/caisses',
+        loadComponent: () => import('./features/finance/caisse/pages/caisse-list/caisse-list.component').then(m => m.CaisseListComponent),
+        data: { mode: 'management' }
+      },
+      {
         path: 'stats',
         loadComponent: () => import('./features/reports/advanced-stats/advanced-stats.component').then(m => m.AdvancedStatsComponent),
       },

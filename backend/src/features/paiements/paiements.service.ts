@@ -29,7 +29,10 @@ export class PaiementsService {
 
         // 3. Déterminer le statut par défaut si non fourni
         let finalStatut = createPaiementDto.statut;
-        if (!finalStatut) {
+        if (montant < 0) {
+            finalStatut = 'DECAISSEMENT';
+            createPaiementDto.mode = 'ESPECES'; // Force Cash for refunds
+        } else if (!finalStatut) {
             finalStatut = (createPaiementDto.mode === 'ESPECES' || createPaiementDto.mode === 'CARTE')
                 ? 'ENCAISSE'
                 : 'EN_ATTENTE';
@@ -42,7 +45,123 @@ export class PaiementsService {
             }
         });
 
-        // 4. Mettre à jour le reste à payer et le statut de la facture
+        // 4. AUTOMATED CASH RECORDING (INTEGRATION CAISSE)
+        // If it's a payment that should go to Caisse (ESPECES or CARTE)
+        if (createPaiementDto.mode === 'ESPECES' || createPaiementDto.mode === 'CARTE' || createPaiementDto.mode === 'CHEQUE') {
+            try {
+                await this.prisma.$transaction(async (tx) => {
+                    // Determine which register to use based on payment type
+                    // Refunds (negative amounts) in ESPECES should go to expense register if open
+                    // Otherwise fall back to main register
+                    const isRefund = createPaiementDto.montant < 0;
+                    let caisseType = 'PRINCIPALE';
+
+                    if (isRefund) {
+                        // Refunds MUST go through the expense register
+                        const expenseJournee = await tx.journeeCaisse.findFirst({
+                            where: {
+                                centreId: facture.centreId!,
+                                statut: 'OUVERTE',
+                                caisse: { type: 'DEPENSES' }
+                            }
+                        });
+
+                        if (!expenseJournee) {
+                            throw new BadRequestException('Le remboursement nécessite une caisse de dépenses ouverte pour ce centre');
+                        }
+                        caisseType = 'DEPENSES';
+                    }
+
+                    // Find an OPEN JourneeCaisse for the appropriate caisse type in this centre
+                    const openJournee = await tx.journeeCaisse.findFirst({
+                        where: {
+                            centreId: facture.centreId!,
+                            statut: 'OUVERTE',
+                            caisse: {
+                                type: caisseType
+                            }
+                        },
+                        include: { caisse: true }
+                    });
+
+                    if (openJournee) {
+                        const absMontant = Math.abs(createPaiementDto.montant);
+
+                        // If it's a refund in the expense register, check for funds
+                        if (caisseType === 'DEPENSES' && isRefund) {
+                            const availableCash = openJournee.fondInitial + openJournee.totalInterne - openJournee.totalDepenses;
+
+                            if (availableCash < absMontant) {
+                                // Insufficient funds - create funding request
+                                await (tx as any).demandeAlimentation.create({
+                                    data: {
+                                        montant: absMontant,
+                                        paiementId: paiement.id,
+                                        journeeCaisseId: openJournee.id,
+                                        statut: 'EN_ATTENTE'
+                                    }
+                                });
+
+                                // Update payment status
+                                await tx.paiement.update({
+                                    where: { id: paiement.id },
+                                    data: { statut: 'EN_ATTENTE_ALIMENTATION' }
+                                });
+
+                                return; // Do not create OperationCaisse yet
+                            }
+                        }
+
+                        // Create OperationCaisse
+                        const operation = await tx.operationCaisse.create({
+                            data: {
+                                type: isRefund ? 'DECAISSEMENT' : 'ENCAISSEMENT',
+                                typeOperation: 'COMPTABLE',
+                                montant: absMontant,
+                                moyenPaiement: createPaiementDto.mode,
+                                reference: createPaiementDto.reference || `FAC ${facture.numero}`,
+                                motif: isRefund ? 'Régularisation Avoir' : `Paiement: FAC ${facture.numero}`,
+                                utilisateur: 'Système',
+                                journeeCaisseId: openJournee.id,
+                                factureId: facture.id
+                            }
+                        });
+
+                        // Link Payment to Operation
+                        await tx.paiement.update({
+                            where: { id: paiement.id },
+                            data: { operationCaisseId: operation.id }
+                        });
+
+                        // Update Journee totals based on register type
+                        if (caisseType === 'DEPENSES') {
+                            // For expense register, only update totalDepenses
+                            await tx.journeeCaisse.update({
+                                where: { id: openJournee.id },
+                                data: {
+                                    totalDepenses: { increment: absMontant }
+                                }
+                            });
+                        } else {
+                            // For main register, update sales totals
+                            await tx.journeeCaisse.update({
+                                where: { id: openJournee.id },
+                                data: {
+                                    totalComptable: { increment: createPaiementDto.montant },
+                                    totalVentesEspeces: createPaiementDto.mode === 'ESPECES' ? { increment: createPaiementDto.montant } : undefined,
+                                    totalVentesCarte: createPaiementDto.mode === 'CARTE' ? { increment: createPaiementDto.montant } : undefined,
+                                    totalVentesCheque: createPaiementDto.mode === 'CHEQUE' ? { increment: createPaiementDto.montant } : undefined,
+                                }
+                            });
+                        }
+                    }
+                });
+            } catch (caisseError) {
+                console.error('Failed to link payment to Caisse', caisseError);
+                // We don't block the payment if caisse integration fails, but we log it
+            }
+        }
+        // 5. Mettre à jour le reste à payer et le statut de la facture
         const nouveauReste = facture.resteAPayer - montant;
         const nouveauStatut = nouveauReste === 0 ? 'PAYEE' : 'PARTIEL';
 
@@ -53,32 +172,6 @@ export class PaiementsService {
                 statut: nouveauStatut
             }
         });
-
-        // 5. STOCK DECREMENT LOGIC (SECONDARY WAREHOUSES)
-        // Check lines that are NOT yet marked as 'stockProcessed'.
-
-        /* 
-           NOTE: We rely on 'lignes' from the fetched 'facture' (Step 1).
-           If stock logic needs the absolute latest, we might re-fetch, but 'lignes' usually static here.
-        */
-
-        const currentLines = (facture.lignes as any[]) || [];
-        let stockUpdated = false;
-        const updatedLines: any[] = [];
-
-        /* 
-           [FIX] Disabled Stock Decrement on Payment to prevent Double Counting.
-           Stock should ONLY be decremented upon Facture/BL Validation, not Payment.
-           Previous logic caused double decrement for Secondary warehouses when user Paid then Validated.
-        */
-
-        // Return untouched lines as we don't process stock here anymore
-        // updatedLines.push(...currentLines); 
-        // passing currentLines directly is not enough if we assume we need to return 'paiement'
-        // actually the loop was building updatedLines to update the invoice.
-        // We can skip the whole update block.
-
-        return paiement;
 
         return paiement;
     }
@@ -155,33 +248,63 @@ export class PaiementsService {
     async remove(id: string) {
         const paiement = await this.findOne(id);
 
-        // Recalculer le reste à payer de la facture
-        const facture = await this.prisma.facture.findUnique({
-            where: { id: paiement.factureId },
-            include: { paiements: true }
-        });
-
-        if (!facture) {
-            throw new NotFoundException('Facture non trouvée');
+        if (!paiement) {
+            throw new NotFoundException('Paiement non trouvé');
         }
 
-        const totalPaiements = facture.paiements
-            .filter(p => p.id !== id)
-            .reduce((sum, p) => sum + p.montant, 0);
+        return await this.prisma.$transaction(async (tx) => {
+            // 1. If this was a cash/card payment linked to Caisse, undo the operation
+            if (paiement.operationCaisseId || paiement.mode === 'CHEQUE') {
+                const op = await tx.operationCaisse.findUnique({
+                    where: { id: paiement.operationCaisseId || undefined }
+                });
 
-        const nouveauReste = facture.totalTTC - totalPaiements;
-        const nouveauStatut = nouveauReste === facture.totalTTC ? 'VALIDE' : 'PARTIEL';
+                if (op) {
+                    // Update Journee totals (decrement)
+                    await tx.journeeCaisse.update({
+                        where: { id: op.journeeCaisseId },
+                        data: {
+                            totalComptable: { decrement: op.montant },
+                            totalVentesEspeces: op.moyenPaiement === 'ESPECES' ? { decrement: op.montant } : undefined,
+                            totalVentesCarte: op.moyenPaiement === 'CARTE' ? { decrement: op.montant } : undefined,
+                            totalVentesCheque: op.moyenPaiement === 'CHEQUE' ? { decrement: op.montant } : undefined,
+                        }
+                    });
 
-        await this.prisma.facture.update({
-            where: { id: paiement.factureId },
-            data: {
-                resteAPayer: nouveauReste,
-                statut: nouveauStatut
+                    // Delete the operation
+                    await tx.operationCaisse.delete({
+                        where: { id: op.id }
+                    });
+                }
             }
-        });
 
-        return this.prisma.paiement.delete({
-            where: { id }
+            // 2. Recalculate invoice remaining amount
+            const facture = await tx.facture.findUnique({
+                where: { id: paiement.factureId },
+                include: { paiements: true }
+            });
+
+            if (facture) {
+                const totalPaiements = facture.paiements
+                    .filter(p => p.id !== id)
+                    .reduce((sum, p) => sum + (p.montant || 0), 0);
+
+                const nouveauReste = (facture.totalTTC || 0) - totalPaiements;
+                const nouveauStatut = Math.abs(nouveauReste - (facture.totalTTC || 0)) < 0.01 ? 'VALIDE' : 'PARTIEL';
+
+                await tx.facture.update({
+                    where: { id: paiement.factureId },
+                    data: {
+                        resteAPayer: nouveauReste,
+                        statut: nouveauStatut
+                    }
+                });
+            }
+
+            // 3. Delete the payment
+            return tx.paiement.delete({
+                where: { id }
+            });
         });
     }
 }

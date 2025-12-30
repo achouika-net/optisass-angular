@@ -1,0 +1,183 @@
+<div class="caisse-live-container" *ngIf="resume; else loadingTpl">
+    <!-- Header -->
+    <div class="header">
+        <div class="title-section">
+            <h1>Caisse : {{ resume.journee.caisse.nom }}</h1>
+            <span class="subtitle">{{ resume.journee.centre.nom }} | Ouverte par {{ resume.journee.caissier }}</span>
+        </div>
+
+        <div class="actions">
+            <button mat-raised-button color="warn" (click)="closeCaisse()">
+                <mat-icon>lock</mat-icon> CLÔTURER LA CAISSE
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+        <mat-card class="summary-card total-caisse">
+            <mat-card-content>
+                <div class="label">Solde en Caisse (Espèces)</div>
+                <div class="value">{{ getSolde() | number:'1.2-2' }} DH</div>
+                <div class="subtext">Fond initial : {{ resume.fondInitial | number:'1.2-2' }} DH</div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="summary-card comptable">
+            <mat-card-content>
+                <div class="label">Ventes Espèces</div>
+                <div class="value">{{ asAny(resume).totalVentesEspeces | number:'1.2-2' }} DH</div>
+                <div class="subtext">Inclus dans le solde</div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="summary-card banque">
+            <mat-card-content>
+                <div class="label">Ventes Carte (Banque)</div>
+                <div class="value">{{ asAny(resume).totalVentesCarte | number:'1.2-2' }} DH</div>
+                <div class="subtext">Automatiquement en banque</div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="summary-card transfers" *ngIf="asAny(resume).journee.caisse.type === 'PRINCIPALE'">
+            <mat-card-content>
+                <div class="label">Vente Chèque</div>
+                <div class="value text-blue-600">{{ asAny(resume).totalVentesCheque | number:'1.2-2' }} DH</div>
+                <div class="subtext">À déposer en banque</div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="summary-card interne" *ngIf="asAny(resume).journee.caisse.type === 'DEPENSES'">
+            <mat-card-content>
+                <div class="label">Alimentation Reçue</div>
+                <div class="value">{{ resume.totalInterne | number:'1.2-2' }} DH</div>
+                <div class="subtext">Depuis caisse principale</div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="summary-card depenses">
+            <mat-card-content>
+                <div class="label">Décaissements du jour</div>
+                <div class="value">{{ resume.totalDepenses | number:'1.2-2' }} DH</div>
+                <div class="subtext">Sorties de caisse</div>
+            </mat-card-content>
+        </mat-card>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <button mat-flat-button color="accent" class="action-btn"
+            *ngIf="asAny(resume).journee.caisse.type === 'PRINCIPALE'"
+            (click)="openOperationDialog(OperationType.DECAISSEMENT)">
+            <mat-icon>remove_circle</mat-icon> DÉCAISSER
+        </button>
+
+        <button mat-flat-button color="warn" class="action-btn"
+            *ngIf="asAny(resume).journee.caisse.type === 'PRINCIPALE'" (click)="openTransferDialog()">
+            <mat-icon>swap_horiz</mat-icon> ALIMENTER DÉPENSES
+        </button>
+    </div>
+
+    <!-- Operations Table -->
+    <mat-card class="operations-card">
+        <mat-card-header>
+            <mat-card-title>Journal des opérations</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content>
+            <table mat-table [dataSource]="operations" class="full-width-table">
+                <!-- Date Column -->
+                <ng-container matColumnDef="date">
+                    <th mat-header-cell *matHeaderCellDef> Date Opération </th>
+                    <td mat-cell *matCellDef="let op">
+                        <span class="text-xs text-gray-500">{{ op.createdAt | date:'dd/MM' }}</span>
+                        <span class="font-medium ml-1">{{ op.createdAt | date:'HH:mm' }}</span>
+                    </td>
+                </ng-container>
+
+                <!-- Type Column -->
+                <ng-container matColumnDef="type">
+                    <th mat-header-cell *matHeaderCellDef> Type </th>
+                    <td mat-cell *matCellDef="let op">
+                        <span class="type-badge" [ngClass]="op.type">
+                            {{ op.type === 'ENCAISSEMENT' ? 'Encaissement' : 'Décaissement' }}
+                        </span>
+                        <span *ngIf="op.typeOperation === 'INTERNE'" class="monitor-badge">INT</span>
+                    </td>
+                </ng-container>
+
+                <!-- Montant Column -->
+                <ng-container matColumnDef="montant">
+                    <th mat-header-cell *matHeaderCellDef> Montant </th>
+                    <td mat-cell *matCellDef="let op" [class.negative]="op.type === 'DECAISSEMENT'">
+                        {{ op.type === 'DECAISSEMENT' ? '-' : '+' }}
+                        {{ op.montant | number:'1.2-2' }} DH
+                    </td>
+                </ng-container>
+
+                <!-- Moyen Column -->
+                <ng-container matColumnDef="moyen">
+                    <th mat-header-cell *matHeaderCellDef> Moyen </th>
+                    <td mat-cell *matCellDef="let op"> {{ op.moyenPaiement }} </td>
+                </ng-container>
+
+                <!-- Reference Column -->
+                <ng-container matColumnDef="reference">
+                    <th mat-header-cell *matHeaderCellDef> Référence </th>
+                    <td mat-cell *matCellDef="let op">
+                        <span *ngIf="op.facture?.numero">Fac: {{ op.facture?.numero }}</span>
+                        <span *ngIf="op.reference">{{ op.reference }}</span>
+                    </td>
+                </ng-container>
+
+                <!-- Motif Column -->
+                <ng-container matColumnDef="motif">
+                    <th mat-header-cell *matHeaderCellDef> Motif </th>
+                    <td mat-cell *matCellDef="let op"> {{ op.motif || '-' }} </td>
+                </ng-container>
+
+                <!-- Utilisateur Column -->
+                <ng-container matColumnDef="utilisateur">
+                    <th mat-header-cell *matHeaderCellDef> Utilisateur </th>
+                    <td mat-cell *matCellDef="let op"> {{ op.utilisateur }} </td>
+                </ng-container>
+
+                <!-- Actions Column -->
+                <ng-container matColumnDef="actions">
+                    <th mat-header-cell *matHeaderCellDef> Actions </th>
+                    <td mat-cell *matCellDef="let op">
+                        <button mat-icon-button color="warn" (click)="deleteOperation(op)">
+                            <mat-icon>delete</mat-icon>
+                        </button>
+                    </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+
+                <!-- Empty State -->
+                <tr class="mat-row" *matNoDataRow>
+                    <td class="mat-cell" colspan="8" style="text-align: center; padding: 24px;">
+                        Aucune opération enregistrée pour le moment
+                    </td>
+                </tr>
+            </table>
+        </mat-card-content>
+    </mat-card>
+</div>
+
+<ng-template #loadingTpl>
+    <div class="loading-container" *ngIf="!errorLoading; else errorTpl">
+        <mat-spinner diameter="50"></mat-spinner>
+        <p>Chargement de la caisse...</p>
+    </div>
+</ng-template>
+
+<ng-template #errorTpl>
+    <div class="error-container" style="text-align: center; padding: 40px;">
+        <mat-icon color="warn" style="font-size: 48px; width: 48px; height: 48px;">error_outline</mat-icon>
+        <h2>Impossible de charger la caisse</h2>
+        <p>Veuillez rafraîchir la page ou contacter l'administrateur.</p>
+        <button mat-flat-button color="primary" (click)="loadData()">RÉESSAYER</button>
+    </div>
+</ng-template>

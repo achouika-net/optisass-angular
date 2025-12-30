@@ -56,7 +56,7 @@ export class TreasuryService {
             this.prisma.paiement.aggregate({
                 where: {
                     date: { gte: startDate, lte: endDate },
-                    statut: 'ENCAISSE',
+                    statut: { in: ['ENCAISSE', 'DECAISSE', 'DECAISSEMENT'] },
                     facture: { type: { not: 'AVOIR' }, ...(centreId ? { centreId } : {}) }
                 },
                 _sum: { montant: true }
@@ -64,7 +64,7 @@ export class TreasuryService {
             this.prisma.paiement.aggregate({
                 where: {
                     date: { gte: startDate, lte: endDate },
-                    statut: 'ENCAISSE',
+                    statut: { in: ['ENCAISSE', 'DECAISSE', 'DECAISSEMENT'] },
                     facture: { type: 'AVOIR', ...(centreId ? { centreId } : {}) }
                 },
                 _sum: { montant: true }
@@ -136,7 +136,7 @@ export class TreasuryService {
             this.prisma.paiement.aggregate({
                 where: {
                     date: { gte: startDate, lte: endDate },
-                    statut: 'ENCAISSE',
+                    statut: { in: ['ENCAISSE', 'DECAISSE', 'DECAISSEMENT'] },
                     mode: 'ESPECES',
                     facture: { type: { not: 'AVOIR' }, ...(centreId ? { centreId } : {}) }
                 },
@@ -146,7 +146,7 @@ export class TreasuryService {
             this.prisma.paiement.aggregate({
                 where: {
                     date: { gte: startDate, lte: endDate },
-                    statut: 'ENCAISSE',
+                    statut: { in: ['ENCAISSE', 'DECAISSE', 'DECAISSEMENT'] },
                     mode: 'ESPECES',
                     facture: { type: 'AVOIR', ...(centreId ? { centreId } : {}) }
                 },
@@ -156,7 +156,7 @@ export class TreasuryService {
             this.prisma.paiement.aggregate({
                 where: {
                     date: { gte: startDate, lte: endDate },
-                    statut: 'ENCAISSE',
+                    statut: { in: ['ENCAISSE', 'DECAISSE', 'DECAISSEMENT'] },
                     mode: 'CARTE',
                     facture: { type: { not: 'AVOIR' }, ...(centreId ? { centreId } : {}) }
                 },
@@ -166,13 +166,21 @@ export class TreasuryService {
             this.prisma.paiement.aggregate({
                 where: {
                     date: { gte: startDate, lte: endDate },
-                    statut: 'ENCAISSE',
+                    statut: { in: ['ENCAISSE', 'DECAISSE', 'DECAISSEMENT'] },
                     mode: 'CARTE',
                     facture: { type: 'AVOIR', ...(centreId ? { centreId } : {}) }
                 },
                 _sum: { montant: true }
             })
         ]);
+
+        console.log('[TREASURY API] Aggregation Results:', {
+            year, month, centreId,
+            incomingStandard: results[2],
+            incomingAvoir: results[3],
+            incomingCashStandard: results[13],
+            incomingCashAvoir: results[14]
+        });
 
         const expenses = results[0];
         const echeances = results[1];

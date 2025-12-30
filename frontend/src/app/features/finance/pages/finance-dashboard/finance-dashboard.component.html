@@ -43,7 +43,7 @@
                     </div>
                     <div class="flex justify-between px-4"
                         *ngIf="(summary.totalIncomingCashed - summary.incomingCash - summary.incomingCard) > 1">
-                        <span>Virement/Autre:</span>
+                        <span>Chèque/Autre:</span>
                         <span class="text-gray-700">{{ (summary.totalIncomingCashed - summary.incomingCash -
                             summary.incomingCard) | number:'1.2-2' }} DH</span>
                     </div>

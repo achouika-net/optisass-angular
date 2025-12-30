@@ -1,0 +1,124 @@
+{
+  "centers": [
+    {
+      "id": "456f5be0-9f01-4ea1-8d55-f17a82e85ef8",
+      "nom": "Centre Rabat",
+      "description": "rabat",
+      "adresse": "rabat",
+      "ville": "rabat",
+      "codePostal": "10000",
+      "telephone": "+212068546858",
+      "email": "asfdg@gmail.com",
+      "groupeId": "7d7d5f46-e29a-4725-8485-a86d8870d7a9",
+      "createdAt": "2025-12-24T07:00:10.163Z",
+      "updatedAt": "2025-12-24T07:00:10.163Z"
+    },
+    {
+      "id": "bd7a9f9b-b3ce-4dd7-b127-1f3e76ef6d22",
+      "nom": "Centre Casablanca",
+      "description": "centre casa",
+      "adresse": "Casablanca",
+      "ville": "casablanca",
+      "codePostal": "10000",
+      "telephone": "+212645321487",
+      "email": "sdfgdf@sdgr.sdg",
+      "groupeId": "7d7d5f46-e29a-4725-8485-a86d8870d7a9",
+      "createdAt": "2025-12-24T06:59:27.302Z",
+      "updatedAt": "2025-12-24T07:00:50.189Z"
+    }
+  ],
+  "caisses": [
+    {
+      "id": "2deca1d6-c602-4ada-b921-2a4a7fb034d7",
+      "nom": "Caisse Principale Rabat",
+      "description": "Gérer les Entrants",
+      "type": "PRINCIPALE",
+      "statut": "ACTIVE",
+      "centreId": "456f5be0-9f01-4ea1-8d55-f17a82e85ef8",
+      "createdAt": "2025-12-29T16:22:24.434Z",
+      "updatedAt": "2025-12-29T16:22:24.434Z",
+      "centre": {
+        "id": "456f5be0-9f01-4ea1-8d55-f17a82e85ef8",
+        "nom": "Centre Rabat",
+        "description": "rabat",
+        "adresse": "rabat",
+        "ville": "rabat",
+        "codePostal": "10000",
+        "telephone": "+212068546858",
+        "email": "asfdg@gmail.com",
+        "groupeId": "7d7d5f46-e29a-4725-8485-a86d8870d7a9",
+        "createdAt": "2025-12-24T07:00:10.163Z",
+        "updatedAt": "2025-12-24T07:00:10.163Z"
+      }
+    },
+    {
+      "id": "f582971b-c95c-4aa9-b0b4-4e8bdfed4337",
+      "nom": "Caisse Principale Casa",
+      "description": "Gerer les entrants",
+      "type": "PRINCIPALE",
+      "statut": "ACTIVE",
+      "centreId": "bd7a9f9b-b3ce-4dd7-b127-1f3e76ef6d22",
+      "createdAt": "2025-12-29T18:33:33.126Z",
+      "updatedAt": "2025-12-29T18:33:33.126Z",
+      "centre": {
+        "id": "bd7a9f9b-b3ce-4dd7-b127-1f3e76ef6d22",
+        "nom": "Centre Casablanca",
+        "description": "centre casa",
+        "adresse": "Casablanca",
+        "ville": "casablanca",
+        "codePostal": "10000",
+        "telephone": "+212645321487",
+        "email": "sdfgdf@sdgr.sdg",
+        "groupeId": "7d7d5f46-e29a-4725-8485-a86d8870d7a9",
+        "createdAt": "2025-12-24T06:59:27.302Z",
+        "updatedAt": "2025-12-24T07:00:50.189Z"
+      }
+    },
+    {
+      "id": "266a9300-1275-427c-b8fa-ae27b5eef44b",
+      "nom": "Caisse Dépenses Casa",
+      "description": "",
+      "type": "DEPENSES",
+      "statut": "ACTIVE",
+      "centreId": "bd7a9f9b-b3ce-4dd7-b127-1f3e76ef6d22",
+      "createdAt": "2025-12-29T18:35:49.790Z",
+      "updatedAt": "2025-12-29T18:35:49.790Z",
+      "centre": {
+        "id": "bd7a9f9b-b3ce-4dd7-b127-1f3e76ef6d22",
+        "nom": "Centre Casablanca",
+        "description": "centre casa",
+        "adresse": "Casablanca",
+        "ville": "casablanca",
+        "codePostal": "10000",
+        "telephone": "+212645321487",
+        "email": "sdfgdf@sdgr.sdg",
+        "groupeId": "7d7d5f46-e29a-4725-8485-a86d8870d7a9",
+        "createdAt": "2025-12-24T06:59:27.302Z",
+        "updatedAt": "2025-12-24T07:00:50.189Z"
+      }
+    },
+    {
+      "id": "82e7290c-f809-48c8-a6b6-16766951ab37",
+      "nom": "Caisse Dépenses Rabat",
+      "description": "Gérer les dépenses du jour en Espèces",
+      "type": "DEPENSES",
+      "statut": "ACTIVE",
+      "centreId": "456f5be0-9f01-4ea1-8d55-f17a82e85ef8",
+      "createdAt": "2025-12-29T18:39:25.006Z",
+      "updatedAt": "2025-12-29T18:39:25.006Z",
+      "centre": {
+        "id": "456f5be0-9f01-4ea1-8d55-f17a82e85ef8",
+        "nom": "Centre Rabat",
+        "description": "rabat",
+        "adresse": "rabat",
+        "ville": "rabat",
+        "codePostal": "10000",
+        "telephone": "+212068546858",
+        "email": "asfdg@gmail.com",
+        "groupeId": "7d7d5f46-e29a-4725-8485-a86d8870d7a9",
+        "createdAt": "2025-12-24T07:00:10.163Z",
+        "updatedAt": "2025-12-24T07:00:10.163Z"
+      }
+    }
+  ]
+}

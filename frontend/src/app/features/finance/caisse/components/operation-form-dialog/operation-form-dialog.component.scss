@@ -1,0 +1,33 @@
+.form-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+
+    .half-width {
+        width: 50%;
+    }
+
+    .full-width {
+        width: 100%;
+    }
+}
+
+.warning-box {
+    background-color: #FFF3E0;
+    border: 1px solid #FFE0B2;
+    color: #E65100;
+    padding: 12px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+
+    mat-icon {
+        color: #FF9800;
+    }
+
+    span {
+        font-size: 13px;
+    }
+}

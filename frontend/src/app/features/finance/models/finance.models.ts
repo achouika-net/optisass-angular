@@ -112,3 +112,21 @@ export interface SupplierInvoiceDTO {
     pieceJointeUrl?: string;
     echeances?: Echeance[];
 }
+
+export interface FundingRequest {
+    id: string;
+    montant: number;
+    statut: string;
+    createdAt: string;
+    validatedAt?: string;
+    validatedBy?: string;
+    remarque?: string;
+    depenseId?: string;
+    paiementId?: string;
+    depense?: Expense;
+    paiement?: any; // To be improved with Payment interface if needed
+    journeeCaisse: {
+        centreId: string;
+        caisse: { nom: string };
+    };
+}

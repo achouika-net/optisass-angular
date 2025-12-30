@@ -270,7 +270,8 @@ export class OutgoingPaymentListComponent implements OnInit {
         };
 
         this.payments.forEach(p => {
-            const ttc = p.totalTTC || (p.montant < 0 ? -p.montant : p.montant) || 0;
+            // Use original sign to calculate Net Total (Income - Refunds)
+            const ttc = (p.totalTTC !== undefined ? p.totalTTC : p.montant) || 0;
             const ht = p.totalHT || p.montantHT || 0;
             const reste = p.resteAPayer || 0;
 

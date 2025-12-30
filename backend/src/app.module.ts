@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module } from '@nestjs/common'; // Force Rebuild 6
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -20,6 +20,10 @@ import { SuppliersModule } from './features/suppliers/suppliers.module';
 import { ExpensesModule } from './features/expenses/expenses.module';
 import { SupplierInvoicesModule } from './features/supplier-invoices/supplier-invoices.module';
 import { TreasuryModule } from './features/treasury/treasury.module';
+import { CaisseModule } from './features/caisse/caisse.module';
+import { JourneeCaisseModule } from './features/journee-caisse/journee-caisse.module';
+import { OperationCaisseModule } from './features/operation-caisse/operation-caisse.module';
+import { FundingRequestsModule } from './features/funding-requests/funding-requests.module';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaService } from './prisma/prisma.service';
 
@@ -43,6 +47,10 @@ import { PrismaService } from './prisma/prisma.service';
     ExpensesModule,
     SupplierInvoicesModule,
     TreasuryModule,
+    CaisseModule,
+    JourneeCaisseModule,
+    OperationCaisseModule,
+    FundingRequestsModule,
   ],
   controllers: [],
   providers: [],

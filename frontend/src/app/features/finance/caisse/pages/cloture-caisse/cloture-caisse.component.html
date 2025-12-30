@@ -1,0 +1,70 @@
+<div class="cloture-caisse-container" *ngIf="resume; else loadingTpl">
+    <mat-card class="form-card">
+        <mat-card-header>
+            <mat-card-title>Clôturer la Caisse</mat-card-title>
+            <mat-card-subtitle>{{ resume.journee.caisse.nom }} - {{ resume.journee.centre.nom }}</mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+            <!-- Summary Section -->
+            <div class="summary-section">
+                <div class="summary-row">
+                    <span>Fond Initial :</span>
+                    <span class="value">{{ resume.fondInitial | number:'1.2-2' }} DH</span>
+                </div>
+                <div class="summary-row">
+                    <span>Total Encaissements :</span>
+                    <span class="value plus">+{{ (resume.totalComptable + resume.totalInterne) | number:'1.2-2' }}
+                        DH</span>
+                </div>
+                <div class="summary-row">
+                    <span>Total Dépenses :</span>
+                    <span class="value minus">-{{ resume.totalDepenses | number:'1.2-2' }} DH</span>
+                </div>
+                <div class="summary-row total">
+                    <span>Solde Théorique :</span>
+                    <span class="value">{{ resume.soldeTheorique | number:'1.2-2' }} DH</span>
+                </div>
+            </div>
+
+            <form [formGroup]="form" (ngSubmit)="onSubmit()">
+                <mat-form-field appearance="outline" class="full-width">
+                    <mat-label>Solde Réel Compté (DH)</mat-label>
+                    <input matInput type="number" formControlName="soldeReel" min="0">
+                    <mat-error *ngIf="form.get('soldeReel')?.hasError('required')">
+                        Le solde réel est obligatoire
+                    </mat-error>
+                </mat-form-field>
+
+                <div class="ecart-display" [class.negative]="ecart < 0" [class.positive]="ecart > 0"
+                    [class.zero]="ecart === 0">
+                    <span class="label">Écart :</span>
+                    <span class="value">{{ ecart > 0 ? '+' : ''}}{{ ecart | number:'1.2-2' }} DH</span>
+                </div>
+
+                <mat-form-field appearance="outline" class="full-width" *ngIf="ecart !== 0">
+                    <mat-label>Justification de l'écart</mat-label>
+                    <textarea matInput formControlName="justificationEcart" rows="3"
+                        placeholder="Expliquez la raison de l'écart..."></textarea>
+                    <mat-error *ngIf="form.get('justificationEcart')?.hasError('required')">
+                        Une justification est obligatoire pour tout écart
+                    </mat-error>
+                </mat-form-field>
+
+                <div class="actions">
+                    <button mat-button type="button" (click)="cancel()">Annuler</button>
+                    <button mat-raised-button color="warn" type="submit" [disabled]="form.invalid || submitting">
+                        {{ submitting ? 'Clôture en cours...' : 'CONFIRMER LA CLÔTURE' }}
+                    </button>
+                </div>
+            </form>
+        </mat-card-content>
+    </mat-card>
+</div>
+
+<ng-template #loadingTpl>
+    <div class="loading-container">
+        <mat-spinner diameter="50"></mat-spinner>
+        <p>Préparation de la clôture...</p>
+    </div>
+</ng-template>

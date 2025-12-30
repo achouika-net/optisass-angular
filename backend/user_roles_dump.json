@@ -1,0 +1,36 @@
+[
+  {
+    "id": "5d96c4bc-33c2-49cb-af63-6f9c33a64bee",
+    "userId": "1b1e00c2-14fa-4173-9819-56a43e84c0b0",
+    "centreId": "456f5be0-9f01-4ea1-8d55-f17a82e85ef8",
+    "centreName": "Centre Rabat",
+    "role": "Administrateur",
+    "entrepotIds": [
+      "4785976b-115f-4d2e-8705-3e206b176d52",
+      "2879a95a-db77-49aa-80c8-5fd22c3436b3",
+      "29f7cc4b-df7d-47ff-ac41-cb6936af962a"
+    ],
+    "entrepotNames": [
+      "Entrepôt Principal",
+      "Entrepôt Secondaire",
+      "Entrepôt Défectueux"
+    ]
+  },
+  {
+    "id": "b7ba45f0-1494-40d8-aef0-229552889b53",
+    "userId": "1b1e00c2-14fa-4173-9819-56a43e84c0b0",
+    "centreId": "bd7a9f9b-b3ce-4dd7-b127-1f3e76ef6d22",
+    "centreName": "Centre Casablanca",
+    "role": "Administrateur",
+    "entrepotIds": [
+      "c6816dfc-f544-4d38-8aeb-973be6f9d5c5",
+      "8e1799b6-9356-4a57-90fc-ec10a1819e26",
+      "cff8bd75-560e-4519-82f2-0a492731dcf5"
+    ],
+    "entrepotNames": [
+      "Entrepôt Principal",
+      "Entrepôt Secondaire",
+      "Entrepôt Défectueux"
+    ]
+  }
+]

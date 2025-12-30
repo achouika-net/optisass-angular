@@ -191,14 +191,14 @@
                     <td mat-cell *matCellDef="let p" class="montant-cell">
                         <div class="flex flex-col items-end">
                             <span
-                                [ngClass]="(activeTab === 'INCOMING' || activeTab === 'UNPAID_CLIENTS') ? 'text-green-600' : 'text-red-600'">
-                                {{ (activeTab === 'INCOMING' || activeTab === 'UNPAID_CLIENTS') ? '+' : '' }}
-                                {{ (p.totalTTC || (p.montant < 0 ? -p.montant : p.montant)) | number:'1.2-2' }} DH
-                                    </span>
-                                    <span class="text-[10px] text-gray-400 font-normal"
-                                        *ngIf="p.montantHT || p.totalHT">
-                                        HT: {{ (p.montantHT || p.totalHT) | number:'1.2-2' }}
-                                    </span>
+                                [ngClass]="p.montant < 0 ? 'text-red-600' : ((activeTab === 'INCOMING' || activeTab === 'UNPAID_CLIENTS') ? 'text-green-600' : 'text-red-600')">
+                                {{ (activeTab === 'INCOMING' || activeTab === 'UNPAID_CLIENTS') && p.montant > 0 ? '+' :
+                                '' }}
+                                {{ (p.totalTTC !== undefined ? p.totalTTC : p.montant) | number:'1.2-2' }} DH
+                            </span>
+                            <span class="text-[10px] text-gray-400 font-normal" *ngIf="p.montantHT || p.totalHT">
+                                HT: {{ (p.montantHT || p.totalHT) | number:'1.2-2' }}
+                            </span>
                         </div>
                     </td>
                 </ng-container>

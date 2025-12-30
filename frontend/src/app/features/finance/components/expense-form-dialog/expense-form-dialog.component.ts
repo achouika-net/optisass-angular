@@ -21,6 +21,8 @@ import { map, startWith } from 'rxjs/operators';
 import { Expense, Supplier } from '../../models/finance.models';
 import { HttpClient } from '@angular/common/http';
 import { CentersService } from '../../../centers/services/centers.service';
+import { Store } from '@ngrx/store';
+import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
 
 // Je préfère utiliser un service dédié ou fetch via http direct si je n'ai pas le service sous la main.
 // Pour rester simple, je vais faire un fetch via HttpClient ici ou supposer que CentersService est accessible.
@@ -79,18 +81,22 @@ export class ExpenseFormDialogComponent implements OnInit {
         private route: ActivatedRoute,
         private router: Router,
         private zone: NgZone,
+        private store: Store,
         @Optional() public dialogRef: MatDialogRef<ExpenseFormDialogComponent>,
         @Optional() @Inject(MAT_DIALOG_DATA) public data: { expense?: Expense, viewMode?: boolean }
     ) {
         this.isEditMode = !!(data?.expense);
         this.isViewMode = !!(data?.viewMode);
+
+        // Get current center from store
+        const currentCentre = this.store.selectSignal(UserCurrentCentreSelector)();
+
         this.form = this.fb.group({
-            // ... (rest of the form remains same)
             date: [data?.expense?.date || new Date(), Validators.required],
             montant: [data?.expense?.montant || '', [Validators.required, Validators.min(0)]],
             categorie: [data?.expense?.categorie || '', Validators.required],
             modePaiement: [data?.expense?.modePaiement || 'ESPECES', Validators.required],
-            centreId: [data?.expense?.centreId || '', Validators.required],
+            centreId: [data?.expense?.centreId || currentCentre?.id || '', Validators.required],
             description: [data?.expense?.description || ''],
             statut: [data?.expense?.statut || 'VALIDEE'],
             reference: [data?.expense?.reference || ''],

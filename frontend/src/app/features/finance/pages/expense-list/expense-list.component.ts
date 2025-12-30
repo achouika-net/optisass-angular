@@ -1,4 +1,4 @@
-import { Component, OnInit, effect } from '@angular/core';
+import { Component, OnInit, effect, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -49,7 +49,8 @@ export class ExpenseListComponent implements OnInit {
     private financeService: FinanceService,
     private router: Router,
     private snackBar: MatSnackBar,
-    private store: Store
+    private store: Store,
+    private cdr: ChangeDetectorRef
   ) {
     effect(() => {
       const center = this.currentCentre();
@@ -65,16 +66,19 @@ export class ExpenseListComponent implements OnInit {
 
   loadExpenses() {
     this.loading = true;
+    this.cdr.markForCheck();
     const filters = { centreId: this.currentCentre()?.id };
     this.financeService.getExpenses(filters).subscribe({
       next: (data) => {
         this.expenses = data;
         this.loading = false;
+        this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Erreur chargement dépenses', err);
         this.snackBar.open('Erreur lors du chargement des dépenses', 'Fermer', { duration: 3000 });
         this.loading = false;
+        this.cdr.detectChanges();
       }
     });
   }
