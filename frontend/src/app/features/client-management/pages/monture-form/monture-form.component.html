@@ -47,6 +47,11 @@
         </div>
     </div>
     <!-- Tabs Navigation -->
+    <!-- UNCONDITIONAL DEBUG -->
+    <div style="background: purple; color: white; padding: 10px; text-align: center; font-weight: bold;">
+        DEBUG STATE: activeTab = {{ activeTab }} (Type: {{ typeof activeTab }})
+    </div>
+
     <div class="tabs-nav">
         <button type="button" class="tab-btn" [class.active]="activeTab === 0" (click)="setActiveTab(0)"
             [disabled]="!isTabAccessible(0)" [class.disabled]="!isTabAccessible(0)">
