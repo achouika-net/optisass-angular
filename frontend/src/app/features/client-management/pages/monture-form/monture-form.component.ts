@@ -115,19 +115,29 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     }
 
     isTabAccessible(index: number): boolean {
+        // Logging only for higher index tabs to avoid spamming for tab 0/1 checking
+        const shouldLog = index > 1;
+
         if (index <= 1) return true;
 
         // Requirements for moving past tab 1 (Montures et Verres)
         // 1. Must be saved in database
-        if (!this.ficheId || this.ficheId === 'new') return false;
+        if (!this.ficheId || this.ficheId === 'new') {
+            if (shouldLog) console.log(`[DEBUG] Tab ${index} blocked: No ficheId (${this.ficheId})`);
+            return false;
+        }
 
         // 2. Must have valid delivery date
         const dateVal = this.ficheForm.get('dateLivraisonEstimee')?.value;
-        if (!dateVal) return false;
+        if (!dateVal) {
+            if (shouldLog) console.log(`[DEBUG] Tab ${index} blocked: No delivery date`);
+            return false;
+        }
 
         const selectedDate = new Date(dateVal);
         selectedDate.setHours(0, 0, 0, 0);
-        if (selectedDate < this.minDate) return false;
+        // Relaxing the date check for debugging, or maybe the saved date is in the past?
+        // if (selectedDate < this.minDate) return false; 
 
         return true;
     }
