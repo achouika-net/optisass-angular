@@ -49,11 +49,10 @@
           }
         </mat-form-field>
 
-        <!-- Address with autocomplete -->
-        <app-address-autocomplete
-          [field]="warehouseForm.address"
-          [label]="'warehouse.address' | translate"
-        />
+        <!-- Address with autocomplete and nested fields -->
+        <div class="md:col-span-2">
+          <app-address-fields [field]="warehouseForm.address" />
+        </div>
       </div>
 
       <!-- Buttons -->

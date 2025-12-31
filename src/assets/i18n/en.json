@@ -151,6 +151,15 @@
   "permissions": {
     "noAccessToModule": "You don't have access to this module in this center"
   },
+  "address": {
+    "street": "Street",
+    "streetLine2": "Address line 2",
+    "postcode": "Postal code",
+    "city": "City",
+    "country": "Country",
+    "streetPlaceholder": "Enter an address to search",
+    "streetLine2Placeholder": "Apartment, floor, building..."
+  },
   "warehouse": {
     "add": "Add a warehouse",
     "name": "Name",

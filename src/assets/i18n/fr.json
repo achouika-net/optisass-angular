@@ -151,6 +151,15 @@
   "permissions": {
     "noAccessToModule": "Vous n'avez pas accès à ce module dans ce centre"
   },
+  "address": {
+    "street": "Rue",
+    "streetLine2": "Complément d'adresse",
+    "postcode": "Code postal",
+    "city": "Ville",
+    "country": "Pays",
+    "streetPlaceholder": "Saisissez une adresse pour rechercher",
+    "streetLine2Placeholder": "Appartement, étage, bâtiment..."
+  },
   "warehouse": {
     "add": "Ajouter un entrepôt",
     "name": "Nom",
