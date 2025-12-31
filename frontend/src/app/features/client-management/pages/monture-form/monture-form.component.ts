@@ -91,7 +91,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     client: Client | null = null;
     allProducts: any[] = []; // [NEW] Store products for easy lookup
     ficheId: string | null = null;
-    activeTab = 0;
+    activeTab: number = 0;
     loading = false;
     isEditMode = false;
 
