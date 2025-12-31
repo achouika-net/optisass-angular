@@ -1176,6 +1176,40 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
         // Mark form as dirty to enable save
         this.ficheForm.markAsDirty();
+        this.cdr.markForCheck();
+    }
+
+    reportCasse(): void {
+        const oeil = prompt('Casse sur quel œil ? (OD, OG, Paire)', 'Paire');
+        if (!oeil) return;
+
+        const raison = prompt('Raison de la casse ?', 'Coussinet / Taille / Montage');
+        if (!raison) return;
+
+        const group = this.ficheForm.get('suiviCommande');
+        if (!group) return;
+
+        const count = (group.get('casseCount')?.value || 0) + 1;
+        const history = group.get('casseHistorique')?.value || [];
+
+        const entry = {
+            date: new Date(),
+            oeil,
+            raison,
+            user: 'Opticien' // In a real app, this would be the current user
+        };
+
+        group.patchValue({
+            statut: 'A_COMMANDER', // Reset to order state
+            hasCasse: true,
+            casseCount: count,
+            casseHistorique: [...history, entry],
+            commentaire: (group.get('commentaire')?.value || '') + `\n[CASSE ${count}] ${oeil}: ${raison} (${entry.date.toLocaleDateString()})`
+        });
+
+        this.ficheForm.markAsDirty();
+        this.snackBar.open('Casse déclarée. La commande a été remise en statut "À Commander".', 'OK', { duration: 5000 });
+        this.cdr.markForCheck();
     }
 
     getStepState(stepStatus: string): string {
@@ -1296,7 +1330,11 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 dateLivraison: [null],
                 fournisseur: [''],
                 referenceCommande: [''],
-                commentaire: ['']
+                trackingNumber: [''],
+                commentaire: [''],
+                hasCasse: [false],
+                casseCount: [0],
+                casseHistorique: [[]]
             })
         });
     }

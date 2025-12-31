@@ -1368,36 +1368,74 @@
                 <!-- Action Area -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Left: Status & Actions -->
-                    <div class="section-card">
-                        <h4>Actions & Statut</h4>
-                        <div class="p-4 bg-gray-50 rounded-lg mb-4 text-center">
-                            <span class="text-gray-500 uppercase text-xs font-bold tracking-wider">Statut Actuel</span>
-                            <div class="text-2xl font-bold mt-1" [ngClass]="{
-                            'text-orange-500': suiviStatut === 'A_COMMANDER',
-                            'text-blue-600': suiviStatut === 'COMMANDE',
-                            'text-green-600': suiviStatut === 'RECU',
-                            'text-purple-600': suiviStatut === 'LIVRE_CLIENT'
-                        }">
-                                {{ suiviStatut === 'A_COMMANDER' ? 'À COMMANDER' :
-                                suiviStatut === 'COMMANDE' ? 'EN COMMANDE' :
-                                suiviStatut === 'RECU' ? 'REÇU ATELIER' : 'LIVRÉ CLIENT' }}
+                    <div class="space-y-6">
+                        <div class="section-card">
+                            <h4>Actions & Statut</h4>
+                            <div class="p-4 bg-gray-50 rounded-lg mb-4 text-center border border-gray-100">
+                                <span class="text-gray-500 uppercase text-xs font-bold tracking-wider">Statut
+                                    Actuel</span>
+                                <div class="text-2xl font-bold mt-1" [ngClass]="{
+                                    'text-orange-500': suiviStatut === 'A_COMMANDER',
+                                    'text-blue-600': suiviStatut === 'COMMANDE',
+                                    'text-green-600': suiviStatut === 'RECU',
+                                    'text-purple-600': suiviStatut === 'LIVRE_CLIENT'
+                                }">
+                                    {{ suiviStatut === 'A_COMMANDER' ? 'À COMMANDER' :
+                                    suiviStatut === 'COMMANDE' ? 'EN COMMANDE' :
+                                    suiviStatut === 'RECU' ? 'REÇU ATELIER' : 'LIVRÉ CLIENT' }}
+                                </div>
+                            </div>
+                            <div class="flex flex-col gap-3">
+                                <button type="button" class="btn-primary" (click)="setOrderStatus('COMMANDE')"
+                                    *ngIf="suiviStatut === 'A_COMMANDER'" [disabled]="!isEditMode">
+                                    <mat-icon class="mr-2">send</mat-icon> Marquer comme Commandé
+                                </button>
+                                <button type="button" class="btn-success" (click)="setOrderStatus('RECU')"
+                                    *ngIf="suiviStatut === 'COMMANDE'" [disabled]="!isEditMode">
+                                    <mat-icon class="mr-2">check_circle</mat-icon> Marquer comme Reçu
+                                </button>
+                                <button type="button" class="btn-purple" (click)="setOrderStatus('LIVRE_CLIENT')"
+                                    *ngIf="suiviStatut === 'RECU'" [disabled]="!isEditMode">
+                                    <mat-icon class="mr-2">inventory_2</mat-icon> Marquer comme Livré au Client
+                                </button>
                             </div>
                         </div>
-                        <div class="flex flex-col gap-3">
-                            <button type="button" class="btn-primary" (click)="setOrderStatus('COMMANDE')"
-                                *ngIf="suiviStatut === 'A_COMMANDER'" [disabled]="!isEditMode">
-                                <mat-icon class="mr-2">send</mat-icon> Marquer comme Commandé
+
+                        <!-- Gestion de la Casse -->
+                        <div class="section-card border-l-4 border-red-500">
+                            <div class="flex justify-between items-center mb-4">
+                                <h4 class="text-red-700 flex items-center">
+                                    <mat-icon class="mr-2">gavel</mat-icon> Gestion de la Casse
+                                </h4>
+                                <span class="badge-red" *ngIf="ficheForm.get('suiviCommande.casseCount')?.value > 0">
+                                    {{ ficheForm.get('suiviCommande.casseCount')?.value }} Casse(s)
+                                </span>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-4">
+                                En cas de casse durant le montage, déclarez-la ici pour réinitialiser la commande et
+                                garder une trace historique.
+                            </p>
+                            <button type="button"
+                                class="w-full py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg font-bold hover:bg-red-100 transition-colors flex items-center justify-center"
+                                (click)="reportCasse()" [disabled]="!isEditMode">
+                                <mat-icon class="mr-2">warning</mat-icon> DÉCLARER UNE CASSE
                             </button>
-                            <button type="button" class="btn-success" (click)="setOrderStatus('RECU')"
-                                *ngIf="suiviStatut === 'COMMANDE'" [disabled]="!isEditMode">
-                                <mat-icon class="mr-2">check_circle</mat-icon> Marquer comme Reçu
-                            </button>
-                            <button type="button" class="btn-purple" (click)="setOrderStatus('LIVRE_CLIENT')"
-                                *ngIf="suiviStatut === 'RECU'" [disabled]="!isEditMode">
-                                <mat-icon class="mr-2">inventory_2</mat-icon> Marquer comme Livré au Client
-                            </button>
+
+                            <!-- Casse History -->
+                            <div class="mt-4 space-y-2"
+                                *ngIf="ficheForm.get('suiviCommande.casseHistorique')?.value?.length > 0">
+                                <div *ngFor="let entry of ficheForm.get('suiviCommande.casseHistorique')?.value; let i = index"
+                                    class="p-2 bg-red-50/50 rounded text-xs border border-red-100">
+                                    <div class="flex justify-between font-bold text-red-800">
+                                        <span>Casse #{{ i + 1 }} - {{ entry.oeil }}</span>
+                                        <span>{{ entry.date | date:'dd/MM/yyyy' }}</span>
+                                    </div>
+                                    <div class="text-red-600 mt-1 italic italic">Raison: {{ entry.raison }}</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
                     <!-- Right: Details Form -->
                     <div class="section-card">
                         <h4>Détails Commande</h4>
@@ -1409,10 +1447,18 @@
                                         }}</mat-option>
                                 </mat-select>
                             </mat-form-field>
-                            <mat-form-field appearance="outline">
-                                <mat-label>Référence Commande (Fournisseur)</mat-label>
-                                <input matInput formControlName="referenceCommande" placeholder="Ex: CMD-12345">
-                            </mat-form-field>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Réf. Commande</mat-label>
+                                    <input matInput formControlName="referenceCommande" placeholder="Ex: CMD-12345">
+                                </mat-form-field>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Tracking / BL</mat-label>
+                                    <input matInput formControlName="trackingNumber" placeholder="N° de suivi">
+                                </mat-form-field>
+                            </div>
+
                             <div class="grid grid-cols-2 gap-4">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Date Commande</mat-label>
@@ -1427,10 +1473,11 @@
                                     <mat-datepicker #pickerRecu></mat-datepicker>
                                 </mat-form-field>
                             </div>
+
                             <mat-form-field appearance="outline">
                                 <mat-label>Commentaires / Suivi</mat-label>
-                                <textarea matInput formControlName="commentaire" rows="3"
-                                    placeholder="Notes sur la commande..."></textarea>
+                                <textarea matInput formControlName="commentaire" rows="5"
+                                    placeholder="Notes sur la commande ou historique de suivi..."></textarea>
                             </mat-form-field>
                         </div>
                     </div>
