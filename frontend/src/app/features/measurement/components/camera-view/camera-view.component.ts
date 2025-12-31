@@ -134,15 +134,16 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             }
         }
 
-        // 2. Check Frame Top/Bottom Red Lines (Y-axis)
-        // If not initialized, don't drag
-        if (this.frameTopY && Math.abs(canvasY - this.frameTopY) < PROXIMITY_THRESHOLD) {
-            this.isDraggingFrameTop = true;
-            return;
-        }
-        if (this.frameBottomY && Math.abs(canvasY - this.frameBottomY) < PROXIMITY_THRESHOLD) {
-            this.isDraggingFrameBottom = true;
-            return;
+        // 2. Check Frame Top/Bottom Red Lines (Y-axis) - ONLY IF CAPTURED
+        if (this.isCaptured) {
+            if (this.frameTopY && Math.abs(canvasY - this.frameTopY) < PROXIMITY_THRESHOLD) {
+                this.isDraggingFrameTop = true;
+                return;
+            }
+            if (this.frameBottomY && Math.abs(canvasY - this.frameBottomY) < PROXIMITY_THRESHOLD) {
+                this.isDraggingFrameBottom = true;
+                return;
+            }
         }
 
         // 3. Check Pupils (Prioritize this if Captured for manual correction)
@@ -613,31 +614,33 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // --- DRAW RED FRAME HEIGHT LINES ---
-        if (this.frameTopY > 0) {
-            ctx.strokeStyle = '#FF0000';
-            ctx.lineWidth = 2; // Bold red
-            ctx.beginPath();
-            ctx.moveTo(0, this.frameTopY);
-            ctx.lineTo(canvas.width, this.frameTopY);
-            ctx.stroke();
+        // --- DRAW RED FRAME HEIGHT LINES (ONLY IF CAPTURED) ---
+        if (this.isCaptured) {
+            if (this.frameTopY > 0) {
+                ctx.strokeStyle = '#FF0000';
+                ctx.lineWidth = 2; // Bold red
+                ctx.beginPath();
+                ctx.moveTo(0, this.frameTopY);
+                ctx.lineTo(canvas.width, this.frameTopY);
+                ctx.stroke();
 
-            // Draw small handle/label
-            ctx.fillStyle = '#FF0000';
-            ctx.fillText('Haut Verre', 10, this.frameTopY - 5);
-        }
+                // Draw small handle/label
+                ctx.fillStyle = '#FF0000';
+                ctx.fillText('Haut Verre', 10, this.frameTopY - 5);
+            }
 
-        if (this.frameBottomY > 0) {
-            ctx.strokeStyle = '#FF0000';
-            ctx.lineWidth = 2; // Bold red
-            ctx.beginPath();
-            ctx.moveTo(0, this.frameBottomY);
-            ctx.lineTo(canvas.width, this.frameBottomY);
-            ctx.stroke();
+            if (this.frameBottomY > 0) {
+                ctx.strokeStyle = '#FF0000';
+                ctx.lineWidth = 2; // Bold red
+                ctx.beginPath();
+                ctx.moveTo(0, this.frameBottomY);
+                ctx.lineTo(canvas.width, this.frameBottomY);
+                ctx.stroke();
 
-            // Draw small handle/label
-            ctx.fillStyle = '#FF0000';
-            ctx.fillText('Bas Verre', 10, this.frameBottomY + 15);
+                // Draw small handle/label
+                ctx.fillStyle = '#FF0000';
+                ctx.fillText('Bas Verre', 10, this.frameBottomY + 15);
+            }
         }
 
         // DRAW HEIGHT LINES (Bottom of frame)
