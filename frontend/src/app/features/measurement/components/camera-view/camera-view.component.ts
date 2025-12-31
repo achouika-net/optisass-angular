@@ -504,28 +504,20 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             frameHeightMm = this.calibrationService.pxToMm(hPx, this.pixelsPerMm!);
         }
 
-        // --- OPTICIAN'S EFFECTIVE DIAMETER (ED) CALCULATION (Simplified Pro) ---
-        let edMm = 0;
-        let edRightMmValue = 0;
-        let edLeftMmValue = 0;
-        if (this.pixelsPerMm && frameHeightMm > 0) {
-            // Horizontal Decentration
-            const frameCenterMm = (this.bridge + this.caliber) / 2;
-            const dhOD = Math.abs(frameCenterMm - pdRightMm);
-            const dhOG = Math.abs(frameCenterMm - pdLeftMm);
+        // --- OPTICIAN'S EFFECTIVE DIAMETER (ED) CALCULATION (Formal Lab Method) ---
+        // 1. Grand Diamètre (GD) = Diagonale de la forme √(A² + B²)
+        // A = caliber, B = frameHeightMm
+        const GD = Math.sqrt(this.caliber ** 2 + (frameHeightMm || 0) ** 2);
 
-            // Diagonal of the lens box D = sqrt(A^2 + B^2)
-            const D = Math.sqrt(this.caliber ** 2 + frameHeightMm ** 2);
+        // 2. Décentrement Horizontal (De) = |(A + DBL)/2 - PD_mono|
+        const frameCenterMm = (this.bridge + this.caliber) / 2;
+        const dhOD = Math.abs(frameCenterMm - pdRightMm);
+        const dhOG = Math.abs(frameCenterMm - pdLeftMm);
 
-            // Final Effective Diameters: ED = D + 2*|dh|
-            // (Ignoring vertical decentration for standard estimation as per common practice)
-            const edRightMm = D + (2 * dhOD);
-            const edLeftMm = D + (2 * dhOG);
-
-            edRightMmValue = edRightMm;
-            edLeftMmValue = edLeftMm;
-            edMm = Math.max(edRightMm, edLeftMm);
-        }
+        // 3. Diamètre Utile (ED) = GD + 2 * |De|
+        const edRightMmValue = GD + (2 * dhOD);
+        const edLeftMmValue = GD + (2 * dhOG);
+        const edMm = Math.max(edRightMmValue, edLeftMmValue);
 
         return {
             pdMm,
@@ -715,17 +707,18 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             const m = this.latestMeasurement;
             const pxMm = this.pixelsPerMm;
 
-            // Pre-calculate individual diameters for visualization
-            const D = Math.sqrt(this.caliber ** 2 + (m.frameHeightMm || 0) ** 2);
+            // 1. Grand Diamètre (GD)
+            const GD = Math.sqrt(this.caliber ** 2 + (m.frameHeightMm || 0) ** 2);
             const frameCenterMm = (this.bridge + this.caliber) / 2;
 
-            // OD (Horizontal decentration only)
+            // 2. individual diameters for visualization: ED = GD + 2*De
+            // OD
             const dhOD = Math.abs(frameCenterMm - m.pdRightMm);
-            const rODpx = ((D + 2 * dhOD) / 2) * pxMm;
+            const rODpx = ((GD + 2 * dhOD) / 2) * pxMm;
 
             // OG
             const dhOG = Math.abs(frameCenterMm - m.pdLeftMm);
-            const rOGpx = ((D + 2 * dhOG) / 2) * pxMm;
+            const rOGpx = ((GD + 2 * dhOG) / 2) * pxMm;
 
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.setLineDash([2, 4]);
@@ -759,8 +752,14 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             ctx.fillText(`OG: ${this.latestMeasurement.pdLeftMm.toFixed(1)} | H: ${this.latestMeasurement.heightLeftMm?.toFixed(1) || '-'}`, 10, 95);
 
             if (this.latestMeasurement.edMm) {
+                const frameCenterMm = (this.bridge + this.caliber) / 2;
+                const deOD = Math.abs(frameCenterMm - (this.latestMeasurement.pdRightMm || 0));
+                const deOG = Math.abs(frameCenterMm - (this.latestMeasurement.pdLeftMm || 0));
+
                 ctx.fillStyle = '#4ae3ff'; // Light blue for ED
                 ctx.fillText(`Diamètre Utile: ${this.latestMeasurement.edMm.toFixed(1)}mm`, 10, 118);
+                ctx.font = '10px Arial';
+                ctx.fillText(`De: OD ${deOD.toFixed(1)} / OG ${deOG.toFixed(1)}`, 160, 118);
             }
 
             ctx.font = 'italic 12px Arial';
