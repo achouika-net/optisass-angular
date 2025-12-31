@@ -22,8 +22,8 @@ export class MediaPipeEngineService {
         this.faceMesh.setOptions({
             maxNumFaces: 1,
             refineLandmarks: true,
-            minDetectionConfidence: 0.6,
-            minTrackingConfidence: 0.6
+            minDetectionConfidence: 0.75, // Increased from 0.6
+            minTrackingConfidence: 0.75   // Increased from 0.6
         });
 
         this.faceMesh.onResults((results: Results) => {
@@ -78,8 +78,8 @@ export class MediaPipeEngineService {
             confidence: 1
         }));
 
-        // Extract pupils from iris landmarks
-        // MediaPipe iris landmarks: left iris (468-472), right iris (473-477)
+        // High Accuracy Pupils: Average of iris contour points
+        // Iris landmarks: 468 (center), 469 (top), 470 (right), 471 (bottom), 472 (left) for LEFT eye
         const leftIrisIdx = [468, 469, 470, 471, 472];
         const rightIrisIdx = [473, 474, 475, 476, 477];
 
@@ -88,21 +88,20 @@ export class MediaPipeEngineService {
 
         let pupils: Pupils;
 
-        // Use specific Indigo Iris landmarks if available (468 left, 473 right)
-        // These are the exact centers provided by MediaPipe's refineLandmarks
-        if (pts[468] && pts[473]) {
-            pupils = {
-                left: pts[468],
-                right: pts[473]
-            };
-        } else if (leftIris.length && rightIris.length) {
-            // Fallback to average if 468/473 missing (unlikely if refined)
+        if (leftIris.length >= 3 && rightIris.length >= 3) {
+            // Use average of iris points for a more stable center
             pupils = {
                 left: this.averagePoints(leftIris),
                 right: this.averagePoints(rightIris)
             };
+        } else if (pts[468] && pts[473]) {
+            // Fallback to single center point
+            pupils = {
+                left: pts[468],
+                right: pts[473]
+            };
         } else {
-            // Fallback to eye contour average
+            // Extreme fallback to eye contour average
             const leftEyeIdx = [33, 160, 159, 158, 157, 173];
             const rightEyeIdx = [362, 385, 386, 387, 388, 263];
             const leftPts = leftEyeIdx.map(i => pts[i]).filter(Boolean);
