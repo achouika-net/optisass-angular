@@ -1,0 +1,102 @@
+<div class="history-container">
+    <div class="header">
+        <div class="title-section">
+            <button mat-icon-button routerLink="/p/finance/caisse">
+                <mat-icon>arrow_back</mat-icon>
+            </button>
+            <h1>Historique des Clôtures</h1>
+        </div>
+        <button mat-stroked-button (click)="loadHistory()">
+            <mat-icon>refresh</mat-icon> Actualiser
+        </button>
+    </div>
+
+    <mat-card class="history-card">
+        <div *ngIf="loading" class="loading-container">
+            <mat-spinner diameter="50"></mat-spinner>
+            <p>Chargement de l'historique...</p>
+        </div>
+
+        <div *ngIf="!loading && sessions.length === 0" class="empty-state">
+            <mat-icon>history</mat-icon>
+            <p>Aucune clôture enregistrée pour le moment.</p>
+        </div>
+
+        <table mat-table [dataSource]="sessions" *ngIf="!loading && sessions.length > 0" class="history-table">
+
+            <ng-container matColumnDef="dateOuverture">
+                <th mat-header-cell *matHeaderCellDef>Ouverture</th>
+                <td mat-cell *matCellDef="let element">
+                    {{ element.dateOuverture | date:'dd/MM/yyyy HH:mm' }}
+                </td>
+            </ng-container>
+
+            <ng-container matColumnDef="dateCloture">
+                <th mat-header-cell *matHeaderCellDef>Clôture</th>
+                <td mat-cell *matCellDef="let element">
+                    {{ element.dateCloture | date:'dd/MM/yyyy HH:mm' }}
+                </td>
+            </ng-container>
+
+            <ng-container matColumnDef="caisse">
+                <th mat-header-cell *matHeaderCellDef>Caisse</th>
+                <td mat-cell *matCellDef="let element">
+                    <span class="caisse-name">{{ element.caisse?.nom }}</span>
+                    <small class="type-tag" [ngClass]="element.caisse?.type">
+                        {{ element.caisse?.type === 'PRINCIPALE' ? 'P' : 'D' }}
+                    </small>
+                </td>
+            </ng-container>
+
+            <ng-container matColumnDef="caissier">
+                <th mat-header-cell *matHeaderCellDef>Caissier / Responsable</th>
+                <td mat-cell *matCellDef="let element">
+                    <div class="user-info">
+                        <span class="caissier">{{ element.caissier }}</span>
+                        <small class="responsable" *ngIf="element.responsableCloture">Clôturé par : {{
+                            element.responsableCloture }}</small>
+                    </div>
+                </td>
+            </ng-container>
+
+            <ng-container matColumnDef="soldeTheorique">
+                <th mat-header-cell *matHeaderCellDef class="number-header">Théorique</th>
+                <td mat-cell *matCellDef="let element" class="number-cell">
+                    {{ element.soldeTheorique | number:'1.2-2' }} DH
+                </td>
+            </ng-container>
+
+            <ng-container matColumnDef="soldeReel">
+                <th mat-header-cell *matHeaderCellDef class="number-header">Réel</th>
+                <td mat-cell *matCellDef="let element" class="number-cell">
+                    {{ element.soldeReel | number:'1.2-2' }} DH
+                </td>
+            </ng-container>
+
+            <ng-container matColumnDef="ecart">
+                <th mat-header-cell *matHeaderCellDef class="number-header">Écart</th>
+                <td mat-cell *matCellDef="let element" class="number-cell">
+                    <span
+                        [ngClass]="{'negative': element.ecart < 0, 'positive': element.ecart > 0, 'zero': element.ecart === 0}">
+                        {{ element.ecart | number:'1.2-2' }} DH
+                    </span>
+                    <mat-icon *ngIf="element.justificationEcart" matTooltip="{{ element.justificationEcart }}"
+                        class="justification-icon">info</mat-icon>
+                </td>
+            </ng-container>
+
+            <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef></th>
+                <td mat-cell *matCellDef="let element">
+                    <button mat-icon-button color="primary" (click)="viewDetails(element.id)"
+                        matTooltip="Voir les détails">
+                        <mat-icon>visibility</mat-icon>
+                    </button>
+                </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        </table>
+    </mat-card>
+</div>

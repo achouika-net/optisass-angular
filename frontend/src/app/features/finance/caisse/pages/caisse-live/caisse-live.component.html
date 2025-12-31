@@ -6,74 +6,129 @@
             <span class="subtitle">{{ resume.journee.centre.nom }} | Ouverte par {{ resume.journee.caissier }}</span>
         </div>
 
-        <div class="actions">
+        <div class="actions" *ngIf="resume.journee.statut === 'OUVERTE'">
             <button mat-raised-button color="warn" (click)="closeCaisse()">
                 <mat-icon>lock</mat-icon> CLÔTURER LA CAISSE
             </button>
+        </div>
+        <div class="actions" *ngIf="resume.journee.statut === 'FERMEE'">
+            <mat-chip-listbox>
+                <mat-chip color="warn">SESSION CLÔTURÉE</mat-chip>
+            </mat-chip-listbox>
         </div>
     </div>
 
     <!-- Summary Cards -->
     <div class="summary-cards">
-        <mat-card class="summary-card total-caisse">
+        <!-- 1. Recettes (Green) -->
+        <mat-card class="summary-card green-border">
             <mat-card-content>
-                <div class="label">Solde en Caisse (Espèces)</div>
-                <div class="value">{{ getSolde() | number:'1.2-2' }} DH</div>
-                <div class="subtext">Fond initial : {{ resume.fondInitial | number:'1.2-2' }} DH</div>
+                <div class="label">Recettes de la Journée</div>
+                <div class="value">{{ resume.totalRecettes | number:'1.2-2' }} DH</div>
+                <div class="card-details">
+                    <div class="detail-row">
+                        <span>Espèces:</span>
+                        <b class="text-green-600">{{ resume.recettesDetails.espaces | number:'1.2-2' }} DH</b>
+                    </div>
+                    <div class="detail-row">
+                        <span>Carte:</span>
+                        <b class="text-blue-600">{{ resume.recettesDetails.carte | number:'1.2-2' }} DH</b>
+                    </div>
+                    <div class="detail-row">
+                        <span>Chèque/Autre:</span>
+                        <b>{{ resume.recettesDetails.cheque | number:'1.2-2' }} DH</b>
+                    </div>
+                    <div class="detail-row">
+                        <span class="text-orange-600">En coffre (Chèques/LCN):</span>
+                        <b class="text-orange-600">{{ resume.recettesDetails.enCoffre | number:'1.2-2' }} DH</b>
+                    </div>
+                </div>
             </mat-card-content>
         </mat-card>
 
-        <mat-card class="summary-card comptable">
-            <mat-card-content>
-                <div class="label">Ventes Espèces</div>
-                <div class="value">{{ asAny(resume).totalVentesEspeces | number:'1.2-2' }} DH</div>
-                <div class="subtext">Inclus dans le solde</div>
-            </mat-card-content>
-        </mat-card>
-
-        <mat-card class="summary-card banque">
-            <mat-card-content>
-                <div class="label">Ventes Carte (Banque)</div>
-                <div class="value">{{ asAny(resume).totalVentesCarte | number:'1.2-2' }} DH</div>
-                <div class="subtext">Automatiquement en banque</div>
-            </mat-card-content>
-        </mat-card>
-
-        <mat-card class="summary-card transfers" *ngIf="asAny(resume).journee.caisse.type === 'PRINCIPALE'">
-            <mat-card-content>
-                <div class="label">Vente Chèque</div>
-                <div class="value text-blue-600">{{ asAny(resume).totalVentesCheque | number:'1.2-2' }} DH</div>
-                <div class="subtext">À déposer en banque</div>
-            </mat-card-content>
-        </mat-card>
-
-        <mat-card class="summary-card interne" *ngIf="asAny(resume).journee.caisse.type === 'DEPENSES'">
-            <mat-card-content>
-                <div class="label">Alimentation Reçue</div>
-                <div class="value">{{ resume.totalInterne | number:'1.2-2' }} DH</div>
-                <div class="subtext">Depuis caisse principale</div>
-            </mat-card-content>
-        </mat-card>
-
-        <mat-card class="summary-card depenses">
+        <!-- 2. Décaissements (Orange) -->
+        <mat-card class="summary-card orange-border">
             <mat-card-content>
                 <div class="label">Décaissements du jour</div>
-                <div class="value">{{ resume.totalDepenses | number:'1.2-2' }} DH</div>
-                <div class="subtext">Sorties de caisse</div>
+                <div class="value text-orange-600">{{ resume.totalDepenses | number:'1.2-2' }} DH</div>
+                <div class="card-details">
+                    <div class="detail-row">
+                        <span>Dépenses réglées:</span>
+                        <b>{{ resume.totalDepenses | number:'1.2-2' }} DH</b>
+                    </div>
+                    <div class="detail-row" *ngIf="resume.journee.caisse.type === 'PRINCIPALE'">
+                        <span>Vers dépenses:</span>
+                        <b>{{ resume.totalInterne | number:'1.2-2' }} DH</b>
+                    </div>
+                    <div class="detail-row" *ngIf="resume.journee.caisse.type === 'DEPENSES'">
+                        <span>Entrées du jour:</span>
+                        <b>{{ resume.totalInterne | number:'1.2-2' }} DH</b>
+                    </div>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <!-- 3. Solde Réel (Blue) -->
+        <mat-card class="summary-card blue-border">
+            <mat-card-content>
+                <div class="label">Solde Réel (Cash-Flow)</div>
+                <div class="value">{{ getSolde() | number:'1.2-2' }} DH</div>
+                <div class="card-details">
+                    <div class="detail-row">
+                        <span>Fond initial:</span>
+                        <b>{{ resume.fondInitial | number:'1.2-2' }} DH</b>
+                    </div>
+                    <div class="detail-row">
+                        <span>Flux Net Espèces:</span>
+                        <b>{{ (getSolde() - resume.fondInitial) | number:'1.2-2' }} DH</b>
+                    </div>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <!-- 4. Ventes Espèces (Green) -->
+        <mat-card class="summary-card green-border">
+            <mat-card-content>
+                <div class="label">Ventes Espèces</div>
+                <div class="value">{{ resume.totalVentesEspeces | number:'1.2-2' }} DH
+                </div>
+                <div class="card-details">
+                    <div class="detail-row">
+                        <span>Session locale:</span>
+                        <b>{{ resume.totalVentesEspeces | number:'1.2-2' }} DH</b>
+                    </div>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <!-- 5. Ventes Bancaires (Purple) -->
+        <mat-card class="summary-card purple-border">
+            <mat-card-content>
+                <div class="label">Ventes Bancaires</div>
+                <div class="value">{{ (resume.totalVentesCarte + resume.totalVentesCheque) | number:'1.2-2' }} DH</div>
+                <div class="card-details">
+                    <div class="detail-row">
+                        <span>Carte:</span>
+                        <b>{{ resume.totalVentesCarte | number:'1.2-2' }} DH</b>
+                    </div>
+                    <div class="detail-row">
+                        <span>Chèque:</span>
+                        <b>{{ resume.totalVentesCheque | number:'1.2-2' }} DH</b>
+                    </div>
+                </div>
             </mat-card-content>
         </mat-card>
     </div>
 
-    <!-- Quick Actions -->
-    <div class="quick-actions">
-        <button mat-flat-button color="accent" class="action-btn"
-            *ngIf="asAny(resume).journee.caisse.type === 'PRINCIPALE'"
+    <!-- Quick Actions (Hidden if Closed) -->
+    <div class="quick-actions" *ngIf="resume.journee.statut === 'OUVERTE'">
+        <button mat-flat-button color="accent" class="action-btn" *ngIf="resume.journee.caisse.type === 'PRINCIPALE'"
             (click)="openOperationDialog(OperationType.DECAISSEMENT)">
             <mat-icon>remove_circle</mat-icon> DÉCAISSER
         </button>
 
-        <button mat-flat-button color="warn" class="action-btn"
-            *ngIf="asAny(resume).journee.caisse.type === 'PRINCIPALE'" (click)="openTransferDialog()">
+        <button mat-flat-button color="warn" class="action-btn" *ngIf="resume.journee.caisse.type === 'PRINCIPALE'"
+            (click)="openTransferDialog()">
             <mat-icon>swap_horiz</mat-icon> ALIMENTER DÉPENSES
         </button>
     </div>
@@ -144,9 +199,11 @@
 
                 <!-- Actions Column -->
                 <ng-container matColumnDef="actions">
-                    <th mat-header-cell *matHeaderCellDef> Actions </th>
+                    <th mat-header-cell *matHeaderCellDef> {{ resume.journee.statut === 'OUVERTE' ? 'Actions' : '' }}
+                    </th>
                     <td mat-cell *matCellDef="let op">
-                        <button mat-icon-button color="warn" (click)="deleteOperation(op)">
+                        <button mat-icon-button color="warn" (click)="deleteOperation(op)"
+                            *ngIf="resume.journee.statut === 'OUVERTE'">
                             <mat-icon>delete</mat-icon>
                         </button>
                     </td>

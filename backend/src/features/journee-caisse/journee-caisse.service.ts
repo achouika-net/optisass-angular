@@ -68,20 +68,62 @@ export class JourneeCaisseService {
             throw new ConflictException('Cette journée de caisse est déjà fermée');
         }
 
-        // Calculate theoretical balance using cached fields
-        const soldeTheorique =
-            journee.fondInitial +
-            (journee as any).totalComptable +
-            (journee as any).totalInterne -
-            (journee as any).totalDepenses;
+        // Calculate accurate theoretical balances and counts dynamically
+        const stats = {
+            grossVentesEspeces: 0,
+            grossVentesCarte: 0,
+            grossVentesCheque: 0,
+            nbVentesCarte: 0,
+            nbVentesCheque: 0,
+            totalInterneIn: 0,
+            totalOutflowsEspeces: 0
+        };
 
-        // Calculate écart
-        const ecart = cloturerCaisseDto.soldeReel - soldeTheorique;
+        journee.operations.forEach(op => {
+            if (op.type === 'ENCAISSEMENT') {
+                if (op.typeOperation === 'COMPTABLE' || op.typeOperation === 'INTERNE') {
+                    if (op.moyenPaiement === 'ESPECES') {
+                        if (op.typeOperation === 'COMPTABLE') stats.grossVentesEspeces += op.montant;
+                        else stats.totalInterneIn += op.montant;
+                    } else if (op.moyenPaiement === 'CARTE') {
+                        stats.grossVentesCarte += op.montant;
+                        stats.nbVentesCarte++;
+                    } else if (op.moyenPaiement === 'CHEQUE') {
+                        stats.grossVentesCheque += op.montant;
+                        stats.nbVentesCheque++;
+                    }
+                }
+            } else if (op.type === 'DECAISSEMENT') {
+                if (op.moyenPaiement === 'ESPECES') {
+                    stats.totalOutflowsEspeces += op.montant;
+                }
+            }
+        });
 
-        // Validate justification if écart exists
-        if (Math.abs(ecart) > 0.01 && !cloturerCaisseDto.justificationEcart) {
+        const soldeTheoriqueEspeces = (journee.fondInitial || 0) + stats.totalInterneIn + stats.grossVentesEspeces - stats.totalOutflowsEspeces;
+        const soldeTheoriqueCarte = stats.grossVentesCarte;
+        const soldeTheoriqueCheque = stats.grossVentesCheque;
+
+        // Individual écarts (Value)
+        const ecartEspeces = cloturerCaisseDto.soldeReel - soldeTheoriqueEspeces;
+        const ecartCarteMontant = cloturerCaisseDto.montantTotalCarte - soldeTheoriqueCarte;
+        const ecartChequeMontant = cloturerCaisseDto.montantTotalCheque - soldeTheoriqueCheque;
+
+        // Individual écarts (Count)
+        const ecartCarteNombre = cloturerCaisseDto.nbRecuCarte - stats.nbVentesCarte;
+        const ecartChequeNombre = cloturerCaisseDto.nbRecuCheque - stats.nbVentesCheque;
+
+        const hasAnyDiscrepancy =
+            Math.abs(ecartEspeces) > 0.01 ||
+            Math.abs(ecartCarteMontant) > 0.01 ||
+            Math.abs(ecartChequeMontant) > 0.01 ||
+            ecartCarteNombre !== 0 ||
+            ecartChequeNombre !== 0;
+
+        // Validate justification if ANY discrepancy exists
+        if (hasAnyDiscrepancy && !cloturerCaisseDto.justificationEcart) {
             throw new BadRequestException(
-                'Une justification est requise en cas d\'écart',
+                'Une justification est requise car un écart a été détecté (montant ou nombre de reçus).',
             );
         }
 
@@ -91,11 +133,12 @@ export class JourneeCaisseService {
             data: {
                 statut: 'FERMEE',
                 dateCloture: new Date(),
-                soldeTheorique,
+                soldeTheorique: soldeTheoriqueEspeces,
                 soldeReel: cloturerCaisseDto.soldeReel,
-                ecart,
+                ecart: ecartEspeces,
                 justificationEcart: cloturerCaisseDto.justificationEcart,
                 responsableCloture: cloturerCaisseDto.responsableCloture,
+                // Audit trails can be expanded here to store detailed ecarts in metadata if needed
             },
             include: {
                 caisse: true,
@@ -197,12 +240,89 @@ export class JourneeCaisseService {
             include: {
                 caisse: true,
                 centre: true,
+                operations: true
             },
         });
 
         if (!journee) {
             throw new NotFoundException('Journée de caisse introuvable');
         }
+
+        // Aggregate current session directly from operations for 100% accuracy
+        const stats = {
+            grossVentesEspeces: 0,
+            grossVentesCarte: 0,
+            grossVentesCheque: 0,
+            netVentesEspeces: 0,
+            netVentesCarte: 0,
+            netVentesCheque: 0,
+            nbVentesCarte: 0,
+            nbVentesCheque: 0,
+            totalInterneIn: 0,
+            totalOutflows: 0, // All cash outflows (Expenses + Transfers Out + Refunds)
+            chequesEnAttente: 0, // Cheques received but not yet cashed/deposited
+        };
+
+        journee.operations.forEach(op => {
+            if (op.type === 'ENCAISSEMENT') {
+                if (op.typeOperation === 'COMPTABLE') {
+                    if (op.moyenPaiement === 'ESPECES') {
+                        stats.grossVentesEspeces += op.montant;
+                        stats.netVentesEspeces += op.montant;
+                    } else if (op.moyenPaiement === 'CARTE') {
+                        stats.grossVentesCarte += op.montant;
+                        stats.netVentesCarte += op.montant;
+                        stats.nbVentesCarte++;
+                    } else if (op.moyenPaiement === 'CHEQUE') {
+                        stats.grossVentesCheque += op.montant;
+                        stats.netVentesCheque += op.montant;
+                        stats.nbVentesCheque++;
+                        // For cheques, we assume they are "en coffre" if they are purely comptable in the jornada
+                    }
+                } else if (op.typeOperation === 'INTERNE') {
+                    stats.totalInterneIn += op.montant;
+                }
+            } else if (op.type === 'DECAISSEMENT') {
+                if (op.typeOperation === 'COMPTABLE') {
+                    // Refund: subtract from net sales
+                    if (op.moyenPaiement === 'ESPECES') stats.netVentesEspeces -= op.montant;
+                    else if (op.moyenPaiement === 'CARTE') stats.netVentesCarte -= op.montant;
+                    else if (op.moyenPaiement === 'CHEQUE') stats.netVentesCheque -= op.montant;
+
+                    if (op.moyenPaiement === 'ESPECES') stats.totalOutflows += op.montant;
+                } else {
+                    // Expense or Transfer Out
+                    if (op.moyenPaiement === 'ESPECES') stats.totalOutflows += op.montant;
+                }
+            }
+        });
+
+        // Global Center Stats (For Cards 4 & 5) - Optimized with aggregation
+        const centreStats = await this.prisma.operationCaisse.aggregate({
+            where: {
+                journeeCaisse: {
+                    centreId: journee.centreId,
+                    statut: 'OUVERTE'
+                },
+                typeOperation: 'COMPTABLE',
+                type: 'ENCAISSEMENT'
+            },
+            _sum: {
+                montant: true
+            }
+        });
+
+        const centreVentesEspeces = (await this.prisma.operationCaisse.aggregate({
+            where: {
+                journeeCaisse: { centreId: journee.centreId, statut: 'OUVERTE' },
+                typeOperation: 'COMPTABLE',
+                type: 'ENCAISSEMENT',
+                moyenPaiement: 'ESPECES'
+            },
+            _sum: { montant: true }
+        }))._sum.montant || 0;
+
+        const centreVentesBancaires = (centreStats._sum.montant || 0) - centreVentesEspeces;
 
         return {
             journee: {
@@ -215,19 +335,27 @@ export class JourneeCaisseService {
                 centre: (journee as any).centre,
             },
             fondInitial: journee.fondInitial || 0,
-            totalComptable: (journee as any).totalComptable || 0,
-            totalVentesEspeces: (journee as any).totalVentesEspeces || 0,
-            totalVentesCarte: (journee as any).totalVentesCarte || 0,
-            totalVentesCheque: (journee as any).totalVentesCheque || 0,
-            totalInterne: (journee as any).totalInterne || 0,
-            totalDepenses: (journee as any).totalDepenses || 0,
-            totalTransfertsDepenses: (journee as any).totalTransfertsDepenses || 0,
-            soldeTheorique:
-                (journee.fondInitial || 0) +
-                ((journee as any).totalComptable || 0) +
-                ((journee as any).totalInterne || 0) -
-                ((journee as any).totalDepenses || 0),
-            soldeReel: journee.soldeReel || 0,
+            // Recettes Card (Session Local Net)
+            totalRecettes: stats.netVentesEspeces + stats.netVentesCarte + stats.netVentesCheque,
+            recettesDetails: {
+                espaces: stats.netVentesEspeces,
+                carte: stats.netVentesCarte,
+                cheque: stats.netVentesCheque,
+                enCoffre: stats.netVentesCheque
+            },
+            // Sales Cards (Gross local session)
+            totalVentesEspeces: stats.grossVentesEspeces,
+            totalVentesCarte: stats.grossVentesCarte,
+            totalVentesCheque: stats.grossVentesCheque,
+            nbVentesCarte: stats.nbVentesCarte,
+            nbVentesCheque: stats.nbVentesCheque,
+            centreVentesEspeces,
+            centreVentesBancaires,
+            totalInterne: stats.totalInterneIn,
+            totalDepenses: stats.totalOutflows,
+            // Solde Cards (Physical Cash)
+            soldeTheorique: (journee.fondInitial || 0) + stats.totalInterneIn + stats.grossVentesEspeces - stats.totalOutflows,
+            soldeReel: (journee.fondInitial || 0) + stats.totalInterneIn + stats.grossVentesEspeces - stats.totalOutflows,
             ecart: journee.ecart || 0,
         };
     }

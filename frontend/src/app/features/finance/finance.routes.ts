@@ -56,7 +56,8 @@ export const routes: Routes = [
             { path: '', loadComponent: () => import('./caisse/pages/caisse-list/caisse-list.component').then(m => m.CaisseListComponent) },
             { path: 'ouvrir', loadComponent: () => import('./caisse/pages/ouverture-caisse/ouverture-caisse.component').then(m => m.OuvertureCaisseComponent) },
             { path: 'live/:id', loadComponent: () => import('./caisse/pages/caisse-live/caisse-live.component').then(m => m.CaisseLiveComponent) },
-            { path: 'cloture/:id', loadComponent: () => import('./caisse/pages/cloture-caisse/cloture-caisse.component').then(m => m.ClotureCaisseComponent) }
+            { path: 'cloture/:id', loadComponent: () => import('./caisse/pages/cloture-caisse/cloture-caisse.component').then(m => m.ClotureCaisseComponent) },
+            { path: 'history', loadComponent: () => import('./caisse/pages/caisse-history/caisse-history.component').then(m => m.CaisseHistoryComponent) }
         ]
     },
     {

@@ -1,65 +1,302 @@
 <div class="cloture-caisse-container" *ngIf="resume; else loadingTpl">
-    <mat-card class="form-card">
-        <mat-card-header>
-            <mat-card-title>Clôturer la Caisse</mat-card-title>
-            <mat-card-subtitle>{{ resume.journee.caisse.nom }} - {{ resume.journee.centre.nom }}</mat-card-subtitle>
-        </mat-card-header>
+    <div class="header-section">
+        <h1>Clôturer la Caisse</h1>
+        <p>{{ resume.journee.caisse.nom }} - {{ resume.journee.centre.nom }}</p>
+    </div>
 
-        <mat-card-content>
-            <!-- Summary Section -->
-            <div class="summary-section">
-                <div class="summary-row">
-                    <span>Fond Initial :</span>
-                    <span class="value">{{ resume.fondInitial | number:'1.2-2' }} DH</span>
+    <!-- 5-Card Summary (Same as Live View) -->
+    <div class="summary-cards">
+        <!-- 1. Recettes (Green) -->
+        <mat-card class="summary-card green-border">
+            <mat-card-content>
+                <div class="label">Recettes de la Journée</div>
+                <div class="value">{{ resume.totalRecettes | number:'1.2-2' }} DH</div>
+                <div class="card-details">
+                    <div class="detail-row">
+                        <span>Espèces:</span>
+                        <b class="text-green-600">{{ resume.recettesDetails.espaces | number:'1.2-2' }} DH</b>
+                    </div>
+                    <div class="detail-row">
+                        <span>Carte:</span>
+                        <b class="text-blue-600">{{ resume.recettesDetails.carte | number:'1.2-2' }} DH</b>
+                    </div>
+                    <div class="detail-row">
+                        <span>Chèque/Autre:</span>
+                        <b>{{ resume.recettesDetails.cheque | number:'1.2-2' }} DH</b>
+                    </div>
+                    <div class="detail-row">
+                        <span class="text-orange-600">En coffre (Chèques/LCN):</span>
+                        <b class="text-orange-600">{{ resume.recettesDetails.enCoffre | number:'1.2-2' }} DH</b>
+                    </div>
                 </div>
-                <div class="summary-row">
-                    <span>Total Encaissements :</span>
-                    <span class="value plus">+{{ (resume.totalComptable + resume.totalInterne) | number:'1.2-2' }}
-                        DH</span>
-                </div>
-                <div class="summary-row">
-                    <span>Total Dépenses :</span>
-                    <span class="value minus">-{{ resume.totalDepenses | number:'1.2-2' }} DH</span>
-                </div>
-                <div class="summary-row total">
-                    <span>Solde Théorique :</span>
-                    <span class="value">{{ resume.soldeTheorique | number:'1.2-2' }} DH</span>
-                </div>
-            </div>
+            </mat-card-content>
+        </mat-card>
 
-            <form [formGroup]="form" (ngSubmit)="onSubmit()">
-                <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>Solde Réel Compté (DH)</mat-label>
-                    <input matInput type="number" formControlName="soldeReel" min="0">
-                    <mat-error *ngIf="form.get('soldeReel')?.hasError('required')">
-                        Le solde réel est obligatoire
-                    </mat-error>
-                </mat-form-field>
-
-                <div class="ecart-display" [class.negative]="ecart < 0" [class.positive]="ecart > 0"
-                    [class.zero]="ecart === 0">
-                    <span class="label">Écart :</span>
-                    <span class="value">{{ ecart > 0 ? '+' : ''}}{{ ecart | number:'1.2-2' }} DH</span>
+        <!-- 2. Décaissements (Orange) -->
+        <mat-card class="summary-card orange-border">
+            <mat-card-content>
+                <div class="label">Décaissements du jour</div>
+                <div class="value text-orange-600">{{ resume.totalDepenses | number:'1.2-2' }} DH</div>
+                <div class="card-details">
+                    <div class="detail-row">
+                        <span>Dépenses réglées:</span>
+                        <b>{{ resume.totalDepenses | number:'1.2-2' }} DH</b>
+                    </div>
+                    <div class="detail-row" *ngIf="resume.journee.caisse.type === 'PRINCIPALE'">
+                        <span>Vers dépenses:</span>
+                        <b>{{ resume.totalInterne | number:'1.2-2' }} DH</b>
+                    </div>
+                    <div class="detail-row" *ngIf="resume.journee.caisse.type === 'DEPENSES'">
+                        <span>Entrées du jour:</span>
+                        <b>{{ resume.totalInterne | number:'1.2-2' }} DH</b>
+                    </div>
                 </div>
+            </mat-card-content>
+        </mat-card>
 
-                <mat-form-field appearance="outline" class="full-width" *ngIf="ecart !== 0">
-                    <mat-label>Justification de l'écart</mat-label>
-                    <textarea matInput formControlName="justificationEcart" rows="3"
-                        placeholder="Expliquez la raison de l'écart..."></textarea>
-                    <mat-error *ngIf="form.get('justificationEcart')?.hasError('required')">
-                        Une justification est obligatoire pour tout écart
-                    </mat-error>
-                </mat-form-field>
-
-                <div class="actions">
-                    <button mat-button type="button" (click)="cancel()">Annuler</button>
-                    <button mat-raised-button color="warn" type="submit" [disabled]="form.invalid || submitting">
-                        {{ submitting ? 'Clôture en cours...' : 'CONFIRMER LA CLÔTURE' }}
-                    </button>
+        <!-- 3. Solde Réel (Blue) -->
+        <mat-card class="summary-card blue-border">
+            <mat-card-content>
+                <div class="label">Solde Théorique (Espèces)</div>
+                <div class="value">{{ getSolde() | number:'1.2-2' }} DH</div>
+                <div class="card-details">
+                    <div class="detail-row">
+                        <span>Fond initial:</span>
+                        <b>{{ resume.fondInitial | number:'1.2-2' }} DH</b>
+                    </div>
+                    <div class="detail-row">
+                        <span>Flux Net Espèces:</span>
+                        <b>{{ (getSolde() - resume.fondInitial) | number:'1.2-2' }} DH</b>
+                    </div>
                 </div>
-            </form>
-        </mat-card-content>
-    </mat-card>
+            </mat-card-content>
+        </mat-card>
+
+        <!-- 4. Ventes Espèces (Green) -->
+        <mat-card class="summary-card green-border">
+            <mat-card-content>
+                <div class="label">Ventes Espèces</div>
+                <div class="value">{{ resume.totalVentesEspeces | number:'1.2-2' }} DH</div>
+                <div class="card-details">
+                    <div class="detail-row">
+                        <span>Session locale:</span>
+                        <b>{{ resume.totalVentesEspeces | number:'1.2-2' }} DH</b>
+                    </div>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <!-- 5. Ventes Bancaires (Purple) -->
+        <mat-card class="summary-card purple-border">
+            <mat-card-content>
+                <div class="label">Ventes Bancaires</div>
+                <div class="value">{{ (resume.totalVentesCarte + resume.totalVentesCheque) | number:'1.2-2' }}
+                    DH</div>
+                <div class="card-details">
+                    <div class="detail-row">
+                        <span>Carte:</span>
+                        <b>{{ resume.totalVentesCarte | number:'1.2-2' }} DH</b>
+                    </div>
+                    <div class="detail-row">
+                        <span>Chèque:</span>
+                        <b>{{ resume.totalVentesCheque | number:'1.2-2' }} DH</b>
+                    </div>
+                </div>
+            </mat-card-content>
+        </mat-card>
+    </div>
+
+    <div class="form-container">
+        <mat-card class="form-card">
+            <mat-card-header>
+                <mat-card-title>Assistant de Clôture Définitive</mat-card-title>
+                <mat-card-subtitle>Suivez les étapes pour réconcilier chaque mode de paiement.</mat-card-subtitle>
+            </mat-card-header>
+
+            <mat-card-content>
+                <form [formGroup]="form" (ngSubmit)="onSubmit()">
+                    <mat-stepper #stepper linear="false">
+
+                        <!-- ÉTAPE 1: ESPÈCES -->
+                        <mat-step [stepControl]="form" label="Espèces">
+                            <div class="step-content">
+                                <div class="form-section-title">
+                                    <mat-icon>payments</mat-icon> Réconciliation des Espèces
+                                </div>
+                                <mat-form-field appearance="outline" class="full-width">
+                                    <mat-label>Solde Réel Compté (Espèces) (DH)</mat-label>
+                                    <input matInput type="number" formControlName="soldeReel" min="0">
+                                    <mat-hint>Théorique : {{ resume.soldeTheorique | number:'1.2-2' }} DH</mat-hint>
+                                    <mat-error
+                                        *ngIf="form.get('soldeReel')?.hasError('required')">Obligatoire</mat-error>
+                                </mat-form-field>
+
+                                <div class="stepper-actions">
+                                    <button mat-flat-button color="primary" matStepperNext type="button">SUIVANT
+                                        (CARTES)</button>
+                                </div>
+                            </div>
+                        </mat-step>
+
+                        <!-- ÉTAPE 2: CARTES -->
+                        <mat-step [stepControl]="form" label="Cartes (TPE)">
+                            <div class="step-content">
+                                <div class="form-section-title">
+                                    <mat-icon>credit_card</mat-icon> Réconciliation des Cartes
+                                </div>
+                                <div class="form-grid">
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Nombre de reçus Carte</mat-label>
+                                        <input matInput type="number" formControlName="nbRecuCarte" min="0">
+                                        <mat-hint>Théorique : {{ resume.nbVentesCarte }} reçu(s)</mat-hint>
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Montant Total Carte (DH)</mat-label>
+                                        <input matInput type="number" formControlName="montantTotalCarte" min="0">
+                                        <mat-hint>Théorique : {{ resume.totalVentesCarte | number:'1.2-2' }}
+                                            DH</mat-hint>
+                                    </mat-form-field>
+                                </div>
+                                <div class="stepper-actions">
+                                    <button mat-stroked-button matStepperPrevious type="button">PRÉCÉDENT</button>
+                                    <button mat-flat-button color="primary" matStepperNext type="button">SUIVANT
+                                        (CHÈQUES)</button>
+                                </div>
+                            </div>
+                        </mat-step>
+
+                        <!-- ÉTAPE 3: CHÈQUES -->
+                        <mat-step [stepControl]="form" label="Chèques">
+                            <div class="step-content">
+                                <div class="form-section-title">
+                                    <mat-icon>history_edu</mat-icon> Réconciliation des Chèques
+                                </div>
+                                <div class="form-grid">
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Nombre de chèques</mat-label>
+                                        <input matInput type="number" formControlName="nbRecuCheque" min="0">
+                                        <mat-hint>Théorique : {{ resume.nbVentesCheque }} chèque(s)</mat-hint>
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Montant Total Chèques (DH)</mat-label>
+                                        <input matInput type="number" formControlName="montantTotalCheque" min="0">
+                                        <mat-hint>Théorique : {{ resume.totalVentesCheque | number:'1.2-2' }}
+                                            DH</mat-hint>
+                                    </mat-form-field>
+                                </div>
+                                <div class="stepper-actions">
+                                    <button mat-stroked-button matStepperPrevious type="button">PRÉCÉDENT</button>
+                                    <button mat-flat-button color="primary" matStepperNext type="button">VÉRIFICATION
+                                        FINALE</button>
+                                </div>
+                            </div>
+                        </mat-step>
+
+                        <!-- ÉTAPE 4: VALIDATION FINALE -->
+                        <mat-step label="Confirmation">
+                            <div class="step-content">
+                                <div class="form-section-title">
+                                    <mat-icon>verified_user</mat-icon> Résumé et Tableau de Réconciliation
+                                </div>
+
+                                <table class="reconciliation-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Mode de Paiement</th>
+                                            <th>Théorique (Système)</th>
+                                            <th>Réel (Comptage)</th>
+                                            <th>Écart</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- ESPÈCES -->
+                                        <tr>
+                                            <td>
+                                                <div class="row-title"><mat-icon>payments</mat-icon> Espèces</div>
+                                            </td>
+                                            <td class="amount-cell">{{ resume.soldeTheorique | number:'1.2-2' }} DH</td>
+                                            <td class="amount-cell">{{ form.get('soldeReel')?.value | number:'1.2-2' }}
+                                                DH</td>
+                                            <td class="ecart-cell" [class.negative]="ecart !== 0"
+                                                [class.zero]="ecart === 0">
+                                                {{ ecart | number:'1.2-2' }} DH
+                                            </td>
+                                        </tr>
+                                        <!-- CARTES -->
+                                        <tr>
+                                            <td>
+                                                <div class="row-title"><mat-icon>credit_card</mat-icon> Cartes (TPE)
+                                                </div>
+                                                <small>{{ resume.nbVentesCarte }} reçu(s) attendu(s)</small>
+                                            </td>
+                                            <td class="amount-cell">{{ resume.totalVentesCarte | number:'1.2-2' }} DH
+                                            </td>
+                                            <td class="amount-cell">{{ form.get('montantTotalCarte')?.value |
+                                                number:'1.2-2' }} DH ({{ form.get('nbRecuCarte')?.value }} reçus)</td>
+                                            <td class="ecart-cell"
+                                                [class.negative]="ecartCarteMontant !== 0 || ecartCarteNombre !== 0"
+                                                [class.zero]="ecartCarteMontant === 0 && ecartCarteNombre === 0">
+                                                {{ ecartCarteMontant | number:'1.2-2' }} DH
+                                                <div *ngIf="ecartCarteNombre !== 0"><small>({{ ecartCarteNombre > 0 ?
+                                                        '+' : '' }}{{ ecartCarteNombre }} reçus)</small></div>
+                                            </td>
+                                        </tr>
+                                        <!-- CHÈQUES -->
+                                        <tr>
+                                            <td>
+                                                <div class="row-title"><mat-icon>history_edu</mat-icon> Chèques</div>
+                                                <small>{{ resume.nbVentesCheque }} chèque(s) attendu(s)</small>
+                                            </td>
+                                            <td class="amount-cell">{{ resume.totalVentesCheque | number:'1.2-2' }} DH
+                                            </td>
+                                            <td class="amount-cell">{{ form.get('montantTotalCheque')?.value |
+                                                number:'1.2-2' }} DH ({{ form.get('nbRecuCheque')?.value }} chèques)
+                                            </td>
+                                            <td class="ecart-cell"
+                                                [class.negative]="ecartChequeMontant !== 0 || ecartChequeNombre !== 0"
+                                                [class.zero]="ecartChequeMontant === 0 && ecartChequeNombre === 0">
+                                                {{ ecartChequeMontant | number:'1.2-2' }} DH
+                                                <div *ngIf="ecartChequeNombre !== 0"><small>({{ ecartChequeNombre > 0 ?
+                                                        '+' : '' }}{{ ecartChequeNombre }} chèques)</small></div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <div class="ecart-display"
+                                    [class.negative]="ecart !== 0 || ecartCarteMontant !== 0 || ecartChequeMontant !== 0"
+                                    [class.zero]="ecart === 0 && ecartCarteMontant === 0 && ecartChequeMontant === 0">
+                                    <span class="label">Statut Global de l'Écart :</span>
+                                    <span class="value">{{ (ecart === 0 && ecartCarteMontant === 0 && ecartChequeMontant
+                                        === 0) ? 'Caisse Équilibrée' : 'Écart détecté (Justification requise)' }}</span>
+                                </div>
+
+                                <mat-form-field appearance="outline" class="full-width"
+                                    *ngIf="form.get('justificationEcart')?.validator">
+                                    <mat-label>Justification des écarts constatés</mat-label>
+                                    <textarea matInput formControlName="justificationEcart" rows="4"
+                                        placeholder="Expliquez la raison de l'écart..."></textarea>
+                                    <mat-error *ngIf="form.get('justificationEcart')?.hasError('required')">
+                                        Une justification est obligatoire pour valider la clôture.
+                                    </mat-error>
+                                </mat-form-field>
+
+                                <div class="stepper-actions">
+                                    <button mat-stroked-button matStepperPrevious type="button"
+                                        [disabled]="submitting">DÉTAILS DES SOMMES</button>
+                                    <button mat-raised-button color="warn" type="submit"
+                                        [disabled]="form.invalid || submitting">
+                                        <mat-icon *ngIf="!submitting">lock</mat-icon>
+                                        {{ submitting ? 'CLÔTURE EN COURS...' : 'VALIDER LA CLÔTURE DÉFINITIVE' }}
+                                    </button>
+                                </div>
+                            </div>
+                        </mat-step>
+                    </mat-stepper>
+                </form>
+            </mat-card-content>
+        </mat-card>
+    </div>
 </div>
 
 <ng-template #loadingTpl>

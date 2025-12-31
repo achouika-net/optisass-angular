@@ -15,6 +15,11 @@ export interface DialogData {
     journeeId: string;
     type?: OperationType;
     caisseType?: CaisseType;
+    availableBalances?: {
+        ESPECES: number;
+        CARTE: number;
+        CHEQUE: number;
+    };
 }
 
 @Component({
@@ -59,13 +64,25 @@ export class OperationFormDialogComponent {
     ) {
         this.canCreateInterne = this.guard.canCreateInterneOperation();
 
+        const initialAmount = (this.data.type === OperationType.DECAISSEMENT && this.data.availableBalances)
+            ? this.data.availableBalances.ESPECES
+            : 0;
+
         this.form = this.fb.group({
             type: [data.type || OperationType.ENCAISSEMENT, Validators.required],
             typeOperation: [TypeOperation.COMPTABLE, Validators.required],
-            montant: [0, [Validators.required, Validators.min(0.01)]],
+            montant: [initialAmount, [Validators.required, Validators.min(0.01)]],
             moyenPaiement: [MoyenPaiement.ESPECES, Validators.required],
             motif: [''],
             reference: [''],
+        });
+
+        // Auto-fill montant based on moyenPaiement for DECAISSEMENT
+        this.form.get('moyenPaiement')?.valueChanges.subscribe(moyen => {
+            if (this.form.get('type')?.value === OperationType.DECAISSEMENT && this.data.availableBalances) {
+                const balance = (this.data.availableBalances as any)[moyen] || 0;
+                this.form.get('montant')?.setValue(balance);
+            }
         });
 
         // Handle conditional validation for motif

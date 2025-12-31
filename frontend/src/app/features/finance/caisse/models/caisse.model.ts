@@ -125,6 +125,10 @@ export interface OuvrirCaisseDto {
 
 export interface CloturerCaisseDto {
     soldeReel: number;
+    nbRecuCarte: number;
+    montantTotalCarte: number;
+    nbRecuCheque: number;
+    montantTotalCheque: number;
     justificationEcart?: string;
     responsableCloture: string;
 }
@@ -160,9 +164,18 @@ export interface JourneeResume {
     totalVentesEspeces: number;
     totalVentesCarte: number;
     totalVentesCheque: number;
+    totalRecettes: number;
+    recettesDetails: {
+        espaces: number;
+        carte: number;
+        cheque: number;
+        enCoffre: number;
+    };
     totalInterne: number;
     totalDepenses: number;
     totalTransfertsDepenses: number;
+    nbVentesCarte: number;
+    nbVentesCheque: number;
     soldeTheorique: number;
     soldeReel?: number;
     ecart?: number;
