@@ -1035,10 +1035,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     );
                 }
 
-                // AUTO-SUBMIT: Immediately save the fiche.
-                // We use a small timeout to ensure fillProductDetails has finished patching the form
-                console.log('🚀 [ONE-CLICK] Auto-submitting fiche after selection...');
-                setTimeout(() => this.onSubmit(), 300);
+                // AUTO-SUBMIT: Removed per user request - allows finishing other parts of the form
+                console.log('✅ [STOCKS] Product selected, auto-save disabled to allow further editing.');
+                // setTimeout(() => this.onSubmit(), 300);
             }
         });
     }
