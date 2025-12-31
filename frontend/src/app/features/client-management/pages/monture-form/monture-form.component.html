@@ -139,7 +139,7 @@
     </div>
 
     <!-- Main Form -->
-    <form [formGroup]="ficheForm">
+    <div [formGroup]="ficheForm">
         <!-- ONGLET 1: ORDONNANCE -->
         <div class="tab-content" *ngIf="activeTab === 0" formGroupName="ordonnance">
             <div class="tab-header">
@@ -1094,6 +1094,41 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Montage Dimensions (Moved from Right Column) -->
+                    <div class="grid grid-cols-2 gap-4 mt-2 mb-4">
+                        <!-- Hauteur Monture (B) -->
+                        <div
+                            class="bg-white border-2 border-green-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all border-l-[6px] border-l-green-500">
+                            <label
+                                class="flex items-center gap-2 text-[10px] font-black text-green-700 uppercase tracking-tighter mb-2">
+                                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                Hauteur Monture (B)
+                            </label>
+                            <div class="relative flex items-center">
+                                <input type="number" formControlName="hauteurVerre"
+                                    class="w-full h-10 px-3 rounded-lg border border-green-50 bg-green-50/20 focus:bg-white focus:ring-2 focus:ring-green-100 focus:border-green-400 text-lg font-black text-gray-900 tracking-tight transition-all text-center"
+                                    placeholder="40.0">
+                                <span class="absolute right-3 font-bold text-green-600/30 text-[10px]">MM</span>
+                            </div>
+                        </div>
+                        <!-- Diametre Utile (ED) -->
+                        <div
+                            class="bg-white border-2 border-blue-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all border-l-[6px] border-l-blue-500">
+                            <label
+                                class="flex items-center gap-2 text-[10px] font-black text-blue-700 uppercase tracking-tighter mb-2">
+                                <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                Diamètre Utile (ED)
+                            </label>
+                            <div class="relative flex items-center">
+                                <input type="text" formControlName="diametreEffectif"
+                                    class="w-full h-10 px-3 rounded-lg border border-blue-50 bg-blue-50/20 focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 text-lg font-black text-gray-900 tracking-tight transition-all text-center"
+                                    placeholder="70/72">
+                                <span class="absolute right-3 font-bold text-blue-600/30 text-[10px]">MM</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Analyse IA (Yellow Box) -->
                     <div class="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4 mt-auto">
                         <h4 class="text-blue-900 font-bold text-sm mb-2">Analyse IA & Recommandations</h4>
@@ -1240,41 +1275,8 @@
                             </ng-container>
                         </div>
                     </div>
-                    <!-- Dimensions & High Resolution Centering -->
+                    <!-- High Resolution Centering Canvas -->
                     <div class="flex flex-col gap-6">
-                        <div class="grid grid-cols-2 gap-6">
-                            <!-- Hauteur Monture (B) -->
-                            <div
-                                class="bg-white border-2 border-green-100 rounded-2xl p-5 shadow-md hover:shadow-lg transition-all border-l-[6px] border-l-green-500">
-                                <label
-                                    class="flex items-center gap-2 text-[10px] font-black text-green-700 uppercase tracking-tighter mb-3">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                                    Hauteur Monture (B)
-                                </label>
-                                <div class="relative flex items-center">
-                                    <input type="number" formControlName="hauteurVerre"
-                                        class="w-full h-14 px-4 rounded-xl border-2 border-green-50 bg-green-50/20 focus:bg-white focus:ring-4 focus:ring-green-100 focus:border-green-400 text-2xl font-black text-gray-900 tracking-tight transition-all text-center"
-                                        placeholder="40.0">
-                                    <span class="absolute right-4 font-bold text-green-600/40 text-xs">MM</span>
-                                </div>
-                            </div>
-                            <!-- Diametre Utile (ED) -->
-                            <div
-                                class="bg-white border-2 border-blue-100 rounded-2xl p-5 shadow-md hover:shadow-lg transition-all border-l-[6px] border-l-blue-500">
-                                <label
-                                    class="flex items-center gap-2 text-[10px] font-black text-blue-700 uppercase tracking-tighter mb-3">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-                                    Diamètre Utile (ED)
-                                </label>
-                                <div class="relative flex items-center">
-                                    <input type="text" formControlName="diametreEffectif"
-                                        class="w-full h-14 px-4 rounded-xl border-2 border-blue-50 bg-blue-50/20 focus:bg-white focus:ring-4 focus:ring-blue-100 focus:border-blue-400 text-2xl font-black text-gray-900 tracking-tight transition-all text-center"
-                                        placeholder="70/72">
-                                    <span class="absolute right-4 font-bold text-blue-600/40 text-xs">MM</span>
-                                </div>
-                            </div>
-                        </div>
-
                         <!-- Visual Calibration -->
                         <div class="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
                             <div
@@ -1443,7 +1445,8 @@
                     <span *ngIf="activeTab < 5">→</span>
                 </button>
             </div>
-    </form>
+        </div>
+    </div>
     <!-- File Viewer Modal -->
     <div class="file-viewer-modal" *ngIf="viewingFile" (click)="closeViewer()">
         <div class="modal-content" (click)="$event.stopPropagation()">
