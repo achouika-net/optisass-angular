@@ -46,121 +46,17 @@ export class PaiementsService {
         });
 
         // 4. AUTOMATED CASH RECORDING (INTEGRATION CAISSE)
-        // If it's a payment that should go to Caisse (ESPECES or CARTE)
         if (createPaiementDto.mode === 'ESPECES' || createPaiementDto.mode === 'CARTE' || createPaiementDto.mode === 'CHEQUE') {
             try {
                 await this.prisma.$transaction(async (tx) => {
-                    // Determine which register to use based on payment type
-                    // Refunds (negative amounts) in ESPECES should go to expense register if open
-                    // Otherwise fall back to main register
-                    const isRefund = createPaiementDto.montant < 0;
-                    let caisseType = 'PRINCIPALE';
-
-                    if (isRefund) {
-                        // Refunds MUST go through the expense register
-                        const expenseJournee = await tx.journeeCaisse.findFirst({
-                            where: {
-                                centreId: facture.centreId!,
-                                statut: 'OUVERTE',
-                                caisse: { type: 'DEPENSES' }
-                            }
-                        });
-
-                        if (!expenseJournee) {
-                            throw new BadRequestException('Le remboursement nécessite une caisse de dépenses ouverte pour ce centre');
-                        }
-                        caisseType = 'DEPENSES';
-                    }
-
-                    // Find an OPEN JourneeCaisse for the appropriate caisse type in this centre
-                    const openJournee = await tx.journeeCaisse.findFirst({
-                        where: {
-                            centreId: facture.centreId!,
-                            statut: 'OUVERTE',
-                            caisse: {
-                                type: caisseType
-                            }
-                        },
-                        include: { caisse: true }
-                    });
-
-                    if (openJournee) {
-                        const absMontant = Math.abs(createPaiementDto.montant);
-
-                        // If it's a refund in the expense register, check for funds
-                        if (caisseType === 'DEPENSES' && isRefund) {
-                            const availableCash = openJournee.fondInitial + openJournee.totalInterne - openJournee.totalDepenses;
-
-                            if (availableCash < absMontant) {
-                                // Insufficient funds - create funding request
-                                await (tx as any).demandeAlimentation.create({
-                                    data: {
-                                        montant: absMontant,
-                                        paiementId: paiement.id,
-                                        journeeCaisseId: openJournee.id,
-                                        statut: 'EN_ATTENTE'
-                                    }
-                                });
-
-                                // Update payment status
-                                await tx.paiement.update({
-                                    where: { id: paiement.id },
-                                    data: { statut: 'EN_ATTENTE_ALIMENTATION' }
-                                });
-
-                                return; // Do not create OperationCaisse yet
-                            }
-                        }
-
-                        // Create OperationCaisse
-                        const operation = await tx.operationCaisse.create({
-                            data: {
-                                type: isRefund ? 'DECAISSEMENT' : 'ENCAISSEMENT',
-                                typeOperation: 'COMPTABLE',
-                                montant: absMontant,
-                                moyenPaiement: createPaiementDto.mode,
-                                reference: createPaiementDto.reference || `FAC ${facture.numero}`,
-                                motif: isRefund ? 'Régularisation Avoir' : `Paiement: FAC ${facture.numero}`,
-                                utilisateur: 'Système',
-                                journeeCaisseId: openJournee.id,
-                                factureId: facture.id
-                            }
-                        });
-
-                        // Link Payment to Operation
-                        await tx.paiement.update({
-                            where: { id: paiement.id },
-                            data: { operationCaisseId: operation.id }
-                        });
-
-                        // Update Journee totals based on register type
-                        if (caisseType === 'DEPENSES') {
-                            // For expense register, only update totalDepenses
-                            await tx.journeeCaisse.update({
-                                where: { id: openJournee.id },
-                                data: {
-                                    totalDepenses: { increment: absMontant }
-                                }
-                            });
-                        } else {
-                            // For main register, update sales totals
-                            await tx.journeeCaisse.update({
-                                where: { id: openJournee.id },
-                                data: {
-                                    totalComptable: { increment: createPaiementDto.montant },
-                                    totalVentesEspeces: createPaiementDto.mode === 'ESPECES' ? { increment: createPaiementDto.montant } : undefined,
-                                    totalVentesCarte: createPaiementDto.mode === 'CARTE' ? { increment: createPaiementDto.montant } : undefined,
-                                    totalVentesCheque: createPaiementDto.mode === 'CHEQUE' ? { increment: createPaiementDto.montant } : undefined,
-                                }
-                            });
-                        }
-                    }
+                    await this.handleCaisseIntegration(tx, paiement, facture);
                 });
             } catch (caisseError) {
                 console.error('Failed to link payment to Caisse', caisseError);
                 // We don't block the payment if caisse integration fails, but we log it
             }
         }
+
         // 5. Mettre à jour le reste à payer et le statut de la facture
         const nouveauReste = facture.resteAPayer - montant;
         const nouveauStatut = nouveauReste === 0 ? 'PAYEE' : 'PARTIEL';
@@ -176,6 +72,111 @@ export class PaiementsService {
         return paiement;
     }
 
+    async handleCaisseIntegration(tx: any, paiement: any, facture: any) {
+        const isRefund = paiement.montant < 0;
+        let caisseType = 'PRINCIPALE';
+
+        if (isRefund) {
+            // Refunds MUST go through the expense register
+            const expenseJournee = await tx.journeeCaisse.findFirst({
+                where: {
+                    centreId: facture.centreId!,
+                    statut: 'OUVERTE',
+                    caisse: { type: 'DEPENSES' }
+                }
+            });
+
+            if (!expenseJournee) {
+                throw new BadRequestException('Le remboursement nécessite une caisse de dépenses ouverte pour ce centre');
+            }
+            caisseType = 'DEPENSES';
+        }
+
+        // Find an OPEN JourneeCaisse for the appropriate caisse type in this centre
+        const openJournee = await tx.journeeCaisse.findFirst({
+            where: {
+                centreId: facture.centreId!,
+                statut: 'OUVERTE',
+                caisse: {
+                    type: caisseType
+                }
+            },
+            include: { caisse: true }
+        });
+
+        if (openJournee) {
+            const absMontant = Math.abs(paiement.montant);
+
+            // If it's a refund in the expense register, check for funds
+            if (caisseType === 'DEPENSES' && isRefund) {
+                const availableCash = openJournee.fondInitial + openJournee.totalInterne - openJournee.totalDepenses;
+
+                if (availableCash < absMontant) {
+                    // Insufficient funds - create funding request
+                    await (tx as any).demandeAlimentation.create({
+                        data: {
+                            montant: absMontant,
+                            paiementId: paiement.id,
+                            journeeCaisseId: openJournee.id,
+                            statut: 'EN_ATTENTE'
+                        }
+                    });
+
+                    // Update payment status
+                    await tx.paiement.update({
+                        where: { id: paiement.id },
+                        data: { statut: 'EN_ATTENTE_ALIMENTATION' }
+                    });
+
+                    return; // Do not create OperationCaisse yet
+                }
+            }
+
+            // Create OperationCaisse
+            const operation = await tx.operationCaisse.create({
+                data: {
+                    type: isRefund ? 'DECAISSEMENT' : 'ENCAISSEMENT',
+                    typeOperation: 'COMPTABLE',
+                    montant: absMontant,
+                    moyenPaiement: paiement.mode,
+                    reference: paiement.reference || `FAC ${facture.numero}`,
+                    motif: isRefund ? 'Régularisation Avoir' : `Paiement: FAC ${facture.numero}`,
+                    utilisateur: 'Système',
+                    journeeCaisseId: openJournee.id,
+                    factureId: facture.id
+                }
+            });
+
+            // Link Payment to Operation
+            await tx.paiement.update({
+                where: { id: paiement.id },
+                data: { operationCaisseId: operation.id }
+            });
+
+            // Update Journee totals based on register type
+            if (caisseType === 'DEPENSES') {
+                // For expense register, only update totalDepenses
+                await tx.journeeCaisse.update({
+                    where: { id: openJournee.id },
+                    data: {
+                        totalDepenses: { increment: absMontant }
+                    }
+                });
+            } else {
+                // For main register, update sales totals
+                await tx.journeeCaisse.update({
+                    where: { id: openJournee.id },
+                    data: {
+                        totalComptable: { increment: paiement.montant },
+                        totalVentesEspeces: paiement.mode === 'ESPECES' ? { increment: paiement.montant } : undefined,
+                        totalVentesCarte: paiement.mode === 'CARTE' ? { increment: paiement.montant } : undefined,
+                        totalVentesCheque: paiement.mode === 'CHEQUE' ? { increment: paiement.montant } : undefined,
+                    }
+                });
+            }
+        }
+    }
+
     async findAll(factureId?: string) {
         if (factureId) {
             return this.prisma.paiement.findMany({
@@ -187,7 +188,8 @@ export class PaiementsService {
 
         return this.prisma.paiement.findMany({
             include: { facture: true },
-            orderBy: { date: 'desc' }
+            orderBy: { date: 'desc' },
+            take: 100
         });
     }
 
@@ -207,7 +209,6 @@ export class PaiementsService {
     async update(id: string, updatePaiementDto: UpdatePaiementDto) {
         const paiement = await this.findOne(id);
 
-        // Si le montant change, recalculer le reste à payer de la facture
         if (updatePaiementDto.montant && updatePaiementDto.montant !== paiement.montant) {
             const facture = await this.prisma.facture.findUnique({
                 where: { id: paiement.factureId },
@@ -234,7 +235,6 @@ export class PaiementsService {
             });
         }
 
-        // Automatically set dateEncaissement if status changes to ENCAISSE
         if (updatePaiementDto.statut === 'ENCAISSE' && paiement.statut !== 'ENCAISSE' && !updatePaiementDto.dateEncaissement) {
             updatePaiementDto.dateEncaissement = new Date().toISOString();
         }
@@ -253,14 +253,12 @@ export class PaiementsService {
         }
 
         return await this.prisma.$transaction(async (tx) => {
-            // 1. If this was a cash/card payment linked to Caisse, undo the operation
-            if (paiement.operationCaisseId || paiement.mode === 'CHEQUE') {
+            if (paiement.operationCaisseId) {
                 const op = await tx.operationCaisse.findUnique({
-                    where: { id: paiement.operationCaisseId || undefined }
+                    where: { id: paiement.operationCaisseId }
                 });
 
                 if (op) {
-                    // Update Journee totals (decrement)
                     await tx.journeeCaisse.update({
                         where: { id: op.journeeCaisseId },
                         data: {
@@ -271,14 +269,12 @@ export class PaiementsService {
                         }
                     });
 
-                    // Delete the operation
                     await tx.operationCaisse.delete({
                         where: { id: op.id }
                     });
                 }
             }
 
-            // 2. Recalculate invoice remaining amount
             const facture = await tx.facture.findUnique({
                 where: { id: paiement.factureId },
                 include: { paiements: true }
@@ -301,7 +297,6 @@ export class PaiementsService {
                 });
             }
 
-            // 3. Delete the payment
             return tx.paiement.delete({
                 where: { id }
             });

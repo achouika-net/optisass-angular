@@ -1,10 +1,16 @@
 <div class="caisse-list-container">
     <div class="header">
         <h1>Mes Caisses</h1>
-        <button mat-raised-button color="primary" (click)="openCreateDialog()" *ngIf="isManagementMode">
-            <mat-icon>add</mat-icon>
-            Nouvelle Caisse
-        </button>
+        <div class="actions">
+            <button mat-stroked-button color="primary" routerLink="/p/finance/caisse/history">
+                <mat-icon>history</mat-icon>
+                Historique
+            </button>
+            <button mat-raised-button color="primary" (click)="openCreateDialog()" *ngIf="isManagementMode">
+                <mat-icon>add</mat-icon>
+                Nouvelle Caisse
+            </button>
+        </div>
     </div>
 
     <div *ngIf="loading" class="loading-spinner">

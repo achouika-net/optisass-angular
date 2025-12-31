@@ -9,6 +9,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatIconModule } from '@angular/material/icon';
+import { MatStepperModule } from '@angular/material/stepper';
+import { catchError, finalize, of, timeout } from 'rxjs';
 import { JourneeCaisseService } from '../../services/journee-caisse.service';
 import { JourneeResume } from '../../models/caisse.model';
 
@@ -24,7 +27,9 @@ import { JourneeResume } from '../../models/caisse.model';
         MatButtonModule,
         MatSnackBarModule,
         MatDialogModule,
-        MatProgressSpinnerModule
+        MatProgressSpinnerModule,
+        MatIconModule,
+        MatStepperModule
     ],
     templateUrl: './cloture-caisse.component.html',
     styleUrls: ['./cloture-caisse.component.scss'],
@@ -36,6 +41,10 @@ export class ClotureCaisseComponent implements OnInit {
     loading = true;
     submitting = false;
     ecart = 0;
+    ecartCarteMontant = 0;
+    ecartCarteNombre = 0;
+    ecartChequeMontant = 0;
+    ecartChequeNombre = 0;
     currentUser = 'Utilisateur Test'; // TODO: Get from AuthService
 
     constructor(
@@ -47,12 +56,16 @@ export class ClotureCaisseComponent implements OnInit {
     ) {
         this.form = this.fb.group({
             soldeReel: [0, [Validators.required, Validators.min(0)]],
+            nbRecuCarte: [0, [Validators.required, Validators.min(0)]],
+            montantTotalCarte: [0, [Validators.required, Validators.min(0)]],
+            nbRecuCheque: [0, [Validators.required, Validators.min(0)]],
+            montantTotalCheque: [0, [Validators.required, Validators.min(0)]],
             justificationEcart: [''],
         });
 
-        // Recalculate ecart on value change
-        this.form.get('soldeReel')?.valueChanges.subscribe((val) => {
-            this.calculateEcart(val);
+        // Recalculate ecart on any value change
+        this.form.valueChanges.subscribe(() => {
+            this.calculateEcart();
         });
     }
 
@@ -68,36 +81,65 @@ export class ClotureCaisseComponent implements OnInit {
     loadData(): void {
         if (!this.journeeId) return;
 
-        this.journeeService.getResume(this.journeeId).subscribe({
-            next: (resume) => {
-                this.resume = resume;
-                this.loading = false;
-
-                // Check if already closed
-                if (resume.journee.statut === 'FERMEE') {
-                    this.snackBar.open('Cette caisse est déjà fermée', 'Info', { duration: 3000 });
-                    this.router.navigate(['/finance/caisse']);
-                }
-
-                // Initialize form
-                this.calculateEcart(this.form.value.soldeReel);
-            },
-            error: (error) => {
+        this.loading = true;
+        this.journeeService.getResume(this.journeeId).pipe(
+            timeout(10000),
+            catchError((error) => {
                 console.error('Error loading summary', error);
+                this.snackBar.open(
+                    'Délai d\'attente dépassé ou erreur de connexion. Veuillez réessayer.',
+                    'Rafraîchir',
+                    { duration: 5000 }
+                ).onAction().subscribe(() => window.location.reload());
+                return of(null);
+            }),
+            finalize(() => {
                 this.loading = false;
+            })
+        ).subscribe({
+            next: (resume) => {
+                if (resume) {
+                    this.resume = resume;
+
+                    // Check if already closed
+                    if (resume.journee.statut === 'FERMEE') {
+                        this.snackBar.open('Cette caisse est déjà fermée', 'Info', { duration: 3000 });
+                        this.router.navigate(['/p/finance/caisse']);
+                    }
+
+                    // Initialize form
+                    this.calculateEcart();
+                }
             },
         });
     }
 
-    calculateEcart(soldeReel: number): void {
+    calculateEcart(): void {
         if (!this.resume) return;
 
-        const soldeTheorique = this.resume.soldeTheorique;
-        this.ecart = soldeReel - soldeTheorique;
+        const val = this.form.value;
+
+        // 1. Espèces
+        this.ecart = val.soldeReel - this.resume.soldeTheorique;
+
+        // 2. Carte vs Resume
+        this.ecartCarteMontant = val.montantTotalCarte - (this.resume.totalVentesCarte || 0);
+        this.ecartCarteNombre = val.nbRecuCarte - (this.resume.nbVentesCarte || 0);
+
+        // 3. Cheque vs Resume
+        this.ecartChequeMontant = val.montantTotalCheque - (this.resume.totalVentesCheque || 0);
+        this.ecartChequeNombre = val.nbRecuCheque - (this.resume.nbVentesCheque || 0);
+
+        const hasAnyDiscrepancy =
+            Math.abs(this.ecart) > 0.01 ||
+            Math.abs(this.ecartCarteMontant) > 0.01 ||
+            this.ecartCarteNombre !== 0 ||
+            Math.abs(this.ecartChequeMontant) > 0.01 ||
+            this.ecartChequeNombre !== 0;
 
         // Update validation for justification
         const justificationControl = this.form.get('justificationEcart');
-        if (Math.abs(this.ecart) > 0.01) {
+        if (hasAnyDiscrepancy) {
             justificationControl?.setValidators(Validators.required);
         } else {
             justificationControl?.clearValidators();
@@ -112,17 +154,14 @@ export class ClotureCaisseComponent implements OnInit {
             }
 
             this.submitting = true;
-            const dto = {
-                soldeReel: this.form.value.soldeReel,
-                justificationEcart: this.form.value.justificationEcart,
-                responsableCloture: this.currentUser,
-            };
-
-            this.journeeService.cloturer(this.journeeId, dto).subscribe({
+            this.journeeService.cloturer(this.journeeId, {
+                ...this.form.value,
+                responsableCloture: this.currentUser
+            }).subscribe({
                 next: () => {
                     this.submitting = false;
                     this.snackBar.open('Caisse clôturée avec succès', 'OK', { duration: 3000 });
-                    this.router.navigate(['/finance/caisse']);
+                    this.router.navigate(['/p/finance/caisse']);
                 },
                 error: (error) => {
                     this.submitting = false;
@@ -137,11 +176,19 @@ export class ClotureCaisseComponent implements OnInit {
         }
     }
 
+    getSolde(): number {
+        if (!this.resume) return 0;
+        return (this.resume.fondInitial || 0) +
+            (this.resume.totalVentesEspeces || 0) +
+            (this.resume.totalInterne || 0) -
+            (this.resume.totalDepenses || 0);
+    }
+
     cancel(): void {
         if (this.journeeId) {
-            this.router.navigate(['/finance/caisse/live', this.journeeId]);
+            this.router.navigate(['/p/finance/caisse/live', this.journeeId]);
         } else {
-            this.router.navigate(['/finance/caisse']);
+            this.router.navigate(['/p/finance/caisse']);
         }
     }
 }

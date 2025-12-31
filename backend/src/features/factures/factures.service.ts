@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
+import { PaiementsService } from '../paiements/paiements.service';
 import { Prisma } from '@prisma/client';
 import { CreateFactureDto } from './dto/create-facture.dto';
 import { UpdateFactureDto } from './dto/update-facture.dto';
@@ -9,7 +10,8 @@ import { UpdateFactureDto } from './dto/update-facture.dto';
 export class FacturesService implements OnModuleInit {
     constructor(
         private prisma: PrismaService,
-        private loyaltyService: LoyaltyService
+        private loyaltyService: LoyaltyService,
+        private paiementsService: PaiementsService
     ) { }
 
     async onModuleInit() {
@@ -235,7 +237,7 @@ export class FacturesService implements OnModuleInit {
         where?: Prisma.FactureWhereInput;
         orderBy?: Prisma.FactureOrderByWithRelationInput;
     }) {
-        const { skip, take, cursor, where, orderBy } = params;
+        const { skip, take = 50, cursor, where, orderBy } = params;
         return this.prisma.facture.findMany({
             skip,
             take,
@@ -478,15 +480,17 @@ export class FacturesService implements OnModuleInit {
                         if (totalPaid > newInvoice.totalTTC) {
                             const diff = totalPaid - newInvoice.totalTTC;
                             console.log(`🏦 [REFUND] Creating automatic refund payment: ${diff} DH`);
-                            await tx.paiement.create({
+                            const refund = await tx.paiement.create({
                                 data: {
                                     factureId: newInvoice.id,
                                     montant: -diff,
-                                    mode: paymentsToMove[0]?.mode || 'ESPECES',
+                                    mode: 'ESPECES',
+                                    statut: 'DECAISSEMENT',
                                     date: new Date(),
                                     notes: 'Rendu monnaie / Trop-perçu après validation'
                                 }
                             });
+                            await this.paiementsService.handleCaisseIntegration(tx, refund, newInvoice);
                         }
                     } else if (totalPaid > 0) {
                         finalStatut = 'PARTIEL';
@@ -879,15 +883,17 @@ export class FacturesService implements OnModuleInit {
             if (totalPaid > newTotalTTC) {
                 const diff = totalPaid - newTotalTTC;
                 console.log(`🏦 [REFUND] Creating automatic refund during exchange: ${diff} DH`);
-                await tx.paiement.create({
+                const refund = await tx.paiement.create({
                     data: {
                         factureId: newInvoice.id,
                         montant: -diff,
-                        mode: transferredPayments[0]?.mode || 'ESPECES',
+                        mode: 'ESPECES',
+                        statut: 'DECAISSEMENT',
                         date: new Date(),
                         notes: 'Rendu monnaie / Trop-perçu après échange'
                     }
                 });
+                await this.paiementsService.handleCaisseIntegration(tx, refund, newInvoice);
             }
 
             // Update resteAPayer on new invoice

@@ -1,0 +1,146 @@
+.history-container {
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+
+        .title-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+
+            h1 {
+                margin: 0;
+                font-size: 24px;
+                font-weight: 600;
+                color: #333;
+            }
+        }
+    }
+
+    .history-card {
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+
+        .loading-container {
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            color: #666;
+        }
+
+        .empty-state {
+            padding: 80px;
+            text-align: center;
+            color: #999;
+
+            mat-icon {
+                font-size: 48px;
+                width: 48px;
+                height: 48px;
+                margin-bottom: 16px;
+                opacity: 0.5;
+            }
+        }
+    }
+
+    .history-table {
+        width: 100%;
+
+        th {
+            background-color: #1e3a8a; // Primary Blue (Deep)
+            color: #ffffff;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 1px;
+            padding: 16px 12px;
+        }
+
+        tr:hover td {
+            background-color: #f8fafc;
+        }
+
+        td {
+            padding: 16px 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .caisse-name {
+            font-weight: 500;
+            display: block;
+        }
+
+        .type-tag {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: #eee;
+            margin-top: 4px;
+            display: inline-block;
+
+            &.PRINCIPALE {
+                background: #e3f2fd;
+                color: #1976d2;
+            }
+
+            &.DEPENSES {
+                background: #fff3e0;
+                color: #f57c00;
+            }
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+
+            .caissier {
+                font-weight: 500;
+            }
+
+            .responsable {
+                font-size: 11px;
+                color: #777;
+            }
+        }
+
+        .number-header {
+            text-align: right;
+        }
+
+        .number-cell {
+            text-align: right;
+            font-weight: 500;
+
+            .negative {
+                color: #d32f2f;
+            }
+
+            .positive {
+                color: #388e3c;
+            }
+
+            .zero {
+                color: #1976d2;
+            }
+        }
+
+        .justification-icon {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+            vertical-align: middle;
+            margin-left: 4px;
+            color: #ffa000;
+            cursor: help;
+        }
+    }
+}

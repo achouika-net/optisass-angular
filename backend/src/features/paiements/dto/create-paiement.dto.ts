@@ -7,7 +7,6 @@ export class CreatePaiementDto {
 
     @IsNotEmpty()
     @IsNumber()
-    @Min(0.01, { message: 'Le montant doit être supérieur à 0' })
     montant: number;
 
     @IsOptional()

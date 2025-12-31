@@ -1,6 +1,6 @@
 import { ChangeDetectorRef, Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, ActivatedRoute } from '@angular/router';
+import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -30,7 +30,8 @@ import { take, switchMap, tap } from 'rxjs/operators';
         MatProgressSpinnerModule,
         MatDialogModule,
         MatTooltipModule,
-        MatDividerModule
+        MatDividerModule,
+        RouterModule
     ],
     templateUrl: './caisse-list.component.html',
     styleUrls: ['./caisse-list.component.scss'],

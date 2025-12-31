@@ -8,6 +8,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatChipsModule } from '@angular/material/chips';
 import { JourneeCaisseService } from '../../services/journee-caisse.service';
 import { OperationCaisseService } from '../../services/operation-caisse.service';
 import { OperationFormDialogComponent } from '../../components/operation-form-dialog/operation-form-dialog.component';
@@ -26,7 +27,8 @@ import { switchMap, catchError, timeout, finalize } from 'rxjs/operators';
         MatTableModule,
         MatDialogModule,
         MatProgressSpinnerModule,
-        MatSnackBarModule
+        MatSnackBarModule,
+        MatChipsModule
     ],
     templateUrl: './caisse-live.component.html',
     styleUrls: ['./caisse-live.component.scss'],
@@ -153,11 +155,16 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
         }
 
         const dialogRef = this.dialog.open(OperationFormDialogComponent, {
-            width: '600px',
+            width: '500px',
             data: {
                 journeeId: this.journeeId,
                 type: type,
-                caisseType: (this.resume as any).journee.caisse.type
+                caisseType: this.resume?.journee?.caisse?.type,
+                availableBalances: {
+                    ESPECES: this.getSolde(),
+                    CARTE: this.resume?.recettesDetails?.carte || 0,
+                    CHEQUE: this.resume?.recettesDetails?.cheque || 0
+                }
             },
         });
 
@@ -171,7 +178,7 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
 
     closeCaisse(): void {
         if (this.journeeId) {
-            this.router.navigate(['/finance/caisse/cloture', this.journeeId]);
+            this.router.navigate(['/p/finance/caisse/cloture', this.journeeId]);
         }
     }
 
