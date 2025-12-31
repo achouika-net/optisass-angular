@@ -737,34 +737,68 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             ctx.setLineDash([]);
         }
 
-        // Draw measurement text panel (Updated)
+        // Draw measurement text panel (Professional Lab Version)
         if (this.latestMeasurement) {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-            ctx.fillRect(0, 0, 220, 130);
+            const m = this.latestMeasurement;
+            const GD = Math.sqrt(this.caliber ** 2 + (m.frameHeightMm || 0) ** 2);
+            const frameCenterMm = (this.bridge + this.caliber) / 2;
+            const deOD = Math.abs(frameCenterMm - (m.pdRightMm || 0));
+            const deOG = Math.abs(frameCenterMm - (m.pdLeftMm || 0));
 
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 16px Inter, Arial';
-            ctx.fillText(`Largeur Ref: ${this.frameWidthMm}mm`, 10, 25);
-            ctx.fillText(`PD Total: ${this.latestMeasurement.pdMm.toFixed(1)}mm`, 10, 50);
-
-            ctx.font = '14px Inter, Arial';
-            ctx.fillText(`OD: ${this.latestMeasurement.pdRightMm.toFixed(1)} | H: ${this.latestMeasurement.heightRightMm?.toFixed(1) || '-'}`, 10, 75);
-            ctx.fillText(`OG: ${this.latestMeasurement.pdLeftMm.toFixed(1)} | H: ${this.latestMeasurement.heightLeftMm?.toFixed(1) || '-'}`, 10, 95);
-
-            if (this.latestMeasurement.edMm) {
-                const frameCenterMm = (this.bridge + this.caliber) / 2;
-                const deOD = Math.abs(frameCenterMm - (this.latestMeasurement.pdRightMm || 0));
-                const deOG = Math.abs(frameCenterMm - (this.latestMeasurement.pdLeftMm || 0));
-
-                ctx.fillStyle = '#4ae3ff'; // Light blue for ED
-                ctx.fillText(`Diamètre Utile: ${this.latestMeasurement.edMm.toFixed(1)}mm`, 10, 118);
-                ctx.font = '10px Arial';
-                ctx.fillText(`De: OD ${deOD.toFixed(1)} / OG ${deOG.toFixed(1)}`, 160, 118);
+            // Background Card
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'; // Modern Slate
+            ctx.beginPath();
+            if ((ctx as any).roundRect) {
+                (ctx as any).roundRect(10, 10, 260, 210, 12);
+            } else {
+                ctx.rect(10, 10, 260, 210);
             }
+            ctx.fill();
 
-            ctx.font = 'italic 12px Arial';
-            ctx.fillStyle = '#aaa';
-            ctx.fillText('Ajustez les lignes oranges pour calibrer la largeur', 10, 125);
+            // Header: Lab Method
+            ctx.fillStyle = '#38bdf8'; // Sky Blue
+            ctx.font = 'bold 10px Inter, sans-serif';
+            ctx.fillText('MÉTHODE LABORATOIRE (LAB)', 25, 30);
+
+            // PD Total Section
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 18px Inter, sans-serif';
+            ctx.fillText(`PD Total: ${m.pdMm.toFixed(1)}mm`, 25, 55);
+
+            ctx.font = '12px Inter, sans-serif';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.fillText(`Largeur Ref (Calibrage): ${this.frameWidthMm}mm`, 25, 75);
+
+            // Separator
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.beginPath();
+            ctx.moveTo(25, 85);
+            ctx.lineTo(245, 85);
+            ctx.stroke();
+
+            // Mono Mesures
+            ctx.font = 'bold 13px Inter, sans-serif';
+            ctx.fillStyle = '#fff';
+            ctx.fillText(`OD: ${m.pdRightMm.toFixed(1)} | H: ${m.heightRightMm?.toFixed(1) || '-'} mm`, 25, 105);
+            ctx.fillText(`OG: ${m.pdLeftMm.toFixed(1)} | H: ${m.heightLeftMm?.toFixed(1) || '-'} mm`, 25, 125);
+
+            // Technical details
+            ctx.font = '11px Inter, sans-serif';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.fillText(`Grand Diamètre (GD): ${GD.toFixed(1)}mm`, 25, 150);
+            ctx.fillText(`Décentrement (De): ${deOD.toFixed(1)} / ${deOG.toFixed(1)}mm`, 25, 168);
+
+            // Final Result
+            ctx.fillStyle = '#4ade80'; // Emerald Green
+            ctx.font = 'bold 15px Inter, sans-serif';
+            ctx.fillText(`DIAMÈTRE UTILE (ED):`, 25, 192);
+            ctx.font = 'black 20px Inter, sans-serif';
+            ctx.fillText(`${m.edMm?.toFixed(1)} mm`, 165, 192);
+
+            // Footer hint
+            ctx.font = 'italic 10px Arial';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.fillText('Ajustez les lignes pour le calibrage', 25, 212);
         }
     }
 }
