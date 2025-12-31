@@ -64,8 +64,8 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
     capturedPupils: { left: Point; right: Point } | null = null;
     capturedLandmarks: Point[] = [];
 
-    private smootherLeft = new ExpSmoother(0.35);
-    private smootherRight = new ExpSmoother(0.35);
+    private smootherLeft = new ExpSmoother(0.5); // Increased from 0.35
+    private smootherRight = new ExpSmoother(0.5); // Increased from 0.35
 
     constructor(
         private mpEngine: MediaPipeEngineService,
@@ -616,15 +616,15 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         ctx.arc(pupils.left.x, pupils.left.y, 2, 0, Math.PI * 2); // Reduced size
         // Draw pupils
         // Left
-        ctx.fillStyle = this.isDraggingPupilLeft ? '#ffff00' : 'rgba(0, 255, 0, 0.9)'; // Yellow if dragging
-        const rL = this.isDraggingPupilLeft ? 4 : 2;
+        ctx.fillStyle = this.isDraggingPupilLeft ? '#ffff00' : 'rgba(0, 255, 0, 1)'; // Solid green for precision
+        const rL = this.isDraggingPupilLeft ? 4 : 1.5; // Slightly smaller dot
         ctx.beginPath();
         ctx.arc(pupils.left.x, pupils.left.y, rL, 0, Math.PI * 2);
         ctx.fill();
 
         // Right
-        ctx.fillStyle = this.isDraggingPupilRight ? '#ffff00' : 'rgba(0, 255, 0, 0.9)'; // Yellow if dragging
-        const rR = this.isDraggingPupilRight ? 4 : 2;
+        ctx.fillStyle = this.isDraggingPupilRight ? '#ffff00' : 'rgba(0, 255, 0, 1)';
+        const rR = this.isDraggingPupilRight ? 4 : 1.5;
         ctx.beginPath();
         ctx.arc(pupils.right.x, pupils.right.y, rR, 0, Math.PI * 2);
         ctx.fill();
