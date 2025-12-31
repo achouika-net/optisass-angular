@@ -16,7 +16,8 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ClientManagementService } from '../../services/client.service';
 import { Client, isClientParticulier, isClientProfessionnel } from '../../models/client.model';
 import { FicheService } from '../../services/fiche.service';
@@ -61,6 +62,8 @@ interface PrescriptionFile {
         MatTabsModule,
         MatCheckboxModule,
         MatDialogModule,
+        MatSnackBarModule,
+        MatTooltipModule,
         RouterModule,
         FactureFormComponent,
         PaymentListComponent
