@@ -1484,85 +1484,194 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
-<!-- Footer Navigation inside Form -->
-<div class="footer-nav">
-    <button type="button" class="btn-secondary" (click)="prevTab()" [disabled]="activeTab === 0">←
-        Précédent</button>
-    <button type="button" class="btn-primary" (click)="nextTab()" [disabled]="loading">
-        {{ activeTab === 5 ? 'Fermer' : 'Suivant' }}
-        <span *ngIf="activeTab < 5">→</span>
-    </button>
-</div>
-</div>
-</div>
-<!-- File Viewer Modal -->
-<div class="file-viewer-modal" *ngIf="viewingFile" (click)="closeViewer()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-            <h3>{{ viewingFile.name }}</h3>
-            <button type="button" class="btn-close" (click)="closeViewer()">×</button>
-        </div>
-        <div class="modal-body">
-            <img *ngIf="viewingFile.type.startsWith('image/')" [src]="viewingFile.preview" alt="Prescription">
-            <iframe *ngIf="viewingFile.type === 'application/pdf'" [src]="viewingFile.preview" frameborder="0"
-                title="Aperçu du document"></iframe>
-        </div>
-    </div>
-</div>
-<!-- Camera Modal -->
-<div class="camera-modal" *ngIf="showCameraModal" (click)="closeCameraModal()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-            <h3>Capturer une photo</h3>
-            <button type="button" class="btn-close" (click)="closeCameraModal()">×</button>
-        </div>
-        <div class="modal-body">
-            <div class="camera-container" *ngIf="!capturedImage">
-                <video #videoElement autoplay></video>
+            <!-- Footer Navigation inside Form -->
+            <div class="footer-nav">
+                <button type="button" class="btn-secondary" (click)="prevTab()" [disabled]="activeTab === 0">←
+                    Précédent</button>
+                <button type="button" class="btn-primary" (click)="nextTab()" [disabled]="loading">
+                    {{ activeTab === 5 ? 'Fermer' : 'Suivant' }}
+                    <span *ngIf="activeTab < 5">→</span>
+                </button>
             </div>
-            <div class="preview-container" *ngIf="capturedImage">
-                <img [src]="capturedImage" alt="Photo capturée">
-            </div>
-            <canvas #canvasElement style="display: none;"></canvas>
-        </div>
-        <div class="modal-footer">
-            <ng-container *ngIf="!capturedImage">
-                <button type="button" class="btn-secondary" (click)="closeCameraModal()">Annuler</button>
-                <button type="button" class="btn-primary" (click)="capturePhoto()">📷 Capturer</button>
-            </ng-container>
-            <ng-container *ngIf="capturedImage">
-                <button type="button" class="btn-secondary" (click)="capturedImage = null">↺ Reprendre</button>
-                <button type="button" class="btn-success" (click)="saveCapturedPhoto()">✓ Utiliser cette
-                    photo</button>
-            </ng-container>
         </div>
     </div>
-</div>
+    <!-- File Viewer Modal -->
+    <div class="file-viewer-modal" *ngIf="viewingFile" (click)="closeViewer()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <h3>{{ viewingFile.name }}</h3>
+                <button type="button" class="btn-close" (click)="closeViewer()">×</button>
+            </div>
+            <div class="modal-body">
+                <img *ngIf="viewingFile.type.startsWith('image/')" [src]="viewingFile.preview" alt="Prescription">
+                <iframe *ngIf="viewingFile.type === 'application/pdf'" [src]="viewingFile.preview" frameborder="0"
+                    title="Aperçu du document"></iframe>
+            </div>
+        </div>
+    </div>
+    <!-- Camera Modal -->
+    <div class="camera-modal" *ngIf="showCameraModal" (click)="closeCameraModal()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Capturer une photo</h3>
+                <button type="button" class="btn-close" (click)="closeCameraModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="camera-container" *ngIf="!capturedImage">
+                    <video #videoElement autoplay></video>
+                </div>
+                <div class="preview-container" *ngIf="capturedImage">
+                    <img [src]="capturedImage" alt="Photo capturée">
+                </div>
+                <canvas #canvasElement style="display: none;"></canvas>
+            </div>
+            <div class="modal-footer">
+                <ng-container *ngIf="!capturedImage">
+                    <button type="button" class="btn-secondary" (click)="closeCameraModal()">Annuler</button>
+                    <button type="button" class="btn-primary" (click)="capturePhoto()">📷 Capturer</button>
+                </ng-container>
+                <ng-container *ngIf="capturedImage">
+                    <button type="button" class="btn-secondary" (click)="capturedImage = null">↺ Reprendre</button>
+                    <button type="button" class="btn-success" (click)="saveCapturedPhoto()">✓ Utiliser cette
+                        photo</button>
+                </ng-container>
+            </div>
+        </div>
+    </div>
 
-<!-- PRINT VIEW: FICHE MONTAGE -->
-<div class="print-fiche-montage" *ngIf="currentPrintType === 'FICHE_MONTAGE'">
-    <div class="print-header-small">
-        <div class="company">
+    <!-- PRINT VIEW: FICHE MONTAGE -->
+    <div class="print-fiche-montage" *ngIf="currentPrintType === 'FICHE_MONTAGE'">
+        <div class="print-header-small">
+            <div class="company">
+                <strong>OPTISASS</strong><br>
+                Fiche de Montage Artésane
+            </div>
+            <div class="doc-info">
+                Date: {{ (ficheForm.get('dateCreation')?.value || dateToday) | date:'dd/MM/yyyy' }}<br>
+                Référence: {{ ficheId || 'BROUILLON' }}
+            </div>
+        </div>
+
+        <div class="client-summary">
+            <strong>Client:</strong> {{ clientDisplayName }}
+        </div>
+
+        <div class="print-grid">
+            <div class="print-section">
+                <h4>Correction Ordonnance</h4>
+                <table class="print-table">
+                    <thead>
+                        <tr>
+                            <th>Oeil</th>
+                            <th>Sphère</th>
+                            <th>Cylindre</th>
+                            <th>Axe</th>
+                            <th>Add</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>OD</td>
+                            <td>{{ ficheForm.get('ordonnance.od.sphere')?.value }}</td>
+                            <td>{{ ficheForm.get('ordonnance.od.cylindre')?.value }}</td>
+                            <td>{{ ficheForm.get('ordonnance.od.axe')?.value }}</td>
+                            <td>{{ ficheForm.get('ordonnance.od.addition')?.value }}</td>
+                        </tr>
+                        <tr>
+                            <td>OG</td>
+                            <td>{{ ficheForm.get('ordonnance.og.sphere')?.value }}</td>
+                            <td>{{ ficheForm.get('ordonnance.og.cylindre')?.value }}</td>
+                            <td>{{ ficheForm.get('ordonnance.og.axe')?.value }}</td>
+                            <td>{{ ficheForm.get('ordonnance.og.addition')?.value }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="print-section">
+                <h4>Paramètres de Centrage</h4>
+                <table class="print-table">
+                    <thead>
+                        <tr>
+                            <th>Oeil</th>
+                            <th>DP (Ecart)</th>
+                            <th>Hauteur (H)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>OD</td>
+                            <td>{{ ficheForm.get('montage.od.ecartPupillaire')?.value }} mm</td>
+                            <td>{{ ficheForm.get('montage.od.hauteurPupillaire')?.value }} mm</td>
+                        </tr>
+                        <tr>
+                            <td>OG</td>
+                            <td>{{ ficheForm.get('montage.og.ecartPupillaire')?.value }} mm</td>
+                            <td>{{ ficheForm.get('montage.og.hauteurPupillaire')?.value }} mm</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="centering-canvas-preview" *ngIf="frameCanvas">
+            <h4>Prévisualisation du Montage</h4>
+            <div class="canvas-container-print">
+                <img [src]="getFrameCanvasDataUrl()" *ngIf="frameCanvas" class="print-canvas-img">
+            </div>
+        </div>
+
+        <div class="frame-details" *ngIf="formEquipementPrincipal">
+            <h4>Monture</h4>
+            <p><strong>Réf:</strong> {{ formEquipementPrincipal.get('monture.reference')?.value }} |
+                <strong>Marque:</strong> {{ formEquipementPrincipal.get('monture.marque')?.value }} |
+                <strong>Matière:</strong> {{ formEquipementPrincipal.get('montage.matiereMontureSelected')?.value }}
+            </p>
+        </div>
+
+        <div class="notes-print" *ngIf="ficheForm.get('observations')?.value">
+            <h4>Observations</h4>
+            <p>{{ ficheForm.get('observations')?.value }}</p>
+        </div>
+
+        <div class="print-footer-sig">
+            <div class="sig">Technicien / Monteur</div>
+            <div class="sig">Contrôle Final</div>
+        </div>
+    </div>
+
+    <!-- PRINT VIEW: BON COMMANDE VERRE -->
+    <div class="print-bon-verre" *ngIf="currentPrintType === 'BON_COMMANDE'">
+        <div class="print-header-modern">
+            <h1>BON DE COMMANDE VERRES</h1>
+            <div class="ref-box">Date: {{ dateToday | date:'dd/MM/yyyy' }}</div>
+        </div>
+
+        <div class="store-info">
             <strong>OPTISASS</strong><br>
-            Fiche de Montage Artésane
+            Tél: +212 X XX XX XX XX
         </div>
-        <div class="doc-info">
-            Date: {{ (ficheForm.get('dateCreation')?.value || dateToday) | date:'dd/MM/yyyy' }}<br>
-            Référence: {{ ficheId || 'BROUILLON' }}
-        </div>
-    </div>
 
-    <div class="client-summary">
-        <strong>Client:</strong> {{ clientDisplayName }}
-    </div>
+        <div class="order-details">
+            <div class="section-title">CARACTÉRISTIQUES DES VERRES</div>
+            <div class="lens-specs" *ngIf="formEquipementPrincipal">
+                <div class="spec-row">
+                    <span class="label">Matière:</span>
+                    <span class="value">{{ formEquipementPrincipal.get('verres.matiere')?.value }}</span>
+                </div>
+                <div class="spec-row">
+                    <span class="label">Indice:</span>
+                    <span class="value">{{ formEquipementPrincipal.get('verres.indice')?.value }}</span>
+                </div>
+                <div class="spec-row">
+                    <span class="label">Traitements:</span>
+                    <span class="value">{{ formEquipementPrincipal.get('verres.traitement')?.value?.join(', ')
+                        }}</span>
+                </div>
+            </div>
 
-    <div class="print-grid">
-        <div class="print-section">
-            <h4>Correction Ordonnance</h4>
-            <table class="print-table">
+            <div class="section-title">PRESCRIPTION</div>
+            <table class="order-table">
                 <thead>
                     <tr>
                         <th>Oeil</th>
@@ -1570,6 +1679,7 @@
                         <th>Cylindre</th>
                         <th>Axe</th>
                         <th>Add</th>
+                        <th>Diamètre</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1579,6 +1689,7 @@
                         <td>{{ ficheForm.get('ordonnance.od.cylindre')?.value }}</td>
                         <td>{{ ficheForm.get('ordonnance.od.axe')?.value }}</td>
                         <td>{{ ficheForm.get('ordonnance.od.addition')?.value }}</td>
+                        <td>{{ formEquipementPrincipal?.get('montage.diametreVerreOD')?.value }}</td>
                     </tr>
                     <tr>
                         <td>OG</td>
@@ -1586,132 +1697,19 @@
                         <td>{{ ficheForm.get('ordonnance.og.cylindre')?.value }}</td>
                         <td>{{ ficheForm.get('ordonnance.og.axe')?.value }}</td>
                         <td>{{ ficheForm.get('ordonnance.og.addition')?.value }}</td>
+                        <td>{{ formEquipementPrincipal?.get('montage.diametreVerreOG')?.value }}</td>
                     </tr>
                 </tbody>
             </table>
-        </div>
 
-        <div class="print-section">
-            <h4>Paramètres de Centrage</h4>
-            <table class="print-table">
-                <thead>
-                    <tr>
-                        <th>Oeil</th>
-                        <th>DP (Ecart)</th>
-                        <th>Hauteur (H)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>OD</td>
-                        <td>{{ ficheForm.get('montage.od.ecartPupillaire')?.value }} mm</td>
-                        <td>{{ ficheForm.get('montage.od.hauteurPupillaire')?.value }} mm</td>
-                    </tr>
-                    <tr>
-                        <td>OG</td>
-                        <td>{{ ficheForm.get('montage.og.ecartPupillaire')?.value }} mm</td>
-                        <td>{{ ficheForm.get('montage.og.hauteurPupillaire')?.value }} mm</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div class="centering-canvas-preview" *ngIf="frameCanvas">
-        <h4>Prévisualisation du Montage</h4>
-        <div class="canvas-container-print">
-            <img [src]="getFrameCanvasDataUrl()" *ngIf="frameCanvas" class="print-canvas-img">
-        </div>
-    </div>
-
-    <div class="frame-details" *ngIf="formEquipementPrincipal">
-        <h4>Monture</h4>
-        <p><strong>Réf:</strong> {{ formEquipementPrincipal.get('monture.reference')?.value }} |
-            <strong>Marque:</strong> {{ formEquipementPrincipal.get('monture.marque')?.value }} |
-            <strong>Matière:</strong> {{ formEquipementPrincipal.get('montage.matiereMontureSelected')?.value }}
-        </p>
-    </div>
-
-    <div class="notes-print" *ngIf="ficheForm.get('observations')?.value">
-        <h4>Observations</h4>
-        <p>{{ ficheForm.get('observations')?.value }}</p>
-    </div>
-
-    <div class="print-footer-sig">
-        <div class="sig">Technicien / Monteur</div>
-        <div class="sig">Contrôle Final</div>
-    </div>
-</div>
-
-<!-- PRINT VIEW: BON COMMANDE VERRE -->
-<div class="print-bon-verre" *ngIf="currentPrintType === 'BON_COMMANDE'">
-    <div class="print-header-modern">
-        <h1>BON DE COMMANDE VERRES</h1>
-        <div class="ref-box">Date: {{ dateToday | date:'dd/MM/yyyy' }}</div>
-    </div>
-
-    <div class="store-info">
-        <strong>OPTISASS</strong><br>
-        Tél: +212 X XX XX XX XX
-    </div>
-
-    <div class="order-details">
-        <div class="section-title">CARACTÉRISTIQUES DES VERRES</div>
-        <div class="lens-specs" *ngIf="formEquipementPrincipal">
-            <div class="spec-row">
-                <span class="label">Matière:</span>
-                <span class="value">{{ formEquipementPrincipal.get('verres.matiere')?.value }}</span>
-            </div>
-            <div class="spec-row">
-                <span class="label">Indice:</span>
-                <span class="value">{{ formEquipementPrincipal.get('verres.indice')?.value }}</span>
-            </div>
-            <div class="spec-row">
-                <span class="label">Traitements:</span>
-                <span class="value">{{ formEquipementPrincipal.get('verres.traitement')?.value?.join(', ')
-                    }}</span>
+            <div class="suivi-commande" *ngIf="ficheForm.get('suiviCommande.fournisseur')?.value">
+                <p><strong>Fournisseur:</strong> {{ ficheForm.get('suiviCommande.fournisseur')?.value }}</p>
+                <p><strong>Réf. Commande:</strong> {{ ficheForm.get('suiviCommande.referenceCommande')?.value }}</p>
             </div>
         </div>
 
-        <div class="section-title">PRESCRIPTION</div>
-        <table class="order-table">
-            <thead>
-                <tr>
-                    <th>Oeil</th>
-                    <th>Sphère</th>
-                    <th>Cylindre</th>
-                    <th>Axe</th>
-                    <th>Add</th>
-                    <th>Diamètre</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>OD</td>
-                    <td>{{ ficheForm.get('ordonnance.od.sphere')?.value }}</td>
-                    <td>{{ ficheForm.get('ordonnance.od.cylindre')?.value }}</td>
-                    <td>{{ ficheForm.get('ordonnance.od.axe')?.value }}</td>
-                    <td>{{ ficheForm.get('ordonnance.od.addition')?.value }}</td>
-                    <td>{{ formEquipementPrincipal?.get('montage.diametreVerreOD')?.value }}</td>
-                </tr>
-                <tr>
-                    <td>OG</td>
-                    <td>{{ ficheForm.get('ordonnance.og.sphere')?.value }}</td>
-                    <td>{{ ficheForm.get('ordonnance.og.cylindre')?.value }}</td>
-                    <td>{{ ficheForm.get('ordonnance.og.axe')?.value }}</td>
-                    <td>{{ ficheForm.get('ordonnance.og.addition')?.value }}</td>
-                    <td>{{ formEquipementPrincipal?.get('montage.diametreVerreOG')?.value }}</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="suivi-commande" *ngIf="ficheForm.get('suiviCommande.fournisseur')?.value">
-            <p><strong>Fournisseur:</strong> {{ ficheForm.get('suiviCommande.fournisseur')?.value }}</p>
-            <p><strong>Réf. Commande:</strong> {{ ficheForm.get('suiviCommande.referenceCommande')?.value }}</p>
+        <div class="print-footer-simple">
+            Cachet du Magasin
         </div>
-    </div>
-
-    <div class="print-footer-simple">
-        Cachet du Magasin
     </div>
 </div>
