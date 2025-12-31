@@ -782,18 +782,20 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             ctx.fillText(`OD: ${m.pdRightMm.toFixed(1)} | H: ${m.heightRightMm?.toFixed(1) || '-'} mm`, 25, 105);
             ctx.fillText(`OG: ${m.pdLeftMm.toFixed(1)} | H: ${m.heightLeftMm?.toFixed(1) || '-'} mm`, 25, 125);
 
-            // Technical details
+            // Technical details (Lab Metrics)
             ctx.font = '11px Inter, sans-serif';
             ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-            ctx.fillText(`Grand Diamètre (GD): ${GD.toFixed(1)}mm`, 25, 150);
-            ctx.fillText(`Décentrement (De): ${deOD.toFixed(1)} / ${deOG.toFixed(1)}mm`, 25, 168);
+            ctx.fillText(`Grand Diamètre (GD): ${GD.toFixed(1)} mm`, 25, 150);
+            ctx.fillText(`Décentrement (De): OD ${deOD.toFixed(1)} / OG ${deOG.toFixed(1)} mm`, 25, 168);
 
-            // Final Result
+            // Final Result: Effective Diameter
             ctx.fillStyle = '#4ade80'; // Emerald Green
-            ctx.font = 'bold 15px Inter, sans-serif';
-            ctx.fillText(`DIAMÈTRE UTILE (ED):`, 25, 192);
-            ctx.font = 'black 20px Inter, sans-serif';
-            ctx.fillText(`${m.edMm?.toFixed(1)} mm`, 165, 192);
+            ctx.font = 'bold 12px Inter, sans-serif';
+            ctx.fillText(`DIAMÈTRE UTILE (ED)`, 25, 192);
+
+            ctx.font = 'bold 20px Inter, sans-serif';
+            const edValue = m.edMm ? m.edMm.toFixed(1) : '--.-';
+            ctx.fillText(`Ø ${edValue} mm`, 150, 192);
 
             // Footer hint
             ctx.font = 'italic 10px Arial';
