@@ -2992,7 +2992,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                                 hauteurOD: measurement.heightRightMm ? measurement.heightRightMm.toFixed(1) : null,
                                 hauteurOG: measurement.heightLeftMm ? measurement.heightLeftMm.toFixed(1) : null,
                                 capturedImage: measurement.imageDataUrl || null,
-                                hauteurVerre: measurement.frameHeightMm ? measurement.frameHeightMm.toFixed(1) : null
+                                hauteurVerre: measurement.frameHeightMm ? measurement.frameHeightMm.toFixed(1) : null,
+                                diametreEffectif: `${measurement.edRightMm ? measurement.edRightMm.toFixed(0) : ''}/${measurement.edLeftMm ? measurement.edLeftMm.toFixed(0) : ''}`
                             },
                             // Sync Ecarts to Ordonnance tab as well
                             ordonnance: {

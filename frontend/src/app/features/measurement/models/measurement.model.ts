@@ -31,7 +31,9 @@ export interface Measurement {
     heightRightMm?: number;
     hcdLeftMm?: number; // Height of centering distance
     hcdRightMm?: number;
-    edMm?: number; // Effective diameter
+    edMm?: number; // Effective diameter (max)
+    edLeftMm?: number;
+    edRightMm?: number;
     vertexDistanceMm?: number;
     pantoscopicTiltDeg?: number;
     wrapDeg?: number;

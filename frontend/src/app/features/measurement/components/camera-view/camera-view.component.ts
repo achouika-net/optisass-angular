@@ -506,6 +506,8 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
 
         // --- OPTICIAN'S EFFECTIVE DIAMETER (ED) CALCULATION (Simplified Pro) ---
         let edMm = 0;
+        let edRightMmValue = 0;
+        let edLeftMmValue = 0;
         if (this.pixelsPerMm && frameHeightMm > 0) {
             // Horizontal Decentration
             const frameCenterMm = (this.bridge + this.caliber) / 2;
@@ -520,6 +522,8 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             const edRightMm = D + (2 * dhOD);
             const edLeftMm = D + (2 * dhOG);
 
+            edRightMmValue = edRightMm;
+            edLeftMmValue = edLeftMm;
             edMm = Math.max(edRightMm, edLeftMm);
         }
 
@@ -531,6 +535,8 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             heightRightMm,
             frameHeightMm,
             edMm,
+            edRightMm: edRightMmValue,
+            edLeftMm: edLeftMmValue,
             pupils,
             timestamp: Date.now()
         };
