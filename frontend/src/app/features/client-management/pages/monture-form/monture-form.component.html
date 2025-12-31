@@ -145,6 +145,11 @@
 
     <!-- Main Form -->
     <div [formGroup]="ficheForm">
+        <!-- BLUE DEBUG BANNER - INSIDE FORM GROUP -->
+        <div style="background: blue; color: white; padding: 10px; text-align: center;">
+            INSIDE FORM GROUP (ActiveTab: {{ activeTab }})
+        </div>
+
         <!-- ONGLET 1: ORDONNANCE -->
         <div class="tab-content" *ngIf="activeTab === 0" formGroupName="ordonnance">
             <div class="tab-header">
@@ -1314,12 +1319,7 @@
             </div>
 
             <!-- ONGLET 6: SUIVI COMMANDE -->
-            <!-- VISUAL DEBUG MARKER -->
-            <div style="background: red; color: white; padding: 20px; font-weight: bold; font-size: 20px;"
-                *ngIf="activeTab === 5">
-                SI VOUS VOYEZ CECI, LE CODE EST A JOUR.
-                ActiveTab: {{ activeTab }}
-            </div>
+            <!-- ONGLET 6: SUIVI COMMANDE -->
 
             <div class="tab-content" *ngIf="activeTab === 5">
                 <!-- Error message if form group is missing -->
