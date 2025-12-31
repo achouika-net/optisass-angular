@@ -1851,6 +1851,15 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
         this.activeTab = index;
 
+        // DEBUG: Log form structure when switching to Suivi Commande tab
+        if (index === 5) {
+            console.log('🔍 [DEBUG] Switching to Suivi Commande tab');
+            console.log('ficheForm exists:', !!this.ficheForm);
+            console.log('suiviCommande group exists:', !!this.ficheForm.get('suiviCommande'));
+            console.log('suiviCommande value:', this.ficheForm.get('suiviCommande')?.value);
+            console.log('All form controls:', Object.keys(this.ficheForm.controls));
+        }
+
         // Load payments when switching to Payment tab
         if (index === 2 && this.paymentListComponent) {
             this.paymentListComponent.loadPayments();
