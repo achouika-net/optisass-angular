@@ -504,6 +504,44 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             frameHeightMm = this.calibrationService.pxToMm(hPx, this.pixelsPerMm!);
         }
 
+        // --- OPTICIAN'S EFFECTIVE DIAMETER (ED) CALCULATION (Professional Formula) ---
+        let edMm = 0;
+        if (this.pixelsPerMm && frameHeightMm > 0) {
+            // 1. Determine Safety Margin based on mounting type
+            let marginMm = 3; // Default for cerclé
+            const mountingLower = (this.mountingType || '').toLowerCase();
+            if (mountingLower.includes('percé') || mountingLower.includes('nylor')) {
+                marginMm = 2;
+            } else if (mountingLower.includes('complet') || mountingLower.includes('cerclé')) {
+                marginMm = 3;
+            } else if (mountingLower.includes('épaisse') || mountingLower.includes('forte')) {
+                marginMm = 4;
+            }
+
+            // 2. Horizontal Decentration (Boxing Center X is Bridge/2 + Caliber/2)
+            const frameCenterMm = (this.bridge + this.caliber) / 2;
+            const dhOD = Math.abs(frameCenterMm - pdRightMm);
+            const dhOG = Math.abs(frameCenterMm - pdLeftMm);
+
+            // 3. Vertical Decentration (Boxing Center Y is Height / 2)
+            const houseCenterYmm = frameHeightMm / 2;
+            const dvOD = heightRightMm ? Math.abs(houseCenterYmm - heightRightMm) : 0;
+            const dvOG = heightLeftMm ? Math.abs(houseCenterYmm - heightLeftMm) : 0;
+
+            // 4. Vector Decentration d = sqrt(dh^2 + dv^2)
+            const dOD = Math.sqrt(dhOD ** 2 + dvOD ** 2);
+            const dOG = Math.sqrt(dhOG ** 2 + dvOG ** 2);
+
+            // 5. Diagonal of the lens box D = sqrt(A^2 + B^2)
+            const D = Math.sqrt(this.caliber ** 2 + frameHeightMm ** 2);
+
+            // 6. Final Effective Diameters: ED = D + 2*d + 2*margin
+            const edRightMm = D + (2 * dOD) + (2 * marginMm);
+            const edLeftMm = D + (2 * dOG) + (2 * marginMm);
+
+            edMm = Math.max(edRightMm, edLeftMm);
+        }
+
         return {
             pdMm,
             pdLeftMm,
@@ -511,6 +549,7 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             heightLeftMm,
             heightRightMm,
             frameHeightMm,
+            edMm,
             pupils,
             timestamp: Date.now()
         };
@@ -684,6 +723,56 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             }
         }
 
+        // --- DRAW EFFECTIVE DIAMETER (FOR CAPTURED MODE) ---
+        if (this.isCaptured && this.latestMeasurement?.edMm && this.pixelsPerMm) {
+            const m = this.latestMeasurement;
+            const pxMm = this.pixelsPerMm;
+
+            // Pre-calculate individual diameters for visualization
+            const D = Math.sqrt(this.caliber ** 2 + (m.frameHeightMm || 0) ** 2);
+            const frameCenterMm = (this.bridge + this.caliber) / 2;
+            const houseCenterY = (m.frameHeightMm || 0) / 2;
+
+            // 1. Determine Safety Margin based on mounting type
+            let marginMm = 3; // Default for cerclé
+            const mountingLower = (this.mountingType || '').toLowerCase();
+            if (mountingLower.includes('percé') || mountingLower.includes('nylor')) {
+                marginMm = 2;
+            } else if (mountingLower.includes('complet') || mountingLower.includes('cerclé')) {
+                marginMm = 3;
+            } else if (mountingLower.includes('épaisse') || mountingLower.includes('forte')) {
+                marginMm = 4;
+            }
+
+            // OD
+            const dhOD = Math.abs(frameCenterMm - m.pdRightMm);
+            const dvOD = m.heightRightMm ? Math.abs(houseCenterY - m.heightRightMm) : 0;
+            const dOD = Math.sqrt(dhOD ** 2 + dvOD ** 2);
+            const rODpx = ((D + 2 * dOD + 2 * marginMm) / 2) * pxMm;
+
+            // OG
+            const dhOG = Math.abs(frameCenterMm - m.pdLeftMm);
+            const dvOG = m.heightLeftMm ? Math.abs(houseCenterY - m.heightLeftMm) : 0;
+            const dOG = Math.sqrt(dhOG ** 2 + dvOG ** 2);
+            const rOGpx = ((D + 2 * dOG + 2 * marginMm) / 2) * pxMm;
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.setLineDash([2, 4]);
+            ctx.lineWidth = 1;
+
+            // OD Circle
+            ctx.beginPath();
+            ctx.arc(pupils.right.x, pupils.right.y, rODpx, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // OG Circle
+            ctx.beginPath();
+            ctx.arc(pupils.left.x, pupils.left.y, rOGpx, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.setLineDash([]);
+        }
+
         // Draw measurement text panel (Updated)
         if (this.latestMeasurement) {
             ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
@@ -695,8 +784,13 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             ctx.fillText(`PD Total: ${this.latestMeasurement.pdMm.toFixed(1)}mm`, 10, 50);
 
             ctx.font = '14px Inter, Arial';
-            ctx.fillText(`OD: ${this.latestMeasurement.pdRightMm.toFixed(1)} | H: ${this.latestMeasurement.heightRightMm?.toFixed(1) || '-'}`, 10, 80);
-            ctx.fillText(`OG: ${this.latestMeasurement.pdLeftMm.toFixed(1)} | H: ${this.latestMeasurement.heightLeftMm?.toFixed(1) || '-'}`, 10, 105);
+            ctx.fillText(`OD: ${this.latestMeasurement.pdRightMm.toFixed(1)} | H: ${this.latestMeasurement.heightRightMm?.toFixed(1) || '-'}`, 10, 75);
+            ctx.fillText(`OG: ${this.latestMeasurement.pdLeftMm.toFixed(1)} | H: ${this.latestMeasurement.heightLeftMm?.toFixed(1) || '-'}`, 10, 95);
+
+            if (this.latestMeasurement.edMm) {
+                ctx.fillStyle = '#4ae3ff'; // Light blue for ED
+                ctx.fillText(`Diamètre Utile: ${this.latestMeasurement.edMm.toFixed(1)}mm`, 10, 118);
+            }
 
             ctx.font = 'italic 12px Arial';
             ctx.fillStyle = '#aaa';
