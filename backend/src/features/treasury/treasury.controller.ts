@@ -57,8 +57,8 @@ export class TreasuryController {
     }
 
     @Get('projection')
-    getYearlyProjection(@Query('year') year: string) {
-        return this.treasuryService.getYearlyProjection(parseInt(year) || new Date().getFullYear());
+    getYearlyProjection(@Query('year') year: string, @Query('centreId') centreId?: string) {
+        return this.treasuryService.getYearlyProjection(parseInt(year) || new Date().getFullYear(), centreId);
     }
 
     @Get('config')

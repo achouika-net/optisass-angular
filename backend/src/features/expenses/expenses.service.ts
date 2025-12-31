@@ -88,7 +88,7 @@ export class ExpensesService {
                     await tx.operationCaisse.create({
                         data: {
                             type: 'DECAISSEMENT',
-                            typeOperation: 'COMPTABLE',
+                            typeOperation: 'INTERNE',
                             montant: data.montant,
                             moyenPaiement: 'ESPECES',
                             motif: `Dépense: ${data.categorie}`,

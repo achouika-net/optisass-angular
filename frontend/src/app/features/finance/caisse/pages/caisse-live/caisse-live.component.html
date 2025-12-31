@@ -86,38 +86,6 @@
             </mat-card-content>
         </mat-card>
 
-        <!-- 4. Ventes Espèces (Green) -->
-        <mat-card class="summary-card green-border">
-            <mat-card-content>
-                <div class="label">Ventes Espèces</div>
-                <div class="value">{{ resume.totalVentesEspeces | number:'1.2-2' }} DH
-                </div>
-                <div class="card-details">
-                    <div class="detail-row">
-                        <span>Session locale:</span>
-                        <b>{{ resume.totalVentesEspeces | number:'1.2-2' }} DH</b>
-                    </div>
-                </div>
-            </mat-card-content>
-        </mat-card>
-
-        <!-- 5. Ventes Bancaires (Purple) -->
-        <mat-card class="summary-card purple-border">
-            <mat-card-content>
-                <div class="label">Ventes Bancaires</div>
-                <div class="value">{{ (resume.totalVentesCarte + resume.totalVentesCheque) | number:'1.2-2' }} DH</div>
-                <div class="card-details">
-                    <div class="detail-row">
-                        <span>Carte:</span>
-                        <b>{{ resume.totalVentesCarte | number:'1.2-2' }} DH</b>
-                    </div>
-                    <div class="detail-row">
-                        <span>Chèque:</span>
-                        <b>{{ resume.totalVentesCheque | number:'1.2-2' }} DH</b>
-                    </div>
-                </div>
-            </mat-card-content>
-        </mat-card>
     </div>
 
     <!-- Quick Actions (Hidden if Closed) -->

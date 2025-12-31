@@ -259,8 +259,9 @@ export class JourneeCaisseService {
             nbVentesCarte: 0,
             nbVentesCheque: 0,
             totalInterneIn: 0,
-            totalOutflows: 0, // All cash outflows (Expenses + Transfers Out + Refunds)
-            chequesEnAttente: 0, // Cheques received but not yet cashed/deposited
+            totalOutflows: 0, // All payment methods
+            totalOutflowsCash: 0, // Only ESPECES
+            chequesEnAttente: 0,
         };
 
         journee.operations.forEach(op => {
@@ -283,16 +284,16 @@ export class JourneeCaisseService {
                     stats.totalInterneIn += op.montant;
                 }
             } else if (op.type === 'DECAISSEMENT') {
+                stats.totalOutflows += op.montant;
+                if (op.moyenPaiement === 'ESPECES') {
+                    stats.totalOutflowsCash += op.montant;
+                }
+
                 if (op.typeOperation === 'COMPTABLE') {
                     // Refund: subtract from net sales
                     if (op.moyenPaiement === 'ESPECES') stats.netVentesEspeces -= op.montant;
                     else if (op.moyenPaiement === 'CARTE') stats.netVentesCarte -= op.montant;
                     else if (op.moyenPaiement === 'CHEQUE') stats.netVentesCheque -= op.montant;
-
-                    if (op.moyenPaiement === 'ESPECES') stats.totalOutflows += op.montant;
-                } else {
-                    // Expense or Transfer Out
-                    if (op.moyenPaiement === 'ESPECES') stats.totalOutflows += op.montant;
                 }
             }
         });
@@ -322,7 +323,27 @@ export class JourneeCaisseService {
             _sum: { montant: true }
         }))._sum.montant || 0;
 
-        const centreVentesBancaires = (centreStats._sum.montant || 0) - centreVentesEspeces;
+        const centreVentesCarte = (await this.prisma.operationCaisse.aggregate({
+            where: {
+                journeeCaisse: { centreId: journee.centreId, statut: 'OUVERTE' },
+                typeOperation: 'COMPTABLE',
+                type: 'ENCAISSEMENT',
+                moyenPaiement: 'CARTE'
+            },
+            _sum: { montant: true }
+        }))._sum.montant || 0;
+
+        const centreVentesCheque = (await this.prisma.operationCaisse.aggregate({
+            where: {
+                journeeCaisse: { centreId: journee.centreId, statut: 'OUVERTE' },
+                typeOperation: 'COMPTABLE',
+                type: 'ENCAISSEMENT',
+                moyenPaiement: 'CHEQUE'
+            },
+            _sum: { montant: true }
+        }))._sum.montant || 0;
+
+        const isDepenses = (journee.caisse as any).type === 'DEPENSES';
 
         return {
             journee: {
@@ -335,13 +356,15 @@ export class JourneeCaisseService {
                 centre: (journee as any).centre,
             },
             fondInitial: journee.fondInitial || 0,
-            // Recettes Card (Session Local Net)
-            totalRecettes: stats.netVentesEspeces + stats.netVentesCarte + stats.netVentesCheque,
+            // Recettes Card (Center-wide if Petty Cash, Local if Main)
+            totalRecettes: isDepenses
+                ? (centreVentesEspeces + centreVentesCarte + centreVentesCheque)
+                : (stats.netVentesEspeces + stats.netVentesCarte + stats.netVentesCheque),
             recettesDetails: {
-                espaces: stats.netVentesEspeces,
-                carte: stats.netVentesCarte,
-                cheque: stats.netVentesCheque,
-                enCoffre: stats.netVentesCheque
+                espaces: isDepenses ? centreVentesEspeces : stats.netVentesEspeces,
+                carte: isDepenses ? centreVentesCarte : stats.netVentesCarte,
+                cheque: isDepenses ? centreVentesCheque : stats.netVentesCheque,
+                enCoffre: isDepenses ? centreVentesCheque : stats.netVentesCheque
             },
             // Sales Cards (Gross local session)
             totalVentesEspeces: stats.grossVentesEspeces,
@@ -349,13 +372,11 @@ export class JourneeCaisseService {
             totalVentesCheque: stats.grossVentesCheque,
             nbVentesCarte: stats.nbVentesCarte,
             nbVentesCheque: stats.nbVentesCheque,
-            centreVentesEspeces,
-            centreVentesBancaires,
             totalInterne: stats.totalInterneIn,
             totalDepenses: stats.totalOutflows,
             // Solde Cards (Physical Cash)
-            soldeTheorique: (journee.fondInitial || 0) + stats.totalInterneIn + stats.grossVentesEspeces - stats.totalOutflows,
-            soldeReel: (journee.fondInitial || 0) + stats.totalInterneIn + stats.grossVentesEspeces - stats.totalOutflows,
+            soldeTheorique: (journee.fondInitial || 0) + stats.totalInterneIn + stats.grossVentesEspeces - stats.totalOutflowsCash,
+            soldeReel: (journee.fondInitial || 0) + stats.totalInterneIn + stats.grossVentesEspeces - stats.totalOutflowsCash,
             ecart: journee.ecart || 0,
         };
     }

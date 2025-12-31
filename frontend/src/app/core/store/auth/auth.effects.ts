@@ -171,7 +171,7 @@ export class AuthEffects {
         ofType(GetUserOptions),
         tap((action) => {
           if (action.triggerNavigation) {
-            window.location.reload();
+            window.location.href = '/p';
           }
         })
       ),

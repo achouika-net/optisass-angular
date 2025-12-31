@@ -679,7 +679,10 @@ export class FacturesService implements OnModuleInit {
     }
 
     async createExchange(invoiceId: string, itemsToReturn: { lineIndex: number, quantiteRetour: number, reason: string }[], centreId: string) {
-        console.log(`🔄[EXCHANGE] Starting Exchange for Facture ${invoiceId}`);
+        if (!centreId) {
+            throw new BadRequestException('ID du centre (Tenant) manquant pour cette opération');
+        }
+        console.log(`🔄[EXCHANGE] Starting Exchange for Facture ${invoiceId} in center ${centreId}`);
 
         const original = await this.prisma.facture.findUnique({
             where: { id: invoiceId },
@@ -739,79 +742,98 @@ export class FacturesService implements OnModuleInit {
 
             for (const item of itemsToReturn) {
                 const line = originalLines[item.lineIndex];
-                if (line && line.productId) {
-                    // Determine destination
-                    let targetWarehouseId = line.entrepotId; // Default: Origin
+                if (line) {
+                    let productId = line.productId;
 
-                    if (item.reason === 'DEFECTUEUX') {
-                        targetWarehouseId = defectiveWarehouse.id;
+                    // Fallback: If productId is missing, try to find it by codeInterne extracted from description
+                    if (!productId && line.description) {
+                        const codeMatch = line.description.match(/MON\d+|LEN\d+|PRD\d+/i);
+                        if (codeMatch) {
+                            const code = codeMatch[0].toUpperCase();
+                            const product = await tx.product.findFirst({
+                                where: {
+                                    codeInterne: code,
+                                    entrepot: { centreId: original.centreId as string } // Search in the invoice's center
+                                }
+                            });
+                            if (product) productId = product.id;
+                        }
                     }
 
-                    const productToUpdate = await tx.product.findUnique({ where: { id: line.productId } });
+                    if (productId) {
+                        // Determine destination
+                        let targetWarehouseId = line.entrepotId; // Default: Origin
 
-                    if (productToUpdate) {
                         if (item.reason === 'DEFECTUEUX') {
-                            // Logic to find corresponding product in Defective Warehouse
-                            let defProduct = await tx.product.findFirst({
-                                where: { codeInterne: productToUpdate.codeInterne, entrepotId: defectiveWarehouse.id }
-                            });
+                            targetWarehouseId = defectiveWarehouse.id;
+                        }
 
-                            if (!defProduct) {
-                                // Clone to Defective
-                                const { id, entrepotId, createdAt, updatedAt, specificData, ...prodProps } = productToUpdate;
-                                defProduct = await tx.product.create({
+                        const productToUpdate = await tx.product.findUnique({ where: { id: productId } });
+
+                        if (productToUpdate) {
+                            if (item.reason === 'DEFECTUEUX') {
+                                // Logic to find corresponding product in Defective Warehouse
+                                let defProduct = await tx.product.findFirst({
+                                    where: { codeInterne: productToUpdate.codeInterne, entrepotId: defectiveWarehouse.id }
+                                });
+
+                                if (!defProduct) {
+                                    // Clone to Defective
+                                    const { id, entrepotId, createdAt, updatedAt, specificData, ...prodProps } = productToUpdate;
+                                    defProduct = await tx.product.create({
+                                        data: {
+                                            ...prodProps,
+                                            specificData: specificData as any,
+                                            entrepot: { connect: { id: defectiveWarehouse.id } },
+                                            quantiteActuelle: 0,
+                                            statut: 'DISPONIBLE',
+                                            designation: `${productToUpdate.designation} (Défectueux)`
+                                        }
+                                    });
+                                }
+
+                                await tx.product.update({
+                                    where: { id: defProduct.id },
                                     data: {
-                                        ...prodProps,
-                                        specificData: specificData as any,
-                                        entrepot: { connect: { id: defectiveWarehouse.id } },
-                                        quantiteActuelle: 0,
-                                        statut: 'DISPONIBLE',
-                                        designation: `${productToUpdate.designation} (Défectueux)`
+                                        quantiteActuelle: { increment: item.quantiteRetour },
+                                        statut: 'DISPONIBLE'
+                                    }
+                                });
+
+
+                                // Movement
+                                await tx.mouvementStock.create({
+                                    data: {
+                                        type: 'ENTREE_RETOUR_CLIENT',
+                                        quantite: item.quantiteRetour,
+                                        produitId: defProduct.id,
+                                        entrepotDestinationId: defectiveWarehouse.id,
+                                        entrepotSourceId: productToUpdate.entrepotId, // Track origin for Secondary Stock revenue calc
+                                        factureId: original.id,
+                                        prixVenteUnitaire: line.prixUnitaireTTC || 0, // Prix remisé de la ligne
+                                        motif: `Retour Défectueux ${original.numero} `,
+                                        utilisateur: 'System'
+                                    }
+                                });
+                            } else {
+                                // Standard Return to Origin
+                                await tx.product.update({
+                                    where: { id: line.productId },
+                                    data: { quantiteActuelle: { increment: item.quantiteRetour } }
+                                });
+
+                                await tx.mouvementStock.create({
+                                    data: {
+                                        type: 'ENTREE_RETOUR_CLIENT',
+                                        quantite: item.quantiteRetour,
+                                        produitId: line.productId,
+                                        entrepotDestinationId: line.entrepotId,
+                                        factureId: original.id,
+                                        motif: `Retour Standard ${original.numero} `,
+                                        utilisateur: 'System'
                                     }
                                 });
                             }
-
-                            await tx.product.update({
-                                where: { id: defProduct.id },
-                                data: {
-                                    quantiteActuelle: { increment: item.quantiteRetour },
-                                    statut: 'DISPONIBLE'
-                                }
-                            });
-
-
-                            // Movement
-                            await tx.mouvementStock.create({
-                                data: {
-                                    type: 'ENTREE_RETOUR_CLIENT',
-                                    quantite: item.quantiteRetour,
-                                    produitId: defProduct.id,
-                                    entrepotDestinationId: defectiveWarehouse.id,
-                                    entrepotSourceId: productToUpdate.entrepotId, // Track origin for Secondary Stock revenue calc
-                                    factureId: original.id,
-                                    prixVenteUnitaire: line.prixUnitaireTTC || 0, // Prix remisé de la ligne
-                                    motif: `Retour Défectueux ${original.numero} `,
-                                    utilisateur: 'System'
-                                }
-                            });
-                        } else {
-                            // Standard Return to Origin
-                            await tx.product.update({
-                                where: { id: line.productId },
-                                data: { quantiteActuelle: { increment: item.quantiteRetour } }
-                            });
-
-                            await tx.mouvementStock.create({
-                                data: {
-                                    type: 'ENTREE_RETOUR_CLIENT',
-                                    quantite: item.quantiteRetour,
-                                    produitId: line.productId,
-                                    entrepotDestinationId: line.entrepotId,
-                                    factureId: original.id,
-                                    motif: `Retour Standard ${original.numero} `,
-                                    utilisateur: 'System'
-                                }
-                            });
                         }
                     }
                 }

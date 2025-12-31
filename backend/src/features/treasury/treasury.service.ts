@@ -467,23 +467,30 @@ export class TreasuryService {
         return consolidated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
 
-    async getYearlyProjection(year: number) {
+    async getYearlyProjection(year: number, centreId?: string) {
         const startDate = new Date(year, 0, 1);
         const endDate = new Date(year, 11, 31, 23, 59, 59);
 
-        // Fetch all data for the year in parallel (Optimization: 2 queries instead of 132)
+        // Fetch all data for the year in parallel
         const [expenses, echeances] = await Promise.all([
             this.prisma.depense.findMany({
                 where: {
                     date: { gte: startDate, lte: endDate },
-                    echeanceId: null // Only expenses NOT linked to an Echeance
+                    echeanceId: null, // Only expenses NOT linked to an Echeance
+                    centreId: centreId
                 },
                 select: { date: true, montant: true }
             }),
             this.prisma.echeancePaiement.findMany({
                 where: {
                     dateEcheance: { gte: startDate, lte: endDate },
-                    statut: { not: 'ANNULE' }
+                    statut: { not: 'ANNULE' },
+                    ...(centreId ? {
+                        OR: [
+                            { depense: { centreId } },
+                            { factureFournisseur: { centreId } }
+                        ]
+                    } : {})
                 },
                 select: { dateEcheance: true, montant: true }
             })

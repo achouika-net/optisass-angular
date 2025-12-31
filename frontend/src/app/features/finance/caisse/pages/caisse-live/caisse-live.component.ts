@@ -202,11 +202,7 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
     }
 
     getSolde(): number {
-        if (!this.resume) return 0;
-        const r = this.resume as any;
-        // The physical cash balance is: Initial Fund + Cash Sales + Received Internal Transfers - Expenses
-        // We EXCLUDE totalVentesCarte as it's handled by the bank.
-        return (r.fondInitial || 0) + (r.totalVentesEspeces || 0) + (r.totalInterne || 0) - (r.totalDepenses || 0);
+        return this.resume?.soldeTheorique || 0;
     }
 
     openTransferDialog(): void {

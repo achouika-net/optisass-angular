@@ -355,8 +355,9 @@ export class ClientDetailComponent implements OnInit {
     }
   }
 
-  getTypeIcon(type: TypeFiche): string {
-    switch (type) {
+  getTypeIcon(type: string): string {
+    const t = type?.toLowerCase();
+    switch (t) {
       case TypeFiche.MONTURE: return 'visibility';
       case TypeFiche.LENTILLES: return 'remove_red_eye';
       case TypeFiche.PRODUIT: return 'shopping_cart';
