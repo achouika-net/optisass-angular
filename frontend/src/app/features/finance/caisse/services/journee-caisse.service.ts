@@ -37,6 +37,10 @@ export class JourneeCaisseService {
         return this.http.get<JourneeCaisse[]>(`${this.apiUrl}/centre/${centreId}`);
     }
 
+    findHistory(centreId: string): Observable<JourneeCaisse[]> {
+        return this.http.get<JourneeCaisse[]>(`${this.apiUrl}/centre/${centreId}/history`);
+    }
+
     getResume(id: string): Observable<JourneeResume> {
         return this.http.get<JourneeResume>(`${this.apiUrl}/${id}/resume`);
     }

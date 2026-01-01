@@ -52,10 +52,10 @@ export class CaisseHistoryComponent implements OnInit {
         this.store.select(TenantSelector).pipe(take(1)).subscribe(centreId => {
             if (centreId) {
                 this.loading = true;
-                this.journeeService.findByCentre(centreId).subscribe({
+                // Optimized call: Filters by FERMEE in DB and limits result
+                this.journeeService.findHistory(centreId).subscribe({
                     next: (data) => {
-                        // Filter for only closed sessions and cast to JourneeCaisse
-                        this.sessions = data.filter(s => s.statut === 'FERMEE') as any[];
+                        this.sessions = data; // No frontend filtering needed
                         this.loading = false;
                     },
                     error: (err) => {

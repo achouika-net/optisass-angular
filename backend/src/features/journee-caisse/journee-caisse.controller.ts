@@ -35,6 +35,11 @@ export class JourneeCaisseController {
         return this.journeeCaisseService.findByCentre(centreId);
     }
 
+    @Get('centre/:centreId/history')
+    findHistory(@Param('centreId') centreId: string) {
+        return this.journeeCaisseService.findHistory(centreId);
+    }
+
     @Get(':id/resume')
     getResume(@Param('id') id: string) {
         return this.journeeCaisseService.getResume(id);
