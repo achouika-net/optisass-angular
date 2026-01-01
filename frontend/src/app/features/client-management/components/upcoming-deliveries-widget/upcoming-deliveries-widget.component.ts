@@ -11,26 +11,26 @@ import { MessagingService } from '../../../../core/services/messaging.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 interface UpcomingDelivery {
-    ficheId: string;
-    clientId: string;
-    clientName: string;
-    clientPhone: string;
-    deliveryDate: Date;
-    type: string;
-    status: string;
+  ficheId: string;
+  clientId: string;
+  clientName: string;
+  clientPhone: string;
+  deliveryDate: Date;
+  type: string;
+  status: string;
 }
 
 @Component({
-    selector: 'app-upcoming-deliveries-widget',
-    standalone: true,
-    imports: [
-        CommonModule,
-        MatCardModule,
-        MatButtonModule,
-        MatIconModule,
-        MatTooltipModule
-    ],
-    template: `
+  selector: 'app-upcoming-deliveries-widget',
+  standalone: true,
+  imports: [
+    CommonModule,
+    MatCardModule,
+    MatButtonModule,
+    MatIconModule,
+    MatTooltipModule
+  ],
+  template: `
     <mat-card class="upcoming-deliveries-widget">
       <mat-card-header>
         <mat-icon class="widget-icon">local_shipping</mat-icon>
@@ -91,7 +91,7 @@ interface UpcomingDelivery {
       </mat-card-content>
     </mat-card>
   `,
-    styles: [`
+  styles: [`
     .upcoming-deliveries-widget {
       height: 100%;
     }
@@ -199,136 +199,153 @@ interface UpcomingDelivery {
   `]
 })
 export class UpcomingDeliveriesWidgetComponent implements OnInit {
-    deliveries = signal<UpcomingDelivery[]>([]);
-    loading = signal(true);
+  deliveries = signal<UpcomingDelivery[]>([]);
+  loading = signal(true);
 
-    constructor(
-        private ficheService: FicheService,
-        private clientService: ClientManagementService,
-        private messagingService: MessagingService,
-        private snackBar: MatSnackBar,
-        private router: Router
-    ) { }
+  constructor(
+    private ficheService: FicheService,
+    private clientService: ClientManagementService,
+    private messagingService: MessagingService,
+    private snackBar: MatSnackBar,
+    private router: Router
+  ) { }
 
-    ngOnInit() {
-        this.loadUpcomingDeliveries();
-    }
+  ngOnInit() {
+    this.loadUpcomingDeliveries();
+  }
 
-    loadUpcomingDeliveries() {
-        this.loading.set(true);
+  loadUpcomingDeliveries() {
+    this.loading.set(true);
 
-        // Get today and tomorrow dates
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const dayAfterTomorrow = new Date(tomorrow);
-        dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+    // Get today and tomorrow dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dayAfterTomorrow = new Date(tomorrow);
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
 
-        // Load all fiches and filter by delivery date
-        this.ficheService.getAllFiches().subscribe({
-            next: (fiches) => {
-                const upcoming: UpcomingDelivery[] = [];
+    // We need to load all clients first, then get their fiches
+    // This is not optimal but works for MVP. Better approach: backend endpoint for upcoming deliveries
+    this.clientService.getClients().subscribe({
+      next: (clients: any[]) => {
+        const upcoming: UpcomingDelivery[] = [];
+        let processedClients = 0;
 
-                for (const fiche of fiches) {
-                    if (fiche.dateLivraisonEstimee) {
-                        const deliveryDate = new Date(fiche.dateLivraisonEstimee);
-                        deliveryDate.setHours(0, 0, 0, 0);
+        if (clients.length === 0) {
+          this.loading.set(false);
+          return;
+        }
 
-                        // Check if delivery is today or tomorrow
-                        if (deliveryDate >= today && deliveryDate < dayAfterTomorrow) {
-                            // Load client info for this fiche
-                            this.clientService.getClientById(fiche.clientId).subscribe({
-                                next: (client) => {
-                                    const clientName = this.getClientName(client);
-                                    upcoming.push({
-                                        ficheId: fiche.id,
-                                        clientId: fiche.clientId,
-                                        clientName,
-                                        clientPhone: client.telephone || '',
-                                        deliveryDate: new Date(fiche.dateLivraisonEstimee!),
-                                        type: fiche.type || 'Monture',
-                                        status: fiche.statut || 'En cours'
-                                    });
+        clients.forEach(client => {
+          this.ficheService.getFichesByClient(client.id).subscribe({
+            next: (fiches: any[]) => {
+              for (const fiche of fiches) {
+                if (fiche.dateLivraisonEstimee) {
+                  const deliveryDate = new Date(fiche.dateLivraisonEstimee);
+                  deliveryDate.setHours(0, 0, 0, 0);
 
-                                    // Sort by date
-                                    upcoming.sort((a, b) => a.deliveryDate.getTime() - b.deliveryDate.getTime());
-                                    this.deliveries.set([...upcoming]);
-                                }
-                            });
-                        }
-                    }
+                  // Check if delivery is today or tomorrow
+                  if (deliveryDate >= today && deliveryDate < dayAfterTomorrow) {
+                    const clientName = this.getClientName(client);
+                    upcoming.push({
+                      ficheId: fiche.id,
+                      clientId: fiche.clientId,
+                      clientName,
+                      clientPhone: client.telephone || '',
+                      deliveryDate: new Date(fiche.dateLivraisonEstimee),
+                      type: fiche.type || 'Monture',
+                      status: fiche.statut || 'En cours'
+                    });
+                  }
                 }
+              }
 
+              processedClients++;
+              if (processedClients === clients.length) {
+                // Sort by date
+                upcoming.sort((a, b) => a.deliveryDate.getTime() - b.deliveryDate.getTime());
+                this.deliveries.set(upcoming);
                 this.loading.set(false);
+              }
             },
-            error: (err) => {
-                console.error('Error loading upcoming deliveries:', err);
+            error: (err: any) => {
+              console.error('Error loading fiches for client:', client.id, err);
+              processedClients++;
+              if (processedClients === clients.length) {
                 this.loading.set(false);
+              }
             }
+          });
         });
+      },
+      error: (err: any) => {
+        console.error('Error loading clients:', err);
+        this.loading.set(false);
+      }
+    });
+  }
+
+  getClientName(client: any): string {
+    if (client.typeClient === 'professionnel') {
+      return client.raisonSociale || 'Client professionnel';
+    }
+    const nom = client.nom || '';
+    const prenom = client.prenom || '';
+    return prenom ? `${nom} ${prenom}` : nom || 'Client';
+  }
+
+  formatDate(date: Date): string {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const deliveryDate = new Date(date);
+    deliveryDate.setHours(0, 0, 0, 0);
+
+    if (deliveryDate.getTime() === today.getTime()) {
+      return "Aujourd'hui";
     }
 
-    getClientName(client: any): string {
-        if (client.typeClient === 'professionnel') {
-            return client.raisonSociale || 'Client professionnel';
-        }
-        const nom = client.nom || '';
-        const prenom = client.prenom || '';
-        return prenom ? `${nom} ${prenom}` : nom || 'Client';
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (deliveryDate.getTime() === tomorrow.getTime()) {
+      return 'Demain';
     }
 
-    formatDate(date: Date): string {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const deliveryDate = new Date(date);
-        deliveryDate.setHours(0, 0, 0, 0);
+    return deliveryDate.toLocaleDateString('fr-FR', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short'
+    });
+  }
 
-        if (deliveryDate.getTime() === today.getTime()) {
-            return "Aujourd'hui";
-        }
+  viewFiche(delivery: UpcomingDelivery) {
+    this.router.navigate(['/p/clients', delivery.clientId]);
+  }
 
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
-        if (deliveryDate.getTime() === tomorrow.getTime()) {
-            return 'Demain';
-        }
-
-        return deliveryDate.toLocaleDateString('fr-FR', {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short'
-        });
+  sendDeliveryReady(delivery: UpcomingDelivery) {
+    if (!delivery.clientPhone) {
+      this.snackBar.open('Ce client n\'a pas de numéro de téléphone', 'Fermer', { duration: 3000 });
+      return;
     }
 
-    viewFiche(delivery: UpcomingDelivery) {
-        this.router.navigate(['/p/clients', delivery.clientId]);
+    this.messagingService.openWhatsApp(
+      delivery.clientPhone,
+      'DELIVERY_READY',
+      { name: delivery.clientName }
+    );
+  }
+
+  sendDeliveryDelay(delivery: UpcomingDelivery) {
+    if (!delivery.clientPhone) {
+      this.snackBar.open('Ce client n\'a pas de numéro de téléphone', 'Fermer', { duration: 3000 });
+      return;
     }
 
-    sendDeliveryReady(delivery: UpcomingDelivery) {
-        if (!delivery.clientPhone) {
-            this.snackBar.open('Ce client n\'a pas de numéro de téléphone', 'Fermer', { duration: 3000 });
-            return;
-        }
-
-        this.messagingService.openWhatsApp(
-            delivery.clientPhone,
-            'DELIVERY_READY',
-            { name: delivery.clientName }
-        );
-    }
-
-    sendDeliveryDelay(delivery: UpcomingDelivery) {
-        if (!delivery.clientPhone) {
-            this.snackBar.open('Ce client n\'a pas de numéro de téléphone', 'Fermer', { duration: 3000 });
-            return;
-        }
-
-        this.messagingService.openWhatsApp(
-            delivery.clientPhone,
-            'DELIVERY_DELAY',
-            { name: delivery.clientName }
-        );
-    }
+    this.messagingService.openWhatsApp(
+      delivery.clientPhone,
+      'DELIVERY_DELAY',
+      { name: delivery.clientName }
+    );
+  }
 }
