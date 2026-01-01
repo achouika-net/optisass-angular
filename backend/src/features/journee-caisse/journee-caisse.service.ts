@@ -234,6 +234,25 @@ export class JourneeCaisseService {
         });
     }
 
+    async findHistory(centreId: string) {
+        console.time('FindHistory');
+        const history = await this.prisma.journeeCaisse.findMany({
+            where: {
+                centreId,
+                statut: 'FERMEE'
+            },
+            orderBy: {
+                dateCloture: 'desc'
+            },
+            take: 100,
+            include: {
+                caisse: true
+            }
+        });
+        console.timeEnd('FindHistory');
+        return history;
+    }
+
     async getResume(id: string) {
         console.time('GetResume-Total');
         console.log('--- START GET RESUME ---');
