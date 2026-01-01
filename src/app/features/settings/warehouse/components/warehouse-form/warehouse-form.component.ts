@@ -8,14 +8,16 @@ import {
   signal,
 } from '@angular/core';
 import { Field, form, maxLength, min, required } from '@angular/forms/signals';
+import { AddressSchema } from '@app/validators';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatSelectModule } from '@angular/material/select';
-import { AddressAutocompleteComponent, FieldErrorComponent } from '@app/components';
+import { AddressFieldsComponent, FieldErrorComponent } from '@app/components';
 import { FieldControlLabelDirective } from '@app/directives';
+import { createEmptyAddress, IAddress } from '@app/models';
 import { TranslateModule } from '@ngx-translate/core';
 import { IWarehouse, WAREHOUSE_TYPES, WarehouseType } from '../../models';
 import { WarehouseStore } from '../../warehouse.store';
@@ -23,7 +25,7 @@ import { WarehouseStore } from '../../warehouse.store';
 interface IWarehouseForm {
   name: string;
   capacity: number | null;
-  address: string | null;
+  address: IAddress;
   type: WarehouseType | null;
   active: boolean;
 }
@@ -43,7 +45,7 @@ interface IWarehouseForm {
     MatRadioModule,
     FieldControlLabelDirective,
     FieldErrorComponent,
-    AddressAutocompleteComponent,
+    AddressFieldsComponent,
   ],
 })
 export class WarehouseFormComponent {
@@ -55,7 +57,7 @@ export class WarehouseFormComponent {
   warehouseFormModel = signal<IWarehouseForm>({
     name: '',
     capacity: null,
-    address: null,
+    address: createEmptyAddress(),
     type: null,
     active: true,
   });
@@ -65,6 +67,8 @@ export class WarehouseFormComponent {
     maxLength(fieldPath.name, 100);
     required(fieldPath.type);
     min(fieldPath.capacity, 0);
+    // Apply address validation schema (required by default)
+    AddressSchema(fieldPath.address);
   });
 
   isEditMode = computed(() => this.warehouseId() !== null);
@@ -76,7 +80,7 @@ export class WarehouseFormComponent {
         this.warehouseFormModel.set({
           name: warehouse.name,
           capacity: warehouse.capacity,
-          address: warehouse.address,
+          address: warehouse.address ?? createEmptyAddress(),
           type: warehouse.type,
           active: warehouse.active,
         });
@@ -84,6 +88,9 @@ export class WarehouseFormComponent {
     });
   }
 
+  /**
+   * Saves the warehouse form data
+   */
   save(): void {
     if (this.warehouseForm().invalid()) {
       return;
@@ -108,6 +115,9 @@ export class WarehouseFormComponent {
     }
   }
 
+  /**
+   * Cancels form editing and navigates back to search
+   */
   cancel(): void {
     this.#warehouseStore.goToSearchPage();
   }

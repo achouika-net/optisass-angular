@@ -1,55 +1,55 @@
 # OPTI-SAAS Frontend - Development Guide
 
-> Ce fichier est la source unique de vérité pour toutes les règles, conventions et best practices du projet.
-> Il est lu automatiquement à chaque session Claude.
+> Dernière mise à jour : 2026-01-02
 
----
+## RÈGLES DE CONSULTATION DES SOURCES
 
-## RÈGLES OBLIGATOIRES
+### Ordre de priorité strict
 
-### Ordre de priorité pour les sources
-
-1. **🥇 MCP (Model Context Protocol)** - TOUJOURS consulter en premier
+1. **MCP (Model Context Protocol)** - TOUJOURS consulter en premier
    - Angular MCP : Angular, Signals, RxJS, Router, Forms, HttpClient, Animations
    - Angular Material MCP : Material Design components, CDK, theming
    - NgRx MCP : Signal Store, State Management, operators
+   - Utilisation : Outil `Task` avec `subagent_type='claude-code-guide'`
 
-2. **🥈 WebSearch** (si MCP insuffisant)
+2. **WebSearch** (si MCP insuffisant)
    - Sources 2024-2025 uniquement
 
-3. **🥉 Ce fichier** - Pour patterns déjà validés
+3. **Ce fichier** - Pour patterns déjà validés
 
 ### Quand consulter MCP (obligatoire)
 
-- ✅ Nouvelles fonctionnalités ou patterns inconnus
-- ✅ Signal Forms, rxResource, Signals
-- ✅ Questions d'architecture ou best practices
-- ✅ APIs deprecated et migrations
-- ✅ Quand l'utilisateur le demande
+- Nouvelles fonctionnalités ou patterns inconnus
+- Signal Forms, rxResource, Signals
+- Questions d'architecture ou best practices
+- APIs deprecated et migrations
+- Quand l'utilisateur le demande
 
 ### Règles CRITIQUES
 
 1. **API deprecated** : Chercher IMMÉDIATEMENT le remplacement dans MCP. Ne pas inventer de solutions manuelles.
 2. **Pas de solutions manuelles** : Si une API officielle existe, l'utiliser.
 3. **Git** : Ne JAMAIS commit/push sans permission explicite
-4. **JSDoc obligatoire** sur toutes les méthodes publiques
-5. **Toujours `npm run build`** après modifications pour vérifier TypeScript
+4. **CLAUDE.md** : Peut être committé - sert de mémoire persistante du projet
+5. **JSDoc** : Uniquement pour les méthodes, pas pour les classes/interfaces
+6. **Build** : Toujours `npm run build` après modifications pour vérifier TypeScript
 
 ---
 
 ## Stack Technique
 
-| Catégorie | Technologie |
-|-----------|-------------|
-| Framework | Angular 21.x |
-| TypeScript | 5.x (mode strict) |
-| Node.js | v22.13.1 |
-| State | @ngrx/signals (Signal Store) |
-| UI | Angular Material + Tailwind CSS |
-| i18n | @ngx-translate/core |
-| Animations | `provideAnimations()` (PAS async) |
-| Notifications | ngx-toastr |
-| Backend | NestJS (API REST, Multi-tenant: header `x-tenant-id`) |
+| Catégorie         | Technologie                                           |
+| ----------------- | ----------------------------------------------------- |
+| Framework         | Angular 21.x                                          |
+| TypeScript        | 5.x (mode strict)                                     |
+| Node.js           | v22.13.1                                              |
+| State             | @ngrx/signals (Signal Store)                          |
+| UI                | Angular Material + Tailwind CSS                       |
+| i18n              | @ngx-translate/core                                   |
+| Animations        | `provideAnimations()` (PAS async)                     |
+| Notifications     | ngx-toastr                                            |
+| Backend           | NestJS (API REST, Multi-tenant: header `x-tenant-id`) |
+| Librairie interne | @optisaas/opti-saas-lib (ResourceAuthorizations)      |
 
 ---
 
@@ -75,16 +75,15 @@ src/app/
 
 ## Code Style
 
-### JSDoc pour les méthodes
+### JSDoc pour les méthodes uniquement
 
 ```typescript
 /**
  * Description de la méthode
  * @param query - Texte de recherche
- * @param countryCode - Code pays pour filtrer
  * @returns Observable des résultats
  */
-searchAddresses(query: string, countryCode = 'ma'): Observable<IAddressOption[]> {
+searchAddresses(query: string): Observable<IAddressOption[]> {
   // ...
 }
 ```
@@ -99,7 +98,7 @@ export class AuthService { }
 export const AuthStore = signalStore({ ... });
 
 // Guards
-export const PermissionGuard: CanActivateFn = ...
+export const PermissionCanActivateGuard: CanActivateFn = ...
 
 // Models/Interfaces
 export interface IUserOptions { }
@@ -118,12 +117,27 @@ export const APP_NAME = 'OPTIC SAAS';
 - Helpers : `*.helper.ts`
 - Types : `*.type.ts`
 
+### Conventions de nommage composants
+
+| Suffixe    | Usage                                        | Exemple                  |
+| ---------- | -------------------------------------------- | ------------------------ |
+| `*-fields` | Groupe de champs réutilisable (Signal Forms) | `address-fields`         |
+| `*-form`   | Formulaire complet avec submit               | `warehouse-form`         |
+| `*-search` | Page de recherche/liste                      | `warehouse-search`       |
+| `*-table`  | Tableau de données                           | `warehouse-search-table` |
+| `*-view`   | Page de visualisation/édition                | `warehouse-view`         |
+| `*-add`    | Page de création                             | `warehouse-add`          |
+
+**À éviter** : `*-form-group` (suggère Reactive Forms, pas Signal Forms)
+
 ### Import aliases
 
 ```typescript
 import { AuthStore } from '@app/core/store';
-import { IUserOptions } from '@app/models';
-import { TypedRoute } from '@app/types';
+import { IUserOptions, IAddress, AddressField, BreadcrumbItem } from '@app/models';
+import { TypedRoute, RouteData } from '@app/types';
+import { AddressSchema } from '@app/validators';
+import { AddressFieldsComponent } from '@app/components';
 ```
 
 ---
@@ -133,12 +147,12 @@ import { TypedRoute } from '@app/types';
 ### Utiliser les Signals
 
 ```typescript
-// ✅ BON
+// BON
 signal(), computed(), effect()
 rxResource() pour HTTP avec isLoading/error/value automatiques
 toSignal() / toObservable() pour interop RxJS
 
-// ❌ MAUVAIS
+// MAUVAIS
 BehaviorSubject, toSignal sans defaultValue
 ```
 
@@ -159,68 +173,229 @@ addressResource.isLoading()  // Signal<boolean> - déjà un signal
 addressResource.error()      // Signal<Error | undefined>
 ```
 
-**Erreurs courantes rxResource** :
-```typescript
-// ❌ MAUVAIS - API obsolète Angular < 20
-rxResource({ request: ..., loader: ... })
-
-// ❌ MAUVAIS - computed wrapper inutile
-readonly isLoading = computed(() => this.addressResource.isLoading());
-readonly options = computed(() => this.addressResource.value() ?? []);
-
-// ✅ BON - utilisation directe + defaultValue
-readonly addressResource = rxResource({ ..., defaultValue: [] });
-// Dans template: addressResource.isLoading(), addressResource.value()
-```
-
 ---
 
 ## Signal Forms (`@angular/forms/signals`)
 
-### FormValueControl (remplace ControlValueAccessor)
+### Field vs FieldTree - CRITIQUE
+
+| Concept     | Type               | Usage                                           |
+| ----------- | ------------------ | ----------------------------------------------- |
+| `Field`     | **Directive**      | Connecte un `FieldTree` à un input/select natif |
+| `FieldTree` | **Type/Structure** | Arbre de données créé par `form()`              |
 
 ```typescript
-import { FormValueControl, ValidationError } from '@angular/forms/signals';
+// form() crée un FieldTree
+warehouseForm = form(this.warehouseFormModel, ...);
 
-export class MyComponent implements FormValueControl<string | null> {
-  // REQUIS
-  value = model<string | null>(null);
+// warehouseForm est un FieldTree<IWarehouseForm>
+// warehouseForm.name est un FieldTree<string>
+// warehouseForm.address est un FieldTree<IAddress>
+// warehouseForm.address.street est un FieldTree<string>
+```
 
-  // OPTIONNELS - auto-bindés par [field]
-  touched = input<boolean>(false);
-  dirty = input<boolean>(false);
-  errors = input<readonly ValidationError.WithOptionalField[]>([]);
-  valid = input<boolean>(true);
-  invalid = input<boolean>(false);
-  pending = input<boolean>(false);
-  disabled = input<boolean>(false);
-  readonly = input<boolean>(false);
-  hidden = input<boolean>(false);
-  required = input<boolean>(false);
-  name = input<string>();
+### Quand utiliser quoi
+
+| Cas                                        | Solution                            | Exemple                         |
+| ------------------------------------------ | ----------------------------------- | ------------------------------- |
+| **Input simple**                           | `[field]` directive                 | `<input [field]="form.name" />` |
+| **Composant composite** (groupe de champs) | Passer `FieldTree` via input custom | `[(address)]="form.address"`    |
+
+### ⚠️ ERREUR FRÉQUENTE : Composant composite avec [field]
+
+```html
+<!-- ❌ MAUVAIS - [field] sur composant composite -->
+<app-address-fields [field]="warehouseForm.address" />
+<!-- Problème: [field] passe la valeur entière, pas accès aux sous-champs -->
+<!-- Les erreurs des sous-champs ne sont pas propagées correctement -->
+
+<!-- ✅ BON - Passer le FieldTree directement -->
+<app-address-fields [(address)]="warehouseForm.address" />
+```
+
+### Pattern Child Form avec FieldTree (Composant Composite)
+
+```typescript
+// address-fields.component.ts
+import { Field, FieldTree } from '@angular/forms/signals';
+
+@Component({
+  imports: [Field, FieldErrorComponent, ...],  // Importer Field !
+})
+export class AddressFieldsComponent {
+  // Recevoir le FieldTree du parent
+  readonly address = model.required<FieldTree<IAddress>>();
+
+  // Accès aux sous-champs
+  readonly streetField = computed(() => this.address().street);
+  readonly postcodeField = computed(() => this.address().postcode);
+  readonly cityField = computed(() => this.address().city);
 }
 ```
 
-### Utilisation avec [field]
-
 ```html
-<!-- Parent - validation définie ici -->
-<app-address-autocomplete
-  [field]="warehouseForm.address"
-  [label]="'warehouse.address' | translate"
-/>
+<!-- address-fields.component.html -->
+<!-- Utiliser [field] sur chaque input interne -->
+<mat-form-field>
+  <input matInput [field]="streetField()" />
+  @if (streetField()().touched() && streetField()().invalid()) {
+  <mat-error app-field-error [errors]="streetField()().errors()" fieldname="street" />
+  }
+</mat-form-field>
+
+<mat-form-field>
+  <input matInput [field]="postcodeField()" />
+  @if (postcodeField()().touched() && postcodeField()().invalid()) {
+  <mat-error app-field-error [errors]="postcodeField()().errors()" fieldname="postcode" />
+  }
+</mat-form-field>
 ```
 
-### Affichage des erreurs
+### Parent avec Composant Composite
+
+```typescript
+// warehouse-form.component.ts
+interface IWarehouseForm {
+  name: string;
+  address: IAddress; // PAS IAddress | null !
+}
+
+warehouseFormModel = signal<IWarehouseForm>({
+  name: '',
+  address: createEmptyAddress(), // Initialiser avec objet complet
+});
+
+warehouseForm = form(this.warehouseFormModel, (fieldPath) => {
+  required(fieldPath.name);
+  AddressSchema(fieldPath.address); // Validation sur sous-champs
+});
+```
 
 ```html
-@if (showError()) {
-  <mat-error>
-    @for (error of errors(); track $index) {
-      {{ error.message || ('validators.' + error.kind | translate) }}
-    }
-  </mat-error>
+<!-- warehouse-form.component.html -->
+<app-address-fields [(address)]="warehouseForm.address" />
+```
+
+### Schéma visuel
+
+```
+CONTRÔLE SIMPLE (input, select)
+═══════════════════════════════════════════
+<input [field]="form.name" />
+       ↓
+[field] directive gère tout automatiquement:
+  - value binding
+  - touched on blur
+  - errors, disabled, invalid...
+
+
+COMPOSANT COMPOSITE (groupe de champs)
+═══════════════════════════════════════════
+Parent: form.address (FieldTree<IAddress>)
+        ↓
+[(address)]="form.address"  ← Passe FieldTree directement
+        ↓
+Enfant: address = model.required<FieldTree<IAddress>>()
+        ↓
+address().street   → FieldTree<string>
+address().postcode → FieldTree<string>
+address().city     → FieldTree<string>
+        ↓
+<input [field]="streetField()">  ← [field] sur chaque input interne
+```
+
+### FormValueControl - Pour contrôles simples SEULEMENT
+
+```typescript
+// À UTILISER UNIQUEMENT pour des contrôles qui gèrent UNE SEULE valeur
+// Exemple: un custom slider, un color picker, un rating component
+
+import { FormValueControl } from '@angular/forms/signals';
+
+export class MySimpleControl implements FormValueControl<number | null> {
+  value = model<number | null>(null);
+  // ... autres inputs optionnels
 }
+```
+
+### Validation Schema Pattern (réutilisable)
+
+```typescript
+// src/app/shared/validators/address.validators.ts
+import { maxLength, pattern, required } from '@angular/forms/signals';
+
+export function AddressSchema(addressFieldPath: any, isRequired: boolean = true): void {
+  if (isRequired) {
+    required(addressFieldPath.street);
+    required(addressFieldPath.postcode);
+    required(addressFieldPath.city);
+  }
+  maxLength(addressFieldPath.street, 200);
+  maxLength(addressFieldPath.city, 100);
+  pattern(addressFieldPath.postcode, /^\d{5}$/);
+}
+```
+
+### Typage des ValidationError (Signal Forms)
+
+`ValidationError.WithField` n'expose que `kind` et `message`. Les propriétés spécifiques (`min`, `max`, `requiredLength`, `pattern`) sont dynamiques. Utiliser `as unknown as { ... }` pour un typage sûr :
+
+```typescript
+// ❌ MAUVAIS - any sans typage explicite
+const errorRecord = error as Record<string, any>;
+value: errorRecord[valueKey] || errorRecord['value']
+
+// ✅ BON - typage explicite des propriétés attendues
+case 'minlength':
+case 'maxlength': {
+  const lengthError = error as unknown as { requiredLength?: number };
+  return this.#translate.instant(`validators.${errorType}`, {
+    value: lengthError.requiredLength,
+  });
+}
+
+case 'min': {
+  const minError = error as unknown as { min?: number };
+  return this.#translate.instant('validators.min', { value: minError.min });
+}
+
+case 'max': {
+  const maxError = error as unknown as { max?: number };
+  return this.#translate.instant('validators.max', { value: maxError.max });
+}
+
+case 'pattern': {
+  const patternError = error as unknown as { pattern?: RegExp };
+  // ...
+}
+
+case 'matDatepickerMin': {
+  const minDateError = error as unknown as { min?: Date };
+  // ...
+}
+```
+
+**Pourquoi `as unknown as { ... }` ?**
+
+- Plus sûr que `Record<string, any>` : propriétés explicites
+- Autocomplétion IDE disponible
+- Pas besoin de `eslint-disable`
+
+### Exemple concret : AddressFieldsComponent
+
+```typescript
+// Selector: app-address-fields
+// Input principal:
+readonly address = model.required<FieldTree<IAddress>>();
+
+// Inputs spécifiques:
+countryCode = input<string>('ma');  // Filtre pays pour autocomplete
+
+// Comportement:
+// - Reçoit FieldTree<IAddress> du parent
+// - Utilise [field] sur chaque input interne
+// - Erreurs gérées automatiquement par la directive [field]
+// - Autocomplete Geoapify sur champ street
 ```
 
 ---
@@ -230,62 +405,35 @@ export class MyComponent implements FormValueControl<string | null> {
 ### withState crée des computed signals via Proxy
 
 ```typescript
-// ❌ MAUVAIS - Redondant
+// MAUVAIS - Redondant
 withComputed((store) => ({
-  availableRoutes: computed(() => store.navigation())  // Inutile !
-}))
+  availableRoutes: computed(() => store.navigation()), // Inutile !
+}));
 
-// ✅ BON - Accès direct
-const routes = authStore.navigation();  // Déjà un computed signal
+// BON - Accès direct
+const routes = authStore.navigation(); // Déjà un computed signal
 ```
 
 ### Computed = fonction pure uniquement pour
 
 - Transformation : `hasItems: computed(() => store.items().length > 0)`
 - Extraction nested : `currentId: computed(() => store.current()?.id ?? null)`
+- Logique métier : `isAuthenticated: computed(() => isValidUser(...) && ...)`
 - Combinaison : `computed(() => store.a() + store.b())`
 
 ### tapResponse vs catchError
 
 ```typescript
-// ❌ MAUVAIS - tapResponse capture 401 avant l'interceptor JWT
+// MAUVAIS - tapResponse capture 401 avant l'interceptor JWT
 tapResponse({ error: (error) => { ... } })
 
-// ✅ BON - Laisser 401 passer à l'interceptor
+// BON - Laisser 401 passer à l'interceptor
 catchError((error: HttpErrorResponse) => {
   if (error.status === 401) return EMPTY;  // Interceptor gère le refresh
   // Gérer autres erreurs...
   return EMPTY;
 })
 ```
-
----
-
-## Mocking Strategy
-
-### Service avec Mock séparé
-
-```
-services/
-├── warehouse.service.ts      # Service propre
-└── warehouse.mock.ts         # Données mock séparées
-```
-
-```typescript
-// warehouse.service.ts
-import { mockSearch } from './warehouse.mock';
-
-search(...): Observable<...> {
-  // TODO: Remplacer par appel API réel
-  // return this.#http.get<...>(...);
-  return mockSearch(...);
-}
-```
-
-Quand le backend est prêt :
-1. Décommenter les appels API réels
-2. Supprimer les imports mock
-3. Supprimer le fichier `.mock.ts`
 
 ---
 
@@ -330,10 +478,10 @@ Reste sur la route actuelle (pas de redirect vers /p)
 ### provideAppInitializer (Angular 19+)
 
 ```typescript
-// ❌ MAUVAIS - APP_INITIALIZER deprecated
+// MAUVAIS - APP_INITIALIZER deprecated
 { provide: APP_INITIALIZER, useFactory: ... }
 
-// ✅ BON - provideAppInitializer
+// BON - provideAppInitializer
 provideAppInitializer(() => {
   const authStore = inject(AuthStore);
 
@@ -362,8 +510,51 @@ interface AuthState {
   userAuthorizations: ResourceAuthorizations[];
   error: WsErrorState | null;
   refreshTokenInProgress: boolean;
-  isSessionRestoring: boolean;  // Flag pour bloquer bootstrap
+  isSessionRestoring: boolean; // Flag pour bloquer bootstrap
 }
+```
+
+### AuthStore Computed
+
+```typescript
+// isAuthenticated vérifie AUSSI userAuthorizations pour s'assurer session complète
+isAuthenticated: computed(
+  () =>
+    isValidUser(store.user()) &&
+    store.userAuthorizations().length > 0 &&
+    !!store.jwtTokens()?.accessToken,
+);
+
+// Menu filtré automatiquement selon permissions
+filteredMenu: computed(() => filterMenuByAuthorizations(MENU, store.userAuthorizations()));
+```
+
+### switchTenant
+
+```typescript
+// Changement de tenant avec rechargement des permissions
+switchTenant: rxMethod<ITenant>(
+  pipe(
+    switchMap((tenant) => {
+      const currentUrl = routeAuthService.getCurrentUrl();
+      patchState(store, { currentTenant: tenant });
+
+      return authService.getUserOptions().pipe(
+        tap((userOptions) => {
+          // Calculer fallback AVANT mise à jour des autorisations
+          const fallbackRoute = calculateFallbackRoute(currentUrl, userOptions.authorizations);
+          patchState(store, { userAuthorizations: userOptions.authorizations });
+
+          if (fallbackRoute) {
+            routeAuthService.navigateToFallbackRoute(fallbackRoute);
+          } else {
+            routeAuthService.showTenantSwitchSuccess();
+          }
+        }),
+      );
+    }),
+  ),
+);
 ```
 
 ---
@@ -392,9 +583,33 @@ export function isValidAppRoute(route: string): route is AppRoute {
 }
 ```
 
+### Architecture Permissions
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      APP_ROUTES                              │
+│   Source unique de vérité (routes + permissions)            │
+└─────────────────────────────────────────────────────────────┘
+          │                           │
+          ▼                           ▼
+┌─────────────────────┐    ┌─────────────────────────────────┐
+│    MENU config      │    │   Routes files (*.routes.ts)    │
+│  route: AppRoute    │    │  getRoutePermissions('...')     │
+└─────────────────────┘    └─────────────────────────────────┘
+          │                           │
+          ▼                           ▼
+┌─────────────────────┐    ┌─────────────────────────────────┐
+│  menu.helper.ts     │    │   permission.guard.ts           │
+│  Filtre sidebar     │    │   Protège accès route           │
+│  via APP_ROUTES     │    │   via route.data                │
+└─────────────────────┘    └─────────────────────────────────┘
+```
+
 ### Routes files
 
 ```typescript
+import { getRoutePermissions } from '@app/config';
+
 export default [
   {
     path: '',
@@ -427,34 +642,37 @@ export type TypedRoute = Omit<Route, 'data' | 'children'> & {
 export interface MenuItem {
   label: string;
   icon: string;
-  type: MenuItemType;  // 'link' | 'sub' | 'subchild' | 'extLink' | 'footer'
-  route?: AppRoute;  // Force l'existence dans APP_ROUTES
+  type: MenuItemType; // 'link' | 'sub' | 'subchild' | 'extLink' | 'footer'
+  route?: AppRoute; // Force l'existence dans APP_ROUTES
   externalUrl?: string;
   children?: MenuItem[];
   disabled?: boolean;
 }
 ```
 
-### Architecture Permissions
+### Permission Guard
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      APP_ROUTES                              │
-│   Source unique de vérité (routes + permissions)            │
-└─────────────────────────────────────────────────────────────┘
-          │                           │
-          ▼                           ▼
-┌─────────────────────┐    ┌─────────────────────────────────┐
-│    MENU config      │    │   Routes files (*.routes.ts)    │
-│  route: AppRoute    │    │  getRoutePermissions('...')     │
-└─────────────────────┘    └─────────────────────────────────┘
-          │                           │
-          ▼                           ▼
-┌─────────────────────┐    ┌─────────────────────────────────┐
-│  menu.helper.ts     │    │   permission.guard.ts           │
-│  Filtre sidebar     │    │   Protège accès route           │
-│  via APP_ROUTES     │    │   via route.data                │
-└─────────────────────┘    └─────────────────────────────────┘
+```typescript
+const checkPermission = (route: ActivatedRouteSnapshot): boolean => {
+  const authStore = inject(AuthStore);
+  const routeAuthService = inject(RouteAuthService);
+  const userAuthorizations = authStore.userAuthorizations();
+
+  const routeData = route.data as RouteData;
+  const authorizationsNeeded = routeData.authorizationsNeeded ?? [];
+
+  if (authorizationsNeeded.length === 0) return true;
+
+  const hasAllAuthorizations = authorizationsNeeded.every((auth) =>
+    userAuthorizations.includes(auth),
+  );
+
+  if (hasAllAuthorizations) return true;
+
+  // Accès refusé → redirection vers fallback intelligent avec toast
+  routeAuthService.navigateToFallback(userAuthorizations);
+  return false;
+};
 ```
 
 ### route-auth.helper.ts (fonctions pures)
@@ -470,6 +688,29 @@ normalizeUrlToAppRoute(url: string): string | null
 
 // Calcule la route de fallback quand accès refusé
 calculateFallbackRoute(currentUrl: string, userAuthorizations: ResourceAuthorizations[]): string | null
+```
+
+### RouteAuthService (orchestration Angular DI)
+
+```typescript
+@Injectable({ providedIn: 'root' })
+export class RouteAuthService {
+  navigateToFallback(userAuthorizations: ResourceAuthorizations[]): boolean;
+  navigateToFallbackRoute(fallbackRoute: string): void;
+  showTenantSwitchSuccess(): void;
+  showTenantSwitchError(): void;
+}
+```
+
+### ResourceAuthorizations (de @optisaas/opti-saas-lib)
+
+```typescript
+// Format: RESOURCE_ACTION
+// USERS_CREATE, USERS_READ, USERS_UPDATE, USERS_DELETE
+// CLIENTS_CREATE, CLIENTS_READ, CLIENTS_UPDATE, CLIENTS_DELETE
+// SUPPLIERS_CREATE, SUPPLIERS_READ, SUPPLIERS_UPDATE, SUPPLIERS_DELETE
+// PRODUCTS_CREATE, PRODUCTS_READ, PRODUCTS_UPDATE, PRODUCTS_DELETE
+// etc.
 ```
 
 ---
@@ -489,11 +730,11 @@ Réponse: Backend → ExtractData → JWT → Tenant → WithCredentials → Ser
 // API retourne: { status: 200, data: { accessToken, refreshToken } }
 // ExtractDataInterceptor extrait automatiquement → { accessToken, refreshToken }
 
-// ❌ MAUVAIS - Double extraction
-authService.refreshToken().pipe(map(r => r.data))
+// MAUVAIS - Double extraction
+authService.refreshToken().pipe(map((r) => r.data));
 
-// ✅ BON - Pas de mapping
-authService.refreshToken()  // Retourne directement IJwtTokens
+// BON - Pas de mapping
+authService.refreshToken(); // Retourne directement IJwtTokens
 ```
 
 ### JWT Interceptor - Refresh Token Flow
@@ -526,108 +767,78 @@ refreshTokenSubject.next(newAccessToken) → relance requête originale
 ### Traduction via pipe (pas translate.instant)
 
 ```typescript
-// ❌ MAUVAIS - translate.instant() peut ne pas être chargé
+// MAUVAIS - translate.instant() peut ne pas être chargé
 const label = this.#translate.instant(breadcrumbKey);
 
-// ✅ BON - Stocker la clé, traduire dans template
+// BON - Stocker la clé, traduire dans template
 breadcrumbs.push({ label: breadcrumbKey, url });
 // Template: {{ item.label | translate }}
 ```
 
 **Points clés** :
+
 - `route.routeConfig?.data` au lieu de `route.snapshot.data` (évite héritage)
 - `route.firstChild` au lieu de `route.children` (évite doublons)
+- Dédupliquer avec `Set<string>` sur la clé breadcrumb
 
 ---
 
-## Erreurs Courantes
+## Menu (Sidebar)
 
-| Erreur | Solution |
-|--------|----------|
-| `tapResponse` capture 401 | Utiliser `catchError` avec filtre 401 |
-| `route.snapshot.data` hérite parents | Utiliser `route.routeConfig?.data` |
-| Computed wrapper inutile sur Signal Store | Accès direct `store.field()` |
-| `translate.instant()` pour breadcrumb | Stocker clé, traduire avec pipe `\| translate` |
-| Permissions dupliquées Menu + Config | Source unique APP_ROUTES |
-| `APP_INITIALIZER` deprecated | `provideAppInitializer()` |
-| ngx-toastr CSS manquant | Ajouter dans angular.json styles |
-| Attendre `isAuthenticated` au lieu de `isSessionRestoring` | `isSessionRestoring` passe à false après `getUserOptions` |
-| Header Tenant obsolète | Utiliser `x-tenant-id` (pas `Tenant`) |
-| Paramètres de route en dur (`:id`) | Chercher match dans APP_ROUTES |
-| rxResource computed wrapper | `rxResource.value()` est déjà un Signal |
-| rxResource `request`/`loader` | Utiliser `params`/`stream` (Angular 20+) |
-| Mock data dans service | Séparer dans fichier `.mock.ts` ou utiliser fallback |
-
----
-
-## External APIs
-
-### Geoapify Address Autocomplete
+### Configuration statique
 
 ```typescript
-// environment.ts
-geoapifyApiKey: 'YOUR_API_KEY',  // https://www.geoapify.com/
-
-// Endpoint
-https://api.geoapify.com/v1/geocode/autocomplete
-
-// Free tier: 3000 req/jour
-// Filtrage pays: filter=countrycode:ma (configurable via input countryCode)
-// Fonctionne pour tous les pays (pas seulement Maroc)
+// src/app/config/menu.config.ts
+export const MENU: MenuItem[] = [
+  {
+    label: 'nav.dashboard', // Clé i18n
+    icon: 'dashboard',
+    type: 'link',
+    route: 'dashboard', // Typé AppRoute
+  },
+  {
+    label: 'nav.settings',
+    icon: 'settings',
+    type: 'sub',
+    children: [{ label: 'nav.users', icon: 'people', type: 'link', route: 'settings/users' }],
+  },
+];
 ```
 
-**Pattern de fallback** : Toujours inclure la saisie utilisateur comme dernière option
+### Filtrage par permissions
+
 ```typescript
-searchAddresses(query: string): Observable<IAddressOption[]> {
-  const userInputOption = { id: 'user-input', formatted: query };
-
-  if (!this.isApiConfigured) {
-    return of([userInputOption]);  // Fallback si pas de clé API
-  }
-
-  return this.#http.get<IGeoapifyResponse>(...).pipe(
-    map((response) => [...(response.results?.map(toAddressOption) || []), userInputOption]),
-    catchError(() => of([userInputOption]))  // Fallback si erreur API
-  );
+// src/app/shared/helpers/menu.helper.ts
+export function filterMenuByAuthorizations(
+  items: MenuItem[],
+  userAuthorizations: ResourceAuthorizations[],
+): MenuItem[] {
+  return items
+    .map((item) => {
+      if (item.type === 'sub' && item.children?.length) {
+        const filteredChildren = filterMenuByAuthorizations(item.children, userAuthorizations);
+        return filteredChildren.length > 0 ? { ...item, children: filteredChildren } : null;
+      }
+      return isRouteAuthorized(item.route, userAuthorizations) ? item : null;
+    })
+    .filter((item): item is MenuItem => item !== null);
 }
 ```
 
 ---
 
-## Checklist Nouveau Composant Signal Forms
-
-1. [ ] Implémenter `FormValueControl<T>`
-2. [ ] `value = model<T>()`
-3. [ ] Inputs optionnels : touched, errors, invalid, disabled, etc.
-4. [ ] `@if (!hidden())` pour affichage conditionnel
-5. [ ] Afficher erreurs avec `@if (showError())`
-6. [ ] JSDoc sur toutes les méthodes publiques
-7. [ ] Validation dans le parent, PAS dans le composant
-
----
-
-## Fichiers de Traduction
-
-### Structure
+## Organisation Fichiers Composant Réutilisable
 
 ```
-src/assets/i18n/
-├── fr.json  # Français (langue principale)
-└── en.json  # Anglais (synchronisé avec fr.json)
+shared/components/address-fields/
+├── address-fields.component.ts      # Composant principal
+├── address-fields.component.html    # Template
+├── geoapify-address.service.ts      # Service spécifique (API externe)
+├── geoapify-address.model.ts        # Models spécifiques
+└── index.ts                         # Barrel export
 ```
 
-### Règles
-
-- Ne garder que les clés utilisées dans le code
-- Synchroniser structure entre fr.json et en.json
-- Clés organisées par section : `nav`, `commun`, `error`, `table`, `validators`, `authentication`, `tenant`, `permissions`, `user`
-
----
-
-## Librairies Internes
-
-**@optisaas/opti-saas-lib** : `node_modules/@optisaas/opti-saas-lib/src/shared/`
-- `types.ts` : ResourceAuthorizations, Resource, Authorisation
+**Règle** : Si un service/model est utilisé UNIQUEMENT par un composant, le mettre DANS le dossier du composant, pas dans `services/` ou `models/` global.
 
 ---
 
@@ -675,6 +886,199 @@ export default [
 
 ---
 
+## Mocking Strategy
+
+### Service avec Mock séparé
+
+```
+services/
+├── warehouse.service.ts      # Service propre
+└── warehouse.mock.ts         # Données mock séparées
+```
+
+```typescript
+// warehouse.service.ts
+import { mockSearch } from './warehouse.mock';
+
+search(...): Observable<...> {
+  // TODO: Remplacer par appel API réel
+  // return this.#http.get<...>(...);
+  return mockSearch(...);
+}
+```
+
+Quand le backend est prêt :
+
+1. Décommenter les appels API réels
+2. Supprimer les imports mock
+3. Supprimer le fichier `.mock.ts`
+
+---
+
+## Angular Material - Configuration Globale
+
+### Options par défaut dans appConfig
+
+```typescript
+// src/app/app.config.ts
+import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
+import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    // ...autres providers
+
+    // Form fields: outline par défaut (pas besoin de appearance="outline" dans les templates)
+    {
+      provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
+      useValue: { appearance: 'outline' },
+    },
+    // Icons: Material Symbols Outlined
+    {
+      provide: MAT_ICON_DEFAULT_OPTIONS,
+      useValue: { fontSet: 'material-symbols-outlined' },
+    },
+  ],
+};
+```
+
+### Conséquence dans les templates
+
+```html
+<!-- ❌ INUTILE - appearance est déjà configuré globalement -->
+<mat-form-field appearance="outline">
+  <input matInput [field]="form.name" />
+</mat-form-field>
+
+<!-- ✅ BON - pas besoin de spécifier appearance -->
+<mat-form-field>
+  <input matInput [field]="form.name" />
+</mat-form-field>
+```
+
+---
+
+## External APIs
+
+### Geoapify Address Autocomplete
+
+```typescript
+// environment.ts
+geoapifyApiKey: 'YOUR_API_KEY',  // https://www.geoapify.com/
+
+// Endpoint
+https://api.geoapify.com/v1/geocode/autocomplete
+
+// Free tier: 3000 req/jour
+// Filtrage pays: filter=countrycode:ma (configurable via input countryCode)
+```
+
+**Pattern de fallback** : Toujours inclure la saisie utilisateur comme dernière option
+
+```typescript
+searchAddresses(query: string): Observable<IAddressOption[]> {
+  const userInputOption = { id: 'user-input', formatted: query };
+
+  if (!this.isApiConfigured) {
+    return of([userInputOption]);  // Fallback si pas de clé API
+  }
+
+  return this.#http.get<IGeoapifyResponse>(...).pipe(
+    map((response) => [...(response.results?.map(toAddressOption) || []), userInputOption]),
+    catchError(() => of([userInputOption]))  // Fallback si erreur API
+  );
+}
+```
+
+---
+
+## Fichiers de Traduction
+
+### Structure
+
+```
+src/assets/i18n/
+├── fr.json  # Français (langue principale)
+└── en.json  # Anglais (synchronisé avec fr.json)
+```
+
+### Règles
+
+- Ne garder que les clés utilisées dans le code
+- Synchroniser structure entre fr.json et en.json
+- Clés organisées par section : `nav`, `commun`, `error`, `table`, `validators`, `authentication`, `tenant`, `permissions`, `user`
+
+### Clés tenant/permissions
+
+```json
+{
+  "tenant": {
+    "switched": "Centre changé avec succès",
+    "switchError": "Erreur lors du changement de centre"
+  },
+  "permissions": {
+    "noAccessToModule": "Vous n'avez pas accès à ce module dans ce centre"
+  }
+}
+```
+
+---
+
+## Erreurs Courantes
+
+| Erreur                                                     | Solution                                                                |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------- | ---------- |
+| `tapResponse` capture 401                                  | Utiliser `catchError` avec filtre 401                                   |
+| `route.snapshot.data` hérite parents                       | Utiliser `route.routeConfig?.data`                                      |
+| Computed wrapper inutile sur Signal Store                  | Accès direct `store.field()`                                            |
+| Computed wrapper inutile sur rxResource                    | `rxResource.value()` est déjà un Signal                                 |
+| rxResource `request`/`loader`                              | Utiliser `params`/`stream` (Angular 20+)                                |
+| `translate.instant()` pour breadcrumb                      | Stocker clé, traduire avec pipe `                                       | translate` |
+| Permissions dupliquées Menu + Config                       | Source unique APP_ROUTES                                                |
+| `APP_INITIALIZER` deprecated                               | `provideAppInitializer()`                                               |
+| ngx-toastr CSS manquant                                    | Ajouter dans angular.json styles                                        |
+| Attendre `isAuthenticated` au lieu de `isSessionRestoring` | `isSessionRestoring` passe à false après `getUserOptions`               |
+| Header Tenant obsolète                                     | Utiliser `x-tenant-id` (pas `Tenant`)                                   |
+| Paramètres de route en dur (`:id`)                         | Chercher match dans APP_ROUTES                                          |
+| Mock data dans service                                     | Séparer dans fichier `.mock.ts`                                         |
+| ExtractDataInterceptor double extraction                   | Pas de `.pipe(map(r => r.data))`                                        |
+| route.children au lieu de firstChild                       | Utiliser `route.firstChild` (évite doublons)                            |
+| Suffixe `*-form-group` pour composant                      | Utiliser `*-fields` (Signal Forms)                                      |
+| CSS class inutilisée dans template                         | Vérifier avec grep avant de garder                                      |
+| Fichiers orphelins après refactoring                       | Supprimer et nettoyer les index.ts                                      |
+| Service/model dans dossier global                          | Si usage unique, mettre dans dossier du composant                       |
+| `[field]` sur composant composite                          | Utiliser `[(customInput)]` + `FieldTree<T>` pour child forms            |
+| `FormValueControl` pour groupe de champs                   | `FormValueControl` = contrôle simple, `FieldTree` = composant composite |
+| `address: IAddress \| null` dans form model                | Initialiser avec `createEmptyAddress()`, type `IAddress` (pas null)     |
+| `appearance="outline"` répété partout                      | Configuré globalement via `MAT_FORM_FIELD_DEFAULT_OPTIONS`              |
+| `ValidationError` avec `any`                               | Utiliser `as unknown as { prop?: Type }` pour typage explicite          |
+
+---
+
+## Checklist Nouveau Composant Signal Forms
+
+### Contrôle Simple (une seule valeur)
+
+1. [ ] Implémenter `FormValueControl<T>`
+2. [ ] `value = model<T>()`
+3. [ ] Inputs optionnels : touched, errors, invalid, disabled, etc.
+4. [ ] `@if (!hidden())` pour affichage conditionnel
+5. [ ] Afficher erreurs avec `@if (field().touched() && field().invalid())`
+6. [ ] Utiliser `app-field-error` pour les messages
+7. [ ] JSDoc sur les méthodes uniquement
+
+### Composant Composite (groupe de champs) - Pattern FieldTree
+
+1. [ ] `readonly myField = model.required<FieldTree<T>>()`
+2. [ ] Importer `Field` dans les imports du composant
+3. [ ] Computed pour chaque sous-champ : `streetField = computed(() => this.address().street)`
+4. [ ] Template : `[field]="streetField()"` sur chaque input
+5. [ ] Erreurs : `@if (streetField()().touched() && streetField()().invalid())`
+6. [ ] Parent : `[(myField)]="form.myField"` (pas `[field]`)
+7. [ ] Model parent : initialiser avec objet complet (pas null)
+
+---
+
 ## Principes de Développement
 
 1. **MCP First** : Toujours consulter MCP AVANT de coder
@@ -684,3 +1088,69 @@ export default [
 5. **Standalone** : Pas de NgModule
 6. **Performance** : Lazy loading, computed signals
 7. **Sécurité** : Vérification permissions via route.data.authorizationsNeeded
+8. **JSDoc** : Uniquement pour les méthodes, pas pour les classes/interfaces
+
+---
+
+## Git Hooks (Husky + lint-staged)
+
+### Configuration
+
+```
+.husky/
+├── pre-commit    # Lint + format des fichiers stagés
+└── pre-push      # Build production
+```
+
+### Pre-commit
+
+```bash
+# .husky/pre-commit
+#!/bin/sh
+# Load nvm to ensure Node 22
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+nvm use 22 > /dev/null 2>&1
+
+npx lint-staged
+```
+
+```json
+// package.json
+"lint-staged": {
+  "*.{ts,html}": ["eslint --fix", "prettier --write"],
+  "*.{json,scss,css,md}": ["prettier --write"]
+}
+```
+
+### Pre-push
+
+```bash
+# .husky/pre-push
+#!/bin/sh
+# Load nvm to ensure Node 22
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+nvm use 22 > /dev/null 2>&1
+
+npm run build:prod
+```
+
+> **Note** : Les hooks chargent nvm car le système peut utiliser une version Node différente (ex: v14) par défaut.
+
+### Scripts disponibles
+
+```bash
+npm run lint        # Vérifier ESLint
+npm run lint:fix    # Corriger ESLint automatiquement
+npm run format      # Prettier sur fichiers spécifiés
+npm run build:prod  # Build production
+```
+
+---
+
+## TODO Backend
+
+- [x] ~~Intégration réelle `/users/options`~~ (implémenté)
+- [ ] Gestion rôles utilisateur
+- [ ] Menu favoris persistés côté serveur

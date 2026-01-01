@@ -69,7 +69,11 @@
     "exportPdf": "Export PDF",
     "exportXls": "Export XLS",
     "search": "Search",
-    "reset": "Reset"
+    "reset": "Reset",
+    "street": "Street",
+    "streetLine2": "Address line 2",
+    "postcode": "Postal code",
+    "city": "City"
   },
   "error": {
     "invalidImageType": "Please select a valid image",
@@ -99,6 +103,7 @@
     "unique": "This field must be unique",
     "phone": "Invalid phone number",
     "zipcode": "Invalid postal code, it must contain between 4 and 5 digits",
+    "postcode": "Invalid postal code (5 digits required)",
     "ip": "Invalid IP address",
     "alphanum": "This field must be alphanumeric",
     "matDatepickerParse": "Accepted format DD/MM/YYYY",
@@ -151,6 +156,15 @@
   },
   "permissions": {
     "noAccessToModule": "You don't have access to this module in this center"
+  },
+  "address": {
+    "street": "Street",
+    "streetLine2": "Address line 2",
+    "postcode": "Postal code",
+    "city": "City",
+    "country": "Country",
+    "streetPlaceholder": "Enter an address to search",
+    "streetLine2Placeholder": "Apartment, floor, building..."
   },
   "warehouse": {
     "add": "Add a warehouse",

@@ -49,11 +49,8 @@
           }
         </mat-form-field>
 
-        <!-- Address with autocomplete -->
-        <app-address-autocomplete
-          [field]="warehouseForm.address"
-          [label]="'warehouse.address' | translate"
-        />
+        <!-- Address fields (participent au grid parent) -->
+        <app-address-fields [(address)]="warehouseForm.address" />
       </div>
 
       <!-- Buttons -->

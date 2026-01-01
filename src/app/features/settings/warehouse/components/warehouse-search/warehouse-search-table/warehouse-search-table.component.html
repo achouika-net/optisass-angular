@@ -36,7 +36,11 @@
             {{ 'warehouse.address' | translate }}
           </th>
           <td mat-cell *matCellDef="let element">
-            {{ element.address || '-' }}
+            @if (element.address) {
+              {{ element.address.street }}@if (element.address.city) {, {{ element.address.postcode }} {{ element.address.city }}}
+            } @else {
+              -
+            }
           </td>
         </ng-container>
 

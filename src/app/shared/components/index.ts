@@ -7,4 +7,5 @@ export * from './form-control-error/form-control-error.component';
 export * from './no-data-search/no-data-search.component';
 export * from './photo-upload/photo-upload.component';
 export * from './statistic-card/statistic-card.component';
+export * from './address-fields/address-fields.component';
 export * from './status-illustration/status-illustration.component';

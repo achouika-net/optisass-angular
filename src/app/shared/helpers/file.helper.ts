@@ -5,9 +5,11 @@ import { HttpResponse } from '@angular/common/http';
  * Export file
  * @param resp {resp: HttpResponse<Blob>}
  */
-export const exportFile = (resp: HttpResponse<Blob>): void => {
-  const filename = getFileName(resp);
-  // saveAs(resp.body, filename);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const exportFile = (_resp: HttpResponse<Blob>): void => {
+  // TODO: Uncomment when file-saver is installed
+  // const filename = getFileName(_resp);
+  // saveAs(_resp.body, filename);
 };
 
 export const getFileName = (resp: HttpResponse<Blob>): string => {

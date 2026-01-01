@@ -1,7 +1,3 @@
-/**
- * Geoapify API response model
- * @see https://apidocs.geoapify.com/docs/geocoding/address-autocomplete/
- */
 export interface IGeoapifyResponse {
   results: IGeoapifyResult[];
 }
@@ -37,10 +33,6 @@ export interface IGeoapifyResult {
   place_id: string;
 }
 
-/**
- * Simplified address model for internal use
- * Only id and formatted are required (for user input fallback)
- */
 export interface IAddressOption {
   id: string;
   formatted: string;

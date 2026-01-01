@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { PageEvent } from '@angular/material/paginator';
 import { Sort } from '@angular/material/sort';
 import { Router } from '@angular/router';
@@ -70,21 +70,21 @@ export class UserStore {
   resetUser = () => patchState(this.state, { user: null });
 
   goToSearchPage = rxMethod<void>(
-    pipe(tap(() => void this.#router.navigate(['/p/settings/users'])))
+    pipe(tap(() => void this.#router.navigate(['/p/settings/users']))),
   );
   #getRoles = rxMethod<void>(
     pipe(
       switchMap(() =>
         this.#roleService.getRoles().pipe(
           tap((roles: PaginatedApiResponse<IRole>) =>
-            patchState(this.state, { roles: roles.data })
+            patchState(this.state, { roles: roles.data }),
           ),
           catchError((error: HttpErrorResponse) => {
             return this.#setWsError(error, 'getRoles');
-          })
-        )
-      )
-    )
+          }),
+        ),
+      ),
+    ),
   );
   searchUsers = rxMethod<void>(
     pipe(
@@ -94,16 +94,16 @@ export class UserStore {
             this.state.searchForm(),
             this.state.pageEvent().pageIndex + 1,
             this.state.pageEvent().pageSize,
-            this.state.sort()
+            this.state.sort(),
           )
           .pipe(
             tap((users: PaginatedApiResponse<IUser>) => {
               patchState(this.state, { users });
             }),
-            catchError((error: HttpErrorResponse) => this.#setWsError(error, 'searchUsers'))
+            catchError((error: HttpErrorResponse) => this.#setWsError(error, 'searchUsers')),
           );
-      })
-    )
+      }),
+    ),
   );
   getUser = rxMethod<number>(
     pipe(
@@ -113,10 +113,10 @@ export class UserStore {
           catchError((error: HttpErrorResponse) => {
             this.goToSearchPage();
             return this.#setWsError(error, 'getUser');
-          })
-        )
-      )
-    )
+          }),
+        ),
+      ),
+    ),
   );
 
   addUser = rxMethod<IUser>(
@@ -132,12 +132,12 @@ export class UserStore {
               errorResponse,
               errorResponse.status === 422 && 'email' in errorResponse.error.errors
                 ? 'emailError'
-                : 'addUser'
+                : 'addUser',
             );
-          })
-        )
-      )
-    )
+          }),
+        ),
+      ),
+    ),
   );
   updateUser = rxMethod<{ id: number; user: Partial<IUser> }>(
     pipe(
@@ -152,12 +152,12 @@ export class UserStore {
               errorResponse,
               errorResponse.status === 422 && 'email' in errorResponse.error.errors
                 ? 'emailError'
-                : 'updateUser'
-            )
-          )
-        )
-      )
-    )
+                : 'updateUser',
+            ),
+          ),
+        ),
+      ),
+    ),
   );
   deleteUser = rxMethod<number>(
     pipe(
@@ -167,9 +167,9 @@ export class UserStore {
             this.#toastr.success(this.#translate.instant('commun.operationTerminee'));
             this.searchUsers();
           }),
-          catchError((error: HttpErrorResponse) => this.#setWsError(error, 'deleteUser'))
-        )
-      )
-    )
+          catchError((error: HttpErrorResponse) => this.#setWsError(error, 'deleteUser')),
+        ),
+      ),
+    ),
   );
 }

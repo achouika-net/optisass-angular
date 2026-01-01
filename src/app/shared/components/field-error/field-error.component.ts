@@ -69,7 +69,7 @@ export class FieldErrorComponent {
       errors[0], // Get first error
       this.pattern(),
       this.fieldname(),
-      this.customErrorMessage()
+      this.customErrorMessage(),
     );
   });
 
@@ -80,7 +80,7 @@ export class FieldErrorComponent {
     error: ValidationError.WithField,
     pattern: string,
     field: string,
-    customMessages: Map<string, string>
+    customMessages: Map<string, string>,
   ): string => {
     if (!error) return '';
 
@@ -108,39 +108,70 @@ export class FieldErrorComponent {
       case 'email':
         return getCustomMessage('email') || this.#translate.instant('validators.email');
 
-      case 'pattern':
+      case 'pattern': {
         // Try to detect common patterns
         const detectedPattern = pattern || this.#detectPatternType(error);
         return (
           getCustomMessage('pattern') ||
           this.#translate.instant(`validators.${detectedPattern || 'pattern'}`)
         );
+      }
 
       case 'minlength':
-      case 'maxlength':
-      case 'min':
-      case 'max': {
-        const valueKey =
-          errorType === 'minlength' || errorType === 'maxlength' ? 'requiredLength' : errorType;
+      case 'maxlength': {
+        const lengthError = error as unknown as { requiredLength?: number };
         return (
           getCustomMessage(errorType) ||
           this.#translate.instant(`validators.${errorType}`, {
-            value: (error as any)[valueKey] || (error as any).value,
+            value: lengthError.requiredLength,
           })
         );
       }
 
-      case 'matDatepickerMin':
+      case 'min': {
+        const minError = error as unknown as { min?: number };
+        return (
+          getCustomMessage('min') ||
+          this.#translate.instant('validators.min', { value: minError.min })
+        );
+      }
+
+      case 'max': {
+        const maxError = error as unknown as { max?: number };
+        return (
+          getCustomMessage('max') ||
+          this.#translate.instant('validators.max', { value: maxError.max })
+        );
+      }
+
+      case 'matDatepickerMin': {
+        const minDateError = error as unknown as { min?: Date };
+        const minDate = displayDateFormatter(minDateError.min);
+        const todayMin = displayDateFormatter(new Date());
+        return (
+          getCustomMessage('matDatepickerMin') ||
+          (todayMin === minDate
+            ? this.#translate.instant('validators.matDatepickerMinToday')
+            : this.#translate.instant('validators.matDatepickerMin', {
+                libelle: this.#translate.instant(`commun.${field ?? 'theDate'}`),
+                min: minDate,
+              }))
+        );
+      }
+
       case 'matDatepickerMax': {
-        const isMax = errorType === 'matDatepickerMax';
-        const date = displayDateFormatter(isMax ? (error as any).max : (error as any).min);
-        const today = displayDateFormatter(new Date());
-        return getCustomMessage(errorType) || today === date
-          ? this.#translate.instant(`validators.${errorType}Today`)
-          : this.#translate.instant(`validators.${errorType}`, {
-              libelle: this.#translate.instant(`commun.${field ?? 'theDate'}`),
-              [isMax ? 'max' : 'min']: date,
-            });
+        const maxDateError = error as unknown as { max?: Date };
+        const maxDate = displayDateFormatter(maxDateError.max);
+        const todayMax = displayDateFormatter(new Date());
+        return (
+          getCustomMessage('matDatepickerMax') ||
+          (todayMax === maxDate
+            ? this.#translate.instant('validators.matDatepickerMaxToday')
+            : this.#translate.instant('validators.matDatepickerMax', {
+                libelle: this.#translate.instant(`commun.${field ?? 'theDate'}`),
+                max: maxDate,
+              }))
+        );
       }
 
       case 'passwordLength':
@@ -161,8 +192,9 @@ export class FieldErrorComponent {
    * Tries to detect the pattern type from the error object
    */
   readonly #detectPatternType = (error: ValidationError.WithField): string => {
-    if (error.kind === 'pattern' && (error as any).pattern) {
-      const patternStr = (error as any).pattern.toString();
+    const patternError = error as unknown as { pattern?: RegExp };
+    if (error.kind === 'pattern' && patternError.pattern) {
+      const patternStr = patternError.pattern.toString();
       // Check if it matches EMAIL_PATTERN
       if (patternStr.includes('@') || patternStr.includes('email')) {
         return 'email';

@@ -17,11 +17,7 @@ export const isValidFileSize = (file: File, maxSize: number = MAX_FILE_SIZE_BYTE
 /**
  * Compress an image to a maximum dimension and quality
  */
-export const compressImage = (
-  dataUrl: string,
-  maxWidth: number = 400,
-  quality: number = 0.7
-): Promise<string> => {
+export const compressImage = (dataUrl: string, maxWidth = 400, quality = 0.7): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -76,10 +72,7 @@ export const loadFileAsDataUrl = (file: File | Blob): Promise<string> => {
 /**
  * Capture a frame from a video element as a blob
  */
-export const captureVideoFrame = (
-  video: HTMLVideoElement,
-  quality: number = 0.9
-): Promise<Blob | null> => {
+export const captureVideoFrame = (video: HTMLVideoElement, quality = 0.9): Promise<Blob | null> => {
   return new Promise((resolve) => {
     if (!video || video.videoWidth === 0) {
       resolve(null);
