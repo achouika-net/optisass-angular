@@ -1315,14 +1315,10 @@
             <!-- ONGLET 6: SUIVI COMMANDE -->
             <!-- ONGLET 6: SUIVI COMMANDE -->
 
-            <!-- ATTEMPTING TO ESCAPE TAB 4 -->
+            <!-- Structural fix: Closing Tab 4 properly -->
         </div>
 
-        <!-- MARKER: ROOT CONTEXT CHECK -->
-        <div style="background: yellow; color: black; padding: 5px;">ROOT CONTEXT: ActiveTab={{ activeTab }}</div>
-
-        <!-- FORCED VISIBILITY DEBUG -->
-        <div class="tab-content" *ngIf="true || activeTab === 5">
+        <div class="tab-content" *ngIf="activeTab === 5">
             <!-- Error message if form group is missing -->
             <div *ngIf="!ficheForm.get('suiviCommande')" class="p-8 text-center">
                 <mat-icon class="text-red-500 text-6xl mb-4">error</mat-icon>
@@ -1330,14 +1326,6 @@
                 <p class="text-gray-600">Le formulaire de suivi de commande n'est pas initialisé.</p>
             </div>
 
-            <!-- DEBUG: Inner Content Check -->
-            <div style="border: 4px dashed red; padding: 10px; margin-bottom: 20px;">
-                <h3>DEBUG: INSIDE TAB CONTENT</h3>
-                <p>Scope ActiveTab: {{ activeTab }}</p>
-                <p>Form Group Exists: {{ !!ficheForm.get('suiviCommande') }}</p>
-                <p>Statut Value: {{ ficheForm.get('suiviCommande.statut')?.value }}</p>
-                <p>Date Commande: {{ ficheForm.get('suiviCommande.dateCommande')?.value }}</p>
-            </div>
 
             <div *ngIf="ficheForm.get('suiviCommande')" formGroupName="suiviCommande">
 
