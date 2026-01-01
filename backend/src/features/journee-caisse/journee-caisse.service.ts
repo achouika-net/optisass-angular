@@ -235,12 +235,13 @@ export class JourneeCaisseService {
     }
 
     async getResume(id: string) {
+        // 1. Fetch metadata only (STOP fetching all operations)
         const journee = await this.prisma.journeeCaisse.findUnique({
             where: { id },
             include: {
                 caisse: true,
                 centre: true,
-                operations: true
+                // operations: true <--- REMOVED to prevent memory overload
             },
         });
 
@@ -248,7 +249,15 @@ export class JourneeCaisseService {
             throw new NotFoundException('Journée de caisse introuvable');
         }
 
-        // Aggregate current session directly from operations for 100% accuracy
+        // 2. Aggregate Local Stats (Current Session) - Database side
+        const localAggregates = await this.prisma.operationCaisse.groupBy({
+            by: ['type', 'typeOperation', 'moyenPaiement'],
+            where: { journeeCaisseId: id },
+            _sum: { montant: true },
+            _count: { id: true }
+        });
+
+        // 3. Process Aggregates (Fast)
         const stats = {
             grossVentesEspeces: 0,
             grossVentesCarte: 0,
@@ -259,46 +268,47 @@ export class JourneeCaisseService {
             nbVentesCarte: 0,
             nbVentesCheque: 0,
             totalInterneIn: 0,
-            totalOutflows: 0, // All payment methods
-            totalOutflowsCash: 0, // Only ESPECES
-            chequesEnAttente: 0,
+            totalOutflows: 0,
+            totalOutflowsCash: 0,
         };
 
-        journee.operations.forEach(op => {
-            if (op.type === 'ENCAISSEMENT') {
-                if (op.typeOperation === 'COMPTABLE') {
-                    if (op.moyenPaiement === 'ESPECES') {
-                        stats.grossVentesEspeces += op.montant;
-                        stats.netVentesEspeces += op.montant;
-                    } else if (op.moyenPaiement === 'CARTE') {
-                        stats.grossVentesCarte += op.montant;
-                        stats.netVentesCarte += op.montant;
-                        stats.nbVentesCarte++;
-                    } else if (op.moyenPaiement === 'CHEQUE') {
-                        stats.grossVentesCheque += op.montant;
-                        stats.netVentesCheque += op.montant;
-                        stats.nbVentesCheque++;
-                        // For cheques, we assume they are "en coffre" if they are purely comptable in the jornada
+        localAggregates.forEach(agg => {
+            const amount = agg._sum.montant || 0;
+            const count = agg._count.id || 0;
+            const { type, typeOperation, moyenPaiement } = agg;
+
+            if (type === 'ENCAISSEMENT') {
+                if (typeOperation === 'COMPTABLE') {
+                    if (moyenPaiement === 'ESPECES') {
+                        stats.grossVentesEspeces += amount;
+                        stats.netVentesEspeces += amount;
+                    } else if (moyenPaiement === 'CARTE') {
+                        stats.grossVentesCarte += amount;
+                        stats.netVentesCarte += amount;
+                        stats.nbVentesCarte += count;
+                    } else if (moyenPaiement === 'CHEQUE') {
+                        stats.grossVentesCheque += amount;
+                        stats.netVentesCheque += amount;
+                        stats.nbVentesCheque += count;
                     }
-                } else if (op.typeOperation === 'INTERNE') {
-                    stats.totalInterneIn += op.montant;
+                } else if (typeOperation === 'INTERNE' && moyenPaiement === 'ESPECES') {
+                    stats.totalInterneIn += amount; // Assuming Interne is mostly Cash/Espèces
                 }
-            } else if (op.type === 'DECAISSEMENT') {
-                stats.totalOutflows += op.montant;
-                if (op.moyenPaiement === 'ESPECES') {
-                    stats.totalOutflowsCash += op.montant;
+            } else if (type === 'DECAISSEMENT') {
+                stats.totalOutflows += amount;
+                if (moyenPaiement === 'ESPECES') {
+                    stats.totalOutflowsCash += amount;
                 }
 
-                if (op.typeOperation === 'COMPTABLE') {
-                    // Refund: subtract from net sales
-                    if (op.moyenPaiement === 'ESPECES') stats.netVentesEspeces -= op.montant;
-                    else if (op.moyenPaiement === 'CARTE') stats.netVentesCarte -= op.montant;
-                    else if (op.moyenPaiement === 'CHEQUE') stats.netVentesCheque -= op.montant;
+                if (typeOperation === 'COMPTABLE') {
+                    // Refund logic: subtract from net sales
+                    if (moyenPaiement === 'ESPECES') stats.netVentesEspeces -= amount;
+                    else if (moyenPaiement === 'CARTE') stats.netVentesCarte -= amount;
+                    else if (moyenPaiement === 'CHEQUE') stats.netVentesCheque -= amount;
                 }
             }
         });
 
-        // Global Center Stats (For Cards 4 & 5) - Optimized with aggregation
         // Global Center Stats (Optimized: Single DB Round-trip)
         const globalStats = await this.prisma.operationCaisse.groupBy({
             by: ['moyenPaiement'],
