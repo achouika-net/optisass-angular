@@ -1,11 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  signal,
-  Signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MIN_PAGE_SIZE_OPTIONS } from '@app/config';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSort, MatSortHeader, Sort } from '@angular/material/sort';
@@ -27,7 +20,11 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MatIconButton } from '@angular/material/button';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatIcon } from '@angular/material/icon';
-import { NoDataSearchComponent, StatusIllustrationComponent, ConfirmationPopupComponent } from '@app/components';
+import {
+  NoDataSearchComponent,
+  StatusIllustrationComponent,
+  ConfirmationPopupComponent,
+} from '@app/components';
 import { MatDialog } from '@angular/material/dialog';
 import { filter, tap } from 'rxjs/operators';
 import { ResponsiveTableDirective } from '@app/directives';
@@ -123,7 +120,7 @@ export class UserSearchTableComponent {
       .afterClosed()
       .pipe(
         filter((result: boolean) => !!result),
-        tap(() => this.#userStore.deleteUser(id))
+        tap(() => this.#userStore.deleteUser(id)),
       )
       .subscribe();
   }
@@ -131,7 +128,7 @@ export class UserSearchTableComponent {
   getUserRoleOfCurrentTenant(
     roles: IRole[],
     tenants: { id: string | number; role_id: number }[],
-    currentTenantId: string | number | null | undefined
+    currentTenantId: string | number | null | undefined,
   ): string {
     if (!currentTenantId) return '';
     const roleId = tenants.find(({ id }) => String(id) === String(currentTenantId))?.role_id;

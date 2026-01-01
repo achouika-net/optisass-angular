@@ -9,7 +9,7 @@ export class UserSearch implements IUserSearch {
   constructor(
     public last_name: string = null,
     public first_name: string = null,
-    public actif: number = -1,
-    public role_id: number = -1
+    public actif = -1,
+    public role_id = -1,
   ) {}
 }

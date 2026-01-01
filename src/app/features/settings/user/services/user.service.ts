@@ -4,8 +4,8 @@ import { Sort } from '@angular/material/sort';
 import { USERS_API_URL } from '@app/config';
 import { getQuery } from '@app/helpers';
 import { PaginatedApiResponse } from '@app/models';
-import { Observable, of } from 'rxjs';
-import { IUser, IUserSearch, IUserSearchForm } from '../models';
+import { Observable } from 'rxjs';
+import { IUser, IUserSearch } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
@@ -22,7 +22,7 @@ export class UserService {
     searchForm: IUserSearch,
     page: number,
     pageSize: number,
-    sort: Sort = null
+    sort: Sort = null,
   ): Observable<PaginatedApiResponse<IUser>> {
     const params: HttpParams = getQuery(searchForm, page, pageSize, sort);
     return this.#http.get<PaginatedApiResponse<IUser>>(`${USERS_API_URL}`, { params });

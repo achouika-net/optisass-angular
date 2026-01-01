@@ -1,6 +1,6 @@
 # OPTI-SAAS Frontend - Development Guide
 
-> Dernière mise à jour : 2026-01-01
+> Dernière mise à jour : 2026-01-02
 
 ## RÈGLES DE CONSULTATION DES SOURCES
 
@@ -38,18 +38,18 @@
 
 ## Stack Technique
 
-| Catégorie | Technologie |
-|-----------|-------------|
-| Framework | Angular 21.x |
-| TypeScript | 5.x (mode strict) |
-| Node.js | v22.13.1 |
-| State | @ngrx/signals (Signal Store) |
-| UI | Angular Material + Tailwind CSS |
-| i18n | @ngx-translate/core |
-| Animations | `provideAnimations()` (PAS async) |
-| Notifications | ngx-toastr |
-| Backend | NestJS (API REST, Multi-tenant: header `x-tenant-id`) |
-| Librairie interne | @optisaas/opti-saas-lib (ResourceAuthorizations) |
+| Catégorie         | Technologie                                           |
+| ----------------- | ----------------------------------------------------- |
+| Framework         | Angular 21.x                                          |
+| TypeScript        | 5.x (mode strict)                                     |
+| Node.js           | v22.13.1                                              |
+| State             | @ngrx/signals (Signal Store)                          |
+| UI                | Angular Material + Tailwind CSS                       |
+| i18n              | @ngx-translate/core                                   |
+| Animations        | `provideAnimations()` (PAS async)                     |
+| Notifications     | ngx-toastr                                            |
+| Backend           | NestJS (API REST, Multi-tenant: header `x-tenant-id`) |
+| Librairie interne | @optisaas/opti-saas-lib (ResourceAuthorizations)      |
 
 ---
 
@@ -119,14 +119,14 @@ export const APP_NAME = 'OPTIC SAAS';
 
 ### Conventions de nommage composants
 
-| Suffixe | Usage | Exemple |
-|---------|-------|---------|
-| `*-fields` | Groupe de champs réutilisable (Signal Forms) | `address-fields` |
-| `*-form` | Formulaire complet avec submit | `warehouse-form` |
-| `*-search` | Page de recherche/liste | `warehouse-search` |
-| `*-table` | Tableau de données | `warehouse-search-table` |
-| `*-view` | Page de visualisation/édition | `warehouse-view` |
-| `*-add` | Page de création | `warehouse-add` |
+| Suffixe    | Usage                                        | Exemple                  |
+| ---------- | -------------------------------------------- | ------------------------ |
+| `*-fields` | Groupe de champs réutilisable (Signal Forms) | `address-fields`         |
+| `*-form`   | Formulaire complet avec submit               | `warehouse-form`         |
+| `*-search` | Page de recherche/liste                      | `warehouse-search`       |
+| `*-table`  | Tableau de données                           | `warehouse-search-table` |
+| `*-view`   | Page de visualisation/édition                | `warehouse-view`         |
+| `*-add`    | Page de création                             | `warehouse-add`          |
 
 **À éviter** : `*-form-group` (suggère Reactive Forms, pas Signal Forms)
 
@@ -179,10 +179,10 @@ addressResource.error()      // Signal<Error | undefined>
 
 ### Field vs FieldTree - CRITIQUE
 
-| Concept | Type | Usage |
-|---------|------|-------|
-| `Field` | **Directive** | Connecte un `FieldTree` à un input/select natif |
-| `FieldTree` | **Type/Structure** | Arbre de données créé par `form()` |
+| Concept     | Type               | Usage                                           |
+| ----------- | ------------------ | ----------------------------------------------- |
+| `Field`     | **Directive**      | Connecte un `FieldTree` à un input/select natif |
+| `FieldTree` | **Type/Structure** | Arbre de données créé par `form()`              |
 
 ```typescript
 // form() crée un FieldTree
@@ -196,10 +196,10 @@ warehouseForm = form(this.warehouseFormModel, ...);
 
 ### Quand utiliser quoi
 
-| Cas | Solution | Exemple |
-|-----|----------|---------|
-| **Input simple** | `[field]` directive | `<input [field]="form.name" />` |
-| **Composant composite** (groupe de champs) | Passer `FieldTree` via input custom | `[(address)]="form.address"` |
+| Cas                                        | Solution                            | Exemple                         |
+| ------------------------------------------ | ----------------------------------- | ------------------------------- |
+| **Input simple**                           | `[field]` directive                 | `<input [field]="form.name" />` |
+| **Composant composite** (groupe de champs) | Passer `FieldTree` via input custom | `[(address)]="form.address"`    |
 
 ### ⚠️ ERREUR FRÉQUENTE : Composant composite avec [field]
 
@@ -239,14 +239,14 @@ export class AddressFieldsComponent {
 <mat-form-field>
   <input matInput [field]="streetField()" />
   @if (streetField()().touched() && streetField()().invalid()) {
-    <mat-error app-field-error [errors]="streetField()().errors()" fieldname="street" />
+  <mat-error app-field-error [errors]="streetField()().errors()" fieldname="street" />
   }
 </mat-form-field>
 
 <mat-form-field>
   <input matInput [field]="postcodeField()" />
   @if (postcodeField()().touched() && postcodeField()().invalid()) {
-    <mat-error app-field-error [errors]="postcodeField()().errors()" fieldname="postcode" />
+  <mat-error app-field-error [errors]="postcodeField()().errors()" fieldname="postcode" />
   }
 </mat-form-field>
 ```
@@ -257,17 +257,17 @@ export class AddressFieldsComponent {
 // warehouse-form.component.ts
 interface IWarehouseForm {
   name: string;
-  address: IAddress;  // PAS IAddress | null !
+  address: IAddress; // PAS IAddress | null !
 }
 
 warehouseFormModel = signal<IWarehouseForm>({
   name: '',
-  address: createEmptyAddress(),  // Initialiser avec objet complet
+  address: createEmptyAddress(), // Initialiser avec objet complet
 });
 
 warehouseForm = form(this.warehouseFormModel, (fieldPath) => {
   required(fieldPath.name);
-  AddressSchema(fieldPath.address);  // Validation sur sous-champs
+  AddressSchema(fieldPath.address); // Validation sur sous-champs
 });
 ```
 
@@ -336,6 +336,51 @@ export function AddressSchema(addressFieldPath: any, isRequired: boolean = true)
 }
 ```
 
+### Typage des ValidationError (Signal Forms)
+
+`ValidationError.WithField` n'expose que `kind` et `message`. Les propriétés spécifiques (`min`, `max`, `requiredLength`, `pattern`) sont dynamiques. Utiliser `as unknown as { ... }` pour un typage sûr :
+
+```typescript
+// ❌ MAUVAIS - any sans typage explicite
+const errorRecord = error as Record<string, any>;
+value: errorRecord[valueKey] || errorRecord['value']
+
+// ✅ BON - typage explicite des propriétés attendues
+case 'minlength':
+case 'maxlength': {
+  const lengthError = error as unknown as { requiredLength?: number };
+  return this.#translate.instant(`validators.${errorType}`, {
+    value: lengthError.requiredLength,
+  });
+}
+
+case 'min': {
+  const minError = error as unknown as { min?: number };
+  return this.#translate.instant('validators.min', { value: minError.min });
+}
+
+case 'max': {
+  const maxError = error as unknown as { max?: number };
+  return this.#translate.instant('validators.max', { value: maxError.max });
+}
+
+case 'pattern': {
+  const patternError = error as unknown as { pattern?: RegExp };
+  // ...
+}
+
+case 'matDatepickerMin': {
+  const minDateError = error as unknown as { min?: Date };
+  // ...
+}
+```
+
+**Pourquoi `as unknown as { ... }` ?**
+
+- Plus sûr que `Record<string, any>` : propriétés explicites
+- Autocomplétion IDE disponible
+- Pas besoin de `eslint-disable`
+
 ### Exemple concret : AddressFieldsComponent
 
 ```typescript
@@ -362,11 +407,11 @@ countryCode = input<string>('ma');  // Filtre pays pour autocomplete
 ```typescript
 // MAUVAIS - Redondant
 withComputed((store) => ({
-  availableRoutes: computed(() => store.navigation())  // Inutile !
-}))
+  availableRoutes: computed(() => store.navigation()), // Inutile !
+}));
 
 // BON - Accès direct
-const routes = authStore.navigation();  // Déjà un computed signal
+const routes = authStore.navigation(); // Déjà un computed signal
 ```
 
 ### Computed = fonction pure uniquement pour
@@ -465,7 +510,7 @@ interface AuthState {
   userAuthorizations: ResourceAuthorizations[];
   error: WsErrorState | null;
   refreshTokenInProgress: boolean;
-  isSessionRestoring: boolean;  // Flag pour bloquer bootstrap
+  isSessionRestoring: boolean; // Flag pour bloquer bootstrap
 }
 ```
 
@@ -473,14 +518,15 @@ interface AuthState {
 
 ```typescript
 // isAuthenticated vérifie AUSSI userAuthorizations pour s'assurer session complète
-isAuthenticated: computed(() =>
-  isValidUser(store.user()) &&
-  store.userAuthorizations().length > 0 &&
-  !!store.jwtTokens()?.accessToken
-)
+isAuthenticated: computed(
+  () =>
+    isValidUser(store.user()) &&
+    store.userAuthorizations().length > 0 &&
+    !!store.jwtTokens()?.accessToken,
+);
 
 // Menu filtré automatiquement selon permissions
-filteredMenu: computed(() => filterMenuByAuthorizations(MENU, store.userAuthorizations()))
+filteredMenu: computed(() => filterMenuByAuthorizations(MENU, store.userAuthorizations()));
 ```
 
 ### switchTenant
@@ -504,11 +550,11 @@ switchTenant: rxMethod<ITenant>(
           } else {
             routeAuthService.showTenantSwitchSuccess();
           }
-        })
+        }),
       );
-    })
-  )
-)
+    }),
+  ),
+);
 ```
 
 ---
@@ -596,8 +642,8 @@ export type TypedRoute = Omit<Route, 'data' | 'children'> & {
 export interface MenuItem {
   label: string;
   icon: string;
-  type: MenuItemType;  // 'link' | 'sub' | 'subchild' | 'extLink' | 'footer'
-  route?: AppRoute;  // Force l'existence dans APP_ROUTES
+  type: MenuItemType; // 'link' | 'sub' | 'subchild' | 'extLink' | 'footer'
+  route?: AppRoute; // Force l'existence dans APP_ROUTES
   externalUrl?: string;
   children?: MenuItem[];
   disabled?: boolean;
@@ -618,7 +664,7 @@ const checkPermission = (route: ActivatedRouteSnapshot): boolean => {
   if (authorizationsNeeded.length === 0) return true;
 
   const hasAllAuthorizations = authorizationsNeeded.every((auth) =>
-    userAuthorizations.includes(auth)
+    userAuthorizations.includes(auth),
   );
 
   if (hasAllAuthorizations) return true;
@@ -685,10 +731,10 @@ Réponse: Backend → ExtractData → JWT → Tenant → WithCredentials → Ser
 // ExtractDataInterceptor extrait automatiquement → { accessToken, refreshToken }
 
 // MAUVAIS - Double extraction
-authService.refreshToken().pipe(map(r => r.data))
+authService.refreshToken().pipe(map((r) => r.data));
 
 // BON - Pas de mapping
-authService.refreshToken()  // Retourne directement IJwtTokens
+authService.refreshToken(); // Retourne directement IJwtTokens
 ```
 
 ### JWT Interceptor - Refresh Token Flow
@@ -730,6 +776,7 @@ breadcrumbs.push({ label: breadcrumbKey, url });
 ```
 
 **Points clés** :
+
 - `route.routeConfig?.data` au lieu de `route.snapshot.data` (évite héritage)
 - `route.firstChild` au lieu de `route.children` (évite doublons)
 - Dédupliquer avec `Set<string>` sur la clé breadcrumb
@@ -744,18 +791,16 @@ breadcrumbs.push({ label: breadcrumbKey, url });
 // src/app/config/menu.config.ts
 export const MENU: MenuItem[] = [
   {
-    label: 'nav.dashboard',  // Clé i18n
+    label: 'nav.dashboard', // Clé i18n
     icon: 'dashboard',
     type: 'link',
-    route: 'dashboard',  // Typé AppRoute
+    route: 'dashboard', // Typé AppRoute
   },
   {
     label: 'nav.settings',
     icon: 'settings',
     type: 'sub',
-    children: [
-      { label: 'nav.users', icon: 'people', type: 'link', route: 'settings/users' },
-    ],
+    children: [{ label: 'nav.users', icon: 'people', type: 'link', route: 'settings/users' }],
   },
 ];
 ```
@@ -766,7 +811,7 @@ export const MENU: MenuItem[] = [
 // src/app/shared/helpers/menu.helper.ts
 export function filterMenuByAuthorizations(
   items: MenuItem[],
-  userAuthorizations: ResourceAuthorizations[]
+  userAuthorizations: ResourceAuthorizations[],
 ): MenuItem[] {
   return items
     .map((item) => {
@@ -863,9 +908,53 @@ search(...): Observable<...> {
 ```
 
 Quand le backend est prêt :
+
 1. Décommenter les appels API réels
 2. Supprimer les imports mock
 3. Supprimer le fichier `.mock.ts`
+
+---
+
+## Angular Material - Configuration Globale
+
+### Options par défaut dans appConfig
+
+```typescript
+// src/app/app.config.ts
+import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
+import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    // ...autres providers
+
+    // Form fields: outline par défaut (pas besoin de appearance="outline" dans les templates)
+    {
+      provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
+      useValue: { appearance: 'outline' },
+    },
+    // Icons: Material Symbols Outlined
+    {
+      provide: MAT_ICON_DEFAULT_OPTIONS,
+      useValue: { fontSet: 'material-symbols-outlined' },
+    },
+  ],
+};
+```
+
+### Conséquence dans les templates
+
+```html
+<!-- ❌ INUTILE - appearance est déjà configuré globalement -->
+<mat-form-field appearance="outline">
+  <input matInput [field]="form.name" />
+</mat-form-field>
+
+<!-- ✅ BON - pas besoin de spécifier appearance -->
+<mat-form-field>
+  <input matInput [field]="form.name" />
+</mat-form-field>
+```
 
 ---
 
@@ -885,6 +974,7 @@ https://api.geoapify.com/v1/geocode/autocomplete
 ```
 
 **Pattern de fallback** : Toujours inclure la saisie utilisateur comme dernière option
+
 ```typescript
 searchAddresses(query: string): Observable<IAddressOption[]> {
   const userInputOption = { id: 'user-input', formatted: query };
@@ -936,30 +1026,32 @@ src/assets/i18n/
 
 ## Erreurs Courantes
 
-| Erreur | Solution |
-|--------|----------|
-| `tapResponse` capture 401 | Utiliser `catchError` avec filtre 401 |
-| `route.snapshot.data` hérite parents | Utiliser `route.routeConfig?.data` |
-| Computed wrapper inutile sur Signal Store | Accès direct `store.field()` |
-| Computed wrapper inutile sur rxResource | `rxResource.value()` est déjà un Signal |
-| rxResource `request`/`loader` | Utiliser `params`/`stream` (Angular 20+) |
-| `translate.instant()` pour breadcrumb | Stocker clé, traduire avec pipe `| translate` |
-| Permissions dupliquées Menu + Config | Source unique APP_ROUTES |
-| `APP_INITIALIZER` deprecated | `provideAppInitializer()` |
-| ngx-toastr CSS manquant | Ajouter dans angular.json styles |
-| Attendre `isAuthenticated` au lieu de `isSessionRestoring` | `isSessionRestoring` passe à false après `getUserOptions` |
-| Header Tenant obsolète | Utiliser `x-tenant-id` (pas `Tenant`) |
-| Paramètres de route en dur (`:id`) | Chercher match dans APP_ROUTES |
-| Mock data dans service | Séparer dans fichier `.mock.ts` |
-| ExtractDataInterceptor double extraction | Pas de `.pipe(map(r => r.data))` |
-| route.children au lieu de firstChild | Utiliser `route.firstChild` (évite doublons) |
-| Suffixe `*-form-group` pour composant | Utiliser `*-fields` (Signal Forms) |
-| CSS class inutilisée dans template | Vérifier avec grep avant de garder |
-| Fichiers orphelins après refactoring | Supprimer et nettoyer les index.ts |
-| Service/model dans dossier global | Si usage unique, mettre dans dossier du composant |
-| `[field]` sur composant composite | Utiliser `[(customInput)]` + `FieldTree<T>` pour child forms |
-| `FormValueControl` pour groupe de champs | `FormValueControl` = contrôle simple, `FieldTree` = composant composite |
-| `address: IAddress \| null` dans form model | Initialiser avec `createEmptyAddress()`, type `IAddress` (pas null) |
+| Erreur                                                     | Solution                                                                |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------- | ---------- |
+| `tapResponse` capture 401                                  | Utiliser `catchError` avec filtre 401                                   |
+| `route.snapshot.data` hérite parents                       | Utiliser `route.routeConfig?.data`                                      |
+| Computed wrapper inutile sur Signal Store                  | Accès direct `store.field()`                                            |
+| Computed wrapper inutile sur rxResource                    | `rxResource.value()` est déjà un Signal                                 |
+| rxResource `request`/`loader`                              | Utiliser `params`/`stream` (Angular 20+)                                |
+| `translate.instant()` pour breadcrumb                      | Stocker clé, traduire avec pipe `                                       | translate` |
+| Permissions dupliquées Menu + Config                       | Source unique APP_ROUTES                                                |
+| `APP_INITIALIZER` deprecated                               | `provideAppInitializer()`                                               |
+| ngx-toastr CSS manquant                                    | Ajouter dans angular.json styles                                        |
+| Attendre `isAuthenticated` au lieu de `isSessionRestoring` | `isSessionRestoring` passe à false après `getUserOptions`               |
+| Header Tenant obsolète                                     | Utiliser `x-tenant-id` (pas `Tenant`)                                   |
+| Paramètres de route en dur (`:id`)                         | Chercher match dans APP_ROUTES                                          |
+| Mock data dans service                                     | Séparer dans fichier `.mock.ts`                                         |
+| ExtractDataInterceptor double extraction                   | Pas de `.pipe(map(r => r.data))`                                        |
+| route.children au lieu de firstChild                       | Utiliser `route.firstChild` (évite doublons)                            |
+| Suffixe `*-form-group` pour composant                      | Utiliser `*-fields` (Signal Forms)                                      |
+| CSS class inutilisée dans template                         | Vérifier avec grep avant de garder                                      |
+| Fichiers orphelins après refactoring                       | Supprimer et nettoyer les index.ts                                      |
+| Service/model dans dossier global                          | Si usage unique, mettre dans dossier du composant                       |
+| `[field]` sur composant composite                          | Utiliser `[(customInput)]` + `FieldTree<T>` pour child forms            |
+| `FormValueControl` pour groupe de champs                   | `FormValueControl` = contrôle simple, `FieldTree` = composant composite |
+| `address: IAddress \| null` dans form model                | Initialiser avec `createEmptyAddress()`, type `IAddress` (pas null)     |
+| `appearance="outline"` répété partout                      | Configuré globalement via `MAT_FORM_FIELD_DEFAULT_OPTIONS`              |
+| `ValidationError` avec `any`                               | Utiliser `as unknown as { prop?: Type }` pour typage explicite          |
 
 ---
 
@@ -997,6 +1089,63 @@ src/assets/i18n/
 6. **Performance** : Lazy loading, computed signals
 7. **Sécurité** : Vérification permissions via route.data.authorizationsNeeded
 8. **JSDoc** : Uniquement pour les méthodes, pas pour les classes/interfaces
+
+---
+
+## Git Hooks (Husky + lint-staged)
+
+### Configuration
+
+```
+.husky/
+├── pre-commit    # Lint + format des fichiers stagés
+└── pre-push      # Build production
+```
+
+### Pre-commit
+
+```bash
+# .husky/pre-commit
+#!/bin/sh
+# Load nvm to ensure Node 22
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+nvm use 22 > /dev/null 2>&1
+
+npx lint-staged
+```
+
+```json
+// package.json
+"lint-staged": {
+  "*.{ts,html}": ["eslint --fix", "prettier --write"],
+  "*.{json,scss,css,md}": ["prettier --write"]
+}
+```
+
+### Pre-push
+
+```bash
+# .husky/pre-push
+#!/bin/sh
+# Load nvm to ensure Node 22
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+nvm use 22 > /dev/null 2>&1
+
+npm run build:prod
+```
+
+> **Note** : Les hooks chargent nvm car le système peut utiliser une version Node différente (ex: v14) par défaut.
+
+### Scripts disponibles
+
+```bash
+npm run lint        # Vérifier ESLint
+npm run lint:fix    # Corriger ESLint automatiquement
+npm run format      # Prettier sur fichiers spécifiés
+npm run build:prod  # Build production
+```
 
 ---
 

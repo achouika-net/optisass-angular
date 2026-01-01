@@ -1,6 +1,6 @@
 @if (!isHidden()) {
   <!-- Street with autocomplete -->
-  <mat-form-field appearance="outline">
+  <mat-form-field>
     <mat-label>{{ streetLabelKey() | translate }}</mat-label>
     <input
       matInput
@@ -46,7 +46,7 @@
   </mat-form-field>
 
   <!-- Street Line 2 -->
-  <mat-form-field appearance="outline">
+  <mat-form-field>
     <mat-label>{{ streetLine2LabelKey() | translate }}</mat-label>
     <input
       matInput
@@ -62,16 +62,21 @@
   <!-- Postcode and City row -->
   <div class="address-row">
     <!-- Postcode -->
-    <mat-form-field appearance="outline" appFieldControlLabel>
+    <mat-form-field appFieldControlLabel>
       <mat-label>{{ postcodeLabelKey() | translate }}</mat-label>
       <input matInput type="text" [field]="postcodeField()" />
       @if (postcodeField()().touched() && postcodeField()().invalid()) {
-        <mat-error app-field-error [errors]="postcodeField()().errors()" fieldname="postcode" pattern="postcode" />
+        <mat-error
+          app-field-error
+          [errors]="postcodeField()().errors()"
+          fieldname="postcode"
+          pattern="postcode"
+        />
       }
     </mat-form-field>
 
     <!-- City -->
-    <mat-form-field appearance="outline" appFieldControlLabel>
+    <mat-form-field appFieldControlLabel>
       <mat-label>{{ cityLabelKey() | translate }}</mat-label>
       <input matInput type="text" [field]="cityField()" />
       @if (cityField()().touched() && cityField()().invalid()) {

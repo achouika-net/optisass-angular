@@ -23,7 +23,7 @@ import { maxLength, pattern, required } from '@angular/forms/signals';
  * ```
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function AddressSchema(addressFieldPath: any, isRequired: boolean = true): void {
+export function AddressSchema(addressFieldPath: any, isRequired = true): void {
   // Required validators (only if isRequired is true)
   if (isRequired) {
     required(addressFieldPath.street);

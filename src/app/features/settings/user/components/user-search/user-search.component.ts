@@ -56,7 +56,8 @@ export default class UserSearchComponent implements OnInit {
   handleActions(action: 'exportPdf' | 'addUser'): void {
     switch (action) {
       case 'exportPdf': {
-        const searchFormValue: IUserSearch = this.searchFormModel();
+        // TODO: Implémenter export PDF
+        // const searchFormValue = this.searchFormModel();
         // this.#userStore.exportPdfUsers(searchFormValue);
         break;
       }

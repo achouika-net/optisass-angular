@@ -22,8 +22,6 @@ const PUBLIC_URLS = [
   '/password_reset/verify',
 ] as const;
 
-type PublicUrl = (typeof PUBLIC_URLS)[number];
-
 type AuthStoreInstance = InstanceType<typeof AuthStore>;
 
 /**
@@ -51,7 +49,7 @@ function handleAuthError<T>(
   request: HttpRequest<T>,
   next: HttpHandlerFn,
   error: unknown,
-  authStore: AuthStoreInstance
+  authStore: AuthStoreInstance,
 ): Observable<HttpEvent<T>> {
   if (!(error instanceof HttpErrorResponse)) {
     return throwError(() => error);
@@ -74,7 +72,7 @@ function handleAuthError<T>(
 function handleUnauthorizedError<T>(
   request: HttpRequest<T>,
   next: HttpHandlerFn,
-  authStore: AuthStoreInstance
+  authStore: AuthStoreInstance,
 ): Observable<HttpEvent<T>> {
   const tokens: JwtTokensState = authStore.jwtTokens();
 
@@ -98,7 +96,7 @@ function handleUnauthorizedError<T>(
  */
 function waitForNewToken<T>(
   request: HttpRequest<T>,
-  next: HttpHandlerFn
+  next: HttpHandlerFn,
 ): Observable<HttpEvent<T>> {
   return refreshTokenSubject.pipe(
     filter((token): token is string => token !== null && token.length > 0),
@@ -107,7 +105,7 @@ function waitForNewToken<T>(
     switchMap((newToken) => {
       const authRequest = addAuthHeader(request, newToken);
       return next(authRequest) as Observable<HttpEvent<T>>;
-    })
+    }),
   );
 }
 
@@ -124,7 +122,7 @@ export const JwtInterceptor: HttpInterceptorFn = (req, next) => {
   }
 
   return next(authRequest).pipe(
-    catchError((error) => handleAuthError(authRequest, next, error, authStore))
+    catchError((error) => handleAuthError(authRequest, next, error, authStore)),
   );
 };
 

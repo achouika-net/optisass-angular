@@ -1,8 +1,10 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { inject, Injectable } from '@angular/core';
+// TODO: Uncomment when backend is ready
+// import { HttpClient, HttpParams } from '@angular/common/http';
+// import { inject } from '@angular/core';
+// import { WAREHOUSES_API_URL } from '@app/config';
+// import { getQuery } from '@app/helpers';
+import { Injectable } from '@angular/core';
 import { Sort } from '@angular/material/sort';
-import { WAREHOUSES_API_URL } from '@app/config';
-import { getQuery } from '@app/helpers';
 import { PaginatedApiResponse } from '@app/models';
 import { Observable } from 'rxjs';
 import { IWarehouse, IWarehouseSearch } from '../models';
@@ -16,7 +18,8 @@ import {
 
 @Injectable({ providedIn: 'root' })
 export class WarehouseService {
-  readonly #http = inject(HttpClient);
+  // TODO: Uncomment when backend is ready
+  // readonly #http = inject(HttpClient);
 
   /**
    * Recherche des entrepôts avec pagination et tri.
@@ -29,7 +32,7 @@ export class WarehouseService {
     searchForm: IWarehouseSearch,
     page: number,
     pageSize: number,
-    sort: Sort | null = null
+    sort: Sort | null = null,
   ): Observable<PaginatedApiResponse<IWarehouse>> {
     // TODO: Remplacer par appel API réel quand backend prêt
     // const params: HttpParams = getQuery(searchForm, page, pageSize, sort);

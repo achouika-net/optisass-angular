@@ -2,7 +2,7 @@ import { HttpClient, HttpResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { ILoginRequest, IResetPasswordConfirmRequest, IUserOptions } from '@app/models';
 import { ICurrentUser, IJwtTokens, ILoginResponse } from '@app/models';
-import { Observable, delay, of } from 'rxjs';
+import { Observable } from 'rxjs';
 import { Router } from '@angular/router';
 import {
   API_URL,
@@ -26,7 +26,7 @@ export class AuthService {
    * @return {ILoginResponse} - Contient accessToken, refreshToken et user partiel
    */
   login(data: ILoginRequest): Observable<ILoginResponse> {
-    return this.#http.post<ILoginResponse>(`${LOGIN_API_URL}`, data)
+    return this.#http.post<ILoginResponse>(`${LOGIN_API_URL}`, data);
   }
 
   /**
@@ -43,11 +43,7 @@ export class AuthService {
    * @returns {Observable<HttpResponse<void>>}
    */
   forgotPassword(email: string): Observable<HttpResponse<void>> {
-    return this.#http.post<void>(
-      `${API_URL}/password_reset`,
-      { email },
-      { observe: 'response' }
-    );
+    return this.#http.post<void>(`${API_URL}/password_reset`, { email }, { observe: 'response' });
   }
 
   /**
@@ -76,9 +72,11 @@ export class AuthService {
    * @return Observable<IJwtTokens>
    */
   refreshToken(refreshToken: string): Observable<IJwtTokens> {
-    return this.#http.post<IJwtTokens>(`${REFRESH_TOKEN_API_URL}`, {
-      refreshToken,
-    }).pipe(map((response) => response));
+    return this.#http
+      .post<IJwtTokens>(`${REFRESH_TOKEN_API_URL}`, {
+        refreshToken,
+      })
+      .pipe(map((response) => response));
   }
 
   /**

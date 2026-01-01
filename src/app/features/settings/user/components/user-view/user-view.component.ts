@@ -1,6 +1,4 @@
 import { ChangeDetectionStrategy, Component, effect, inject, input } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
-import { TranslateService } from '@ngx-translate/core';
 import { UserStore } from '../../user.store';
 import { UserFormComponent } from '../user-form/user-form.component';
 
@@ -12,8 +10,6 @@ import { UserFormComponent } from '../user-form/user-form.component';
 })
 export default class UserViewComponent {
   readonly #userStore = inject(UserStore);
-  readonly #dialog = inject(MatDialog);
-  readonly #translate = inject(TranslateService);
 
   // Reçoit automatiquement le paramètre ':id' de la route grâce à withComponentInputBinding()
   readonly id = input.required<number>();
