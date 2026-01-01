@@ -318,50 +318,52 @@ export class JourneeCaisseService {
 
         console.timeEnd('GetResume-Step2-LocalStats');
 
-        // Global Center Stats (Optimized: Single DB Round-trip)
-        console.time('GetResume-Step3-GlobalStats');
-        // Global Center Stats (Optimized: No Joins, Two-Step)
-        console.time('GetResume-Step3-GlobalStats-Ids');
-        // A. Get Open Session IDs first (Fast Index Scan)
-        const openJournees = await this.prisma.journeeCaisse.findMany({
-            where: {
-                centreId: journee.centreId,
-                statut: 'OUVERTE'
-            },
-            select: { id: true }
-        });
-        const openJourneeIds = openJournees.map(j => j.id);
-        console.timeEnd('GetResume-Step3-GlobalStats-Ids');
+        const isDepenses = (journee.caisse as any).type === 'DEPENSES';
 
-        console.time('GetResume-Step3-GlobalStats-Agg');
-        // B. Aggregate using simple IN clause (Avoids expensive JOIN)
-        const globalStats = await this.prisma.operationCaisse.groupBy({
-            by: ['moyenPaiement'],
-            where: {
-                journeeCaisseId: { in: openJourneeIds },
-                typeOperation: 'COMPTABLE',
-                type: 'ENCAISSEMENT'
-            },
-            _sum: {
-                montant: true
-            }
-        });
-
-        // Map results to variables
         let centreVentesEspeces = 0;
         let centreVentesCarte = 0;
         let centreVentesCheque = 0;
 
-        globalStats.forEach(stat => {
-            const amount = stat._sum.montant || 0;
-            if (stat.moyenPaiement === 'ESPECES') centreVentesEspeces = amount;
-            else if (stat.moyenPaiement === 'CARTE') centreVentesCarte = amount;
-            else if (stat.moyenPaiement === 'CHEQUE') centreVentesCheque = amount;
-        });
+        // Global Center Stats (Only needed for DEPENSES registers to calculate 'Total Recettes')
+        if (isDepenses) {
+            console.time('GetResume-Step3-GlobalStats');
+            console.time('GetResume-Step3-GlobalStats-Ids');
+            // A. Get Open Session IDs first (Fast Index Scan)
+            const openJournees = await this.prisma.journeeCaisse.findMany({
+                where: {
+                    centreId: journee.centreId,
+                    statut: 'OUVERTE'
+                },
+                select: { id: true }
+            });
+            const openJourneeIds = openJournees.map(j => j.id);
+            console.timeEnd('GetResume-Step3-GlobalStats-Ids');
 
-        const isDepenses = (journee.caisse as any).type === 'DEPENSES';
+            console.time('GetResume-Step3-GlobalStats-Agg');
+            // B. Aggregate using simple IN clause (Avoids expensive JOIN)
+            const globalStats = await this.prisma.operationCaisse.groupBy({
+                by: ['moyenPaiement'],
+                where: {
+                    journeeCaisseId: { in: openJourneeIds },
+                    typeOperation: 'COMPTABLE',
+                    type: 'ENCAISSEMENT'
+                },
+                _sum: {
+                    montant: true
+                }
+            });
+            console.timeEnd('GetResume-Step3-GlobalStats-Agg');
+            console.timeEnd('GetResume-Step3-GlobalStats');
 
-        console.timeEnd('GetResume-Step3-GlobalStats');
+            globalStats.forEach(stat => {
+                const amount = stat._sum.montant || 0;
+                if (stat.moyenPaiement === 'ESPECES') centreVentesEspeces = amount;
+                else if (stat.moyenPaiement === 'CARTE') centreVentesCarte = amount;
+                else if (stat.moyenPaiement === 'CHEQUE') centreVentesCheque = amount;
+            });
+        }
+
+
         console.timeEnd('GetResume-Total');
 
         return {
