@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -52,7 +52,9 @@ export class ClotureCaisseComponent implements OnInit {
         private journeeService: JourneeCaisseService,
         private router: Router,
         private route: ActivatedRoute,
-        private snackBar: MatSnackBar
+        private snackBar: MatSnackBar,
+        private cdr: ChangeDetectorRef,
+        private zone: NgZone
     ) {
         this.form = this.fb.group({
             soldeReel: [0, [Validators.required, Validators.min(0)]],
@@ -81,37 +83,56 @@ export class ClotureCaisseComponent implements OnInit {
     loadData(): void {
         if (!this.journeeId) return;
 
-        this.loading = true;
-        this.journeeService.getResume(this.journeeId).pipe(
-            timeout(30000), // Increased to 30s for heavy aggregations
-            retry(1),       // Retry once on failure
-            catchError((error) => {
-                console.error('Error loading summary', error);
-                this.snackBar.open(
-                    'Délai d\'attente dépassé ou erreur de connexion. Veuillez réessayer.',
-                    'Rafraîchir',
-                    { duration: 5000 }
-                ).onAction().subscribe(() => window.location.reload());
-                return of(null);
-            }),
-            finalize(() => {
-                this.loading = false;
-            })
-        ).subscribe({
-            next: (resume) => {
-                if (resume) {
-                    this.resume = resume;
+        this.zone.run(() => {
+            console.log('[ClotureCaisse] Starting loadData for', this.journeeId);
+            this.loading = true;
+            this.cdr.markForCheck();
 
-                    // Check if already closed
-                    if (resume.journee.statut === 'FERMEE') {
-                        this.snackBar.open('Cette caisse est déjà fermée', 'Info', { duration: 3000 });
-                        this.router.navigate(['/p/finance/caisse']);
-                    }
+            this.journeeService.getResume(this.journeeId!).pipe(
+                timeout(30000),
+                retry(1),
+                catchError((error) => {
+                    console.error('[ClotureCaisse] Error loading summary', error);
+                    this.zone.run(() => {
+                        this.snackBar.open(
+                            'Erreur ou timeout. Veuillez rafraîchir.',
+                            'Rafraîchir',
+                            { duration: 5000 }
+                        ).onAction().subscribe(() => window.location.reload());
+                    });
+                    return of(null);
+                }),
+                finalize(() => {
+                    this.zone.run(() => {
+                        console.log('[ClotureCaisse] Finalize. Loading set to false.');
+                        this.loading = false;
+                        this.cdr.markForCheck();
+                        this.cdr.detectChanges();
+                    });
+                })
+            ).subscribe({
+                next: (resume) => {
+                    this.zone.run(() => {
+                        console.log('[ClotureCaisse] Resume received:', resume ? 'YES' : 'NULL');
+                        if (resume) {
+                            this.resume = resume;
 
-                    // Initialize form
-                    this.calculateEcart();
-                }
-            },
+                            // Check if already closed
+                            if (resume.journee.statut === 'FERMEE') {
+                                this.snackBar.open('Cette caisse est déjà fermée', 'Info', { duration: 3000 });
+                                this.router.navigate(['/p/finance/caisse']);
+                            }
+
+                            // Initialize form
+                            this.calculateEcart();
+
+                            // Force update
+                            this.cdr.markForCheck();
+                            this.cdr.detectChanges();
+                        }
+                    });
+                },
+            });
         });
     }
 
