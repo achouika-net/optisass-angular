@@ -1315,224 +1315,225 @@
             <!-- ONGLET 6: SUIVI COMMANDE -->
             <!-- ONGLET 6: SUIVI COMMANDE -->
 
-            <!-- MARKER: ROOT CONTEXT CHECK -->
-            <div style="background: yellow; color: black; padding: 5px;">ROOT CONTEXT: ActiveTab={{ activeTab }}</div>
+            <!-- ATTEMPTING TO ESCAPE TAB 4 -->
+        </div>
 
-            <!-- FORCED VISIBILITY DEBUG -->
-            <div class="tab-content" *ngIf="true || activeTab === 5">
-                <!-- Error message if form group is missing -->
-                <div *ngIf="!ficheForm.get('suiviCommande')" class="p-8 text-center">
-                    <mat-icon class="text-red-500 text-6xl mb-4">error</mat-icon>
-                    <h3 class="text-xl font-bold text-red-700 mb-2">Erreur de configuration</h3>
-                    <p class="text-gray-600">Le formulaire de suivi de commande n'est pas initialisé.</p>
+        <!-- MARKER: ROOT CONTEXT CHECK -->
+        <div style="background: yellow; color: black; padding: 5px;">ROOT CONTEXT: ActiveTab={{ activeTab }}</div>
+
+        <!-- FORCED VISIBILITY DEBUG -->
+        <div class="tab-content" *ngIf="true || activeTab === 5">
+            <!-- Error message if form group is missing -->
+            <div *ngIf="!ficheForm.get('suiviCommande')" class="p-8 text-center">
+                <mat-icon class="text-red-500 text-6xl mb-4">error</mat-icon>
+                <h3 class="text-xl font-bold text-red-700 mb-2">Erreur de configuration</h3>
+                <p class="text-gray-600">Le formulaire de suivi de commande n'est pas initialisé.</p>
+            </div>
+
+            <!-- DEBUG: Inner Content Check -->
+            <div style="border: 4px dashed red; padding: 10px; margin-bottom: 20px;">
+                <h3>DEBUG: INSIDE TAB CONTENT</h3>
+                <p>Scope ActiveTab: {{ activeTab }}</p>
+                <p>Form Group Exists: {{ !!ficheForm.get('suiviCommande') }}</p>
+                <p>Statut Value: {{ ficheForm.get('suiviCommande.statut')?.value }}</p>
+                <p>Date Commande: {{ ficheForm.get('suiviCommande.dateCommande')?.value }}</p>
+            </div>
+
+            <div *ngIf="ficheForm.get('suiviCommande')" formGroupName="suiviCommande">
+
+                <!-- Original Header -->
+                <div class="tab-header">
+                    <div class="icon-box-purple">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3>Suivi de Commande Verres</h3>
+                        <p>Gérer le statut de commande auprès du fournisseur</p>
+                    </div>
                 </div>
-
-                <!-- DEBUG: Inner Content Check -->
-                <div style="border: 4px dashed red; padding: 10px; margin-bottom: 20px;">
-                    <h3>DEBUG: INSIDE TAB CONTENT</h3>
-                    <p>Scope ActiveTab: {{ activeTab }}</p>
-                    <p>Form Group Exists: {{ !!ficheForm.get('suiviCommande') }}</p>
-                    <p>Statut Value: {{ ficheForm.get('suiviCommande.statut')?.value }}</p>
-                    <p>Date Commande: {{ ficheForm.get('suiviCommande.dateCommande')?.value }}</p>
-                </div>
-
-                <div *ngIf="ficheForm.get('suiviCommande')" formGroupName="suiviCommande">
-
-                    <!-- Original Header -->
-                    <div class="tab-header">
-                        <div class="icon-box-purple">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                <path
-                                    d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
-                            </svg>
+                <!-- Stepper UI -->
+                <div class="mb-8 px-4">
+                    <div class="relative flex items-center justify-between w-full">
+                        <div class="absolute left-0 top-1/2 transform -translate-y-1/2 w-full h-1 bg-gray-200 -z-10">
                         </div>
-                        <div>
-                            <h3>Suivi de Commande Verres</h3>
-                            <p>Gérer le statut de commande auprès du fournisseur</p>
+                        <!-- Step 1: A Commander -->
+                        <div class="flex flex-col items-center bg-white px-2">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white mb-2"
+                                [ngClass]="{'bg-blue-600': getStepState('A_COMMANDER') === 'active' || getStepState('A_COMMANDER') === 'completed', 'bg-gray-300': getStepState('A_COMMANDER') === 'pending'}">
+                                1
+                            </div>
+                            <span class="text-sm font-medium"
+                                [class.text-blue-600]="getStepState('A_COMMANDER') === 'active'">À
+                                Commander</span>
+                        </div>
+                        <!-- Step 2: Commandé -->
+                        <div class="flex flex-col items-center bg-white px-2">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white mb-2"
+                                [ngClass]="{'bg-blue-600': getStepState('COMMANDE') === 'active' || getStepState('COMMANDE') === 'completed', 'bg-gray-300': getStepState('COMMANDE') === 'pending'}">
+                                2
+                            </div>
+                            <span class="text-sm font-medium"
+                                [class.text-blue-600]="getStepState('COMMANDE') === 'active'">Commandé</span>
+                        </div>
+                        <!-- Step 3: Reçu -->
+                        <div class="flex flex-col items-center bg-white px-2">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white mb-2"
+                                [ngClass]="{'bg-green-600': getStepState('RECU') === 'active' || getStepState('RECU') === 'completed', 'bg-gray-300': getStepState('RECU') === 'pending'}">
+                                3
+                            </div>
+                            <span class="text-sm font-medium"
+                                [class.text-green-600]="getStepState('RECU') === 'active'">Reçu
+                                Atelier</span>
+                        </div>
+                        <!-- Step 4: Livré Client -->
+                        <div class="flex flex-col items-center bg-white px-2">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white mb-2"
+                                [ngClass]="{'bg-purple-600': getStepState('LIVRE_CLIENT') === 'active' || getStepState('LIVRE_CLIENT') === 'completed', 'bg-gray-300': getStepState('LIVRE_CLIENT') === 'pending'}">
+                                4
+                            </div>
+                            <span class="text-sm font-medium"
+                                [class.text-purple-600]="getStepState('LIVRE_CLIENT') === 'active'">Livré
+                                Client</span>
                         </div>
                     </div>
-                    <!-- Stepper UI -->
-                    <div class="mb-8 px-4">
-                        <div class="relative flex items-center justify-between w-full">
-                            <div
-                                class="absolute left-0 top-1/2 transform -translate-y-1/2 w-full h-1 bg-gray-200 -z-10">
-                            </div>
-                            <!-- Step 1: A Commander -->
-                            <div class="flex flex-col items-center bg-white px-2">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white mb-2"
-                                    [ngClass]="{'bg-blue-600': getStepState('A_COMMANDER') === 'active' || getStepState('A_COMMANDER') === 'completed', 'bg-gray-300': getStepState('A_COMMANDER') === 'pending'}">
-                                    1
-                                </div>
-                                <span class="text-sm font-medium"
-                                    [class.text-blue-600]="getStepState('A_COMMANDER') === 'active'">À
-                                    Commander</span>
-                            </div>
-                            <!-- Step 2: Commandé -->
-                            <div class="flex flex-col items-center bg-white px-2">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white mb-2"
-                                    [ngClass]="{'bg-blue-600': getStepState('COMMANDE') === 'active' || getStepState('COMMANDE') === 'completed', 'bg-gray-300': getStepState('COMMANDE') === 'pending'}">
-                                    2
-                                </div>
-                                <span class="text-sm font-medium"
-                                    [class.text-blue-600]="getStepState('COMMANDE') === 'active'">Commandé</span>
-                            </div>
-                            <!-- Step 3: Reçu -->
-                            <div class="flex flex-col items-center bg-white px-2">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white mb-2"
-                                    [ngClass]="{'bg-green-600': getStepState('RECU') === 'active' || getStepState('RECU') === 'completed', 'bg-gray-300': getStepState('RECU') === 'pending'}">
-                                    3
-                                </div>
-                                <span class="text-sm font-medium"
-                                    [class.text-green-600]="getStepState('RECU') === 'active'">Reçu
-                                    Atelier</span>
-                            </div>
-                            <!-- Step 4: Livré Client -->
-                            <div class="flex flex-col items-center bg-white px-2">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white mb-2"
-                                    [ngClass]="{'bg-purple-600': getStepState('LIVRE_CLIENT') === 'active' || getStepState('LIVRE_CLIENT') === 'completed', 'bg-gray-300': getStepState('LIVRE_CLIENT') === 'pending'}">
-                                    4
-                                </div>
-                                <span class="text-sm font-medium"
-                                    [class.text-purple-600]="getStepState('LIVRE_CLIENT') === 'active'">Livré
-                                    Client</span>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Action Area -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Left: Status & Actions -->
-                        <div class="space-y-6">
-                            <div class="section-card">
-                                <h4>Actions & Statut</h4>
-                                <div class="p-4 bg-gray-50 rounded-lg mb-4 text-center border border-gray-100">
-                                    <span class="text-gray-500 uppercase text-xs font-bold tracking-wider">Statut
-                                        Actuel</span>
-                                    <div class="text-2xl font-bold mt-1" [ngClass]="{
+                </div>
+                <!-- Action Area -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Left: Status & Actions -->
+                    <div class="space-y-6">
+                        <div class="section-card">
+                            <h4>Actions & Statut</h4>
+                            <div class="p-4 bg-gray-50 rounded-lg mb-4 text-center border border-gray-100">
+                                <span class="text-gray-500 uppercase text-xs font-bold tracking-wider">Statut
+                                    Actuel</span>
+                                <div class="text-2xl font-bold mt-1" [ngClass]="{
                                     'text-orange-500': suiviStatut === 'A_COMMANDER',
                                     'text-blue-600': suiviStatut === 'COMMANDE',
                                     'text-green-600': suiviStatut === 'RECU',
                                     'text-purple-600': suiviStatut === 'LIVRE_CLIENT'
                                 }">
-                                        {{ suiviStatut === 'A_COMMANDER' ? 'À COMMANDER' :
-                                        suiviStatut === 'COMMANDE' ? 'EN COMMANDE' :
-                                        suiviStatut === 'RECU' ? 'REÇU ATELIER' : 'LIVRÉ CLIENT' }}
-                                    </div>
-                                </div>
-                                <div class="flex flex-col gap-3">
-                                    <button type="button" class="btn-primary" (click)="setOrderStatus('COMMANDE')"
-                                        *ngIf="suiviStatut === 'A_COMMANDER'" [disabled]="!isEditMode">
-                                        <mat-icon class="mr-2">send</mat-icon> Marquer comme Commandé
-                                    </button>
-                                    <button type="button" class="btn-success" (click)="setOrderStatus('RECU')"
-                                        *ngIf="suiviStatut === 'COMMANDE'" [disabled]="!isEditMode">
-                                        <mat-icon class="mr-2">check_circle</mat-icon> Marquer comme Reçu
-                                    </button>
-                                    <button type="button" class="btn-purple" (click)="setOrderStatus('LIVRE_CLIENT')"
-                                        *ngIf="suiviStatut === 'RECU'" [disabled]="!isEditMode">
-                                        <mat-icon class="mr-2">inventory_2</mat-icon> Marquer comme Livré au
-                                        Client
-                                    </button>
+                                    {{ suiviStatut === 'A_COMMANDER' ? 'À COMMANDER' :
+                                    suiviStatut === 'COMMANDE' ? 'EN COMMANDE' :
+                                    suiviStatut === 'RECU' ? 'REÇU ATELIER' : 'LIVRÉ CLIENT' }}
                                 </div>
                             </div>
-
-                            <!-- Gestion de la Casse -->
-                            <div class="section-card border-l-4 border-red-500">
-                                <div class="flex justify-between items-center mb-4">
-                                    <h4 class="text-red-700 flex items-center">
-                                        <mat-icon class="mr-2">gavel</mat-icon> Gestion de la Casse
-                                    </h4>
-                                    <span class="badge-red"
-                                        *ngIf="ficheForm.get('suiviCommande.casseCount')?.value > 0">
-                                        {{ ficheForm.get('suiviCommande.casseCount')?.value }} Casse(s)
-                                    </span>
-                                </div>
-                                <p class="text-sm text-gray-600 mb-4">
-                                    En cas de casse durant le montage, déclarez-la ici pour réinitialiser la
-                                    commande et
-                                    garder une trace historique.
-                                </p>
-                                <button type="button"
-                                    class="w-full py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg font-bold hover:bg-red-100 transition-colors flex items-center justify-center"
-                                    (click)="reportCasse()" [disabled]="!isEditMode">
-                                    <mat-icon class="mr-2">warning</mat-icon> DÉCLARER UNE CASSE
+                            <div class="flex flex-col gap-3">
+                                <button type="button" class="btn-primary" (click)="setOrderStatus('COMMANDE')"
+                                    *ngIf="suiviStatut === 'A_COMMANDER'" [disabled]="!isEditMode">
+                                    <mat-icon class="mr-2">send</mat-icon> Marquer comme Commandé
                                 </button>
-
-                                <!-- Casse History -->
-                                <div class="mt-4 space-y-2"
-                                    *ngIf="ficheForm.get('suiviCommande.casseHistorique')?.value?.length > 0">
-                                    <div *ngFor="let entry of ficheForm.get('suiviCommande.casseHistorique')?.value; let i = index"
-                                        class="p-2 bg-red-50/50 rounded text-xs border border-red-100">
-                                        <div class="flex justify-between font-bold text-red-800">
-                                            <span>Casse #{{ i + 1 }} - {{ entry.oeil }}</span>
-                                            <span>{{ entry.date | date:'dd/MM/yyyy' }}</span>
-                                        </div>
-                                        <div class="text-red-600 mt-1 italic italic">Raison: {{ entry.raison }}
-                                        </div>
-                                    </div>
-                                </div>
+                                <button type="button" class="btn-success" (click)="setOrderStatus('RECU')"
+                                    *ngIf="suiviStatut === 'COMMANDE'" [disabled]="!isEditMode">
+                                    <mat-icon class="mr-2">check_circle</mat-icon> Marquer comme Reçu
+                                </button>
+                                <button type="button" class="btn-purple" (click)="setOrderStatus('LIVRE_CLIENT')"
+                                    *ngIf="suiviStatut === 'RECU'" [disabled]="!isEditMode">
+                                    <mat-icon class="mr-2">inventory_2</mat-icon> Marquer comme Livré au
+                                    Client
+                                </button>
                             </div>
                         </div>
 
-                        <!-- Right: Details Form -->
-                        <div class="section-card">
-                            <h4>Détails Commande</h4>
-                            <div class="grid grid-cols-1 gap-4">
-                                <mat-form-field appearance="outline">
-                                    <mat-label>Fournisseur Verres</mat-label>
-                                    <mat-select formControlName="fournisseur">
-                                        <mat-option *ngFor="let brand of lensBrands" [value]="brand">{{ brand
-                                            }}</mat-option>
-                                    </mat-select>
-                                </mat-form-field>
+                        <!-- Gestion de la Casse -->
+                        <div class="section-card border-l-4 border-red-500">
+                            <div class="flex justify-between items-center mb-4">
+                                <h4 class="text-red-700 flex items-center">
+                                    <mat-icon class="mr-2">gavel</mat-icon> Gestion de la Casse
+                                </h4>
+                                <span class="badge-red" *ngIf="ficheForm.get('suiviCommande.casseCount')?.value > 0">
+                                    {{ ficheForm.get('suiviCommande.casseCount')?.value }} Casse(s)
+                                </span>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-4">
+                                En cas de casse durant le montage, déclarez-la ici pour réinitialiser la
+                                commande et
+                                garder une trace historique.
+                            </p>
+                            <button type="button"
+                                class="w-full py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg font-bold hover:bg-red-100 transition-colors flex items-center justify-center"
+                                (click)="reportCasse()" [disabled]="!isEditMode">
+                                <mat-icon class="mr-2">warning</mat-icon> DÉCLARER UNE CASSE
+                            </button>
 
-                                <div class="grid grid-cols-2 gap-4">
-                                    <mat-form-field appearance="outline">
-                                        <mat-label>Réf. Commande</mat-label>
-                                        <input matInput formControlName="referenceCommande" placeholder="Ex: CMD-12345">
-                                    </mat-form-field>
-                                    <mat-form-field appearance="outline">
-                                        <mat-label>Tracking / BL</mat-label>
-                                        <input matInput formControlName="trackingNumber" placeholder="N° de suivi">
-                                    </mat-form-field>
+                            <!-- Casse History -->
+                            <div class="mt-4 space-y-2"
+                                *ngIf="ficheForm.get('suiviCommande.casseHistorique')?.value?.length > 0">
+                                <div *ngFor="let entry of ficheForm.get('suiviCommande.casseHistorique')?.value; let i = index"
+                                    class="p-2 bg-red-50/50 rounded text-xs border border-red-100">
+                                    <div class="flex justify-between font-bold text-red-800">
+                                        <span>Casse #{{ i + 1 }} - {{ entry.oeil }}</span>
+                                        <span>{{ entry.date | date:'dd/MM/yyyy' }}</span>
+                                    </div>
+                                    <div class="text-red-600 mt-1 italic italic">Raison: {{ entry.raison }}
+                                    </div>
                                 </div>
-
-                                <div class="grid grid-cols-2 gap-4">
-                                    <mat-form-field appearance="outline">
-                                        <mat-label>Date Commande</mat-label>
-                                        <input matInput [matDatepicker]="pickerCmd" formControlName="dateCommande">
-                                        <mat-datepicker-toggle matSuffix [for]="pickerCmd"></mat-datepicker-toggle>
-                                        <mat-datepicker #pickerCmd></mat-datepicker>
-                                    </mat-form-field>
-                                    <mat-form-field appearance="outline">
-                                        <mat-label>Date Réception</mat-label>
-                                        <input matInput [matDatepicker]="pickerRecu" formControlName="dateReception">
-                                        <mat-datepicker-toggle matSuffix [for]="pickerRecu"></mat-datepicker-toggle>
-                                        <mat-datepicker #pickerRecu></mat-datepicker>
-                                    </mat-form-field>
-                                </div>
-
-                                <mat-form-field appearance="outline">
-                                    <mat-label>Commentaires / Suivi</mat-label>
-                                    <textarea matInput formControlName="commentaire" rows="5"
-                                        placeholder="Notes sur la commande ou historique de suivi..."></textarea>
-                                </mat-form-field>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Right: Details Form -->
+                    <div class="section-card">
+                        <h4>Détails Commande</h4>
+                        <div class="grid grid-cols-1 gap-4">
+                            <mat-form-field appearance="outline">
+                                <mat-label>Fournisseur Verres</mat-label>
+                                <mat-select formControlName="fournisseur">
+                                    <mat-option *ngFor="let brand of lensBrands" [value]="brand">{{ brand
+                                        }}</mat-option>
+                                </mat-select>
+                            </mat-form-field>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Réf. Commande</mat-label>
+                                    <input matInput formControlName="referenceCommande" placeholder="Ex: CMD-12345">
+                                </mat-form-field>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Tracking / BL</mat-label>
+                                    <input matInput formControlName="trackingNumber" placeholder="N° de suivi">
+                                </mat-form-field>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Date Commande</mat-label>
+                                    <input matInput [matDatepicker]="pickerCmd" formControlName="dateCommande">
+                                    <mat-datepicker-toggle matSuffix [for]="pickerCmd"></mat-datepicker-toggle>
+                                    <mat-datepicker #pickerCmd></mat-datepicker>
+                                </mat-form-field>
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Date Réception</mat-label>
+                                    <input matInput [matDatepicker]="pickerRecu" formControlName="dateReception">
+                                    <mat-datepicker-toggle matSuffix [for]="pickerRecu"></mat-datepicker-toggle>
+                                    <mat-datepicker #pickerRecu></mat-datepicker>
+                                </mat-form-field>
+                            </div>
+
+                            <mat-form-field appearance="outline">
+                                <mat-label>Commentaires / Suivi</mat-label>
+                                <textarea matInput formControlName="commentaire" rows="5"
+                                    placeholder="Notes sur la commande ou historique de suivi..."></textarea>
+                            </mat-form-field>
+                        </div>
+                    </div>
                 </div>
-            </div> <!-- End formGroupName wrapper -->
-        </div> <!-- End tab-content -->
-        <!-- Footer Navigation inside Form -->
-        <div class="footer-nav">
-            <button type="button" class="btn-secondary" (click)="prevTab()" [disabled]="activeTab === 0">←
-                Précédent</button>
-            <button type="button" class="btn-primary" (click)="nextTab()" [disabled]="loading">
-                {{ activeTab === 5 ? 'Fermer' : 'Suivant' }}
-                <span *ngIf="activeTab < 5">→</span>
-            </button>
-        </div>
+            </div>
+        </div> <!-- End formGroupName wrapper -->
+    </div> <!-- End tab-content -->
+    <!-- Footer Navigation inside Form -->
+    <div class="footer-nav">
+        <button type="button" class="btn-secondary" (click)="prevTab()" [disabled]="activeTab === 0">←
+            Précédent</button>
+        <button type="button" class="btn-primary" (click)="nextTab()" [disabled]="loading">
+            {{ activeTab === 5 ? 'Fermer' : 'Suivant' }}
+            <span *ngIf="activeTab < 5">→</span>
+        </button>
     </div>
 </div>
+
 <!-- File Viewer Modal -->
 <div class="file-viewer-modal" *ngIf="viewingFile" (click)="closeViewer()">
     <div class="modal-content" (click)="$event.stopPropagation()">
