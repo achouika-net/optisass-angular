@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -41,7 +41,9 @@ export class CaisseHistoryComponent implements OnInit {
     constructor(
         private journeeService: JourneeCaisseService,
         private store: Store,
-        private router: Router
+        private router: Router,
+        private cdr: ChangeDetectorRef,
+        private zone: NgZone
     ) { }
 
     ngOnInit(): void {
@@ -51,17 +53,31 @@ export class CaisseHistoryComponent implements OnInit {
     loadHistory(): void {
         this.store.select(TenantSelector).pipe(take(1)).subscribe(centreId => {
             if (centreId) {
-                this.loading = true;
-                // Optimized call: Filters by FERMEE in DB and limits result
-                this.journeeService.findHistory(centreId).subscribe({
-                    next: (data) => {
-                        this.sessions = data; // No frontend filtering needed
-                        this.loading = false;
-                    },
-                    error: (err) => {
-                        console.error('Error loading history', err);
-                        this.loading = false;
-                    }
+                this.zone.run(() => {
+                    console.log('[History] Loading history for centre', centreId);
+                    this.loading = true;
+                    this.cdr.markForCheck();
+
+                    // Optimized call
+                    this.journeeService.findHistory(centreId).subscribe({
+                        next: (data) => {
+                            this.zone.run(() => {
+                                console.log('[History] Data received:', data.length);
+                                this.sessions = data;
+                                this.loading = false;
+                                this.cdr.markForCheck();
+                                this.cdr.detectChanges();
+                            });
+                        },
+                        error: (err) => {
+                            this.zone.run(() => {
+                                console.error('[History] Error loading history', err);
+                                this.loading = false;
+                                this.cdr.markForCheck();
+                                this.cdr.detectChanges();
+                            });
+                        }
+                    });
                 });
             }
         });
