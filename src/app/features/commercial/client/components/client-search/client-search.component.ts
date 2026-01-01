@@ -2,11 +2,10 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { form } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ActionsButtonsComponent } from '@app/components';
-import { ActionsButton, PermissionType } from '@app/models';
+import { ActionsButton, ClientSearch, IClientSearch, PermissionType } from '@app/models';
 import { ClientStore } from '../../client.store';
 import { ClientSearchFormComponent } from './client-search-form/client-search-form.component';
 import { ClientSearchTableComponent } from './client-search-table/client-search-table.component';
-import { IClientSearch, ClientSearch } from '../../models';
 
 @Component({
   selector: 'app-client-search',

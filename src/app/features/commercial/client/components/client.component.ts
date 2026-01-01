@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { ClientService } from '../services/client.service';
+import { ClientService } from '@app/services';
 import { ClientStore } from '../client.store';
 
 @Component({

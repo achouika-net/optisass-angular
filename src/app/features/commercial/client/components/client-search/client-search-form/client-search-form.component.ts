@@ -18,9 +18,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { States } from '@app/config';
 import { FieldControlLabelDirective } from '@app/directives';
-import { IResource } from '@app/models';
+import { IClientSearch, IResource } from '@app/models';
 import { TranslateModule } from '@ngx-translate/core';
-import { IClientSearch } from '../../../models';
 import { ClientStore } from '../../../client.store';
 
 @Component({

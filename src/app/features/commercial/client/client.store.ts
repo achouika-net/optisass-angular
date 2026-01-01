@@ -4,16 +4,14 @@ import { PageEvent } from '@angular/material/paginator';
 import { Sort } from '@angular/material/sort';
 import { Router } from '@angular/router';
 import { DEFAULT_PAGE_SIZE } from '@app/config';
-import { PaginatedApiResponse } from '@app/models';
-import { ErrorService } from '@app/services';
+import { ClientSearch, IClient, IClientSearch, PaginatedApiResponse } from '@app/models';
+import { ClientService, ErrorService } from '@app/services';
 import { patchState, signalState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
 import { ToastrService } from 'ngx-toastr';
 import { catchError, of, pipe, switchMap } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { ClientSearch, IClient, IClientSearch } from './models';
-import { ClientService } from './services/client.service';
 
 interface ClientState {
   clients: PaginatedApiResponse<IClient>;
