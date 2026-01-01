@@ -1,0 +1,36 @@
+<div class="flex flex-col flex-wrap md:flex-row">
+  @for (row of statisticsCardsData(); track $index) {
+    <mat-card
+      class="justify-center text-center md:flex-1"
+      [class]="row.class"
+      (click)="cardClick.emit(row.id)"
+    >
+      <div class="p-2.5 text-white">
+        <h2 class="m-0">{{ row.value || 0 }}</h2>
+        <small>{{ row.label | translate }}</small>
+        @if (row.icon) {
+          <div>
+            <mat-icon>{{ row.icon }}</mat-icon>
+          </div>
+        }
+      </div>
+      @if (row.extras) {
+        <mat-card class="m-0 rounded-t-none text-center md:flex-1">
+          @for (extra of row.extras; track $index) {
+            <div class="p-2.5">
+              @if (extra.icon) {
+                <mat-icon [class]="extra.iconClass" class="mr-1 align-middle">
+                  {{ extra.icon }}
+                </mat-icon>
+              }
+              <small>
+                {{ extra.label | translate }} :
+                {{ extra.value || 0 }}
+              </small>
+            </div>
+          }
+        </mat-card>
+      }
+    </mat-card>
+  }
+</div>

@@ -19,6 +19,7 @@ export * from './remaining-time.model';
 export * from './reset-password-confirm-request.model';
 export * from './resource.model';
 export * from './role.model';
+export * from './statistic-card.model';
 export * from './tenant.model';
 export * from './type-client.model';
 export * from './user-options.model';
