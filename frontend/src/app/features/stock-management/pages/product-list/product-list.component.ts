@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
@@ -91,7 +91,9 @@ export class ProductListComponent implements OnInit {
         private warehousesService: WarehousesService,
         private store: Store,
         private dialog: MatDialog,
-        private snackBar: MatSnackBar
+        private snackBar: MatSnackBar,
+        private zone: NgZone,
+        private cdr: ChangeDetectorRef
     ) {
         // Automatically reload when center changes
         effect(() => {
@@ -115,18 +117,21 @@ export class ProductListComponent implements OnInit {
     loadProducts(): void {
         this.dataSource.data = []; // Reset for stability
         this.productService.findAll(this.filter).subscribe(products => {
-            const center = this.currentCentre();
-            if (center) {
-                // Strictly filter by current center AND exclude defective warehouses from main view
-                this.dataSource.data = products.filter(p =>
-                    p.entrepot?.centreId === center.id &&
-                    !p.entrepot?.nom?.toLowerCase().includes('défectueux') &&
-                    !p.entrepot?.nom?.toLowerCase().includes('defectueux') &&
-                    p.entrepot?.nom?.toUpperCase() !== 'DÉFECTUEUX'
-                );
-            } else {
-                this.dataSource.data = products;
-            }
+            this.zone.run(() => {
+                const center = this.currentCentre();
+                if (center) {
+                    // Strictly filter by current center AND exclude defective warehouses from main view
+                    this.dataSource.data = products.filter(p =>
+                        p.entrepot?.centreId === center.id &&
+                        !p.entrepot?.nom?.toLowerCase().includes('défectueux') &&
+                        !p.entrepot?.nom?.toLowerCase().includes('defectueux') &&
+                        p.entrepot?.nom?.toUpperCase() !== 'DÉFECTUEUX'
+                    );
+                } else {
+                    this.dataSource.data = products;
+                }
+                this.cdr.markForCheck();
+            });
         });
     }
 

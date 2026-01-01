@@ -1,4 +1,4 @@
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, OnInit, Input, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
@@ -43,7 +43,9 @@ export class FactureListComponent implements OnInit {
         private factureService: FactureService,
         private snackBar: MatSnackBar,
         private dialog: MatDialog,
-        private router: Router
+        private router: Router,
+        private cdr: ChangeDetectorRef,
+        private zone: NgZone
     ) { }
 
     ngOnInit(): void {
@@ -78,8 +80,11 @@ export class FactureListComponent implements OnInit {
 
         this.factureService.findAll(filters).subscribe({
             next: (data: any[]) => {
-                this.dataSource = data.filter(f => f.type !== 'AVOIR');
-                this.applyFilter();
+                this.zone.run(() => {
+                    this.dataSource = data.filter(f => f.type !== 'AVOIR');
+                    this.applyFilter();
+                    this.cdr.markForCheck();
+                });
             },
             error: (err: any) => console.error('Error loading factures', err)
         });

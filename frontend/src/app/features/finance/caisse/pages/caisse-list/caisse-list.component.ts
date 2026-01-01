@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit, OnDestroy } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -50,7 +50,8 @@ export class CaisseListComponent implements OnInit, OnDestroy {
         private route: ActivatedRoute,
         private store: Store,
         private dialog: MatDialog,
-        private cdr: ChangeDetectorRef
+        private cdr: ChangeDetectorRef,
+        private zone: NgZone
     ) { }
 
     ngOnInit(): void {
@@ -74,14 +75,18 @@ export class CaisseListComponent implements OnInit, OnDestroy {
                 })
             ).subscribe({
                 next: (caisses) => {
-                    this.caisses = caisses;
-                    this.loading = false;
-                    this.cdr.markForCheck();
+                    this.zone.run(() => {
+                        this.caisses = caisses;
+                        this.loading = false;
+                        this.cdr.markForCheck();
+                    });
                 },
                 error: (error) => {
-                    console.error('Error loading cash registers', error);
-                    this.loading = false;
-                    this.cdr.markForCheck();
+                    this.zone.run(() => {
+                        console.error('Error loading cash registers', error);
+                        this.loading = false;
+                        this.cdr.markForCheck();
+                    });
                 },
             })
         );

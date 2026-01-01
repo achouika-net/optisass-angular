@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -60,7 +60,8 @@ export class ClientListComponent implements OnInit {
         private fb: FormBuilder,
         private router: Router,
         private clientService: ClientManagementService,
-        private snackBar: MatSnackBar
+        private snackBar: MatSnackBar,
+        private zone: NgZone
     ) {
         this.searchForm = this.fb.group({
             typeClient: [''],
@@ -92,9 +93,11 @@ export class ClientListComponent implements OnInit {
     loadClients() {
         this.clientService.getClients().subscribe({
             next: (data) => {
-                this.clients.set(data);
-                this.totalItems = data.length;
-                this.updateStats(data);
+                this.zone.run(() => {
+                    this.clients.set(data);
+                    this.totalItems = data.length;
+                    this.updateStats(data);
+                });
             },
             error: (err) => console.error('Error loading clients', err)
         });
