@@ -483,6 +483,7 @@ model OperationCaisse {
   @@index([journeeCaisseId])
   @@index([type])
   @@index([typeOperation])
+  @@index([moyenPaiement])
   @@index([createdAt])
 }
 

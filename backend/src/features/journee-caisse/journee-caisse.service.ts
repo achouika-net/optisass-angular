@@ -235,6 +235,10 @@ export class JourneeCaisseService {
     }
 
     async getResume(id: string) {
+        console.time('GetResume-Total');
+        console.log('--- START GET RESUME ---');
+
+        console.time('GetResume-Step1-Metadata');
         // 1. Fetch metadata only (STOP fetching all operations)
         const journee = await this.prisma.journeeCaisse.findUnique({
             where: { id },
@@ -249,7 +253,10 @@ export class JourneeCaisseService {
             throw new NotFoundException('Journée de caisse introuvable');
         }
 
+        console.timeEnd('GetResume-Step1-Metadata');
+
         // 2. Aggregate Local Stats (Current Session) - Database side
+        console.time('GetResume-Step2-LocalStats');
         const localAggregates = await this.prisma.operationCaisse.groupBy({
             by: ['type', 'typeOperation', 'moyenPaiement'],
             where: { journeeCaisseId: id },
@@ -309,7 +316,10 @@ export class JourneeCaisseService {
             }
         });
 
+        console.timeEnd('GetResume-Step2-LocalStats');
+
         // Global Center Stats (Optimized: Single DB Round-trip)
+        console.time('GetResume-Step3-GlobalStats');
         const globalStats = await this.prisma.operationCaisse.groupBy({
             by: ['moyenPaiement'],
             where: {
@@ -338,6 +348,9 @@ export class JourneeCaisseService {
         });
 
         const isDepenses = (journee.caisse as any).type === 'DEPENSES';
+
+        console.timeEnd('GetResume-Step3-GlobalStats');
+        console.timeEnd('GetResume-Total');
 
         return {
             journee: {
