@@ -300,8 +300,16 @@
 </div>
 
 <ng-template #loadingTpl>
-    <div class="loading-container">
+    <div class="loading-container" *ngIf="loading">
         <mat-spinner diameter="50"></mat-spinner>
         <p>Préparation de la clôture...</p>
+    </div>
+
+    <!-- Explicit Error State if not loading and no resume -->
+    <div class="error-container" *ngIf="!loading">
+        <mat-icon class="text-red-500" style="font-size: 48px; height: 48px; width: 48px;">error_outline</mat-icon>
+        <h3>Impossible de charger les données</h3>
+        <p>Le serveur n'a pas renvoyé le résumé de caisse.</p>
+        <button mat-flat-button color="primary" (click)="loadData()">Réessayer</button>
     </div>
 </ng-template>
