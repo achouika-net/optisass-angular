@@ -299,7 +299,9 @@ export class JourneeCaisseService {
         });
 
         // Global Center Stats (For Cards 4 & 5) - Optimized with aggregation
-        const centreStats = await this.prisma.operationCaisse.aggregate({
+        // Global Center Stats (Optimized: Single DB Round-trip)
+        const globalStats = await this.prisma.operationCaisse.groupBy({
+            by: ['moyenPaiement'],
             where: {
                 journeeCaisse: {
                     centreId: journee.centreId,
@@ -313,35 +315,17 @@ export class JourneeCaisseService {
             }
         });
 
-        const centreVentesEspeces = (await this.prisma.operationCaisse.aggregate({
-            where: {
-                journeeCaisse: { centreId: journee.centreId, statut: 'OUVERTE' },
-                typeOperation: 'COMPTABLE',
-                type: 'ENCAISSEMENT',
-                moyenPaiement: 'ESPECES'
-            },
-            _sum: { montant: true }
-        }))._sum.montant || 0;
+        // Map results to variables
+        let centreVentesEspeces = 0;
+        let centreVentesCarte = 0;
+        let centreVentesCheque = 0;
 
-        const centreVentesCarte = (await this.prisma.operationCaisse.aggregate({
-            where: {
-                journeeCaisse: { centreId: journee.centreId, statut: 'OUVERTE' },
-                typeOperation: 'COMPTABLE',
-                type: 'ENCAISSEMENT',
-                moyenPaiement: 'CARTE'
-            },
-            _sum: { montant: true }
-        }))._sum.montant || 0;
-
-        const centreVentesCheque = (await this.prisma.operationCaisse.aggregate({
-            where: {
-                journeeCaisse: { centreId: journee.centreId, statut: 'OUVERTE' },
-                typeOperation: 'COMPTABLE',
-                type: 'ENCAISSEMENT',
-                moyenPaiement: 'CHEQUE'
-            },
-            _sum: { montant: true }
-        }))._sum.montant || 0;
+        globalStats.forEach(stat => {
+            const amount = stat._sum.montant || 0;
+            if (stat.moyenPaiement === 'ESPECES') centreVentesEspeces = amount;
+            else if (stat.moyenPaiement === 'CARTE') centreVentesCarte = amount;
+            else if (stat.moyenPaiement === 'CHEQUE') centreVentesCheque = amount;
+        });
 
         const isDepenses = (journee.caisse as any).type === 'DEPENSES';
 

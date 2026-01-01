@@ -11,7 +11,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { MatStepperModule } from '@angular/material/stepper';
-import { catchError, finalize, of, timeout } from 'rxjs';
+import { catchError, finalize, of, timeout, retry } from 'rxjs';
 import { JourneeCaisseService } from '../../services/journee-caisse.service';
 import { JourneeResume } from '../../models/caisse.model';
 
@@ -83,7 +83,8 @@ export class ClotureCaisseComponent implements OnInit {
 
         this.loading = true;
         this.journeeService.getResume(this.journeeId).pipe(
-            timeout(10000),
+            timeout(30000), // Increased to 30s for heavy aggregations
+            retry(1),       // Retry once on failure
             catchError((error) => {
                 console.error('Error loading summary', error);
                 this.snackBar.open(
