@@ -15,6 +15,7 @@ import { Router } from '@angular/router';
 import { ClientManagementService } from '../../services/client.service';
 import { Client, StatutClient, TypeClient, isClientParticulier, isClientProfessionnel } from '../../models/client.model';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MessagingService, MessageType } from '../../../../core/services/messaging.service';
 
 interface ClientStats {
     actifs: number;
@@ -61,7 +62,8 @@ export class ClientListComponent implements OnInit {
         private router: Router,
         private clientService: ClientManagementService,
         private snackBar: MatSnackBar,
-        private zone: NgZone
+        private zone: NgZone,
+        private messagingService: MessagingService
     ) {
         this.searchForm = this.fb.group({
             typeClient: [''],
@@ -229,5 +231,18 @@ export class ClientListComponent implements OnInit {
             return 'Professionnel';
         }
         return typeClient;
+    }
+
+    sendMessage(client: Client, type: MessageType) {
+        if (!client.telephone) {
+            this.snackBar.open('Ce client n\'a pas de numéro de téléphone', 'Fermer', { duration: 3000 });
+            return;
+        }
+
+        const clientName = this.getClientName(client);
+        const clientPrenom = this.getClientPrenom(client);
+        const fullName = clientPrenom !== '-' ? `${clientName} ${clientPrenom}` : clientName;
+
+        this.messagingService.openWhatsApp(client.telephone, type, { name: fullName });
     }
 }
