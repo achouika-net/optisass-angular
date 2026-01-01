@@ -1,148 +1,82 @@
-@if (!hidden()) {
-  <div>
-    <!-- Street with autocomplete -->
-    <mat-form-field class="w-full" appearance="outline">
-      <mat-label>{{ streetLabel() }}</mat-label>
-
-      <input
-        matInput
-        type="text"
-        [value]="streetInput()"
-        [placeholder]="'address.streetPlaceholder' | translate"
-        [disabled]="disabled()"
-        [readonly]="readonly()"
-        [required]="streetRequired()"
-        [matAutocomplete]="auto"
-        (input)="onStreetInput($event)"
-        (blur)="onBlur('street')"
-      />
-
+@if (!isHidden()) {
+  <!-- Street with autocomplete -->
+  <mat-form-field appearance="outline">
+    <mat-label>{{ streetLabelKey() | translate }}</mat-label>
+    <input
+      matInput
+      type="text"
+      [field]="streetField()"
+      [placeholder]="'address.streetPlaceholder' | translate"
+      [matAutocomplete]="auto"
+    />
+    @if (addressResource.isLoading()) {
+      <mat-spinner matSuffix diameter="20" />
+    }
+    @if (streetField()().value() && !isDisabled() && !isReadonly()) {
+      <button type="button" matSuffix mat-icon-button aria-label="Clear" (click)="clear()">
+        <mat-icon>close</mat-icon>
+      </button>
+    }
+    <mat-autocomplete
+      #auto="matAutocomplete"
+      [displayWith]="displayFn"
+      (optionSelected)="onOptionSelected($event)"
+    >
       @if (addressResource.isLoading()) {
-        <mat-spinner matSuffix diameter="20" />
-      }
-
-      @if (streetInput() && !disabled() && !readonly()) {
-        <button
-          type="button"
-          matSuffix
-          mat-icon-button
-          aria-label="Clear"
-          (click)="clear()"
-        >
-          <mat-icon>close</mat-icon>
-        </button>
-      }
-
-      <mat-autocomplete
-        #auto="matAutocomplete"
-        [displayWith]="displayFn"
-        (optionSelected)="onOptionSelected($event)"
-      >
-        @if (addressResource.isLoading()) {
-          <mat-option disabled>
-            {{ 'commun.loading' | translate }}
-          </mat-option>
-        } @else {
-          @for (address of addressResource.value(); track address.id) {
-            <mat-option [value]="address">
-              <div class="flex items-center gap-2">
-                <mat-icon class="text-gray-500">location_on</mat-icon>
-                <div class="flex flex-col">
-                  <span>{{ address.formatted }}</span>
-                  @if (address.city && address.postcode) {
-                    <span class="text-sm text-gray-500">
-                      {{ address.postcode }} {{ address.city }}
-                    </span>
-                  }
-                </div>
+        <mat-option disabled>{{ 'commun.loading' | translate }}</mat-option>
+      } @else {
+        @for (addr of addressResource.value(); track addr.id) {
+          <mat-option [value]="addr">
+            <div class="flex items-center gap-2">
+              <mat-icon class="text-gray-500">location_on</mat-icon>
+              <div class="flex flex-col">
+                <span>{{ addr.formatted }}</span>
+                @if (addr.city && addr.postcode) {
+                  <span class="text-sm text-gray-500">{{ addr.postcode }} {{ addr.city }}</span>
+                }
               </div>
-            </mat-option>
-          }
+            </div>
+          </mat-option>
         }
-      </mat-autocomplete>
+      }
+    </mat-autocomplete>
+    @if (streetField()().touched() && streetField()().invalid()) {
+      <mat-error app-field-error [errors]="streetField()().errors()" fieldname="street" />
+    }
+  </mat-form-field>
 
-      @if (showStreetError()) {
-        <mat-error>
-          @for (error of streetErrors(); track $index) {
-            {{ error.message || ('validators.' + error.kind | translate) }}
-          }
-        </mat-error>
+  <!-- Street Line 2 -->
+  <mat-form-field appearance="outline">
+    <mat-label>{{ streetLine2LabelKey() | translate }}</mat-label>
+    <input
+      matInput
+      type="text"
+      [field]="streetLine2Field()"
+      [placeholder]="'address.streetLine2Placeholder' | translate"
+    />
+    @if (streetLine2Field()().touched() && streetLine2Field()().invalid()) {
+      <mat-error app-field-error [errors]="streetLine2Field()().errors()" fieldname="streetLine2" />
+    }
+  </mat-form-field>
+
+  <!-- Postcode and City row -->
+  <div class="address-row">
+    <!-- Postcode -->
+    <mat-form-field appearance="outline" appFieldControlLabel>
+      <mat-label>{{ postcodeLabelKey() | translate }}</mat-label>
+      <input matInput type="text" [field]="postcodeField()" />
+      @if (postcodeField()().touched() && postcodeField()().invalid()) {
+        <mat-error app-field-error [errors]="postcodeField()().errors()" fieldname="postcode" pattern="postcode" />
       }
     </mat-form-field>
 
-    <!-- Street Line 2 -->
-    <mat-form-field class="w-full" appearance="outline">
-      <mat-label>{{ streetLine2Label() }}</mat-label>
-
-      <input
-        matInput
-        type="text"
-        [value]="streetLine2Input()"
-        [placeholder]="'address.streetLine2Placeholder' | translate"
-        [disabled]="disabled()"
-        [readonly]="readonly()"
-        (input)="onStreetLine2Input($event)"
-        (blur)="onBlur('streetLine2')"
-      />
-
-      @if (showStreetLine2Error()) {
-        <mat-error>
-          @for (error of streetLine2Errors(); track $index) {
-            {{ error.message || ('validators.' + error.kind | translate) }}
-          }
-        </mat-error>
+    <!-- City -->
+    <mat-form-field appearance="outline" appFieldControlLabel>
+      <mat-label>{{ cityLabelKey() | translate }}</mat-label>
+      <input matInput type="text" [field]="cityField()" />
+      @if (cityField()().touched() && cityField()().invalid()) {
+        <mat-error app-field-error [errors]="cityField()().errors()" fieldname="city" />
       }
     </mat-form-field>
-
-    <!-- Postcode and City row -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <!-- Postcode -->
-      <mat-form-field appearance="outline">
-        <mat-label>{{ postcodeLabel() }}</mat-label>
-
-        <input
-          matInput
-          type="text"
-          [value]="postcodeInput()"
-          [disabled]="disabled()"
-          [readonly]="readonly()"
-          [required]="postcodeRequired()"
-          (input)="onPostcodeInput($event)"
-          (blur)="onBlur('postcode')"
-        />
-
-        @if (showPostcodeError()) {
-          <mat-error>
-            @for (error of postcodeErrors(); track $index) {
-              {{ error.message || ('validators.' + error.kind | translate) }}
-            }
-          </mat-error>
-        }
-      </mat-form-field>
-
-      <!-- City -->
-      <mat-form-field appearance="outline">
-        <mat-label>{{ cityLabel() }}</mat-label>
-
-        <input
-          matInput
-          type="text"
-          [value]="cityInput()"
-          [disabled]="disabled()"
-          [readonly]="readonly()"
-          [required]="cityRequired()"
-          (input)="onCityInput($event)"
-          (blur)="onBlur('city')"
-        />
-
-        @if (showCityError()) {
-          <mat-error>
-            @for (error of cityErrors(); track $index) {
-              {{ error.message || ('validators.' + error.kind | translate) }}
-            }
-          </mat-error>
-        }
-      </mat-form-field>
-    </div>
   </div>
 }

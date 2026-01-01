@@ -68,7 +68,11 @@
     "exportPdf": "Exporter PDF",
     "exportXls": "Exporter XLS",
     "search": "Rechercher",
-    "reset": "Réinitialiser"
+    "reset": "Réinitialiser",
+    "street": "Rue",
+    "streetLine2": "Complément d'adresse",
+    "postcode": "Code postal",
+    "city": "Ville"
   },
   "error": {
     "invalidImageType": "Veuillez sélectionner une image valide",
@@ -98,6 +102,7 @@
     "unique": "Ce champ doit être unique",
     "phone": "Numéro de téléphone non valide",
     "zipcode": "Code postal invalide, il doit contenir entre 4 et 5 chiffres",
+    "postcode": "Code postal invalide (5 chiffres requis)",
     "ip": "L'adresse IP est non valide",
     "alphanum": "Ce champ doit être alphanumérique",
     "matDatepickerParse": "Format accepté JJ/MM/AAAA",

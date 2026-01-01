@@ -49,10 +49,8 @@
           }
         </mat-form-field>
 
-        <!-- Address with autocomplete and nested fields -->
-        <div class="md:col-span-2">
-          <app-address-fields [field]="warehouseForm.address" />
-        </div>
+        <!-- Address fields (participent au grid parent) -->
+        <app-address-fields [(address)]="warehouseForm.address" />
       </div>
 
       <!-- Buttons -->

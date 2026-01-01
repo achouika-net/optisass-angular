@@ -1,6 +1,6 @@
 # OPTI-SAAS Frontend - Development Guide
 
-> Dernière mise à jour : 2025-12-31
+> Dernière mise à jour : 2026-01-01
 
 ## RÈGLES DE CONSULTATION DES SOURCES
 
@@ -177,27 +177,144 @@ addressResource.error()      // Signal<Error | undefined>
 
 ## Signal Forms (`@angular/forms/signals`)
 
-### FormValueControl (remplace ControlValueAccessor)
+### Field vs FieldTree - CRITIQUE
+
+| Concept | Type | Usage |
+|---------|------|-------|
+| `Field` | **Directive** | Connecte un `FieldTree` à un input/select natif |
+| `FieldTree` | **Type/Structure** | Arbre de données créé par `form()` |
 
 ```typescript
-import { FormValueControl, ValidationError } from '@angular/forms/signals';
+// form() crée un FieldTree
+warehouseForm = form(this.warehouseFormModel, ...);
 
-export class MyComponent implements FormValueControl<T | null> {
-  // REQUIS
-  value = model<T | null>(null);
+// warehouseForm est un FieldTree<IWarehouseForm>
+// warehouseForm.name est un FieldTree<string>
+// warehouseForm.address est un FieldTree<IAddress>
+// warehouseForm.address.street est un FieldTree<string>
+```
 
-  // OPTIONNELS - auto-bindés par [field]
-  touched = input<boolean>(false);
-  dirty = input<boolean>(false);
-  errors = input<readonly ValidationError.WithOptionalField[]>([]);
-  valid = input<boolean>(true);
-  invalid = input<boolean>(false);
-  pending = input<boolean>(false);
-  disabled = input<boolean>(false);
-  readonly = input<boolean>(false);
-  hidden = input<boolean>(false);
-  required = input<boolean>(false);
-  name = input<string>();
+### Quand utiliser quoi
+
+| Cas | Solution | Exemple |
+|-----|----------|---------|
+| **Input simple** | `[field]` directive | `<input [field]="form.name" />` |
+| **Composant composite** (groupe de champs) | Passer `FieldTree` via input custom | `[(address)]="form.address"` |
+
+### ⚠️ ERREUR FRÉQUENTE : Composant composite avec [field]
+
+```html
+<!-- ❌ MAUVAIS - [field] sur composant composite -->
+<app-address-fields [field]="warehouseForm.address" />
+<!-- Problème: [field] passe la valeur entière, pas accès aux sous-champs -->
+<!-- Les erreurs des sous-champs ne sont pas propagées correctement -->
+
+<!-- ✅ BON - Passer le FieldTree directement -->
+<app-address-fields [(address)]="warehouseForm.address" />
+```
+
+### Pattern Child Form avec FieldTree (Composant Composite)
+
+```typescript
+// address-fields.component.ts
+import { Field, FieldTree } from '@angular/forms/signals';
+
+@Component({
+  imports: [Field, FieldErrorComponent, ...],  // Importer Field !
+})
+export class AddressFieldsComponent {
+  // Recevoir le FieldTree du parent
+  readonly address = model.required<FieldTree<IAddress>>();
+
+  // Accès aux sous-champs
+  readonly streetField = computed(() => this.address().street);
+  readonly postcodeField = computed(() => this.address().postcode);
+  readonly cityField = computed(() => this.address().city);
+}
+```
+
+```html
+<!-- address-fields.component.html -->
+<!-- Utiliser [field] sur chaque input interne -->
+<mat-form-field>
+  <input matInput [field]="streetField()" />
+  @if (streetField()().touched() && streetField()().invalid()) {
+    <mat-error app-field-error [errors]="streetField()().errors()" fieldname="street" />
+  }
+</mat-form-field>
+
+<mat-form-field>
+  <input matInput [field]="postcodeField()" />
+  @if (postcodeField()().touched() && postcodeField()().invalid()) {
+    <mat-error app-field-error [errors]="postcodeField()().errors()" fieldname="postcode" />
+  }
+</mat-form-field>
+```
+
+### Parent avec Composant Composite
+
+```typescript
+// warehouse-form.component.ts
+interface IWarehouseForm {
+  name: string;
+  address: IAddress;  // PAS IAddress | null !
+}
+
+warehouseFormModel = signal<IWarehouseForm>({
+  name: '',
+  address: createEmptyAddress(),  // Initialiser avec objet complet
+});
+
+warehouseForm = form(this.warehouseFormModel, (fieldPath) => {
+  required(fieldPath.name);
+  AddressSchema(fieldPath.address);  // Validation sur sous-champs
+});
+```
+
+```html
+<!-- warehouse-form.component.html -->
+<app-address-fields [(address)]="warehouseForm.address" />
+```
+
+### Schéma visuel
+
+```
+CONTRÔLE SIMPLE (input, select)
+═══════════════════════════════════════════
+<input [field]="form.name" />
+       ↓
+[field] directive gère tout automatiquement:
+  - value binding
+  - touched on blur
+  - errors, disabled, invalid...
+
+
+COMPOSANT COMPOSITE (groupe de champs)
+═══════════════════════════════════════════
+Parent: form.address (FieldTree<IAddress>)
+        ↓
+[(address)]="form.address"  ← Passe FieldTree directement
+        ↓
+Enfant: address = model.required<FieldTree<IAddress>>()
+        ↓
+address().street   → FieldTree<string>
+address().postcode → FieldTree<string>
+address().city     → FieldTree<string>
+        ↓
+<input [field]="streetField()">  ← [field] sur chaque input interne
+```
+
+### FormValueControl - Pour contrôles simples SEULEMENT
+
+```typescript
+// À UTILISER UNIQUEMENT pour des contrôles qui gèrent UNE SEULE valeur
+// Exemple: un custom slider, un color picker, un rating component
+
+import { FormValueControl } from '@angular/forms/signals';
+
+export class MySimpleControl implements FormValueControl<number | null> {
+  value = model<number | null>(null);
+  // ... autres inputs optionnels
 }
 ```
 
@@ -217,61 +334,23 @@ export function AddressSchema(addressFieldPath: any, isRequired: boolean = true)
   maxLength(addressFieldPath.city, 100);
   pattern(addressFieldPath.postcode, /^\d{5}$/);
 }
-
-// Usage dans formulaire parent
-warehouseForm = form(this.warehouseFormModel, (fieldPath) => {
-  required(fieldPath.name);
-  AddressSchema(fieldPath.address);  // isRequired=true par défaut
-});
-```
-
-### Nested Validation Flow
-
-```
-Parent form définit validation → [field] directive bind errors → Enfant filtre par fieldTree
-```
-
-```typescript
-// Enfant filtre les erreurs par champ
-#getFieldErrors(field: AddressField): readonly ValidationError.WithOptionalField[] {
-  return this.errors().filter((error) => {
-    const fieldTree = error.fieldTree;
-    if (Array.isArray(fieldTree)) {
-      return fieldTree.includes(field) || fieldTree[fieldTree.length - 1] === field;
-    }
-    return false;
-  });
-}
-```
-
-### Utilisation avec [field]
-
-```html
-<!-- Parent - validation définie dans le form() -->
-<app-address-fields [field]="warehouseForm.address" />
-```
-
-### showError Pattern
-
-```typescript
-// Afficher erreur seulement si touched ET erreurs présentes
-readonly showStreetError = computed(() =>
-  this.touched() && this.#getFieldErrors('street').length > 0
-);
 ```
 
 ### Exemple concret : AddressFieldsComponent
 
 ```typescript
 // Selector: app-address-fields
+// Input principal:
+readonly address = model.required<FieldTree<IAddress>>();
+
 // Inputs spécifiques:
-addressRequired = input<boolean>(true);   // Affiche astérisques si true
-countryCode = input<string>('ma');        // Filtre pays pour autocomplete
+countryCode = input<string>('ma');  // Filtre pays pour autocomplete
 
 // Comportement:
+// - Reçoit FieldTree<IAddress> du parent
+// - Utilise [field] sur chaque input interne
+// - Erreurs gérées automatiquement par la directive [field]
 // - Autocomplete Geoapify sur champ street
-// - Auto-remplit postcode/city depuis sélection
-// - Erreurs filtrées par fieldTree depuis parent
 ```
 
 ---
@@ -878,18 +957,33 @@ src/assets/i18n/
 | CSS class inutilisée dans template | Vérifier avec grep avant de garder |
 | Fichiers orphelins après refactoring | Supprimer et nettoyer les index.ts |
 | Service/model dans dossier global | Si usage unique, mettre dans dossier du composant |
+| `[field]` sur composant composite | Utiliser `[(customInput)]` + `FieldTree<T>` pour child forms |
+| `FormValueControl` pour groupe de champs | `FormValueControl` = contrôle simple, `FieldTree` = composant composite |
+| `address: IAddress \| null` dans form model | Initialiser avec `createEmptyAddress()`, type `IAddress` (pas null) |
 
 ---
 
 ## Checklist Nouveau Composant Signal Forms
 
+### Contrôle Simple (une seule valeur)
+
 1. [ ] Implémenter `FormValueControl<T>`
 2. [ ] `value = model<T>()`
 3. [ ] Inputs optionnels : touched, errors, invalid, disabled, etc.
 4. [ ] `@if (!hidden())` pour affichage conditionnel
-5. [ ] Afficher erreurs avec `@if (showError())`
-6. [ ] JSDoc sur les méthodes uniquement
-7. [ ] Validation dans le parent (via schema function), PAS dans le composant
+5. [ ] Afficher erreurs avec `@if (field().touched() && field().invalid())`
+6. [ ] Utiliser `app-field-error` pour les messages
+7. [ ] JSDoc sur les méthodes uniquement
+
+### Composant Composite (groupe de champs) - Pattern FieldTree
+
+1. [ ] `readonly myField = model.required<FieldTree<T>>()`
+2. [ ] Importer `Field` dans les imports du composant
+3. [ ] Computed pour chaque sous-champ : `streetField = computed(() => this.address().street)`
+4. [ ] Template : `[field]="streetField()"` sur chaque input
+5. [ ] Erreurs : `@if (streetField()().touched() && streetField()().invalid())`
+6. [ ] Parent : `[(myField)]="form.myField"` (pas `[field]`)
+7. [ ] Model parent : initialiser avec objet complet (pas null)
 
 ---
 

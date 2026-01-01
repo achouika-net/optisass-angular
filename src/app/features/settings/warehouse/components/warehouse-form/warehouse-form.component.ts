@@ -17,7 +17,7 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatSelectModule } from '@angular/material/select';
 import { AddressFieldsComponent, FieldErrorComponent } from '@app/components';
 import { FieldControlLabelDirective } from '@app/directives';
-import { IAddress } from '@app/models';
+import { createEmptyAddress, IAddress } from '@app/models';
 import { TranslateModule } from '@ngx-translate/core';
 import { IWarehouse, WAREHOUSE_TYPES, WarehouseType } from '../../models';
 import { WarehouseStore } from '../../warehouse.store';
@@ -25,7 +25,7 @@ import { WarehouseStore } from '../../warehouse.store';
 interface IWarehouseForm {
   name: string;
   capacity: number | null;
-  address: IAddress | null;
+  address: IAddress;
   type: WarehouseType | null;
   active: boolean;
 }
@@ -57,7 +57,7 @@ export class WarehouseFormComponent {
   warehouseFormModel = signal<IWarehouseForm>({
     name: '',
     capacity: null,
-    address: null,
+    address: createEmptyAddress(),
     type: null,
     active: true,
   });
@@ -80,7 +80,7 @@ export class WarehouseFormComponent {
         this.warehouseFormModel.set({
           name: warehouse.name,
           capacity: warehouse.capacity,
-          address: warehouse.address,
+          address: warehouse.address ?? createEmptyAddress(),
           type: warehouse.type,
           active: warehouse.active,
         });
