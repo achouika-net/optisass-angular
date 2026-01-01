@@ -183,9 +183,24 @@
                                     <span>Modifier</span>
                                 </button>
                                 <mat-divider></mat-divider>
+                                <button mat-menu-item [matMenuTriggerFor]="messageMenu">
+                                    <mat-icon style="color: #25D366;">message</mat-icon>
+                                    <span>Envoyer message</span>
+                                </button>
+                                <mat-divider></mat-divider>
                                 <button mat-menu-item (click)="deleteClient(client)">
                                     <mat-icon class="premium-menu-icon-delete">delete</mat-icon>
                                     <span>Supprimer</span>
+                                </button>
+                            </mat-menu>
+                            <mat-menu #messageMenu="matMenu">
+                                <button mat-menu-item (click)="sendMessage(client, 'PROMOTION')">
+                                    <mat-icon>campaign</mat-icon>
+                                    <span>Offre promotionnelle</span>
+                                </button>
+                                <button mat-menu-item (click)="sendMessage(client, 'GENERAL')">
+                                    <mat-icon>chat</mat-icon>
+                                    <span>Message général</span>
                                 </button>
                             </mat-menu>
                         </td>
