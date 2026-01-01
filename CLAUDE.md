@@ -1,1156 +1,234 @@
-# OPTI-SAAS Frontend - Development Guide
+# OPTI-SAAS Frontend - Instructions IA
 
-> Dernière mise à jour : 2026-01-02
+> Document destiné UNIQUEMENT à Claude AI. Dernière mise à jour : 2026-01-02
 
-## RÈGLES DE CONSULTATION DES SOURCES
+---
 
-### Ordre de priorité strict
+## OBJECTIF DE CE DOCUMENT
 
-1. **MCP (Model Context Protocol)** - TOUJOURS consulter en premier
-   - Angular MCP : Angular, Signals, RxJS, Router, Forms, HttpClient, Animations
-   - Angular Material MCP : Material Design components, CDK, theming
-   - NgRx MCP : Signal Store, State Management, operators
-   - Utilisation : Outil `Task` avec `subagent_type='claude-code-guide'`
+Permettre à Claude AI de :
 
-2. **WebSearch** (si MCP insuffisant)
-   - Sources 2024-2025 uniquement
+1. **Développer efficacement** en respectant les patterns et conventions du projet
+2. **Éviter les erreurs connues** grâce à l'historique des solutions
+3. **Apprendre continuellement** des nouvelles décisions et erreurs résolues
+4. **Consulter les bonnes sources** (MCP, fichiers référence) avant de coder
 
-3. **Ce fichier** - Pour patterns déjà validés
+---
 
-### Quand consulter MCP (obligatoire)
+## 1. RÈGLES CRITIQUES
 
-- Nouvelles fonctionnalités ou patterns inconnus
-- Signal Forms, rxResource, Signals
-- Questions d'architecture ou best practices
+1. **MCP First** : Consulter MCP Angular/Material/NgRx AVANT de coder
+2. **Git** : Ne JAMAIS commit/push sans permission explicite
+3. **Build** : Toujours `npm run build` après modifications
+4. **Type Safety** : Pas de `any` - utiliser `as unknown as { prop?: Type }`
+5. **JSDoc** : Uniquement pour les méthodes, pas classes/interfaces
+6. **Lire avant modifier** : Toujours lire un fichier avant de le modifier
+
+---
+
+## 2. FICHIERS RÉFÉRENCE
+
+| Besoin                   | Fichier                                                        |
+| ------------------------ | -------------------------------------------------------------- |
+| Signal Forms + FieldTree | `shared/components/address-fields/address-fields.component.ts` |
+| Feature CRUD complète    | `features/settings/warehouse/`                                 |
+| Signal Store             | `features/settings/user/user.store.ts`                         |
+| Routes + Permissions     | `config/app-routes.config.ts`                                  |
+| Menu typé                | `config/menu.config.ts`                                        |
+| Guards                   | `core/guards/permission.guard.ts`                              |
+| Auth Flow                | `core/store/auth.store.ts`                                     |
+| Validation errors        | `shared/components/field-error/field-error.component.ts`       |
+| Service HTTP             | `features/authentication/services/auth.service.ts`             |
+| Interceptors             | `core/interceptors/`                                           |
+
+---
+
+## 3. DÉCISIONS DE DESIGN
+
+| Décision             | Choix                                   | Raison                                     |
+| -------------------- | --------------------------------------- | ------------------------------------------ |
+| Child Forms          | FieldTree + `[(input)]`                 | Accès sous-champs, propagation erreurs     |
+| Permissions          | APP_ROUTES source unique                | Évite duplication menu/routes              |
+| Mocking              | `*.mock.ts` séparé                      | Facilite suppression quand backend prêt    |
+| ValidationError      | `as unknown as { prop?: Type }`         | Typage explicite sans `any`                |
+| State Management     | NgRx Signal Store (pas Redux classique) | Plus simple, signals natifs                |
+| Error Handling Store | `catchError` (pas `tapResponse`)        | Laisser 401 passer à l'interceptor JWT     |
+| Animations           | `provideAnimations()` sync              | Pas async pour éviter problèmes chargement |
+
+---
+
+## 4. PATTERNS (Checklists)
+
+### Contrôle Simple
+
+- [ ] `FormValueControl<T>` + `value = model<T>()`
+- [ ] Erreurs : `@if (field().touched() && field().invalid())`
+
+### Composant Composite
+
+- [ ] `model.required<FieldTree<T>>()`
+- [ ] Importer `Field` directive
+- [ ] Computed pour sous-champs
+- [ ] Parent : `[(input)]="form.field"` (pas `[field]`)
+- [ ] Model parent : initialiser avec objet complet (pas null)
+
+### Feature CRUD
+
+```
+{feature}/
+├── components/{feature}.component.ts, {feature}-add/, {feature}-view/, {feature}-form/, {feature}-search/
+├── models/, services/{feature}.service.ts, {feature}.mock.ts
+├── {feature}.store.ts, {feature}.routes.ts
+```
+
+### Signal Store
+
+- [ ] `signalState` pour état initial
+- [ ] `rxMethod` pour effets async
+- [ ] `patchState` pour mutations
+- [ ] `catchError` (pas `tapResponse`) pour erreurs HTTP
+- [ ] Accès direct `store.field()` (pas de computed wrapper)
+
+### Service HTTP
+
+- [ ] `#http = inject(HttpClient)` (private)
+- [ ] JSDoc sur chaque méthode
+- [ ] Types génériques sur les appels HTTP
+- [ ] Pas de `.pipe(map(r => r.data))` (ExtractDataInterceptor le fait)
+
+---
+
+## 5. CONSULTER MCP POUR
+
+- Signal Forms, FieldTree, FormValueControl
+- rxResource (params/stream, pas request/loader)
 - APIs deprecated et migrations
-- Quand l'utilisateur le demande
-
-### Règles CRITIQUES
-
-1. **API deprecated** : Chercher IMMÉDIATEMENT le remplacement dans MCP. Ne pas inventer de solutions manuelles.
-2. **Pas de solutions manuelles** : Si une API officielle existe, l'utiliser.
-3. **Git** : Ne JAMAIS commit/push sans permission explicite
-4. **CLAUDE.md** : Peut être committé - sert de mémoire persistante du projet
-5. **JSDoc** : Uniquement pour les méthodes, pas pour les classes/interfaces
-6. **Build** : Toujours `npm run build` après modifications pour vérifier TypeScript
+- NgRx Signal Store patterns
+- Angular Material components
+- Nouvelles fonctionnalités Angular 20+
+- Validators built-in et custom
+- Router, Guards, Resolvers
+- HttpClient, Interceptors
 
 ---
 
-## Stack Technique
+## 6. CONVENTIONS NOMMAGE
 
-| Catégorie         | Technologie                                           |
-| ----------------- | ----------------------------------------------------- |
-| Framework         | Angular 21.x                                          |
-| TypeScript        | 5.x (mode strict)                                     |
-| Node.js           | v22.13.1                                              |
-| State             | @ngrx/signals (Signal Store)                          |
-| UI                | Angular Material + Tailwind CSS                       |
-| i18n              | @ngx-translate/core                                   |
-| Animations        | `provideAnimations()` (PAS async)                     |
-| Notifications     | ngx-toastr                                            |
-| Backend           | NestJS (API REST, Multi-tenant: header `x-tenant-id`) |
-| Librairie interne | @optisaas/opti-saas-lib (ResourceAuthorizations)      |
+| Suffixe    | Usage                          |
+| ---------- | ------------------------------ |
+| `*-fields` | Groupe de champs réutilisable  |
+| `*-form`   | Formulaire complet avec submit |
+| `*-search` | Page recherche/liste           |
+| `*-table`  | Tableau de données             |
+| `*-view`   | Page visualisation/édition     |
+| `*-add`    | Page création                  |
 
----
+**Éviter** : `*-form-group` (suggère Reactive Forms)
 
-## Architecture
+**Fichiers** : `*.component.ts`, `*.service.ts`, `*.store.ts`, `*.guard.ts`, `*.model.ts`, `*.helper.ts`, `*.type.ts`
 
-```
-src/app/
-├── core/           # Singletons (guards, interceptors, stores, services)
-├── features/       # Modules métier (authentication, settings, etc.)
-├── layout/         # Composants layout (sidebar, breadcrumb, header)
-├── shared/         # Code partagé (components, helpers, models, types)
-└── config/         # Configuration (API URLs, menu, routes)
-```
-
-### Principes
-
-- **Standalone Components** : Pas de NgModule
-- **Signal-based** : Angular Signals + NgRx Signal Store
-- **Lazy Loading** : Routes lazy-loadées
-- **rxResource** : Pour les appels HTTP avec états automatiques
+**Code** : `IInterface`, `AuthService`, `AuthStore`, `PermissionGuard`, `APP_NAME`
 
 ---
 
-## Code Style
+## 7. ERREURS RÉSOLUES
 
-### JSDoc pour les méthodes uniquement
-
-```typescript
-/**
- * Description de la méthode
- * @param query - Texte de recherche
- * @returns Observable des résultats
- */
-searchAddresses(query: string): Observable<IAddressOption[]> {
-  // ...
-}
-```
-
-### Naming
-
-```typescript
-// Services
-export class AuthService { }
-
-// Stores
-export const AuthStore = signalStore({ ... });
-
-// Guards
-export const PermissionCanActivateGuard: CanActivateFn = ...
-
-// Models/Interfaces
-export interface IUserOptions { }
-
-// Constants
-export const APP_NAME = 'OPTIC SAAS';
-```
-
-### File naming
-
-- Components : `*.component.ts`
-- Services : `*.service.ts`
-- Guards : `*.guard.ts`
-- Stores : `*.store.ts`
-- Models : `*.model.ts`
-- Helpers : `*.helper.ts`
-- Types : `*.type.ts`
-
-### Conventions de nommage composants
-
-| Suffixe    | Usage                                        | Exemple                  |
-| ---------- | -------------------------------------------- | ------------------------ |
-| `*-fields` | Groupe de champs réutilisable (Signal Forms) | `address-fields`         |
-| `*-form`   | Formulaire complet avec submit               | `warehouse-form`         |
-| `*-search` | Page de recherche/liste                      | `warehouse-search`       |
-| `*-table`  | Tableau de données                           | `warehouse-search-table` |
-| `*-view`   | Page de visualisation/édition                | `warehouse-view`         |
-| `*-add`    | Page de création                             | `warehouse-add`          |
-
-**À éviter** : `*-form-group` (suggère Reactive Forms, pas Signal Forms)
-
-### Import aliases
-
-```typescript
-import { AuthStore } from '@app/core/store';
-import { IUserOptions, IAddress, AddressField, BreadcrumbItem } from '@app/models';
-import { TypedRoute, RouteData } from '@app/types';
-import { AddressSchema } from '@app/validators';
-import { AddressFieldsComponent } from '@app/components';
-```
+| Erreur                            | Cause                         | Solution                         |
+| --------------------------------- | ----------------------------- | -------------------------------- |
+| `tapResponse` capture 401         | Empêche JWT interceptor       | `catchError` avec filtre 401     |
+| Computed wrapper sur store        | `withState` déjà proxy        | Accès direct `store.field()`     |
+| rxResource `request`/`loader`     | API deprecated                | `params`/`stream`                |
+| `translate.instant()` breadcrumb  | Traductions pas chargées      | Pipe `\| translate`              |
+| `[field]` sur composant composite | Pas accès sous-champs         | `[(input)]` + FieldTree          |
+| `ValidationError` avec `any`      | Propriétés dynamiques         | `as unknown as { prop?: Type }`  |
+| Node v14 dans husky hooks         | nvm pas chargé                | `nvm use 22` dans hooks          |
+| `route.snapshot.data` hérite      | Données parents incluses      | `route.routeConfig?.data`        |
+| `route.children` doublons         | Parcours récursif             | `route.firstChild`               |
+| Double extraction data            | ExtractDataInterceptor existe | Pas de `.pipe(map(r => r.data))` |
+| `appearance="outline"` répété     | Config globale existe         | `MAT_FORM_FIELD_DEFAULT_OPTIONS` |
+| `APP_INITIALIZER` deprecated      | Angular 19+                   | `provideAppInitializer()`        |
 
 ---
 
-## Angular 21 Signals & rxResource
-
-### Utiliser les Signals
-
-```typescript
-// BON
-signal(), computed(), effect()
-rxResource() pour HTTP avec isLoading/error/value automatiques
-toSignal() / toObservable() pour interop RxJS
-
-// MAUVAIS
-BehaviorSubject, toSignal sans defaultValue
-```
-
-### rxResource (Angular 20+)
-
-**API Angular 20+** : Utilise `params` et `stream` (pas `request`/`loader` qui sont obsolètes)
-
-```typescript
-readonly addressResource = rxResource({
-  params: () => ({ query: this.query(), countryCode: this.countryCode() }),
-  stream: ({ params }) => this.service.search(params.query, params.countryCode),
-  defaultValue: [],  // Évite null, pas besoin de computed wrapper
-});
-
-// Utilisation directe des Signals - PAS de computed wrapper !
-addressResource.value()      // Signal<T> - déjà un signal
-addressResource.isLoading()  // Signal<boolean> - déjà un signal
-addressResource.error()      // Signal<Error | undefined>
-```
-
----
-
-## Signal Forms (`@angular/forms/signals`)
-
-### Field vs FieldTree - CRITIQUE
-
-| Concept     | Type               | Usage                                           |
-| ----------- | ------------------ | ----------------------------------------------- |
-| `Field`     | **Directive**      | Connecte un `FieldTree` à un input/select natif |
-| `FieldTree` | **Type/Structure** | Arbre de données créé par `form()`              |
-
-```typescript
-// form() crée un FieldTree
-warehouseForm = form(this.warehouseFormModel, ...);
-
-// warehouseForm est un FieldTree<IWarehouseForm>
-// warehouseForm.name est un FieldTree<string>
-// warehouseForm.address est un FieldTree<IAddress>
-// warehouseForm.address.street est un FieldTree<string>
-```
-
-### Quand utiliser quoi
-
-| Cas                                        | Solution                            | Exemple                         |
-| ------------------------------------------ | ----------------------------------- | ------------------------------- |
-| **Input simple**                           | `[field]` directive                 | `<input [field]="form.name" />` |
-| **Composant composite** (groupe de champs) | Passer `FieldTree` via input custom | `[(address)]="form.address"`    |
-
-### ⚠️ ERREUR FRÉQUENTE : Composant composite avec [field]
-
-```html
-<!-- ❌ MAUVAIS - [field] sur composant composite -->
-<app-address-fields [field]="warehouseForm.address" />
-<!-- Problème: [field] passe la valeur entière, pas accès aux sous-champs -->
-<!-- Les erreurs des sous-champs ne sont pas propagées correctement -->
-
-<!-- ✅ BON - Passer le FieldTree directement -->
-<app-address-fields [(address)]="warehouseForm.address" />
-```
-
-### Pattern Child Form avec FieldTree (Composant Composite)
-
-```typescript
-// address-fields.component.ts
-import { Field, FieldTree } from '@angular/forms/signals';
-
-@Component({
-  imports: [Field, FieldErrorComponent, ...],  // Importer Field !
-})
-export class AddressFieldsComponent {
-  // Recevoir le FieldTree du parent
-  readonly address = model.required<FieldTree<IAddress>>();
-
-  // Accès aux sous-champs
-  readonly streetField = computed(() => this.address().street);
-  readonly postcodeField = computed(() => this.address().postcode);
-  readonly cityField = computed(() => this.address().city);
-}
-```
-
-```html
-<!-- address-fields.component.html -->
-<!-- Utiliser [field] sur chaque input interne -->
-<mat-form-field>
-  <input matInput [field]="streetField()" />
-  @if (streetField()().touched() && streetField()().invalid()) {
-  <mat-error app-field-error [errors]="streetField()().errors()" fieldname="street" />
-  }
-</mat-form-field>
-
-<mat-form-field>
-  <input matInput [field]="postcodeField()" />
-  @if (postcodeField()().touched() && postcodeField()().invalid()) {
-  <mat-error app-field-error [errors]="postcodeField()().errors()" fieldname="postcode" />
-  }
-</mat-form-field>
-```
-
-### Parent avec Composant Composite
-
-```typescript
-// warehouse-form.component.ts
-interface IWarehouseForm {
-  name: string;
-  address: IAddress; // PAS IAddress | null !
-}
-
-warehouseFormModel = signal<IWarehouseForm>({
-  name: '',
-  address: createEmptyAddress(), // Initialiser avec objet complet
-});
-
-warehouseForm = form(this.warehouseFormModel, (fieldPath) => {
-  required(fieldPath.name);
-  AddressSchema(fieldPath.address); // Validation sur sous-champs
-});
-```
-
-```html
-<!-- warehouse-form.component.html -->
-<app-address-fields [(address)]="warehouseForm.address" />
-```
-
-### Schéma visuel
-
-```
-CONTRÔLE SIMPLE (input, select)
-═══════════════════════════════════════════
-<input [field]="form.name" />
-       ↓
-[field] directive gère tout automatiquement:
-  - value binding
-  - touched on blur
-  - errors, disabled, invalid...
-
-
-COMPOSANT COMPOSITE (groupe de champs)
-═══════════════════════════════════════════
-Parent: form.address (FieldTree<IAddress>)
-        ↓
-[(address)]="form.address"  ← Passe FieldTree directement
-        ↓
-Enfant: address = model.required<FieldTree<IAddress>>()
-        ↓
-address().street   → FieldTree<string>
-address().postcode → FieldTree<string>
-address().city     → FieldTree<string>
-        ↓
-<input [field]="streetField()">  ← [field] sur chaque input interne
-```
-
-### FormValueControl - Pour contrôles simples SEULEMENT
-
-```typescript
-// À UTILISER UNIQUEMENT pour des contrôles qui gèrent UNE SEULE valeur
-// Exemple: un custom slider, un color picker, un rating component
-
-import { FormValueControl } from '@angular/forms/signals';
-
-export class MySimpleControl implements FormValueControl<number | null> {
-  value = model<number | null>(null);
-  // ... autres inputs optionnels
-}
-```
-
-### Validation Schema Pattern (réutilisable)
-
-```typescript
-// src/app/shared/validators/address.validators.ts
-import { maxLength, pattern, required } from '@angular/forms/signals';
-
-export function AddressSchema(addressFieldPath: any, isRequired: boolean = true): void {
-  if (isRequired) {
-    required(addressFieldPath.street);
-    required(addressFieldPath.postcode);
-    required(addressFieldPath.city);
-  }
-  maxLength(addressFieldPath.street, 200);
-  maxLength(addressFieldPath.city, 100);
-  pattern(addressFieldPath.postcode, /^\d{5}$/);
-}
-```
-
-### Typage des ValidationError (Signal Forms)
-
-`ValidationError.WithField` n'expose que `kind` et `message`. Les propriétés spécifiques (`min`, `max`, `requiredLength`, `pattern`) sont dynamiques. Utiliser `as unknown as { ... }` pour un typage sûr :
-
-```typescript
-// ❌ MAUVAIS - any sans typage explicite
-const errorRecord = error as Record<string, any>;
-value: errorRecord[valueKey] || errorRecord['value']
-
-// ✅ BON - typage explicite des propriétés attendues
-case 'minlength':
-case 'maxlength': {
-  const lengthError = error as unknown as { requiredLength?: number };
-  return this.#translate.instant(`validators.${errorType}`, {
-    value: lengthError.requiredLength,
-  });
-}
-
-case 'min': {
-  const minError = error as unknown as { min?: number };
-  return this.#translate.instant('validators.min', { value: minError.min });
-}
-
-case 'max': {
-  const maxError = error as unknown as { max?: number };
-  return this.#translate.instant('validators.max', { value: maxError.max });
-}
-
-case 'pattern': {
-  const patternError = error as unknown as { pattern?: RegExp };
-  // ...
-}
-
-case 'matDatepickerMin': {
-  const minDateError = error as unknown as { min?: Date };
-  // ...
-}
-```
-
-**Pourquoi `as unknown as { ... }` ?**
-
-- Plus sûr que `Record<string, any>` : propriétés explicites
-- Autocomplétion IDE disponible
-- Pas besoin de `eslint-disable`
-
-### Exemple concret : AddressFieldsComponent
-
-```typescript
-// Selector: app-address-fields
-// Input principal:
-readonly address = model.required<FieldTree<IAddress>>();
-
-// Inputs spécifiques:
-countryCode = input<string>('ma');  // Filtre pays pour autocomplete
-
-// Comportement:
-// - Reçoit FieldTree<IAddress> du parent
-// - Utilise [field] sur chaque input interne
-// - Erreurs gérées automatiquement par la directive [field]
-// - Autocomplete Geoapify sur champ street
-```
-
----
-
-## NgRx Signal Store
-
-### withState crée des computed signals via Proxy
-
-```typescript
-// MAUVAIS - Redondant
-withComputed((store) => ({
-  availableRoutes: computed(() => store.navigation()), // Inutile !
-}));
-
-// BON - Accès direct
-const routes = authStore.navigation(); // Déjà un computed signal
-```
-
-### Computed = fonction pure uniquement pour
-
-- Transformation : `hasItems: computed(() => store.items().length > 0)`
-- Extraction nested : `currentId: computed(() => store.current()?.id ?? null)`
-- Logique métier : `isAuthenticated: computed(() => isValidUser(...) && ...)`
-- Combinaison : `computed(() => store.a() + store.b())`
-
-### tapResponse vs catchError
-
-```typescript
-// MAUVAIS - tapResponse capture 401 avant l'interceptor JWT
-tapResponse({ error: (error) => { ... } })
-
-// BON - Laisser 401 passer à l'interceptor
-catchError((error: HttpErrorResponse) => {
-  if (error.status === 401) return EMPTY;  // Interceptor gère le refresh
-  // Gérer autres erreurs...
-  return EMPTY;
-})
-```
-
----
-
-## Authentification
-
-### Flux Login
-
-```
-POST /auth/login
-  ↓ { accessToken, refreshToken }
-getCurrentUser({ isRestoreSession: false })
-  ↓
-GET /users/me
-  ↓ ICurrentUser (avec tenants[])
-getUserOptions({ isRestoreSession: false })
-  ↓
-GET /users/options (header x-tenant-id)
-  ↓ IUserOptions { authorizations }
-Redirection /p
-```
-
-### Flux Refresh Page (Session Restore)
-
-```
-provideAppInitializer (bloque bootstrap)
-  ↓
-inject(AuthStore) → onInit restaure tokens depuis localStorage
-  ↓
-authStore.jwtTokens()?.accessToken existe ?
-  ↓ OUI
-getCurrentUser({ isRestoreSession: true })
-  ↓
-GET /users/me → GET /users/options
-  ↓
-isSessionRestoring = false
-  ↓
-Bootstrap continue → Router → Guards
-  ↓
-Reste sur la route actuelle (pas de redirect vers /p)
-```
-
-### provideAppInitializer (Angular 19+)
-
-```typescript
-// MAUVAIS - APP_INITIALIZER deprecated
-{ provide: APP_INITIALIZER, useFactory: ... }
-
-// BON - provideAppInitializer
-provideAppInitializer(() => {
-  const authStore = inject(AuthStore);
-
-  if (authStore.jwtTokens()?.accessToken) {
-    authStore.getCurrentUser({ isRestoreSession: true });
-
-    // Bloque jusqu'à isSessionRestoring === false
-    return firstValueFrom(
-      toObservable(authStore.isSessionRestoring).pipe(
-        filter((isRestoring) => !isRestoring || !authStore.jwtTokens()?.accessToken),
-        take(1)
-      )
-    );
-  }
-  return Promise.resolve();
-})
-```
-
-### AuthStore État
-
-```typescript
-interface AuthState {
-  jwtTokens: IJwtTokens | null;
-  user: ICurrentUser | null;
-  currentTenant: ITenant | null;
-  userAuthorizations: ResourceAuthorizations[];
-  error: WsErrorState | null;
-  refreshTokenInProgress: boolean;
-  isSessionRestoring: boolean; // Flag pour bloquer bootstrap
-}
-```
-
-### AuthStore Computed
-
-```typescript
-// isAuthenticated vérifie AUSSI userAuthorizations pour s'assurer session complète
-isAuthenticated: computed(
-  () =>
-    isValidUser(store.user()) &&
-    store.userAuthorizations().length > 0 &&
-    !!store.jwtTokens()?.accessToken,
-);
-
-// Menu filtré automatiquement selon permissions
-filteredMenu: computed(() => filterMenuByAuthorizations(MENU, store.userAuthorizations()));
-```
-
-### switchTenant
-
-```typescript
-// Changement de tenant avec rechargement des permissions
-switchTenant: rxMethod<ITenant>(
-  pipe(
-    switchMap((tenant) => {
-      const currentUrl = routeAuthService.getCurrentUrl();
-      patchState(store, { currentTenant: tenant });
-
-      return authService.getUserOptions().pipe(
-        tap((userOptions) => {
-          // Calculer fallback AVANT mise à jour des autorisations
-          const fallbackRoute = calculateFallbackRoute(currentUrl, userOptions.authorizations);
-          patchState(store, { userAuthorizations: userOptions.authorizations });
-
-          if (fallbackRoute) {
-            routeAuthService.navigateToFallbackRoute(fallbackRoute);
-          } else {
-            routeAuthService.showTenantSwitchSuccess();
-          }
-        }),
-      );
-    }),
-  ),
-);
-```
-
----
-
-## Permissions (Route-Centric)
-
-### APP_ROUTES = Source unique
-
-```typescript
-// src/app/config/app-routes.config.ts
-export const APP_ROUTES = {
-  dashboard: ['SUPPLIERS_CREATE'],
-  'settings/users': ['USERS_READ'],
-  'settings/users/add': ['USERS_CREATE'],
-  'settings/users/:id': ['USERS_READ'],
-} as const satisfies Record<string, readonly ResourceAuthorizations[]>;
-
-export type AppRoute = keyof typeof APP_ROUTES;
-
-export function getRoutePermissions(route: AppRoute): readonly ResourceAuthorizations[] {
-  return APP_ROUTES[route];
-}
-
-export function isValidAppRoute(route: string): route is AppRoute {
-  return route in APP_ROUTES;
-}
-```
-
-### Architecture Permissions
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      APP_ROUTES                              │
-│   Source unique de vérité (routes + permissions)            │
-└─────────────────────────────────────────────────────────────┘
-          │                           │
-          ▼                           ▼
-┌─────────────────────┐    ┌─────────────────────────────────┐
-│    MENU config      │    │   Routes files (*.routes.ts)    │
-│  route: AppRoute    │    │  getRoutePermissions('...')     │
-└─────────────────────┘    └─────────────────────────────────┘
-          │                           │
-          ▼                           ▼
-┌─────────────────────┐    ┌─────────────────────────────────┐
-│  menu.helper.ts     │    │   permission.guard.ts           │
-│  Filtre sidebar     │    │   Protège accès route           │
-│  via APP_ROUTES     │    │   via route.data                │
-└─────────────────────┘    └─────────────────────────────────┘
-```
-
-### Routes files
-
-```typescript
-import { getRoutePermissions } from '@app/config';
-
-export default [
-  {
-    path: '',
-    data: {
-      breadcrumb: 'nav.users_list',
-      authorizationsNeeded: getRoutePermissions('settings/users'),
-    },
-    loadComponent: () => import('./user-search.component'),
-  },
-] satisfies TypedRoute[];
-```
-
-### TypedRoute pour route.data typé
-
-```typescript
-export interface RouteData {
-  breadcrumb: string;
-  authorizationsNeeded?: readonly ResourceAuthorizations[];
-}
-
-export type TypedRoute = Omit<Route, 'data' | 'children'> & {
-  data?: RouteData;
-  children?: TypedRoute[];
-};
-```
-
-### MenuItem typé avec AppRoute
-
-```typescript
-export interface MenuItem {
-  label: string;
-  icon: string;
-  type: MenuItemType; // 'link' | 'sub' | 'subchild' | 'extLink' | 'footer'
-  route?: AppRoute; // Force l'existence dans APP_ROUTES
-  externalUrl?: string;
-  children?: MenuItem[];
-  disabled?: boolean;
-}
-```
-
-### Permission Guard
-
-```typescript
-const checkPermission = (route: ActivatedRouteSnapshot): boolean => {
-  const authStore = inject(AuthStore);
-  const routeAuthService = inject(RouteAuthService);
-  const userAuthorizations = authStore.userAuthorizations();
-
-  const routeData = route.data as RouteData;
-  const authorizationsNeeded = routeData.authorizationsNeeded ?? [];
-
-  if (authorizationsNeeded.length === 0) return true;
-
-  const hasAllAuthorizations = authorizationsNeeded.every((auth) =>
-    userAuthorizations.includes(auth),
-  );
-
-  if (hasAllAuthorizations) return true;
-
-  // Accès refusé → redirection vers fallback intelligent avec toast
-  routeAuthService.navigateToFallback(userAuthorizations);
-  return false;
-};
-```
-
-### route-auth.helper.ts (fonctions pures)
-
-```typescript
-// Vérifie si l'utilisateur a les permissions pour une route APP_ROUTES
-isRouteAuthorized(route: string | undefined, userAuthorizations: ResourceAuthorizations[]): boolean
-
-// Convertit URL navigateur → clé APP_ROUTES
-// Supporte paramètres dynamiques avec n'importe quel nom (:id, :userId, etc.)
-normalizeUrlToAppRoute(url: string): string | null
-// '/p/settings/users/123' → 'settings/users/:id'
-
-// Calcule la route de fallback quand accès refusé
-calculateFallbackRoute(currentUrl: string, userAuthorizations: ResourceAuthorizations[]): string | null
-```
-
-### RouteAuthService (orchestration Angular DI)
-
-```typescript
-@Injectable({ providedIn: 'root' })
-export class RouteAuthService {
-  navigateToFallback(userAuthorizations: ResourceAuthorizations[]): boolean;
-  navigateToFallbackRoute(fallbackRoute: string): void;
-  showTenantSwitchSuccess(): void;
-  showTenantSwitchError(): void;
-}
-```
-
-### ResourceAuthorizations (de @optisaas/opti-saas-lib)
-
-```typescript
-// Format: RESOURCE_ACTION
-// USERS_CREATE, USERS_READ, USERS_UPDATE, USERS_DELETE
-// CLIENTS_CREATE, CLIENTS_READ, CLIENTS_UPDATE, CLIENTS_DELETE
-// SUPPLIERS_CREATE, SUPPLIERS_READ, SUPPLIERS_UPDATE, SUPPLIERS_DELETE
-// PRODUCTS_CREATE, PRODUCTS_READ, PRODUCTS_UPDATE, PRODUCTS_DELETE
-// etc.
-```
-
----
-
-## Interceptors HTTP
-
-### Ordre d'exécution
-
-```
-Requête: WithCredentials → Tenant → JWT → ExtractData → Backend
-Réponse: Backend → ExtractData → JWT → Tenant → WithCredentials → Service
-```
-
-### ExtractDataInterceptor - CRITIQUE
-
-```typescript
-// API retourne: { status: 200, data: { accessToken, refreshToken } }
-// ExtractDataInterceptor extrait automatiquement → { accessToken, refreshToken }
-
-// MAUVAIS - Double extraction
-authService.refreshToken().pipe(map((r) => r.data));
-
-// BON - Pas de mapping
-authService.refreshToken(); // Retourne directement IJwtTokens
-```
-
-### JWT Interceptor - Refresh Token Flow
-
-```
-401 Unauthorized → JwtInterceptor.handleUnauthorizedError()
-  ↓
-refreshTokenSubject.next(null)  // Reset
-authStore.refreshToken(refreshToken)
-  ↓
-waitForNewToken() - souscrit à refreshTokenSubject
-  ↓
-refreshTokenSubject.next(newAccessToken) → relance requête originale
-```
-
----
-
-## Breadcrumb
-
-### Configuration via route.data
-
-```typescript
-{
-  path: 'users',
-  data: { breadcrumb: 'nav.users' },  // Clé i18n
-  loadChildren: () => import('./user/user.routes'),
-}
-```
-
-### Traduction via pipe (pas translate.instant)
-
-```typescript
-// MAUVAIS - translate.instant() peut ne pas être chargé
-const label = this.#translate.instant(breadcrumbKey);
-
-// BON - Stocker la clé, traduire dans template
-breadcrumbs.push({ label: breadcrumbKey, url });
-// Template: {{ item.label | translate }}
-```
-
-**Points clés** :
-
-- `route.routeConfig?.data` au lieu de `route.snapshot.data` (évite héritage)
-- `route.firstChild` au lieu de `route.children` (évite doublons)
-- Dédupliquer avec `Set<string>` sur la clé breadcrumb
-
----
-
-## Menu (Sidebar)
-
-### Configuration statique
-
-```typescript
-// src/app/config/menu.config.ts
-export const MENU: MenuItem[] = [
-  {
-    label: 'nav.dashboard', // Clé i18n
-    icon: 'dashboard',
-    type: 'link',
-    route: 'dashboard', // Typé AppRoute
-  },
-  {
-    label: 'nav.settings',
-    icon: 'settings',
-    type: 'sub',
-    children: [{ label: 'nav.users', icon: 'people', type: 'link', route: 'settings/users' }],
-  },
-];
-```
-
-### Filtrage par permissions
-
-```typescript
-// src/app/shared/helpers/menu.helper.ts
-export function filterMenuByAuthorizations(
-  items: MenuItem[],
-  userAuthorizations: ResourceAuthorizations[],
-): MenuItem[] {
-  return items
-    .map((item) => {
-      if (item.type === 'sub' && item.children?.length) {
-        const filteredChildren = filterMenuByAuthorizations(item.children, userAuthorizations);
-        return filteredChildren.length > 0 ? { ...item, children: filteredChildren } : null;
-      }
-      return isRouteAuthorized(item.route, userAuthorizations) ? item : null;
-    })
-    .filter((item): item is MenuItem => item !== null);
-}
-```
-
----
-
-## Organisation Fichiers Composant Réutilisable
-
-```
-shared/components/address-fields/
-├── address-fields.component.ts      # Composant principal
-├── address-fields.component.html    # Template
-├── geoapify-address.service.ts      # Service spécifique (API externe)
-├── geoapify-address.model.ts        # Models spécifiques
-└── index.ts                         # Barrel export
-```
-
-**Règle** : Si un service/model est utilisé UNIQUEMENT par un composant, le mettre DANS le dossier du composant, pas dans `services/` ou `models/` global.
-
----
-
-## Structure Feature CRUD (Pattern Warehouse)
-
-### Architecture d'une feature CRUD
-
-```
-src/app/features/settings/warehouse/
-├── components/
-│   ├── warehouse.component.ts           # Container principal (router-outlet)
-│   ├── warehouse-add/                   # Page création
-│   ├── warehouse-view/                  # Page vue/édition
-│   ├── warehouse-form/                  # Formulaire réutilisable
-│   └── warehouse-search/
-│       ├── warehouse-search.component.ts
-│       ├── warehouse-search-form/       # Filtres de recherche
-│       └── warehouse-search-table/      # Tableau résultats
-├── models/
-│   ├── index.ts                         # Barrel export
-│   ├── warehouse.model.ts               # Interface IWarehouse
-│   └── warehouse-search.model.ts        # Interface recherche/pagination
-├── services/
-│   ├── warehouse.service.ts             # Service HTTP
-│   └── warehouse.mock.ts                # Mock data (temporaire)
-├── warehouse.store.ts                   # NgRx Signal Store
-└── warehouse.routes.ts                  # Routes lazy-loaded
-```
-
-### Routes pattern
-
-```typescript
-export default [
-  {
-    path: '',
-    component: WarehouseComponent,
-    children: [
-      { path: '', component: WarehouseSearchComponent },
-      { path: 'add', component: WarehouseAddComponent },
-      { path: ':id', component: WarehouseViewComponent },
-    ],
-  },
-] satisfies TypedRoute[];
-```
-
----
-
-## Mocking Strategy
-
-### Service avec Mock séparé
-
-```
-services/
-├── warehouse.service.ts      # Service propre
-└── warehouse.mock.ts         # Données mock séparées
-```
-
-```typescript
-// warehouse.service.ts
-import { mockSearch } from './warehouse.mock';
-
-search(...): Observable<...> {
-  // TODO: Remplacer par appel API réel
-  // return this.#http.get<...>(...);
-  return mockSearch(...);
-}
-```
-
-Quand le backend est prêt :
-
-1. Décommenter les appels API réels
-2. Supprimer les imports mock
-3. Supprimer le fichier `.mock.ts`
-
----
-
-## Angular Material - Configuration Globale
-
-### Options par défaut dans appConfig
-
-```typescript
-// src/app/app.config.ts
-import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
-import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
-
-export const appConfig: ApplicationConfig = {
-  providers: [
-    // ...autres providers
-
-    // Form fields: outline par défaut (pas besoin de appearance="outline" dans les templates)
-    {
-      provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
-      useValue: { appearance: 'outline' },
-    },
-    // Icons: Material Symbols Outlined
-    {
-      provide: MAT_ICON_DEFAULT_OPTIONS,
-      useValue: { fontSet: 'material-symbols-outlined' },
-    },
-  ],
-};
-```
-
-### Conséquence dans les templates
-
-```html
-<!-- ❌ INUTILE - appearance est déjà configuré globalement -->
-<mat-form-field appearance="outline">
-  <input matInput [field]="form.name" />
-</mat-form-field>
-
-<!-- ✅ BON - pas besoin de spécifier appearance -->
-<mat-form-field>
-  <input matInput [field]="form.name" />
-</mat-form-field>
-```
-
----
-
-## External APIs
+## 8. APIs EXTERNES
 
 ### Geoapify Address Autocomplete
 
-```typescript
-// environment.ts
-geoapifyApiKey: 'YOUR_API_KEY',  // https://www.geoapify.com/
+- **Endpoint** : `https://api.geoapify.com/v1/geocode/autocomplete`
+- **Config** : `environment.geoapifyApiKey`
+- **Limites** : 3000 req/jour (free tier)
+- **Filtrage** : `filter=countrycode:ma`
+- **Pattern** : Toujours inclure saisie utilisateur comme fallback
+- **Référence** : `shared/components/address-fields/geoapify-address.service.ts`
 
-// Endpoint
-https://api.geoapify.com/v1/geocode/autocomplete
+### Backend NestJS
 
-// Free tier: 3000 req/jour
-// Filtrage pays: filter=countrycode:ma (configurable via input countryCode)
-```
-
-**Pattern de fallback** : Toujours inclure la saisie utilisateur comme dernière option
-
-```typescript
-searchAddresses(query: string): Observable<IAddressOption[]> {
-  const userInputOption = { id: 'user-input', formatted: query };
-
-  if (!this.isApiConfigured) {
-    return of([userInputOption]);  // Fallback si pas de clé API
-  }
-
-  return this.#http.get<IGeoapifyResponse>(...).pipe(
-    map((response) => [...(response.results?.map(toAddressOption) || []), userInputOption]),
-    catchError(() => of([userInputOption]))  // Fallback si erreur API
-  );
-}
-```
+- **Header tenant** : `x-tenant-id`
+- **Format réponse** : `{ status, data }` (ExtractDataInterceptor extrait `data`)
+- **Auth** : JWT Bearer token
 
 ---
 
-## Fichiers de Traduction
+## 9. TODO PROJET
 
-### Structure
-
-```
-src/assets/i18n/
-├── fr.json  # Français (langue principale)
-└── en.json  # Anglais (synchronisé avec fr.json)
-```
-
-### Règles
-
-- Ne garder que les clés utilisées dans le code
-- Synchroniser structure entre fr.json et en.json
-- Clés organisées par section : `nav`, `commun`, `error`, `table`, `validators`, `authentication`, `tenant`, `permissions`, `user`
-
-### Clés tenant/permissions
-
-```json
-{
-  "tenant": {
-    "switched": "Centre changé avec succès",
-    "switchError": "Erreur lors du changement de centre"
-  },
-  "permissions": {
-    "noAccessToModule": "Vous n'avez pas accès à ce module dans ce centre"
-  }
-}
-```
-
----
-
-## Erreurs Courantes
-
-| Erreur                                                     | Solution                                                                |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------- | ---------- |
-| `tapResponse` capture 401                                  | Utiliser `catchError` avec filtre 401                                   |
-| `route.snapshot.data` hérite parents                       | Utiliser `route.routeConfig?.data`                                      |
-| Computed wrapper inutile sur Signal Store                  | Accès direct `store.field()`                                            |
-| Computed wrapper inutile sur rxResource                    | `rxResource.value()` est déjà un Signal                                 |
-| rxResource `request`/`loader`                              | Utiliser `params`/`stream` (Angular 20+)                                |
-| `translate.instant()` pour breadcrumb                      | Stocker clé, traduire avec pipe `                                       | translate` |
-| Permissions dupliquées Menu + Config                       | Source unique APP_ROUTES                                                |
-| `APP_INITIALIZER` deprecated                               | `provideAppInitializer()`                                               |
-| ngx-toastr CSS manquant                                    | Ajouter dans angular.json styles                                        |
-| Attendre `isAuthenticated` au lieu de `isSessionRestoring` | `isSessionRestoring` passe à false après `getUserOptions`               |
-| Header Tenant obsolète                                     | Utiliser `x-tenant-id` (pas `Tenant`)                                   |
-| Paramètres de route en dur (`:id`)                         | Chercher match dans APP_ROUTES                                          |
-| Mock data dans service                                     | Séparer dans fichier `.mock.ts`                                         |
-| ExtractDataInterceptor double extraction                   | Pas de `.pipe(map(r => r.data))`                                        |
-| route.children au lieu de firstChild                       | Utiliser `route.firstChild` (évite doublons)                            |
-| Suffixe `*-form-group` pour composant                      | Utiliser `*-fields` (Signal Forms)                                      |
-| CSS class inutilisée dans template                         | Vérifier avec grep avant de garder                                      |
-| Fichiers orphelins après refactoring                       | Supprimer et nettoyer les index.ts                                      |
-| Service/model dans dossier global                          | Si usage unique, mettre dans dossier du composant                       |
-| `[field]` sur composant composite                          | Utiliser `[(customInput)]` + `FieldTree<T>` pour child forms            |
-| `FormValueControl` pour groupe de champs                   | `FormValueControl` = contrôle simple, `FieldTree` = composant composite |
-| `address: IAddress \| null` dans form model                | Initialiser avec `createEmptyAddress()`, type `IAddress` (pas null)     |
-| `appearance="outline"` répété partout                      | Configuré globalement via `MAT_FORM_FIELD_DEFAULT_OPTIONS`              |
-| `ValidationError` avec `any`                               | Utiliser `as unknown as { prop?: Type }` pour typage explicite          |
-
----
-
-## Checklist Nouveau Composant Signal Forms
-
-### Contrôle Simple (une seule valeur)
-
-1. [ ] Implémenter `FormValueControl<T>`
-2. [ ] `value = model<T>()`
-3. [ ] Inputs optionnels : touched, errors, invalid, disabled, etc.
-4. [ ] `@if (!hidden())` pour affichage conditionnel
-5. [ ] Afficher erreurs avec `@if (field().touched() && field().invalid())`
-6. [ ] Utiliser `app-field-error` pour les messages
-7. [ ] JSDoc sur les méthodes uniquement
-
-### Composant Composite (groupe de champs) - Pattern FieldTree
-
-1. [ ] `readonly myField = model.required<FieldTree<T>>()`
-2. [ ] Importer `Field` dans les imports du composant
-3. [ ] Computed pour chaque sous-champ : `streetField = computed(() => this.address().street)`
-4. [ ] Template : `[field]="streetField()"` sur chaque input
-5. [ ] Erreurs : `@if (streetField()().touched() && streetField()().invalid())`
-6. [ ] Parent : `[(myField)]="form.myField"` (pas `[field]`)
-7. [ ] Model parent : initialiser avec objet complet (pas null)
-
----
-
-## Principes de Développement
-
-1. **MCP First** : Toujours consulter MCP AVANT de coder
-2. **KISS** : Keep It Simple
-3. **Type Safety** : Typage strict, pas de `any`
-4. **Signals First** : Privilégier Signals vs Observables
-5. **Standalone** : Pas de NgModule
-6. **Performance** : Lazy loading, computed signals
-7. **Sécurité** : Vérification permissions via route.data.authorizationsNeeded
-8. **JSDoc** : Uniquement pour les méthodes, pas pour les classes/interfaces
-
----
-
-## Git Hooks (Husky + lint-staged)
-
-### Configuration
-
-```
-.husky/
-├── pre-commit    # Lint + format des fichiers stagés
-└── pre-push      # Build production
-```
-
-### Pre-commit
-
-```bash
-# .husky/pre-commit
-#!/bin/sh
-# Load nvm to ensure Node 22
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-nvm use 22 > /dev/null 2>&1
-
-npx lint-staged
-```
-
-```json
-// package.json
-"lint-staged": {
-  "*.{ts,html}": ["eslint --fix", "prettier --write"],
-  "*.{json,scss,css,md}": ["prettier --write"]
-}
-```
-
-### Pre-push
-
-```bash
-# .husky/pre-push
-#!/bin/sh
-# Load nvm to ensure Node 22
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-nvm use 22 > /dev/null 2>&1
-
-npm run build:prod
-```
-
-> **Note** : Les hooks chargent nvm car le système peut utiliser une version Node différente (ex: v14) par défaut.
-
-### Scripts disponibles
-
-```bash
-npm run lint        # Vérifier ESLint
-npm run lint:fix    # Corriger ESLint automatiquement
-npm run format      # Prettier sur fichiers spécifiés
-npm run build:prod  # Build production
-```
-
----
-
-## TODO Backend
-
-- [x] ~~Intégration réelle `/users/options`~~ (implémenté)
+- [x] `/users/options` (implémenté)
 - [ ] Gestion rôles utilisateur
-- [ ] Menu favoris persistés côté serveur
+- [ ] Menu favoris persistés
+
+---
+
+## 10. PRÉFÉRENCES PROJET
+
+| Aspect                | Préférence                      |
+| --------------------- | ------------------------------- |
+| Feedback succès       | `toastr.success()`              |
+| Feedback erreur       | `ErrorService.getError()`       |
+| Langue par défaut     | FR                              |
+| Langue secondaire     | EN                              |
+| Format date affichage | `displayDateFormatter()` helper |
+| Multi-tenant          | Header `x-tenant-id`            |
+| Icônes                | Material Symbols Outlined       |
+| Form fields           | Outline (config globale)        |
+
+---
+
+## 11. ARCHITECTURE RAPIDE
+
+```
+src/app/
+├── core/           # Singletons: guards, interceptors, stores globaux
+├── features/       # Modules métier lazy-loaded
+├── layout/         # Sidebar, header, breadcrumb
+├── shared/         # Components, helpers, models, directives réutilisables
+└── config/         # URLs API, menu, routes, constantes
+```
+
+**Principes** : Standalone components, Signals, Lazy loading, rxResource pour HTTP
+
+---
+
+## RÈGLES DE MISE À JOUR
+
+### Quand sync CLAUDE.md
+
+- Après résolution d'erreur non documentée → section 7
+- Nouveau pattern validé → section 4
+- Nouvelle décision architecturale → section 3
+- Nouvelle API externe → section 8
+- Nouvelle préférence projet → section 10
+- Quand l'utilisateur demande "sync claude.md"
+
+### NE PAS ajouter
+
+- Code > 10 lignes (référencer fichier source)
+- Documentation Angular standard (MCP)
+- Infos dans package.json/tsconfig
+- Explications longues (garder concis)
+
+### Comment améliorer ce document
+
+1. **Ajouter des erreurs** : Chaque bug résolu = une ligne dans section 7
+2. **Enrichir les patterns** : Nouveaux checklists quand pattern récurrent
+3. **Documenter les décisions** : Choix "pourquoi X et pas Y" dans section 3
+4. **Mettre à jour les références** : Nouveaux fichiers exemplaires dans section 2
+5. **Garder concis** : Si une section dépasse 15 lignes, la résumer
