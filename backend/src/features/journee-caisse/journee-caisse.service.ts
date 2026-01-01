@@ -320,13 +320,25 @@ export class JourneeCaisseService {
 
         // Global Center Stats (Optimized: Single DB Round-trip)
         console.time('GetResume-Step3-GlobalStats');
+        // Global Center Stats (Optimized: No Joins, Two-Step)
+        console.time('GetResume-Step3-GlobalStats-Ids');
+        // A. Get Open Session IDs first (Fast Index Scan)
+        const openJournees = await this.prisma.journeeCaisse.findMany({
+            where: {
+                centreId: journee.centreId,
+                statut: 'OUVERTE'
+            },
+            select: { id: true }
+        });
+        const openJourneeIds = openJournees.map(j => j.id);
+        console.timeEnd('GetResume-Step3-GlobalStats-Ids');
+
+        console.time('GetResume-Step3-GlobalStats-Agg');
+        // B. Aggregate using simple IN clause (Avoids expensive JOIN)
         const globalStats = await this.prisma.operationCaisse.groupBy({
             by: ['moyenPaiement'],
             where: {
-                journeeCaisse: {
-                    centreId: journee.centreId,
-                    statut: 'OUVERTE'
-                },
+                journeeCaisseId: { in: openJourneeIds },
                 typeOperation: 'COMPTABLE',
                 type: 'ENCAISSEMENT'
             },
