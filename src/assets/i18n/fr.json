@@ -218,6 +218,10 @@
     "familyGroup": "Groupe famille",
     "city": "Ville",
     "company": "Entreprise",
+    "clientsActifs": "Clients Actifs",
+    "clientsCompte": "Clients Pro",
+    "clientsPassage": "Clients de Passage",
+    "clientsInactifs": "Clients Inactifs",
     "errors": {
       "searchClients": "Une erreur est survenue lors de la recherche des clients",
       "getClient": "Une erreur est survenue lors de la récupération du client",

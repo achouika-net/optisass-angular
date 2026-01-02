@@ -11,12 +11,12 @@ export interface IClientSearch {
 
 export class ClientSearch implements IClientSearch {
   constructor(
-    public clientTypeId: number = -1,
-    public active: number = -1,
+    public clientTypeId = -1,
+    public active = -1,
     public lastName: string = null,
     public firstName: string = null,
     public phone: string = null,
     public idDocument: string = null,
-    public familyGroup: string = null
+    public familyGroup: string = null,
   ) {}
 }

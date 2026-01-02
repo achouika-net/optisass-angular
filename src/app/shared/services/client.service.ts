@@ -4,7 +4,9 @@ import { Sort } from '@angular/material/sort';
 import { CLIENTS_API_URL } from '@app/config';
 import { getQuery } from '@app/helpers';
 import { IClient, IClientSearch, PaginatedApiResponse } from '@app/models';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
+import { delay } from 'rxjs/operators';
+import { IClientStatistics, MOCK_CLIENT_STATISTICS } from '../mocks';
 
 @Injectable()
 export class ClientService {
@@ -21,7 +23,7 @@ export class ClientService {
     searchForm: IClientSearch,
     page: number,
     pageSize: number,
-    sort: Sort = null
+    sort: Sort = null,
   ): Observable<PaginatedApiResponse<IClient>> {
     const params: HttpParams = getQuery(searchForm, page, pageSize, sort);
     return this.#http.get<PaginatedApiResponse<IClient>>(`${CLIENTS_API_URL}`, { params });
@@ -62,5 +64,14 @@ export class ClientService {
    */
   deleteClient(id: number): Observable<void> {
     return this.#http.delete<void>(`${CLIENTS_API_URL}/${id}`);
+  }
+
+  /**
+   * Récupérer les statistiques des clients
+   * @return {Observable<IClientStatistics>}
+   */
+  getClientsStatistics(): Observable<IClientStatistics> {
+    // Mock data with a small delay to simulate API call
+    return of(MOCK_CLIENT_STATISTICS).pipe(delay(300));
   }
 }

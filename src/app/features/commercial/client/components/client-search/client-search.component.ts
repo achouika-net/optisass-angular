@@ -1,7 +1,7 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { form } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ActionsButtonsComponent } from '@app/components';
+import { ActionsButtonsComponent, StatisticCardComponent } from '@app/components';
 import { ActionsButton, ClientSearch, IClientSearch, PermissionType } from '@app/models';
 import { ClientStore } from '../../client.store';
 import { ClientSearchFormComponent } from './client-search-form/client-search-form.component';
@@ -9,10 +9,16 @@ import { ClientSearchTableComponent } from './client-search-table/client-search-
 
 @Component({
   selector: 'app-client-search',
-  imports: [ClientSearchFormComponent, ClientSearchTableComponent, ActionsButtonsComponent],
+  imports: [
+    ClientSearchFormComponent,
+    ClientSearchTableComponent,
+    ActionsButtonsComponent,
+    StatisticCardComponent,
+  ],
   template: `
-    <app-actions-buttons [actionButtons]="buttons()" (action)="handleActions($any($event))" />
-    <div class="flex flex-col gap-2">
+    <div class="flex flex-col gap-5">
+      <app-actions-buttons [actionButtons]="buttons()" (action)="handleActions($any($event))" />
+      <app-statistic-card [statisticsCardsData]="clientsStatistics()" />
       <app-client-search-form [searchForm]="searchForm" />
       <app-client-search-table />
     </div>
@@ -44,7 +50,10 @@ export default class ClientSearchComponent implements OnInit {
 
   searchForm = form(this.searchFormModel);
 
+  clientsStatistics = computed(() => this.#clientStore.state.clientsStatistics());
+
   ngOnInit(): void {
+    this.#clientStore.getClientsStatistics();
     this.#clientStore.searchClients();
   }
 
@@ -55,7 +64,7 @@ export default class ClientSearchComponent implements OnInit {
   handleActions(action: 'exportPdf' | 'addClient'): void {
     switch (action) {
       case 'exportPdf': {
-        const searchFormValue: IClientSearch = this.searchFormModel();
+        // const searchFormValue: IClientSearch = this.searchFormModel();
         // this.#clientStore.exportPdfClients(searchFormValue);
         break;
       }

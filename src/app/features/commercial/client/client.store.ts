@@ -4,11 +4,18 @@ import { PageEvent } from '@angular/material/paginator';
 import { Sort } from '@angular/material/sort';
 import { Router } from '@angular/router';
 import { DEFAULT_PAGE_SIZE } from '@app/config';
-import { ClientSearch, IClient, IClientSearch, PaginatedApiResponse } from '@app/models';
+import {
+  ClientSearch,
+  IClient,
+  IClientSearch,
+  IStatisticCardData,
+  PaginatedApiResponse,
+} from '@app/models';
 import { ClientService, ErrorService } from '@app/services';
 import { patchState, signalState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
+import { IClientStatistics } from 'app/shared/mocks';
 import { ToastrService } from 'ngx-toastr';
 import { catchError, of, pipe, switchMap } from 'rxjs';
 import { tap } from 'rxjs/operators';
@@ -16,6 +23,7 @@ import { tap } from 'rxjs/operators';
 interface ClientState {
   clients: PaginatedApiResponse<IClient>;
   client: IClient;
+  clientsStatistics: IStatisticCardData[];
   searchForm: IClientSearch;
   sort: Sort;
   pageEvent: PageEvent;
@@ -24,6 +32,7 @@ interface ClientState {
 const initialState: ClientState = {
   clients: null,
   client: null,
+  clientsStatistics: [],
   searchForm: new ClientSearch(),
   sort: { active: 'lastName', direction: 'desc' },
   pageEvent: {
@@ -65,8 +74,11 @@ export class ClientStore {
 
   resetClient = () => patchState(this.state, { client: null });
 
+  setClientsStatistics = (clientsStatistics: IStatisticCardData[]) =>
+    patchState(this.state, { clientsStatistics });
+
   goToSearchPage = rxMethod<void>(
-    pipe(tap(() => void this.#router.navigate(['/p/commercial/clients'])))
+    pipe(tap(() => void this.#router.navigate(['/p/commercial/clients']))),
   );
 
   searchClients = rxMethod<void>(
@@ -77,7 +89,7 @@ export class ClientStore {
             this.state.searchForm(),
             this.state.pageEvent().pageIndex + 1,
             this.state.pageEvent().pageSize,
-            this.state.sort()
+            this.state.sort(),
           )
           .pipe(
             tap((clients: PaginatedApiResponse<IClient>) => {
@@ -85,10 +97,10 @@ export class ClientStore {
             }),
             catchError((error: HttpErrorResponse) => {
               return this.#setWsError(error, 'searchClients');
-            })
+            }),
           );
-      })
-    )
+      }),
+    ),
   );
 
   getClient = rxMethod<number>(
@@ -100,10 +112,10 @@ export class ClientStore {
           }),
           catchError((error: HttpErrorResponse) => {
             return this.#setWsError(error, 'getClient');
-          })
+          }),
         );
-      })
-    )
+      }),
+    ),
   );
 
   addClient = rxMethod<IClient>(
@@ -116,10 +128,10 @@ export class ClientStore {
           }),
           catchError((error: HttpErrorResponse) => {
             return this.#setWsError(error, 'addClient');
-          })
+          }),
         );
-      })
-    )
+      }),
+    ),
   );
 
   updateClient = rxMethod<{ id: number; client: Partial<IClient> }>(
@@ -132,10 +144,10 @@ export class ClientStore {
           }),
           catchError((error: HttpErrorResponse) => {
             return this.#setWsError(error, 'updateClient');
-          })
+          }),
         );
-      })
-    )
+      }),
+    ),
   );
 
   deleteClient = rxMethod<number>(
@@ -148,9 +160,46 @@ export class ClientStore {
           }),
           catchError((error: HttpErrorResponse) => {
             return this.#setWsError(error, 'deleteClient');
-          })
+          }),
         );
-      })
-    )
+      }),
+    ),
+  );
+
+  getClientsStatistics = rxMethod<void>(
+    pipe(
+      switchMap(() =>
+        this.#clientService.getClientsStatistics().pipe(
+          tap((clientsStatistic: IClientStatistics) => {
+            const clientsStatistics: IStatisticCardData[] = [
+              {
+                class: 'bg-sky-600',
+                value: clientsStatistic?.actif,
+                label: 'client.clientsActifs',
+              },
+              {
+                class: 'bg-indigo-600',
+                value: clientsStatistic?.pro,
+                label: 'client.clientsCompte',
+              },
+              {
+                class: 'bg-teal-600',
+                value: clientsStatistic?.passage,
+                label: 'client.clientsPassage',
+              },
+              {
+                class: 'bg-orange-600',
+                value: clientsStatistic?.inactif,
+                label: 'client.clientsInactifs',
+              },
+            ];
+            this.setClientsStatistics(clientsStatistics);
+          }),
+          catchError((error: HttpErrorResponse) =>
+            this.#setWsError(error, 'getClientsStatisticsError'),
+          ),
+        ),
+      ),
+    ),
   );
 }
