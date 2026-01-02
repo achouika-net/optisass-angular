@@ -40,7 +40,7 @@
     class="relative"
   >
     <button
-      mat-flat-button
+      matButton="filled"
       [attr.data-subitem]="$index + 1"
       [style.background-color]="!button.disabled ? button.customColor : null"
       class="w-full {{ button.color || defaultButtonColor() }}"

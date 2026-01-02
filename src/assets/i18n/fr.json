@@ -18,6 +18,7 @@
     "users_list": "Liste",
     "users_add": "Ajouter",
     "users_detail": "Détail",
+    "clients_list": "Liste",
     "holidays": "Congés et jours Fériés",
     "warehouses": "Gestion des entrepôts",
     "warehouses_list": "Liste",
@@ -206,6 +207,32 @@
       "mobilePattern": "Veuillez saisir un numéro de mobile valide",
       "centreRequired": "Le centre est requis",
       "roleRequired": "Le rôle est requis"
+    }
+  },
+  "client": {
+    "add": "Ajouter un client",
+    "clientType": "Type de client",
+    "type": "Type",
+    "title": "Titre",
+    "idDocument": "Pièce d'identité",
+    "familyGroup": "Groupe famille",
+    "city": "Ville",
+    "company": "Entreprise",
+    "clientsActifs": "Clients Actifs",
+    "clientsCompte": "Clients Pro",
+    "clientsPassage": "Clients de Passage",
+    "clientsInactifs": "Clients Inactifs",
+    "errors": {
+      "searchClients": "Une erreur est survenue lors de la recherche des clients",
+      "getClient": "Une erreur est survenue lors de la récupération du client",
+      "addClient": "Une erreur est survenue lors de la création d'un client",
+      "updateClient": "Une erreur est survenue lors de la modification du client",
+      "deleteClient": "Une erreur est survenue lors de la suppression du client"
+    },
+    "messages": {
+      "add_success": "Client créé avec succès",
+      "update_success": "Client modifié avec succès",
+      "delete_success": "Client supprimé avec succès"
     }
   }
 }

@@ -1,69 +1,65 @@
-import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Sort } from '@angular/material/sort';
 import { CLIENTS_API_URL } from '@app/config';
-import { getQuery } from '@app/helpers';
-import {
-  IClient,
-  IClientSearchRequest,
-  IClientSearchResponse,
-  PaginatedApiResponse,
-} from '@app/models';
-import { Observable } from 'rxjs';
+import { IClient, IClientSearch, PaginatedApiResponse } from '@app/models';
+import { Observable, of } from 'rxjs';
+import { delay } from 'rxjs/operators';
+import { IClientStatistics, MOCK_CLIENT, MOCK_CLIENTS, MOCK_CLIENT_STATISTICS } from '../mocks';
 
-@Injectable({ providedIn: 'root' })
+@Injectable()
 export class ClientService {
-  #http = inject(HttpClient);
+  readonly #http = inject(HttpClient);
 
   /**
-   * récupérer la liste des client
-   * @return Observable<PaginatedApiResponse<IClient>>
-   * @param {IClientSearchRequest} searchForm
-   * @param { number} page
-   * @param { number} pageSize
+   * Recherche clients via formulaire avancé.
+   * @param {IClientSearch} searchForm
+   * @param {number} page
+   * @param {number} pageSize
    * @param {Sort} sort
    */
   searchClients(
-    searchForm: Partial<IClientSearchRequest>,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    searchForm: IClientSearch,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     page: number,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     pageSize: number,
-    sort: Sort = null
-  ): Observable<PaginatedApiResponse<IClientSearchResponse>> {
-    const params: HttpParams = getQuery(searchForm, page, pageSize, sort);
-    return this.#http.get<PaginatedApiResponse<IClientSearchResponse>>(
-      `${CLIENTS_API_URL}`,
-      {
-        params,
-      }
-    );
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    sort?: Sort,
+  ): Observable<PaginatedApiResponse<IClient>> {
+    // Mock data with a small delay to simulate API call
+    const mockResponse = new PaginatedApiResponse<IClient>(MOCK_CLIENTS);
+    return of(mockResponse).pipe(delay(300));
   }
 
   /**
-   * Récupérer le client
-   * @param idclient number
-   * @return Observable<IClient>
+   * Récupérer le detail d'un client
+   * @param {number} id
+   * @return {Observable<IClient>}
    */
-  getClient(idclient: number): Observable<IClient> {
-    return this.#http.get<IClient>(`${CLIENTS_API_URL}/${idclient}`);
+  getClient(id: number): Observable<IClient> {
+    // Mock data with a small delay to simulate API call
+    return of({ ...MOCK_CLIENT, id }).pipe(delay(300));
   }
 
   /**
    * Ajouter un client
-   * @param {client} client
+   * @param {IClient} client
    * @return {Observable<IClient>}
    */
-  addClient(client: Partial<IClient>): Observable<IClient> {
+  addClient(client: IClient): Observable<IClient> {
     return this.#http.post<IClient>(`${CLIENTS_API_URL}`, client);
   }
 
   /**
-   * Modifier le client
+   * Modifier un client
    * @param {number} id
-   * @param {Partial<IClient>} data
+   * @param {Partial<IClient>} client
    * @return {Observable<IClient>}
    */
-  updateClient(id: number, data: Partial<IClient>): Observable<IClient> {
-    return this.#http.patch<IClient>(`${CLIENTS_API_URL}/${id}`, data);
+  updateClient(id: number, client: Partial<IClient>): Observable<IClient> {
+    return this.#http.patch<IClient>(`${CLIENTS_API_URL}/${id}`, client);
   }
 
   /**
@@ -76,18 +72,11 @@ export class ClientService {
   }
 
   /**
-   * Export a xls of clients.
-   * @param {IClientSearchRequest} searchForm
-   * @returns {Observable<HttpResponse<Blob>>}
+   * Récupérer les statistiques des clients
+   * @return {Observable<IClientStatistics>}
    */
-  public exportClientXsl(
-    searchForm: IClientSearchRequest
-  ): Observable<HttpResponse<Blob>> {
-    const params: HttpParams = getQuery(searchForm);
-    return this.#http.get<Blob>(`${CLIENTS_API_URL}/export`, {
-      responseType: 'blob' as 'json',
-      observe: 'response',
-      params,
-    });
+  getClientsStatistics(): Observable<IClientStatistics> {
+    // Mock data with a small delay to simulate API call
+    return of(MOCK_CLIENT_STATISTICS).pipe(delay(300));
   }
 }
