@@ -1,12 +1,11 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Sort } from '@angular/material/sort';
 import { CLIENTS_API_URL } from '@app/config';
-import { getQuery } from '@app/helpers';
 import { IClient, IClientSearch, PaginatedApiResponse } from '@app/models';
 import { Observable, of } from 'rxjs';
 import { delay } from 'rxjs/operators';
-import { IClientStatistics, MOCK_CLIENT_STATISTICS } from '../mocks';
+import { IClientStatistics, MOCK_CLIENT, MOCK_CLIENTS, MOCK_CLIENT_STATISTICS } from '../mocks';
 
 @Injectable()
 export class ClientService {
@@ -20,13 +19,18 @@ export class ClientService {
    * @param {Sort} sort
    */
   searchClients(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     searchForm: IClientSearch,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     page: number,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     pageSize: number,
-    sort: Sort = null,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    sort?: Sort,
   ): Observable<PaginatedApiResponse<IClient>> {
-    const params: HttpParams = getQuery(searchForm, page, pageSize, sort);
-    return this.#http.get<PaginatedApiResponse<IClient>>(`${CLIENTS_API_URL}`, { params });
+    // Mock data with a small delay to simulate API call
+    const mockResponse = new PaginatedApiResponse<IClient>(MOCK_CLIENTS);
+    return of(mockResponse).pipe(delay(300));
   }
 
   /**
@@ -35,7 +39,8 @@ export class ClientService {
    * @return {Observable<IClient>}
    */
   getClient(id: number): Observable<IClient> {
-    return this.#http.get<IClient>(`${CLIENTS_API_URL}/${id}`);
+    // Mock data with a small delay to simulate API call
+    return of({ ...MOCK_CLIENT, id }).pipe(delay(300));
   }
 
   /**
