@@ -18,6 +18,7 @@
     "users_list": "List",
     "users_add": "Add",
     "users_detail": "Detail",
+    "clients_list": "List",
     "holidays": "Holidays & Public Days",
     "warehouses": "Warehouse Management",
     "warehouses_list": "List",
@@ -206,6 +207,32 @@
       "mobilePattern": "Please enter a valid mobile number",
       "centreRequired": "Center is required",
       "roleRequired": "Role is required"
+    }
+  },
+  "client": {
+    "add": "Add a client",
+    "clientType": "Client type",
+    "type": "Type",
+    "title": "Title",
+    "idDocument": "ID document",
+    "familyGroup": "Family group",
+    "city": "City",
+    "company": "Company",
+    "clientsActifs": "Active Clients",
+    "clientsCompte": "Pro Clients",
+    "clientsPassage": "Walk-in Clients",
+    "clientsInactifs": "Inactive Clients",
+    "errors": {
+      "searchClients": "An error occurred while searching for clients",
+      "getClient": "An error occurred while retrieving the client",
+      "addClient": "An error occurred while creating a client",
+      "updateClient": "An error occurred while updating the client",
+      "deleteClient": "An error occurred while deleting the client"
+    },
+    "messages": {
+      "add_success": "Client created successfully",
+      "update_success": "Client updated successfully",
+      "delete_success": "Client deleted successfully"
     }
   }
 }

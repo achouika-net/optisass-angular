@@ -23,9 +23,14 @@ export const routes: Routes = [
     children: [
       {
         path: '',
-        redirectTo: 'settings',
+        redirectTo: 'commercial',
         pathMatch: 'full',
       },
+      {
+        path: 'commercial',
+        data: { breadcrumb: 'nav.commercial' },
+        loadChildren: () => import('./features/commercial/commercial.routes'),
+      } satisfies TypedRoute,
       {
         path: 'settings',
         data: { breadcrumb: 'nav.settings' },

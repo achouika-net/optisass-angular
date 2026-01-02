@@ -1,22 +1,24 @@
 <!-- Version Mobile/Compact -->
 @if (isMobile()) {
-  <button mat-button [matMenuTriggerFor]="userMenu" class="flex items-center gap-2 px-2">
-    <app-avatar [imageBase64]="user()?.avatar" [size]="32" />
-  </button>
+<button matButton [matMenuTriggerFor]="userMenu" class="flex items-center gap-2 px-2">
+  <app-avatar [imageBase64]="user()?.avatar" [size]="32" />
+</button>
 } @else {
-  <!-- Version Desktop -->
-  <div class="flex items-center gap-1">
-    <button mat-icon-button><mat-icon>notifications</mat-icon></button>
-    <button mat-button [matMenuTriggerFor]="userMenu">
-      <div class="flex items-center gap-2">
-        <app-avatar [imageBase64]="user()?.avatar" [size]="32" />
-        <div class="flex flex-col items-start">
-          <span class="text-sm font-medium">{{ user()?.is_callcenter ? 'Call Center' : 'Super Admin' }}</span>
-          <span class="text-xs">{{ user()?.is_callcenter ? 'Call Center' : 'Super Admin' }}</span>
-        </div>
+<!-- Version Desktop -->
+<div class="flex items-center gap-1">
+  <button matIconButton><mat-icon>notifications</mat-icon></button>
+  <button matButton [matMenuTriggerFor]="userMenu">
+    <div class="flex items-center gap-2">
+      <app-avatar [imageBase64]="user()?.avatar" [size]="32" />
+      <div class="flex flex-col items-start">
+        <span class="text-sm font-medium">{{
+          user()?.is_callcenter ? 'Call Center' : 'Super Admin'
+        }}</span>
+        <span class="text-xs">{{ user()?.is_callcenter ? 'Call Center' : 'Super Admin' }}</span>
       </div>
-    </button>
-  </div>
+    </div>
+  </button>
+</div>
 }
 
 <mat-menu #userMenu="matMenu">
