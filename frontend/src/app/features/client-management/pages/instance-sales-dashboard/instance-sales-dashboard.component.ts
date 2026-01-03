@@ -15,6 +15,8 @@ import { ProductService } from '../../../stock-management/services/product.servi
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { UpcomingDeliveriesWidgetComponent } from '../../components/upcoming-deliveries-widget/upcoming-deliveries-widget.component';
+import { MessagingService } from '../../../../core/services/messaging.service';
 
 @Component({
     selector: 'app-instance-sales-dashboard',
@@ -27,7 +29,8 @@ import { catchError } from 'rxjs/operators';
         MatCardModule,
         MatMenuModule,
         MatTooltipModule,
-        MatDividerModule
+        MatDividerModule,
+        UpcomingDeliveriesWidgetComponent
     ],
     templateUrl: './instance-sales-dashboard.component.html',
     styleUrls: ['./instance-sales-dashboard.component.scss'],
@@ -41,6 +44,7 @@ export class InstanceSalesDashboardComponent implements OnInit {
         public monitor: InstanceSalesMonitorService,
         private factureService: FactureService,
         private productService: ProductService,
+        private messagingService: MessagingService,
         private router: Router,
         private snackBar: MatSnackBar
     ) {
@@ -208,5 +212,36 @@ export class InstanceSalesDashboardComponent implements OnInit {
 
     hasStatus(sales: InstanceSale[] | null, status: string): boolean {
         return this.countByStatus(sales, status) > 0;
+    }
+
+    notifyReady(sale: InstanceSale): void {
+        const client = sale.facture.client;
+        if (!client?.telephone) {
+            this.snackBar.open('Ce client n\'a pas de numéro de téléphone', 'Fermer', { duration: 3000 });
+            return;
+        }
+
+        const name = this.getClientNameForSale(client);
+        this.messagingService.openWhatsApp(client.telephone, 'DELIVERY_READY', { name });
+    }
+
+    notifyDelay(sale: InstanceSale): void {
+        const client = sale.facture.client;
+        if (!client?.telephone) {
+            this.snackBar.open('Ce client n\'a pas de numéro de téléphone', 'Fermer', { duration: 3000 });
+            return;
+        }
+
+        const name = this.getClientNameForSale(client);
+        this.messagingService.openWhatsApp(client.telephone, 'DELIVERY_DELAY', { name });
+    }
+
+    private getClientNameForSale(client: any): string {
+        if (client.typeClient === 'professionnel') {
+            return client.raisonSociale || 'Client professionnel';
+        }
+        const nom = client.nom || '';
+        const prenom = client.prenom || '';
+        return prenom ? `${nom} ${prenom}` : nom || 'Client';
     }
 }

@@ -10,10 +10,16 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 import { FinanceService } from '../../services/finance.service';
 import { Supplier } from '../../models/finance.models';
 import { SupplierFormDialogComponent } from '../../components/supplier-form-dialog/supplier-form-dialog.component';
+import { SupplierSituationDialogComponent } from '../../components/supplier-situation-dialog/supplier-situation-dialog.component';
 
 @Component({
   selector: 'app-supplier-list',
@@ -29,14 +35,32 @@ import { SupplierFormDialogComponent } from '../../components/supplier-form-dial
     MatDividerModule,
     MatTooltipModule,
     MatDialogModule,
+    MatProgressSpinnerModule,
     RouterModule
   ],
   templateUrl: './supplier-list.component.html',
   styles: [`
-    .container { padding: 20px; }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    table { width: 100%; }
-    .actions { display: flex; gap: 8px; }
+    .container-fluid { 
+      max-width: 98%;
+      margin: 0 auto;
+      padding: 20px 0;
+    }
+    .header { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    mat-card {
+      width: 100%;
+      overflow: hidden; /* Avoid internal scroll if possible */
+    }
+    table { 
+      width: 100%; 
+    }
+    .table-container {
+      overflow-x: hidden; /* Prevent the 'ascenseur' if not strictly needed */
+    }
   `]
 })
 export class SupplierListComponent implements OnInit {
@@ -46,7 +70,6 @@ export class SupplierListComponent implements OnInit {
 
   constructor(
     private financeService: FinanceService,
-    private router: Router,
     private snackBar: MatSnackBar,
     private dialog: MatDialog
   ) { }
@@ -82,6 +105,14 @@ export class SupplierListComponent implements OnInit {
       if (result) {
         this.loadSuppliers();
       }
+    });
+  }
+
+  openSituationDialog(supplier: Supplier) {
+    this.dialog.open(SupplierSituationDialogComponent, {
+      width: '500px',
+      maxWidth: '95vw',
+      data: { supplier }
     });
   }
 

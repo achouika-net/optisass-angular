@@ -26,10 +26,19 @@ export class MessagingService {
     }
 
     generateWhatsAppLink(phone: string, text: string): string {
-        // Basic cleanup of phone number: remove spaces, dashes, etc.
-        const cleanPhone = phone.replace(/[^0-9]/g, '');
+        // Moroccan context: standard numbers like 06... or 07... 
+        // We need international format WITHOUT + or spaces: 2126...
+        let cleanPhone = phone.replace(/[^0-9]/g, '');
+
+        if (cleanPhone.startsWith('0') && cleanPhone.length === 10) {
+            cleanPhone = '212' + cleanPhone.substring(1);
+        } else if (cleanPhone.length === 9) {
+            cleanPhone = '212' + cleanPhone;
+        }
+
         const encodedText = encodeURIComponent(text);
-        return `https://wa.me/${cleanPhone}?text=${encodedText}`;
+        // Using api.whatsapp.com/send is often more compatible for pre-filling than wa.me on some platforms
+        return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`;
     }
 
     generateSmsLink(phone: string, text: string): string {

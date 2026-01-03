@@ -238,12 +238,20 @@
                                         </span>
 
                                         <!-- Outgoing Indicator (Source Row) -->
-                                        <span *ngIf="row.specificData?.pendingOutgoing?.length > 0"
-                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 text-[10px] font-bold uppercase border border-orange-100">
-                                            <mat-icon
-                                                style="font-size: 12px; height: 12px; width: 12px;">outbound</mat-icon>
-                                            Expédition x{{ row.specificData.pendingOutgoing.length }}
-                                        </span>
+                                        <div class="flex items-center gap-1"
+                                            *ngIf="row.specificData?.pendingOutgoing?.length > 0">
+                                            <span
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 text-[10px] font-bold uppercase border border-orange-100">
+                                                <mat-icon
+                                                    style="font-size: 12px; height: 12px; width: 12px;">outbound</mat-icon>
+                                                Expédition x{{ row.specificData.pendingOutgoing.length }}
+                                            </span>
+                                            <button mat-icon-button color="success" *ngIf="canShip(row)"
+                                                (click)="shipTransfer(row); $event.stopPropagation()"
+                                                title="Valider l'expédition maintenant" class="mini-ship-btn">
+                                                <mat-icon style="font-size: 18px;">local_shipping</mat-icon>
+                                            </button>
+                                        </div>
                             </div>
                         </td>
                     </ng-container>

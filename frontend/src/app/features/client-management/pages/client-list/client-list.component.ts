@@ -11,7 +11,7 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { ClientManagementService } from '../../services/client.service';
 import { Client, StatutClient, TypeClient, isClientParticulier, isClientProfessionnel } from '../../models/client.model';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -40,6 +40,7 @@ interface ClientStats {
         MatIconModule,
         MatMenuModule,
         MatDividerModule,
+        RouterModule,
     ],
     templateUrl: './client-list.component.html',
     styleUrl: './client-list.component.css'

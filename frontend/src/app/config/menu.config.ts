@@ -38,18 +38,7 @@ export const MENU: MenuItem[] = [
         type: 'subchild',
         route: 'finance/caisse',
       },
-      {
-        label: 'Gestion Dépenses',
-        icon: 'payments',
-        type: 'subchild',
-        route: 'finance/payments',
-      },
-      {
-        label: 'Fournisseurs',
-        icon: 'local_shipping',
-        type: 'subchild',
-        route: 'finance/suppliers',
-      },
+
       {
         label: 'Trésorerie',
         icon: 'savings',
@@ -94,19 +83,31 @@ export const MENU: MenuItem[] = [
         type: 'subchild',
         route: 'stock',
       },
+      {
+        label: 'Transferts Inter-Centres',
+        icon: 'swap_horiz',
+        type: 'subchild',
+        route: 'stock/transfers',
+      },
+      {
+        label: 'Gestion Dépenses',
+        icon: 'payments',
+        type: 'subchild',
+        route: 'finance/payments',
+      },
+      {
+        label: 'Gestion Fournisseurs',
+        icon: 'local_shipping',
+        type: 'subchild',
+        route: 'finance/suppliers',
+      },
+      {
+        label: 'Gestion BL',
+        icon: 'description',
+        type: 'subchild',
+        route: 'finance/invoices',
+      },
 
-      {
-        label: 'Catégories',
-        icon: 'category',
-        type: 'subchild',
-        route: 'commercial/categories',
-      },
-      {
-        label: 'Code Promotion',
-        icon: 'confirmation_number',
-        type: 'subchild',
-        route: 'commercial/code-promo',
-      },
       {
         label: 'Promotions',
         icon: 'loyalty',
@@ -147,24 +148,10 @@ export const MENU: MenuItem[] = [
     type: 'sub',
     children: [
       {
-        label: 'Paramètres Mails',
-        icon: 'settings',
-        type: 'subchild',
-        route: 'communication/mails/parametres',
-        roles: [4, 3],
-      },
-      {
         label: 'Templates Mails',
         icon: 'article',
         type: 'subchild',
         route: 'communication/mails/templates',
-        roles: [4, 3],
-      },
-      {
-        label: 'Paramètres SMS',
-        icon: 'settings',
-        type: 'subchild',
-        route: 'communication/sms/parametres',
         roles: [4, 3],
       },
       {
@@ -212,6 +199,12 @@ export const MENU: MenuItem[] = [
         icon: 'point_of_sale',
         type: 'subchild',
         route: 'settings/caisses',
+      },
+      {
+        label: 'Configuration Envoi',
+        icon: 'settings',
+        type: 'subchild',
+        route: 'settings/marketing',
       },
       {
         label: 'Agenda contrôleur',

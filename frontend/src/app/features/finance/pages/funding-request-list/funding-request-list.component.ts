@@ -28,14 +28,33 @@ import { UserCurrentCentreSelector, UserSelector } from '../../../../core/store/
     ],
     templateUrl: './funding-request-list.component.html',
     styles: [`
-    .container { padding: 20px; }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    table { width: 100%; }
-    .actions { display: flex; gap: 8px; justify-content: flex-end; }
-    .montant-cell { font-weight: bold; color: #d32f2f; }
-    .status-pending { background-color: #fff3e0; color: #ef6c00; }
-    .status-validated { background-color: #e8f5e9; color: #2e7d32; }
-    .status-rejected { background-color: #ffebee; color: #c62828; }
+    .container { padding: 24px; background: #fafafa; min-height: 100vh; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .header h1 { font-size: 24px; font-weight: 600; color: #2c3e50; margin: 0; }
+    
+    mat-card { border-radius: 12px; overflow: hidden; border: 1px solid #edf2f7; }
+    table { width: 100%; border-collapse: separate; }
+    
+    .mat-mdc-header-row { background: #3f51b5; }
+    .mat-mdc-header-cell { color: white !important; font-weight: 600; padding: 16px !important; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
+    .mat-mdc-cell { padding: 16px !important; color: #4a5568; border-bottom: 1px solid #edf2f7; }
+    .mat-mdc-row:hover { background-color: #f7fafc; transition: background 0.2s ease; }
+    
+    .montant-cell { font-weight: 700; color: #e53e3e; text-align: right; font-size: 15px; }
+    .text-right { text-align: right; }
+    
+    .status-pending { background-color: #fffaf0; color: #dd6b20; border: 1px solid #fbd38d; font-weight: 500; }
+    .status-validated { background-color: #f0fff4; color: #38a169; border: 1px solid #9ae6b4; font-weight: 500; }
+    .status-rejected { background-color: #fff5f5; color: #e53e3e; border: 1px solid #feb2b2; font-weight: 500; }
+    
+    .actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+    .validation-date { display: flex; flex-direction: column; align-items: flex-end; }
+    .date-label { font-size: 10px; color: #a0aec0; text-transform: uppercase; font-weight: 600; margin-bottom: 2px; }
+    .date-value { font-size: 12px; color: #718096; font-weight: 500; }
+    
+    .libelle-container { display: flex; flex-direction: column; }
+    .libelle-main { font-weight: 600; color: #2d3748; }
+    .libelle-sub { font-size: 12px; color: #718096; margin-top: 2px; }
   `]
 })
 export class FundingRequestListComponent implements OnInit {

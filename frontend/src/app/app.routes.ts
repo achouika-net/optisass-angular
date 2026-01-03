@@ -56,12 +56,20 @@ export const routes: Routes = [
         data: { mode: 'management' }
       },
       {
+        path: 'settings/marketing',
+        loadComponent: () => import('./features/settings/marketing-config/marketing-config.component').then(m => m.MarketingConfigComponent),
+      },
+      {
         path: 'stats',
         loadComponent: () => import('./features/reports/advanced-stats/advanced-stats.component').then(m => m.AdvancedStatsComponent),
       },
       {
         path: 'finance',
         loadChildren: () => import('./features/finance/finance.routes').then(m => m.routes),
+      },
+      {
+        path: 'commercial',
+        loadChildren: () => import('./features/commercial/commercial.routes').then(m => m.routes),
       },
     ],
   },

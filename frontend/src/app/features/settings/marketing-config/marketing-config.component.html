@@ -1,0 +1,108 @@
+<div class="config-container">
+    <div class="header">
+        <h1>Paramètres de Communication</h1>
+        <p>Configurez vos accès WhatsApp, SMS et Email pour l'envoi automatique des campagnes.</p>
+    </div>
+
+    <form [formGroup]="configForm" (ngSubmit)="saveConfig()" *ngIf="!loading()">
+        <div class="grid">
+            <!-- WhatsApp Config -->
+            <mat-card class="config-card">
+                <mat-card-header>
+                    <mat-icon mat-card-avatar>whatsapp</mat-icon>
+                    <mat-card-title>WhatsApp (Passerelle API)</mat-card-title>
+                    <mat-card-subtitle>Ex: UltraMsg, Whapi</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                    <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>API URL</mat-label>
+                        <input matInput formControlName="whatsappApiUrl" placeholder="https://api.ultramsg.com">
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Instance ID</mat-label>
+                        <input matInput formControlName="whatsappInstanceId" placeholder="instance12345">
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Token API</mat-label>
+                        <input matInput formControlName="whatsappToken" type="password" placeholder="Clé secrète">
+                    </mat-form-field>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- SMS Config -->
+            <mat-card class="config-card">
+                <mat-card-header>
+                    <mat-icon mat-card-avatar>sms</mat-icon>
+                    <mat-card-title>SMS (Passerelle HTTP)</mat-card-title>
+                    <mat-card-subtitle>Passerelle générique</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                    <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Gateway URL</mat-label>
+                        <input matInput formControlName="smsGatewayUrl" placeholder="https://api.sms-provider.com/send">
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Clé API SMS</mat-label>
+                        <input matInput formControlName="smsApiKey" type="password" placeholder="API Key">
+                    </mat-form-field>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- Email Config -->
+            <mat-card class="config-card full-grid">
+                <mat-card-header>
+                    <mat-icon mat-card-avatar>email</mat-icon>
+                    <mat-card-title>Email (Serveur SMTP)</mat-card-title>
+                    <mat-card-subtitle>Gmail, Outlook, Serveur privé</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="row">
+                        <mat-form-field appearance="outline" class="flex-2">
+                            <mat-label>Serveur SMTP (Host)</mat-label>
+                            <input matInput formControlName="smtpHost" placeholder="smtp.gmail.com">
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="flex-1">
+                            <mat-label>Port</mat-label>
+                            <input matInput formControlName="smtpPort" type="number" placeholder="587">
+                        </mat-form-field>
+                    </div>
+
+                    <div class="row">
+                        <mat-form-field appearance="outline" class="flex-1">
+                            <mat-label>Utilisateur / Email</mat-label>
+                            <input matInput formControlName="smtpUser" placeholder="contact@votre-optique.com">
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="flex-1">
+                            <mat-label>Mot de passe</mat-label>
+                            <input matInput formControlName="smtpPass" type="password"
+                                placeholder="Mot de passe ou clé application">
+                            <mat-hint *ngIf="configForm.get('smtpHost')?.value?.includes('gmail')">
+                                Note: Pour Gmail, utilisez un <strong>Mot de passe d'application</strong>.
+                            </mat-hint>
+                        </mat-form-field>
+                    </div>
+
+                    <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Nom d'expéditeur (From Name)</mat-label>
+                        <input matInput formControlName="smtpFrom" placeholder="EX: OPTI-SAAS Communications">
+                    </mat-form-field>
+                </mat-card-content>
+            </mat-card>
+        </div>
+
+        <div class="actions">
+            <button mat-raised-button color="primary" type="submit" [disabled]="saving() || configForm.invalid">
+                <mat-icon *ngIf="!saving()">save</mat-icon>
+                <span *ngIf="!saving()">Enregistrer la Configuration</span>
+                <span *ngIf="saving()">Enregistrement en cours...</span>
+            </button>
+        </div>
+    </form>
+
+    <div *ngIf="loading()" class="loading-state">
+        <p>Chargement des paramètres...</p>
+    </div>
+</div>

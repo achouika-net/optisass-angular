@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 export interface BrouillonInvoice {
     id: string;
+    centreId?: string;
     numero: string;
     ficheId?: string;
     dateEmission: Date;

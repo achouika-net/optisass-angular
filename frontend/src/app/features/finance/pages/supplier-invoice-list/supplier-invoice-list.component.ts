@@ -37,16 +37,27 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
   ],
   templateUrl: './supplier-invoice-list.component.html',
   styles: [`
-    .container { padding: 20px; }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .container { padding: 24px; max-width: 100%; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
     table { width: 100%; }
-    .montant-cell { font-weight: bold; text-align: right; }
-    .statut-chip { font-size: 10px; height: 24px; }
+    .mat-column-date { width: 100px; }
+    .mat-column-numero { width: 150px; }
+    .mat-column-statut { width: 100px; }
+    .mat-column-actions { width: 80px; text-align: right; }
+    .montant-cell { font-weight: bold; text-align: right; color: #2c3e50; }
+    .statut-chip { font-size: 11px; height: 26px; font-weight: 500; letter-spacing: 0.3px; }
+    
+    tr.mat-mdc-header-row { background-color: #f8fafc; }
+    th.mat-mdc-header-cell { color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+    td.mat-mdc-cell { color: #334155; font-size: 13px; padding: 12px 8px !important; }
+    
+    .mat-mdc-card { border-radius: 12px; overflow: hidden; }
+    .font-medium { color: #1e293b; font-weight: 500; }
   `]
 })
 export class SupplierInvoiceListComponent implements OnInit {
   invoices: SupplierInvoice[] = [];
-  displayedColumns: string[] = ['date', 'numero', 'fournisseur', 'type', 'statut', 'montant', 'actions'];
+  displayedColumns: string[] = ['date', 'numero', 'fournisseur', 'client', 'ficheMedicale', 'type', 'statut', 'montant', 'actions'];
   loading = false;
   currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
 
@@ -135,5 +146,11 @@ export class SupplierInvoiceListComponent implements OnInit {
       case 'RETARD': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  }
+
+  formatClientName(client: any): string {
+    if (!client) return '-';
+    if (client.raisonSociale) return client.raisonSociale;
+    return `${client.nom || ''} ${client.prenom || ''}`.trim() || '-';
   }
 }

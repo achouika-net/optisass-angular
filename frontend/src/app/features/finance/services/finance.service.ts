@@ -60,10 +60,15 @@ export class FinanceService {
     }
 
     // --- Supplier Invoices ---
-    getInvoices(filters?: { fournisseurId?: string; statut?: string }): Observable<SupplierInvoice[]> {
+    getSupplierSituation(fournisseurId: string): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/supplier-invoices/situation/${fournisseurId}`);
+    }
+
+    getInvoices(filters?: { fournisseurId?: string; statut?: string; clientId?: string }): Observable<SupplierInvoice[]> {
         let params = new HttpParams();
         if (filters?.fournisseurId) params = params.set('fournisseurId', filters.fournisseurId);
         if (filters?.statut) params = params.set('statut', filters.statut);
+        if (filters?.clientId) params = params.set('clientId', filters.clientId);
 
         return this.http.get<SupplierInvoice[]>(`${this.apiUrl}/supplier-invoices`, { params });
     }

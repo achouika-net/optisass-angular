@@ -1,0 +1,239 @@
+<div class="promo-management-wrapper">
+    <div class="header-section">
+        <h1>Gestion des Promotions</h1>
+        <p>Configurez vos concepts de promotion, appliquez des remises et ciblez le vieux stock.</p>
+    </div>
+
+    <mat-tab-group class="main-tabs">
+        <!-- TAB 1: CONCEPT & REGLES -->
+        <mat-tab label="Concept & Remises">
+            <div class="tab-content concept-grid">
+                <!-- Concept Card -->
+                <mat-card class="concept-card">
+                    <mat-card-header>
+                        <mat-card-title>1. Concept de la Promotion</mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content>
+                        <mat-form-field appearance="outline" class="full-width">
+                            <mat-label>Nom de la promotion</mat-label>
+                            <input matInput [ngModel]="promotionName()" (ngModelChange)="promotionName.set($event)">
+                        </mat-form-field>
+
+                        <mat-form-field appearance="outline" class="full-width">
+                            <mat-label>Description / Concept</mat-label>
+                            <textarea matInput rows="3" [ngModel]="promotionDescription()"
+                                (ngModelChange)="promotionDescription.set($event)"></textarea>
+                        </mat-form-field>
+
+                        <div class="stock-age-config">
+                            <h3>Critère d'ancienneté (Vieux Stock)</h3>
+                            <div class="age-input">
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Durée en stock (jours)</mat-label>
+                                    <input matInput type="number" [ngModel]="stockAgeLimitDays()"
+                                        (ngModelChange)="stockAgeLimitDays.set($event)">
+                                    <mat-icon matSuffix>timer</mat-icon>
+                                </mat-form-field>
+                                <span class="hint">Le système identifiera les produits en stock depuis plus de
+                                    {{stockAgeLimitDays()}} jours.</span>
+                            </div>
+                        </div>
+                    </mat-card-content>
+                </mat-card>
+
+                <!-- Rules Card -->
+                <mat-card class="rules-card">
+                    <mat-card-header>
+                        <mat-card-title>2. Règles de Remises Appliquées</mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content>
+                        <div class="new-rule-form">
+                            <mat-form-field appearance="outline">
+                                <mat-label>Cible</mat-label>
+                                <mat-select [(ngModel)]="newRule().type">
+                                    <mat-option value="MARQUE">Par Marque</mat-option>
+                                    <mat-option value="CATEGORIE">Par Catégorie</mat-option>
+                                    <mat-option value="PRODUIT">Par Produit (ID)</mat-option>
+                                </mat-select>
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline" *ngIf="newRule().type === 'MARQUE'">
+                                <mat-label>Marque</mat-label>
+                                <mat-select [(ngModel)]="newRule().target">
+                                    <mat-option *ngFor="let b of brands()" [value]="b">{{b}}</mat-option>
+                                </mat-select>
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline" *ngIf="newRule().type === 'CATEGORIE'">
+                                <mat-label>Catégorie</mat-label>
+                                <mat-select [(ngModel)]="newRule().target">
+                                    <mat-option value="monture">Montures</mat-option>
+                                    <mat-option value="lentille">Lentilles</mat-option>
+                                    <mat-option value="accessoire">Accessoires</mat-option>
+                                </mat-select>
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline" *ngIf="newRule().type === 'PRODUIT'">
+                                <mat-label>ID Produit / Code</mat-label>
+                                <input matInput [(ngModel)]="newRule().target">
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline" class="remise-field">
+                                <mat-label>Remise (%)</mat-label>
+                                <input matInput type="number" [(ngModel)]="newRule().remise">
+                                <span matSuffix>%</span>
+                            </mat-form-field>
+
+                            <button mat-mini-fab color="primary" (click)="addRule()">
+                                <mat-icon>add</mat-icon>
+                            </button>
+                        </div>
+
+                        <div class="rules-list">
+                            <div *ngFor="let rule of rules(); let i = index" class="rule-chip">
+                                <span><strong>{{rule.type}}</strong>: {{rule.target || 'Toutes'}} &rarr;
+                                    <b>{{rule.remise}}%</b></span>
+                                <button mat-icon-button color="warn" (click)="removeRule(i)">
+                                    <mat-icon>delete</mat-icon>
+                                </button>
+                            </div>
+                        </div>
+                    </mat-card-content>
+                </mat-card>
+            </div>
+        </mat-tab>
+
+        <!-- TAB 2: SELECTION & LANCEMENT -->
+        <mat-tab label="Sélection & Campagne">
+            <div class="tab-content campaign-grid">
+                <!-- Products Selection -->
+                <mat-card class="selection-card products-selection">
+                    <mat-card-header>
+                        <mat-card-title>3. Choix des produits en promotion</mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content>
+                        <div class="product-filters-row">
+                            <mat-form-field appearance="outline" class="search-field">
+                                <mat-label>Rechercher un produit...</mat-label>
+                                <input matInput [ngModel]="productSearch()" (ngModelChange)="productSearch.set($event)">
+                                <mat-icon matSuffix>search</mat-icon>
+                            </mat-form-field>
+
+                            <mat-checkbox [checked]="onlyOldStock()" (change)="onlyOldStock.set($event.checked)">
+                                Priorité Vieux Stock (>{{stockAgeLimitDays()}}j)
+                            </mat-checkbox>
+                        </div>
+
+                        <div class="selection-table-container">
+                            <table mat-table [dataSource]="filteredProducts()">
+                                <ng-container matColumnDef="select">
+                                    <th mat-header-cell *matHeaderCellDef></th>
+                                    <td mat-cell *matCellDef="let p">
+                                        <mat-checkbox [checked]="isProductSelected(p)"
+                                            (change)="toggleProduct(p)"></mat-checkbox>
+                                    </td>
+                                </ng-container>
+                                <ng-container matColumnDef="info">
+                                    <th mat-header-cell *matHeaderCellDef>Produit</th>
+                                    <td mat-cell *matCellDef="let p">
+                                        <div class="product-info">
+                                            <span class="p-name">{{p.designation}}</span>
+                                            <span class="p-brand">{{p.marque}} | {{p.typeArticle}}</span>
+                                        </div>
+                                    </td>
+                                </ng-container>
+                                <ng-container matColumnDef="remise">
+                                    <th mat-header-cell *matHeaderCellDef>Remise</th>
+                                    <td mat-cell *matCellDef="let p">
+                                        <span class="remise-tag"
+                                            *ngIf="getRemiseForProduct(p) > 0">-{{getRemiseForProduct(p)}}%</span>
+                                        <span class="no-remise" *ngIf="getRemiseForProduct(p) === 0">Standard</span>
+                                    </td>
+                                </ng-container>
+                                <tr mat-header-row *matHeaderRowDef="['select', 'info', 'remise']"></tr>
+                                <tr mat-row *matRowDef="let row; columns: ['select', 'info', 'remise'];"></tr>
+                            </table>
+                        </div>
+                    </mat-card-content>
+                </mat-card>
+
+                <!-- Clients Selection with "Relances" (Segmentation) -->
+                <mat-card class="selection-card clients-selection">
+                    <mat-card-header>
+                        <mat-card-title>4. Clients Cibles (Relances)</mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content>
+                        <div class="segmentation-actions">
+                            <button mat-stroked-button (click)="selectSegment('ALL')">Tous</button>
+                            <button mat-stroked-button (click)="selectSegment('ACTIF')" color="primary">Actifs</button>
+                            <button mat-stroked-button (click)="selectSegment('INACTIF')" color="warn">Inactifs</button>
+                            <button mat-stroked-button (click)="selectSegment('BIRTHDAY')"
+                                color="accent">Anniversaires</button>
+                        </div>
+
+                        <div class="client-actions">
+                            <mat-checkbox (change)="toggleAllClients($event)">
+                                Sélection manuelle ({{selectedClients().length}}/{{clients().length}})
+                            </mat-checkbox>
+                        </div>
+
+                        <div class="client-scroll-list">
+                            <div *ngFor="let c of clients()" class="client-node"
+                                [class.selected]="selectedClients().includes(c)" (click)="toggleClient(c)">
+                                <span>{{getClientName(c)}}</span>
+                                <small>{{c.telephone}} | {{c.typeClient}}</small>
+                            </div>
+                        </div>
+                    </mat-card-content>
+                </mat-card>
+
+                <!-- Launch Card -->
+                <mat-card class="launch-card">
+                    <mat-card-header>
+                        <mat-card-title>5. Lancement Campagne Multicanal</mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content>
+                        <div class="channel-selection">
+                            <mat-label>Canal de diffusion :</mat-label>
+                            <mat-button-toggle-group [ngModel]="selectedChannel()"
+                                (ngModelChange)="selectedChannel.set($event)">
+                                <mat-button-toggle value="WHATSAPP">
+                                    <mat-icon>chat</mat-icon> WhatsApp
+                                </mat-button-toggle>
+                                <mat-button-toggle value="SMS">
+                                    <mat-icon>sms</mat-icon> SMS
+                                </mat-button-toggle>
+                                <mat-button-toggle value="EMAIL">
+                                    <mat-icon>email</mat-icon> Email
+                                </mat-button-toggle>
+                            </mat-button-toggle-group>
+                        </div>
+
+                        <mat-form-field appearance="outline" class="full-width message-area">
+                            <mat-label>Message Personnalisé</mat-label>
+                            <textarea matInput rows="6" [ngModel]="messageTemplate()"
+                                (ngModelChange)="messageTemplate.set($event)"></textarea>
+                            <mat-hint>Variables: {{'{{NAME}}'}}, {{'{{PRODUCT}}'}}, {{'{{MARQUE}}'}},
+                                {{'{{PROMO_NAME}}'}}</mat-hint>
+                        </mat-form-field>
+
+                        <div class="campaign-summary">
+                            <p><strong>Cibles:</strong> {{selectedClients().length}} clients</p>
+                            <p><strong>Canal:</strong> {{selectedChannel()}}</p>
+                        </div>
+
+                        <button mat-raised-button color="primary" class="full-width launch-btn"
+                            [disabled]="loading() || selectedClients().length === 0" (click)="launchCampaign()">
+                            <mat-icon>rocket_launch</mat-icon>
+                            Diffuser la Promotion
+                        </button>
+                    </mat-card-content>
+                </mat-card>
+            </div>
+        </mat-tab>
+    </mat-tab-group>
+
+    <div *ngIf="loading()" class="global-spinner">
+        <mat-spinner></mat-spinner>
+    </div>
+</div>

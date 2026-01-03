@@ -160,6 +160,7 @@ export class InvoiceFormDialogComponent implements OnInit {
                 montantTTC: [data?.invoice?.montantTTC || 0, [Validators.required, Validators.min(0)]],
                 type: [data?.invoice?.type || 'ACHAT_STOCK', Validators.required],
                 pieceJointeUrl: [data?.invoice?.pieceJointeUrl || ''],
+                clientId: [data?.invoice?.clientId || (data as any)?.prefilledClientId || ''],
             }),
             payment: this.fb.group({
                 echeances: this.fb.array([]),
@@ -175,6 +176,10 @@ export class InvoiceFormDialogComponent implements OnInit {
             this.supplierCtrl.setValue(data.invoice.fournisseur.nom);
             this.selectedSupplier = data.invoice.fournisseur;
         }
+    }
+
+    get isBLMode(): boolean {
+        return !!this.detailsGroup.get('clientId')?.value;
     }
 
     ngOnInit() {
@@ -209,7 +214,8 @@ export class InvoiceFormDialogComponent implements OnInit {
                         montantTVA: invoice.montantTVA,
                         montantTTC: invoice.montantTTC,
                         type: invoice.type,
-                        pieceJointeUrl: invoice.pieceJointeUrl
+                        pieceJointeUrl: invoice.pieceJointeUrl,
+                        clientId: invoice.clientId
                     },
                     payment: {
                         statut: invoice.statut

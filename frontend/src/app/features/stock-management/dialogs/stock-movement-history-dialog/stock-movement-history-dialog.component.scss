@@ -1,11 +1,6 @@
 ::ng-deep .no-scroll-dialog {
     .mat-mdc-dialog-container {
         --mdc-dialog-container-shape: 16px;
-        overflow: visible !important;
-    }
-
-    .mat-mdc-dialog-surface {
-        overflow: visible !important;
     }
 }
 
@@ -29,15 +24,28 @@
 }
 
 .dialog-content {
-    min-width: 1400px;
     width: 100%;
-    min-height: 400px;
-    height: auto;
-    padding: 0 24px;
-    /* Added lateral margins (padding) */
+    max-height: 65vh;
+    /* Fixed height for scrolling */
+    padding: 0;
     margin: 0;
-    overflow: visible !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
     display: block;
+}
+
+.table-container {
+    width: 100%;
+    padding: 0 32px;
+    box-sizing: border-box;
+
+    table {
+        min-width: 1350px;
+        width: 100%;
+        background: white;
+        table-layout: fixed;
+        margin: 0 auto;
+    }
 }
 
 .loading-container,
@@ -65,31 +73,18 @@
 }
 
 table {
-    width: 100%;
-    background: white;
-    table-layout: fixed;
-    margin: 0;
-
     th {
         background-color: #1976d2 !important;
-        /* Force Blue */
         color: white !important;
-        /* Force White text */
         font-weight: 600;
         font-size: 14px;
         padding: 16px 12px;
         white-space: nowrap;
         text-overflow: ellipsis;
         overflow: hidden;
-    }
-
-    /* Target the first header cell to round the top-left corner if desired, or remove if sticking to flat */
-    th:first-child {
-        border-top-left-radius: 0;
-    }
-
-    th:last-child {
-        border-top-right-radius: 0;
+        position: sticky;
+        top: 0;
+        z-index: 10;
     }
 
     td {
@@ -101,72 +96,80 @@ table {
         overflow: hidden;
     }
 
-    // Column widths aligned for 1400px+
+    // Column widths
     th:nth-child(1),
     td:nth-child(1) {
-        width: 12%;
+        width: 120px;
     }
 
     // Date
     th:nth-child(2),
     td:nth-child(2) {
-        width: 8%;
+        width: 110px;
     }
 
     // Type
     th:nth-child(3),
     td:nth-child(3) {
-        width: 7%;
+        width: 180px;
     }
 
-    // Quantité
+    // Entrepôt
     th:nth-child(4),
     td:nth-child(4) {
-        width: 10%;
+        width: 80px;
+        text-align: center;
     }
 
-    // Prix d'achat
+    // Qte
     th:nth-child(5),
     td:nth-child(5) {
-        width: 10%;
+        width: 110px;
+        text-align: right;
     }
 
-    // Prix de vente (NEW)
+    // PA
     th:nth-child(6),
     td:nth-child(6) {
-        width: 12%;
+        width: 110px;
+        text-align: right;
     }
 
-    // N° Fiche
+    // PV
     th:nth-child(7),
     td:nth-child(7) {
-        width: 16%;
+        width: 130px;
+    }
+
+    // Fiche
+    th:nth-child(8),
+    td:nth-child(8) {
+        width: 140px;
     }
 
     // Client
-    th:nth-child(8),
-    td:nth-child(8) {
-        width: 15%;
+    th:nth-child(9),
+    td:nth-child(9) {
+        width: auto;
+        min-width: 150px;
     }
 
     // Motif
-    th:nth-child(9),
-    td:nth-child(9) {
-        width: 10%;
+    th:nth-child(10),
+    td:nth-child(10) {
+        width: 100px;
     }
 
     // Utilisateur
 
-    // Utilisateur
-
-    .movement-in,
-    .movement-out,
-    .movement-transfer {
+    .type-badge {
         display: inline-block;
-        padding: 6px 14px;
-        border-radius: 16px;
+        padding: 4px 10px;
+        border-radius: 4px;
         font-weight: 500;
-        font-size: 13px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
     }
 
     .movement-in {
@@ -175,21 +178,41 @@ table {
     }
 
     .movement-out {
-        background-color: #ffebee;
-        color: #c62828;
+        background-color: #fff3e0;
+        color: #e65100;
     }
 
     .movement-transfer {
-        background-color: #ffebee;
-        color: #c62828;
+        background-color: #e3f2fd;
+        color: #1565c0;
+    }
+
+    .warehouse-cell {
+        color: #616161;
+        font-style: italic;
+        font-size: 13px;
     }
 }
 
 .dialog-actions {
     padding: 16px 32px;
-    border-top: 1px solid #e0e0e0;
     display: flex;
     justify-content: flex-end;
-    background: white;
-    /* Ensure sticky footer look if needed, though we avoid scroll */
+    border-top: 1px solid #e0e0e0;
+    background: #f9f9f9;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+
+    button {
+        min-width: 120px;
+        background: #1976d2 !important;
+        color: white !important;
+        font-weight: 500;
+        padding: 8px 24px;
+        border-radius: 8px;
+
+        &:hover {
+            background: #1565c0 !important;
+        }
+    }
 }

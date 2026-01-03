@@ -200,6 +200,10 @@
                                                 <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
                                                 <span>Visualiser</span>
                                             </button>
+                                            <button mat-menu-item (click)="sendControlReminder(fiche)">
+                                                <mat-icon style="color: #25D366;">message</mat-icon>
+                                                <span>Relance Contrôle</span>
+                                            </button>
                                             <mat-divider></mat-divider>
                                             <button mat-menu-item (click)="deleteFiche(fiche)">
                                                 <mat-icon class="premium-menu-icon-delete">delete</mat-icon>
@@ -220,6 +224,84 @@
                 <mat-tab label="Facturation">
                     <div class="form-container">
                         <app-facture-list [clientId]="clientId"></app-facture-list>
+                    </div>
+                </mat-tab>
+
+                <!-- Onglet BL Fournisseurs -->
+                <mat-tab label="BL Fournisseurs">
+                    <div class="form-container">
+                        <div class="flex justify-between items-center mb-6">
+                            <div class="section-title !mt-0">Bons de Livraison Verre / Fournisseur</div>
+                            <button mat-raised-button color="primary" (click)="createSupplierInvoice()">
+                                <mat-icon>add</mat-icon> Ajouter BL
+                            </button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table mat-table [dataSource]="supplierInvoices()" class="w-full">
+
+                                <ng-container matColumnDef="date">
+                                    <th mat-header-cell *matHeaderCellDef>Date</th>
+                                    <td mat-cell *matCellDef="let inv">{{ inv.dateEmission | date:'dd/MM/yyyy' }}</td>
+                                </ng-container>
+
+                                <ng-container matColumnDef="numero">
+                                    <th mat-header-cell *matHeaderCellDef>N° Facture</th>
+                                    <td mat-cell *matCellDef="let inv" class="font-medium">{{ inv.numeroFacture }}</td>
+                                </ng-container>
+
+                                <ng-container matColumnDef="fournisseur">
+                                    <th mat-header-cell *matHeaderCellDef>Fournisseur</th>
+                                    <td mat-cell *matCellDef="let inv">{{ inv.fournisseur?.nom }}</td>
+                                </ng-container>
+
+                                <ng-container matColumnDef="montant">
+                                    <th mat-header-cell *matHeaderCellDef>Montant TTC</th>
+                                    <td mat-cell *matCellDef="let inv" class="font-bold text-right">{{ inv.montantTTC |
+                                        currency:'MAD':'MAD ':'1.2-2' }}</td>
+                                </ng-container>
+
+                                <ng-container matColumnDef="statut">
+                                    <th mat-header-cell *matHeaderCellDef>Statut</th>
+                                    <td mat-cell *matCellDef="let inv">
+                                        <span class="status-badge" [class.actif]="inv.statut === 'PAYEE'"
+                                            [class.inactif]="inv.statut === 'EN_ATTENTE' || inv.statut === 'RETARD'"
+                                            [class.partiel]="inv.statut === 'PARTIELLE'">
+                                            {{ inv.statut }}
+                                        </span>
+                                    </td>
+                                </ng-container>
+
+                                <ng-container matColumnDef="actions">
+                                    <th mat-header-cell *matHeaderCellDef style="text-align: right;">Actions</th>
+                                    <td mat-cell *matCellDef="let inv" style="text-align: right;">
+                                        <button mat-icon-button [matMenuTriggerFor]="menuBL">
+                                            <mat-icon>more_vert</mat-icon>
+                                        </button>
+                                        <mat-menu #menuBL="matMenu">
+                                            <button mat-menu-item (click)="viewSupplierInvoice(inv)">
+                                                <mat-icon>visibility</mat-icon> Voir
+                                            </button>
+                                            <button mat-menu-item class="text-red-600"
+                                                (click)="deleteSupplierInvoice(inv)">
+                                                <mat-icon color="warn">delete</mat-icon> Supprimer
+                                            </button>
+                                        </mat-menu>
+                                    </td>
+                                </ng-container>
+
+                                <tr mat-header-row
+                                    *matHeaderRowDef="['date', 'numero', 'fournisseur', 'montant', 'statut', 'actions']">
+                                </tr>
+                                <tr mat-row
+                                    *matRowDef="let row; columns: ['date', 'numero', 'fournisseur', 'montant', 'statut', 'actions'];">
+                                </tr>
+                            </table>
+                            <div *ngIf="supplierInvoices().length === 0"
+                                class="empty-state p-8 text-center text-gray-500">
+                                Aucun BL fournisseur lié à ce dossier.
+                            </div>
+                        </div>
                     </div>
                 </mat-tab>
 

@@ -21,12 +21,12 @@
 
 <mat-sidenav-container class="fixed top-16 left-0 z-10 h-[calc(100dvh-64px)] w-screen overflow-hidden">
   <mat-sidenav #sidenav [mode]="isMobile() ? 'over' : 'side'" [opened]="!isMobile()" [fixedInViewport]="true"
-    [fixedTopGap]="64" [style.width.px]="isMobile() ? null : isCollapsed() ? 64 : 300"
+    [fixedTopGap]="64" [style.width.px]="isMobile() ? null : isCollapsed() ? 64 : 340"
     class="overflow-y-auto rounded-none shadow-md transition-all duration-300 ease-in-out">
     <app-sidebar [isMobile]="isMobile()" [isCollapsed]="isCollapsed()" />
   </mat-sidenav>
   <mat-sidenav-content class="relative flex h-full flex-col overflow-hidden transition-all duration-300 ease-in-out"
-    [style.marginLeft.px]="!isMobile() ? (isCollapsed() ? 64 : 300) : 0">
+    [style.marginLeft.px]="!isMobile() ? (isCollapsed() ? 64 : 340) : 0">
     <app-breadcrumb class="sticky top-0 z-40 bg-white shadow-sm" [isMobile]="isMobile()" />
     <main class="bg-bodycolor flex-1 overflow-y-auto px-6 py-6">
       <router-outlet />

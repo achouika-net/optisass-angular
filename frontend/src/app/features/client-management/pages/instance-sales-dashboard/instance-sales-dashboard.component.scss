@@ -105,6 +105,17 @@
         }
     }
 
+    .widgets-section {
+        margin-bottom: 24px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 24px;
+
+        @media (min-width: 1200px) {
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        }
+    }
+
     .sales-table-card {
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         border-radius: 8px;

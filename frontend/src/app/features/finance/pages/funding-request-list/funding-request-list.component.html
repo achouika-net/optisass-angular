@@ -19,51 +19,49 @@
             </ng-container>
 
             <ng-container matColumnDef="categorie">
-                <th mat-header-cell *matHeaderCellDef>Libellé</th>
+                <th mat-header-cell *matHeaderCellDef>Libellé / Description</th>
                 <td mat-cell *matCellDef="let req">
-                    <div *ngIf="req.depense">
-                        <div style="font-weight: 500;">{{ req.depense.categorie }}</div>
-                        <div style="font-size: 0.85em; color: #666;">{{ req.depense.description }}</div>
-                    </div>
-                    <div *ngIf="req.paiement">
-                        <div style="font-weight: 500;">Remboursement Client</div>
-                        <div style="font-size: 0.85em; color: #666;">Facture: {{ req.paiement.facture?.numero }}</div>
+                    <div class="libelle-container">
+                        <span class="libelle-main">{{ req.depense ? req.depense.categorie : 'Remboursement Client'
+                            }}</span>
+                        <span class="libelle-sub text-muted">
+                            {{ req.depense ? req.depense.description : 'Facture: ' + (req.paiement?.facture?.numero ||
+                            'N/A') }}
+                        </span>
                     </div>
                 </td>
             </ng-container>
 
             <ng-container matColumnDef="montant">
-                <th mat-header-cell *matHeaderCellDef>Montant</th>
-                <td mat-cell *matCellDef="let req" class="montant-cell">{{ req.montant | number }} DH</td>
+                <th mat-header-cell *matHeaderCellDef class="text-right">Montant</th>
+                <td mat-cell *matCellDef="let req" class="montant-cell">{{ req.montant | number:'1.0-2' }} DH</td>
             </ng-container>
 
             <ng-container matColumnDef="statut">
                 <th mat-header-cell *matHeaderCellDef>Statut</th>
                 <td mat-cell *matCellDef="let req">
-                    <mat-chip-set>
-                        <mat-chip [class]="getStatusClass(req.statut)">
-                            {{ req.statut === 'EN_ATTENTE' ? 'En attente' : req.statut === 'VALIDEE' ? 'Validée' :
-                            'Rejetée' }}
-                        </mat-chip>
-                    </mat-chip-set>
+                    <mat-chip [class]="getStatusClass(req.statut)" disabled>
+                        {{ req.statut === 'EN_ATTENTE' ? 'En attente' : req.statut === 'VALIDEE' ? 'Validée' : 'Rejetée'
+                        }}
+                    </mat-chip>
                 </td>
             </ng-container>
 
             <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef>Actions</th>
+                <th mat-header-cell *matHeaderCellDef class="text-right">Actions</th>
                 <td mat-cell *matCellDef="let req" class="actions">
                     <ng-container *ngIf="req.statut === 'EN_ATTENTE'">
-                        <button mat-flat-button color="primary" (click)="approve(req)"
-                            matTooltip="Approuver et transférer les fonds">
-                            <mat-icon>check_circle</mat-icon> Approuver
+                        <button mat-flat-button color="primary" (click)="approve(req)" matTooltip="Approuver">
+                            <mat-icon>check_circle</mat-icon> Valider
                         </button>
                         <button mat-icon-button color="warn" (click)="reject(req)" matTooltip="Rejeter">
                             <mat-icon>cancel</mat-icon>
                         </button>
                     </ng-container>
-                    <span *ngIf="req.statut !== 'EN_ATTENTE'" style="font-size: 0.85em; color: #999;">
-                        {{ req.validatedAt | date: 'dd/MM HH:mm' }}
-                    </span>
+                    <div *ngIf="req.statut !== 'EN_ATTENTE'" class="validation-date">
+                        <span class="date-label">Validé le</span>
+                        <span class="date-value">{{ req.validatedAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+                    </div>
                 </td>
             </ng-container>
 

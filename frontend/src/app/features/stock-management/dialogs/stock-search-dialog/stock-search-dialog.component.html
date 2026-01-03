@@ -172,11 +172,19 @@
                                 <span>Valider la Vente</span>
                             </button>
 
-                            <!-- Commander & Vendre: Show if (Local Product) AND RUPTURE (stock = 0, no pending) -->
+                            <!-- Commander & Vendre (Local Rupture) -->
                             <button mat-menu-item color="warn"
-                                *ngIf="!isRemote(element) && element.quantiteActuelle === 0 && !element.specificData?.pendingIncoming && element.statut === 'RUPTURE'"
+                                *ngIf="!isRemote(element) && element.quantiteActuelle <= 0 && !element.specificData?.pendingIncoming"
                                 (click)="orderAndSell(element)">
                                 <mat-icon color="warn">add_shopping_cart</mat-icon>
+                                <span>Commander & Vendre</span>
+                            </button>
+
+                            <!-- Commander & Vendre (Remote - Auto Transfer) -->
+                            <button mat-menu-item color="accent"
+                                *ngIf="isRemote(element) && element.quantiteActuelle > 0"
+                                (click)="orderAndSell(element)">
+                                <mat-icon color="accent">rocket_launch</mat-icon>
                                 <span>Commander & Vendre</span>
                             </button>
 

@@ -82,6 +82,8 @@ export interface SupplierInvoice {
     pieceJointeUrl?: string;
     fournisseurId: string;
     centreId?: string;
+    clientId?: string;
+    client?: any;
     fournisseur?: Supplier;
     echeances?: Echeance[];
     createdAt?: string;
@@ -108,6 +110,7 @@ export interface SupplierInvoiceDTO {
     statut: string;
     type: string;
     fournisseurId: string;
+    clientId?: string;
     centreId?: string;
     pieceJointeUrl?: string;
     echeances?: Echeance[];
