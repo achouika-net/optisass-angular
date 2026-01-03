@@ -24,12 +24,14 @@ import { CaisseModule } from './features/caisse/caisse.module';
 import { JourneeCaisseModule } from './features/journee-caisse/journee-caisse.module';
 import { OperationCaisseModule } from './features/operation-caisse/operation-caisse.module';
 import { FundingRequestsModule } from './features/funding-requests/funding-requests.module';
+import { MarketingModule } from './features/marketing/marketing.module';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaService } from './prisma/prisma.service';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({ isGlobal: true }),
+    PrismaModule,
     GroupsModule,
     CentersModule,
     WarehousesModule,
@@ -51,6 +53,7 @@ import { PrismaService } from './prisma/prisma.service';
     JourneeCaisseModule,
     OperationCaisseModule,
     FundingRequestsModule,
+    MarketingModule,
   ],
   controllers: [],
   providers: [],

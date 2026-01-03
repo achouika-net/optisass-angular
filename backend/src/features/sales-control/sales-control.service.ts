@@ -13,15 +13,22 @@ export class SalesControlService {
     async getBrouillonWithPayments(userId?: string, centreId?: string) {
         const where: any = {
             OR: [
-                { numero: { startsWith: 'BRO' } },
-                { numero: { startsWith: 'Devis' } },
-                { numero: { startsWith: 'DEV' } },
-                { numero: { startsWith: 'BL' } }
+                {
+                    AND: [
+                        {
+                            OR: [
+                                { numero: { startsWith: 'BRO' } },
+                                { numero: { startsWith: 'Devis' } },
+                                { numero: { startsWith: 'DEV' } },
+                                { numero: { startsWith: 'BL' } }
+                            ]
+                        },
+                        { paiements: { some: {} } }
+                    ]
+                },
+                { statut: 'VENTE_EN_INSTANCE' }
             ],
-            statut: { notIn: ['ARCHIVE', 'ANNULEE'] }, // Hide Archived and Cancelled
-            paiements: {
-                some: {}
-            }
+            statut: { notIn: ['ARCHIVE', 'ANNULEE'] }
         };
 
         if (!centreId) return [];
@@ -52,8 +59,8 @@ export class SalesControlService {
     // Get VALID invoices (Valid, Payee, Partiel)
     async getValidInvoices(userId?: string, centreId?: string) {
         const where: any = {
-            numero: { startsWith: 'FAC' }
-            // Removed strict type check to ensure any FAC numbered invoice appears
+            numero: { startsWith: 'FAC' },
+            statut: { not: 'VENTE_EN_INSTANCE' }
         };
 
         if (!centreId) return [];
@@ -194,11 +201,14 @@ export class SalesControlService {
 
         // Simple statistics for now
         // Exclude ARCHIVE from "Devis" counts
-        const withPayment = factures.filter(f => (f.numero.startsWith('BRO') || f.numero.startsWith('Devis') || f.numero.startsWith('DEV')) && f.paiements && f.paiements.length > 0 && f.statut !== 'ARCHIVE' && f.statut !== 'ANNULEE');
-        const withoutPayment = factures.filter(f => (f.numero.startsWith('BRO') || f.numero.startsWith('Devis') || f.numero.startsWith('DEV')) && (!f.paiements || f.paiements.length === 0) && f.statut !== 'ARCHIVE' && f.statut !== 'ANNULEE');
+        const withPayment = factures.filter(f =>
+            ((f.numero.startsWith('BRO') || f.numero.startsWith('Devis') || f.numero.startsWith('DEV')) && f.paiements && f.paiements.length > 0 && f.statut !== 'ARCHIVE' && f.statut !== 'ANNULEE') ||
+            (f.statut === 'VENTE_EN_INSTANCE')
+        );
+        const withoutPayment = factures.filter(f => (f.numero.startsWith('BRO') || f.numero.startsWith('Devis') || f.numero.startsWith('DEV')) && (!f.paiements || f.paiements.length === 0) && f.statut !== 'ARCHIVE' && f.statut !== 'ANNULEE' && f.statut !== 'VENTE_EN_INSTANCE');
 
-        // Valid Invoices: Must have FAC prefix and not be cancelled
-        const validInvoices = factures.filter(f => f.numero.startsWith('FAC') && f.type === 'FACTURE' && f.statut !== 'ANNULEE');
+        // Valid Invoices: Must have FAC prefix and not be cancelled, and NOT be in instance
+        const validInvoices = factures.filter(f => f.numero.startsWith('FAC') && f.type === 'FACTURE' && f.statut !== 'ANNULEE' && f.statut !== 'VENTE_EN_INSTANCE');
         // Avoirs: Show all having type AVOIR
         const avoirs = factures.filter(f => f.type === 'AVOIR');
         // Cancelled Drafts (Traceability)

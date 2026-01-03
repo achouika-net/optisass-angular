@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Headers } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -34,6 +35,12 @@ export class ProductsController {
 
     @Patch(':id')
     update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
+        if ((updateProductDto as any).specificData) {
+            console.warn(`🚨 [PRODUCT-UPDATE-TRAP] PATCH /products/${id} detected!`);
+            console.warn(`   Source: Unknown (Check Network Tab)`);
+            console.warn(`   Payload specificData keys: ${Object.keys((updateProductDto as any).specificData)}`);
+            console.warn(`   PendingOutgoing in payload: ${(updateProductDto as any).specificData.pendingOutgoing ? 'PRESENT' : 'MISSING'}`);
+        }
         return this.productsService.update(id, updateProductDto);
     }
 
@@ -44,7 +51,7 @@ export class ProductsController {
 
     @Post(':id/transfer')
     initiateTransfer(@Param('id') id: string, @Body() body: { targetProductId: string, quantite?: number }) {
-        return this.productsService.initiateTransfer(id, body.targetProductId, body.quantite);
+        return this.productsService.initiateTransfer(id, body.targetProductId, body.quantite !== undefined ? Number(body.quantite) : undefined);
     }
 
     @Post(':id/ship')
@@ -64,12 +71,36 @@ export class ProductsController {
 
     @Post(':id/restock')
     restock(@Param('id') id: string, @Body() body: { quantite: number; motif: string; utilisateur?: string; prixAchatHT?: number; remiseFournisseur?: number }) {
-        return this.productsService.restock(id, body.quantite, body.motif, body.utilisateur, body.prixAchatHT, body.remiseFournisseur);
+        return this.productsService.restock(
+            id,
+            Number(body.quantite),
+            body.motif,
+            body.utilisateur,
+            body.prixAchatHT !== undefined ? Number(body.prixAchatHT) : undefined,
+            body.remiseFournisseur !== undefined ? Number(body.remiseFournisseur) : undefined
+        );
     }
 
     @Post(':id/destock')
     destock(@Param('id') id: string, @Body() body: { quantite: number; motif: string; destinationEntrepotId?: string; utilisateur?: string }) {
-        return this.productsService.destock(id, body.quantite, body.motif, body.destinationEntrepotId, body.utilisateur);
+        return this.productsService.destock(
+            id,
+            Number(body.quantite),
+            body.motif,
+            body.destinationEntrepotId,
+            body.utilisateur
+        );
+    }
+
+    @Get('transfers/history')
+    getTransferHistory(
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+        @Headers('Tenant') centreId?: string,
+        @Query('productId') productId?: string,
+        @Query('type') type?: string
+    ) {
+        return this.productsService.getTransferHistory({ startDate, endDate, centreId, productId, type });
     }
 
 }

@@ -10,7 +10,7 @@ export class FacturesController {
     @Post(':id/exchange')
     createExchange(
         @Param('id') id: string,
-        @Body() body: { itemsToReturn: { lineIndex: number, quantiteRetour: number, reason: string }[] },
+        @Body() body: { itemsToReturn: { lineIndex: number, quantiteRetour: number, reason: string, targetWarehouseId?: string }[] },
         @Headers('Tenant') centreId: string
     ) {
         return this.facturesService.createExchange(id, body.itemsToReturn, centreId);
@@ -29,11 +29,20 @@ export class FacturesController {
         @Query('clientId') clientId?: string,
         @Query('type') type?: string,
         @Query('statut') statut?: string,
+        @Query('ficheId') ficheId?: string,
         @Query('unpaid') unpaid?: string,
         @Query('startDate') startDate?: string,
         @Query('endDate') endDate?: string,
         @Headers('Tenant') centreId?: string
     ) {
+        // [FIX] If searching by FicheId (Unique Global), bypass Centre restriction to find "hidden" invoices from other centers/warehouses
+        if (ficheId) {
+            return this.facturesService.findAll({
+                where: { ficheId },
+                take: 1
+            });
+        }
+
         if (!centreId) return []; // Isolation
         const where: any = { centreId };
         if (clientId) where.clientId = clientId;
@@ -72,7 +81,8 @@ export class FacturesController {
 
         return this.facturesService.findAll({
             where,
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: 500 // Increase limit to ensure we find older drafts being validated
         });
     }
 

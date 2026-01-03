@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, InternalServerErrorException, OnModuleInit, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 import { PaiementsService } from '../paiements/paiements.service';
@@ -6,12 +6,15 @@ import { Prisma } from '@prisma/client';
 import { CreateFactureDto } from './dto/create-facture.dto';
 import { UpdateFactureDto } from './dto/update-facture.dto';
 
+import { ProductsService } from '../products/products.service';
+
 @Injectable()
 export class FacturesService implements OnModuleInit {
     constructor(
         private prisma: PrismaService,
         private loyaltyService: LoyaltyService,
-        private paiementsService: PaiementsService
+        private paiementsService: PaiementsService,
+        private productsService: ProductsService
     ) { }
 
     async onModuleInit() {
@@ -54,20 +57,54 @@ export class FacturesService implements OnModuleInit {
         // 4. Créer la facture - FIX: Sanitize input to remove nested relations
         const { client: ignoredClient, paiements, fiche, ...cleanData } = data as any;
 
-        const facture = await this.prisma.facture.create({
-            data: {
-                ...cleanData,
-                numero,
-                statut: data.statut || 'BROUILLON',
-                resteAPayer: data.totalTTC || 0
+        // Guard: Verify all products are received before validation
+        if (data.statut === 'VALIDE') {
+            await this.verifyProductsAreReceived(data.lignes, data.type);
+        }
+
+        let facture;
+        try {
+            facture = await this.prisma.facture.create({
+                data: {
+                    ...cleanData,
+                    numero,
+                    statut: data.statut || 'BROUILLON',
+                    resteAPayer: data.totalTTC || 0
+                }
+            });
+        } catch (error) {
+            if (error.code === 'P2002' && error.meta?.target?.includes('ficheId')) {
+                console.warn(`⚠️ Invoice already exists for ficheId ${cleanData.ficheId}. Switching to UPDATE/UPSERT strategy.`);
+
+                // Fetch existing invoice
+                const existing = await this.prisma.facture.findFirst({
+                    where: { ficheId: cleanData.ficheId }
+                });
+
+                if (existing) {
+                    console.log(`🔄 [CONFLICT Handled] Converting existing invoice ${existing.id} (${existing.statut}) to target status: ${data.statut}`);
+
+                    // [FIX] Exclude 'numero' from the update payload. 
+                    // We must NOT try to change the number of an existing invoice during this recovery.
+                    const { numero, ...updateData } = data;
+
+                    return this.update({
+                        where: { id: existing.id },
+                        data: {
+                            ...updateData,
+                            proprietes: {
+                                ...(existing.proprietes as any || {}),
+                                ...(data.proprietes || {})
+                            }
+                        } as unknown as UpdateFactureDto
+                    });
+                }
             }
-        });
+            throw error;
+        }
 
         console.log('✅ Facture created with proprietes:', facture.proprietes);
 
-        // [NEW] Decrement stock for VALIDE, VENTE_EN_INSTANCE, or ARCHIVE/ANNULEE with flag
-        // Note: For transfers, this will decrement from 0 to -1 (reserved but not yet received)
-        // Upon validation after reception, stock will be: received (+1) then sold (-1) = 0
         const shouldDecrement = facture.statut === 'VALIDE' ||
             (facture.proprietes as any)?.forceStockDecrement === true;
 
@@ -95,10 +132,9 @@ export class FacturesService implements OnModuleInit {
         const prefix = this.getPrefix(type);
         const prisma = tx || this.prisma;
 
-        // Find last document of this type for current year
+        // Find last document starting with this prefix for current year
         const lastDoc = await prisma.facture.findFirst({
             where: {
-                type: type,
                 numero: {
                     startsWith: `${prefix} -${year} `
                 }
@@ -125,7 +161,8 @@ export class FacturesService implements OnModuleInit {
 
         // Load full invoice with line items to ensure we have the latest JSON data
         const fullInvoice = await tx.facture.findUnique({
-            where: { id: invoice.id }
+            where: { id: invoice.id },
+            include: { client: true }
         });
 
         if (!fullInvoice) {
@@ -134,10 +171,12 @@ export class FacturesService implements OnModuleInit {
         }
 
         const props = fullInvoice.proprietes as any || {};
-        console.log(`🔍[DEBUG] Properties for ${fullInvoice.numero}: stockDecremented = ${props.stockDecremented}, forceStockDecrement = ${props.forceStockDecrement} `);
+        const forceDecrement = props.forceStockDecrement === true || props.forceStockDecrement === 'true';
 
-        if (props.stockDecremented === true || props.stockDecremented === 'true') {
-            console.log(`⏩[DEBUG] SKIP: Stock already marked as decremented for ${fullInvoice.numero}`);
+        console.log(`🔍[DEBUG] Properties for ${fullInvoice.numero}: stockDecremented = ${props.stockDecremented}, forceStockDecrement = ${forceDecrement} `);
+
+        if ((props.stockDecremented === true || props.stockDecremented === 'true')) {
+            console.log(`⏩[DEBUG] SKIP: Stock already marked as decremented for ${fullInvoice.numero} (Idempotency enforced)`);
             return;
         }
 
@@ -160,74 +199,141 @@ export class FacturesService implements OnModuleInit {
             const pid = line.productId;
             const qte = Number(line.qte);
 
-            if (!pid || isNaN(qte) || qte <= 0) {
-                console.log(`   🚫[DEBUG] Skipping line: "${line.description}"(Invalid ProductID or Qty: ${qte})`);
+            if (isNaN(qte) || qte <= 0) {
+                console.log(`   🚫[DEBUG] Skipping line: "${line.description}"(Invalid Qty: ${qte})`);
                 continue;
             }
 
             console.log(`   🔎[DEBUG] Eval: "${line.description}" | PID: ${pid} | Qty: ${qte} `);
 
-            const product = await tx.product.findUnique({
-                where: { id: pid },
-                include: { entrepot: true }
-            });
+            let product: any = null;
+            if (pid) {
+                product = await tx.product.findUnique({
+                    where: { id: pid },
+                    include: { entrepot: true }
+                });
+            }
+
+            // FALLBACK: Model-Based Matching if PID not found or from wrong center
+            // (Common in inter-center transfers where PID changes)
+            // Use fullInvoice.centreId (if available) or fullInvoice.client.centreId
+            const invoiceCentreId = fullInvoice.centreId || fullInvoice.client?.centreId;
+
+            if (!product || (product.entrepot?.centreId !== invoiceCentreId && invoiceCentreId)) {
+                console.log(`   🔄[DEBUG] Falling back to model-based search for: "${line.description}" (Product Wh: ${product?.entrepot?.centreId || 'None'} vs Invoice Centre: ${invoiceCentreId})`);
+
+                const targetCentreId = invoiceCentreId;
+
+                if (targetCentreId) {
+                    const localMatch = await this.productsService.findLocalCounterpart({
+                        designation: (line.designation || line.description || '').trim(),
+                        codeInterne: (line.codeInterne || line.reference || '').trim(),
+                        codeBarres: (line.codeBarres || '').trim(),
+                        centreId: targetCentreId
+                    });
+
+                    if (localMatch) {
+                        console.log(`   ✨[DEBUG] Found local counterpart: ${localMatch.id} (${localMatch.designation})`);
+                        product = localMatch as any;
+                    } else {
+                        console.log(`   ⚠️ [DEBUG] No local counterpart found for: "${line.description}" in center ${targetCentreId}`);
+                    }
+                }
+            }
 
             if (!product) {
-                console.log(`   ❌[DEBUG] Product NOT FOUND in database: ${pid} `);
+                console.log(`   ❌[DEBUG] Product NOT FOUND locally: ${pid} (${line.description})`);
                 continue;
             }
 
             const entrepotType = product.entrepot?.type;
-            const forceDecrement = props.forceStockDecrement === true;
+            const entrepotId = line.entrepotId || product.entrepotId; // Use line warehouse if specified
+            const forceDecrement = props.forceStockDecrement === true || props.forceStockDecrement === 'true';
 
-            // Relax eligibility: PRINCIPAL, SECONDAIRE or any warehouse if forced (e.g. for Rabat instance sales)
-            const isEligible = entrepotType === 'PRINCIPAL' || entrepotType === 'SECONDAIRE' || forceDecrement;
+            // BROADEN ELIGIBILITY: Allow all warehouses for invoices/avoirs
+            const isEligible = !!entrepotId;
 
             console.log(`   📊[DEBUG] Product: ${product.designation} | Warehouse: ${entrepotType || 'None'} | Force: ${forceDecrement} | Eligible: ${isEligible} | Type: ${fullInvoice.type} `);
 
             if (isEligible) {
                 const actionDesc = fullInvoice.type === 'AVOIR' ? 'Incrementing' : 'Decrementing';
-                console.log(`   📉[DEBUG] ACTION: ${actionDesc} ${product.designation} by ${qte} (Current: ${product.quantiteActuelle})`);
+
+                // [FIX] Movement quantity should be negative for exits (SORTIE_VENTE)
+                const moveQty = fullInvoice.type === 'AVOIR' ? qte : -qte;
 
                 const stockChange = fullInvoice.type === 'AVOIR' ? { increment: qte } : { decrement: qte };
                 const moveType = fullInvoice.type === 'AVOIR' ? 'ENTREE_RETOUR' : 'SORTIE_VENTE';
-                const moveQty = fullInvoice.type === 'AVOIR' ? qte : -qte;
 
                 await tx.product.update({
                     where: { id: product.id },
                     data: { quantiteActuelle: stockChange }
                 });
 
+                // Log movement
                 await tx.mouvementStock.create({
                     data: {
                         type: moveType,
-                        quantite: moveQty,
+                        quantite: moveQty, // [FIXED] Signed quantity
                         produitId: product.id,
-                        entrepotSourceId: product.entrepotId,
+                        entrepotSourceId: fullInvoice.type === 'AVOIR' ? null : entrepotId,
+                        entrepotDestinationId: fullInvoice.type === 'AVOIR' ? entrepotId : null,
                         factureId: fullInvoice.id,
+                        prixAchatUnitaire: product.prixAchatHT,
                         prixVenteUnitaire: fullInvoice.type === 'AVOIR' ? undefined : line.prixUnitaireTTC,
-                        motif: `${fullInvoice.type} ${fullInvoice.numero} (${fullInvoice.statut})`,
-                        utilisateur: 'System'
+                        motif: `Facturation ${fullInvoice.numero} (${fullInvoice.statut})`,
+                        utilisateur: 'System',
+                        dateMovement: new Date()
                     }
                 });
                 console.log(`   ✅[DEBUG] Success: ${actionDesc} complete.`);
-            } else {
-                console.log(`   ⏩[DEBUG] Ignoring: Wrong warehouse and no force flag.`);
             }
         }
 
-        // Flag as processed
+        // Flag as processed and CLEAR force flag
         await tx.facture.update({
             where: { id: fullInvoice.id },
             data: {
                 proprietes: {
                     ...props,
                     stockDecremented: true,
+                    forceStockDecrement: false, // ALWAYS clear force flag after we actually do it
                     dateStockDecrement: new Date()
                 }
             }
         });
-        console.log(`✅[DEBUG] Stock process COMPLETED for ${fullInvoice.numero}`);
+        console.log(`🎬[DEBUG] Stock Decrement Complete & Flagged for ${fullInvoice.numero}`);
+    }
+
+
+    async verifyProductsAreReceived(lignes: any[], type?: string) {
+        if (type === 'AVOIR' || type === 'AVOIR_FOURNISSEUR') return;
+        if (!Array.isArray(lignes)) return;
+
+        for (const line of lignes) {
+            const pid = line.productId;
+            if (!pid) continue;
+
+            let product = await this.prisma.product.findUnique({
+                where: { id: pid },
+                select: { id: true, designation: true, specificData: true, entrepot: { select: { centreId: true } } }
+            });
+
+            // FALLBACK logic: if PID is from another center, find local counterpart to check its status
+            if (product && product.entrepot?.centreId && type !== 'AVOIR') {
+                // We need the center context. If we don't have an invoice object here, 
+                // we might need to assume the center of the first product or pass centreId.
+                // But usually, verifyProductsAreReceived is called with lines that SHOULD be local.
+                const sd = (product.specificData as any) || {};
+                if (sd.pendingIncoming) {
+                    const status = sd.pendingIncoming.status || 'RESERVED';
+                    const detail = status === 'SHIPPED' ? 'en cours d\'expédition' : 'réservé à la source';
+                    throw new BadRequestException(
+                        `Impossible de valider la facture : le produit "${product.designation}" est ${detail} (Transfert en cours). ` +
+                        `Veuillez d'abord confirmer la réception du produit pour alimenter le stock local.`
+                    );
+                }
+            }
+        }
     }
 
     async findAll(params: {
@@ -265,58 +371,76 @@ export class FacturesService implements OnModuleInit {
         });
     }
 
-    // Helper: Restore Stock for Cancelled Invoice (Increment from -1 to 0)
+    // Helper: Restore Stock for Cancelled Invoice (Increments stock back)
     private async restoreStockForCancelledInvoice(tx: any, invoice: any) {
         console.log(`🔄[DEBUG] Starting Stock Restoration for ${invoice.numero}(${invoice.id})`);
 
         const fullInvoice = await tx.facture.findUnique({
-            where: { id: invoice.id }
+            where: { id: invoice.id },
+            include: { client: true }
         });
 
-        if (!fullInvoice) {
-            console.log(`❌[DEBUG] Invoice not found: ${invoice.id} `);
-            return;
-        }
+        if (!fullInvoice) return;
 
         const props = (fullInvoice.proprietes as any) || {};
         if (!props.stockDecremented) {
-            console.log(`⏩[DEBUG] Stock was never decremented for ${fullInvoice.numero}.Skipping restoration.`);
+            console.log(`⏩[DEBUG] Stock was never decremented for ${fullInvoice.numero}. Skipping.`);
             return;
         }
 
-        const lines = (fullInvoice.lignes as any[]) || [];
-        console.log(`📋[DEBUG] Found ${lines.length} lines to restore stock for`);
+        // Parse lines safely
+        let linesToProcess: any[] = [];
+        try {
+            linesToProcess = typeof fullInvoice.lignes === 'string' ? JSON.parse(fullInvoice.lignes) : (fullInvoice.lignes as any[]);
+        } catch (e) {
+            console.error(`❌[DEBUG] Failed to parse lines for restoration of ${fullInvoice.numero}: `, e);
+        }
 
-        for (const line of lines) {
-            if (!line.productId || !line.entrepotId) {
-                console.log(`⏩[DEBUG] Skipping line without product / warehouse: ${line.designation} `);
-                continue;
+        const invoiceCentreId = fullInvoice.centreId || fullInvoice.client?.centreId;
+
+        for (const line of linesToProcess) {
+            const qte = Number(line.qte);
+            const pid = line.productId;
+            if (!pid || isNaN(qte) || qte <= 0) continue;
+
+            let product = await tx.product.findUnique({
+                where: { id: pid },
+                include: { entrepot: true }
+            });
+
+            // Fallback matching
+            if (!product || (product.entrepot?.centreId !== invoiceCentreId && invoiceCentreId)) {
+                const targetCentreId = invoiceCentreId;
+                if (targetCentreId) {
+                    const localMatch = await this.productsService.findLocalCounterpart({
+                        designation: (line.designation || line.description || '').trim(),
+                        codeInterne: (line.codeInterne || line.reference || '').trim(),
+                        codeBarres: (line.codeBarres || '').trim(),
+                        centreId: targetCentreId
+                    });
+                    if (localMatch) product = localMatch as any;
+                }
             }
 
-            try {
-                // Increment stock by 1 to restore from -1 to 0
-                const updated = await tx.product.update({
-                    where: { id: line.productId },
-                    data: { quantiteActuelle: { increment: 1 } }
+            if (product) {
+                await tx.product.update({
+                    where: { id: product.id },
+                    data: { quantiteActuelle: { increment: qte } }
                 });
 
-                console.log(`✅[DEBUG] Restored stock for ${line.designation}: ${updated.quantiteActuelle - 1} → ${updated.quantiteActuelle} `);
-
-                // Create stock movement record - FIX FIELD NAMES
                 await tx.mouvementStock.create({
                     data: {
-                        produitId: line.productId,
-                        entrepotSourceId: line.entrepotId, // Correct field name
-                        factureId: invoice.id,
-                        type: 'AJUSTEMENT',
-                        quantite: 1,
-                        motif: `Annulation vente ${invoice.numero} - Transfert annulé`,
-                        utilisateur: 'System', // Required field
-                        dateMovement: new Date() // Correct field name
+                        produitId: product.id,
+                        entrepotDestinationId: product.entrepotId,
+                        factureId: fullInvoice.id,
+                        type: 'ENTREE_RETOUR',
+                        quantite: qte,
+                        motif: `Annulation/Conversion ${invoice.numero} - Stock restauré`,
+                        utilisateur: 'System',
+                        dateMovement: new Date()
                     }
                 });
-            } catch (err) {
-                console.error(`❌[DEBUG] Error restoring stock for product ${line.productId}: `, err);
+                console.log(`   ✅[DEBUG] Restored ${qte} for ${product.designation}`);
             }
         }
 
@@ -326,13 +450,12 @@ export class FacturesService implements OnModuleInit {
             data: {
                 proprietes: {
                     ...(fullInvoice.proprietes as any || {}),
+                    stockDecremented: false, // Reset flag
                     stockRestored: true,
                     restoredAt: new Date()
                 }
             }
         });
-
-        console.log(`✅[DEBUG] Stock restoration complete for ${invoice.numero}`);
     }
 
     async update(params: {
@@ -354,54 +477,77 @@ export class FacturesService implements OnModuleInit {
                 include: { paiements: true, client: true }
             });
 
-            const isDraftNumber = currentFacture?.numero?.startsWith('BRO') ||
-                currentFacture?.numero?.startsWith('Devis') ||
-                currentFacture?.numero?.startsWith('DEV') ||
-                currentFacture?.numero?.startsWith('BL');
-            const isTargetStatus = ['BROUILLON', 'VENTE_EN_INSTANCE', 'PARTIEL', 'PAYEE', 'VALIDE'].includes(currentFacture?.statut || '');
+            // [FIX] SIMPLIFIED FISCAL TRIGGER
+            // If the invoice is being VALIDATED and is not yet an official FACTURE, we MUST generate the number.
+            // This bypasses all "Draft" detection heuristics which were failing on "Nouveau Document" or legacy formats.
+            const isBecomingValid = (data.statut === 'VALIDE');
+            // [FIX] Use OR because EITHER condition justifies regeneration (Wrong Type OR Wrong Number formatting)
+            const isNotYetOfficial = (currentFacture?.type !== 'FACTURE' || !currentFacture?.numero?.startsWith('FAC'));
 
-            // Trigger fiscal traceability flow if:
-            // The document has a draft number (BRO-xxx or Devis-xxx) and we are validating it.
-            // This ensures any "Draft" state document gets an official FAC- number.
-            console.log(`📋[FISCAL FLOW CHECK] Invoice ${currentFacture?.numero}: id = ${currentFacture?.id}, status = ${currentFacture?.statut}, isDraftNumber = ${isDraftNumber}, isTargetStatus = ${isTargetStatus} `);
-            if (currentFacture && isDraftNumber && isTargetStatus) {
+            console.log(`🧐 [FISCAL FLOW CHECK] BecomingValid=${isBecomingValid}, NotYetOfficial=${isNotYetOfficial}, CurrentStatus=${currentFacture?.statut}`);
+
+            // Trigger fiscal traceability flow:
+            // Trigger fiscal traceability flow:
+            if (currentFacture && isBecomingValid && isNotYetOfficial) {
+                await this.verifyProductsAreReceived(currentFacture.lignes as any[], 'FACTURE');
+
                 console.log(`🚀[FISCAL FLOW] STARTING conversion for ${currentFacture.numero}`);
 
                 return this.prisma.$transaction(async (tx) => {
                     const newNumero = await this.generateNextNumber('FACTURE', tx); // Generate new number early
-                    // 1. Create AVOIR (Cancel Draft)
-                    const avoirData: Prisma.FactureUncheckedCreateInput = {
-                        type: 'AVOIR',
-                        statut: 'VALIDE',
-                        numero: await this.generateNextNumber('AVOIR', tx), // Improved: Use transaction client
-                        dateEmission: new Date(),
-                        clientId: currentFacture.clientId,
-                        // No FicheID on Avoir
-                        lignes: (currentFacture.lignes as any[]).map(ligne => ({
-                            ...ligne,
-                            prixUnitaireTTC: -ligne.prixUnitaireTTC,
-                            totalTTC: -ligne.totalTTC
-                        })),
-                        totalHT: -currentFacture.totalHT,
-                        totalTVA: -currentFacture.totalTVA,
-                        totalTTC: -currentFacture.totalTTC,
-                        resteAPayer: 0,
-                        proprietes: {
-                            ...(currentFacture.proprietes as any || {}),
-                            factureOriginale: currentFacture.numero,
-                            ficheId: currentFacture.ficheId, // Store Fiche ID in proprietes due to unique constraint
-                            raison: 'Annulation automatique du brouillon lors de la validation'
+                    const isOfficial = currentFacture.numero.trim().startsWith('FAC');
+
+                    if (isOfficial) {
+                        // 1a. OFFICIAL INVOICE -> Create AVOIR (Cancel via Credit Note)
+                        console.log(`ℹ️ [FISCAL] Converting OFFICIAL invoice ${currentFacture.numero}. Generating AVOIR.`);
+
+                        const avoirData: Prisma.FactureUncheckedCreateInput = {
+                            type: 'AVOIR',
+                            statut: 'VALIDE',
+                            numero: await this.generateNextNumber('AVOIR', tx),
+                            dateEmission: new Date(),
+                            clientId: currentFacture.clientId,
+                            centreId: currentFacture.centreId,
+                            lignes: (currentFacture.lignes as any[]).map(ligne => ({
+                                ...ligne,
+                                prixUnitaireTTC: -ligne.prixUnitaireTTC,
+                                totalTTC: -ligne.totalTTC
+                            })),
+                            totalHT: -currentFacture.totalHT,
+                            totalTVA: -currentFacture.totalTVA,
+                            totalTTC: -currentFacture.totalTTC,
+                            resteAPayer: 0,
+                            proprietes: {
+                                ...(currentFacture.proprietes as any || {}),
+                                stockDecremented: false, // Force Avoir to trigger stock increment (Restoration)
+                                factureOriginale: currentFacture.numero,
+                                ficheId: currentFacture.ficheId,
+                                raison: 'Annulation automatique lors de la validation',
+                                isAutoGenerated: true
+                            }
+                        };
+
+                        const autoAvoir = await tx.facture.create({ data: avoirData as any });
+                        console.log('✅ Auto-Avoir created:', autoAvoir.numero);
+
+                        // Trigger Stock Restoration via Avoir Logic
+                        const draftWasDecremented = (currentFacture.proprietes as any)?.stockDecremented === true || (currentFacture.proprietes as any)?.stockDecremented === 'true';
+                        if (draftWasDecremented) {
+                            console.log(`🔄[FISCAL] Original was decremented. Restoring via Avoir.`);
+                            await this.decrementStockForInvoice(tx, autoAvoir);
                         }
-                    };
-                    const avoir = await tx.facture.create({ data: avoirData });
-                    console.log('✅ AVOIR created:', avoir.numero);
+                    } else {
+                        // 1b. DRAFT/DEVIS -> Silent Restoration (No Avoir needed)
+                        console.log(`ℹ️ [FISCAL] Converting DRAFT ${currentFacture.numero}. Skipping AVOIR, restoring stock directly.`);
+
+                        // Use helper to restore stock on the original document ID
+                        await this.restoreStockForCancelledInvoice(tx, currentFacture);
+                    }
 
                     // 2. Prepare Valid Invoice Data (Official Number)
                     // Note: generateNextNumber checks DB. In transaction, we might need to be careful.
                     // But assume low concurrency for now or that it sees committed stats? 
                     // Prisma transaction holds connection. generateNextNumber uses `this.prisma` (outside tx).
-                    // Logic fix: pass `tx` to generateNextNumber? Or just run it. 
-                    // `generateNextNumber` is private. Let's call it before transaction or assume it's fine.
                     // Better: Get number BEFORE transaction to avoid locking/complexity, or use `tx` inside if refactored.
                     // For now, I'll allow `this.generateNextNumber` (non-tx) but it might miss the AVOIR increment if run strictly parallel?
                     // But here we generate FACTURE number. Avoir is AVOIR type. Distinct sequences. Safe.
@@ -424,34 +570,58 @@ export class FacturesService implements OnModuleInit {
                         forceStockDecrement: true // Ensure the new invoice triggers stock decrement
                     };
 
+                    // [FIX] Explicitly map lines to ensure productId is carried over
+                    // Spreading ensures we don't lose any existing JSON data
+                    const originalLines = (currentFacture as any).lignes || [];
+                    const newLinesInput = originalLines.map(line => ({
+                        ...line,
+                        // Override specific fields if needed
+                    }));
+
                     const newInvoiceData: Prisma.FactureUncheckedCreateInput = {
                         ...existingFlat,
                         ...incomingData,
-                        proprietes: cleanProprietes,
-                        id: undefined, // New ID
+                        proprietes: cleanProprietes, // Includes forceStockDecrement: true
                         numero: officialNumber,
-                        statut: 'VALIDE', // New starts as Valid
+                        statut: 'VALIDE',
                         dateEmission: new Date(),
                         createdAt: new Date(),
                         updatedAt: new Date(),
-                        ficheId: undefined, // Will link after unlinking old
+                        type: 'FACTURE',
                         clientId: currentFacture.clientId,
-                        type: 'FACTURE'
+                        centreId: currentFacture.centreId,
+                        lignes: newLinesInput as any
                     };
 
-                    const newInvoice = await tx.facture.create({ data: newInvoiceData });
+                    // Remove fields that would cause conflicts or errors
+                    delete (newInvoiceData as any).id;
+                    delete (newInvoiceData as any).ficheId; // Re-linked after draft is freed
+                    delete (newInvoiceData as any).client;
+                    delete (newInvoiceData as any).paiements;
+                    delete (newInvoiceData as any).fiche;
+                    delete (newInvoiceData as any).parentFactureId;
+
+                    const newInvoice = await tx.facture.create({
+                        data: newInvoiceData as any
+                    });
                     console.log('✅ New Valid Invoice created with merged lines:', newInvoice.numero);
 
+
                     // 4. Move Payments from Old -> New
+                    // Fetch directly from DB inside transaction to ensure we get all payments
                     const paymentsToMove = await tx.paiement.findMany({
                         where: { factureId: currentFacture.id }
                     });
-                    const totalPaid = paymentsToMove.reduce((acc, p) => acc + p.montant, 0);
 
-                    await tx.paiement.updateMany({
-                        where: { factureId: currentFacture.id },
-                        data: { factureId: newInvoice.id }
-                    });
+                    const totalPaid = paymentsToMove.reduce((acc, p) => acc + Number(p.montant), 0);
+                    console.log(`💰 [FISCAL] Moving ${paymentsToMove.length} payments totaling ${totalPaid} DH from ${currentFacture.numero} to ${newInvoice.numero}`);
+
+                    if (paymentsToMove.length > 0) {
+                        await tx.paiement.updateMany({
+                            where: { factureId: currentFacture.id },
+                            data: { factureId: newInvoice.id }
+                        });
+                    }
 
                     // 5. Update Old Draft: Cancel + Clear Balance
                     await tx.facture.update({
@@ -470,15 +640,16 @@ export class FacturesService implements OnModuleInit {
 
                     // 6. Check Payment Status for New Invoice
                     let finalStatut = 'VALIDE';
-                    let reste = Math.max(0, newInvoice.totalTTC - totalPaid);
+                    // Use newInvoice.totalTTC - totalPaid to determine remaining
+                    let reste = Math.max(0, Number(newInvoice.totalTTC) - totalPaid);
 
-                    if (totalPaid >= newInvoice.totalTTC) {
+                    if (totalPaid >= Number(newInvoice.totalTTC) - 0.05) { // Tolerance for tiny FP diff
                         finalStatut = 'PAYEE';
                         reste = 0;
 
-                        // Automatic Refund logic if OVERPAID
-                        if (totalPaid > newInvoice.totalTTC) {
-                            const diff = totalPaid - newInvoice.totalTTC;
+                        // Automatic Refund logic if OVERPAID (significant amount > 0.10)
+                        if (totalPaid > Number(newInvoice.totalTTC) + 0.10) {
+                            const diff = totalPaid - Number(newInvoice.totalTTC);
                             console.log(`🏦 [REFUND] Creating automatic refund payment: ${diff} DH`);
                             const refund = await tx.paiement.create({
                                 data: {
@@ -495,6 +666,8 @@ export class FacturesService implements OnModuleInit {
                     } else if (totalPaid > 0) {
                         finalStatut = 'PARTIEL';
                     }
+
+                    console.log(`📊 [FISCAL] New Invoice Status: ${finalStatut}, Paid: ${totalPaid}, Total: ${newInvoice.totalTTC}, Reste: ${reste}`);
 
                     // Link Fiche to New Invoice and update Status
                     const finalInvoice = await tx.facture.update({
@@ -535,6 +708,35 @@ export class FacturesService implements OnModuleInit {
         if (cleanData.statut === 'ANNULEE') {
             cleanData.resteAPayer = 0;
         }
+
+        // Guard: Verify products if status changes to VALIDE outside fiscal flow
+        let currentRecord: any = null;
+        if (cleanData.statut === 'VALIDE' || cleanData.proprietes) {
+            currentRecord = await this.prisma.facture.findUnique({ where });
+
+            // Merge properties if both exist
+            if (currentRecord && cleanData.proprietes) {
+                const existingProps = currentRecord.proprietes as any || {};
+                const newProps = cleanData.proprietes as any || {};
+
+                cleanData.proprietes = {
+                    ...existingProps,
+                    ...newProps,
+                    // [FIX] IDEMPOTENCY LATCH: 
+                    // Verify we never lose the 'stockDecremented' flag if it was already true in DB.
+                    // This prevents the frontend from accidentally resetting it via a partial update.
+                    stockDecremented: existingProps.stockDecremented || newProps.stockDecremented
+                };
+            }
+        }
+
+        if (cleanData.statut === 'VALIDE' && currentRecord) {
+            await this.verifyProductsAreReceived(currentRecord.lignes as any[], cleanData.type || currentRecord.type);
+        }
+
+        // [DEBUG] Log data before update to diagnose P2002 error
+        console.log('📝 [UPDATE DEBUG] Final Data passed to Prisma:', JSON.stringify(cleanData, null, 2));
+        console.log('📝 [UPDATE DEBUG] Where clause:', JSON.stringify(where, null, 2));
 
         const updatedFacture = await this.prisma.facture.update({
             data: cleanData,
@@ -678,7 +880,7 @@ export class FacturesService implements OnModuleInit {
         }
     }
 
-    async createExchange(invoiceId: string, itemsToReturn: { lineIndex: number, quantiteRetour: number, reason: string }[], centreId: string) {
+    async createExchange(invoiceId: string, itemsToReturn: { lineIndex: number, quantiteRetour: number, reason: string, targetWarehouseId?: string }[], centreId: string) {
         if (!centreId) {
             throw new BadRequestException('ID du centre (Tenant) manquant pour cette opération');
         }
@@ -754,7 +956,8 @@ export class FacturesService implements OnModuleInit {
                                 where: {
                                     codeInterne: code,
                                     entrepot: { centreId: original.centreId as string } // Search in the invoice's center
-                                }
+                                },
+                                orderBy: { quantiteActuelle: 'desc' } // Prefer those with stock
                             });
                             if (product) productId = product.id;
                         }
@@ -762,8 +965,7 @@ export class FacturesService implements OnModuleInit {
 
                     if (productId) {
                         // Determine destination
-                        let targetWarehouseId = line.entrepotId; // Default: Origin
-
+                        let targetWarehouseId = item.targetWarehouseId || line.entrepotId;
                         if (item.reason === 'DEFECTUEUX') {
                             targetWarehouseId = defectiveWarehouse.id;
                         }
@@ -771,69 +973,53 @@ export class FacturesService implements OnModuleInit {
                         const productToUpdate = await tx.product.findUnique({ where: { id: productId } });
 
                         if (productToUpdate) {
-                            if (item.reason === 'DEFECTUEUX') {
-                                // Logic to find corresponding product in Defective Warehouse
-                                let defProduct = await tx.product.findFirst({
-                                    where: { codeInterne: productToUpdate.codeInterne, entrepotId: defectiveWarehouse.id }
+                            // Find or Create Product in Target Warehouse
+                            let targetProduct = productToUpdate;
+
+                            if (targetWarehouseId && targetWarehouseId !== productToUpdate.entrepotId) {
+                                const foundProduct = await tx.product.findFirst({
+                                    where: { codeInterne: productToUpdate.codeInterne, entrepotId: targetWarehouseId }
                                 });
 
-                                if (!defProduct) {
-                                    // Clone to Defective
-                                    const { id, entrepotId, createdAt, updatedAt, specificData, ...prodProps } = productToUpdate;
-                                    defProduct = await tx.product.create({
+                                if (foundProduct) {
+                                    targetProduct = foundProduct;
+                                } else {
+                                    // Clone product to target warehouse
+                                    const { id, entrepotId, createdAt, updatedAt, ...prodProps } = productToUpdate;
+                                    targetProduct = await tx.product.create({
                                         data: {
                                             ...prodProps,
-                                            specificData: specificData as any,
-                                            entrepot: { connect: { id: defectiveWarehouse.id } },
+                                            entrepotId: targetWarehouseId,
                                             quantiteActuelle: 0,
-                                            statut: 'DISPONIBLE',
-                                            designation: `${productToUpdate.designation} (Défectueux)`
+                                            statut: 'DISPONIBLE'
                                         }
-                                    });
+                                    } as any);
                                 }
-
-                                await tx.product.update({
-                                    where: { id: defProduct.id },
-                                    data: {
-                                        quantiteActuelle: { increment: item.quantiteRetour },
-                                        statut: 'DISPONIBLE'
-                                    }
-                                });
-
-
-                                // Movement
-                                await tx.mouvementStock.create({
-                                    data: {
-                                        type: 'ENTREE_RETOUR_CLIENT',
-                                        quantite: item.quantiteRetour,
-                                        produitId: defProduct.id,
-                                        entrepotDestinationId: defectiveWarehouse.id,
-                                        entrepotSourceId: productToUpdate.entrepotId, // Track origin for Secondary Stock revenue calc
-                                        factureId: original.id,
-                                        prixVenteUnitaire: line.prixUnitaireTTC || 0, // Prix remisé de la ligne
-                                        motif: `Retour Défectueux ${original.numero} `,
-                                        utilisateur: 'System'
-                                    }
-                                });
-                            } else {
-                                // Standard Return to Origin
-                                await tx.product.update({
-                                    where: { id: line.productId },
-                                    data: { quantiteActuelle: { increment: item.quantiteRetour } }
-                                });
-
-                                await tx.mouvementStock.create({
-                                    data: {
-                                        type: 'ENTREE_RETOUR_CLIENT',
-                                        quantite: item.quantiteRetour,
-                                        produitId: line.productId,
-                                        entrepotDestinationId: line.entrepotId,
-                                        factureId: original.id,
-                                        motif: `Retour Standard ${original.numero} `,
-                                        utilisateur: 'System'
-                                    }
-                                });
                             }
+
+                            // Update Stock in Target Product
+                            await tx.product.update({
+                                where: { id: targetProduct.id },
+                                data: {
+                                    quantiteActuelle: { increment: item.quantiteRetour },
+                                    statut: 'DISPONIBLE'
+                                }
+                            });
+
+                            // Movement
+                            await tx.mouvementStock.create({
+                                data: {
+                                    type: 'ENTREE_RETOUR_CLIENT',
+                                    quantite: item.quantiteRetour,
+                                    produitId: targetProduct.id,
+                                    entrepotDestinationId: targetWarehouseId,
+                                    entrepotSourceId: productToUpdate.entrepotId, // Track origin
+                                    factureId: original.id,
+                                    prixVenteUnitaire: line.prixUnitaireTTC || 0,
+                                    motif: `Retour ${item.reason} ${original.numero}`,
+                                    utilisateur: 'System'
+                                }
+                            });
                         }
                     }
                 }

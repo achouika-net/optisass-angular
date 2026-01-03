@@ -17,7 +17,7 @@ export class CreateClientDto {
     titre?: string;
 
     @IsString()
-    @IsNotEmpty()
+    @IsOptional()
     nom: string;
 
     @IsString()
