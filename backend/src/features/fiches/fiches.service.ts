@@ -47,8 +47,8 @@ export class FichesService {
                 throw new BadRequestException('Client not found');
             }
 
-            // 2. If client is INACTIF, validate required fields
-            if (client.statut === 'INACTIF') {
+            // 2. If client is INACTIF, validate required fields (skip for anonymous)
+            if (client.statut === 'INACTIF' && client.typeClient !== 'anonyme') {
                 console.log('⚠️ Client is INACTIF, validating required fields...');
                 this.validateRequiredFields(client);
             }

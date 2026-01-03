@@ -45,6 +45,7 @@ model Client {
   parrain             Client?            @relation("Parrainage", fields: [parrainId], references: [id])
   filleuls            Client[]           @relation("Parrainage")
   factures            Facture[]
+  facturesFournisseurs FactureFournisseur[]
   fiches              Fiche[]
   pointsHistory       PointsHistory[]
   rewardRedemptions   RewardRedemption[]
@@ -375,15 +376,18 @@ model FactureFournisseur {
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   centreId       String?
+  clientId       String?
   pieceJointeUrl String?
   depenses       Depense?
   echeances      EcheancePaiement[]
   centre         Centre?            @relation(fields: [centreId], references: [id])
+  client         Client?            @relation(fields: [clientId], references: [id])
   fournisseur    Fournisseur        @relation(fields: [fournisseurId], references: [id])
 
   @@unique([fournisseurId, numeroFacture])
   @@index([dateEmission])
   @@index([centreId])
+  @@index([clientId])
 }
 
 model EcheancePaiement {
@@ -504,4 +508,23 @@ model DemandeAlimentation {
 
   @@index([statut])
   @@index([createdAt])
+}
+
+model MarketingConfig {
+  id                  String   @id @default(uuid())
+  // WhatsApp
+  whatsappApiUrl      String?
+  whatsappInstanceId  String?
+  whatsappToken       String?
+  // SMS
+  smsGatewayUrl       String?
+  smsApiKey           String?
+  // Email
+  smtpHost            String?
+  smtpPort            Int      @default(587)
+  smtpUser            String?
+  smtpPass            String?
+  smtpFrom            String?
+  
+  updatedAt           DateTime @updatedAt
 }

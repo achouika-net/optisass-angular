@@ -14,9 +14,10 @@ export class SupplierInvoicesController {
     @Get()
     findAll(
         @Query('fournisseurId') fournisseurId?: string,
-        @Query('statut') statut?: string
+        @Query('statut') statut?: string,
+        @Query('clientId') clientId?: string
     ) {
-        return this.service.findAll(fournisseurId, statut);
+        return this.service.findAll(fournisseurId, statut, clientId);
     }
 
     @Get(':id')
@@ -32,5 +33,10 @@ export class SupplierInvoicesController {
     @Delete(':id')
     remove(@Param('id') id: string) {
         return this.service.remove(id);
+    }
+
+    @Get('situation/:fournisseurId')
+    getSituation(@Param('fournisseurId') fournisseurId: string) {
+        return this.service.getSupplierSituation(fournisseurId);
     }
 }
