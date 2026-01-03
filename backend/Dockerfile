@@ -26,6 +26,6 @@ RUN npm run build
 # Port exposé
 EXPOSE 3000
 
-# Commande de démarrage (en dev avec watch ou prod selon besoin)
-# Pour le dev via docker-compose, on surchargera souvent la commande
-CMD ["npm", "run", "start:dev"]
+# Commande de démarrage
+# On attend un peu que la DB soit prête, on push le schéma, puis on lance
+CMD ["sh", "-c", "npx prisma db push && npm run start:dev"]
