@@ -22,8 +22,22 @@ fi
 
 echo "💻 Système détecté : $OS_TYPE"
 
-# 1. Vérifier si les ports sont occupés
-echo "1️⃣  Vérification des ports..."
+# 1. Vérification des dépendances
+echo "1️⃣  Vérification de l'environnement..."
+if [ ! -d "$BACKEND_DIR/node_modules" ]; then
+    echo "   ⚠️  node_modules manquant dans le backend. Installation..."
+    cd "$BACKEND_DIR" && npm install
+    cd "$ROOT_DIR"
+fi
+
+# 2. Synchronisation Prisma
+echo "2️⃣  Génération du client Prisma..."
+cd "$BACKEND_DIR"
+npx prisma generate
+cd "$ROOT_DIR"
+
+# 3. Vérifier si les ports sont occupés
+echo "3️⃣  Libération des ports..."
 
 kill_port() {
     local port=$1
@@ -43,8 +57,8 @@ kill_port 3000
 kill_port 4200
 kill_port 5555
 
-# 2. Démarrer le Backend
-echo "2️⃣  Démarrage du Backend (Port 3000)..."
+# 4. Démarrer le Backend
+echo "4️⃣  Démarrage du Backend (Port 3000)..."
 if [ "$OS_TYPE" == "windows" ]; then
     start cmd /k "cd backend && npm run start:dev"
 elif [ "$OS_TYPE" == "macos" ]; then
@@ -53,8 +67,8 @@ else
     cd "$BACKEND_DIR" && npm run start:dev &
 fi
 
-# 3. Démarrer le Frontend
-echo "3️⃣  Démarrage du Frontend (Port 4200)..."
+# 5. Démarrer le Frontend
+echo "5️⃣  Démarrage du Frontend (Port 4200)..."
 if [ "$OS_TYPE" == "windows" ]; then
     start cmd /k "cd frontend && npm start"
 elif [ "$OS_TYPE" == "macos" ]; then
@@ -63,8 +77,8 @@ else
     cd "$FRONTEND_DIR" && npm start &
 fi
 
-# 4. Démarrer Prisma Studio
-echo "4️⃣  Démarrage de Prisma Studio (Port 5555)..."
+# 6. Démarrer Prisma Studio
+echo "6️⃣  Démarrage de Prisma Studio (Port 5555)..."
 if [ "$OS_TYPE" == "windows" ]; then
     start cmd /k "cd backend && npx prisma studio"
 elif [ "$OS_TYPE" == "macos" ]; then
