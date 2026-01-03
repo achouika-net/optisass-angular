@@ -9,7 +9,7 @@ RUN npm install -g @nestjs/cli
 COPY package*.json ./
 
 # Installation des dépendances
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # Copie du schéma Prisma
 COPY prisma ./prisma/
