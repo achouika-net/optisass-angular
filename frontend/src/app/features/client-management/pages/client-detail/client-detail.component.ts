@@ -27,6 +27,10 @@ import { PaymentListComponent } from '../../components/payment-list/payment-list
 import { CameraCaptureDialogComponent } from '../../../../shared/components/camera-capture/camera-capture-dialog.component';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { FinanceService } from '../../../finance/services/finance.service';
+import { SupplierInvoice } from '../../../finance/models/finance.models';
+import { InvoiceFormDialogComponent } from '../../../finance/components/invoice-form-dialog/invoice-form-dialog.component';
+import { MessagingService } from '../../../../core/services/messaging.service';
 
 export interface Attachment {
   id: string;
@@ -115,6 +119,9 @@ export class ClientDetailComponent implements OnInit {
   // Loyalty History
   pointsHistory = signal<PointsHistory[]>([]);
 
+  // Supplier Invoices (BL Fournisseur)
+  supplierInvoices = signal<SupplierInvoice[]>([]);
+
   // Table columns
   historyColumns: string[] = ['dateLivraison', 'type', 'dateCreation', 'docteur', 'typeEquipement', 'typeVerre', 'nomenclature', 'actions'];
 
@@ -132,7 +139,9 @@ export class ClientDetailComponent implements OnInit {
     private loyaltyService: LoyaltyService,
     private cdr: ChangeDetectorRef,
     private dialog: MatDialog,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private financeService: FinanceService,
+    private messagingService: MessagingService
   ) {
     this.clientId = this.route.snapshot.paramMap.get('id');
   }
@@ -142,6 +151,7 @@ export class ClientDetailComponent implements OnInit {
       this.loadClientData();
       this.loadFiches();
       this.loadStats();
+      this.loadSupplierInvoices();
     }
   }
 
@@ -552,5 +562,68 @@ export class ClientDetailComponent implements OnInit {
 
   goBack(): void {
     this.router.navigate(['/p/clients']);
+  }
+
+  // --- Supplier Invoices ---
+
+  loadSupplierInvoices(): void {
+    if (!this.clientId) return;
+    this.financeService.getInvoices({ clientId: this.clientId }).subscribe({
+      next: (invoices) => {
+        this.supplierInvoices.set(invoices);
+        this.cdr.markForCheck();
+      },
+      error: (err) => console.error('Error loading supplier invoices:', err)
+    });
+  }
+
+  createSupplierInvoice(): void {
+    const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
+      width: '1200px',
+      maxWidth: '95vw',
+      maxHeight: '90vh',
+      data: {
+        invoice: null, // New mode
+        prefilledClientId: this.clientId // We might need to handle this in dialog
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.loadSupplierInvoices();
+        this.snackBar.open('BL enregistré avec succès', 'OK', { duration: 3000 });
+      }
+    });
+  }
+
+  viewSupplierInvoice(invoice: SupplierInvoice): void {
+    const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
+      width: '1200px',
+      maxWidth: '95vw',
+      maxHeight: '90vh',
+      data: { invoice, viewMode: true }
+    });
+  }
+
+  deleteSupplierInvoice(invoice: SupplierInvoice): void {
+    if (confirm('Voulez-vous supprimer ce BL ?')) {
+      this.financeService.deleteInvoice(invoice.id).subscribe(() => {
+        this.loadSupplierInvoices();
+        this.snackBar.open('BL supprimé', 'OK');
+      });
+    }
+  }
+
+  sendControlReminder(fiche: FicheClient): void {
+    if (!this.client?.telephone) {
+      this.snackBar.open('Ce client n\'a pas de numéro de téléphone renseigné', 'Fermer', { duration: 3000 });
+      return;
+    }
+
+    this.messagingService.openWhatsApp(
+      this.client.telephone,
+      'CONTROL_REMINDER',
+      { name: this.clientDisplayName }
+    );
   }
 }

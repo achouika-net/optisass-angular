@@ -27,6 +27,7 @@ export class StockMovementHistoryDialogComponent implements OnInit {
     displayedColumns: string[] = [
         'dateMovement',
         'type',
+        'entrepot',
         'quantite',
         'prixAchat',
         'prixVente',
@@ -82,18 +83,29 @@ export class StockMovementHistoryDialogComponent implements OnInit {
             'ENTREE_ACHAT': 'Achat',
             'SORTIE_VENTE': 'Vente',
             'TRANSFERT': 'Transfert',
+            'TRANSFERT_ENTREE': 'Réception Tr.',
+            'TRANSFERT_SORTIE': 'Expédition Tr.',
             'TRANSFERT_INIT': 'Transfert Init',
             'RECEPTION': 'Réception',
             'ENTREE_RETOUR_CLIENT': 'Retour Client',
-            'SORTIE_RETOUR_FOURNISSEUR': 'Retour Fournisseur',
+            'SORTIE_RETOUR_FOURNISSEUR': 'Retour Fourn.',
             'INVENTAIRE': 'Inventaire',
-            'CASSE': 'Casse'
+            'CASSE': 'Casse',
+            'AJUSTEMENT': 'Ajustement',
+            'MIGRATION': 'Migration'
         };
         return labels[type] || type;
     }
 
+    getWarehouseName(movement: StockMovement): string {
+        if (movement.entrepotDestination && movement.entrepotSource) {
+            return `${movement.entrepotSource.nom} ➔ ${movement.entrepotDestination.nom}`;
+        }
+        return movement.entrepotDestination?.nom || movement.entrepotSource?.nom || '--';
+    }
+
     isPositive(type: string): boolean {
-        return ['ENTREE_ACHAT', 'ENTREE_RETOUR_CLIENT', 'RECEPTION'].includes(type);
+        return ['ENTREE_ACHAT', 'ENTREE_RETOUR_CLIENT', 'RECEPTION', 'TRANSFERT_ENTREE', 'TRANSFERT_INIT'].includes(type);
     }
 
     getClientName(movement: StockMovement): string {

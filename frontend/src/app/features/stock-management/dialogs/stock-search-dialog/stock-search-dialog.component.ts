@@ -226,19 +226,154 @@ export class StockSearchDialogComponent implements OnInit {
     }
 
     orderAndSell(product: any): void {
-        // Close dialog and return product with isPendingOrder flag
-        // This will be treated like a transfer (isPendingTransfer = true)
-        const localProduct = this.findLocalCounterpart(product) || product;
+        const isLocal = product.entrepot?.centreId === this.currentCenter?.id;
 
-        if (localProduct.entrepot?.centreId !== this.currentCenter?.id) {
-            console.warn('⚠️ Selling a remote product directly. Stock will be affected in source center.');
+        // Find best target warehouse for this center
+        // 1. If local product, use its current warehouse
+        // 2. Otherwise, try to match the type of the source product
+        // 3. Fallback to PRINCIPAL
+        const targetWarehouse = (isLocal ? this.warehouses.find(w => w.id === product.entrepotId) : null)
+            || this.warehouses.find(w => w.centreId === this.currentCenter?.id && w.type === product.entrepot?.type)
+            || this.warehouses.find(w => w.centreId === this.currentCenter?.id && w.type === 'PRINCIPAL')
+            || this.warehouses.find(w => w.centreId === this.currentCenter?.id);
+
+        const hasStock = (product.quantiteActuelle || 0) > 0;
+        const isProductRemote = this.isRemote(product);
+
+        // Only initiate transfer if the product is truly in a different CENTER.
+        // If it's in our center but a different warehouse, we just select it.
+        const needsTransfer = hasStock && isProductRemote;
+
+        if (needsTransfer) {
+            // Product has stock and needs transfer
+            this.initiateTransferForStockedProduct(product, targetWarehouse);
+        } else if (!hasStock) {
+            // No local stock - search for remote stock
+            console.log('📦 [ORDER&SELL] No local stock. Searching in other centers...');
+
+            const remoteProduct = this.allProducts.find(p =>
+                p.codeInterne === product.codeInterne &&
+                p.entrepot?.centreId !== this.currentCenter?.id &&
+                (p.quantiteActuelle || 0) > 0
+            );
+
+            if (remoteProduct) {
+                console.log(`📦 [ORDER&SELL] Found stock at ${remoteProduct.entrepot?.centre?.nom}. Initiating transfer.`);
+                // If the original 'product' was local but ruptured, we want the transfer to go to THEIR warehouse.
+                const targetWhId = isLocal ? product.entrepotId : targetWarehouse?.id;
+                this.initiateAutoTransfer(remoteProduct, targetWhId);
+            } else {
+                console.log('📦 [ORDER&SELL] No stock anywhere. Prompting user to cancel or choose another product.');
+                this.handleNoStockAnywhere(product);
+            }
+        } else {
+            // Local stock available -> just select
+            console.log('📦 [ORDER&SELL] Stock is local and available. Just selecting.');
+            const localProduct = this.findLocalCounterpart(product) || product;
+            this.dialogRef.close({ action: 'SELECT', product: localProduct });
+        }
+    }
+
+    private initiateTransferForStockedProduct(product: any, targetWarehouse: any): void {
+        if (!targetWarehouse) {
+            alert("Impossible d'initier le transfert : aucun entrepôt de destination trouvé pour votre centre.");
+            return;
         }
 
-        this.dialogRef.close({
-            action: 'ORDER_AND_SELL',
-            product: localProduct,
-            isPendingOrder: true
+        this.loading = true;
+        console.log(`📦 [ORDER&SELL-DEBUG] Initiating auto-transfer (Stock: ${product.quantiteActuelle})`);
+        console.log(`   👉 Product: ${product.id} (${product.designation})`);
+        console.log(`   👉 Target Warehouse: ${targetWarehouse.id} (${targetWarehouse.nom})`);
+        console.log(`   👉 Source Center: ${product.entrepot?.centreId} | Current Center: ${this.currentCenter?.id}`);
+
+        this.productService.destock(product.id, 1, 'Transfert Auto (Commande & Vente)', targetWarehouse.id).subscribe({
+            next: (response: any) => {
+                this.loading = false;
+                console.log('✅ [ORDER&SELL-DEBUG] Destock response:', response);
+
+                const targetProduct = response.target;
+                const finalProduct = targetProduct || this.findLocalCounterpart(product) || product;
+
+                this.dialogRef.close({
+                    action: 'SELECT',
+                    product: finalProduct,
+                    isPendingTransfer: true
+                });
+            },
+            error: (err) => {
+                this.loading = false;
+                console.error('Auto transfer failed:', err);
+                const msg = err.error?.message || err.message || 'Erreur inconnue';
+                alert(`Erreur transfert auto: ${msg}`);
+            }
         });
+    }
+
+    private initiateAutoTransfer(remoteProduct: any, targetWarehouseId?: string): void {
+        const targetWarehouse = (targetWarehouseId ? this.warehouses.find(w => w.id === targetWarehouseId) : null)
+            || this.warehouses.find(w => w.centreId === this.currentCenter?.id && w.type === remoteProduct.entrepot?.type)
+            || this.warehouses.find(w => w.centreId === this.currentCenter?.id && w.type === 'PRINCIPAL')
+            || this.warehouses.find(w => w.centreId === this.currentCenter?.id);
+
+        if (!targetWarehouse) {
+            this.snackBar.open('Impossible de trouver un entrepôt de destination.', 'OK', { duration: 4000 });
+            return;
+        }
+
+        this.loading = true;
+        console.log(`🚚 [AUTO-TRANSFER] Initiating transfer from ${remoteProduct.entrepot?.centre?.nom} to ${this.currentCenter?.nom}`);
+
+        this.productService.destock(
+            remoteProduct.id,
+            1,
+            'Transfert Auto (Commande & Vente)',
+            targetWarehouse.id
+        ).subscribe({
+            next: (response: any) => {
+                this.loading = false;
+                const targetProduct = response.target;
+
+                this.snackBar.open(
+                    `Transfert initié depuis ${remoteProduct.entrepot?.centre?.nom}. La vente sera validée à réception.`,
+                    'OK',
+                    { duration: 6000 }
+                );
+
+                this.dialogRef.close({
+                    action: 'SELECT',
+                    product: targetProduct,
+                    isPendingTransfer: true
+                });
+            },
+            error: (err) => {
+                this.loading = false;
+                this.snackBar.open(
+                    `Erreur lors du transfert: ${err.error?.message || err.message}`,
+                    'OK',
+                    { duration: 5000 }
+                );
+            }
+        });
+    }
+
+    private handleNoStockAnywhere(product: any): void {
+        const confirmed = confirm(
+            `Le produit "${product.designation}" n'est disponible dans aucun centre.\n\n` +
+            `Voulez-vous choisir un autre produit ?\n\n` +
+            `Cliquez sur "OK" pour choisir un autre produit, ou "Annuler" pour annuler la vente.`
+        );
+
+        if (confirmed) {
+            // User wants to choose another product - keep dialog open
+            this.snackBar.open('Veuillez sélectionner un autre produit.', 'OK', { duration: 4000 });
+        } else {
+            // User wants to cancel - close dialog and notify parent
+            this.dialogRef.close({
+                action: 'CANCEL_SALE',
+                reason: 'NO_STOCK_AVAILABLE',
+                product: product
+            });
+        }
     }
 
     public findLocalCounterpart(remoteProduct: any): any {
@@ -269,11 +404,13 @@ export class StockSearchDialogComponent implements OnInit {
 
         dialogRef.afterClosed().subscribe(result => {
             if (result && result.productId) {
+                console.log('📦 [SEARCH-DEBUG] Transfer Dialog Result:', result);
                 this.loading = true;
                 // result.productId is the SOURCE product ID (selected in dialog if multiple warehouses exist)
                 // Use destock with destination warehouse to trigger "find or create" logic in backend
-                this.productService.destock(result.productId, 1, 'Transfert manuel (Initialisé)', result.targetWarehouseId).subscribe({
-                    next: (response) => {
+                const qtyVal = result.quantite || 1;
+                this.productService.destock(result.productId, qtyVal, 'Transfert manuel (Initialisé)', result.targetWarehouseId).subscribe({
+                    next: (response: any) => {
                         this.loading = false;
                         const targetProduct = response.target || localProduct;
 
@@ -286,7 +423,7 @@ export class StockSearchDialogComponent implements OnInit {
                             isPendingTransfer: true
                         });
                     },
-                    error: (err) => {
+                    error: (err: any) => {
                         console.error('Transfer initiation failed:', err);
                         this.loading = false;
                         alert(err.error?.message || 'Erreur lors de l\'initiation du transfert');
@@ -331,4 +468,5 @@ export class StockSearchDialogComponent implements OnInit {
             });
         });
     }
+
 }

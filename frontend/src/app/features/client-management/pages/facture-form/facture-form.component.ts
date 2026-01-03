@@ -21,6 +21,9 @@ import { PaymentDialogComponent, Payment } from '../../dialogs/payment-dialog/pa
 import { LoyaltyService } from '../../services/loyalty.service';
 import { ClientManagementService } from '../../services/client.service';
 import { numberToFrench } from '../../../../utils/number-to-text';
+import { Store } from '@ngrx/store';
+import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
+import { take } from 'rxjs';
 
 @Component({
     selector: 'app-facture-form',
@@ -58,6 +61,7 @@ export class FactureFormComponent implements OnInit {
     id: string | null = null;
     isViewMode = false;
     client: any = null;
+    centreId: string | null = null;
 
     // Totals
     totalHT = 0;
@@ -83,7 +87,8 @@ export class FactureFormComponent implements OnInit {
         private loyaltyService: LoyaltyService,
         private clientService: ClientManagementService,
         private snackBar: MatSnackBar,
-        private dialog: MatDialog
+        private dialog: MatDialog,
+        private store: Store
     ) {
         this.form = this.fb.group({
             numero: [''], // Auto-generated
@@ -230,7 +235,11 @@ export class FactureFormComponent implements OnInit {
             qte: [1, [Validators.required, Validators.min(1)]],
             prixUnitaireTTC: [0, [Validators.required, Validators.min(0)]],
             remise: [0],
-            totalTTC: [0]
+            totalTTC: [0],
+            productId: [null],
+            entrepotId: [null],
+            entrepotType: [null],
+            entrepotNom: [null]
         });
     }
 
@@ -379,6 +388,7 @@ export class FactureFormComponent implements OnInit {
 
         const factureData: any = {
             ...restFormData,
+            centreId: this.centreId, // CRITICAL: Propagation for stock decrement fallback
             proprietes: mergedProprietes,
             ficheId: this.ficheIdInput, // Include link to Fiche
             totalHT: this.totalHT,
@@ -428,8 +438,17 @@ export class FactureFormComponent implements OnInit {
                 return facture;
             }),
             catchError(err => {
+                if (err.status === 409) {
+                    console.log('⚠️ [FactureForm] Race condition: Invoice already exists (409). Treating as success.');
+                    // Don't show error snackbar for 409
+                    // We re-throw so the parent (MontureForm) can handle it (we'll fix parent next)
+                    // OR we could recover here, but the parent expects a Returned Invoice object.
+                    // Ideally, we shouldn't fail.
+                    throw err;
+                }
                 console.error('Erreur sauvegarde facture:', err);
-                this.snackBar.open('Erreur lors de l\'enregistrement', 'Fermer', { duration: 3000 });
+                const message = err.error?.message || 'Erreur lors de l\'enregistrement';
+                this.snackBar.open(message, 'Fermer', { duration: 5000 });
                 throw err;
             })
         );

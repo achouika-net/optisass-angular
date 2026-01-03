@@ -1,0 +1,93 @@
+:host {
+    display: block;
+    background-color: #f8fafc;
+    min-height: 100vh;
+}
+
+.modern-tabs {
+    ::ng-deep {
+        .mat-mdc-tab-header {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            margin-bottom: 1rem;
+        }
+
+        .mat-mdc-tab-group-active-indicator-center {
+            height: 3px;
+            border-radius: 3px 3px 0 0;
+        }
+    }
+}
+
+.filter-button {
+    height: 48px;
+    border-radius: 8px !important;
+    padding: 0 24px !important;
+    background-color: #1976d2 !important;
+    color: white !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.025em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+
+    &:hover {
+        background-color: #334155 !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    }
+
+    mat-icon {
+        margin: 0;
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+    }
+}
+
+.mat-mdc-table {
+    background: white;
+}
+
+.mat-mdc-header-cell {
+    background-color: #f1f5f9;
+    color: #475569;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+}
+
+.mat-mdc-cell {
+    color: #1e293b;
+}
+
+.mat-mdc-row:hover {
+    background-color: #f8fafc;
+}
+
+button[color="success"] {
+    background-color: #10b981 !important;
+    color: white !important;
+
+    &:hover {
+        background-color: #059669 !important;
+    }
+}
+
+.dense-form-field {
+    width: 200px;
+
+    ::ng-deep {
+        .mat-mdc-form-field-flex {
+            height: 48px !important;
+            padding-top: 4px !important;
+        }
+
+        .mat-mdc-text-field-wrapper {
+            background-color: white !important;
+        }
+    }
+}

@@ -3,10 +3,12 @@
         <mat-card-header class="mb-6 !flex items-center">
             <div class="flex-1">
                 <mat-card-title class="!text-2xl !font-bold">
-                    {{ isEditMode ? 'Modifier Facture Fournisseur' : 'Nouvelle Facture Fournisseur' }}
+                    {{ isEditMode ? (isBLMode ? 'Modifier BL Fournisseur' : 'Modifier Facture Fournisseur') : (isBLMode
+                    ? 'Nouveau Bon de Livraison' : 'Nouvelle Facture Fournisseur') }}
                 </mat-card-title>
                 <mat-card-subtitle>
-                    Enregistrement d'une facture et planification du paiement
+                    {{ isBLMode ? 'Enregistrement d\'un bon de livraison lié à un dossier client' : 'Enregistrement
+                    d\'une facture et planification du paiement' }}
                 </mat-card-subtitle>
             </div>
             <button mat-icon-button (click)="onCancel()" *ngIf="dialogRef">
@@ -67,7 +69,7 @@
                                     <mat-datepicker #pickerE></mat-datepicker>
                                 </mat-form-field>
 
-                                <mat-form-field appearance="outline">
+                                <mat-form-field appearance="outline" *ngIf="!isBLMode">
                                     <mat-label>Date d'échéance </mat-label>
                                     <input matInput [matDatepicker]="pickerH" formControlName="dateEcheance">
                                     <mat-datepicker-toggle matIconSuffix [for]="pickerH"></mat-datepicker-toggle>
@@ -159,15 +161,20 @@
 
                         <div class="flex justify-end mt-6">
                             <button mat-raised-button color="primary" matStepperNext [disabled]="detailsGroup.invalid"
-                                class="!px-8">
+                                class="!px-8" *ngIf="!isBLMode">
                                 Suivant : Planifier Paiement <mat-icon>arrow_forward</mat-icon>
+                            </button>
+                            <button mat-raised-button color="primary" (click)="onSubmit()"
+                                [disabled]="detailsGroup.invalid" class="!px-8" *ngIf="isBLMode">
+                                <mat-icon>save</mat-icon> Enregistrer BL
                             </button>
                         </div>
                     </div>
                 </mat-step>
 
                 <!-- ÉTAPE 2 : PLANIFICATION DU PAIEMENT -->
-                <mat-step [stepControl]="paymentGroup">
+                <!-- ÉTAPE 2 : PLANIFICATION DU PAIEMENT -->
+                <mat-step [stepControl]="paymentGroup" *ngIf="!isBLMode">
                     <ng-template matStepLabel>Planification du Paiement</ng-template>
                     <div class="p-6">
                         <div class="flex justify-between items-center mb-6">

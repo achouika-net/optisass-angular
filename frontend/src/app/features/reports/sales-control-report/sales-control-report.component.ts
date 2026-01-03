@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
@@ -83,7 +83,7 @@ export class SalesControlReportComponent implements OnInit {
     stockStats: any = null;
 
     // Filter State
-    filterType: 'DAILY' | 'MONTHLY' | 'SEMESTER' | 'YEARLY' | 'CUSTOM' | 'ALL' = 'MONTHLY';
+    filterType: 'DAILY' | 'MONTHLY' | 'SEMESTER' | 'YEARLY' | 'CUSTOM' | 'ALL' = 'ALL';
 
     // Selections
     selectedDate: Date = new Date();
@@ -128,7 +128,8 @@ export class SalesControlReportComponent implements OnInit {
         private router: Router,
         private dialog: MatDialog,
         private store: Store,
-        private productService: ProductService
+        private productService: ProductService,
+        private cdr: ChangeDetectorRef
     ) {
         // Automatically reload when center changes
         effect(() => {
@@ -170,6 +171,7 @@ export class SalesControlReportComponent implements OnInit {
                 this.updateAvailablePeriods();
                 this.calculateMetrics();
                 this.loading = false;
+                this.cdr.markForCheck(); // Force UI update
             },
             error: (err) => {
                 console.error('Error loading report data:', err);
@@ -184,18 +186,9 @@ export class SalesControlReportComponent implements OnInit {
     }
 
     loadData(): void {
-        // Clear existing data to prevent flicker/stale data from previous center
-        this.invoicesWithPayment = [];
-        this.invoicesWithoutPayment = [];
-        this.invoicesValid = [];
-        this.invoicesAvoir = [];
-        this.groupedWithPayment = [];
-        this.groupedWithoutPayment = [];
-        this.groupedValid = [];
-        this.groupedAvoir = [];
-        this.groupedArchived = [];
-        this.statistics = [];
-        this.clientSearch = '';
+        // [FIX] Do NOT clear existing data arrays here to prevent empty state flash
+        // Only reset search if needed or keep it? User might want to keep search.
+        // this.clientSearch = ''; 
 
         // Load stock stats for CA Non Consolidé
         this.productService.getStockStats().subscribe({
@@ -413,27 +406,39 @@ export class SalesControlReportComponent implements OnInit {
     }
 
     validateInvoice(invoice: BrouillonInvoice): void {
+
+        this.loading = true; // Show loading immediately
         this.salesControlService.validateInvoice(invoice.id).subscribe({
-            next: () => {
-                this.snackBar.open('Facture validée avec succès', 'Fermer', { duration: 3000 });
-                this.loadData(); // Reload data
+            next: (newInvoice) => {
+                this.snackBar.open(`Facture validée : ${newInvoice.numero}`, 'Fermer', {
+                    duration: 5000,
+                    panelClass: ['snackbar-success']
+                });
+                this.loadData();
+                // Loading will be set to false by loadData -> refresh$ pipe, but we can safegaurd:
+                // this.loading = false; // logic in pipe handles it.
             },
             error: (err) => {
                 console.error('Error validating invoice:', err);
                 this.snackBar.open('Erreur lors de la validation', 'Fermer', { duration: 3000 });
+                this.loading = false;
             }
         });
     }
 
     declareAsGift(invoice: BrouillonInvoice): void {
+        if (!confirm("Etes-vous sûr de déclarer cette facture comme CADEAU ?")) return;
+
+        this.loading = true;
         this.salesControlService.declareAsGift(invoice.id).subscribe({
             next: () => {
                 this.snackBar.open('Facture déclarée comme don', 'Fermer', { duration: 3000 });
-                this.loadData(); // Reload data
+                this.loadData();
             },
             error: (err) => {
                 console.error('Error declaring as gift:', err);
                 this.snackBar.open('Erreur lors de la déclaration', 'Fermer', { duration: 3000 });
+                this.loading = false;
             }
         });
     }
@@ -518,7 +523,8 @@ export class SalesControlReportComponent implements OnInit {
                     facture: {
                         id: invoice.id,
                         numero: invoice.numero,
-                        lignes: invoice.lignes || []
+                        lignes: invoice.lignes || [],
+                        centreId: invoice.centreId
                     }
                 }
             });

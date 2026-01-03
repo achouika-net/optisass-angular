@@ -107,6 +107,27 @@
     width: 100%;
 }
 
+.mini-ship-btn {
+    width: 28px !important;
+    height: 28px !important;
+    line-height: 28px !important;
+    color: #10b981 !important;
+
+    &:hover {
+        background-color: #ecfdf5 !important;
+    }
+
+    mat-icon {
+        font-size: 18px !important;
+        width: 18px !important;
+        height: 18px !important;
+    }
+}
+
+button[color="success"] {
+    color: #10b981 !important;
+}
+
 /* Stock Status */
 .stock-ok {
     color: #1e8e3e;

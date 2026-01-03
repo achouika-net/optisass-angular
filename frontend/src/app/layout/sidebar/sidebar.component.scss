@@ -54,7 +54,8 @@
   }
 
   span {
-    font-size: 15px;
+    font-size: 16px;
+    font-weight: 400;
   }
 
   &:hover {
@@ -68,6 +69,7 @@
 
   .grid {
     align-items: center;
+    padding: 2px 0;
   }
 
   &.selected {
@@ -76,7 +78,7 @@
     .mat-icon:not(.icon-remove-favorite),
     span {
       color: var(--menu-selected-text) !important;
-      font-weight: 500;
+      font-weight: 600;
     }
 
     .icon-favorite.active {
@@ -114,8 +116,37 @@
 // Blocs subChild
 .sidebar-sub-items,
 .bg-subgroup {
-  background-color: var(--sub-opened-bg);
-  border-radius: var(--radius-md);
+  background-color: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+
+  .sidebar-menu-item {
+    padding-left: 1.25rem; // Balanced indentation
+    border-radius: var(--radius-md);
+    min-height: 42px;
+
+    .icon-standard {
+      font-size: 18px;
+      opacity: 0.8;
+    }
+
+    span {
+      font-size: 14px;
+      line-height: 1.2;
+    }
+
+    &.selected {
+      background-color: #3f51b51a !important; // Light indigo tint
+
+      .mat-icon:not(.icon-remove-favorite),
+      span {
+        color: #3f51b5 !important;
+        font-weight: 600;
+      }
+    }
+  }
 }
 
 // Favoris (non-collapsed)

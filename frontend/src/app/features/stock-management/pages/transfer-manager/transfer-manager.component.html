@@ -1,0 +1,345 @@
+<div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Gestion des Transferts Inter-Centres</h1>
+            <p class="text-slate-500">Gérez les expéditions et réceptions de produits entre les centres.</p>
+        </div>
+        <button mat-stroked-button color="primary" (click)="loadTransfers()">
+            <mat-icon>refresh</mat-icon> Actualiser
+        </button>
+    </div>
+
+    <mat-tab-group class="modern-tabs">
+        <!-- OUTGOING TRANSFERS -->
+        <mat-tab>
+            <ng-template mat-tab-label>
+                <div class="flex items-center gap-2">
+                    <mat-icon>outbound</mat-icon>
+                    <span>Expéditions (À Envoyer)</span>
+                    <span *ngIf="outgoingTransfers.length > 0"
+                        class="ml-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold">
+                        {{ outgoingTransfers.length }}
+                    </span>
+                </div>
+            </ng-template>
+
+            <div class="py-4">
+                <div *ngIf="outgoingTransfers.length === 0"
+                    class="flex flex-col items-center justify-center py-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 text-slate-400">
+                    <mat-icon class="text-5xl mb-2 opacity-20">local_shipping</mat-icon>
+                    <p>Aucune expédition en attente.</p>
+                </div>
+
+                <table mat-table [dataSource]="outgoingTransfers" *ngIf="outgoingTransfers.length > 0"
+                    class="w-full border rounded-lg overflow-hidden shadow-sm">
+
+                    <ng-container matColumnDef="numero">
+                        <th mat-header-cell *matHeaderCellDef> N° Transfert </th>
+                        <td mat-cell *matCellDef="let t">
+                            <span class="font-mono text-xs font-bold text-blue-600">{{t.numeroTransfert ||
+                                'TRS-TEMP'}}</span>
+                        </td>
+                    </ng-container>
+                    <ng-container matColumnDef="product">
+                        <th mat-header-cell *matHeaderCellDef> Produit </th>
+                        <td mat-cell *matCellDef="let t">
+                            <div class="flex flex-col py-2">
+                                <span class="font-semibold text-slate-700">{{t.sourceProduct?.designation}}</span>
+                                <span class="text-xs text-slate-400">{{t.sourceProduct?.modele ||
+                                    t.sourceProduct?.referenceFournisseur}}</span>
+                            </div>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="destination">
+                        <th mat-header-cell *matHeaderCellDef> Destination </th>
+                        <td mat-cell *matCellDef="let t">
+                            <div class="flex items-center gap-2 text-sm font-medium">
+                                <mat-icon class="text-slate-300 scale-75">location_on</mat-icon>
+                                {{t.targetProduct?.entrepot?.centre?.nom || 'Centre Distant'}}
+                            </div>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="quantity">
+                        <th mat-header-cell *matHeaderCellDef> Quantité </th>
+                        <td mat-cell *matCellDef="let t">
+                            <span class="px-2 py-1 bg-slate-100 rounded font-mono text-sm">x{{t.quantite}}</span>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="date">
+                        <th mat-header-cell *matHeaderCellDef> Date Demande </th>
+                        <td mat-cell *matCellDef="let t"> {{t.date | date:'dd/MM/yyyy HH:mm'}} </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="status">
+                        <th mat-header-cell *matHeaderCellDef> État </th>
+                        <td mat-cell *matCellDef="let t">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border" [ngClass]="{
+                                      'bg-yellow-50 text-yellow-700 border-yellow-100': t.status === 'RESERVED',
+                                      'bg-blue-50 text-blue-700 border-blue-100': t.status === 'SHIPPED'
+                                  }">
+                                {{t.status === 'RESERVED' ? 'À Préparer' : 'Expédié'}}
+                            </span>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="actions">
+                        <th mat-header-cell *matHeaderCellDef> Actions </th>
+                        <td mat-cell *matCellDef="let t">
+                            <div class="flex gap-2">
+                                <button mat-flat-button color="success" *ngIf="t.status === 'RESERVED'"
+                                    (click)="shipTransfer(t)">
+                                    <mat-icon>local_shipping</mat-icon> VALIDER EXPÉDITION
+                                </button>
+                                <button mat-icon-button color="warn" (click)="cancelTransfer(t)" title="Annuler">
+                                    <mat-icon>cancel</mat-icon>
+                                </button>
+                            </div>
+                        </td>
+                    </ng-container>
+
+                    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+                </table>
+            </div>
+        </mat-tab>
+
+        <!-- INCOMING TRANSFERS -->
+        <mat-tab>
+            <ng-template mat-tab-label>
+                <div class="flex items-center gap-2">
+                    <mat-icon>login</mat-icon>
+                    <span>Réceptions (Attendu)</span>
+                    <span *ngIf="incomingTransfers.length > 0"
+                        class="ml-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">
+                        {{ incomingTransfers.length }}
+                    </span>
+                </div>
+            </ng-template>
+
+            <div class="py-4">
+                <div *ngIf="incomingTransfers.length === 0"
+                    class="flex flex-col items-center justify-center py-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 text-slate-400">
+                    <mat-icon class="text-5xl mb-2 opacity-20">download_for_offline</mat-icon>
+                    <p>Aucune réception attendue.</p>
+                </div>
+
+                <table mat-table [dataSource]="incomingTransfers" *ngIf="incomingTransfers.length > 0"
+                    class="w-full border rounded-lg overflow-hidden shadow-sm">
+
+                    <ng-container matColumnDef="numero">
+                        <th mat-header-cell *matHeaderCellDef> N° Transfert </th>
+                        <td mat-cell *matCellDef="let t">
+                            <span class="font-mono text-xs font-bold text-blue-600">{{t.numeroTransfert ||
+                                'TRS-TEMP'}}</span>
+                        </td>
+                    </ng-container>
+                    <ng-container matColumnDef="product">
+                        <th mat-header-cell *matHeaderCellDef> Produit </th>
+                        <td mat-cell *matCellDef="let t">
+                            <div class="flex flex-col py-2">
+                                <span class="font-semibold text-slate-700">{{t.targetProduct?.designation}}</span>
+                                <span class="text-xs text-slate-400">{{t.targetProduct?.modele ||
+                                    t.targetProduct?.referenceFournisseur}}</span>
+                            </div>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="source">
+                        <th mat-header-cell *matHeaderCellDef> Source </th>
+                        <td mat-cell *matCellDef="let t">
+                            <div class="flex items-center gap-2 text-sm font-medium">
+                                <mat-icon class="text-slate-300 scale-75">garage</mat-icon>
+                                {{t.sourceCentreName || 'Autre Centre'}}
+                            </div>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="quantity">
+                        <th mat-header-cell *matHeaderCellDef> Quantité </th>
+                        <td mat-cell *matCellDef="let t">
+                            <span class="px-2 py-1 bg-slate-100 rounded font-mono text-sm">x{{t.quantite}}</span>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="date">
+                        <th mat-header-cell *matHeaderCellDef> Date </th>
+                        <td mat-cell *matCellDef="let t"> {{t.date | date:'dd/MM/yyyy HH:mm'}} </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="status">
+                        <th mat-header-cell *matHeaderCellDef> État </th>
+                        <td mat-cell *matCellDef="let t">
+                            <span *ngIf="t.status === 'SHIPPED'"
+                                class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border animate-pulse bg-green-50 text-green-700 border-green-100">
+                                Arrivé (À Réceptionner)
+                            </span>
+                            <span
+                                class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-slate-50 text-slate-500 border-slate-100"
+                                *ngIf="t.status === 'RESERVED'">
+                                En attente d'expédition
+                            </span>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="actions">
+                        <th mat-header-cell *matHeaderCellDef> Actions </th>
+                        <td mat-cell *matCellDef="let t">
+                            <div class="flex gap-2">
+                                <button mat-flat-button color="primary" *ngIf="t.status === 'SHIPPED'"
+                                    (click)="receiveTransfer(t)">
+                                    <mat-icon>download_for_offline</mat-icon> CONFIRMER RÉCEPTION
+                                </button>
+                                <button mat-icon-button color="warn" (click)="cancelTransfer(t)" title="Annuler">
+                                    <mat-icon>cancel</mat-icon>
+                                </button>
+                            </div>
+                        </td>
+                    </ng-container>
+
+                    <tr mat-header-row *matHeaderRowDef="incomingColumns"></tr>
+                    <tr mat-row *matRowDef="let row; columns: incomingColumns;"></tr>
+                </table>
+            </div>
+        </mat-tab>
+
+        <!-- HISTORY TAB -->
+        <mat-tab>
+            <ng-template mat-tab-label>
+                <div class="flex items-center gap-2">
+                    <mat-icon>history</mat-icon>
+                    <span>Historique des mouvements</span>
+                </div>
+            </ng-template>
+
+            <div class="py-4">
+                <!-- History Filters -->
+                <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <mat-form-field appearance="outline" class="dense-form-field">
+                        <mat-label>Période</mat-label>
+                        <mat-select [(ngModel)]="selectedPeriod" (selectionChange)="onPeriodChange()">
+                            <mat-option value="today">Aujourd'hui</mat-option>
+                            <mat-option value="week">Cette semaine</mat-option>
+                            <mat-option value="month">Ce mois</mat-option>
+                            <mat-option value="year">Cette année</mat-option>
+                            <mat-option value="custom">Personnalisé</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="dense-form-field">
+                        <mat-label>Type de mouvement</mat-label>
+                        <mat-select [(ngModel)]="selectedType" (selectionChange)="loadHistory()">
+                            <mat-option *ngFor="let type of availableTypes" [value]="type.value">
+                                {{type.label}}
+                            </mat-option>
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="dense-form-field">
+                        <mat-label>Du</mat-label>
+                        <input matInput [matDatepicker]="startPicker" [(ngModel)]="startDate"
+                            (dateChange)="loadHistory()">
+                        <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
+                        <mat-datepicker #startPicker></mat-datepicker>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="dense-form-field">
+                        <mat-label>Au</mat-label>
+                        <input matInput [matDatepicker]="endPicker" [(ngModel)]="endDate" (dateChange)="loadHistory()">
+                        <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
+                        <mat-datepicker #endPicker></mat-datepicker>
+                    </mat-form-field>
+
+                    <button mat-flat-button color="primary" class="filter-button" (click)="loadHistory()"
+                        [disabled]="loadingHistory">
+                        <mat-icon>filter_list</mat-icon> Filtrer
+                    </button>
+                </div>
+
+                <div *ngIf="loadingHistory" class="flex justify-center py-12">
+                    <mat-spinner diameter="40"></mat-spinner>
+                </div>
+
+                <div *ngIf="!loadingHistory && transferHistory.length === 0"
+                    class="flex flex-col items-center justify-center py-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 text-slate-400">
+                    <mat-icon class="text-5xl mb-2 opacity-20">history</mat-icon>
+                    <p>Aucun mouvement trouvé pour cette période.</p>
+                </div>
+
+                <table mat-table [dataSource]="transferHistory" *ngIf="!loadingHistory && transferHistory.length > 0"
+                    class="w-full border rounded-lg overflow-hidden shadow-sm">
+
+                    <ng-container matColumnDef="numero">
+                        <th mat-header-cell *matHeaderCellDef> N° Transfert </th>
+                        <td mat-cell *matCellDef="let m">
+                            <span class="font-mono text-xs font-bold text-blue-600">{{ m.motif?.split(' -
+                                ')[0]?.startsWith('TRS') ? m.motif.split(' - ')[0] : '-' }}</span>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="date">
+                        <th mat-header-cell *matHeaderCellDef> Date </th>
+                        <td mat-cell *matCellDef="let m"> {{m.dateMovement | date:'dd/MM/yyyy HH:mm'}} </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="product">
+                        <th mat-header-cell *matHeaderCellDef> Produit </th>
+                        <td mat-cell *matCellDef="let m">
+                            <div class="flex flex-col py-1">
+                                <span class="font-medium text-slate-700">{{m.produit?.designation}}</span>
+                                <span class="text-[10px] text-slate-400 font-mono">{{m.produit?.codeBarres}}</span>
+                            </div>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="type">
+                        <th mat-header-cell *matHeaderCellDef> Type </th>
+                        <td mat-cell *matCellDef="let m">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border" [ngClass]="{
+                                    'bg-orange-50 text-orange-700 border-orange-100': m.type === 'TRANSFERT_SORTIE',
+                                    'bg-green-50 text-green-700 border-green-100': m.type === 'RECEPTION' || m.type === 'TRANSFERT_ENTREE',
+                                    'bg-yellow-50 text-yellow-700 border-yellow-100': m.type === 'TRANSFERT_INIT',
+                                    'bg-red-50 text-red-700 border-red-100': m.type === 'TRANSFERT_ANNULE'
+                                }">
+                                {{ m.type === 'TRANSFERT_INIT' ? 'Initialisé' :
+                                m.type === 'TRANSFERT_SORTIE' ? 'Expédition' :
+                                m.type === 'TRANSFERT_ENTREE' ? 'Réception' :
+                                m.type === 'RECEPTION' ? 'Alimentation Stock' :
+                                m.type === 'TRANSFERT_ANNULE' ? 'Annulé' : m.type }}
+                            </span>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="source">
+                        <th mat-header-cell *matHeaderCellDef> Source </th>
+                        <td mat-cell *matCellDef="let m"> {{m.entrepotSource?.centre?.nom || '-'}} </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="dest">
+                        <th mat-header-cell *matHeaderCellDef> Dest </th>
+                        <td mat-cell *matCellDef="let m"> {{m.entrepotDestination?.centre?.nom || '-'}} </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="qty">
+                        <th mat-header-cell *matHeaderCellDef> Qty </th>
+                        <td mat-cell *matCellDef="let m">
+                            <span class="font-bold">{{m.quantite}}</span>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="user">
+                        <th mat-header-cell *matHeaderCellDef> Utilisateur </th>
+                        <td mat-cell *matCellDef="let m">
+                            <span class="text-xs text-slate-500">{{m.utilisateur}}</span>
+                        </td>
+                    </ng-container>
+
+                    <tr mat-header-row *matHeaderRowDef="historyColumns"></tr>
+                    <tr mat-row *matRowDef="let row; columns: historyColumns;"></tr>
+                </table>
+            </div>
+        </mat-tab>
+    </mat-tab-group>
+</div>

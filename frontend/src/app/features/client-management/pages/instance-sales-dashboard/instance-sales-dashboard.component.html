@@ -40,6 +40,11 @@
         </ng-container>
     </div>
 
+    <!-- Widgets Section -->
+    <div class="widgets-section">
+        <app-upcoming-deliveries-widget></app-upcoming-deliveries-widget>
+    </div>
+
     <mat-card class="sales-table-card">
         <div class="table-container">
             <table mat-table [dataSource]="instanceSales$ | async" class="sales-table">
@@ -131,6 +136,16 @@
                             <button mat-menu-item (click)="viewDetails(sale)">
                                 <mat-icon>visibility</mat-icon>
                                 <span>Voir les détails</span>
+                            </button>
+                            <mat-divider></mat-divider>
+                            <!-- Messaging Actions -->
+                            <button mat-menu-item (click)="notifyReady(sale)">
+                                <mat-icon style="color: #25D366;">check_circle</mat-icon>
+                                <span>Notifier: Prêt</span>
+                            </button>
+                            <button mat-menu-item (click)="notifyDelay(sale)">
+                                <mat-icon color="warn">schedule</mat-icon>
+                                <span>Notifier: Retard</span>
                             </button>
                             <mat-divider></mat-divider>
                             <button mat-menu-item (click)="cancelSale(sale)" [disabled]="sale.status === 'CANCELLED'">

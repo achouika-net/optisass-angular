@@ -1,0 +1,149 @@
+<div class="promotion-container">
+    <div class="header">
+        <h1><mat-icon>campaign</mat-icon> Gestion des Promotions & Campagnes</h1>
+        <p class="subtitle">Sélectionnez les produits en stock ancien et lancez une campagne marketing groupée.</p>
+    </div>
+
+    <div class="grid">
+        <!-- Step 1: Filter Old Stock -->
+        <mat-card class="filter-card">
+            <mat-card-header>
+                <mat-card-title>1. Sélectionner le Stock</mat-card-title>
+                <mat-card-subtitle>Ciblez vos produits invendus par critères</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="filters-row">
+                    <mat-form-field appearance="outline">
+                        <mat-label>Type d'article</mat-label>
+                        <mat-select [ngModel]="filterType()" (ngModelChange)="filterType.set($event)">
+                            <mat-option value="">Tous les types</mat-option>
+                            <mat-option value="monture">Montures</mat-option>
+                            <mat-option value="lentille">Lentilles</mat-option>
+                            <mat-option value="accessoire">Accessoires</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                        <mat-label>Marque</mat-label>
+                        <input matInput [ngModel]="filterMarque()" (ngModelChange)="filterMarque.set($event)"
+                            placeholder="Rechercher une marque...">
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                        <mat-label>Ancienneté (jours)</mat-label>
+                        <input matInput type="number" [ngModel]="filterDaysInStock()"
+                            (ngModelChange)="filterDaysInStock.set($event)">
+                        <span matSuffix>jours+</span>
+                    </mat-form-field>
+                </div>
+
+                <div class="inventory-preview" *ngIf="!loading()">
+                    <div class="stats-summary">
+                        <strong>{{ filteredProducts().length }}</strong> produits correspondent aux critères.
+                        <button mat-button color="primary" (click)="selectAllProducts()"
+                            *ngIf="filteredProducts().length > 0">
+                            Tout sélectionner
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table mat-table [dataSource]="filteredProducts()" class="w-full">
+                            <ng-container matColumnDef="select">
+                                <th mat-header-cell *matHeaderCellDef></th>
+                                <td mat-cell *matCellDef="let p">
+                                    <mat-checkbox [checked]="selectedProducts().includes(p.id!)"
+                                        (change)="toggleProduct(p.id!)"></mat-checkbox>
+                                </td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="designation">
+                                <th mat-header-cell *matHeaderCellDef>Désignation</th>
+                                <td mat-cell *matCellDef="let p">{{ p.designation }}</td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="marque">
+                                <th mat-header-cell *matHeaderCellDef>Marque</th>
+                                <td mat-cell *matCellDef="let p">{{ p.marque }}</td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="stock">
+                                <th mat-header-cell *matHeaderCellDef>Stock</th>
+                                <td mat-cell *matCellDef="let p">{{ p.quantiteActuelle }}</td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="date">
+                                <th mat-header-cell *matHeaderCellDef>Entrée Stock</th>
+                                <td mat-cell *matCellDef="let p">{{ p.dateCreation | date:'dd/MM/yyyy' }}</td>
+                            </ng-container>
+
+                            <tr mat-header-row *matHeaderRowDef="['select', 'designation', 'marque', 'stock', 'date']">
+                            </tr>
+                            <tr mat-row
+                                *matRowDef="let row; columns: ['select', 'designation', 'marque', 'stock', 'date'];">
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <mat-progress-bar mode="indeterminate" *ngIf="loading()"></mat-progress-bar>
+            </mat-card-content>
+        </mat-card>
+
+        <!-- Step 2: Compose & Launch -->
+        <div class="side-panel">
+            <mat-card class="compose-card">
+                <mat-card-header>
+                    <mat-card-title>2. Composer le Message</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <mat-form-field appearance="outline" class="w-full">
+                        <mat-label>Template du message</mat-label>
+                        <textarea matInput rows="6" [ngModel]="messageTemplate()"
+                            (ngModelChange)="messageTemplate.set($event)"></textarea>
+                        <mat-hint>Utilisez {{'{{NAME}}'}}, {{'{{MARQUE}}'}}, {{'{{PRODUCT}}'}} comme
+                            variables.</mat-hint>
+                    </mat-form-field>
+
+                    <div class="preview-box">
+                        <label>Aperçu du message :</label>
+                        <div class="preview-text">
+                            Bonjour [Nom Client], <br>
+                            {{ messageTemplate() }}
+                        </div>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+
+            <mat-card class="launch-card">
+                <mat-card-header>
+                    <mat-card-title>3. Lancer la Campagne</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="audience-stats">
+                        <div class="stat-item">
+                            <span class="label">Clients ciblés</span>
+                            <span class="value">{{ selectedClients().length }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="label">Produits sél.</span>
+                            <span class="value">{{ selectedProducts().length }}</span>
+                        </div>
+                    </div>
+
+                    <div class="auto-send-warning" *ngIf="selectedClients().length > 10">
+                        <mat-icon color="warn">warning</mat-icon>
+                        <span>Envoi groupé automatique : Assurez-vous d'avoir configuré votre API WhatsApp dans les
+                            paramètres.</span>
+                    </div>
+
+                    <button mat-raised-button color="primary" class="btn-launch"
+                        [disabled]="selectedProducts().length === 0" (click)="launchCampaign()">
+                        <mat-icon>send</mat-icon> LANCER LA CAMPAGNE AUTOMATIQUE
+                    </button>
+
+                    <p class="terms">Total estimé : <strong>{{ selectedClients().length }} messages</strong></p>
+                </mat-card-content>
+            </mat-card>
+        </div>
+    </div>
+</div>

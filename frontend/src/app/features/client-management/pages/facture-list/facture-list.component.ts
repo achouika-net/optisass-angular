@@ -180,7 +180,7 @@ export class FactureListComponent implements OnInit {
             const dialogRef = this.dialog.open(m.InvoiceReturnDialogComponent, {
                 width: '800px',
                 maxWidth: '95vw',
-                data: { invoice: facture }
+                data: { facture: facture }
             });
 
             dialogRef.afterClosed().subscribe(result => {

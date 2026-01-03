@@ -277,7 +277,8 @@ export class ProductListComponent implements OnInit {
                         },
                         error: (err) => {
                             console.error('Erreur lors de la mise à jour du stock:', err);
-                            this.snackBar.open('Erreur lors de la mise à jour du stock', 'Fermer', { duration: 5000 });
+                            const errorMsg = err.error?.message || 'Erreur lors de la mise à jour du stock';
+                            this.snackBar.open(errorMsg, 'Fermer', { duration: 5000 });
                         }
                     });
                 }

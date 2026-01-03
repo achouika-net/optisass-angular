@@ -46,6 +46,51 @@
         </div>
     </div>
 
+    <!-- INSTANCE PROGRESS BANNERS (Transfer Workflow) -->
+    <!-- 1. ORANGE: Reserved (Waiting for shipment) -->
+    <div class="instance-banner reserved" *ngIf="isReserved && !isTransit && !receptionComplete">
+        <mat-icon>hourglass_empty</mat-icon>
+        <div class="banner-content">
+            <strong>Fiche non valide - En attente d'arrivage</strong>
+            <p>
+                <span *ngIf="initialProductStatus === 'RUPTURE'" style="color: #d97706; font-weight: 600;">
+                    Lentilles initialement en <strong>RUPTURE DE STOCK</strong>.
+                </span>
+                La fiche n'est pas encore valide, veuillez attendre l'arrivage du produit demandé (Réservé au centre
+                expéditeur).
+            </p>
+        </div>
+        <div class="banner-badge warning">
+            {{ initialProductStatus === 'RUPTURE' ? 'RUPTURE → RÉSERVÉ' : 'RÉSERVÉ' }}
+        </div>
+    </div>
+
+    <!-- 2. BLUE: In Transit (Waiting for local reception) -->
+    <div class="instance-banner transit" *ngIf="isTransit && !receptionComplete">
+        <mat-icon>local_shipping</mat-icon>
+        <div class="banner-content">
+            <strong>Lentilles en Transit</strong>
+            <p>Le produit a été expédié par le centre distant. Veuillez confirmer la réception physique pour finaliser
+                la vente.</p>
+        </div>
+        <button type="button" class="btn-validation-transit" (click)="checkReceptionForInstance(currentFiche)">
+            <mat-icon>check_circle</mat-icon> Valider la Réception
+        </button>
+    </div>
+
+    <!-- 3. GREEN: Received (Ready to validate sale) -->
+    <div class="instance-banner received" *ngIf="receptionComplete">
+        <mat-icon>check_circle</mat-icon>
+        <div class="banner-content">
+            <strong>Lentilles Arrivées !</strong>
+            <p>Les lentilles sont maintenant disponibles en stock local. Vous pouvez procéder à la validation de la
+                vente.</p>
+        </div>
+        <button type="button" class="btn-validation-final" (click)="validateInstancedSale()">
+            VALIDER LA VENTE
+        </button>
+    </div>
+
     <form [formGroup]="ficheForm">
         <mat-tab-group [(selectedIndex)]="activeTab" animationDuration="0ms" class="custom-tabs">
 

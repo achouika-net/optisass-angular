@@ -116,6 +116,17 @@ export class ProductService {
         return this.http.get<StockStats>(`${this.apiUrl}/stats`);
     }
 
+    getTransferHistory(params: { startDate?: string; endDate?: string; centreId?: string; productId?: string; type?: string }): Observable<any[]> {
+        let httpParams = new HttpParams();
+        if (params.startDate) httpParams = httpParams.set('startDate', params.startDate);
+        if (params.endDate) httpParams = httpParams.set('endDate', params.endDate);
+        if (params.centreId) httpParams = httpParams.set('centreId', params.centreId);
+        if (params.productId) httpParams = httpParams.set('productId', params.productId);
+        if (params.type) httpParams = httpParams.set('type', params.type);
+
+        return this.http.get<any[]>(`${this.apiUrl}/transfers/history`, { params: httpParams });
+    }
+
     // Search methods would be API calls with query params
     searchByBarcode(barcode: string): Observable<Product> {
         // Ideally backend endpoint

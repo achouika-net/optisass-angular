@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
 import { CameraCaptureDialogComponent } from '../../../../shared/components/camera-capture/camera-capture-dialog.component';
 import { CommonModule } from '@angular/common';
 import { AdaptationModerneComponent } from './components/adaptation-moderne/adaptation-moderne.component';
@@ -30,6 +30,12 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
 import { StockSearchDialogComponent } from '../../../stock-management/dialogs/stock-search-dialog/stock-search-dialog.component';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { ProductService } from '../../../stock-management/services/product.service';
+import { Product, ProductStatus } from '../../../../shared/interfaces/product.interface';
+import { Store } from '@ngrx/store';
+import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
+import { BehaviorSubject, forkJoin, Observable, of, Subject, timer } from 'rxjs';
+import { catchError, map, take, takeUntil, tap } from 'rxjs/operators';
 
 interface PrescriptionFile {
     name: string;
@@ -68,9 +74,10 @@ interface PrescriptionFile {
     ],
     templateUrl: './lentilles-form.component.html',
     styleUrls: ['./lentilles-form.component.scss'],
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [ProductService]
 })
-export class LentillesFormComponent implements OnInit {
+export class LentillesFormComponent implements OnInit, OnDestroy {
     ficheForm: FormGroup;
     clientId: string | null = null;
     client: Client | null = null;
@@ -84,7 +91,17 @@ export class LentillesFormComponent implements OnInit {
     lensUsages = Object.values(ContactLensUsage);
 
     // Linked Invoice
+    private linkedFactureSubject = new BehaviorSubject<any>(null);
+    linkedFacture$ = this.linkedFactureSubject.asObservable();
     linkedFacture: any = null;
+
+    // Transfer tracking
+    receptionComplete = false;
+    isReserved = false;
+    isTransit = false;
+    currentFiche: any = null;
+    initialProductStatus: string | null = null;
+    private destroy$ = new Subject<void>();
 
     // File Upload & OCR
     @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
@@ -103,7 +120,9 @@ export class LentillesFormComponent implements OnInit {
         private dialog: MatDialog,
         private snackBar: MatSnackBar,
         private cdr: ChangeDetectorRef,
-        private sanitizer: DomSanitizer
+        private sanitizer: DomSanitizer,
+        private productService: ProductService,
+        private store: Store
     ) {
         this.ficheForm = this.initForm();
     }
@@ -130,6 +149,29 @@ export class LentillesFormComponent implements OnInit {
                 adaptation: { dateEssai: new Date() }
             });
         }
+
+        // REACTIVE RECEPTION CHECK: Trigger whenever the invoice status changes
+        this.linkedFacture$.subscribe(facture => {
+            if (facture?.statut === 'VENTE_EN_INSTANCE' && this.currentFiche) {
+                console.log('🔄 [RECEPTION] Reactive trigger (Invoice changed or loaded)');
+                this.checkReceptionForInstance(this.currentFiche);
+            }
+        });
+
+        // POLLING: Check reception status every 5 seconds if waiting
+        timer(5000, 5000).pipe(
+            takeUntil(this.destroy$)
+        ).subscribe(() => {
+            if ((this.isReserved || this.isTransit) && !this.receptionComplete && this.currentFiche) {
+                console.log('🔄 [POLLING] Checking reception status...');
+                this.checkReceptionForInstance(this.currentFiche);
+            }
+        });
+    }
+
+    ngOnDestroy(): void {
+        this.destroy$.next();
+        this.destroy$.complete();
     }
 
     toggleEditMode(): void {
@@ -264,6 +306,13 @@ export class LentillesFormComponent implements OnInit {
                 };
 
                 this.ficheForm.patchValue(formPatch);
+                this.currentFiche = fiche;
+
+                // Trigger check if invoice is already available
+                if (this.linkedFacture?.statut === 'VENTE_EN_INSTANCE') {
+                    this.checkReceptionForInstance(fiche);
+                }
+
                 this.cdr.markForCheck();
             },
             error: (err) => console.error('Error loading fiche:', err)
@@ -281,7 +330,14 @@ export class LentillesFormComponent implements OnInit {
         if (!this.clientId) return;
 
         this.factureService.findAll({ clientId: this.clientId }).subscribe(factures => {
-            this.linkedFacture = factures.find(f => f.ficheId === this.ficheId) || { id: 'new' };
+            const found = factures.find(f => f.ficheId === this.ficheId);
+            this.linkedFacture = found || { id: 'new' };
+            if (found) {
+                this.linkedFactureSubject.next(found);
+                if (this.currentFiche) {
+                    this.checkReceptionForInstance(this.currentFiche);
+                }
+            }
             this.cdr.markForCheck();
         });
     }
@@ -388,7 +444,13 @@ export class LentillesFormComponent implements OnInit {
 
     onInvoiceSaved(facture: any) {
         this.linkedFacture = facture;
-        // Optionally update fiche status or total
+        this.linkedFactureSubject.next(facture);
+
+        // Reload fiche to trigger checkReceptionForInstance and update UI
+        if (this.ficheId && this.ficheId !== 'new') {
+            this.loadFiche();
+        }
+
         this.cdr.markForCheck();
     }
 
@@ -617,6 +679,220 @@ export class LentillesFormComponent implements OnInit {
                 alert('Erreur lors de l\'enregistrement');
             }
         });
+    }
+
+    // --- Transfer & Reception Logic ---
+
+    /**
+     * Checks if products in an INSTANCE sale are now received
+     */
+    checkReceptionForInstance(fiche: any): void {
+        console.log('🔍 [RECEPTION] Checking reception status for lentilles...');
+        const isInstance = (this.linkedFactureSubject.value?.statut === 'VENTE_EN_INSTANCE');
+
+        if (!isInstance) return;
+
+        // Reset flags before fresh check
+        this.receptionComplete = false;
+        this.isReserved = false;
+        this.isTransit = false;
+
+        const mappings: { path: string, originalId: string }[] = [];
+
+        if (fiche.lentilles?.od?.productId) {
+            mappings.push({ path: 'lentilles.od', originalId: fiche.lentilles.od.productId });
+        }
+
+        if (fiche.lentilles?.og?.productId && fiche.lentilles?.diffLentilles) {
+            mappings.push({ path: 'lentilles.og', originalId: fiche.lentilles.og.productId });
+        }
+
+        if (mappings.length === 0) {
+            console.log('⚠️ [RECEPTION] No products found in fiche.');
+            this.receptionComplete = true;
+            this.cdr.markForCheck();
+            return;
+        }
+
+        this.store.select(UserCurrentCentreSelector).pipe(take(1)).subscribe(currentCentre => {
+            const currentCentreId = currentCentre?.id;
+
+            const checks = mappings.map(m => this.productService.findOne(m.originalId).pipe(
+                map(p => ({ ...p, mappingPath: m.path })),
+                catchError(err => {
+                    console.error(`❌ [RECEPTION] Error fetching product ${m.originalId}:`, err);
+                    return of(null);
+                })
+            ));
+
+            forkJoin(checks).subscribe((productsWithMetadata: any[]) => {
+                const products = productsWithMetadata.filter(p => !!p);
+
+                if (!this.initialProductStatus && products.length > 0) {
+                    this.initialProductStatus = products[0].quantiteActuelle <= 0 ? 'RUPTURE' : 'DISPONIBLE';
+                }
+
+                const allReceivedLocally = products.every(p =>
+                    p.statut === ProductStatus.DISPONIBLE &&
+                    !p.specificData?.pendingIncoming &&
+                    p.quantiteActuelle > 0 &&
+                    p.entrepot?.centreId === currentCentreId
+                );
+
+                if (allReceivedLocally) {
+                    if (!this.receptionComplete) {
+                        this.snackBar.open('📦 Les lentilles sont arrivées ! Vous pouvez maintenant valider la vente.', 'VOIR', { duration: 8000 });
+                    }
+                    this.receptionComplete = true;
+                    this.isReserved = false;
+                    this.isTransit = false;
+
+                    const localMappingChecks = products.map(p => {
+                        const reference = p.modele || p.referenceFournisseur || p.designation;
+                        return this.productService.findAll({ search: reference }).pipe(
+                            map(results => {
+                                const localMatch = results.find(r =>
+                                    r.entrepot?.centreId === currentCentreId &&
+                                    r.entrepot?.type === 'PRINCIPAL' &&
+                                    (r.modele === reference || r.referenceFournisseur === reference || r.designation === reference)
+                                ) || p;
+                                return { ...p, localProduct: localMatch };
+                            }),
+                            catchError(err => of({ ...p, localProduct: p }))
+                        );
+                    });
+
+                    forkJoin(localMappingChecks).subscribe((mappedResults: any[]) => {
+                        let changed = false;
+                        const formValue = this.ficheForm.getRawValue();
+
+                        mappedResults.forEach(res => {
+                            const localP = res.localProduct;
+                            const path = res.mappingPath;
+
+                            if (path === 'lentilles.od') {
+                                if (formValue.lentilles?.od?.productId !== localP.id) {
+                                    this.ficheForm.get('lentilles.od')?.patchValue({
+                                        productId: localP.id,
+                                        entrepotType: 'PRINCIPAL'
+                                    });
+                                    changed = true;
+                                }
+                            } else if (path === 'lentilles.og') {
+                                if (formValue.lentilles?.og?.productId !== localP.id) {
+                                    this.ficheForm.get('lentilles.og')?.patchValue({
+                                        productId: localP.id,
+                                        entrepotType: 'PRINCIPAL'
+                                    });
+                                    changed = true;
+                                }
+                            }
+                        });
+
+                        if (changed) {
+                            this.saveFicheSilently();
+                        }
+                        this.cdr.markForCheck();
+                    });
+                } else {
+                    this.isTransit = products.some(p => p.specificData?.pendingIncoming?.status === 'SHIPPED');
+                    this.isReserved = products.some(p =>
+                        p.specificData?.pendingIncoming?.status === 'RESERVED' ||
+                        (p.entrepot?.centreId !== currentCentreId && !p.specificData?.pendingIncoming)
+                    );
+                    this.receptionComplete = false;
+                    this.cdr.markForCheck();
+                }
+            });
+        });
+    }
+
+    /**
+     * Silently updates the fiche in the backend
+     */
+    saveFicheSilently(reload: boolean = true): void {
+        if (!this.ficheId || this.ficheId === 'new' || !this.clientId) return;
+        const formValue = this.ficheForm.getRawValue();
+
+        const payload: any = {
+            clientId: this.clientId,
+            type: 'DEVIS',
+            statut: this.currentFiche?.statut || 'DEVIS_EN_COURS',
+            montantTotal: (parseFloat(formValue.lentilles.od.prix) || 0) + (parseFloat(formValue.lentilles.diffLentilles ? formValue.lentilles.og.prix : formValue.lentilles.od.prix) || 0),
+            montantPaye: this.currentFiche?.montantPaye || 0,
+            prescription: formValue.ordonnance,
+            lentilles: formValue.lentilles,
+            adaptation: formValue.adaptation,
+            suiviCommande: formValue.suiviCommande
+        };
+
+        this.ficheService.updateFiche(this.ficheId, payload).subscribe({
+            next: (res) => {
+                if (reload) {
+                    this.loadFiche();
+                } else {
+                    this.currentFiche = { ...this.currentFiche, ...payload };
+                }
+            }
+        });
+    }
+
+    /**
+     * Final validation for an instanced sale
+     */
+    async validateInstancedSale() {
+        if (!this.linkedFactureSubject.value) return;
+        const currentFacture = this.linkedFactureSubject.value;
+
+        if (this.isReserved || this.isTransit) {
+            this.snackBar.open('⚠️ Impossible de valider la vente : le produit n\'a pas encore été réceptionné.', 'OK', { duration: 5000 });
+            return;
+        }
+
+        const confirmValidation = confirm("Voulez-vous valider définitivement cette vente ?\nLe produit est maintenant en stock local.");
+        if (!confirmValidation) return;
+
+        try {
+            this.loading = true;
+            const lines = this.initialInvoiceLines;
+            const total = lines.reduce((acc, l) => acc + l.totalTTC, 0);
+            const tvaRate = 0.20;
+            const totalHT = total / (1 + tvaRate);
+            const tva = total - totalHT;
+
+            const updateData: any = {
+                type: 'FACTURE',
+                statut: 'VALIDE',
+                lignes: lines,
+                totalTTC: total,
+                totalHT: totalHT,
+                totalTVA: tva,
+                resteAPayer: Math.max(0, total - (currentFacture.totalTTC - currentFacture.resteAPayer)),
+                proprietes: {
+                    ...(currentFacture.proprietes || {}),
+                    nomenclature: this.nomenclatureString || '',
+                    validatedAt: new Date(),
+                    isTransferFulfilled: true,
+                    forceStockDecrement: true
+                }
+            };
+
+            this.factureService.update(currentFacture.id, updateData).subscribe({
+                next: (res) => {
+                    this.loading = false;
+                    this.snackBar.open('Vente validée et facture générée avec succès', 'Fermer', { duration: 5000 });
+                    this.receptionComplete = false;
+                    this.onInvoiceSaved(res);
+                },
+                error: (err) => {
+                    this.loading = false;
+                    console.error('❌ Error validating sale:', err);
+                    alert("Erreur lors de la validation: " + (err.error?.message || err.message || 'Erreur inconnue'));
+                }
+            });
+        } catch (e) {
+            this.loading = false;
+        }
     }
 
     onSuggestionGenerated(suggestion: any): void {

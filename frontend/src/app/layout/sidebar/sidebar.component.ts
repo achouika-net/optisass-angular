@@ -70,6 +70,8 @@ export class SidebarComponent implements OnInit {
 
   readonly menuItems = signal<MenuItem[]>(MENU);
   readonly readyCount$ = this.monitor.getReadyToValidateCount();
+  readonly shipmentCount$ = this.monitor.getPendingShipmentCount();
+  readonly receptionCount$ = this.monitor.getWaitingReceptionCount();
 
   /** Menu principal filtré (link, sub avec children valides) */
   readonly visibleMenuItems = computed(

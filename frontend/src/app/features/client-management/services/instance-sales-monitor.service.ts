@@ -1,10 +1,12 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, interval, of, forkJoin } from 'rxjs';
-import { startWith, switchMap, tap, map, catchError } from 'rxjs/operators';
+import { startWith, switchMap, tap, map, catchError, take } from 'rxjs/operators';
 import { FactureService } from './facture.service';
 import { ProductService } from '../../stock-management/services/product.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
+import { Store } from '@ngrx/store';
+import { UserCurrentCentreSelector } from '../../../core/store/auth/auth.selectors';
 
 export interface InstanceSale {
     facture: any;
@@ -18,43 +20,102 @@ export interface InstanceSale {
 export class InstanceSalesMonitorService {
     private instanceSales$ = new BehaviorSubject<InstanceSale[]>([]);
     private readyToValidateCount$ = new BehaviorSubject<number>(0);
+    private pendingShipmentCount$ = new BehaviorSubject<number>(0);
+    private waitingReceptionCount$ = new BehaviorSubject<number>(0);
+
     private notifiedSales = new Set<string>();
+    private notifiedShipments = new Set<string>();
     private isPolling = false;
 
     constructor(
         private factureService: FactureService,
         private productService: ProductService,
         private snackBar: MatSnackBar,
-        private router: Router
+        private router: Router,
+        private store: Store
     ) { }
 
     startPolling(): void {
         if (this.isPolling) return;
 
         this.isPolling = true;
-        console.log('🔄 Starting Instance Sales Monitor polling...');
+        console.log('🔄 Starting Transfer & Instance Monitor polling...');
 
-        // Poll every 2 minutes (120000ms) for better responsiveness
-        interval(2 * 60 * 1000).pipe(
-            startWith(0), // Immediate first check
-            switchMap(() => this.checkInstanceSales())
-        ).subscribe();
+        // Poll every 15 seconds for better responsiveness on transfers
+        interval(15 * 1000).pipe(
+            startWith(0),
+            switchMap(() => forkJoin({
+                sales: this.checkInstanceSales(),
+                transfers: this.checkPendingTransfers()
+            }))
+        ).subscribe({
+            next: (data) => console.log('✅ Monitor Cycle Complete:', data),
+            error: (err) => console.error('❌ Monitor Cycle Error:', err)
+        });
     }
 
     stopPolling(): void {
         this.isPolling = false;
-        console.log('⏸️ Stopped Instance Sales Monitor polling');
+        console.log('⏸️ Stopped Monitor polling');
+    }
+
+    private checkPendingTransfers(): Observable<any> {
+        console.log('🔍 Checking pending transfers (Incoming/Outgoing)...');
+        return this.store.select(UserCurrentCentreSelector).pipe(
+            take(1),
+            switchMap((center: any) => {
+                if (!center) return of([]);
+                return this.productService.findAll({ global: true }).pipe(
+                    map(products => {
+                        // 1. Pending SHIPMENTS (Outgoing from THIS center)
+                        const shipments = products.filter(p =>
+                            p.entrepot?.centreId === center.id &&
+                            p.specificData?.pendingOutgoing?.some((t: any) => t.status !== 'SHIPPED')
+                        );
+                        this.pendingShipmentCount$.next(shipments.length);
+                        this.showShipmentNotifications(shipments);
+
+                        // 2. Waiting RECEPTIONS (Incoming to THIS center)
+                        const receptions = products.filter(p =>
+                            p.entrepot?.centreId === center.id &&
+                            p.specificData?.pendingIncoming &&
+                            p.specificData.pendingIncoming.status === 'SHIPPED'
+                        );
+                        this.waitingReceptionCount$.next(receptions.length);
+
+                        return { shipments, receptions };
+                    })
+                );
+            }),
+            catchError(err => {
+                console.error('❌ Error checking transfers:', err);
+                return of({ shipments: [], receptions: [] });
+            })
+        );
+    }
+
+    private showShipmentNotifications(shipments: any[]): void {
+        shipments.forEach(p => {
+            const transferId = `${p.id}_ship`;
+            if (!this.notifiedShipments.has(transferId)) {
+                const snackBarRef = this.snackBar.open(
+                    `📦 Nouveau transfert demandé pour ${p.designation}`,
+                    'EXPÉDIER',
+                    { duration: 15000, panelClass: 'shipping-snack' }
+                );
+                snackBarRef.onAction().subscribe(() => {
+                    this.router.navigate(['/p/stock/transfers']);
+                });
+                this.notifiedShipments.add(transferId);
+            }
+        });
     }
 
     private checkInstanceSales(): Observable<InstanceSale[]> {
         console.log('🔍 Checking instance sales status...');
-
         return this.factureService.findAll({ statut: 'VENTE_EN_INSTANCE' }).pipe(
             switchMap(factures => {
-                if (factures.length === 0) {
-                    return of([]);
-                }
-
+                if (factures.length === 0) return of([]);
                 const checks = factures.map(f => this.checkSaleStatus(f));
                 return forkJoin(checks);
             }),
@@ -62,11 +123,7 @@ export class InstanceSalesMonitorService {
                 this.instanceSales$.next(sales);
                 const readyCount = sales.filter(s => s.status === 'READY').length;
                 this.readyToValidateCount$.next(readyCount);
-
-                // Show notifications for newly ready sales
                 this.showNotificationIfReady(sales);
-
-                console.log(`✅ Found ${sales.length} instance sales, ${readyCount} ready to validate`);
             }),
             catchError(err => {
                 console.error('❌ Error checking instance sales:', err);
@@ -76,102 +133,96 @@ export class InstanceSalesMonitorService {
     }
 
     private checkSaleStatus(facture: any): Observable<InstanceSale> {
-        // Extract product IDs from invoice lines
         const lines = (facture.lignes as any[]) || [];
-        const productIds = lines
-            .filter(l => l.productId)
-            .map(l => l.productId);
+        const items = lines.filter(l => l.productId || l.description);
 
-        if (productIds.length === 0) {
-            return of({ facture, status: 'UNKNOWN' });
-        }
+        if (items.length === 0) return of(({ facture, status: 'UNKNOWN' }) as InstanceSale);
 
-        const checks = productIds.map(id =>
-            this.productService.findOne(id).pipe(
-                catchError(() => of(null))
-            )
-        );
+        return this.store.select(UserCurrentCentreSelector).pipe(
+            take(1),
+            switchMap(center => {
+                const checks = items.map(item => {
+                    let check$ = item.productId ?
+                        this.productService.findOne(item.productId).pipe(catchError(() => of(null))) :
+                        of(null);
 
-        return forkJoin(checks).pipe(
-            map(products => {
-                const validProducts = products.filter(p => p !== null);
+                    return check$.pipe(
+                        switchMap(product => {
+                            if (product && product.entrepot?.centreId === center.id) {
+                                return of(product);
+                            }
+                            return this.productService.findAll({ global: true }).pipe(
+                                map(allProducts => {
+                                    const match = allProducts.find(p =>
+                                        p.entrepot?.centreId === center.id &&
+                                        (p.designation === item.description || p.codeInterne === item.reference || p.codeBarres === item.reference)
+                                    );
+                                    return match || product;
+                                }),
+                                catchError(() => of(product))
+                            );
+                        })
+                    );
+                });
 
-                if (validProducts.length === 0) {
-                    return { facture, status: 'UNKNOWN' };
-                }
+                return forkJoin(checks).pipe(
+                    map(products => {
+                        const validProducts = products.filter(p => p !== null);
+                        if (validProducts.length === 0) return ({ facture, status: 'UNKNOWN' }) as InstanceSale;
 
-                // Check if ALL products are available (Status is DISPONIBLE OR Stock > 0)
-                const allReceived = validProducts.every(p => p.statut === 'DISPONIBLE' || p.quantiteActuelle > 0);
+                        const allReceived = validProducts.every(p =>
+                            (p.entrepot?.centreId === center.id && (p.quantiteActuelle > 0 || p.statut === 'DISPONIBLE'))
+                        );
 
-                // Check if SOME are still in transit (Status is EN_TRANSIT OR metadata says SHIPPED)
-                const someInTransit = validProducts.some(p =>
-                    p.statut === 'EN_TRANSIT' ||
-                    p.specificData?.pendingIncoming?.status === 'SHIPPED'
+                        const someInTransit = validProducts.some(p =>
+                            p.statut === 'EN_TRANSIT' ||
+                            p.specificData?.pendingIncoming?.status === 'SHIPPED' ||
+                            (p.entrepot?.centreId !== center.id && p.statut === 'RESERVE')
+                        );
+
+                        const cancelled = validProducts.some(p =>
+                            p.entrepot?.centreId !== center.id &&
+                            !p.specificData?.pendingOutgoing &&
+                            p.quantiteActuelle > 0
+                        );
+
+                        let status: 'IN_TRANSIT' | 'READY' | 'CANCELLED' | 'UNKNOWN';
+                        if (allReceived) status = 'READY';
+                        else if (someInTransit) status = 'IN_TRANSIT';
+                        else if (cancelled) status = 'CANCELLED';
+                        else status = 'UNKNOWN';
+
+                        return ({ facture, status, products: validProducts }) as InstanceSale;
+                    })
                 );
-
-                const cancelled = validProducts.some(p =>
-                    !p.specificData?.pendingIncoming &&
-                    p.quantiteActuelle <= 0 &&
-                    p.statut !== 'EN_TRANSIT' &&
-                    p.statut !== 'DISPONIBLE'
-                );
-
-                let status: 'IN_TRANSIT' | 'READY' | 'CANCELLED' | 'UNKNOWN';
-                if (cancelled) {
-                    status = 'CANCELLED';
-                } else if (allReceived) {
-                    status = 'READY';
-                } else if (someInTransit) {
-                    status = 'IN_TRANSIT';
-                } else {
-                    status = 'UNKNOWN';
-                }
-
-                return { facture, status, products: validProducts };
             })
-        );
+        ) as Observable<InstanceSale>;
     }
 
     private showNotificationIfReady(sales: InstanceSale[]): void {
-        const newlyReady = sales.filter(s =>
-            s.status === 'READY' &&
-            !this.notifiedSales.has(s.facture.id)
-        );
-
-        if (newlyReady.length > 0) {
-            console.log(`🔔 Triggering notifications for ${newlyReady.length} newly ready sales`);
-            newlyReady.forEach(sale => {
-                console.log(`📡 Sending toast for Facture: ${sale.facture.numero}`);
-                const snackBarRef = this.snackBar.open(
-                    `✅ Produit reçu ! Vente ${sale.facture.numero} prête à valider.`,
-                    'VOIR',
-                    { duration: 15000, horizontalPosition: 'end', verticalPosition: 'bottom' }
-                );
-
-                snackBarRef.onAction().subscribe(() => {
-                    console.log(`🖱️ User clicked VOIR for ${sale.facture.numero}`);
-                    this.router.navigate(['/p/reports/sales-control']);
-                });
-
-                this.notifiedSales.add(sale.facture.id);
-            });
-        }
+        const newlyReady = sales.filter(s => s.status === 'READY' && !this.notifiedSales.has(s.facture.id));
+        newlyReady.forEach(sale => {
+            const snackBarRef = this.snackBar.open(
+                `✅ Produit reçu ! Vente ${sale.facture.numero} prête à valider.`,
+                'VOIR',
+                { duration: 15000 }
+            );
+            snackBarRef.onAction().subscribe(() => this.router.navigate(['/p/finance/sales-control']));
+            this.notifiedSales.add(sale.facture.id);
+        });
     }
 
-    getInstanceSales(): Observable<InstanceSale[]> {
-        return this.instanceSales$.asObservable();
-    }
-
-    getReadyToValidateCount(): Observable<number> {
-        return this.readyToValidateCount$.asObservable();
-    }
+    getInstanceSales(): Observable<InstanceSale[]> { return this.instanceSales$.asObservable(); }
+    getReadyToValidateCount(): Observable<number> { return this.readyToValidateCount$.asObservable(); }
+    getPendingShipmentCount(): Observable<number> { return this.pendingShipmentCount$.asObservable(); }
+    getWaitingReceptionCount(): Observable<number> { return this.waitingReceptionCount$.asObservable(); }
 
     refreshNow(): void {
-        console.log('🔄 Manual refresh triggered');
-        this.checkInstanceSales().subscribe();
+        forkJoin({
+            sales: this.checkInstanceSales(),
+            transfers: this.checkPendingTransfers()
+        }).subscribe();
     }
 
-    clearNotification(saleId: string): void {
-        this.notifiedSales.delete(saleId);
-    }
+    clearNotification(saleId: string): void { this.notifiedSales.delete(saleId); }
 }

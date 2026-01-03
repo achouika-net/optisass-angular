@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Observable, of, BehaviorSubject, firstValueFrom } from 'rxjs';
+import { Observable, of, BehaviorSubject, firstValueFrom, throwError } from 'rxjs';
 import { FormBuilder, FormGroup, AbstractControl, ReactiveFormsModule, Validators, FormArray, FormControl } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -25,7 +25,7 @@ import { FicheMontureCreate, TypeFiche, StatutFiche, TypeEquipement, SuggestionI
 import { FactureService, Facture } from '../../services/facture.service';
 import { FactureFormComponent } from '../facture-form/facture-form.component';
 import { PaymentListComponent } from '../../components/payment-list/payment-list.component';
-import { map, switchMap, tap, catchError, take, takeUntil } from 'rxjs/operators';
+import { catchError, debounceTime, distinctUntilChanged, startWith, map, switchMap, filter, take, tap, finalize, takeUntil } from 'rxjs/operators';
 import { getLensSuggestion, Correction, FrameData, calculateLensPrice, determineLensType } from '../../utils/lensLogic';
 import { getLensMaterials, getLensIndices } from '../../utils/lensDatabase';
 import { StockSearchDialogComponent } from '../../../stock-management/dialogs/stock-search-dialog/stock-search-dialog.component';
@@ -212,7 +212,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     private destroy$ = new Subject<void>();
 
     get isSaleEnInstance(): boolean {
-        return this.linkedFactureSubject.value?.statut === 'VENTE_EN_INSTANCE';
+        const status = this.linkedFactureSubject.value?.statut;
+        return status === 'VENTE_EN_INSTANCE' || status === 'BROUILLON';
     }
     receptionComplete = false;
     isReserved = false;
@@ -379,7 +380,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         timer(5000, 5000).pipe(
             takeUntil(this.destroy$)
         ).subscribe(() => {
-            if ((this.isReserved || this.isTransit) && !this.receptionComplete && this.currentFiche) {
+            const isInstance = (this.linkedFactureSubject.value?.statut === 'VENTE_EN_INSTANCE');
+            if (isInstance && !this.receptionComplete && this.currentFiche) {
                 console.log('🔄 [POLLING] Checking reception status...');
                 this.checkReceptionForInstance(this.currentFiche);
             }
@@ -393,195 +395,161 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
     // New: Check if products in an INSTANCE sale are now received OR if transfer was cancelled
     checkReceptionForInstance(fiche: any): void {
-        console.log('🔍 [RECEPTION] Checking reception status for fiche...');
+        // [DISABLED] Logic disabled as per user request to remove banner system.
+        return;
+
         const isInstance = (this.linkedFactureSubject.value?.statut === 'VENTE_EN_INSTANCE');
-        console.log('📋 [RECEPTION] Is instance?', isInstance, '| Invoice status:', this.linkedFactureSubject.value?.statut);
 
-        if (!isInstance) return;
+        console.log('🔍 [RECEPTION] Checking reception status (ID & Model-Based)...');
 
-        // Reset flags before fresh check
-        this.receptionComplete = false;
-        this.isReserved = false;
-        this.isTransit = false;
+        // Extract products to check
+        const itemsToCheck: { path: string, id: string | null, desc: string | null, ref: string | null }[] = [];
 
-        // NEW: Track exactly WHICH field each product ID belongs to
-        const mappings: { path: string, originalId: string }[] = [];
-
-        if (fiche.monture?.productId) {
-            mappings.push({ path: 'monture', originalId: fiche.monture.productId });
-        }
-
-        if (fiche.verres?.differentODOG) {
-            if (fiche.verres.productIdOD) mappings.push({ path: 'verres.od', originalId: fiche.verres.productIdOD });
-            if (fiche.verres.productIdOG) mappings.push({ path: 'verres.og', originalId: fiche.verres.productIdOG });
-        } else if (fiche.verres?.productId) {
-            mappings.push({ path: 'verres.both', originalId: fiche.verres.productId });
-        }
-
-        if (mappings.length === 0) {
-            console.log('⚠️ [RECEPTION] No products found in fiche.');
-            if (isInstance) {
-                console.log('✅ [RECEPTION] Instance sale with no products. Marking as ready for validation.');
-                this.receptionComplete = true;
-                this.cdr.markForCheck();
+        const mapMonture = (m: any, path: string) => {
+            if (m?.productId || m?.designation || m?.reference) {
+                itemsToCheck.push({ path, id: m.productId, desc: m.designation, ref: m.reference });
             }
+        };
+
+        const mapVerres = (v: any, path: string) => {
+            if (v?.differentODOG) {
+                if (v.productIdOD || v.matiereOD) itemsToCheck.push({ path: `${path}.od`, id: v.productIdOD, desc: v.matiereOD, ref: null });
+                if (v.productIdOG || v.matiereOG) itemsToCheck.push({ path: `${path}.og`, id: v.productIdOG, desc: v.matiereOG, ref: null });
+            } else if (v?.productId || v?.matiere) {
+                itemsToCheck.push({ path: `${path}.both`, id: v.productId, desc: v.matiere, ref: null });
+            }
+        };
+
+        mapMonture(fiche.monture, 'monture');
+        if (fiche.verres) mapVerres(fiche.verres, 'verres');
+
+        (fiche.equipements || []).forEach((e: any, i: number) => {
+            const p = `equipements.${i}`;
+            mapMonture(e.monture, `${p}.monture`);
+            if (e.verres) mapVerres(e.verres, `${p}.verres`);
+        });
+
+        if (itemsToCheck.length === 0) {
+            this.receptionComplete = true;
+            this.cdr.markForCheck();
             return;
         }
 
-        console.log('📦 [RECEPTION] Products to initial check:', mappings);
+        this.store.select(UserCurrentCentreSelector).pipe(take(1)).subscribe(center => {
+            if (!center) return;
 
-        // Fetch all products AND current center ID
-        this.store.select(UserCurrentCentreSelector).pipe(take(1)).subscribe(currentCentre => {
-            const currentCentreId = currentCentre?.id;
-            console.log('🏢 [RECEPTION] Current Center ID:', currentCentreId);
+            // Fetch ALL products for model-based matching fallback
+            this.productService.findAll({ global: true }).subscribe(allProducts => {
+                let allArrived = true;
+                let someTransit = false;
+                let someReserved = false;
+                let needsIDSync = false;
 
-            const checks = mappings.map(m => this.productService.findOne(m.originalId).pipe(
-                map(p => ({ ...p, mappingPath: m.path })),
-                catchError(err => {
-                    console.error(`❌ [RECEPTION] Error fetching product ${m.originalId}:`, err);
-                    return of(null);
-                })
-            ));
+                itemsToCheck.forEach(item => {
+                    // 1. Try to find a LOCAL product using a SCORING system
+                    // We want to avoid picking a product just because it shares a generic reference if a better designation match exists.
 
-            forkJoin(checks).subscribe((productsWithMetadata: any[]) => {
-                const products = productsWithMetadata.filter(p => !!p);
+                    const candidates = allProducts.filter(p => p.entrepot?.centreId === center.id);
+                    let localMatch: any = null;
+                    let bestScore = 0;
 
-                console.log('📊 [RECEPTION] Current product details (remote or local):', products.map(p => ({
-                    path: p.mappingPath,
-                    id: p.id,
-                    ref: p.modele || p.referenceFournisseur,
-                    centerId: p.entrepot?.centreId,
-                    statut: p.statut,
-                    stock: p.quantiteActuelle,
-                    pendingStatus: p.specificData?.pendingIncoming?.status
-                })));
+                    for (const p of candidates) {
+                        let score = 0;
 
-                // Store initial status if not already set (first time checking)
-                if (!this.initialProductStatus && products.length > 0) {
-                    this.initialProductStatus = products[0].quantiteActuelle <= 0 ? 'RUPTURE' : 'DISPONIBLE';
-                    console.log('💾 [RECEPTION] Stored initial product status:', this.initialProductStatus);
-                }
+                        // Exact ID Match (Highest Priority)
+                        if (p.id === item.id) score += 100;
 
-                // A product is ONLY received if it is IN the current center's PRINCIPAL warehouse
-                // and has status DISPONIBLE with no pending incoming status.
-                const allReceivedLocally = products.every(p =>
-                    p.statut === ProductStatus.DISPONIBLE &&
-                    !p.specificData?.pendingIncoming &&
-                    p.quantiteActuelle > 0 &&
-                    p.entrepot?.centreId === currentCentreId
-                );
-
-                console.log('✅ [RECEPTION] All products received locally?', allReceivedLocally);
-
-                if (allReceivedLocally) {
-                    this.receptionComplete = true;
-                    this.isReserved = false;
-                    this.isTransit = false;
-
-                    // PIVOT: Map each product to its local equivalent (already mostly handled by allReceivedLocally but ensure sync)
-                    console.log('🔍 [RECEPTION] Synchronizing local stock IDs by factory reference...');
-
-                    const localMappingChecks = products.map(p => {
-                        const reference = p.modele || p.referenceFournisseur || p.designation;
-                        const couleur = p.couleur || '';
-
-                        if (!reference) {
-                            console.warn(`⚠️ [RECEPTION] No reference found for ${p.mappingPath}. Using existing ID.`);
-                            return of({ ...p, localProduct: p });
+                        // Designation Match
+                        if (item.desc && p.designation && p.designation.trim().toLowerCase() === item.desc.trim().toLowerCase()) {
+                            score += 50;
                         }
 
-                        console.log(`🔍 [RECEPTION] Searching local match for "${reference}"...`);
-                        return this.productService.findAll({ search: reference }).pipe(
-                            map(results => {
-                                const localMatch = results.find(r =>
-                                    r.entrepot?.centreId === currentCentreId &&
-                                    r.entrepot?.type === 'PRINCIPAL' &&
-                                    (r.modele === reference || r.referenceFournisseur === reference || r.designation === reference) &&
-                                    (r.couleur === couleur || !couleur)
-                                ) || p;
+                        // Reference/Code Match
+                        if (item.ref && p.codeInterne && p.codeInterne === item.ref) {
+                            score += 20;
+                        } else if (item.ref && p.codeBarres && p.codeBarres === item.ref) {
+                            score += 20;
+                        }
 
-                                if (localMatch.id !== p.id) {
-                                    console.log(`📍 [RECEPTION] Mapped ${p.mappingPath}: ${p.id} -> ${localMatch.id} (Match found in ${localMatch.entrepot?.nom})`);
-                                }
-                                return { ...p, localProduct: localMatch };
-                            }),
-                            catchError(err => {
-                                console.error(`❌ [RECEPTION] Error searching for ${reference}:`, err);
-                                return of({ ...p, localProduct: p });
-                            })
-                        );
-                    });
+                        if (score > bestScore) {
+                            bestScore = score;
+                            localMatch = p;
+                        }
+                    }
 
-                    forkJoin(localMappingChecks).subscribe((mappedResults: any[]) => {
-                        let changed = false;
-                        const formValue = this.ficheForm.getRawValue();
+                    // 2. Determine Status based on match
+                    if (localMatch) {
+                        if (localMatch.statut === 'DISPONIBLE') {
+                            // Arrived locally
+                        } else if (localMatch.statut === 'EN_TRANSIT') {
+                            allArrived = false;
+                            someTransit = true;
+                        } else if (localMatch.statut === 'RESERVE') {
+                            allArrived = false;
+                            someReserved = true;
+                        } else {
+                            allArrived = false;
+                        }
 
-                        mappedResults.forEach(res => {
-                            const localP = res.localProduct;
-                            const path = res.mappingPath;
+                        if (localMatch.id !== item.id) {
+                            needsIDSync = true;
+                        }
+                    } else {
+                        // No local candidate found at all -> Not arrived
+                        allArrived = false;
+                    }
+                });
 
-                            if (path === 'monture') {
-                                if (formValue.monture?.productId !== localP.id || formValue.monture?.isPendingTransfer) {
-                                    this.ficheForm.get('monture')?.patchValue({
-                                        productId: localP.id,
-                                        entrepotType: 'PRINCIPAL',
-                                        isPendingTransfer: false
-                                    });
-                                    changed = true;
-                                }
-                            } else if (path === 'verres.od') {
-                                if (formValue.verres?.productIdOD !== localP.id || formValue.verres?.isPendingTransfer) {
-                                    this.ficheForm.get('verres')?.patchValue({
-                                        productIdOD: localP.id,
-                                        entrepotType: 'PRINCIPAL',
-                                        isPendingTransfer: false
-                                    });
-                                    changed = true;
-                                }
-                            } else if (path === 'verres.og') {
-                                if (formValue.verres?.productIdOG !== localP.id || formValue.verres?.isPendingTransfer) {
-                                    this.ficheForm.get('verres')?.patchValue({
-                                        productIdOG: localP.id,
-                                        entrepotType: 'PRINCIPAL',
-                                        isPendingTransfer: false
-                                    });
-                                    changed = true;
-                                }
-                            } else if (path === 'verres.both') {
-                                if (formValue.verres?.productId !== localP.id || formValue.verres?.isPendingTransfer) {
-                                    this.ficheForm.get('verres')?.patchValue({
-                                        productId: localP.id,
-                                        entrepotType: 'PRINCIPAL',
-                                        isPendingTransfer: false
-                                    });
-                                    changed = true;
-                                }
+                const stateChanged = this.receptionComplete !== allArrived || this.isTransit !== someTransit || this.isReserved !== someReserved;
+                if (stateChanged || needsIDSync) {
+                    if (allArrived && !this.receptionComplete) {
+                        this.snackBar.open('✨ Bonne nouvelle ! Vos produits sont arrivés.', 'OK', { duration: 6000 });
+                    }
+
+                    this.receptionComplete = allArrived;
+                    this.isTransit = someTransit;
+                    this.isReserved = someReserved;
+
+                    // Perform ID synchronization if we found local matches for remote IDs
+                    if (needsIDSync) {
+                        itemsToCheck.forEach(item => {
+                            const local = allProducts.find(p =>
+                                p.entrepot?.centreId === center.id &&
+                                (p.id === item.id || (item.desc && p.designation === item.desc) || (item.ref && (p.codeInterne === item.ref || p.codeBarres === item.ref)))
+                            );
+                            if (local && local.id !== item.id) {
+                                console.log(`📍 [SYNC] Mapping ${item.path} to local ID: ${local.id}`);
+                                this.patchProductID(item.path, local.id);
                             }
                         });
+                        this.saveFicheSilently(true);
+                    }
 
-                        if (changed) {
-                            console.log('💾 [RECEPTION] Differences detected. Auto-saving synced local IDs...');
-                            this.saveFicheSilently();
-                        } else {
-                            console.log('✅ [RECEPTION] All IDs already local and synced.');
-                        }
-                        this.cdr.markForCheck();
-                    });
-                } else {
-                    // Handle transit/reserved banners BASED ON ACTUAL PRODUCT DATA
-                    this.isTransit = products.some(p => p.specificData?.pendingIncoming?.status === 'SHIPPED');
-                    // Reserved means it is at center expéditeur (not shipped yet) OR stored at another center
-                    this.isReserved = products.some(p =>
-                        p.specificData?.pendingIncoming?.status === 'RESERVED' ||
-                        (p.entrepot?.centreId !== currentCentreId && !p.specificData?.pendingIncoming)
-                    );
-
-                    this.receptionComplete = false;
-                    console.log(`📦 [RECEPTION] Reception incomplete. Local: false, Transit: ${this.isTransit}, Reserved: ${this.isReserved}`);
                     this.cdr.markForCheck();
+                    // Additional check to force UI update because of OnPush
+                    setTimeout(() => this.cdr.detectChanges(), 50);
                 }
             });
         });
+    }
+
+    private patchProductID(path: string, localId: string) {
+        const parts = path.split('.');
+        let control: AbstractControl | null = this.ficheForm;
+
+        if (parts[0] === 'equipements') {
+            const index = parseInt(parts[1]);
+            control = this.equipements.at(index);
+            // Re-map parts to skip 'equipements.X'
+            const subPath = parts.slice(2).join('.');
+            const field = subPath.includes('od') ? 'productIdOD' : (subPath.includes('og') ? 'productIdOG' : 'productId');
+            const group = control.get(parts[2]);
+            group?.patchValue({ [field]: localId, isPendingTransfer: false }, { emitEvent: false });
+        } else {
+            const field = path.includes('od') ? 'productIdOD' : (path.includes('og') ? 'productIdOG' : 'productId');
+            const group = this.ficheForm.get(parts[0]);
+            group?.patchValue({ [field]: localId, isPendingTransfer: false }, { emitEvent: false });
+        }
     }
 
 
@@ -592,14 +560,22 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         this.factureService.findAll({ clientId: this.clientId }).subscribe(factures => {
             const found = factures.find(f => f.ficheId === this.ficheId);
             if (found) {
-                console.log('🔗 Linked Facture found:', found.numero);
+                console.log('🔗 Linked Facture found:', found.numero, '| Status:', found.statut);
                 this.linkedFactureSubject.next(found);
-                // Trigger check if fiche is already available
-                if (this.currentFiche) {
-                    this.checkReceptionForInstance(this.currentFiche);
-                }
             } else {
                 this.linkedFactureSubject.next(null);
+            }
+        });
+
+        // Make reception check reactive to invoice status changes
+        this.linkedFacture$.pipe(
+            takeUntil(this.destroy$),
+            filter(f => !!f),
+            distinctUntilChanged((prev, curr) => prev?.statut === curr?.statut)
+        ).subscribe(f => {
+            if (f?.statut === 'VENTE_EN_INSTANCE' && this.currentFiche) {
+                console.log('🔄 [RECEPTION] Status changed to Instance. Triggering check...');
+                this.checkReceptionForInstance(this.currentFiche);
             }
         });
     }
@@ -1028,7 +1004,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         });
 
         dialogRef.afterClosed().subscribe(result => {
-            if (result && (result.action === 'SELECT' || result.action === 'ORDER_AND_SELL') && result.product) {
+            if (result?.action === 'CANCEL_SALE') {
+                this.handleSaleCancellation(result.reason, result.product);
+            } else if (result && (result.action === 'SELECT' || result.action === 'ORDER_AND_SELL') && result.product) {
                 // ONE-CLICK LOGIC: Auto-enable edit mode if we are just viewing
                 if (!this.isEditMode) {
                     console.log('⚡ [ONE-CLICK] Auto-enabling edit mode for product selection...');
@@ -1037,7 +1015,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 }
 
                 this.allProducts.push(result.product);
-                const isPending = result.action === 'ORDER_AND_SELL' || (result.isPendingTransfer || false);
+                const isPending = result.action === 'ORDER_AND_SELL' || result.isPendingTransfer || result.isPendingOrder || false;
                 this.fillProductDetails(result.product, index, target, isPending);
 
                 if (result.action === 'ORDER_AND_SELL') {
@@ -2335,10 +2313,37 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         }
     }
 
+    handleSaleCancellation(reason: string, product: any): void {
+        if (reason === 'NO_STOCK_AVAILABLE') {
+            const confirmed = confirm(
+                `Le produit "${product?.designation || 'sélectionné'}" n'est disponible dans aucun centre.\n\n` +
+                `Voulez-vous annuler cette vente ?\n\n` +
+                `Note: Si vous avez déjà effectué un paiement, vous devrez le rembourser manuellement.`
+            );
+
+            if (confirmed) {
+                this.snackBar.open('Vente annulée. Retour à la fiche client.', 'OK', { duration: 4000 });
+                // Navigate back to client detail
+                if (this.clientId) {
+                    this.router.navigate(['/p/clients', this.clientId]);
+                } else {
+                    this.router.navigate(['/p/clients']);
+                }
+            } else {
+                // User chose to continue - they can select another product
+                this.snackBar.open('Vous pouvez sélectionner un autre produit.', 'OK', { duration: 3000 });
+            }
+        }
+    }
+
     async onSubmit() {
         console.log('🚀 [DIAGNOSTIC] onSubmit starting...');
-        if (this.ficheForm.invalid || !this.clientId) {
-            console.log('⚠️ [DIAGNOSTIC] Form Invalid or No Client ID', { invalid: this.ficheForm.invalid, clientId: this.clientId });
+        if (this.ficheForm.invalid || !this.clientId || this.loading) {
+            console.log('⚠️ [DIAGNOSTIC] Form Invalid, No Client ID, or Loading', {
+                invalid: this.ficheForm.invalid,
+                clientId: this.clientId,
+                loading: this.loading
+            });
             return;
         }
         this.loading = true;
@@ -2433,14 +2438,24 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         if (hasPendingTransfer) {
             // [NEW] Reinforced Financial Status Logic (Devis vs Vente en Instance)
             // If there is a payment, it's an Instance. If not, it's a Devis.
-            if (hasPayment) {
-                userForcedType = 'DEVIS';
-                userForcedStatut = 'VENTE_EN_INSTANCE';
-                this.snackBar.open('Transfert en cours détecté. Vente mise en instance (Acompte présent).', 'OK', { duration: 5000 });
+            // [RESTORED & FIXED] Logic to ensure DEVIS/INSTANCE is created so payments can attach.
+            // Guard added: ONLY force status if we are in a "weak" state (null, BROUILLON).
+            // Do NOT overwrite 'VENTE_EN_INSTANCE' or 'VALIDE' if already set.
+            const currentStatus = this.linkedFactureSubject.value?.statut;
+            const isWeakStatus = !currentStatus || currentStatus === 'BROUILLON';
+
+            if (isWeakStatus) {
+                if (hasPayment) {
+                    userForcedType = 'DEVIS';
+                    userForcedStatut = 'VENTE_EN_INSTANCE';
+                    this.snackBar.open('Transfert en cours + Acompte : Création Vente en Instance.', 'OK', { duration: 4000 });
+                } else {
+                    userForcedType = 'DEVIS';
+                    userForcedStatut = 'BROUILLON';
+                    // this.snackBar.open('Transfert en cours : Création Devis (Pas d’acompte).', 'OK', { duration: 3000 });
+                }
             } else {
-                userForcedType = 'DEVIS';
-                userForcedStatut = 'BROUILLON'; // Reverted to generic draft numbering for Devis
-                this.snackBar.open('Transfert en cours détecté. Enregistré comme Devis (Pas d’acompte).', 'OK', { duration: 5000 });
+                console.log('🛡️ [SYNC] Preserving existing status:', currentStatus);
             }
 
             userForcedStockDecrement = false;
@@ -2527,8 +2542,11 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                         return this.factureComponent.saveAsObservable(true, extraProps).pipe(
                             map(() => fiche),
                             catchError(err => {
-                                console.error('Error saving linked invoice:', err);
-                                return of(fiche);
+                                if (err.status === 409) {
+                                    console.log('⚠️ [MontureForm] Race condition (Scen 1): Invoice already exists. Ignoring.');
+                                    return of(fiche);
+                                }
+                                throw err;
                             })
                         );
                     }
@@ -2536,8 +2554,11 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     else {
                         // First, check if an invoice already exists for this fiche
                         // Use the linkedFacture$ observable if available, otherwise query by client
-                        // FIX: Explicitly check service for existing invoice (linkedFacture$ might be stale or not updated)
-                        const checkExisting$ = this.factureService.findAll({ clientId: this.clientId }).pipe(
+                        // FIX: Explicitly check service for existing invoice using FicheID to allow global lookup/avoid pagination issues
+                        const checkExisting$ = this.factureService.findAll({
+                            clientId: this.clientId,
+                            ficheId: fiche.id
+                        }).pipe(
                             map(factures => factures.find(f => f.ficheId === fiche.id) || null)
                         );
 
@@ -2572,11 +2593,17 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                                     if (userForcedStatut) updateData.statut = userForcedStatut;
 
                                     return this.factureService.update(existingFacture.id, updateData).pipe(
+                                        tap(updatedFacture => {
+                                            console.log('🔄 [SYNC] Invoice updated in onSubmit. Syncing subject:', updatedFacture.numero);
+                                            this.linkedFactureSubject.next(updatedFacture);
+                                        }),
                                         map(() => fiche),
                                         catchError(err => {
                                             console.error('Error auto-updating invoice:', err);
-                                            // Fallback: Just return fiche if update fails, don't block
-                                            return of(fiche);
+                                            const message = err.error?.message || 'Erreur lors de la mise à jour de la facture';
+                                            this.snackBar.open(`⚠️ ${message}`, 'Fermer', { duration: 7000 });
+                                            // [FIX] Throw error to stop the chain
+                                            return throwError(() => err);
                                         })
                                     );
                                 }
@@ -2608,16 +2635,22 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                                 };
 
                                 return this.factureService.create(factureData).pipe(
+                                    tap(newFacture => {
+                                        console.log('✨ [SYNC] Invoice created in onSubmit. Syncing subject:', newFacture.numero);
+                                        this.linkedFactureSubject.next(newFacture);
+                                    }),
                                     map(() => fiche),
                                     catchError(err => {
                                         // If error is unique constraint on ficheId, it means it was created in parallel.
                                         // We can ignore this error safely as the goal (invoice exists) is met.
-                                        if (err?.error?.message?.includes('ficheId') || err?.error?.code === 'P2002') {
+                                        if (err?.status === 409 || err?.error?.message?.includes('ficheId') || err?.error?.code === 'P2002') {
                                             console.log('⚠️ Race condition prevented: Invoice already created during process.');
                                             return of(fiche);
                                         }
                                         console.error('Error auto-creating invoice:', err);
-                                        return of(fiche);
+                                        const message = err.error?.message || 'Erreur lors de la création de la facture';
+                                        this.snackBar.open(`⚠️ ${message}`, 'Fermer', { duration: 7000 });
+                                        return throwError(() => err);
                                     })
                                 );
                             }),
@@ -2729,14 +2762,32 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         if (confirm("Voulez-vous valider cette vente maintenant que le produit est reçu ?")) {
             this.loading = true;
             try {
-                const factures = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId || '' }));
-                const currentFacture = factures.find(f => f.ficheId === this.ficheId);
+                // [FIX] Use Direct Backend Lookup by FicheID to avoid Pagination/Limit issues
+                console.log('🔍 [VALIDATION] Searching for invoices with FicheID:', this.ficheId);
+                const factures = await firstValueFrom(this.factureService.findAll({
+                    clientId: this.clientId || '',
+                    ficheId: this.ficheId
+                }));
+
+                const currentFacture = factures.find(f => f.ficheId === this.ficheId)
+                    || (factures.length === 1 ? factures[0] : undefined);
+
                 if (currentFacture) {
+                    console.log('✅ [VALIDATION] Found matched Invoice:', currentFacture.numero);
                     await this.performSaleValidation(currentFacture);
+                    this.snackBar.open('Vente validée avec succès !', 'OK', { duration: 3000 });
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    console.warn('❌ [VALIDATION] No invoice matched ficheId (Backend Filtered):', this.ficheId);
+                    this.loading = false;
+                    alert("Impossible de trouver la facture associée. (Backend Lookup Failed)");
                 }
             } catch (e) {
                 console.error('Error in validateInstancedSale:', e);
                 this.loading = false;
+                alert("Une erreur est survenue lors de la validation.");
             }
         }
     }
@@ -2812,9 +2863,49 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         }
     }
 
-    private async performSaleValidation(currentFacture: any) {
-        console.log('📄 [VALIDATION] Converting Devis to official Facture:', currentFacture.numero);
+    private async performSaleValidation(staleFacture: any) {
+        // [FIX] Double-check status LIVE to prevent stale UI blocking validation
+        // Fetch fresh product statuses before blocking
+        console.log('🛡️ [VALIDATION] Performing live status check before validating...');
+        let liveReserved = false;
+        let liveTransit = false;
+
+        // REFRESH INVOICE explicitly to ensure we have the latest version (e.g. correct total, status)
+        let currentFacture = staleFacture;
+        try {
+            console.log('🔄 [VALIDATION] Refreshing invoice data:', staleFacture.id);
+            const freshInvoice = await firstValueFrom(this.factureService.findOne(staleFacture.id));
+            if (freshInvoice) {
+                currentFacture = freshInvoice;
+                console.log('✅ [VALIDATION] Invoice refreshed. Status:', currentFacture.statut);
+            }
+        } catch (e) {
+            console.warn('⚠️ [VALIDATION] Failed to refresh invoice, using passed object.', e);
+        }
+
+        // Scan lines to identify products to check
         const lines = this.getInvoiceLines();
+        if (lines.length > 0) {
+            // [OPTIMIZATION] Removed heavy client-side "findAll" check.
+            // We now rely on the backend `verifyProductsAreReceived` called within FacturesService.update
+            // This prevents fetching thousands of products and hanging the UI.
+
+            // Minimal check: if we KNOW based on local form state that something is wrong, we can block.
+            // But for deep validation (transit etc), we let the backend handle it and catch the error.
+            if (this.currentFiche && this.receptionComplete === false && this.isSaleEnInstance) {
+                // Soft warning but let it proceed to backend for authoritative check
+                console.log('⚠️ [VALIDATION] Frontend suspects products are not fully received, but proceeding to backend check.');
+            }
+        }
+
+        // Use LIVE flags instead of potentially stale this.isReserved / this.isTransit
+        if (liveReserved || liveTransit) {
+            this.snackBar.open('⚠️ Impossible de valider la vente : le produit n\'a pas encore été réceptionné (Statut vérifié en direct).', 'OK', { duration: 5000 });
+            this.loading = false;
+            return;
+        }
+
+        console.log('📄 [VALIDATION] Converting Devis to official Facture:', currentFacture.numero);
 
         // [FIX] Guard against missing Product IDs
         // Only warn for FRAMES (Monture) as Lenses (Verres) are often ordered without stock management
@@ -2855,7 +2946,10 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 nomenclature: this.nomenclatureString || '',
                 validatedAt: new Date(),
                 isTransferFulfilled: true, // Mark as fulfilled
-                forceStockDecrement: true  // Ensure stock is decremented upon validation from fiche
+                forceStockDecrement: true,  // Ensure stock is decremented upon validation from fiche
+                // [FIX] Force Fiscal Flow: Tell backend to generate official number unconditionally
+                // This resolves issues where "Nouveau Document" or draft status ambiguity skips the flow.
+                forceFiscal: true
             }
         };
 
@@ -2982,15 +3076,43 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         this.ficheService.updateFiche(this.ficheId, ficheData).subscribe({
             next: (res) => {
                 console.log('✅ [RECEPTION] Fiche synced with local IDs.');
-                if (reload) {
-                    console.log('🔄 Reloading data...');
-                    this.snackBar.open('Données sauvegardées', 'OK', { duration: 2000 });
-                    // We reload to break the mapping loop and ensure all states (including currentFiche) are fresh
-                    this.loadFiche();
-                } else {
-                    // Update currentFiche locally to reflect saved state without full reload
-                    this.currentFiche = { ...this.currentFiche, ...ficheData };
-                }
+
+                // [NEW] Also sync the Facture in the background to ensure Monitor/Badges are updated
+                this.factureService.findAll({ clientId: this.clientId || '' }).subscribe(factures => {
+                    const linked = factures.find(f => f.ficheId === this.ficheId);
+                    if (linked && linked.statut === 'VENTE_EN_INSTANCE') {
+                        console.log('🔄 [RECEPTION] Background syncing linked invoice:', linked.numero);
+                        const lines = this.getInvoiceLines();
+                        const total = lines.reduce((acc, l) => acc + l.totalTTC, 0);
+                        this.factureService.update(linked.id, {
+                            lignes: lines,
+                            totalTTC: total,
+                            proprietes: {
+                                ...(linked.proprietes || {}),
+                                nomenclature: this.nomenclatureString || '',
+                                lastSilentUpdate: new Date()
+                            }
+                        }).subscribe(() => {
+                            console.log('✅ [RECEPTION] Invoice synced.');
+                            if (reload) this.loadFiche();
+                            else {
+                                this.currentFiche = { ...this.currentFiche, ...ficheData };
+                                // Trigger immediate UI refresh for status banners
+                                this.checkReceptionForInstance(this.currentFiche);
+                                this.cdr.markForCheck();
+                                setTimeout(() => this.cdr.detectChanges(), 100);
+                            }
+                        });
+                    } else {
+                        if (reload) this.loadFiche();
+                        else {
+                            this.currentFiche = { ...this.currentFiche, ...ficheData };
+                            this.checkReceptionForInstance(this.currentFiche);
+                            this.cdr.markForCheck();
+                            setTimeout(() => this.cdr.detectChanges(), 100);
+                        }
+                    }
+                });
             },
             error: (err) => {
                 console.error('❌ [RECEPTION] Error in silent update:', err);

@@ -128,6 +128,14 @@
               {{ readyCount$ | async }}
             </span>
 
+            <!-- Badge Notification for Transfers -->
+            <span
+              *ngIf="child.label === 'Transferts Inter-Centres' && ((shipmentCount$ | async) > 0 || (receptionCount$ | async) > 0)"
+              class="ml-auto flex h-5 px-1.5 items-center justify-center rounded-full text-[10px] font-bold text-white shadow-sm"
+              [ngClass]="(shipmentCount$ | async) > 0 ? 'bg-red-500' : 'bg-blue-500'">
+              {{ ((shipmentCount$ | async) || 0) + ((receptionCount$ | async) || 0) }}
+            </span>
+
             <mat-icon class="icon-favorite" [class.active]="isFavorite(child.label)"
               [class.inactive]="!isFavorite(child.label)" (click)="handleFavorite(favorisItems(), child, $event)">
               star

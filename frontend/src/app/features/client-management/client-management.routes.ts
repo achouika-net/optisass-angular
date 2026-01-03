@@ -22,6 +22,10 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/facture-form/facture-form.component').then(m => m.FactureFormComponent),
     },
     {
+        path: 'promotions',
+        loadComponent: () => import('./pages/promotion-management/promotion-management.component').then(m => m.PromotionManagementComponent),
+    },
+    {
         path: ':id',
         loadComponent: () => import('./pages/client-detail/client-detail.component').then(m => m.ClientDetailComponent),
     },
