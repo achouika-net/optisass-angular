@@ -1,25 +1,41 @@
 #!/bin/bash
 
+# Configuration des chemins
+ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
+BACKEND_DIR="$ROOT_DIR/backend"
+FRONTEND_DIR="$ROOT_DIR/frontend"
+
 echo "========================================"
 echo "  Démarrage des serveurs OptiSaaS"
 echo "========================================"
 echo ""
 
+# Détection de l'OS
+OS_TYPE="unknown"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    OS_TYPE="macos"
+elif [[ "$OS" == "Windows_NT" ]] || [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+    OS_TYPE="windows"
+else
+    OS_TYPE="linux"
+fi
+
+echo "💻 Système détecté : $OS_TYPE"
+
 # 1. Vérifier si les ports sont occupés
 echo "1️⃣  Vérification des ports..."
 
-# Fonction pour tuer un processus sur un port (Windows/Bash)
 kill_port() {
     local port=$1
-    if [ "$OS" == "Windows_NT" ]; then
-        # Windows
+    if [ "$OS_TYPE" == "windows" ]; then
         local pid=$(netstat -ano | grep ":$port" | grep "LISTENING" | awk '{print $5}' | head -n 1)
         if [ ! -z "$pid" ]; then
             taskkill -F -PID $pid 2>/dev/null
         fi
     else
-        # Linux / MacOS
-        lsof -ti :$port | xargs kill -9 2>/dev/null || true
+        if lsof -ti :$port > /dev/null 2>&1; then
+            lsof -ti :$port | xargs kill -9 2>/dev/null
+        fi
     fi
 }
 
@@ -29,35 +45,35 @@ kill_port 5555
 
 # 2. Démarrer le Backend
 echo "2️⃣  Démarrage du Backend (Port 3000)..."
-if [ "$OS" == "Windows_NT" ]; then
+if [ "$OS_TYPE" == "windows" ]; then
     start cmd /k "cd backend && npm run start:dev"
+elif [ "$OS_TYPE" == "macos" ]; then
+    osascript -e "tell application \"Terminal\" to do script \"cd '$BACKEND_DIR' && npm run start:dev\""
 else
-    # Linux / MacOS (Generic)
-    cd backend && npm run start:dev &
-    cd ..
+    cd "$BACKEND_DIR" && npm run start:dev &
 fi
-
-echo "   ⏳ Attente du démarrage NestJS (5 secondes)..."
-sleep 5
 
 # 3. Démarrer le Frontend
 echo "3️⃣  Démarrage du Frontend (Port 4200)..."
-if [ "$OS" == "Windows_NT" ]; then
+if [ "$OS_TYPE" == "windows" ]; then
     start cmd /k "cd frontend && npm start"
+elif [ "$OS_TYPE" == "macos" ]; then
+    osascript -e "tell application \"Terminal\" to do script \"cd '$FRONTEND_DIR' && npm start\""
 else
-    cd frontend && npm start &
-    cd ..
+    cd "$FRONTEND_DIR" && npm start &
 fi
 
 # 4. Démarrer Prisma Studio
 echo "4️⃣  Démarrage de Prisma Studio (Port 5555)..."
-if [ "$OS" == "Windows_NT" ]; then
+if [ "$OS_TYPE" == "windows" ]; then
     start cmd /k "cd backend && npx prisma studio"
+elif [ "$OS_TYPE" == "macos" ]; then
+    osascript -e "tell application \"Terminal\" to do script \"cd '$BACKEND_DIR' && npx prisma studio\""
 fi
 
 echo ""
 echo "========================================"
-echo "  ✅ Tous les serveurs sont en cours de démarrage"
+echo "  ✅ Démarrage initié (Fenêtres séparées)"
 echo "========================================"
 echo ""
 echo "📊 Services :"
@@ -65,5 +81,4 @@ echo "   🔧 Backend       : http://localhost:3000"
 echo "   📱 Frontend      : http://localhost:4200"
 echo "   🗄️  Prisma Studio : http://localhost:5555"
 echo ""
-echo "💡 Pour arrêter tous les serveurs, fermez les fenêtres de commande."
 

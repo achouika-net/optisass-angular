@@ -5,11 +5,23 @@ echo "  Arrêt des serveurs OptiSaaS"
 echo "========================================"
 echo ""
 
+# Détection de l'OS
+OS_TYPE="unknown"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    OS_TYPE="macos"
+elif [[ "$OS" == "Windows_NT" ]] || [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+    OS_TYPE="windows"
+else
+    OS_TYPE="linux"
+fi
+
+echo "💻 Système détecté : $OS_TYPE"
+
 # Fonction pour tuer un processus sur un port
 kill_port() {
     local port=$1
     echo "🔍 Arrêt du service sur le Port $port..."
-    if [ "$OS" == "Windows_NT" ]; then
+    if [ "$OS_TYPE" == "windows" ]; then
         # Windows
         local pid=$(netstat -ano | grep ":$port" | grep "LISTENING" | awk '{print $5}' | head -n 1)
         if [ ! -z "$pid" ]; then
