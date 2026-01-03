@@ -31,6 +31,7 @@ import { FinanceService } from '../../../finance/services/finance.service';
 import { SupplierInvoice } from '../../../finance/models/finance.models';
 import { InvoiceFormDialogComponent } from '../../../finance/components/invoice-form-dialog/invoice-form-dialog.component';
 import { MessagingService } from '../../../../core/services/messaging.service';
+import { ExpenseFormDialogComponent } from '../../../finance/components/expense-form-dialog/expense-form-dialog.component';
 
 export interface Attachment {
   id: string;
@@ -584,7 +585,9 @@ export class ClientDetailComponent implements OnInit {
       maxHeight: '90vh',
       data: {
         invoice: null, // New mode
-        prefilledClientId: this.clientId // We might need to handle this in dialog
+        prefilledClientId: this.clientId,
+        isBL: true,
+        prefilledType: 'ACHAT_VERRE_OPTIQUE'
       }
     });
 
@@ -612,6 +615,41 @@ export class ClientDetailComponent implements OnInit {
         this.snackBar.open('BL supprimé', 'OK');
       });
     }
+  }
+
+  openPaymentDialog(invoice: SupplierInvoice) {
+    if (invoice.statut === 'PAYEE') {
+      this.snackBar.open('Cette facture est déjà payée', 'Fermer', { duration: 3000 });
+      return;
+    }
+
+    const pendingEcheance = invoice.echeances?.find(e => e.statut === 'EN_ATTENTE');
+
+    const dialogRef = this.dialog.open(ExpenseFormDialogComponent, {
+      width: '600px',
+      data: {
+        expense: {
+          fournisseurId: invoice.fournisseurId,
+          factureFournisseurId: invoice.id,
+          echeanceId: pendingEcheance?.id,
+          montant: invoice.montantTTC, // Default to full amount
+          categorie: invoice.type || 'ACHAT_STOCK',
+          description: `Paiement BL ${invoice.numeroFacture}`,
+          date: new Date().toISOString(),
+          modePaiement: 'ESPECES',
+          statut: 'VALIDEE',
+          centreId: invoice.centreId
+        }
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.loadSupplierInvoices();
+        this.loadStats(); // Update client global stats too if payment affected it (though BL payments are supplier expenses)
+        this.snackBar.open('Paiement enregistré avec succès', 'Fermer', { duration: 3000 });
+      }
+    });
   }
 
   sendControlReminder(fiche: FicheClient): void {

@@ -25,6 +25,7 @@ import { map, startWith } from 'rxjs/operators';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { CameraCaptureDialogComponent } from '../../../../shared/components/camera-capture/camera-capture-dialog.component';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 interface AttachmentFile {
     name: string;
@@ -54,7 +55,8 @@ interface AttachmentFile {
         MatStepperModule,
         MatCardModule,
         MatAutocompleteModule,
-        MatProgressBarModule
+        MatProgressBarModule,
+        MatSnackBarModule
     ],
     templateUrl: './invoice-form-dialog.component.html',
     styles: [`
@@ -143,6 +145,7 @@ export class InvoiceFormDialogComponent implements OnInit {
         private sanitizer: DomSanitizer,
         private cdr: ChangeDetectorRef,
         private dialog: MatDialog,
+        private snackBar: MatSnackBar,
         @Optional() public dialogRef: MatDialogRef<InvoiceFormDialogComponent>,
         @Optional() @Inject(MAT_DIALOG_DATA) public data: { invoice?: SupplierInvoice }
     ) {
@@ -158,13 +161,13 @@ export class InvoiceFormDialogComponent implements OnInit {
                 tauxTVA: [20], // Default 20%
                 montantTVA: [data?.invoice?.montantTVA || 0, [Validators.required, Validators.min(0)]],
                 montantTTC: [data?.invoice?.montantTTC || 0, [Validators.required, Validators.min(0)]],
-                type: [data?.invoice?.type || 'ACHAT_STOCK', Validators.required],
+                type: [data?.invoice?.type || (data as any)?.prefilledType || 'ACHAT_STOCK', Validators.required],
                 pieceJointeUrl: [data?.invoice?.pieceJointeUrl || ''],
                 clientId: [data?.invoice?.clientId || (data as any)?.prefilledClientId || ''],
             }),
             payment: this.fb.group({
                 echeances: this.fb.array([]),
-                statut: [data?.invoice?.statut || 'EN_ATTENTE', Validators.required]
+                statut: [data?.invoice?.statut || 'EN_ATTENTE']
             })
         });
 
@@ -179,7 +182,7 @@ export class InvoiceFormDialogComponent implements OnInit {
     }
 
     get isBLMode(): boolean {
-        return !!this.detailsGroup.get('clientId')?.value;
+        return (this.data as any)?.isBL || !!this.detailsGroup.get('clientId')?.value;
     }
 
     ngOnInit() {
@@ -524,11 +527,18 @@ export class InvoiceFormDialogComponent implements OnInit {
     }
 
     onSubmit() {
-        if (this.form.valid) {
+        // En mode BL, on ne valide que la partie détails
+        const isValid = this.isBLMode ? this.detailsGroup.valid : this.form.valid;
+
+        if (isValid) {
             this.submitting = true;
             this.handleSupplierAndSave();
         } else {
-            this.form.markAllAsTouched();
+            this.detailsGroup.markAllAsTouched();
+            if (!this.isBLMode) {
+                this.paymentGroup.markAllAsTouched();
+            }
+            this.snackBar.open('Veuillez remplir tous les champs obligatoires (marqués par *)', 'Fermer', { duration: 3000 });
         }
     }
 
@@ -567,6 +577,7 @@ export class InvoiceFormDialogComponent implements OnInit {
             error: (err) => {
                 console.error('Error creating supplier', err);
                 this.submitting = false;
+                this.snackBar.open(this.getErrorMessage(err) || 'Erreur lors de la création du fournisseur', 'Fermer', { duration: 5000 });
             }
         });
     }
@@ -577,7 +588,14 @@ export class InvoiceFormDialogComponent implements OnInit {
 
         const invoiceData = {
             ...detailsData,
-            ...paymentData
+            ...paymentData,
+            fournisseurId: detailsData.fournisseurId || null,
+            centreId: detailsData.centreId || null,
+            clientId: detailsData.clientId || null,
+            dateEcheance: detailsData.dateEcheance || undefined,
+            montantHT: Number(detailsData.montantHT),
+            montantTVA: Number(detailsData.montantTVA),
+            montantTTC: Number(detailsData.montantTTC)
         };
 
         delete invoiceData.tauxTVA;
@@ -586,18 +604,57 @@ export class InvoiceFormDialogComponent implements OnInit {
             const id = this.route.snapshot.paramMap.get('id') || this.data?.invoice?.id;
             if (id) {
                 this.financeService.updateInvoice(id, invoiceData).subscribe({
-                    next: () => this.finalize(invoiceData),
-                    error: () => this.submitting = false
+                    next: () => {
+                        this.snackBar.open('Modifications enregistrées', 'Fermer', { duration: 3000 });
+                        this.finalize(invoiceData);
+                    },
+                    error: (err) => {
+                        this.submitting = false;
+                        const msg = this.getErrorMessage(err);
+                        this.snackBar.open(msg || 'Erreur lors de la mise à jour', 'Fermer', { duration: 7000 });
+                    }
                 });
             } else {
                 this.finalize(invoiceData);
             }
         } else {
             this.financeService.createInvoice(invoiceData).subscribe({
-                next: res => this.finalize(res),
-                error: () => this.submitting = false
+                next: res => {
+                    this.snackBar.open('Enregistrement réussi', 'Fermer', { duration: 3000 });
+                    this.finalize(res);
+                },
+                error: (err) => {
+                    this.submitting = false;
+                    const msg = this.getErrorMessage(err);
+                    this.snackBar.open(msg || 'Erreur lors de la création', 'Fermer', { duration: 7000 });
+                }
             });
         }
+    }
+
+    private getErrorMessage(err: any): string {
+        console.error('Error details:', err);
+        if (!err) return 'Une erreur inconnue est survenue';
+
+        let message = '';
+        if (typeof err.error === 'string') {
+            message = err.error;
+        } else if (err.error && typeof err.error.message === 'string') {
+            message = err.error.message;
+        } else if (err.error && Array.isArray(err.error.message)) {
+            message = err.error.message.join(', ');
+        } else if (err.message) {
+            message = err.message;
+        } else {
+            message = JSON.stringify(err);
+        }
+
+        // Translation for common database errors
+        if (message.includes('Unique constraint')) {
+            if (message.includes('numeroFacture')) return 'Ce numéro de BL existe déjà pour ce fournisseur.';
+        }
+
+        return message;
     }
 
     private finalize(result: any) {

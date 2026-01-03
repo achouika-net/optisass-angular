@@ -15,9 +15,10 @@ export class SupplierInvoicesController {
     findAll(
         @Query('fournisseurId') fournisseurId?: string,
         @Query('statut') statut?: string,
-        @Query('clientId') clientId?: string
+        @Query('clientId') clientId?: string,
+        @Query('centreId') centreId?: string
     ) {
-        return this.service.findAll(fournisseurId, statut, clientId);
+        return this.service.findAll(fournisseurId, statut, clientId, centreId);
     }
 
     @Get(':id')

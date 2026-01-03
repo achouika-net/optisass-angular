@@ -23,6 +23,7 @@ import { HttpClient } from '@angular/common/http';
 import { CentersService } from '../../../centers/services/centers.service';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 // Je préfère utiliser un service dédié ou fetch via http direct si je n'ai pas le service sous la main.
 // Pour rester simple, je vais faire un fetch via HttpClient ici ou supposer que CentersService est accessible.
@@ -44,7 +45,8 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
         MatIconModule,
         MatCardModule,
         MatProgressBarModule,
-        MatAutocompleteModule
+        MatAutocompleteModule,
+        MatSnackBarModule
     ],
     templateUrl: './expense-form-dialog.component.html',
     styles: [`
@@ -82,10 +84,11 @@ export class ExpenseFormDialogComponent implements OnInit {
         private router: Router,
         private zone: NgZone,
         private store: Store,
+        private snackBar: MatSnackBar,
         @Optional() public dialogRef: MatDialogRef<ExpenseFormDialogComponent>,
         @Optional() @Inject(MAT_DIALOG_DATA) public data: { expense?: Expense, viewMode?: boolean }
     ) {
-        this.isEditMode = !!(data?.expense);
+        this.isEditMode = !!(data?.expense?.id);
         this.isViewMode = !!(data?.viewMode);
 
         // Get current center from store
@@ -102,7 +105,9 @@ export class ExpenseFormDialogComponent implements OnInit {
             reference: [data?.expense?.reference || ''],
             banque: [data?.expense?.banque || ''],
             dateEcheance: [data?.expense?.dateEcheance || null],
-            fournisseurId: [data?.expense?.fournisseurId || '']
+            fournisseurId: [data?.expense?.fournisseurId || null],
+            factureFournisseurId: [(data?.expense as any)?.factureFournisseurId || null],
+            echeanceId: [(data?.expense as any)?.echeanceId || null]
         });
     }
 
@@ -232,26 +237,66 @@ export class ExpenseFormDialogComponent implements OnInit {
             error: (err) => {
                 console.error('Error creating supplier', err);
                 this.submitting = false; // Stop on error
+                this.snackBar.open(this.getErrorMessage(err) || 'Erreur lors de la création du fournisseur', 'Fermer', { duration: 5000 });
             }
         });
     }
 
     private saveExpense() {
-        const expenseData = this.form.value;
+        const formValue = this.form.value;
+        const expenseData = {
+            ...formValue,
+            montant: Number(formValue.montant),
+            fournisseurId: formValue.fournisseurId || null,
+            factureFournisseurId: formValue.factureFournisseurId || null,
+            echeanceId: formValue.echeanceId || null,
+            centreId: formValue.centreId || null
+        };
+
         if (this.isEditMode) {
             const id = this.route.snapshot.paramMap.get('id') || this.data?.expense?.id;
             if (id) {
                 this.financeService.updateExpense(id, expenseData).subscribe({
                     next: () => this.finalize(expenseData),
-                    error: () => this.submitting = false
+                    error: (err) => {
+                        this.submitting = false;
+                        const msg = this.getErrorMessage(err);
+                        this.snackBar.open(msg || 'Erreur lors de la mise à jour', 'Fermer', { duration: 7000 });
+                    }
+                });
+            } else {
+                // Fallback to create if no ID but isEditMode was somehow true
+                this.financeService.createExpense(expenseData).subscribe({
+                    next: res => this.finalize(res),
+                    error: (err) => {
+                        this.submitting = false;
+                        const msg = this.getErrorMessage(err);
+                        this.snackBar.open(msg || 'Erreur lors de la création', 'Fermer', { duration: 7000 });
+                    }
                 });
             }
         } else {
             this.financeService.createExpense(expenseData).subscribe({
                 next: res => this.finalize(res),
-                error: () => this.submitting = false
+                error: (err) => {
+                    this.submitting = false;
+                    const msg = this.getErrorMessage(err);
+                    this.snackBar.open(msg || 'Erreur lors de la création', 'Fermer', { duration: 7000 });
+                }
             });
         }
+    }
+
+    private getErrorMessage(err: any): string {
+        console.error('Error details:', err);
+        if (!err) return 'Une erreur inconnue est survenue';
+
+        if (typeof err.error === 'string') return err.error;
+        if (err.error && typeof err.error.message === 'string') return err.error.message;
+        if (err.error && Array.isArray(err.error.message)) return err.error.message.join(', ');
+        if (err.message) return err.message;
+
+        return JSON.stringify(err);
     }
 
     private finalize(result: any) {

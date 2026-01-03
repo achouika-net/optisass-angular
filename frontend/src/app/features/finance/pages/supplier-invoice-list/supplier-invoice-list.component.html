@@ -100,6 +100,10 @@
                             <mat-icon class="premium-menu-icon-edit">edit</mat-icon>
                             <span>Modifier</span>
                         </button>
+                        <button mat-menu-item (click)="openPaymentDialog(element)" *ngIf="element.statut !== 'PAYEE'">
+                            <mat-icon style="color: #2e7d32 !important;">payments</mat-icon>
+                            <span>Payer</span>
+                        </button>
                         <mat-divider></mat-divider>
                         <button mat-menu-item *ngIf="element.pieceJointeUrl">
                             <mat-icon style="color: #4b5563 !important;">download</mat-icon>

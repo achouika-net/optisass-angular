@@ -30,6 +30,7 @@ import { getLensSuggestion, Correction, FrameData, calculateLensPrice, determine
 import { getLensMaterials, getLensIndices } from '../../utils/lensDatabase';
 import { StockSearchDialogComponent } from '../../../stock-management/dialogs/stock-search-dialog/stock-search-dialog.component';
 import { ProductService } from '../../../stock-management/services/product.service';
+import { InvoiceFormDialogComponent } from '../../../finance/components/invoice-form-dialog/invoice-form-dialog.component';
 import { Product, ProductStatus } from '../../../../shared/interfaces/product.interface';
 import { forkJoin, timer, Subject } from 'rxjs';
 import { Store } from '@ngrx/store';
@@ -2112,6 +2113,32 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             error: (err) => {
                 const msg = err.error?.message || err.statusText || 'Erreur inconnue';
                 alert(`Erreur: ${msg}`);
+            }
+        });
+    }
+
+    createFacture(): void {
+        this.router.navigate(['/p/clients/factures/new'], {
+            queryParams: { clientId: this.clientId }
+        });
+    }
+
+    createSupplierInvoice(): void {
+        const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
+            width: '1200px',
+            maxWidth: '95vw',
+            maxHeight: '90vh',
+            data: {
+                invoice: null,
+                prefilledClientId: this.clientId,
+                isBL: true,
+                prefilledType: 'ACHAT_VERRE_OPTIQUE'
+            }
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result) {
+                this.snackBar.open('BL enregistré avec succès', 'OK', { duration: 3000 });
             }
         });
     }

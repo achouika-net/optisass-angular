@@ -64,11 +64,12 @@ export class FinanceService {
         return this.http.get<any>(`${this.apiUrl}/supplier-invoices/situation/${fournisseurId}`);
     }
 
-    getInvoices(filters?: { fournisseurId?: string; statut?: string; clientId?: string }): Observable<SupplierInvoice[]> {
+    getInvoices(filters?: { fournisseurId?: string; statut?: string; clientId?: string; centreId?: string }): Observable<SupplierInvoice[]> {
         let params = new HttpParams();
         if (filters?.fournisseurId) params = params.set('fournisseurId', filters.fournisseurId);
         if (filters?.statut) params = params.set('statut', filters.statut);
         if (filters?.clientId) params = params.set('clientId', filters.clientId);
+        if (filters?.centreId) params = params.set('centreId', filters.centreId);
 
         return this.http.get<SupplierInvoice[]>(`${this.apiUrl}/supplier-invoices`, { params });
     }

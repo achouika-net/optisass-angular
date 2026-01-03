@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 
@@ -10,9 +10,9 @@ export class ExpensesService {
         const { reference, dateEcheance, fournisseurId, banque, ...data } = createExpenseDto;
 
         return this.prisma.$transaction(async (tx) => {
-            let echeanceId: string | undefined = undefined;
+            let finalEcheanceId = createExpenseDto.echeanceId;
 
-            if ((data.modePaiement === 'CHEQUE' || data.modePaiement === 'LCN') && dateEcheance) {
+            if (!finalEcheanceId && (data.modePaiement === 'CHEQUE' || data.modePaiement === 'LCN') && dateEcheance) {
                 const echeance = await tx.echeancePaiement.create({
                     data: {
                         type: data.modePaiement,
@@ -23,7 +23,85 @@ export class ExpensesService {
                         banque: banque,
                     }
                 });
-                echeanceId = echeance.id;
+                finalEcheanceId = echeance.id;
+            }
+
+            // If we are paying an existing echeance or creating an immediate expense for a BL
+            const factureFournisseurId = (createExpenseDto as any).factureFournisseurId;
+
+            // NEW: If no echeanceId but linked to a BL, try to find a pending echeance or create one
+            if (!finalEcheanceId && factureFournisseurId && data.statut === 'VALIDEE') {
+                const pending = await tx.echeancePaiement.findFirst({
+                    where: {
+                        factureFournisseurId: factureFournisseurId,
+                        statut: 'EN_ATTENTE'
+                    }
+                });
+
+                if (pending) {
+                    finalEcheanceId = pending.id;
+                } else {
+                    // Create one linked to this payment
+                    const newEch = await tx.echeancePaiement.create({
+                        data: {
+                            type: data.modePaiement,
+                            reference: reference || 'Paiement',
+                            dateEcheance: new Date(),
+                            montant: data.montant,
+                            statut: 'ENCAISSE',
+                            banque: banque,
+                            factureFournisseurId: factureFournisseurId,
+                            dateEncaissement: new Date()
+                        }
+                    });
+                    finalEcheanceId = newEch.id;
+                }
+            }
+
+            if (finalEcheanceId && data.statut === 'VALIDEE') {
+                await tx.echeancePaiement.update({
+                    where: { id: finalEcheanceId },
+                    data: {
+                        statut: 'ENCAISSE',
+                        dateEncaissement: new Date(),
+                        // Ensure amount matches if it was a pending one being fulfilled
+                        montant: data.montant
+                    }
+                });
+            }
+
+            // Sync FactureFournisseur status if linked
+            if (factureFournisseurId) {
+                // Fetch AGAIN after possible echeance updates
+                const facture = await tx.factureFournisseur.findUnique({
+                    where: { id: factureFournisseurId },
+                    include: { echeances: true }
+                });
+
+                if (facture) {
+                    const activeEcheances = facture.echeances.filter(e => e.statut !== 'ANNULE');
+                    const totalPaidRaw = activeEcheances
+                        .filter(e => e.statut === 'ENCAISSE')
+                        .reduce((sum, e) => sum + e.montant, 0);
+
+                    const totalPaid = Math.round(totalPaidRaw * 100) / 100;
+                    const roundedTotalTTC = Math.round(facture.montantTTC * 100) / 100;
+
+                    let newStatus = 'EN_ATTENTE';
+                    if (totalPaid >= roundedTotalTTC && roundedTotalTTC > 0) {
+                        newStatus = 'PAYEE';
+                    } else if (totalPaid > 0) {
+                        newStatus = 'PARTIELLE';
+                    } else {
+                        const hasScheduled = activeEcheances.some(e => e.type !== 'ESPECES' && e.statut === 'EN_ATTENTE');
+                        newStatus = hasScheduled ? 'PARTIELLE' : 'EN_ATTENTE';
+                    }
+
+                    await tx.factureFournisseur.update({
+                        where: { id: factureFournisseurId },
+                        data: { statut: newStatus }
+                    });
+                }
             }
 
             // Create the expense
@@ -32,8 +110,10 @@ export class ExpensesService {
                     ...data,
                     reference,
                     dateEcheance: dateEcheance ? new Date(dateEcheance) : null,
-                    echeanceId: echeanceId,
-                    fournisseurId: fournisseurId || null
+                    echeanceId: finalEcheanceId,
+                    fournisseurId: fournisseurId || null,
+                    // If linked to echeance, we don't strictly need the direct link which is @unique
+                    factureFournisseurId: finalEcheanceId ? null : (factureFournisseurId || null)
                 },
             });
 
@@ -49,7 +129,7 @@ export class ExpensesService {
                 });
 
                 if (!expenseCaisse) {
-                    throw new Error('Aucune caisse dépenses active trouvée pour ce centre');
+                    throw new BadRequestException('Aucune caisse dépenses active trouvée pour ce centre. Veuillez ouvrir la caisse dépenses avant d’enregistrer un paiement.');
                 }
 
                 // Find the open session for this expense register
@@ -61,7 +141,7 @@ export class ExpensesService {
                 });
 
                 if (!openSession) {
-                    throw new Error('La caisse dépenses doit être ouverte pour enregistrer une dépense en espèces');
+                    throw new BadRequestException('La caisse dépenses doit être ouverte pour enregistrer une dépense en espèces. Veuillez ouvrir la caisse dans le menu Caisse Dépenses.');
                 }
 
                 // Calculate available cash in expense register

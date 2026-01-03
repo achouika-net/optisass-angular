@@ -44,6 +44,12 @@
                 *ngIf="isEditMode">
                 <mat-icon>save</mat-icon> {{ (ficheId && ficheId !== 'new') ? 'Mettre à jour' : 'Enregistrer' }}
             </button>
+
+            <!-- Always visible: Ajouter BL Verre -->
+            <button type="button" class="btn-secondary" (click)="createSupplierInvoice()"
+                style="border: 1px solid #673ab7; color: #673ab7;">
+                <mat-icon>add_shopping_cart</mat-icon> Ajouter BL
+            </button>
         </div>
     </div>
     <!-- Tabs Navigation -->

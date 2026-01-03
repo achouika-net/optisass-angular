@@ -22,7 +22,7 @@
             <mat-stepper #stepper linear="true" animationDuration="0ms">
                 <!-- ÉTAPE 1 : DÉTAILS DE LA FACTURE -->
                 <mat-step [stepControl]="detailsGroup">
-                    <ng-template matStepLabel>Détails de la Facture</ng-template>
+                    <ng-template matStepLabel>{{ isBLMode ? 'Détails du BL' : 'Détails de la Facture' }}</ng-template>
                     <div class="p-6">
                         <form [formGroup]="detailsGroup">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -45,7 +45,8 @@
                                 </mat-form-field>
 
                                 <mat-form-field appearance="outline">
-                                    <mat-label>Numéro de Facture *</mat-label>
+                                    <mat-label>{{ isBLMode ? 'Numéro de BL (ou Facture) *' : 'Numéro de Facture *'
+                                        }}</mat-label>
                                     <input matInput formControlName="numeroFacture">
                                     <mat-error
                                         *ngIf="detailsGroup.get('numeroFacture')?.hasError('required')">Requis</mat-error>
@@ -266,7 +267,8 @@
                                 <button mat-button (click)="onCancel()">{{ isViewMode ? 'Fermer' : 'Annuler' }}</button>
                                 <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="form.invalid"
                                     class="!px-10" *ngIf="!isViewMode">
-                                    <mat-icon>save</mat-icon> Enregistrer la facture
+                                    <mat-icon>save</mat-icon> {{ isBLMode ? 'Enregistrer le BL' : 'Enregistrer la
+                                    facture' }}
                                 </button>
                             </div>
                         </div>

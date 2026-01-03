@@ -50,4 +50,8 @@ export class CreateExpenseDto {
     @IsOptional()
     @IsUUID()
     fournisseurId?: string;
+
+    @IsOptional()
+    @IsUUID()
+    echeanceId?: string;
 }

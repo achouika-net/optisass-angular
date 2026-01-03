@@ -15,6 +15,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { FinanceService } from '../../services/finance.service';
 import { SupplierInvoice } from '../../models/finance.models';
 import { InvoiceFormDialogComponent } from '../../components/invoice-form-dialog/invoice-form-dialog.component';
+import { ExpenseFormDialogComponent } from '../../components/expense-form-dialog/expense-form-dialog.component';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
 
@@ -37,7 +38,8 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
   ],
   templateUrl: './supplier-invoice-list.component.html',
   styles: [`
-    .container { padding: 24px; max-width: 100%; }
+    :host { display: block; width: 100%; overflow-x: hidden; }
+    .container { padding: 24px; width: 95%; max-width: 1600px; margin: 0 auto; box-sizing: border-box; }
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
     table { width: 100%; }
     .mat-column-date { width: 100px; }
@@ -82,7 +84,8 @@ export class SupplierInvoiceListComponent implements OnInit {
 
   loadInvoices() {
     this.loading = true;
-    this.financeService.getInvoices().subscribe({
+    const center = this.currentCentre();
+    this.financeService.getInvoices({ centreId: center?.id }).subscribe({
       next: (data) => {
         this.invoices = data;
         this.loading = false;
@@ -100,12 +103,48 @@ export class SupplierInvoiceListComponent implements OnInit {
       width: '1200px',
       maxWidth: '95vw',
       maxHeight: '90vh', // Auto height with max limit
-      data: { invoice, viewMode }
+      data: { invoice, viewMode, isBL: true }
     });
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
         this.loadInvoices();
+      }
+    });
+  }
+
+  openPaymentDialog(invoice: SupplierInvoice) {
+    // If the invoice is already paid, notify the user
+    if (invoice.statut === 'PAYEE') {
+      this.snackBar.open('Cette facture est déjà payée', 'Fermer', { duration: 3000 });
+      return;
+    }
+
+    // Find first pending echeance
+    const pendingEcheance = invoice.echeances?.find(e => e.statut === 'EN_ATTENTE');
+
+    const dialogRef = this.dialog.open(ExpenseFormDialogComponent, {
+      width: '600px',
+      data: {
+        expense: {
+          fournisseurId: invoice.fournisseurId,
+          factureFournisseurId: invoice.id,
+          echeanceId: pendingEcheance?.id,
+          montant: invoice.montantTTC, // Default to full amount
+          categorie: invoice.type || 'ACHAT_STOCK',
+          description: `Paiement BL ${invoice.numeroFacture}`,
+          date: new Date().toISOString(),
+          modePaiement: 'ESPECES',
+          statut: 'VALIDEE',
+          centreId: invoice.centreId || this.currentCentre()?.id
+        }
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.loadInvoices();
+        this.snackBar.open('Paiement enregistré avec succès', 'Fermer', { duration: 3000 });
       }
     });
   }

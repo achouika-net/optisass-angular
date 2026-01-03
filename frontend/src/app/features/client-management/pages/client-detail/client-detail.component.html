@@ -37,6 +37,10 @@
                 <button mat-menu-item (click)="createFacture()">
                     <mat-icon class="text-blue-600">receipt</mat-icon> Créer Facture / Devis
                 </button>
+                <mat-divider></mat-divider>
+                <button mat-menu-item (click)="createSupplierInvoice()">
+                    <mat-icon style="color: #673ab7;">add_shopping_cart</mat-icon> Ajouter BL Verre
+                </button>
             </mat-menu>
 
             <button mat-icon-button [matMenuTriggerFor]="moreMenu">
@@ -204,6 +208,10 @@
                                                 <mat-icon style="color: #25D366;">message</mat-icon>
                                                 <span>Relance Contrôle</span>
                                             </button>
+                                            <button mat-menu-item (click)="createSupplierInvoice()">
+                                                <mat-icon style="color: #673ab7;">add_shopping_cart</mat-icon>
+                                                <span>Ajouter BL Verre</span>
+                                            </button>
                                             <mat-divider></mat-divider>
                                             <button mat-menu-item (click)="deleteFiche(fiche)">
                                                 <mat-icon class="premium-menu-icon-delete">delete</mat-icon>
@@ -281,6 +289,10 @@
                                         <mat-menu #menuBL="matMenu">
                                             <button mat-menu-item (click)="viewSupplierInvoice(inv)">
                                                 <mat-icon>visibility</mat-icon> Voir
+                                            </button>
+                                            <button mat-menu-item (click)="openPaymentDialog(inv)"
+                                                *ngIf="inv.statut !== 'PAYEE'">
+                                                <mat-icon color="primary">payments</mat-icon> Payer
                                             </button>
                                             <button mat-menu-item class="text-red-600"
                                                 (click)="deleteSupplierInvoice(inv)">

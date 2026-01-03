@@ -11,14 +11,24 @@ export class SupplierInvoicesService {
 
         const status = this.calculateInvoiceStatus(invoiceData.montantTTC, echeances || []);
 
+        // Si aucune échéance n'est fournie (ex: BL simple), on en crée une par défaut pour le total
+        const finalEcheances = (echeances && echeances.length > 0) ? echeances : [
+            {
+                type: 'ESPECES',
+                dateEcheance: invoiceData.dateEcheance || new Date().toISOString(),
+                montant: invoiceData.montantTTC,
+                statut: 'EN_ATTENTE'
+            }
+        ];
+
         return this.prisma.factureFournisseur.create({
             data: {
                 ...invoiceData,
                 statut: status,
                 centreId: invoiceData.centreId, // Explicitly map it
-                echeances: echeances ? {
-                    create: echeances
-                } : undefined
+                echeances: {
+                    create: finalEcheances
+                }
             },
             include: {
                 echeances: true,
@@ -27,11 +37,12 @@ export class SupplierInvoicesService {
         });
     }
 
-    async findAll(fournisseurId?: string, statut?: string, clientId?: string) {
+    async findAll(fournisseurId?: string, statut?: string, clientId?: string, centreId?: string) {
         const whereClause: any = {};
         if (fournisseurId) whereClause.fournisseurId = fournisseurId;
         if (statut) whereClause.statut = statut;
         if (clientId) whereClause.clientId = clientId;
+        if (centreId) whereClause.centreId = centreId;
 
         return this.prisma.factureFournisseur.findMany({
             where: whereClause,
@@ -92,18 +103,20 @@ export class SupplierInvoicesService {
         const activeEcheances = echeances.filter(e => e.statut !== 'ANNULE');
         if (activeEcheances.length === 0) return 'EN_ATTENTE';
 
-        const totalPaid = activeEcheances
+        const totalPaid = Math.round(activeEcheances
             .filter(e => e.statut === 'ENCAISSE')
-            .reduce((sum, e) => sum + (e.montant || 0), 0);
+            .reduce((sum, e) => sum + (e.montant || 0), 0) * 100) / 100;
 
-        if (totalPaid >= totalTTC && totalTTC > 0) {
+        const roundedTotalTTC = Math.round(totalTTC * 100) / 100;
+
+        if (totalPaid >= roundedTotalTTC && roundedTotalTTC > 0) {
             return 'PAYEE';
         }
 
-        // Even if not yet 'ENCAISSE', if there are payments, it's not 'EN_ATTENTE'
-        // If they cover the total, it's a good sign, we can call it 'PARTIELLE'
-        // effectively acknowledging the payment is recorded/scheduled.
-        return 'PARTIELLE';
+        if (totalPaid > 0) return 'PARTIELLE';
+
+        const hasScheduled = activeEcheances.some(e => e.type !== 'ESPECES' && e.statut === 'EN_ATTENTE');
+        return hasScheduled ? 'PARTIELLE' : 'EN_ATTENTE';
     }
 
     async remove(id: string) {
