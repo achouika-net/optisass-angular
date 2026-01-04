@@ -56,46 +56,42 @@
       <!-- Bouton collapse - Desktop -->
       @if (isDesktop()) {
         @if (isCollapsed()) {
-        <!-- Bouton au hover sur la bordure quand fermé -->
-        <button
-          mat-icon-button
-          class="absolute -right-5 z-[60] bg-white shadow-md rounded-full opacity-0 transition-opacity group-hover:opacity-100"
-          (click)="toggleSidenav(sidenav)"
-        >
-          <mat-icon>chevron_right</mat-icon>
-        </button>
+          <!-- Bouton au hover sur la bordure quand fermé -->
+          <button
+            matIconButton
+            class="absolute -right-5 z-[60] bg-white shadow-md rounded-full opacity-0 transition-opacity group-hover:opacity-100"
+            (click)="toggleSidenav(sidenav)"
+          >
+            <mat-icon>chevron_right</mat-icon>
+          </button>
         } @else {
-        <!-- Bouton normal à l'intérieur quand ouvert -->
-        <button
-          mat-icon-button
-          class="absolute right-2"
-          (click)="toggleSidenav(sidenav)"
-        >
-          <mat-icon>chevron_left</mat-icon>
-        </button>
+          <!-- Bouton normal à l'intérieur quand ouvert -->
+          <button matIconButton class="absolute right-2" (click)="toggleSidenav(sidenav)">
+            <mat-icon>chevron_left</mat-icon>
+          </button>
         }
       }
 
       <!-- Bouton collapse - Tablette -->
       @if (isTablet()) {
         @if (isCollapsed()) {
-        <!-- Bouton au hover sur la bordure quand fermé -->
-        <button
-          mat-icon-button
-          class="absolute -right-5 z-[60] bg-white shadow-md rounded-full opacity-0 transition-opacity group-hover:opacity-100"
-          (click)="toggleSidenav(sidenav)"
-        >
-          <mat-icon>chevron_right</mat-icon>
-        </button>
+          <!-- Bouton au hover sur la bordure quand fermé -->
+          <button
+            matIconButton
+            class="absolute -right-5 z-[60] bg-white shadow-md rounded-full opacity-0 transition-opacity group-hover:opacity-100"
+            (click)="toggleSidenav(sidenav)"
+          >
+            <mat-icon>chevron_right</mat-icon>
+          </button>
         } @else {
-        <!-- Bouton normal à l'intérieur au hover quand ouvert -->
-        <button
-          mat-icon-button
-          class="absolute right-2 opacity-0 transition-opacity group-hover:opacity-100"
-          (click)="toggleSidenav(sidenav)"
-        >
-          <mat-icon>chevron_left</mat-icon>
-        </button>
+          <!-- Bouton normal à l'intérieur au hover quand ouvert -->
+          <button
+            matIconButton
+            class="absolute right-2 opacity-0 transition-opacity group-hover:opacity-100"
+            (click)="toggleSidenav(sidenav)"
+          >
+            <mat-icon>chevron_left</mat-icon>
+          </button>
         }
       }
     </div>
@@ -112,43 +108,45 @@
       [style.padding-left]="isCollapsed() ? '8px' : '16px'"
       [style.right.px]="0"
     >
-      <div class="flex w-full items-center justify-between gap-2"
-           [style.marginLeft.px]="!isMobile() ? (isCollapsed() ? 64 : 260) : 0">
+      <div
+        class="flex w-full items-center justify-between gap-2"
+        [style.marginLeft.px]="!isMobile() ? (isCollapsed() ? 64 : 260) : 0"
+      >
         <!-- Bouton menu - Mobile uniquement -->
         @if (isMobile()) {
-        <button
-          mat-icon-button
-          class="flex items-center justify-center"
-          (click)="toggleSidenav(sidenav)"
-        >
-          <mat-icon>menu</mat-icon>
-        </button>
+          <button
+            matIconButton
+            class="flex items-center justify-center"
+            (click)="toggleSidenav(sidenav)"
+          >
+            <mat-icon>menu</mat-icon>
+          </button>
         }
-        <button class="m-6" mat-icon-button><mat-icon>search</mat-icon></button>
+        <button class="m-6" matIconButton><mat-icon>search</mat-icon></button>
         <div class="flex-1"></div>
         @if (currentTenant()?.name) {
-        <button
-          matButton="outlined"
-          class="mr-2 min-w-24 rounded-sm text-center border-on-primary font-semibold  md:min-w-56"
-          [matMenuTriggerFor]="centersMenu"
-          [disabled]="tenants().length === 1"
-        >
-          {{ currentTenant()?.name.toUpperCase() }}
-        </button>
-        <mat-menu #centersMenu="matMenu" class="min-w-56">
-          @for (tenant of tenants(); track tenant.id) {
           <button
-            class="text-center"
-            mat-menu-item
-            [disabled]="tenant.id === currentTenant().id"
-            (click)="selectTenant(tenant)"
+            matButton="outlined"
+            class="mr-2 min-w-24 rounded-sm text-center text-on-primary border-on-primary font-semibold md:min-w-56"
+            [matMenuTriggerFor]="centersMenu"
+            [disabled]="tenants().length === 1"
           >
-            <span class="font-semibold">
-              {{ tenant?.name.toUpperCase() }}
-            </span>
+            {{ currentTenant()?.name.toUpperCase() }}
           </button>
-          }
-        </mat-menu>
+          <mat-menu #centersMenu="matMenu" class="min-w-56">
+            @for (tenant of tenants(); track tenant.id) {
+              <button
+                class="text-center"
+                mat-menu-item
+                [disabled]="tenant.id === currentTenant().id"
+                (click)="selectTenant(tenant)"
+              >
+                <span class="font-semibold">
+                  {{ tenant?.name.toUpperCase() }}
+                </span>
+              </button>
+            }
+          </mat-menu>
         }
         <app-topbar-actions [isMobile]="isMobile()" />
       </div>

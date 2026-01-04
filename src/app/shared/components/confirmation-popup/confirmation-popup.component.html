@@ -5,7 +5,7 @@
   <p mat-dialog-title class="text-center text-xl">{{ data.message }}</p>
   <mat-dialog-actions>
     @if (data.confirm) {
-      <button mat-flat-button class="primary" [mat-dialog-close]="true">
+      <button matButton="filled" class="primary" [mat-dialog-close]="true">
         {{ data.confirm }}
       </button>
     }

@@ -8,44 +8,25 @@
     </h1>
 
     <!-- Texte -->
-    <p
-      class="mb-6 text-3xl font-medium tracking-wide text-gray-600 uppercase sm:text-4xl"
-    >
+    <p class="mb-6 text-3xl font-medium tracking-wide text-primary uppercase sm:text-4xl">
       {{ message | translate }}
     </p>
 
     <!-- Actions -->
-    <div
-      class="xs:flex-row xs:gap-4 flex flex-col items-center justify-center gap-2"
-    >
+    <div class="xs:flex-row xs:gap-4 flex flex-col items-center justify-center gap-2">
       @if (!isAuthenticated()) {
-        <button
-          mat-raised-button
-          color="primary"
-          (click)="goToLogin()"
-          class="w-full sm:w-auto"
-        >
-          <mat-icon class="mr-2" fontIcon="home"></mat-icon>
+        <button matButton="filled" (click)="goToLogin()" class="primary w-full sm:w-auto">
+          <mat-icon class="mr-2">home</mat-icon>
           {{ 'authentication.goToLogin' | translate }}
         </button>
       }
       @if (isAuthenticated()) {
-        <button
-          mat-raised-button
-          color="primary"
-          [routerLink]="['/p']"
-          class="w-full sm:w-auto"
-        >
-          <mat-icon class="mr-2" fontIcon="home"></mat-icon>
+        <button matButton="filled" [routerLink]="['/p']" class="primary w-full sm:w-auto">
+          <mat-icon class="mr-2">home</mat-icon>
           {{ 'authentication.goToHome' | translate }}
         </button>
-        <button
-          mat-raised-button
-          color="primary"
-          (click)="logout()"
-          class="w-full sm:w-auto"
-        >
-          <mat-icon class="mr-2" fontIcon="logout"></mat-icon>
+        <button matButton="outlined" (click)="logout()" class="primary w-full sm:w-auto">
+          <mat-icon class="mr-2">logout</mat-icon>
           {{ 'authentication.logout' | translate }}
         </button>
       }

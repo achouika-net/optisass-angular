@@ -1,10 +1,9 @@
 import { Component, input, ChangeDetectionStrategy } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import {NgOptimizedImage} from '@angular/common';
+import { NgOptimizedImage } from '@angular/common';
 
 @Component({
   selector: 'app-avatar',
-  standalone: true,
   imports: [MatIconModule, NgOptimizedImage],
   templateUrl: './avatar.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
