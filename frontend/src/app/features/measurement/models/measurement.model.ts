@@ -34,6 +34,8 @@ export interface Measurement {
     edMm?: number; // Effective diameter (max)
     edLeftMm?: number;
     edRightMm?: number;
+    diagonalMm?: number; // [NEW] Diagonal diameter measurement
+    diagonalPoints?: { p1: Point; p2: Point }; // [NEW] Points for manual diagonal tracing
     vertexDistanceMm?: number;
     pantoscopicTiltDeg?: number;
     wrapDeg?: number;

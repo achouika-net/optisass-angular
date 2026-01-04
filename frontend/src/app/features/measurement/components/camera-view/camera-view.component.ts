@@ -51,6 +51,12 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
     isDraggingPupilLeft = false;
     isDraggingPupilRight = false;
 
+    // Diagonal Measurement Tool
+    diagonalP1: Point = { x: 0, y: 0 };
+    diagonalP2: Point = { x: 0, y: 0 };
+    isDraggingDiagP1 = false;
+    isDraggingDiagP2 = false;
+
     // Frame Calibration (Adjustable Vertical Lines)
     frameLeftOffset: number = 0;
     frameRightOffset: number = 0;
@@ -63,6 +69,7 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
     capturedImage: HTMLImageElement | null = null;
     capturedPupils: { left: Point; right: Point } | null = null;
     capturedLandmarks: Point[] = [];
+    private captureFrameRequest?: number;
 
     private smootherLeft = new ExpSmoother(0.5); // Increased from 0.35
     private smootherRight = new ExpSmoother(0.5); // Increased from 0.35
@@ -167,10 +174,22 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         } else if (Math.abs(canvasY - this.frameBottomRightY) < PROXIMITY_THRESHOLD) {
             this.isDraggingRight = true;
         }
+
+        // 5. Check Diagonal Points (If Captured)
+        if (this.isCaptured) {
+            if (Math.hypot(canvasX - this.diagonalP1.x, canvasY - this.diagonalP1.y) < PROXIMITY_THRESHOLD) {
+                this.isDraggingDiagP1 = true;
+                return;
+            }
+            if (Math.hypot(canvasX - this.diagonalP2.x, canvasY - this.diagonalP2.y) < PROXIMITY_THRESHOLD) {
+                this.isDraggingDiagP2 = true;
+                return;
+            }
+        }
     }
 
     onMouseMove(event: MouseEvent): void {
-        if (!this.isDraggingLeft && !this.isDraggingRight && !this.isDraggingFrameLeft && !this.isDraggingFrameRight && !this.isDraggingFrameTop && !this.isDraggingFrameBottom && !this.isDraggingPupilLeft && !this.isDraggingPupilRight) return;
+        if (!this.isDraggingLeft && !this.isDraggingRight && !this.isDraggingFrameLeft && !this.isDraggingFrameRight && !this.isDraggingFrameTop && !this.isDraggingFrameBottom && !this.isDraggingPupilLeft && !this.isDraggingPupilRight && !this.isDraggingDiagP1 && !this.isDraggingDiagP2) return;
 
         const rect = this.overlayCanvas.nativeElement.getBoundingClientRect();
         const x = event.clientX - rect.left;
@@ -196,6 +215,14 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         }
         if (this.isDraggingFrameBottom) {
             this.frameBottomY = canvasY;
+        }
+
+        // Diagonal Dragging
+        if (this.isDraggingDiagP1) {
+            this.diagonalP1 = { x: canvasX, y: canvasY };
+        }
+        if (this.isDraggingDiagP2) {
+            this.diagonalP2 = { x: canvasX, y: canvasY };
         }
 
         // Pupil Dragging (Manual Correction)
@@ -246,6 +273,8 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         this.isDraggingFrameBottom = false;
         this.isDraggingPupilLeft = false;
         this.isDraggingPupilRight = false;
+        this.isDraggingDiagP1 = false;
+        this.isDraggingDiagP2 = false;
     }
 
     async ngAfterViewInit(): Promise<void> {
@@ -332,13 +361,11 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
                     // Draw overlay
                     this.drawOverlay(result.pupils);
 
-                    // Calculate measurement if calibrated
-                    if (this.pixelsPerMm) {
-                        const measurement = this.calculateMeasurement(result.pupils);
-                        this.latestMeasurement = measurement;
-                        this.measurementChange.emit(measurement);
-                        this.cdr.markForCheck();
-                    }
+                    // Calculate measurement (always emit, even if empty/uncalibrated)
+                    const measurement = this.calculateMeasurement(result.pupils);
+                    this.latestMeasurement = measurement;
+                    this.measurementChange.emit(measurement);
+                    this.cdr.markForCheck();
                 }
             });
 
@@ -353,38 +380,56 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
      * Capture the current frame and freeze for editing
      */
     capture(): void {
-        if (!this.videoElement || !this.latestMeasurement || !this.latestMeasurement.pupils) return;
+        const video = this.videoElement?.nativeElement;
+        if (!video) return;
 
-        const video = this.videoElement.nativeElement;
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-
         const ctx = canvas.getContext('2d');
-        if (ctx) {
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        if (!ctx) return;
 
-            this.capturedImage = new Image();
-            const dataUrl = canvas.toDataURL('image/png');
-            this.capturedImage.src = dataUrl;
-            this.capturedPupils = this.latestMeasurement.pupils;
-            // Deep copy landmarks to prevent reference updates
-            this.capturedLandmarks = [...this.currentLandmarks];
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        this.capturedImage = new Image();
+        this.capturedImage.src = canvas.toDataURL('image/png');
 
-            // Assign image data to measurement for returning to parent
-            if (this.latestMeasurement) {
-                this.latestMeasurement.imageDataUrl = dataUrl;
-            }
+        // State updates
+        this.isCaptured = true;
 
-            this.isCaptured = true;
-            this.isDraggingFrameLeft = false;
-            this.isDraggingFrameRight = false;
-
-            console.log('Image Captured');
-
-            // Force a redraw with static data
-            this.drawOverlay(this.capturedPupils);
+        // Ensure pupils are captured
+        if (this.latestMeasurement?.pupils) {
+            this.capturedPupils = JSON.parse(JSON.stringify(this.latestMeasurement.pupils));
+        } else {
+            // Absolute fallback center-screen
+            this.capturedPupils = {
+                left: { x: canvas.width * 0.4, y: canvas.height * 0.4 },
+                right: { x: canvas.width * 0.6, y: canvas.height * 0.4 }
+            };
         }
+        this.capturedLandmarks = this.currentLandmarks.length > 0 ? [...this.currentLandmarks] : [];
+
+        // Force diagonal points to be visible in center
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        this.diagonalP1 = { x: centerX - 100, y: centerY - 50 };
+        this.diagonalP2 = { x: centerX + 100, y: centerY + 50 };
+
+        console.log('Capture active - starting nuclear redraw loop');
+        this.startCaptureRedrawLoop();
+        this.cdr.detectChanges();
+    }
+
+    private startCaptureRedrawLoop(): void {
+        if (this.captureFrameRequest) cancelAnimationFrame(this.captureFrameRequest);
+
+        const loop = () => {
+            if (!this.isCaptured) return;
+            if (this.capturedPupils) {
+                this.drawOverlay(this.capturedPupils);
+            }
+            this.captureFrameRequest = requestAnimationFrame(loop);
+        };
+        this.captureFrameRequest = requestAnimationFrame(loop);
     }
 
     /**
@@ -480,327 +525,451 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             pupils.right.x - pupils.left.x,
             pupils.right.y - pupils.left.y
         );
-        const pdMm = this.calibrationService.pxToMm(pdPx, this.pixelsPerMm!);
+        const pdMm = this.safePxToMm(pdPx);
 
         // 3. Calculate Half-PDs from Frame Center
         // We project pupils onto the horizontal axis of the frame to measure horizontal distance from center
         const pdLeftPx = Math.abs(pupils.left.x - frameCenterX);
         const pdRightPx = Math.abs(pupils.right.x - frameCenterX);
 
-        const pdLeftMm = this.calibrationService.pxToMm(pdLeftPx, this.pixelsPerMm!);
-        const pdRightMm = this.calibrationService.pxToMm(pdRightPx, this.pixelsPerMm!);
+        const pdLeftMm = this.safePxToMm(pdLeftPx);
+        const pdRightMm = this.safePxToMm(pdRightPx);
 
         // Height Calculation
         const heightLeftPx = Math.max(0, this.frameBottomLeftY - pupils.left.y);
         const heightRightPx = Math.max(0, this.frameBottomRightY - pupils.right.y);
 
-        const heightLeftMm = this.calibrationService.pxToMm(heightLeftPx, this.pixelsPerMm!);
-        const heightRightMm = this.calibrationService.pxToMm(heightRightPx, this.pixelsPerMm!);
+        const heightLeftMm = this.safePxToMm(heightLeftPx);
+        const heightRightMm = this.safePxToMm(heightRightPx);
 
         // Frame Height Calculation (Red Lines)
         let frameHeightMm = 0;
         if (this.frameTopY > 0 && this.frameBottomY > 0) {
             const hPx = Math.abs(this.frameBottomY - this.frameTopY);
-            frameHeightMm = this.calibrationService.pxToMm(hPx, this.pixelsPerMm!);
+            frameHeightMm = this.safePxToMm(hPx);
         }
 
-        // --- OPTICIAN'S EFFECTIVE DIAMETER (ED) CALCULATION (Formal Lab Method) ---
-        // 1. Grand Diamètre (GD) = Diagonale de la forme √(A² + B²)
-        // A = caliber, B = frameHeightMm
-        const GD = Math.sqrt(this.caliber ** 2 + (frameHeightMm || 0) ** 2);
 
-        // 2. Décentrement Horizontal (De) = |(A + DBL)/2 - PD_mono|
-        const frameCenterMm = (this.bridge + this.caliber) / 2;
-        const dhOD = Math.abs(frameCenterMm - pdRightMm);
-        const dhOG = Math.abs(frameCenterMm - pdLeftMm);
+        // --- MANUAL DIAGONAL MEASUREMENT (Must be calculated first) ---
+        let diagonalMm = 0;
+        if (this.diagonalP1.x !== 0 && this.diagonalP2.x !== 0) {
+            const diagPx = Math.hypot(
+                this.diagonalP2.x - this.diagonalP1.x,
+                this.diagonalP2.y - this.diagonalP1.y
+            );
 
-        // 3. Diamètre Utile (ED) = GD + 2 * |De|
-        const edRightMmValue = GD + (2 * dhOD);
-        const edLeftMmValue = GD + (2 * dhOG);
-        const edMm = Math.max(edRightMmValue, edLeftMmValue);
+            if (this.pixelsPerMm && this.pixelsPerMm > 0) {
+                diagonalMm = diagPx / this.pixelsPerMm;
+            }
+        }
+
+        // --- OPTICIAN'S EFFECTIVE DIAMETER (ED) CALCULATION (Lab Method from Image 2) ---
+        // Formula: ED = (Écart monture/boxing) - (Plus petit écart pupillaire × 2) + Plus grande diagonale
+
+        let edMm = 0;
+
+        // Ensure inputs are numbers (handle potential string inputs from HTML attributes)
+        const caliberNum = Number(this.caliber) || 0;
+        const bridgeNum = Number(this.bridge) || 0;
+
+        const usedCaliber = caliberNum > 0 ? caliberNum : 52;
+        const usedBridge = bridgeNum > 0 ? bridgeNum : 18;
+
+        // 1. Écart monture (boxing) = Frame width = caliber + bridge
+        const frameBoxingWidth = usedCaliber + usedBridge;
+
+        // 2. Plus petit écart pupillaire (smallest PD)
+        // We use the calculated PDs from pixels to ensure consistency with the current measurement
+        const pdRightVal = this.safePxToMm(pdRightPx);
+        const pdLeftVal = this.safePxToMm(pdLeftPx);
+        const minPD = Math.min(pdRightVal, pdLeftVal);
+
+        // 3. Plus grande diagonale = Use manual diagonal measurement if available, otherwise calculate
+        const largestDiagonal = diagonalMm > 0 ? diagonalMm : Math.sqrt(usedCaliber ** 2 + (frameHeightMm || 0) ** 2);
+
+        // 4. Calculate ED
+        // Correct Logic: FrameWidth - (2 * PD) equates to (2 * Decentration).
+        // Then we add the diagonal.
+        edMm = frameBoxingWidth - (minPD * 2) + largestDiagonal;
+
+        // Debug logging with type check
+        console.log('[ED CALC]', {
+            inputs: { caliber: this.caliber, bridge: this.bridge },
+            parsed: { usedCaliber, usedBridge },
+            frameBoxingWidth,
+            pdRightVal,
+            pdLeftVal,
+            minPD,
+            largestDiagonal,
+            diagonalMm,
+            edMm
+        });
 
         return {
-            pdMm,
-            pdLeftMm,
-            pdRightMm,
-            heightLeftMm,
-            heightRightMm,
-            frameHeightMm,
+            pdMm: this.safePxToMm(pdPx),
+            pdLeftMm: pdLeftVal,
+            pdRightMm: pdRightVal,
+            heightLeftMm: this.safePxToMm(heightLeftPx),
+            heightRightMm: this.safePxToMm(heightRightPx),
+            frameHeightMm: this.safePxToMm(this.frameTopY > 0 && this.frameBottomY > 0 ? Math.abs(this.frameBottomY - this.frameTopY) : 0),
             edMm,
-            edRightMm: edRightMmValue,
-            edLeftMm: edLeftMmValue,
+            edRightMm: edMm, // Same value for both eyes with new formula
+            edLeftMm: edMm,
+            diagonalMm,
+            diagonalPoints: { p1: this.diagonalP1, p2: this.diagonalP2 },
             pupils,
             timestamp: Date.now()
         };
     }
 
-    private drawOverlay(pupils: { left: Point; right: Point }): void {
-        if (!this.overlayCanvas) return;
+    private safePxToMm(px: number): number {
+        if (!this.pixelsPerMm || this.pixelsPerMm <= 0) return 0;
+        return px / this.pixelsPerMm;
+    }
 
-        const canvas = this.overlayCanvas.nativeElement;
+    private drawOverlay(pupils: { left: Point; right: Point }): void {
+        const canvas = this.overlayCanvas?.nativeElement;
+        if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
+        // --- NUCLEAR DEBUG: ALWAYS SHOW RED TOP-LEFT BOX TO PROVE RENDERING ---
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // 0. Draw Captured Image Background (if captured)
-        if (this.isCaptured && this.capturedImage) {
-            ctx.drawImage(this.capturedImage, 0, 0, canvas.width, canvas.height);
-        }
+        ctx.fillStyle = 'red';
+        ctx.fillRect(0, 0, 40, 40);
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 10px Arial';
+        ctx.fillText('LIVE', 5, 25);
 
         // Use Captured landmarks if frozen, otherwise live landmarks
-        const sourceLandmarks = this.isCaptured ? this.capturedLandmarks : this.currentLandmarks;
+        let sourceLandmarks: any[] | null = null; // Declare here to be accessible outside try/catch if needed
 
-        // 1. Draw Frame Guides (ALWAYS VISIBLE for verification)
-        if (sourceLandmarks && sourceLandmarks.length > 454) {
-            const leftTempleX = sourceLandmarks[234].x + this.frameLeftOffset;
-            const leftTempleY = sourceLandmarks[234].y;
+        try {
+            sourceLandmarks = this.isCaptured ? this.capturedLandmarks : this.currentLandmarks;
 
-            const rightTempleX = sourceLandmarks[454].x + this.frameRightOffset;
-            const rightTempleY = sourceLandmarks[454].y;
-
-            const frameCenterX = (leftTempleX + rightTempleX) / 2;
-
-            // --- FRAME EXTREMITIES (Adjustable Vertical Lines) ---
-
-            // Left Limit
-            ctx.strokeStyle = this.isDraggingFrameLeft ? 'rgba(255, 200, 0, 1)' : 'rgba(255, 140, 0, 0.9)';
-            ctx.lineWidth = this.isDraggingFrameLeft ? 3 : 2;
-            ctx.beginPath();
-            ctx.moveTo(leftTempleX, 0);
-            ctx.lineTo(leftTempleX, canvas.height);
-            ctx.stroke();
-
-            // Right Limit
-            ctx.strokeStyle = this.isDraggingFrameRight ? 'rgba(255, 200, 0, 1)' : 'rgba(255, 140, 0, 0.9)';
-            ctx.lineWidth = this.isDraggingFrameRight ? 3 : 2;
-            ctx.beginPath();
-            ctx.moveTo(rightTempleX, 0);
-            ctx.lineTo(rightTempleX, canvas.height);
-            ctx.stroke();
-
-            // Points
-            ctx.fillStyle = 'rgba(255, 140, 0, 1)';
-            ctx.beginPath();
-            ctx.arc(leftTempleX, leftTempleY, 5, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(rightTempleX, rightTempleY, 5, 0, Math.PI * 2);
-            ctx.fill();
-
-            // --- FRAME CENTER ---
-            ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)'; // Cyan
-            ctx.setLineDash([10, 5]);
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(frameCenterX, 0);
-            ctx.lineTo(frameCenterX, canvas.height);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            ctx.fillStyle = 'rgba(0, 255, 255, 0.8)';
-            ctx.fillText('Axe Central', frameCenterX + 5, 20);
-        }
-
-        // Draw pupils
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.9)'; // Brighter green
-        ctx.beginPath();
-        ctx.arc(pupils.left.x, pupils.left.y, 2, 0, Math.PI * 2); // Reduced size
-        // Draw pupils
-        // Left
-        ctx.fillStyle = this.isDraggingPupilLeft ? '#ffff00' : 'rgba(0, 255, 0, 1)'; // Solid green for precision
-        const rL = this.isDraggingPupilLeft ? 4 : 1.5; // Slightly smaller dot
-        ctx.beginPath();
-        ctx.arc(pupils.left.x, pupils.left.y, rL, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Right
-        ctx.fillStyle = this.isDraggingPupilRight ? '#ffff00' : 'rgba(0, 255, 0, 1)';
-        const rR = this.isDraggingPupilRight ? 4 : 1.5;
-        ctx.beginPath();
-        ctx.arc(pupils.right.x, pupils.right.y, rR, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Draw line between pupils
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.setLineDash([5, 5]);
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(pupils.left.x, pupils.left.y);
-        ctx.lineTo(pupils.right.x, pupils.right.y);
-        ctx.stroke();
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // --- DRAW RED FRAME HEIGHT LINES (ONLY IF CAPTURED) ---
-        if (this.isCaptured) {
-            if (this.frameTopY > 0) {
-                ctx.strokeStyle = '#FF0000';
-                ctx.lineWidth = 2; // Bold red
-                ctx.beginPath();
-                ctx.moveTo(0, this.frameTopY);
-                ctx.lineTo(canvas.width, this.frameTopY);
-                ctx.stroke();
-
-                // Draw small handle/label
-                ctx.fillStyle = '#FF0000';
-                ctx.fillText('Haut Verre', 10, this.frameTopY - 5);
+            // 0. Background
+            if (this.isCaptured && this.capturedImage) {
+                ctx.drawImage(this.capturedImage, 0, 0, canvas.width, canvas.height);
             }
 
-            if (this.frameBottomY > 0) {
-                ctx.strokeStyle = '#FF0000';
-                ctx.lineWidth = 2; // Bold red
+            // 1. Draw Frame Guides (ALWAYS VISIBLE for verification)
+            if (sourceLandmarks && sourceLandmarks.length > 454) {
+                const leftTempleX = sourceLandmarks[234].x + this.frameLeftOffset;
+                const leftTempleY = sourceLandmarks[234].y;
+
+                const rightTempleX = sourceLandmarks[454].x + this.frameRightOffset;
+                const rightTempleY = sourceLandmarks[454].y;
+
+                const frameCenterX = (leftTempleX + rightTempleX) / 2;
+
+                // --- FRAME EXTREMITIES (Adjustable Vertical Lines) ---
+
+                // Left Limit
+                ctx.strokeStyle = this.isDraggingFrameLeft ? 'rgba(255, 200, 0, 1)' : 'rgba(255, 140, 0, 0.9)';
+                ctx.lineWidth = this.isDraggingFrameLeft ? 3 : 2;
                 ctx.beginPath();
-                ctx.moveTo(0, this.frameBottomY);
-                ctx.lineTo(canvas.width, this.frameBottomY);
+                ctx.moveTo(leftTempleX, 0);
+                ctx.lineTo(leftTempleX, canvas.height);
                 ctx.stroke();
 
-                // Draw small handle/label
-                ctx.fillStyle = '#FF0000';
-                ctx.fillText('Bas Verre', 10, this.frameBottomY + 15);
-            }
-        }
+                // Right Limit
+                ctx.strokeStyle = this.isDraggingFrameRight ? 'rgba(255, 200, 0, 1)' : 'rgba(255, 140, 0, 0.9)';
+                ctx.lineWidth = this.isDraggingFrameRight ? 3 : 2;
+                ctx.beginPath();
+                ctx.moveTo(rightTempleX, 0);
+                ctx.lineTo(rightTempleX, canvas.height);
+                ctx.stroke();
 
-        // DRAW HEIGHT LINES (Bottom of frame)
-        // Left Eye Height Line
-        if (this.frameBottomLeftY > 0) {
-            ctx.fillStyle = this.isDraggingLeft ? 'rgba(255, 255, 0, 0.8)' : 'rgba(0, 200, 255, 0.8)';
-            ctx.fillRect(pupils.left.x - 40, this.frameBottomLeftY, 80, 2);
-            // Connect pupil to line
-            ctx.strokeStyle = 'rgba(0, 200, 255, 0.5)';
+                // Points
+                ctx.fillStyle = 'rgba(255, 140, 0, 1)';
+                ctx.beginPath();
+                ctx.arc(leftTempleX, leftTempleY, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(rightTempleX, rightTempleY, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // --- FRAME CENTER ---
+                ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)'; // Cyan
+                ctx.setLineDash([10, 5]);
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(frameCenterX, 0);
+                ctx.lineTo(frameCenterX, canvas.height);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                ctx.fillStyle = 'rgba(0, 255, 255, 0.8)';
+                ctx.fillText('Axe Central', frameCenterX + 5, 20);
+            }
+
+            // Draw pupils
+            // Left
+            ctx.fillStyle = this.isDraggingPupilLeft ? '#ffff00' : 'rgba(0, 255, 0, 1)';
+            const rL = this.isDraggingPupilLeft ? 5 : 2;
+            ctx.beginPath();
+            ctx.arc(pupils.left.x, pupils.left.y, rL, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Right
+            ctx.fillStyle = this.isDraggingPupilRight ? '#ffff00' : 'rgba(0, 255, 0, 1)';
+            const rR = this.isDraggingPupilRight ? 5 : 2;
+            ctx.beginPath();
+            ctx.arc(pupils.right.x, pupils.right.y, rR, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw line between pupils
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.setLineDash([5, 5]);
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(pupils.left.x, pupils.left.y);
-            ctx.lineTo(pupils.left.x, this.frameBottomLeftY);
+            ctx.lineTo(pupils.right.x, pupils.right.y);
             ctx.stroke();
-
-            // Label
-            if (this.latestMeasurement?.heightLeftMm) {
-                ctx.fillStyle = '#fff';
-                ctx.font = '12px Arial';
-                ctx.fillText(`H: ${this.latestMeasurement.heightLeftMm.toFixed(1)}mm`, pupils.left.x + 10, (pupils.left.y + this.frameBottomLeftY) / 2);
-            }
-        }
-
-        // Right Eye Height Line
-        if (this.frameBottomRightY > 0) {
-            ctx.fillStyle = this.isDraggingRight ? 'rgba(255, 255, 0, 0.8)' : 'rgba(0, 200, 255, 0.8)';
-            ctx.fillRect(pupils.right.x - 40, this.frameBottomRightY, 80, 2);
-            // Connect pupil to line
-            ctx.strokeStyle = 'rgba(0, 200, 255, 0.5)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(pupils.right.x, pupils.right.y);
-            ctx.lineTo(pupils.right.x, this.frameBottomRightY);
-            ctx.stroke();
-
-            // Label
-            if (this.latestMeasurement?.heightRightMm) {
-                ctx.fillStyle = '#fff';
-                ctx.font = '12px Arial';
-                ctx.fillText(`H: ${this.latestMeasurement.heightRightMm.toFixed(1)}mm`, pupils.right.x + 10, (pupils.right.y + this.frameBottomRightY) / 2);
-            }
-        }
-
-        // --- DRAW EFFECTIVE DIAMETER (FOR CAPTURED MODE) ---
-        if (this.isCaptured && this.latestMeasurement?.edMm && this.pixelsPerMm) {
-            const m = this.latestMeasurement;
-            const pxMm = this.pixelsPerMm;
-
-            // 1. Grand Diamètre (GD)
-            const GD = Math.sqrt(this.caliber ** 2 + (m.frameHeightMm || 0) ** 2);
-            const frameCenterMm = (this.bridge + this.caliber) / 2;
-
-            // 2. individual diameters for visualization: ED = GD + 2*De
-            // OD
-            const dhOD = Math.abs(frameCenterMm - m.pdRightMm);
-            const rODpx = ((GD + 2 * dhOD) / 2) * pxMm;
-
-            // OG
-            const dhOG = Math.abs(frameCenterMm - m.pdLeftMm);
-            const rOGpx = ((GD + 2 * dhOG) / 2) * pxMm;
-
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-            ctx.setLineDash([2, 4]);
-            ctx.lineWidth = 1;
-
-            // OD Circle
-            ctx.beginPath();
-            ctx.arc(pupils.right.x, pupils.right.y, rODpx, 0, Math.PI * 2);
-            ctx.stroke();
-
-            // OG Circle
-            ctx.beginPath();
-            ctx.arc(pupils.left.x, pupils.left.y, rOGpx, 0, Math.PI * 2);
-            ctx.stroke();
-
             ctx.setLineDash([]);
-        }
 
-        // Draw measurement text panel (Professional Lab Version)
-        if (this.latestMeasurement) {
-            const m = this.latestMeasurement;
-            const GD = Math.sqrt(this.caliber ** 2 + (m.frameHeightMm || 0) ** 2);
-            const frameCenterMm = (this.bridge + this.caliber) / 2;
-            const deOD = Math.abs(frameCenterMm - (m.pdRightMm || 0));
-            const deOG = Math.abs(frameCenterMm - (m.pdLeftMm || 0));
+            // --- DRAW RED FRAME HEIGHT LINES (ONLY IF CAPTURED) ---
+            if (this.isCaptured) {
+                if (this.frameTopY > 0) {
+                    ctx.strokeStyle = '#FF0000';
+                    ctx.lineWidth = 2; // Bold red
+                    ctx.beginPath();
+                    ctx.moveTo(0, this.frameTopY);
+                    ctx.lineTo(canvas.width, this.frameTopY);
+                    ctx.stroke();
 
-            // Background Card
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'; // Modern Slate
-            ctx.beginPath();
-            if ((ctx as any).roundRect) {
-                (ctx as any).roundRect(10, 10, 260, 210, 12);
-            } else {
-                ctx.rect(10, 10, 260, 210);
+                    // Draw small handle/label
+                    ctx.fillStyle = '#FF0000';
+                    ctx.fillText('Haut Verre', 10, this.frameTopY - 5);
+                }
+
+                if (this.frameBottomY > 0) {
+                    ctx.strokeStyle = '#FF0000';
+                    ctx.lineWidth = 2; // Bold red
+                    ctx.beginPath();
+                    ctx.moveTo(0, this.frameBottomY);
+                    ctx.lineTo(canvas.width, this.frameBottomY);
+                    ctx.stroke();
+
+                    // Draw small handle/label
+                    ctx.fillStyle = '#FF0000';
+                    ctx.fillText('Bas Verre', 10, this.frameBottomY + 15);
+                }
             }
-            ctx.fill();
 
-            // Header: Lab Method
-            ctx.fillStyle = '#38bdf8'; // Sky Blue
-            ctx.font = 'bold 10px Inter, sans-serif';
-            ctx.fillText('MÉTHODE LABORATOIRE (LAB)', 25, 30);
+            // DRAW HEIGHT LINES (Bottom of frame)
+            // Left Eye Height Line
+            if (this.frameBottomLeftY > 0) {
+                ctx.fillStyle = this.isDraggingLeft ? 'rgba(255, 255, 0, 0.8)' : 'rgba(0, 200, 255, 0.8)';
+                ctx.fillRect(pupils.left.x - 40, this.frameBottomLeftY, 80, 2);
+                // Connect pupil to line
+                ctx.strokeStyle = 'rgba(0, 200, 255, 0.5)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(pupils.left.x, pupils.left.y);
+                ctx.lineTo(pupils.left.x, this.frameBottomLeftY);
+                ctx.stroke();
 
-            // PD Total Section
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 18px Inter, sans-serif';
-            ctx.fillText(`PD Total: ${m.pdMm.toFixed(1)}mm`, 25, 55);
+                // Label
+                if (this.latestMeasurement?.heightLeftMm) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '12px Arial';
+                    ctx.fillText(`H: ${this.latestMeasurement.heightLeftMm.toFixed(1)}mm`, pupils.left.x + 10, (pupils.left.y + this.frameBottomLeftY) / 2);
+                }
+            }
 
-            ctx.font = '12px Inter, sans-serif';
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-            ctx.fillText(`Largeur Ref (Calibrage): ${this.frameWidthMm}mm`, 25, 75);
+            // Right Eye Height Line
+            if (this.frameBottomRightY > 0) {
+                ctx.fillStyle = this.isDraggingRight ? 'rgba(255, 255, 0, 0.8)' : 'rgba(0, 200, 255, 0.8)';
+                ctx.fillRect(pupils.right.x - 40, this.frameBottomRightY, 80, 2);
+                // Connect pupil to line
+                ctx.strokeStyle = 'rgba(0, 200, 255, 0.5)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(pupils.right.x, pupils.right.y);
+                ctx.lineTo(pupils.right.x, this.frameBottomRightY);
+                ctx.stroke();
 
-            // Separator
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-            ctx.beginPath();
-            ctx.moveTo(25, 85);
-            ctx.lineTo(245, 85);
-            ctx.stroke();
+                // Label
+                if (this.latestMeasurement?.heightRightMm) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '12px Arial';
+                    ctx.fillText(`H: ${this.latestMeasurement.heightRightMm.toFixed(1)}mm`, pupils.right.x + 10, (pupils.right.y + this.frameBottomRightY) / 2);
+                }
+            }
 
-            // Mono Mesures
-            ctx.font = 'bold 13px Inter, sans-serif';
-            ctx.fillStyle = '#fff';
-            ctx.fillText(`OD: ${m.pdRightMm.toFixed(1)} | H: ${m.heightRightMm?.toFixed(1) || '-'} mm`, 25, 105);
-            ctx.fillText(`OG: ${m.pdLeftMm.toFixed(1)} | H: ${m.heightLeftMm?.toFixed(1) || '-'} mm`, 25, 125);
+            // --- DRAW EFFECTIVE DIAMETER CIRCLES ---
+            if (this.isCaptured && this.latestMeasurement?.edMm && this.pixelsPerMm) {
+                const m = this.latestMeasurement;
+                const pxMm = this.pixelsPerMm;
 
-            // Technical details (Lab Metrics)
-            ctx.font = '11px Inter, sans-serif';
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-            ctx.fillText(`Grand Diamètre (GD): ${GD.toFixed(1)} mm`, 25, 150);
-            ctx.fillText(`Décentrement (De): OD ${deOD.toFixed(1)} / OG ${deOG.toFixed(1)} mm`, 25, 168);
+                // OD Circle
+                if (m.edRightMm) {
+                    const radiusPx = (m.edRightMm / 2) * pxMm;
+                    ctx.strokeStyle = 'rgba(74, 222, 128, 0.5)'; // Emerald
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.arc(pupils.right.x, pupils.right.y, radiusPx, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
 
-            // Final Result: Effective Diameter
-            ctx.fillStyle = '#4ade80'; // Emerald Green
-            ctx.font = 'bold 12px Inter, sans-serif';
-            ctx.fillText(`DIAMÈTRE UTILE (ED)`, 25, 192);
+                // OG Circle
+                if (m.edLeftMm) {
+                    const radiusPx = (m.edLeftMm / 2) * pxMm;
+                    ctx.strokeStyle = 'rgba(74, 222, 128, 0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.arc(pupils.left.x, pupils.left.y, radiusPx, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.setLineDash([]);
+            }
 
-            ctx.font = 'bold 20px Inter, sans-serif';
-            const edValue = m.edMm ? m.edMm.toFixed(1) : '--.-';
-            ctx.fillText(`Ø ${edValue} mm`, 150, 192);
+            // Draw measurement text panel (Professional Lab Version)
+            if (this.latestMeasurement) {
+                const m = this.latestMeasurement;
 
-            // Footer hint
-            ctx.font = 'italic 10px Arial';
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-            ctx.fillText('Ajustez les lignes pour le calibrage', 25, 212);
+                // Background Card
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'; // Modern Slate
+                ctx.beginPath();
+                if ((ctx as any).roundRect) {
+                    (ctx as any).roundRect(10, 10, 260, 230, 12); // Slightly taller
+                } else {
+                    ctx.rect(10, 10, 260, 230);
+                }
+                ctx.fill();
+
+                // Header: Lab Method
+                ctx.fillStyle = '#38bdf8'; // Sky Blue
+                ctx.font = 'bold 11px Inter, sans-serif';
+                ctx.fillText('MÉTHODE LABORATOIRE (LAB)', 25, 30);
+
+                // PD Total Section
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 20px Inter, sans-serif';
+                ctx.fillText(`PD Total: ${m.pdMm.toFixed(1)}mm`, 25, 55);
+
+                ctx.font = '11px Inter, sans-serif';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.fillText(`Largeur Ref (Calibrage): ${this.frameWidthMm}mm`, 25, 73);
+
+                // Separator
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.beginPath();
+                ctx.moveTo(25, 85);
+                ctx.lineTo(245, 85);
+                ctx.stroke();
+
+                // Mono Mesures
+                ctx.font = 'bold 14px Inter, sans-serif';
+                ctx.fillStyle = '#fff';
+                ctx.fillText(`OD: ${m.pdRightMm.toFixed(1)} | H: ${m.heightRightMm?.toFixed(1) || '-'} mm`, 25, 105);
+                ctx.fillText(`OG: ${m.pdLeftMm.toFixed(1)} | H: ${m.heightLeftMm?.toFixed(1) || '-'} mm`, 25, 125);
+
+                // Final Result: Effective Diameter
+                // Adjusted positions and sizes for better hierarchy
+                const labelX = 25;
+                const valueX = 160; // Aligned right column
+                let currentY = 160;
+
+                // 1. Diamètre Utile (Attributes)
+                ctx.fillStyle = '#4ade80'; // Emerald Green
+                ctx.font = 'bold 12px Inter, sans-serif';
+                ctx.fillText(`DIAMÈTRE UTILE (ED)`, labelX, currentY);
+
+                ctx.font = 'bold 16px Inter, sans-serif'; // Reduced size slightly to fit two lines if needed or condense
+                // Option: Show split if different
+                // Format: "OD: 60.3 | OG: 58.1"
+                const edR = m.edRightMm ? m.edRightMm.toFixed(1) : '-';
+                const edL = m.edLeftMm ? m.edLeftMm.toFixed(1) : '-';
+
+                // If strictly equal (rare with floats but possible if PDs are equal), show one.
+                // But per user request "calcule pour chaque oeil", showing both is safer.
+                ctx.fillText(`OD ${edR} | OG ${edL}`, 130, currentY);
+
+                currentY += 25;
+
+                // 2. Hauteur Verre
+                if (m.frameHeightMm) {
+                    ctx.fillStyle = '#FF0000'; // Red
+                    ctx.font = 'bold 12px Inter, sans-serif';
+                    ctx.fillText(`HAUTEUR VERRE`, labelX, currentY);
+
+                    ctx.font = 'bold 18px Inter, sans-serif';
+                    ctx.fillText(`${m.frameHeightMm.toFixed(1)} mm`, valueX, currentY);
+
+                    currentY += 25;
+                }
+
+                // 3. Grand Diamètre (Diagonal)
+                if (m.diagonalMm) {
+                    ctx.fillStyle = '#fff'; // White for readability
+                    ctx.font = 'bold 12px Inter, sans-serif';
+                    ctx.fillText(`GRAND DIAMÈTRE (Ø)`, labelX, currentY);
+
+                    ctx.font = 'bold 18px Inter, sans-serif';
+                    ctx.fillText(`Ø ${m.diagonalMm.toFixed(2)} mm`, valueX, currentY);
+                }
+            }
+
+            if (this.latestMeasurement) {
+                ctx.font = 'italic 10px Arial';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.fillText('Ajustez les lignes pour le calibrage', 25, 235);
+            }
+
+        } catch (err) {
+            console.error('Error drawing overlay:', err);
         }
+
+        // --- FINAL FAIL-SAFE: DRAW DIAGONAL ON TOP OF EVERYTHING ---
+        if (this.isCaptured && this.diagonalP1.x !== 0) {
+            this.drawDiagonalFailSafe(ctx);
+        }
+    }
+
+    private drawDiagonalFailSafe(ctx: CanvasRenderingContext2D): void {
+        if (!this.isCaptured) return;
+
+        ctx.save();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1.0;
+
+        // Draw Cross-hair for the whole screen if points are missing (safety)
+        if (this.diagonalP1.x === 0 || this.diagonalP2.x === 0) {
+            this.diagonalP1 = { x: 100, y: 100 };
+            this.diagonalP2 = { x: 300, y: 300 };
+        }
+
+        // Draw Main Line (Magenta, thinner)
+        ctx.strokeStyle = '#FF00FF';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(this.diagonalP1.x, this.diagonalP1.y);
+        ctx.lineTo(this.diagonalP2.x, this.diagonalP2.y);
+        ctx.stroke();
+
+        // Arrow heads (Pure White for extreme visibility)
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        const head = 20;
+        const angle = Math.atan2(this.diagonalP2.y - this.diagonalP1.y, this.diagonalP2.x - this.diagonalP1.x);
+
+        const drawHead = (x: number, y: number, a: number) => {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x - head * Math.cos(a - Math.PI / 6), y - head * Math.sin(a - Math.PI / 6));
+            ctx.moveTo(x, y);
+            ctx.lineTo(x - head * Math.cos(a + Math.PI / 6), y - head * Math.sin(a + Math.PI / 6));
+            ctx.stroke();
+        };
+        drawHead(this.diagonalP2.x, this.diagonalP2.y, angle);
+        drawHead(this.diagonalP1.x, this.diagonalP1.y, angle + Math.PI);
+
+        // No visible drag handles or label (removed for clean display)
+
+        ctx.restore();
     }
 }

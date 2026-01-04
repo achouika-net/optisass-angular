@@ -449,7 +449,13 @@ export class ProductFormComponent implements OnInit {
                     (product as any).categorieAccessoire = (product as any).categorie;
                 }
 
-                this.productForm.patchValue(product);
+                // Flatten specificData for form patching
+                const formValue = {
+                    ...product,
+                    ...(product.specificData || {})
+                };
+
+                this.productForm.patchValue(formValue);
                 this.calculatePrices();
             }
         });

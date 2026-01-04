@@ -600,6 +600,7 @@ export class ProductsService {
                 }
             }
 
+            // Create movement record for local reception
             return tx.mouvementStock.create({
                 data: {
                     type: 'RECEPTION',
@@ -608,7 +609,7 @@ export class ProductsService {
                     entrepotDestinationId: targetProduct.entrepotId,
                     prixAchatUnitaire: targetProduct.prixAchatHT,
                     prixVenteUnitaire: targetProduct.prixVenteTTC,
-                    motif: 'Réception',
+                    motif: `${sd.pendingIncoming.numeroTransfert || 'TRS-NEW'} - Réception`,
                     utilisateur: 'System'
                 }
             });
@@ -797,6 +798,7 @@ export class ProductsService {
                 }
 
                 // 4. Create movement record for source
+                const currentMotif = motif || 'Sortie manuelle';
                 await tx.mouvementStock.create({
                     data: {
                         type: movementType,
@@ -804,7 +806,7 @@ export class ProductsService {
                         produitId: id,
                         entrepotSourceId: product.entrepotId,
                         entrepotDestinationId: effectiveDestinationId || null,
-                        motif: motif || 'Sortie manuelle',
+                        motif: currentMotif,
                         utilisateur: utilisateur || 'System',
                         prixAchatUnitaire: product.prixAchatHT,
                         prixVenteUnitaire: product.prixVenteTTC
@@ -857,8 +859,8 @@ export class ProductsService {
                         const tsd = (targetProduct.specificData as any) || {};
                         const updatedTsd = {
                             ...tsd,
-                            numeroTransfert,
                             pendingIncoming: {
+                                numeroTransfert, // Standard field for both tabs
                                 sourceProductId: product.id,
                                 sourceWarehouseId: product.entrepotId,
                                 sourceCentreId: product.entrepot.centreId,
@@ -909,8 +911,22 @@ export class ProductsService {
                         });
                         console.log(`   ✅ [DESTOCK-VERIFY] Saved Source Product ${savedProduct.id}. pendingOutgoing length: ${(savedProduct.specificData as any)?.pendingOutgoing?.length}`);
 
-                        // Update movement record motif with TRS number
-                        effectiveMotif = `Transfert AUTO (${numeroTransfert})`;
+                        // Update movement record motif with TRS number for history
+                        const trsMotif = `${numeroTransfert} - Transfert AUTO`;
+
+                        // Update the sortie movement we just created to include the TRS number
+                        // (Alternative: wait and create both movements at once, but this is cleaner)
+                        await tx.mouvementStock.updateMany({
+                            where: {
+                                produitId: id,
+                                type: 'TRANSFERT_SORTIE',
+                                motif: currentMotif,
+                                createdAt: { gte: new Date(Date.now() - 5000) } // Safety: only our recent one
+                            },
+                            data: { motif: `${numeroTransfert} - ${currentMotif}` }
+                        });
+
+                        effectiveMotif = trsMotif;
                     } else {
                         // INSTANT TRANSFER (Same center or manual defective routing)
                         targetProduct = await tx.product.update({

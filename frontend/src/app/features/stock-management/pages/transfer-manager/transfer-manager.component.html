@@ -274,8 +274,9 @@
                     <ng-container matColumnDef="numero">
                         <th mat-header-cell *matHeaderCellDef> N° Transfert </th>
                         <td mat-cell *matCellDef="let m">
-                            <span class="font-mono text-xs font-bold text-blue-600">{{ m.motif?.split(' -
-                                ')[0]?.startsWith('TRS') ? m.motif.split(' - ')[0] : '-' }}</span>
+                            <span class="font-mono text-xs font-bold text-blue-600">
+                                {{ extractTransferNumber(m.motif) }}
+                            </span>
                         </td>
                     </ng-container>
 

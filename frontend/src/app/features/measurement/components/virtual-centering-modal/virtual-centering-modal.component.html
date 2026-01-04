@@ -30,7 +30,7 @@
     <button mat-button (click)="cancel()">Annuler</button>
 
     @if (!isCaptured) {
-    <button mat-raised-button color="primary" (click)="captureMeasurement()" [disabled]="!currentMeasurement">
+    <button mat-raised-button color="primary" (click)="captureMeasurement()">
         📷 Capturer
     </button>
     } @else {

@@ -22,3 +22,14 @@ Une fois le lancement terminé, vous pourrez accéder à :
 - La base de données PostgreSQL est incluse dans le Docker. Les données sont persistées dans un volume nommé `pgdata`.
 - Le backend génère automatiquement le client Prisma au démarrage du container.
 - Le frontend est configuré pour supporter le rechargement à chaud (Hot Reload) si vous modifiez vos fichiers locaux.
+
+## Gestion Git (Synchronisation)
+L'application est liée à deux dépôts GitHub. Pour synchroniser vos modifications sur les deux :
+1. Assurez-vous d'avoir fait vos `git commit`.
+2. Lancez le script de synchronisation :
+   ```bash
+   ./sync-repo.bat
+   ```
+   Ce script poussera vos modifications vers :
+   - `optisaas25` (https://github.com/optisaas25/optisaas-angular.git)
+   - `achouika` (https://github.com/achouika-net/optisass-angular.git)

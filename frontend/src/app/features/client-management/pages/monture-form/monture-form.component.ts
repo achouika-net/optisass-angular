@@ -1310,7 +1310,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 diametreEffectif: ['65/70'],
                 capturedImage: [null], // [NEW] Base64 image from centering tablet
                 remarques: [''],
-                hauteurVerre: [null] // [NEW] Total frame height (B-dimension) persisted
+                hauteurVerre: [null], // [NEW] Total frame height (B-dimension) persisted
+                diagonalMm: [null], // [NEW] Diagonal diameter measurement
+                diagonalPoints: [null] // [NEW] Points for manual diagonal tracing
             }),
             suggestions: [[]],
             equipements: this.fb.array([]),
@@ -3201,7 +3203,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                                 hauteurOG: measurement.heightLeftMm ? measurement.heightLeftMm.toFixed(1) : null,
                                 capturedImage: measurement.imageDataUrl || null,
                                 hauteurVerre: measurement.frameHeightMm ? measurement.frameHeightMm.toFixed(1) : null,
-                                diametreEffectif: `${measurement.edRightMm ? measurement.edRightMm.toFixed(0) : ''}/${measurement.edLeftMm ? measurement.edLeftMm.toFixed(0) : ''}`
+                                diametreEffectif: `${measurement.edRightMm ? measurement.edRightMm.toFixed(1) : ''}/${measurement.edLeftMm ? measurement.edLeftMm.toFixed(1) : ''}`,
+                                diagonalMm: measurement.diagonalMm ? parseFloat(measurement.diagonalMm.toFixed(2)) : null,
+                                diagonalPoints: measurement.diagonalPoints || null
                             },
                             // Sync Ecarts to Ordonnance tab as well
                             ordonnance: {
@@ -3229,6 +3233,34 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 console.error('Failed to load virtual centering modal:', error);
                 alert('Erreur lors du chargement du module de centrage virtuel');
             });
+    }
+
+    /**
+     * Helper to calculate recommended ordering diameter (ED + 2mm)
+     * Handles "60.3" and "60.3/58.1" formats
+     */
+    getRecommendedDiameter(): string {
+        const val = this.ficheForm.get('montage.diametreEffectif')?.value;
+        if (!val) return '';
+
+        // Handle split values (OD/OG)
+        if (typeof val === 'string' && val.includes('/')) {
+            const parts = val.split('/');
+            const od = parseFloat(parts[0]);
+            const og = parseFloat(parts[1]);
+
+            if (!isNaN(od) && !isNaN(og)) {
+                return `Diamètre utile est ${val} mm. On Commande ${(od + 2).toFixed(1)}/${(og + 2).toFixed(1)} mm (+2mm)`;
+            }
+        }
+
+        // Handle single value
+        const num = parseFloat(val);
+        if (!isNaN(num)) {
+            return `Diamètre utile est ${num.toFixed(1)} mm. On Commande ${(num + 2).toFixed(1)} mm (+2mm)`;
+        }
+
+        return '';
     }
 
     /**
@@ -3322,6 +3354,48 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             ctx.font = 'italic 10px monospace';
             ctx.fillStyle = 'rgba(15, 23, 42, 0.4)';
             ctx.fillText('TECHNICAL_SYNC_ACTIVE: REF_V1.1', 100, 20);
+
+            // [NEW] Draw Diagonal Measurement (Grand Diamètre - Black Arrow Style)
+            const diagMm = this.ficheForm.get('montage.diagonalMm')?.value;
+            const diagPoints = this.ficheForm.get('montage.diagonalPoints')?.value;
+
+            if (diagMm && diagPoints && customImage) {
+                // Scaling factors
+                const scaleX = canvas.width / img.width;
+                const scaleY = canvas.height / img.height;
+
+                const p1 = { x: diagPoints.p1.x * scaleX, y: diagPoints.p1.y * scaleY };
+                const p2 = { x: diagPoints.p2.x * scaleX, y: diagPoints.p2.y * scaleY };
+
+                ctx.strokeStyle = '#000000'; // Black
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+
+                // Draw Arrows
+                const drawArrowHead = (pt1: { x: number, y: number }, pt2: { x: number, y: number }) => {
+                    const angle = Math.atan2(pt2.y - pt1.y, pt2.x - pt1.x);
+                    const headLen = 14;
+                    ctx.beginPath();
+                    ctx.moveTo(pt2.x, pt2.y);
+                    ctx.lineTo(pt2.x - headLen * Math.cos(angle - Math.PI / 6), pt2.y - headLen * Math.sin(angle - Math.PI / 6));
+                    ctx.moveTo(pt2.x, pt2.y);
+                    ctx.lineTo(pt2.x - headLen * Math.cos(angle + Math.PI / 6), pt2.y - headLen * Math.sin(angle + Math.PI / 6));
+                    ctx.stroke();
+                };
+                drawArrowHead(p2, p1);
+                drawArrowHead(p1, p2);
+
+                // Label
+                ctx.font = 'bold 20px "Outfit", sans-serif';
+                ctx.fillStyle = '#000000';
+                ctx.textAlign = 'center';
+                const midX = (p1.x + p2.x) / 2;
+                const midY = (p1.y + p2.y) / 2;
+                ctx.fillText(`Grand Diamètre: ${parseFloat(diagMm).toFixed(1)} mm`, midX, midY - 15);
+            }
         };
     }
 

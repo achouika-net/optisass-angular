@@ -250,4 +250,10 @@ export class TransferManagerComponent implements OnInit, OnDestroy {
             }
         });
     }
+
+    extractTransferNumber(motif: string | null | undefined): string {
+        if (!motif) return '-';
+        const match = motif.match(/TRS-\d{4}-\d{4}/);
+        return match ? match[0] : '-';
+    }
 }
