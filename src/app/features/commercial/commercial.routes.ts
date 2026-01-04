@@ -6,7 +6,13 @@ export default [
     path: '',
     canActivateChild: [PermissionCanActivateChildGuard],
     children: [
-      { path: '', redirectTo: 'stock', pathMatch: 'full' },
+      { path: '', redirectTo: 'client', pathMatch: 'full' },
+      {
+        path: 'client',
+        data: { breadcrumb: 'nav.clients' },
+        loadChildren: () => import('./client/client.routes'),
+        canActivateChild: [PermissionCanActivateChildGuard],
+      },
       {
         path: 'stock',
         data: { breadcrumb: 'nav.stock' },
