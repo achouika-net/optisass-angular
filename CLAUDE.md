@@ -17,12 +17,13 @@ Permettre à Claude AI de :
 
 ## 1. RÈGLES CRITIQUES
 
-1. **MCP First** : Consulter MCP Angular/Material/NgRx AVANT de coder
-2. **Git** : Ne JAMAIS commit/push sans permission explicite
-3. **Build** : Toujours `npm run build` après modifications
-4. **Type Safety** : Pas de `any` - utiliser `as unknown as { prop?: Type }`
-5. **JSDoc** : Uniquement pour les méthodes, pas classes/interfaces
-6. **Lire avant modifier** : Toujours lire un fichier avant de le modifier
+1. **Relire CLAUDE.md** : Au début de chaque session continuée, relire ce fichier
+2. **MCP First** : Consulter MCP Angular/Material/NgRx AVANT de coder
+3. **Git** : Ne JAMAIS commit/push sans permission explicite
+4. **Build** : Toujours `npm run build` après modifications
+5. **Type Safety** : Pas de `any` - utiliser `as unknown as { prop?: Type }`
+6. **JSDoc** : Uniquement pour les méthodes, pas classes/interfaces
+7. **Lire avant modifier** : Toujours lire un fichier avant de le modifier
 
 ---
 

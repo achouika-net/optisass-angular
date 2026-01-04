@@ -20,7 +20,7 @@
           <mat-select [field]="searchForm().role_id">
             <mat-option [value]="-1">{{ 'commun.all' | translate }}</mat-option>
             @for (role of roles(); track role.id) {
-            <mat-option [value]="role.id">{{ role.name }}</mat-option>
+              <mat-option [value]="role.id">{{ role.name }}</mat-option>
             }
           </mat-select>
         </mat-form-field>
@@ -30,9 +30,9 @@
           <mat-label>{{ 'commun.status' | translate }}</mat-label>
           <mat-select [field]="searchForm().actif">
             @for (state of states(); track state.code) {
-            <mat-option [value]="state.code">
-              {{`commun.${state.libelle}` | translate }}
-            </mat-option>
+              <mat-option [value]="state.code">
+                {{ 'commun.' + state.label | translate }}
+              </mat-option>
             }
           </mat-select>
         </mat-form-field>

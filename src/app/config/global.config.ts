@@ -39,7 +39,7 @@ export const yearsFrom = (year: number) =>
   [...Array(new Date().getFullYear() - (year - 1)).keys()].map((e: number) => e + year).reverse();
 
 export const States: IResource[] = [
-  { code: -1, libelle: 'all' },
-  { code: 1, libelle: 'active' },
-  { code: 0, libelle: 'inactive' },
+  { id: 'all', code: '-1', label: 'all', order: 0 },
+  { id: 'active', code: '1', label: 'active', order: 1 },
+  { id: 'inactive', code: '0', label: 'inactive', order: 2 },
 ];

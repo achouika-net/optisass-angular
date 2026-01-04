@@ -1,4 +1,5 @@
 export * from './client.service';
 export * from './error.service';
-export * from './resources.service';
+export * from './resource.service';
 export * from './role.service';
+export * from './supplier.service';

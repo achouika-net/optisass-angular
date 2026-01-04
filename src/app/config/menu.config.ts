@@ -30,6 +30,12 @@ export const MENU: MenuItem[] = [
     type: 'sub',
     children: [
       {
+        label: 'nav.stock',
+        icon: 'inventory_2',
+        type: 'link',
+        route: 'commercial/stock',
+      },
+      {
         label: 'nav.clients',
         icon: 'person',
         type: 'link',

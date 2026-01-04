@@ -16,3 +16,18 @@ export const ROLES_API_URL = `${API_URL}/roles`;
 export const USERS_API_URL = `${API_URL}/users`;
 export const WAREHOUSES_API_URL = `${API_URL}/warehouses`;
 export const API_ADDRESS_URL = `${API_URL}/adresse`;
+
+// Stock endpoints
+export const PRODUCTS_API_URL = `${API_URL}/products`;
+export const SUPPLIERS_API_URL = `${API_URL}/suppliers`;
+
+// Resources endpoints (generic for fixed resources)
+export const RESOURCES_API_URL = `${API_URL}/resources`;
+
+// Stock specific resources (CRUD)
+export const BRANDS_API_URL = `${API_URL}/brands`;
+export const MODELS_API_URL = `${API_URL}/models`;
+export const MANUFACTURERS_API_URL = `${API_URL}/manufacturers`;
+export const LABORATORIES_API_URL = `${API_URL}/laboratories`;
+export const FAMILIES_API_URL = `${API_URL}/families`;
+export const COLORS_API_URL = `${API_URL}/colors`;

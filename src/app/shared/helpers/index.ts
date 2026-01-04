@@ -7,6 +7,8 @@ export * from './menu.helper';
 export * from './object.helper';
 export * from './query.helper';
 export * from './route-auth.helper';
+export * from './rxjs.helper';
 export * from './sort.helper';
 export * from './tarification.helper';
 export * from './url.helper';
+export * from './product.helper';
