@@ -1,6 +1,6 @@
 # OPTI-SAAS Frontend - Instructions IA
 
-> Document destiné UNIQUEMENT à Claude AI. Dernière mise à jour : 2026-01-02
+> Document destiné UNIQUEMENT à Claude AI. Dernière mise à jour : 2026-01-04
 
 ---
 
@@ -22,25 +22,27 @@ Permettre à Claude AI de :
 3. **Git** : Ne JAMAIS commit/push sans permission explicite
 4. **Build** : Toujours `npm run build` après modifications
 5. **Type Safety** : Pas de `any` - utiliser `as unknown as { prop?: Type }`
-6. **JSDoc** : Uniquement pour les méthodes, pas classes/interfaces
-7. **Lire avant modifier** : Toujours lire un fichier avant de le modifier
+6. **JSDoc** : Toutes les méthodes avec `@param` et `@returns`
+7. **Commentaires** : Pas de séparateurs (`// =====`), uniquement pour code complexe
+8. **Lire avant modifier** : Toujours lire un fichier avant de le modifier
 
 ---
 
 ## 2. FICHIERS RÉFÉRENCE
 
-| Besoin                   | Fichier                                                        |
-| ------------------------ | -------------------------------------------------------------- |
-| Signal Forms + FieldTree | `shared/components/address-fields/address-fields.component.ts` |
-| Feature CRUD complète    | `features/settings/warehouse/`                                 |
-| Signal Store             | `features/settings/user/user.store.ts`                         |
-| Routes + Permissions     | `config/app-routes.config.ts`                                  |
-| Menu typé                | `config/menu.config.ts`                                        |
-| Guards                   | `core/guards/permission.guard.ts`                              |
-| Auth Flow                | `core/store/auth.store.ts`                                     |
-| Validation errors        | `shared/components/field-error/field-error.component.ts`       |
-| Service HTTP             | `features/authentication/services/auth.service.ts`             |
-| Interceptors             | `core/interceptors/`                                           |
+| Besoin                   | Fichier                                                                      |
+| ------------------------ | ---------------------------------------------------------------------------- |
+| Signal Forms + FieldTree | `shared/components/address-fields/address-fields.component.ts`               |
+| FormValueControl simple  | `shared/components/resource-autocomplete/resource-autocomplete.component.ts` |
+| Feature CRUD complète    | `features/settings/warehouse/`                                               |
+| Signal Store             | `features/settings/user/user.store.ts`                                       |
+| Routes + Permissions     | `config/app-routes.config.ts`                                                |
+| Menu typé                | `config/menu.config.ts`                                                      |
+| Guards                   | `core/guards/permission.guard.ts`                                            |
+| Auth Flow                | `core/store/auth.store.ts`                                                   |
+| Validation errors        | `shared/components/field-error/field-error.component.ts`                     |
+| Service HTTP             | `features/authentication/services/auth.service.ts`                           |
+| Interceptors             | `core/interceptors/`                                                         |
 
 ---
 
@@ -49,6 +51,9 @@ Permettre à Claude AI de :
 | Décision             | Choix                                   | Raison                                     |
 | -------------------- | --------------------------------------- | ------------------------------------------ |
 | Child Forms          | FieldTree + `[(input)]`                 | Accès sous-champs, propagation erreurs     |
+| Custom Form Control  | `FormValueControl<T>` + `model<T>()`    | Pattern Angular 19+ pour contrôles simples |
+| Signal Debounce      | `toObservable` + `toSignal`             | Pas de debounce natif dans Signals API     |
+| Filtrage local       | `computed()` (pas `rxResource`)         | rxResource = HTTP, computed = en mémoire   |
 | Permissions          | APP_ROUTES source unique                | Évite duplication menu/routes              |
 | Mocking              | `*.mock.ts` séparé                      | Facilite suppression quand backend prêt    |
 | ValidationError      | `as unknown as { prop?: Type }`         | Typage explicite sans `any`                |
@@ -60,18 +65,25 @@ Permettre à Claude AI de :
 
 ## 4. PATTERNS (Checklists)
 
-### Contrôle Simple
+### Contrôle Simple (FormValueControl)
 
-- [ ] `FormValueControl<T>` + `value = model<T>()`
-- [ ] Erreurs : `@if (field().touched() && field().invalid())`
+Composant avec UN seul champ (ex: autocomplete, upload, toggle custom).
 
-### Composant Composite
+- [ ] `implements FormValueControl<T>`
+- [ ] `readonly value = model<T>(null)`
+- [ ] Parent utilise `[field]="form.myField"` (directive Field gère le binding)
+- [ ] Référence : `resource-autocomplete.component.ts`
 
-- [ ] `model.required<FieldTree<T>>()`
+### Composant Composite (FieldTree)
+
+Composant avec PLUSIEURS champs liés (ex: address-fields avec street, city, postcode).
+
+- [ ] `readonly myFields = model.required<FieldTree<T>>()`
 - [ ] Importer `Field` directive
-- [ ] Computed pour sous-champs
-- [ ] Parent : `[(input)]="form.field"` (pas `[field]`)
+- [ ] Computed pour sous-champs : `computed(() => this.myFields().street)`
+- [ ] Parent : `[(myFields)]="form.address"` (two-way binding)
 - [ ] Model parent : initialiser avec objet complet (pas null)
+- [ ] Référence : `address-fields.component.ts`
 
 ### Feature CRUD
 
@@ -134,20 +146,21 @@ Permettre à Claude AI de :
 
 ## 7. ERREURS RÉSOLUES
 
-| Erreur                            | Cause                         | Solution                         |
-| --------------------------------- | ----------------------------- | -------------------------------- |
-| `tapResponse` capture 401         | Empêche JWT interceptor       | `catchError` avec filtre 401     |
-| Computed wrapper sur store        | `withState` déjà proxy        | Accès direct `store.field()`     |
-| rxResource `request`/`loader`     | API deprecated                | `params`/`stream`                |
-| `translate.instant()` breadcrumb  | Traductions pas chargées      | Pipe `\| translate`              |
-| `[field]` sur composant composite | Pas accès sous-champs         | `[(input)]` + FieldTree          |
-| `ValidationError` avec `any`      | Propriétés dynamiques         | `as unknown as { prop?: Type }`  |
-| Node v14 dans husky hooks         | nvm pas chargé                | `nvm use 22` dans hooks          |
-| `route.snapshot.data` hérite      | Données parents incluses      | `route.routeConfig?.data`        |
-| `route.children` doublons         | Parcours récursif             | `route.firstChild`               |
-| Double extraction data            | ExtractDataInterceptor existe | Pas de `.pipe(map(r => r.data))` |
-| `appearance="outline"` répété     | Config globale existe         | `MAT_FORM_FIELD_DEFAULT_OPTIONS` |
-| `APP_INITIALIZER` deprecated      | Angular 19+                   | `provideAppInitializer()`        |
+| Erreur                            | Cause                         | Solution                          |
+| --------------------------------- | ----------------------------- | --------------------------------- |
+| `tapResponse` capture 401         | Empêche JWT interceptor       | `catchError` avec filtre 401      |
+| Computed wrapper sur store        | `withState` déjà proxy        | Accès direct `store.field()`      |
+| rxResource `request`/`loader`     | API deprecated                | `params`/`stream`                 |
+| `translate.instant()` breadcrumb  | Traductions pas chargées      | Pipe `\| translate`               |
+| `[field]` sur composant composite | Pas accès sous-champs         | `[(input)]` + FieldTree           |
+| `ValidationError` avec `any`      | Propriétés dynamiques         | `as unknown as { prop?: Type }`   |
+| Node v14 dans husky hooks         | nvm pas chargé                | `nvm use 22` dans hooks           |
+| `route.snapshot.data` hérite      | Données parents incluses      | `route.routeConfig?.data`         |
+| `route.children` doublons         | Parcours récursif             | `route.firstChild`                |
+| Double extraction data            | ExtractDataInterceptor existe | Pas de `.pipe(map(r => r.data))`  |
+| `appearance="outline"` répété     | Config globale existe         | `MAT_FORM_FIELD_DEFAULT_OPTIONS`  |
+| `APP_INITIALIZER` deprecated      | Angular 19+                   | `provideAppInitializer()`         |
+| Interfaces custom pour Angular    | Types Angular existent déjà   | `FormValueControl<T>` + `model()` |
 
 ---
 
@@ -205,6 +218,170 @@ src/app/
 ```
 
 **Principes** : Standalone components, Signals, Lazy loading, rxResource pour HTTP
+
+---
+
+## 12. ANGULAR SIGNALS - GUIDE COMPLET
+
+### Quand utiliser quoi
+
+| Besoin                      | Solution                                |
+| --------------------------- | --------------------------------------- |
+| État simple                 | `signal<T>()`                           |
+| Valeur dérivée synchrone    | `computed(() => ...)`                   |
+| Valeur liée à une source    | `linkedSignal({ source, computation })` |
+| Debounce/throttle           | `toObservable` + pipe + `toSignal`      |
+| Appel HTTP                  | `rxResource({ params, stream })`        |
+| Filtrage local (en mémoire) | `computed()` (PAS rxResource)           |
+| Two-way binding             | `model<T>()` ou `model.required<T>()`   |
+
+### Signal Debounce (pattern officiel)
+
+Pas de debounce natif dans l'API Signals. Utiliser le bridge RxJS :
+
+```typescript
+readonly #debouncedQuery = toSignal(
+  toObservable(this.searchQuery).pipe(debounceTime(200), distinctUntilChanged()),
+  { initialValue: '' }
+);
+```
+
+### rxResource vs computed
+
+| Cas                    | Solution     |
+| ---------------------- | ------------ |
+| Données HTTP           | `rxResource` |
+| Filtrage liste locale  | `computed()` |
+| Transformation données | `computed()` |
+| Recherche API          | `rxResource` |
+
+### Signal Forms - Hiérarchie
+
+```
+form(model, validators) → FieldTree<T>
+    ↓
+FieldTree.property → Field (signal)
+    ↓
+Field() → FieldState (value, touched, invalid, errors)
+```
+
+### Accès aux valeurs
+
+```typescript
+// Depuis FieldTree
+form.name; // Field (signal)
+form.name(); // FieldState
+form.name().value(); // Valeur actuelle
+form.name().value.set(x); // Modifier valeur
+form.name().touched(); // boolean
+form.name().invalid(); // boolean
+```
+
+### NE PAS faire
+
+- ❌ `linkedSignal` pour debounce (synchrone uniquement)
+- ❌ `rxResource` pour filtrage local
+- ❌ Créer interfaces custom (`FieldLike`, `FieldAccessor`)
+- ❌ Double appel dans template `form()().value()`
+
+---
+
+## 13. INTERFACES - RÈGLES STRICTES
+
+### Règles d'or
+
+1. **NE PAS créer d'interfaces pour Angular** - Les types existent déjà
+2. **NE PAS définir interfaces/types dans les composants ou services** - Toujours dans `*.model.ts`
+3. **NE PAS utiliser `?` pour les propriétés optionnelles** - Utiliser `| null`
+
+### Interfaces interdites (Angular les fournit)
+
+- ❌ `FieldLike`, `FieldAccessor`, `FieldSignal` → `FormValueControl<T>`
+- ❌ `WritableSignalLike` → `WritableSignal<T>`
+- ❌ Wrapper autour de types Angular existants
+
+### Où définir les interfaces
+
+| Emplacement      | ✅ / ❌ |
+| ---------------- | ------- |
+| `*.model.ts`     | ✅      |
+| `*.component.ts` | ❌      |
+| `*.service.ts`   | ❌      |
+| `*.store.ts`     | ❌      |
+
+### Propriétés optionnelles : `| null` pas `?`
+
+```typescript
+// ❌ MAUVAIS
+interface IUser {
+  name: string;
+  email?: string; // Éviter ?
+}
+
+// ✅ BON
+interface IUser {
+  name: string;
+  email: string | null;
+}
+```
+
+### Quand créer une interface
+
+| Cas                           | Action                                      |
+| ----------------------------- | ------------------------------------------- |
+| Modèle métier (User, Product) | ✅ Créer `IUser`, `IProduct` dans `models/` |
+| Réponse API                   | ✅ Créer interface pour typer la réponse    |
+| Props de composant complexe   | ✅ Créer interface si > 3 propriétés liées  |
+| Type Angular existant         | ❌ NE PAS recréer, importer depuis Angular  |
+| Type "générique" abstrait     | ❌ NE PAS créer, utiliser le type concret   |
+
+### Avant de créer une interface
+
+1. **Chercher dans Angular** : `Field`, `FieldTree`, `FormValueControl`, `Signal`, `WritableSignal`
+2. **Chercher dans le projet** : `shared/models/`, `core/models/`
+3. **Consulter MCP** : Vérifier si le type existe déjà
+
+---
+
+## 14. COMMENTAIRES - RÈGLES
+
+### Ce qui est interdit
+
+- ❌ Séparateurs de blocs : `// ===== INPUTS =====`, `// -----`
+- ❌ Commentaires évidents : `// Inject the service`, `// Get user`
+- ❌ JSDoc sur classes, interfaces, propriétés
+- ❌ Commentaires de code supprimé
+
+### Ce qui est obligatoire
+
+- ✅ JSDoc sur TOUTES les méthodes (avec `@param` et `@returns`)
+
+### Ce qui est autorisé
+
+- ✅ Commentaire court pour logique complexe non évidente
+- ✅ `// TODO:` avec contexte si vraiment nécessaire
+
+### Exemple
+
+```typescript
+// ❌ MAUVAIS
+// ===== INPUTS =====
+readonly options = input.required<IOption[]>();
+
+// Get the filtered options
+readonly filtered = computed(() => ...);
+
+// ✅ BON
+readonly options = input.required<IOption[]>();
+
+readonly filtered = computed(() => ...);
+
+/**
+ * Filtre les options selon la hiérarchie parent-enfant.
+ * Exclut les options dont le parent est désactivé.
+ */
+#filterByHierarchy(options: IOption[]): IOption[] { ... }
+```
 
 ---
 
