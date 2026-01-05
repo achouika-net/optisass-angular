@@ -23,9 +23,14 @@ export const routes: Routes = [
     children: [
       {
         path: '',
-        redirectTo: 'commercial',
+        redirectTo: 'stock',
         pathMatch: 'full',
       },
+      {
+        path: 'stock',
+        data: { breadcrumb: 'nav.stock' },
+        loadChildren: () => import('./features/stock/stock.routes'),
+      } satisfies TypedRoute,
       {
         path: 'commercial',
         data: { breadcrumb: 'nav.commercial' },

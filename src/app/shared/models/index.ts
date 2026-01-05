@@ -1,7 +1,6 @@
 export * from './actions-button.model';
 export * from './address.model';
 export * from './breadcrumb.model';
-export * from './called-ressources.model';
 export * from './civilite.model';
 export * from './client-search.model';
 export * from './client.model';

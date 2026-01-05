@@ -9,26 +9,3 @@ body {
   font-family: var(--bodyfont);
   background: var(--bodycolor);
 }
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
-  row-gap: calc(var(--spacing) * 1);
-  @media (width >= 1279.98px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: calc(var(--spacing) * 5);
-  }
-}
-
-.search-form-grid {
-  display: grid;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
-  row-gap: calc(var(--spacing) * 1);
-  @media (width >= 959.98px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: calc(var(--spacing) * 5);
-  }
-  @media (width >= 1279.98px) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}

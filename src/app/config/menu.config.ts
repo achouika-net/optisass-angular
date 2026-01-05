@@ -25,16 +25,23 @@ export const MENU: MenuItem[] = [
     route: 'stats',
   },
   {
+    label: 'nav.stock',
+    icon: 'inventory_2',
+    type: 'sub',
+    children: [
+      {
+        label: 'nav.products',
+        icon: 'category',
+        type: 'link',
+        route: 'stock/products',
+      },
+    ],
+  },
+  {
     label: 'nav.commercial',
     icon: 'people',
     type: 'sub',
     children: [
-      {
-        label: 'nav.stock',
-        icon: 'inventory_2',
-        type: 'link',
-        route: 'commercial/stock',
-      },
       {
         label: 'nav.clients',
         icon: 'person',

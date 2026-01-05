@@ -1,5 +1,10 @@
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
-import { ApplicationConfig, inject, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
+import {
+  ApplicationConfig,
+  inject,
+  provideAppInitializer,
+  provideBrowserGlobalErrorListeners,
+} from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
@@ -13,7 +18,7 @@ import { ExtractDataInterceptor } from './core/interceptors/extract-data.interce
 import { JwtInterceptor } from './core/interceptors/jwt.interceptor';
 import { TenantInterceptor } from './core/interceptors/tenant.interceptor';
 import { WithCredentialsInterceptor } from './core/interceptors/withCredentials.interceptor';
-import { AuthStore } from './core/store';
+import { AuthStore, ResourceStore } from './core/store';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
 
@@ -22,24 +27,36 @@ export const appConfig: ApplicationConfig = {
     // Global Error Handling
     provideBrowserGlobalErrorListeners(),
 
-    // Session Restoration - Bloque le bootstrap jusqu'à la fin de la restauration
+    // App Initialization - Bloque le bootstrap jusqu'à la fin du chargement
     provideAppInitializer(() => {
       const authStore = inject(AuthStore);
-      // Les tokens sont déjà restaurés par le onInit du store
-      if (authStore.jwtTokens()?.accessToken) {
-        // Appeler getCurrentUser qui enchaîne avec getUserOptions
-        authStore.getCurrentUser({ isRestoreSession: true });
+      const resourceStore = inject(ResourceStore);
 
-        // Attendre que isSessionRestoring devienne false (session complètement restaurée)
-        // ou que les tokens soient vidés (échec de restauration)
-        return firstValueFrom(
+      // Lancer le chargement des resources
+      resourceStore.loadAllResources();
+
+      // Attendre que les resources soient initialisées
+      const resourcesReady = firstValueFrom(
+        toObservable(resourceStore.initialized).pipe(
+          filter((initialized) => initialized),
+          take(1),
+        ),
+      );
+
+      // Restaurer la session si tokens présents
+      let sessionReady: Promise<unknown> = Promise.resolve();
+      if (authStore.jwtTokens()?.accessToken) {
+        authStore.getCurrentUser({ isRestoreSession: true });
+        sessionReady = firstValueFrom(
           toObservable(authStore.isSessionRestoring).pipe(
             filter((isRestoring) => !isRestoring || !authStore.jwtTokens()?.accessToken),
-            take(1)
-          )
+            take(1),
+          ),
         );
       }
-      return Promise.resolve();
+
+      // Attendre les deux en parallèle
+      return Promise.all([resourcesReady, sessionReady]).then((): void => undefined);
     }),
 
     // Router Configuration
@@ -56,9 +73,8 @@ export const appConfig: ApplicationConfig = {
         TenantInterceptor,
         ExtractDataInterceptor,
         WithCredentialsInterceptor,
-      ])
+      ]),
     ),
-
 
     // Translate Module Configuration
     provideTranslateService({ loader: provideTranslateHttpLoader() }),
