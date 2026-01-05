@@ -97,8 +97,13 @@ model Facture {
   operationsCaisse OperationCaisse[]
   paiements        Paiement[]
   pointsHistory    PointsHistory[]
+  
+  vendeurId        String?
+  vendeur          Employee?         @relation("VendeurFactures", fields: [vendeurId], references: [id])
+  commissions      Commission[]
 
   @@index([centreId])
+  @@index([vendeurId])
 }
 
 model Paiement {
@@ -162,6 +167,8 @@ model Centre {
   factures             Facture[]
   facturesFournisseurs FactureFournisseur[]
   journeesCaisse       JourneeCaisse[]
+  employeeCentres      EmployeeCentre[]
+  commissionRules      CommissionRule[]
 
   @@unique([groupeId, nom])
 }
@@ -257,6 +264,7 @@ model User {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   centreRoles UserCentreRole[]
+  employee    Employee?
 }
 
 model UserCentreRole {
@@ -357,6 +365,7 @@ model Depense {
   factureFournisseur   FactureFournisseur?    @relation(fields: [factureFournisseurId], references: [id])
   fournisseur          Fournisseur?           @relation(fields: [fournisseurId], references: [id])
   demandeAlimentation  DemandeAlimentation?
+  payroll              Payroll?
 
   @@index([date])
   @@index([centreId])
@@ -527,4 +536,98 @@ model MarketingConfig {
   smtpFrom            String?
   
   updatedAt           DateTime @updatedAt
+}
+
+model Employee {
+  id                  String             @id @default(uuid())
+  matricule           String?            @unique
+  nom                 String
+  prenom              String
+  cin                 String?
+  telephone           String?
+  email               String?
+  adresse             String?
+  poste               String             // OPTICIEN, VENDEUR, CAISSIER, RESPONSABLE, ADMIN
+  contrat             String             // CDI, CDD, JOURNALIER, PARTIEL
+  dateEmbauche        DateTime           @default(now())
+  salaireBase         Float              @default(0)
+  statut              String             @default("ACTIF") // ACTIF, SUSPENDU, SORTI
+  
+  userId              String?            @unique
+  user                User?              @relation(fields: [userId], references: [id])
+  
+  centres             EmployeeCentre[]
+  attendance          Attendance[]
+  commissions         Commission[]
+  payrolls            Payroll[]
+  facturesVente       Facture[]          @relation("VendeurFactures")
+
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+}
+
+model EmployeeCentre {
+  employeeId String
+  centreId   String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  centre     Centre   @relation(fields: [centreId], references: [id], onDelete: Cascade)
+
+  @@id([employeeId, centreId])
+}
+
+model Attendance {
+  id                String           @id @default(uuid())
+  employeeId        String
+  date              DateTime
+  heuresTravaillees Float            @default(8)
+  retardMinutes     Int              @default(0)
+  estAbsent         Boolean          @default(false)
+  motif             String?
+  
+  employee          Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt         DateTime         @default(now())
+}
+
+model CommissionRule {
+  id                String           @id @default(uuid())
+  poste             String
+  centreId          String?
+  typeProduit       String           // MONTURE, VERRE, LENTILLE, GLOBAL
+  taux              Float            // Pourcentage
+  
+  centre            Centre?          @relation(fields: [centreId], references: [id])
+}
+
+model Commission {
+  id                String           @id @default(uuid())
+  employeeId        String
+  factureId         String
+  type              String           // MONTURE, VERRE, LENTILLE, GLOBAL
+  montant           Float
+  mois              String           // YYYY-MM
+  createdAt         DateTime         @default(now())
+  
+  employee          Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  facture           Facture          @relation(fields: [factureId], references: [id], onDelete: Cascade)
+}
+
+model Payroll {
+  id                String           @id @default(uuid())
+  employeeId        String
+  mois              String           // YYYY-MM
+  annee             Int
+  salaireBase       Float
+  commissions       Float            @default(0)
+  heuresSup         Float            @default(0)
+  retenues          Float            @default(0)
+  netAPayer         Float
+  statut            String           @default("BROUILLON") // BROUILLON, VALIDE, PAYE
+  pdfUrl            String?
+  
+  expenseId         String?          @unique
+  expense           Depense?         @relation(fields: [expenseId], references: [id])
+  
+  employee          Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 }

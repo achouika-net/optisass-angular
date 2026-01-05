@@ -75,6 +75,10 @@ export const routes: Routes = [
         path: 'commercial',
         loadChildren: () => import('./features/commercial/commercial.routes').then(m => m.routes),
       },
+      {
+        path: 'personnel',
+        loadChildren: () => import('./features/personnel-management/personnel-management.routes').then(m => m.personnelManagementRoutes),
+      },
     ],
   },
   {

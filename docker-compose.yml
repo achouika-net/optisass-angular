@@ -27,6 +27,7 @@ services:
       NG_CLI_ANALYTICS: "false"
     depends_on:
       - db
+    command: sh -c "npx prisma generate && npx prisma db push && npm run start:dev"
     volumes:
       - ./backend:/app
       - /app/node_modules

@@ -27,6 +27,9 @@ import { FundingRequestsModule } from './features/funding-requests/funding-reque
 import { MarketingModule } from './features/marketing/marketing.module';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaService } from './prisma/prisma.service';
+import { PersonnelModule } from './features/personnel/personnel.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -54,6 +57,11 @@ import { PrismaService } from './prisma/prisma.service';
     OperationCaisseModule,
     FundingRequestsModule,
     MarketingModule,
+    PersonnelModule,
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
+    }),
   ],
   controllers: [],
   providers: [],

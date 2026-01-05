@@ -117,6 +117,32 @@ export const MENU: MenuItem[] = [
     ],
   },
   {
+    label: 'RH & Personnel',
+    icon: 'badge',
+    type: 'sub',
+    route: 'personnel',
+    children: [
+      {
+        label: 'Liste du Personnel',
+        icon: 'group',
+        type: 'subchild',
+        route: 'personnel/employees',
+      },
+      {
+        label: 'Gestion des Salaires',
+        icon: 'payments',
+        type: 'subchild',
+        route: 'personnel/payroll',
+      },
+      {
+        label: 'Tableau de bord RH',
+        icon: 'analytics',
+        type: 'subchild',
+        route: 'personnel/dashboard',
+      },
+    ],
+  },
+  {
     label: 'Historique',
     icon: 'history',
     type: 'link',
@@ -135,12 +161,6 @@ export const MENU: MenuItem[] = [
     type: 'link',
     route: 'acces',
     roles: [4, 3],
-  },
-  {
-    label: "Comité d'entreprise",
-    icon: 'groups',
-    type: 'link',
-    route: 'partner',
   },
   {
     label: 'Mails et SMS',
