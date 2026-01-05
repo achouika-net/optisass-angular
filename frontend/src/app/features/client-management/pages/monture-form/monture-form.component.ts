@@ -990,6 +990,32 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     traitementOG: suggestion.traitements || []
                 });
             }
+
+            // [NEW] Logic: Auto-Unify if OD and OG become identical
+            // This fixes the user complaint where applying identical suggestions splits the form unnecessarily
+            const v = verresGroup.value;
+            const mtOD = v.matiereOD;
+            const mtOG = v.matiereOG;
+            const idxOD = v.indiceOD;
+            const idxOG = v.indiceOG;
+            const mqOD = v.marqueOD;
+            const mqOG = v.marqueOG;
+
+            // Compare treatments (sort arrays to ensure order doesn't matter)
+            const trOD = Array.isArray(v.traitementOD) ? [...v.traitementOD].sort().join(',') : '';
+            const trOG = Array.isArray(v.traitementOG) ? [...v.traitementOG].sort().join(',') : '';
+
+            // Check if both eyes are fully populated and identical
+            if (mtOD && mtOG && mtOD === mtOG && idxOD === idxOG && mqOD === mqOG && trOD === trOG) {
+                console.log('🔄 [Suggestion] Auto-Unifying OD/OG as they are identical');
+                verresGroup.patchValue({
+                    differentODOG: false,
+                    matiere: mtOD,
+                    indice: idxOD,
+                    marque: mqOD,
+                    traitement: v.traitementOD // source of truth (same as OG)
+                });
+            }
         }
 
         this.calculateLensPrices(parentGroup);

@@ -40,7 +40,7 @@
     box-sizing: border-box;
 
     table {
-        min-width: 1350px;
+        min-width: 1500px;
         width: 100%;
         background: white;
         table-layout: fixed;
@@ -99,65 +99,58 @@ table {
     // Column widths
     th:nth-child(1),
     td:nth-child(1) {
-        width: 120px;
+        width: 140px; // Date
     }
 
-    // Date
     th:nth-child(2),
     td:nth-child(2) {
-        width: 110px;
+        width: 120px; // Type
     }
 
-    // Type
     th:nth-child(3),
     td:nth-child(3) {
-        width: 180px;
+        width: 220px; // Entrepôt
     }
 
-    // Entrepôt
     th:nth-child(4),
     td:nth-child(4) {
-        width: 80px;
+        width: 70px; // Qte
         text-align: center;
     }
 
-    // Qte
     th:nth-child(5),
     td:nth-child(5) {
-        width: 110px;
+        width: 100px; // PA
         text-align: right;
     }
 
-    // PA
     th:nth-child(6),
     td:nth-child(6) {
-        width: 110px;
+        width: 100px; // PV
         text-align: right;
     }
 
-    // PV
     th:nth-child(7),
     td:nth-child(7) {
-        width: 130px;
+        width: 130px; // Fiche
     }
 
-    // Fiche
     th:nth-child(8),
     td:nth-child(8) {
-        width: 140px;
+        width: 160px; // Client
     }
 
-    // Client
     th:nth-child(9),
     td:nth-child(9) {
-        width: auto;
-        min-width: 150px;
+        width: auto; // Motif (flexible)
+        min-width: 250px;
+        white-space: normal; // Allow motif to wrap
+        line-height: 1.4;
     }
 
-    // Motif
     th:nth-child(10),
     td:nth-child(10) {
-        width: 100px;
+        width: 100px; // Utilisateur
     }
 
     // Utilisateur
@@ -191,6 +184,8 @@ table {
         color: #616161;
         font-style: italic;
         font-size: 13px;
+        white-space: normal;
+        line-height: 1.2;
     }
 }
 

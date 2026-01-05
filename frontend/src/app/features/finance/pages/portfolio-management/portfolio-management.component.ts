@@ -30,48 +30,70 @@ import { FormsModule } from '@angular/forms';
     FormsModule
   ],
   template: `
-    <div class="p-6 max-w-7xl mx-auto">
-      <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-black text-slate-800 flex items-center gap-3">
-          <mat-icon color="primary" class="scale-125">wallet</mat-icon>
-          Gestion du Portefeuille (Chèques & LCN)
-        </h1>
+    <div class="dashboard-wrapper">
+      <div class="dashboard-header">
+        <div class="title-section">
+          <h1>Gestion du Portefeuille</h1>
+          <p class="subtitle">Suivi des encaissements et décaissements (Chèques & LCN)</p>
+        </div>
+        
+        <div class="flex items-center gap-3">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="!w-44 dense-form-field">
+            <mat-label>Mois</mat-label>
+            <mat-select [(ngModel)]="currentMonth" (selectionChange)="loadData()">
+              <mat-option *ngFor="let m of months" [value]="m.value">{{ m.label }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="!w-36 dense-form-field">
+            <mat-label>Année</mat-label>
+            <mat-select [(ngModel)]="currentYear" (selectionChange)="loadData()">
+              <mat-option *ngFor="let y of years" [value]="y">{{ y }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <button mat-flat-button color="primary" class="!h-[44px] !rounded-xl translate-y-[2px]" (click)="loadData()" [disabled]="loading">
+            <mat-icon>refresh</mat-icon>
+            Actualiser
+          </button>
+        </div>
       </div>
 
       <!-- Subtotals -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-          <p class="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">En Portefeuille</p>
-          <p class="text-2xl font-black text-slate-900">{{ totals.inHand | number:'1.2-2' }} DH</p>
-          <div class="h-1 w-12 bg-blue-500 mt-2 rounded-full"></div>
-        </div>
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-          <p class="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">Remis / Déposé</p>
-          <p class="text-2xl font-black text-amber-600">{{ totals.deposited | number:'1.2-2' }} DH</p>
-          <div class="h-1 w-12 bg-amber-500 mt-2 rounded-full"></div>
-        </div>
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-          <p class="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">Total Payé / Encaissé</p>
-          <p class="text-2xl font-black text-emerald-600">{{ totals.paid | number:'1.2-2' }} DH</p>
-          <div class="h-1 w-12 bg-emerald-500 mt-2 rounded-full"></div>
-        </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <mat-card class="kpi-card border-l-4 border-blue-500">
+          <div class="kpi-label">En Portefeuille</div>
+          <div class="kpi-value text-blue-600">{{ totals.inHand | number:'1.2-2' }} DH</div>
+          <div class="w-full bg-blue-100 h-1 rounded-full mt-2"></div>
+        </mat-card>
+
+        <mat-card class="kpi-card border-l-4 border-orange-500">
+          <div class="kpi-label">Remis / Déposé</div>
+          <div class="kpi-value text-orange-600">{{ totals.deposited | number:'1.2-2' }} DH</div>
+          <div class="w-full bg-orange-100 h-1 rounded-full mt-2"></div>
+        </mat-card>
+
+        <mat-card class="kpi-card border-l-4 border-green-500">
+          <div class="kpi-label">Total Payé / Encaissé</div>
+          <div class="kpi-value text-green-600">{{ totals.paid | number:'1.2-2' }} DH</div>
+          <div class="w-full bg-green-100 h-1 rounded-full mt-2"></div>
+        </mat-card>
       </div>
 
-      <mat-card class="rounded-2xl border-none shadow-sm overflow-hidden">
+      <mat-card class="main-card">
         <mat-tab-group (selectedTabChange)="onTabChange($event)">
           <mat-tab label="Chèques à Encaisser (Clients)">
             <ng-template matTabContent>
-              <div class="p-4 border-b border-slate-50 flex gap-4">
-                <mat-form-field appearance="outline" class="dense-form-field">
+              <div class="p-6 border-b border-slate-50 grid grid-cols-1 lg:grid-cols-2 gap-4 items-center">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
                   <mat-label>Filtrer par statut</mat-label>
                   <mat-select [(ngModel)]="statusFilter" (ngModelChange)="loadData()">
                     <mat-option value="ALL">Tous les statuts</mat-option>
                     <mat-option value="EN_ATTENTE">En Portefeuille</mat-option>
+                    <mat-option value="REMIS_EN_BANQUE">Remis en Banque</mat-option>
                     <mat-option value="ENCAISSE">Encaissé</mat-option>
                   </mat-select>
                 </mat-form-field>
 
-                <mat-form-field appearance="outline" class="dense-form-field">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
                   <mat-label>Type</mat-label>
                   <mat-select [(ngModel)]="modeFilter" (ngModelChange)="loadData()">
                     <mat-option value="CHEQUE,LCN">Tous (Chèque & LCN)</mat-option>
@@ -174,8 +196,8 @@ import { FormsModule } from '@angular/forms';
           
           <mat-tab label="Chèques à Décaisser (Fournisseurs)">
              <ng-template matTabContent>
-                <div class="p-4 border-b border-slate-50 flex gap-4">
-                  <mat-form-field appearance="outline" class="dense-form-field">
+                <div class="p-6 border-b border-slate-50 grid grid-cols-1 lg:grid-cols-2 gap-4 items-center">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
                     <mat-label>Filtrer par statut</mat-label>
                     <mat-select [(ngModel)]="statusFilter" (ngModelChange)="loadData()">
                       <mat-option value="ALL">Tous les statuts</mat-option>
@@ -184,7 +206,7 @@ import { FormsModule } from '@angular/forms';
                     </mat-select>
                   </mat-form-field>
 
-                  <mat-form-field appearance="outline" class="dense-form-field">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
                     <mat-label>Type</mat-label>
                     <mat-select [(ngModel)]="modeFilter" (ngModelChange)="loadData()">
                       <mat-option value="CHEQUE,LCN">Tous (Chèque & LCN)</mat-option>
@@ -284,9 +306,37 @@ import { FormsModule } from '@angular/forms';
     </div>
   `,
   styles: [`
-    :host { display: block; background: #f8fafc; min-height: 100vh; }
-    .dense-form-field { width: 220px; font-size: 13px; margin-top: 8px; }
-    ::ng-deep .mat-mdc-tab-label-container { padding: 0 16px; }
+    :host { display: block; width: 100%; }
+    .dashboard-wrapper { padding: 24px; background: #f8fafc; min-height: 100vh; width: 100%; box-sizing: border-box; }
+    .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; gap: 24px; flex-wrap: wrap; }
+    .title-section {
+        flex: 1;
+        min-width: 300px;
+        h1 { font-size: 28px; font-weight: 800; color: #1e293b; margin: 0; letter-spacing: -0.5px; }
+        .subtitle { color: #64748b; margin: 4px 0 0 0; font-size: 14px; }
+    }
+    .dense-form-field {
+        ::ng-deep .mat-mdc-form-field-wrapper { padding-bottom: 0 !important; }
+        ::ng-deep .mat-mdc-form-field-flex { height: 44px !important; }
+        ::ng-deep .mat-mdc-text-field-wrapper { height: 44px !important; padding: 0 16px !important; border-radius: 12px !important; }
+        ::ng-deep .mat-mdc-form-field-infix { padding-top: 10px !important; padding-bottom: 10px !important; min-height: unset !important; }
+    }
+    .kpi-card:hover { transform: translateY(-5px); box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.12); }
+    .kpi-label { color: #64748b; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .kpi-value { font-size: 28px; font-weight: 800; color: #1e293b; }
+    
+    .main-card { border-radius: 20px; border: none; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05); overflow: hidden; }
+
+    ::ng-deep .mat-mdc-tab-label-container { padding: 0 16px; border-bottom: 1px solid #f1f5f9; }
+    ::ng-deep .mat-mdc-form-field-wrapper { padding-bottom: 0 !important; }
+    ::ng-deep .mat-mdc-form-field-flex { height: 44px !important; }
+    ::ng-deep .mat-mdc-text-field-wrapper { height: 44px !important; padding: 0 16px !important; border-radius: 12px !important; }
+    ::ng-deep .mat-mdc-form-field-infix { padding-top: 10px !important; padding-bottom: 10px !important; min-height: unset !important; }
+    
+    .mat-table { background: transparent; }
+    .mat-header-cell { color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; }
+    .mat-cell { color: #1e293b; font-size: 13px; border-bottom: 1px solid #f8fafc; padding: 16px 8px; }
+    .mat-row:hover { background-color: #f8fafc; }
   `]
 })
 export class PortfolioManagementComponent implements OnInit {
@@ -296,13 +346,30 @@ export class PortfolioManagementComponent implements OnInit {
   activeTabId = 0;
   loading = false;
   totals = { inHand: 0, deposited: 0, paid: 0 };
+
+  currentMonth = new Date().getMonth() + 1;
+  currentYear = new Date().getFullYear();
+  months = [
+    { value: 1, label: 'Janvier' }, { value: 2, label: 'Février' }, { value: 3, label: 'Mars' },
+    { value: 4, label: 'Avril' }, { value: 5, label: 'Mai' }, { value: 6, label: 'Juin' },
+    { value: 7, label: 'Juillet' }, { value: 8, label: 'Août' }, { value: 9, label: 'Septembre' },
+    { value: 10, label: 'Octobre' }, { value: 11, label: 'Novembre' }, { value: 12, label: 'Décembre' }
+  ];
+  years: number[] = [];
+
   displayedColumnsIncoming = ['date', 'client', 'montant', 'reference', 'banque', 'statut', 'datePrevue', 'dateEncaissement', 'actions'];
   displayedColumnsOutgoing = ['dateCreation', 'client', 'montant', 'reference', 'banque', 'statut', 'valeur', 'dateEncaissement', 'actions'];
 
   constructor(
     private financeService: FinanceService,
     private snackBar: MatSnackBar
-  ) { }
+  ) {
+    const startYear = 2024;
+    const endYear = new Date().getFullYear() + 1;
+    for (let y = startYear; y <= endYear; y++) {
+      this.years.push(y);
+    }
+  }
 
   ngOnInit() {
     this.loadData();
@@ -315,9 +382,16 @@ export class PortfolioManagementComponent implements OnInit {
 
   loadData() {
     this.loading = true;
+
+    // Calculate date range for the selected month
+    const startDate = new Date(this.currentYear, this.currentMonth - 1, 1).toISOString();
+    const endDate = new Date(this.currentYear, this.currentMonth, 0, 23, 59, 59).toISOString();
+
     const filters = {
       mode: this.modeFilter,
-      statut: this.statusFilter !== 'ALL' ? this.statusFilter : undefined
+      statut: this.statusFilter !== 'ALL' ? this.statusFilter : undefined,
+      startDate,
+      endDate
     };
 
     const request = this.activeTabId === 0

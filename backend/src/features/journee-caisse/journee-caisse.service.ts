@@ -312,7 +312,7 @@ export class JourneeCaisseService {
                         stats.grossVentesCarte += amount;
                         stats.netVentesCarte += amount;
                         stats.nbVentesCarte += count;
-                    } else if (moyenPaiement === 'CHEQUE') {
+                    } else if (moyenPaiement === 'CHEQUE' || moyenPaiement === 'LCN') {
                         stats.grossVentesCheque += amount;
                         stats.netVentesCheque += amount;
                         stats.nbVentesCheque += count;
@@ -330,7 +330,7 @@ export class JourneeCaisseService {
                     // Refund logic: subtract from net sales
                     if (moyenPaiement === 'ESPECES') stats.netVentesEspeces -= amount;
                     else if (moyenPaiement === 'CARTE') stats.netVentesCarte -= amount;
-                    else if (moyenPaiement === 'CHEQUE') stats.netVentesCheque -= amount;
+                    else if (moyenPaiement === 'CHEQUE' || moyenPaiement === 'LCN') stats.netVentesCheque -= amount;
                 }
             }
         });
@@ -342,6 +342,8 @@ export class JourneeCaisseService {
         let centreVentesEspeces = 0;
         let centreVentesCarte = 0;
         let centreVentesCheque = 0;
+        let centreNbVentesCarte = 0;
+        let centreNbVentesCheque = 0;
 
         // Global Center Stats (Only needed for DEPENSES registers to calculate 'Total Recettes')
         if (isDepenses) {
@@ -369,6 +371,9 @@ export class JourneeCaisseService {
                 },
                 _sum: {
                     montant: true
+                },
+                _count: {
+                    id: true
                 }
             });
             console.timeEnd('GetResume-Step3-GlobalStats-Agg');
@@ -376,14 +381,20 @@ export class JourneeCaisseService {
 
             globalStats.forEach(stat => {
                 const amount = stat._sum.montant || 0;
-                if (stat.moyenPaiement === 'ESPECES') centreVentesEspeces = amount;
-                else if (stat.moyenPaiement === 'CARTE') centreVentesCarte = amount;
-                else if (stat.moyenPaiement === 'CHEQUE') centreVentesCheque = amount;
+                const count = stat._count.id || 0;
+                if (stat.moyenPaiement === 'ESPECES') {
+                    centreVentesEspeces = amount;
+                } else if (stat.moyenPaiement === 'CARTE') {
+                    centreVentesCarte = amount;
+                    centreNbVentesCarte = count;
+                } else if (stat.moyenPaiement === 'CHEQUE' || stat.moyenPaiement === 'LCN') {
+                    centreVentesCheque = amount;
+                    centreNbVentesCheque = count;
+                }
             });
         }
 
 
-        console.timeEnd('GetResume-Total');
 
         return {
             journee: {
@@ -404,7 +415,11 @@ export class JourneeCaisseService {
                 espaces: isDepenses ? centreVentesEspeces : stats.netVentesEspeces,
                 carte: isDepenses ? centreVentesCarte : stats.netVentesCarte,
                 cheque: isDepenses ? centreVentesCheque : stats.netVentesCheque,
-                enCoffre: isDepenses ? centreVentesCheque : stats.netVentesCheque
+                enCoffre: isDepenses ? centreVentesCheque : stats.netVentesCheque,
+                // NEW: Counts
+                carteCount: isDepenses ? centreNbVentesCarte : stats.nbVentesCarte,
+                chequeCount: isDepenses ? centreNbVentesCheque : stats.nbVentesCheque,
+                enCoffreCount: isDepenses ? centreNbVentesCheque : stats.nbVentesCheque
             },
             // Sales Cards (Gross local session)
             totalVentesEspeces: stats.grossVentesEspeces,

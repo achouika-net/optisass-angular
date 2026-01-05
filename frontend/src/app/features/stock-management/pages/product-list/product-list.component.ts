@@ -324,7 +324,7 @@ export class ProductListComponent implements OnInit {
     openHistoryDialog(product: Product): void {
         import('../../dialogs/stock-movement-history-dialog/stock-movement-history-dialog.component').then(m => {
             this.dialog.open(m.StockMovementHistoryDialogComponent, {
-                width: '1400px',
+                width: '1500px',
                 maxWidth: '98vw',
                 minHeight: '500px',
                 maxHeight: '95vh',

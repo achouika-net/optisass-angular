@@ -1,21 +1,26 @@
-<div class="container">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold">Trésorerie & Plafonds</h1>
+<div class="dashboard-wrapper">
+    <div class="dashboard-header">
+        <div class="title-section">
+            <h1>Trésorerie & Plafonds</h1>
+            <p class="subtitle">Suivi des flux financiers et contrôle des plafonds</p>
+        </div>
         <div class="flex items-center gap-3">
-            <mat-form-field appearance="outline" class="!mb-0 !pb-0 !w-40 dense-form-field">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="!w-44 dense-form-field">
                 <mat-label>Mois</mat-label>
                 <mat-select [(ngModel)]="currentMonth" (selectionChange)="loadData()">
                     <mat-option *ngFor="let m of months" [value]="m.value">{{ m.label }}</mat-option>
                 </mat-select>
             </mat-form-field>
-            <mat-form-field appearance="outline" class="!mb-0 !pb-0 !w-32 dense-form-field">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="!w-36 dense-form-field">
                 <mat-label>Année</mat-label>
                 <mat-select [(ngModel)]="currentYear" (selectionChange)="loadData()">
                     <mat-option *ngFor="let y of years" [value]="y">{{ y }}</mat-option>
                 </mat-select>
             </mat-form-field>
-            <button mat-icon-button class="text-gray-500" (click)="loadData()" matTooltip="Actualiser">
+            <button mat-flat-button color="primary" class="!h-[44px] !rounded-xl translate-y-[2px]" (click)="loadData()"
+                [disabled]="loading">
                 <mat-icon>refresh</mat-icon>
+                Actualiser
             </button>
         </div>
     </div>
@@ -23,9 +28,9 @@
     <div *ngIf="loading" class="text-center p-10">Chargement des données...</div>
 
     <div *ngIf="summary && !loading">
-        <div class="grid">
+        <div class="kpi-grid">
             <!-- Recettes -->
-            <mat-card class="card-metric border-l-4 border-green-500">
+            <mat-card class="kpi-card border-l-4 border-green-500">
                 <div class="metric-label flex items-center justify-center gap-1">
                     Recettes du Mois
                     <mat-icon class="!text-xs text-gray-400"
@@ -41,12 +46,6 @@
                         <span>Carte:</span>
                         <span class="text-blue-600">{{ summary.incomingCard | number:'1.2-2' }} DH</span>
                     </div>
-                    <div class="flex justify-between px-4"
-                        *ngIf="(summary.totalIncomingCashed - summary.incomingCash - summary.incomingCard) > 1">
-                        <span>Chèque/Autre:</span>
-                        <span class="text-gray-700">{{ (summary.totalIncomingCashed - summary.incomingCash -
-                            summary.incomingCard) | number:'1.2-2' }} DH</span>
-                    </div>
                     <div class="flex justify-between px-4 pt-1 border-t border-gray-100 mt-1">
                         <span>En coffre (Chèques/LCN):</span>
                         <span class="text-orange-600">{{ summary.totalIncomingPending | number:'1.2-2' }} DH</span>
@@ -55,7 +54,7 @@
             </mat-card>
 
             <!-- Dépenses -->
-            <mat-card class="card-metric border-l-4 border-orange-500">
+            <mat-card class="kpi-card border-l-4 border-orange-500">
                 <div class="metric-label flex items-center justify-center gap-1">
                     Dépenses du Mois
                     <mat-icon class="!text-xs text-gray-400"
@@ -75,7 +74,7 @@
             </mat-card>
 
             <!-- Solde -->
-            <mat-card class="card-metric border-l-4"
+            <mat-card class="kpi-card border-l-4"
                 [ngClass]="summary.balanceReal >= 0 ? 'border-blue-500' : 'border-red-500'">
                 <div class="metric-label flex items-center justify-center gap-1">
                     Solde Réel (Cash-Flow)
@@ -91,15 +90,15 @@
             </mat-card>
 
             <!-- Plafond -->
-            <mat-card class="card-metric border-l-4 border-purple-500">
+            <mat-card class="kpi-card border-l-4 border-purple-500">
                 <div class="metric-label">Contrôle Plafond Dépenses</div>
                 <div class="metric-value" [ngClass]="percentageUsed > 100 ? 'text-red-500' : 'text-purple-600'">
                     {{ summary.totalExpenses | number:'1.2-2' }} DH
                 </div>
-                <div class="threshold-container px-4">
-                    <div class="threshold-label">
+                <div class="px-4">
+                    <div class="flex justify-between text-xs font-medium mb-2">
                         <span>{{ percentageUsed.toFixed(1) }}% du plafond</span>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-1">
                             <span *ngIf="!editingThreshold">Max: {{ monthlyThreshold | number }} DH</span>
                             <input *ngIf="editingThreshold" type="number" [(ngModel)]="newThreshold"
                                 class="w-16 border rounded px-1 text-xs" (keyup.enter)="saveThreshold()">
@@ -115,9 +114,9 @@
             </mat-card>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div class="charts-grid">
             <!-- Dépenses par Catégorie -->
-            <mat-card class="!rounded-2xl !shadow-sm !border-none overflow-hidden h-full">
+            <mat-card class="chart-card">
                 <mat-card-header class="!px-6 !pt-6">
                     <mat-card-title class="!text-xl !font-bold flex items-center gap-2">
                         <mat-icon class="text-indigo-500">pie_chart</mat-icon>
@@ -153,15 +152,12 @@
             </mat-card>
 
             <!-- Santé Financière (Annuel) -->
-            <mat-card class="!rounded-2xl !shadow-sm !border-none overflow-hidden h-full">
-                <mat-card-header class="!px-6 !pt-6 border-b border-gray-100 pb-4 mb-4">
+            <mat-card class="chart-card">
+                <mat-card-header class="!px-6 !pt-6 pb-4">
                     <mat-card-title class="!text-xl !font-bold flex items-center gap-2">
                         <mat-icon class="text-green-600">bar_chart</mat-icon>
                         Santé Financière ({{ currentYear }})
                     </mat-card-title>
-                    <mat-card-subtitle class="mt-1">
-                        Suivi des dépenses mensuelles vs Plafond
-                    </mat-card-subtitle>
                 </mat-card-header>
                 <mat-card-content class="!p-6">
                     <div class="relative w-full h-[350px]">

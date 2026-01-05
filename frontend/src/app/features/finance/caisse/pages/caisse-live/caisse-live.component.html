@@ -32,15 +32,33 @@
                     </div>
                     <div class="detail-row">
                         <span>Carte:</span>
-                        <b class="text-blue-600">{{ resume.recettesDetails.carte | number:'1.2-2' }} DH</b>
+                        <div class="flex items-center gap-2">
+                            <span *ngIf="resume.recettesDetails.carteCount > 0"
+                                class="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold">
+                                {{ resume.recettesDetails.carteCount }}
+                            </span>
+                            <b class="text-blue-600">{{ resume.recettesDetails.carte | number:'1.2-2' }} DH</b>
+                        </div>
                     </div>
                     <div class="detail-row">
                         <span>Chèque/Autre:</span>
-                        <b>{{ resume.recettesDetails.cheque | number:'1.2-2' }} DH</b>
+                        <div class="flex items-center gap-2">
+                            <span *ngIf="resume.recettesDetails.chequeCount > 0"
+                                class="text-xs bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded font-bold">
+                                {{ resume.recettesDetails.chequeCount }}
+                            </span>
+                            <b>{{ resume.recettesDetails.cheque | number:'1.2-2' }} DH</b>
+                        </div>
                     </div>
                     <div class="detail-row">
                         <span class="text-orange-600">En coffre (Chèques/LCN):</span>
-                        <b class="text-orange-600">{{ resume.recettesDetails.enCoffre | number:'1.2-2' }} DH</b>
+                        <div class="flex items-center gap-2">
+                            <span *ngIf="resume.recettesDetails.enCoffreCount > 0"
+                                class="text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded font-bold">
+                                {{ resume.recettesDetails.enCoffreCount }}
+                            </span>
+                            <b class="text-orange-600">{{ resume.recettesDetails.enCoffre | number:'1.2-2' }} DH</b>
+                        </div>
                     </div>
                 </div>
             </mat-card-content>

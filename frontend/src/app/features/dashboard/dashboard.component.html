@@ -1,0 +1,140 @@
+<div class="dashboard-wrapper">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div class="title-section">
+            <h1>Tableau de Bord Exécutif</h1>
+            <p class="subtitle">Aperçu global des performances de votre centre</p>
+        </div>
+        <div class="actions-section">
+            <button mat-flat-button color="primary" (click)="loadAllData()" [disabled]="loading">
+                <mat-icon>refresh</mat-icon>
+                Actualiser
+            </button>
+        </div>
+    </div>
+
+    <!-- KPI Row -->
+    <div class="kpi-grid">
+        <mat-card class="kpi-card glass primary">
+            <div class="kpi-icon">
+                <mat-icon>payments</mat-icon>
+            </div>
+            <div class="kpi-content">
+                <span class="label">Chiffre d'Affaires</span>
+                <h2 class="value">{{ (summary?.totalRevenue || 0) | number:'1.2-2' }} DH</h2>
+                <span class="trend up">
+                    <mat-icon>trending_up</mat-icon>
+                    +12.5% vs mois dernier
+                </span>
+            </div>
+        </mat-card>
+
+        <mat-card class="kpi-card glass success">
+            <div class="kpi-icon">
+                <mat-icon>group</mat-icon>
+            </div>
+            <div class="kpi-content">
+                <span class="label">Total Clients</span>
+                <h2 class="value">{{ (summary?.totalClients || 0) | number }}</h2>
+                <span class="trend up">
+                    <mat-icon>trending_up</mat-icon>
+                    +5 nouveaux ce mois
+                </span>
+            </div>
+        </mat-card>
+
+        <mat-card class="kpi-card glass danger">
+            <div class="kpi-icon">
+                <mat-icon>account_balance_wallet</mat-icon>
+            </div>
+            <div class="kpi-content">
+                <span class="label">Dépenses Globales</span>
+                <h2 class="value">{{ (summary?.totalExpenses || 0) | number:'1.2-2' }} DH</h2>
+                <span class="trend">
+                    <mat-icon>payments</mat-icon>
+                    Charges & Fournisseurs
+                </span>
+            </div>
+        </mat-card>
+
+        <mat-card class="kpi-card glass accent">
+            <div class="kpi-icon">
+                <mat-icon>ads_click</mat-icon>
+            </div>
+            <div class="kpi-content">
+                <span class="label">Taux de Conversion</span>
+                <h2 class="value">{{ (summary?.conversionRate || 0) | number:'1.1-1' }}%</h2>
+                <span class="trend down">
+                    <mat-icon>trending_down</mat-icon>
+                    -2.1% focus requis
+                </span>
+            </div>
+        </mat-card>
+    </div>
+
+    <!-- Main Charts Row -->
+    <div class="main-grid">
+        <mat-card class="chart-card glass lg">
+            <mat-card-header>
+                <mat-card-title>Performance Financière</mat-card-title>
+                <mat-card-subtitle>Revenus mensuels consolidés</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="chart-container">
+                    <canvas #revenueChart></canvas>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="chart-card glass sm">
+            <mat-card-header>
+                <mat-card-title>Modes de Paiement</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="chart-container donut">
+                    <canvas #paymentChart></canvas>
+                </div>
+            </mat-card-content>
+        </mat-card>
+    </div>
+
+    <!-- Bottom Row -->
+    <div class="secondary-grid">
+        <mat-card class="chart-card glass">
+            <mat-card-header>
+                <mat-card-title>Inventaire par Type</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="chart-container">
+                    <canvas #distributionChart></canvas>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="list-card glass">
+            <mat-card-header>
+                <mat-card-title>Top 5 Clients</mat-card-title>
+                <mat-card-subtitle>Par volume d'achat</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+                <div class="client-list">
+                    <div class="client-item" *ngFor="let client of topClients">
+                        <div class="client-avatar">
+                            {{ client.clientName.charAt(0) }}
+                        </div>
+                        <div class="client-info">
+                            <span class="name">{{ client.clientName }}</span>
+                            <span class="meta">{{ client.invoiceCount }} factures</span>
+                        </div>
+                        <div class="client-value">
+                            {{ client.totalRevenue | number:'1.0-0' }} DH
+                        </div>
+                    </div>
+                    <div *ngIf="topClients.length === 0" class="no-data">
+                        Aucune donnée client disponible
+                    </div>
+                </div>
+            </mat-card-content>
+        </mat-card>
+    </div>
+</div>

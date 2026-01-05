@@ -18,4 +18,4 @@ COPY . .
 EXPOSE 4200
 
 # Commande de démarrage pour le développement
-CMD ["ng", "serve", "--host", "0.0.0.0"]
+CMD ["ng", "serve", "--host", "0.0.0.0", "--poll", "500"]

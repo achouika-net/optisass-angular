@@ -62,7 +62,24 @@ export class StockMovementHistoryDialogComponent implements OnInit {
         this.stockMovementsService.getHistory(this.data.product.id).subscribe({
             next: (data) => {
                 console.log('History loaded successfully:', data);
-                this.movements = data;
+
+                // Deduplicate: Hide TRANSFERT_ENTREE if a RECEPTION exists for the same transfer
+                this.movements = data.filter((move, _, self) => {
+                    if (move.type === 'TRANSFERT_ENTREE') {
+                        // Extract TRS number (e.g. TRS-2026-0001)
+                        const trsMatch = move.motif?.match(/TRS-\d{4}-\d{4}/);
+                        if (trsMatch) {
+                            const trsNumber = trsMatch[0];
+                            const hasReception = self.some(m =>
+                                m.type === 'RECEPTION' &&
+                                m.motif?.includes(trsNumber)
+                            );
+                            if (hasReception) return false;
+                        }
+                    }
+                    return true;
+                });
+
                 this.loading = false;
                 this.cdr.detectChanges(); // Force update
             },

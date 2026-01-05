@@ -54,7 +54,11 @@ export class StatsController {
     }
 
     @Get('summary')
-    getSummary(@Headers('Tenant') centreId?: string) {
-        return this.statsService.getSummary(centreId);
+    getSummary(
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+        @Headers('Tenant') centreId?: string
+    ) {
+        return this.statsService.getSummary(startDate, endDate, centreId);
     }
 }

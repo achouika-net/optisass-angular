@@ -1,12 +1,12 @@
-<mat-toolbar class="fixed top-0 left-0 z-50 flex h-16 w-full items-center shadow"
+<mat-toolbar class="fixed top-0 left-0 z-50 flex h-20 w-full items-center shadow bg-[#1e3a8a] text-white"
   [style.padding-left]="isCollapsed() ? '8px' : '16px'">
   <div class="flex w-full items-center gap-2">
     @if (!isCollapsed() && !isMobile()) {
     <img [ngSrc]="logo()" width="1473" height="369" alt="homepage-logo" [routerLink]="['/p']"
-      class="cursor-pointer w-[200px] h-full" />
+      class="cursor-pointer w-[240px] h-full brightness-0 invert" />
     } @else {
     <img [ngSrc]="circleLogo()" width="45" height="45" alt="homepage-logo" [routerLink]="['/p']"
-      class="cursor-pointer" />
+      class="cursor-pointer brightness-0 invert" />
     }
 
     <button mat-icon-button class="flex size-12 items-center justify-center" (click)="toggleSidenav(sidenav)">
@@ -19,9 +19,9 @@
   </div>
 </mat-toolbar>
 
-<mat-sidenav-container class="fixed top-16 left-0 z-10 h-[calc(100dvh-64px)] w-screen overflow-hidden">
+<mat-sidenav-container class="fixed top-20 left-0 z-10 h-[calc(100dvh-80px)] w-screen overflow-hidden">
   <mat-sidenav #sidenav [mode]="isMobile() ? 'over' : 'side'" [opened]="!isMobile()" [fixedInViewport]="true"
-    [fixedTopGap]="64" [style.width.px]="isMobile() ? null : isCollapsed() ? 64 : 340"
+    [fixedTopGap]="80" [style.width.px]="isMobile() ? null : isCollapsed() ? 64 : 340"
     class="overflow-y-auto rounded-none shadow-md transition-all duration-300 ease-in-out">
     <app-sidebar [isMobile]="isMobile()" [isCollapsed]="isCollapsed()" />
   </mat-sidenav>

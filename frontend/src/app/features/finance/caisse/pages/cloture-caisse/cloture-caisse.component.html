@@ -18,15 +18,33 @@
                     </div>
                     <div class="detail-row">
                         <span>Carte:</span>
-                        <b class="text-blue-600">{{ resume.recettesDetails.carte | number:'1.2-2' }} DH</b>
+                        <div class="flex items-center gap-2">
+                            <span *ngIf="resume.recettesDetails.carteCount > 0"
+                                class="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold">
+                                {{ resume.recettesDetails.carteCount }}
+                            </span>
+                            <b class="text-blue-600">{{ resume.recettesDetails.carte | number:'1.2-2' }} DH</b>
+                        </div>
                     </div>
                     <div class="detail-row">
                         <span>Chèque/Autre:</span>
-                        <b>{{ resume.recettesDetails.cheque | number:'1.2-2' }} DH</b>
+                        <div class="flex items-center gap-2">
+                            <span *ngIf="resume.recettesDetails.chequeCount > 0"
+                                class="text-xs bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded font-bold">
+                                {{ resume.recettesDetails.chequeCount }}
+                            </span>
+                            <b>{{ resume.recettesDetails.cheque | number:'1.2-2' }} DH</b>
+                        </div>
                     </div>
                     <div class="detail-row">
                         <span class="text-orange-600">En coffre (Chèques/LCN):</span>
-                        <b class="text-orange-600">{{ resume.recettesDetails.enCoffre | number:'1.2-2' }} DH</b>
+                        <div class="flex items-center gap-2">
+                            <span *ngIf="resume.recettesDetails.enCoffreCount > 0"
+                                class="text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded font-bold">
+                                {{ resume.recettesDetails.enCoffreCount }}
+                            </span>
+                            <b class="text-orange-600">{{ resume.recettesDetails.enCoffre | number:'1.2-2' }} DH</b>
+                        </div>
                     </div>
                 </div>
             </mat-card-content>
@@ -225,14 +243,26 @@
                                         <!-- CARTES -->
                                         <tr>
                                             <td>
-                                                <div class="row-title"><mat-icon>credit_card</mat-icon> Cartes (TPE)
+                                                <div class="row-title">
+                                                    <mat-icon>credit_card</mat-icon> Cartes (TPE)
                                                 </div>
-                                                <small>{{ resume.nbVentesCarte }} reçu(s) attendu(s)</small>
+                                                <div class="flex items-center gap-2 mt-1">
+                                                    <span
+                                                        class="text-[10px] bg-blue-100 text-blue-800 px-1 rounded font-bold">
+                                                        {{ resume.recettesDetails.carteCount }} reçu(s) attendu(s)
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td class="amount-cell">{{ resume.totalVentesCarte | number:'1.2-2' }} DH
                                             </td>
-                                            <td class="amount-cell">{{ form.get('montantTotalCarte')?.value |
-                                                number:'1.2-2' }} DH ({{ form.get('nbRecuCarte')?.value }} reçus)</td>
+                                            <td class="amount-cell">
+                                                <div class="flex flex-col items-end">
+                                                    <span>{{ form.get('montantTotalCarte')?.value | number:'1.2-2' }}
+                                                        DH</span>
+                                                    <small class="text-gray-500">({{ form.get('nbRecuCarte')?.value }}
+                                                        reçus)</small>
+                                                </div>
+                                            </td>
                                             <td class="ecart-cell"
                                                 [class.negative]="ecartCarteMontant !== 0 || ecartCarteNombre !== 0"
                                                 [class.zero]="ecartCarteMontant === 0 && ecartCarteNombre === 0">
@@ -244,13 +274,25 @@
                                         <!-- CHÈQUES -->
                                         <tr>
                                             <td>
-                                                <div class="row-title"><mat-icon>history_edu</mat-icon> Chèques</div>
-                                                <small>{{ resume.nbVentesCheque }} chèque(s) attendu(s)</small>
+                                                <div class="row-title">
+                                                    <mat-icon>history_edu</mat-icon> Chèques / LCN
+                                                </div>
+                                                <div class="flex items-center gap-2 mt-1">
+                                                    <span
+                                                        class="text-[10px] bg-gray-100 text-gray-800 px-1 rounded font-bold">
+                                                        {{ resume.recettesDetails.chequeCount }} chèque(s) attendu(s)
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td class="amount-cell">{{ resume.totalVentesCheque | number:'1.2-2' }} DH
                                             </td>
-                                            <td class="amount-cell">{{ form.get('montantTotalCheque')?.value |
-                                                number:'1.2-2' }} DH ({{ form.get('nbRecuCheque')?.value }} chèques)
+                                            <td class="amount-cell">
+                                                <div class="flex flex-col items-end">
+                                                    <span>{{ form.get('montantTotalCheque')?.value | number:'1.2-2' }}
+                                                        DH</span>
+                                                    <small class="text-gray-500">({{ form.get('nbRecuCheque')?.value }}
+                                                        chèques)</small>
+                                                </div>
                                             </td>
                                             <td class="ecart-cell"
                                                 [class.negative]="ecartChequeMontant !== 0 || ecartChequeNombre !== 0"

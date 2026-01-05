@@ -278,26 +278,59 @@ export class StatsService {
             .sort((a, b) => b.totalAmount - a.totalAmount);
     }
 
-    async getSummary(centreId?: string) {
-        const [totalProducts, totalClients, totalRevenue, activeWarehouses] = await Promise.all([
-            this.prisma.product.count(),
-            this.prisma.client.count(),
+    async getSummary(startDate?: string, endDate?: string, centreId?: string) {
+        const start = startDate ? new Date(startDate) : undefined;
+        const end = endDate ? new Date(endDate) : undefined;
+
+        const [totalProducts, totalClients, totalRevenue, activeWarehouses, totalDirectExpenses, totalScheduledExpenses] = await Promise.all([
+            this.prisma.product.count({
+                where: centreId ? {
+                    entrepot: { centreId }
+                } : {}
+            }),
+            this.prisma.client.count({
+                where: centreId ? { centreId } : {}
+            }),
             this.prisma.facture.aggregate({
                 where: {
                     statut: { in: ['VALIDE', 'PAYEE', 'PARTIEL'] },
-                    type: { not: 'AVOIR' }
+                    type: { not: 'AVOIR' },
+                    ...(centreId ? { centreId } : {}),
+                    ...(start || end ? { dateEmission: { gte: start, lte: end } } : {})
                 },
                 _sum: { totalTTC: true }
             }),
-            this.prisma.entrepot.count()
+            this.prisma.entrepot.count({ where: centreId ? { centreId } : {} }),
+            this.prisma.depense.aggregate({
+                where: {
+                    echeanceId: null,
+                    ...(centreId ? { centreId } : {}),
+                    ...(start || end ? { date: { gte: start, lte: end } } : {})
+                },
+                _sum: { montant: true }
+            }),
+            this.prisma.echeancePaiement.aggregate({
+                where: {
+                    statut: { not: 'ANNULE' },
+                    ...(centreId ? {
+                        OR: [
+                            { depense: { centreId } },
+                            { factureFournisseur: { centreId } }
+                        ]
+                    } : {}),
+                    ...(start || end ? { dateEcheance: { gte: start, lte: end } } : {})
+                },
+                _sum: { montant: true }
+            })
         ]);
 
-        const conversionMetrics = await this.getConversionRate(undefined, undefined, centreId);
+        const conversionMetrics = await this.getConversionRate(startDate, endDate, centreId);
 
         return {
             totalProducts,
             totalClients,
             totalRevenue: totalRevenue._sum.totalTTC || 0,
+            totalExpenses: (totalDirectExpenses._sum.montant || 0) + (totalScheduledExpenses._sum.montant || 0),
             activeWarehouses,
             conversionRate: conversionMetrics.conversionToFacture
         };

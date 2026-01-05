@@ -170,6 +170,9 @@ export interface JourneeResume {
         carte: number;
         cheque: number;
         enCoffre: number;
+        carteCount: number;
+        chequeCount: number;
+        enCoffreCount: number;
     };
     totalInterne: number;
     totalDepenses: number;

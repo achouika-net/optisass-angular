@@ -34,19 +34,26 @@ Chart.register(...registerables);
     ],
     templateUrl: './finance-dashboard.component.html',
     styles: [`
-    .container { padding: 20px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
-    .card-metric { text-align: center; padding: 20px; }
-    .metric-value { font-size: 34px; font-weight: bold; margin: 12px 0; }
-    .metric-label { color: #555; font-size: 16px; font-weight: 500; }
-    .chart-container { height: 300px; position: relative; }
-    .threshold-container { margin-top: 10px; }
-    .threshold-label { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; font-weight: 500; }
+    :host { display: block; width: 100%; }
+    .dashboard-wrapper { padding: 24px; background: #f8fafc; min-height: 100vh; width: 100%; box-sizing: border-box; }
+    .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+    .title-section {
+        h1 { font-size: 28px; font-weight: 800; color: #1e293b; margin: 0; letter-spacing: -0.5px; }
+        .subtitle { color: #64748b; margin: 4px 0 0 0; font-size: 14px; }
+    }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 32px; }
+    .kpi-card { padding: 24px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07); transition: all 0.3s ease; }
+    .kpi-card:hover { transform: translateY(-5px); box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.12); }
+    .metric-value { font-size: 28px; font-weight: 800; margin: 12px 0; color: #1e293b; }
+    .metric-label { color: #64748b; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 32px; }
+    @media (max-width: 1200px) { .charts-grid { grid-template-columns: 1fr; } }
+    .chart-card { border-radius: 20px; border: none; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05); overflow: hidden; height: 100%; }
+    .chart-container { height: 350px; position: relative; }
     ::ng-deep .dense-form-field .mat-mdc-form-field-wrapper { padding-bottom: 0 !important; }
-    ::ng-deep .dense-form-field .mat-mdc-form-field-flex { height: 40px !important; display: flex; align-items: center; }
-    ::ng-deep .dense-form-field .mat-mdc-text-field-wrapper { height: 40px !important; padding: 0 12px !important; }
-    ::ng-deep .dense-form-field .mat-mdc-form-field-infix { padding-top: 8px !important; padding-bottom: 8px !important; min-height: unset !important; }
-    ::ng-deep .dense-form-field .mat-mdc-select-arrow-wrapper { transform: translateY(-2px); }
+    ::ng-deep .dense-form-field .mat-mdc-form-field-flex { height: 44px !important; }
+    ::ng-deep .dense-form-field .mat-mdc-text-field-wrapper { height: 44px !important; padding: 0 16px !important; border-radius: 12px !important; }
+    ::ng-deep .dense-form-field .mat-mdc-form-field-infix { padding-top: 10px !important; padding-bottom: 10px !important; min-height: unset !important; }
   `]
 })
 export class FinanceDashboardComponent implements OnInit, AfterViewInit {

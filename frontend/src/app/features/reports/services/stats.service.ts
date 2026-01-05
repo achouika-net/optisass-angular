@@ -47,6 +47,7 @@ export interface StatsSummary {
     totalProducts: number;
     totalClients: number;
     totalRevenue: number;
+    totalExpenses: number;
     activeWarehouses: number;
     conversionRate: number;
 }
@@ -99,7 +100,10 @@ export class StatsService {
         return this.http.get<PaymentMethodStat[]>(`${this.apiUrl}/payment-methods`, { params });
     }
 
-    getSummary(): Observable<StatsSummary> {
-        return this.http.get<StatsSummary>(`${this.apiUrl}/summary`);
+    getSummary(startDate?: string, endDate?: string): Observable<StatsSummary> {
+        let params = new HttpParams();
+        if (startDate) params = params.set('startDate', startDate);
+        if (endDate) params = params.set('endDate', endDate);
+        return this.http.get<StatsSummary>(`${this.apiUrl}/summary`, { params });
     }
 }
