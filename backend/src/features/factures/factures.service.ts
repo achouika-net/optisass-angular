@@ -7,6 +7,7 @@ import { CreateFactureDto } from './dto/create-facture.dto';
 import { UpdateFactureDto } from './dto/update-facture.dto';
 
 import { ProductsService } from '../products/products.service';
+import { CommissionService } from '../personnel/commission.service';
 
 @Injectable()
 export class FacturesService implements OnModuleInit {
@@ -14,13 +15,26 @@ export class FacturesService implements OnModuleInit {
         private prisma: PrismaService,
         private loyaltyService: LoyaltyService,
         private paiementsService: PaiementsService,
-        private productsService: ProductsService
+        private productsService: ProductsService,
+        private commissionService: CommissionService,
     ) { }
 
     async onModuleInit() {
-        await this.cleanupExpiredDrafts();
-        await this.migrateDraftsToDevis();
-        await this.migrateBroNumbersToDevis();
+        try {
+            await this.cleanupExpiredDrafts();
+        } catch (e) {
+            console.error('❌ [FacturesService] Failed during cleanupExpiredDrafts:', e);
+        }
+        try {
+            await this.migrateDraftsToDevis();
+        } catch (e) {
+            console.error('❌ [FacturesService] Failed during migrateDraftsToDevis:', e);
+        }
+        try {
+            await this.migrateBroNumbersToDevis();
+        } catch (e) {
+            console.error('❌ [FacturesService] Failed during migrateBroNumbersToDevis:', e);
+        }
     }
 
     async create(data: CreateFactureDto) {
@@ -62,6 +76,9 @@ export class FacturesService implements OnModuleInit {
             await this.verifyProductsAreReceived(data.lignes, data.type);
         }
 
+        // Handle vendeurId if passed
+        const vendeurId = data.vendeurId || (data.proprietes as any)?.vendeurId;
+
         let facture;
         try {
             facture = await this.prisma.facture.create({
@@ -69,7 +86,8 @@ export class FacturesService implements OnModuleInit {
                     ...cleanData,
                     numero,
                     statut: data.statut || 'BROUILLON',
-                    resteAPayer: data.totalTTC || 0
+                    resteAPayer: data.totalTTC || 0,
+                    vendeurId: vendeurId || null
                 }
             });
         } catch (error) {
@@ -682,6 +700,15 @@ export class FacturesService implements OnModuleInit {
                     // 7. STOCK DECREMENT LOGIC
                     await this.decrementStockForInvoice(tx, finalInvoice);
 
+                    // 7.5 COMMISSION CALCULATION
+                    if ((finalInvoice as any).vendeurId) {
+                        try {
+                            await this.commissionService.calculateForInvoice(finalInvoice.id);
+                        } catch (e) {
+                            console.error('⚠️ [COMMISSION] Failed to calculate commissions:', e);
+                        }
+                    }
+
                     // 8. LOYALTY POINTS
                     await this.loyaltyService.awardPointsForPurchase(finalInvoice.id);
 
@@ -752,6 +779,16 @@ export class FacturesService implements OnModuleInit {
             (updatedFacture.proprietes as any)?.forceStockDecrement === true) {
             console.log('📦 Post-Update Stock Trigger (Validation, Instance, or Archive)');
             await this.decrementStockForInvoice(this.prisma, updatedFacture);
+
+            // [NEW] Commission Trigger
+            if ((updatedFacture as any).vendeurId) {
+                try {
+                    await this.commissionService.calculateForInvoice(updatedFacture.id);
+                } catch (e) {
+                    console.error('⚠️ [COMMISSION] Failed to calculate commissions:', e);
+                }
+            }
+
             await this.loyaltyService.awardPointsForPurchase(updatedFacture.id);
 
             // Deduct points if used

@@ -1,0 +1,7 @@
+mat-card {
+    transition: transform 0.2s;
+}
+
+mat-card:hover {
+    transform: translateY(-4px);
+}

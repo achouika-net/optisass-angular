@@ -1,0 +1,92 @@
+<div class="flex flex-col space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-[#1e3a8a] flex items-center gap-2">
+                <mat-icon>analytics</mat-icon>
+                Tableau de Bord RH
+            </h1>
+            <p class="text-gray-500">Aperçu de la performance et de la masse salariale.</p>
+        </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-gradient-to-br from-blue-500 to-blue-700 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-blue-100 text-sm font-medium uppercase tracking-wider">Effectif Total</p>
+                    <h3 class="text-3xl font-bold mt-1">{{totalEmployees}}</h3>
+                </div>
+                <div class="bg-white/20 p-3 rounded-lg">
+                    <mat-icon class="text-white scale-125">people</mat-icon>
+                </div>
+            </div>
+            <p class="text-xs text-blue-100 mt-4">{{activeEmployees}} employés actifs actuellement.</p>
+        </mat-card>
+
+        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm font-medium uppercase tracking-wider">Masse Salariale (Mois)</p>
+                    <h3 class="text-3xl font-bold text-[#1e3a8a] mt-1">{{monthlySalaryMass | number:'1.2-2'}}</h3>
+                </div>
+                <div class="bg-blue-50 p-3 rounded-lg">
+                    <mat-icon class="text-[#1e3a8a] scale-125">payments</mat-icon>
+                </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-4">Somme des nets à payer pour le mois en cours.</p>
+        </mat-card>
+
+        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm font-medium uppercase tracking-wider">Commissions (Mois)</p>
+                    <h3 class="text-3xl font-bold text-green-600 mt-1">{{totalCommissions | number:'1.2-2'}}</h3>
+                </div>
+                <div class="bg-green-50 p-3 rounded-lg">
+                    <mat-icon class="text-green-600 scale-125">trending_up</mat-icon>
+                </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-4 font-medium text-green-600">Calculées sur les ventes encaissées.</p>
+        </mat-card>
+
+        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm font-medium uppercase tracking-wider">Performance RH</p>
+                    <h3 class="text-3xl font-bold text-orange-600 mt-1">92%</h3>
+                </div>
+                <div class="bg-orange-50 p-3 rounded-lg">
+                    <mat-icon class="text-orange-600 scale-125">stars</mat-icon>
+                </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-4 italic">Taux de présence et objectifs atteints.</p>
+        </mat-card>
+    </div>
+
+    <!-- Charts Placeholder -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-white">
+            <h2 class="text-lg font-bold text-[#1e3a8a] mb-6">Évolution Masse Salariale</h2>
+            <div
+                class="h-64 flex items-center justify-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                <p class="text-gray-400 flex flex-col items-center gap-2">
+                    <mat-icon class="scale-150">bar_chart</mat-icon>
+                    Visualisation graphique en attente de données historiques...
+                </p>
+            </div>
+        </mat-card>
+
+        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-white">
+            <h2 class="text-lg font-bold text-[#1e3a8a] mb-6">Répartition par Poste</h2>
+            <div
+                class="h-64 flex items-center justify-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                <p class="text-gray-400 flex flex-col items-center gap-2">
+                    <mat-icon class="scale-150">pie_chart</mat-icon>
+                    Calcul de la répartition en cours...
+                </p>
+            </div>
+        </mat-card>
+    </div>
+</div>

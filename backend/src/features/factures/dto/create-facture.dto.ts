@@ -93,4 +93,8 @@ export class CreateFactureDto {
     @IsObject()
     @IsOptional()
     proprietes?: any;
+
+    @IsString()
+    @IsOptional()
+    vendeurId?: string;
 }
