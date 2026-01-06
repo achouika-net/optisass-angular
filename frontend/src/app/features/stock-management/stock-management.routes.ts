@@ -19,6 +19,10 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/transfer-manager/transfer-manager.component').then(m => m.TransferManagerComponent)
     },
     {
+        path: 'entry-v2',
+        loadComponent: () => import('./pages/stock-entry-v2/stock-entry-v2.component').then(m => m.StockEntryV2Component)
+    },
+    {
         path: ':id',
         loadComponent: () => import('./pages/product-detail/product-detail.component').then(m => m.ProductDetailComponent)
     },
