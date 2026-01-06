@@ -1,0 +1,318 @@
+<div class="stock-entry-container p-6 flex flex-col gap-6">
+
+    <!-- SECTION 1: DOCUMENT & IDENTIFICATION -->
+    <mat-card>
+        <mat-card-header>
+            <mat-card-title>Identification & Document</mat-card-title>
+        </mat-card-header>
+        <mat-card-content class="pt-4 flex flex-col gap-6">
+
+            <!-- A. Document Context Row -->
+            <div class="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                <form [formGroup]="documentForm" class="flex gap-4 items-center flex-wrap">
+                    <mat-icon class="text-blue-600">description</mat-icon>
+                    <span class="font-medium text-blue-800 mr-4">Pièce Jointe :</span>
+
+                    <mat-form-field appearance="outline" class="w-40 compact-field">
+                        <mat-label>Type</mat-label>
+                        <mat-select formControlName="type">
+                            <mat-option value="FACTURE">Facture</mat-option>
+                            <mat-option value="BL">Bon Livraison</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="w-48 compact-field">
+                        <mat-label>N° Pièce</mat-label>
+                        <input matInput formControlName="numero" placeholder="ex: FAC-2023-001" class="text-center">
+                    </mat-form-field>
+
+                    <div class="flex-1"></div>
+
+                    <div class="flex items-center gap-2">
+                        <input type="file" #fileInput hidden (change)="onFileSelected($event)"
+                            accept="image/*,application/pdf">
+
+                        <!-- Attach Button -->
+                        <button mat-stroked-button color="primary" (click)="fileInput.click()"
+                            *ngIf="!documentForm.get('file')?.value">
+                            <mat-icon>attach_file</mat-icon> Joindre Document
+                        </button>
+
+                        <!-- Camera Button -->
+                        <button mat-flat-button color="accent" (click)="openCamera()"
+                            *ngIf="!documentForm.get('file')?.value">
+                            <mat-icon>photo_camera</mat-icon> Scanner
+                        </button>
+
+                        <!-- Active File Display -->
+                        <div *ngIf="documentForm.get('file')?.value as file"
+                            class="flex items-center gap-2 bg-blue-100 text-blue-900 px-3 py-1.5 rounded-full border border-blue-200 animate-in fade-in zoom-in duration-300">
+                            <mat-icon class="text-sm">description</mat-icon>
+                            <span class="text-sm font-medium max-w-[150px] truncate" [matTooltip]="file.name">{{
+                                file.name }}</span>
+
+                            <!-- View File -->
+                            <button mat-icon-button class="scale-75 w-8 h-8" (click)="viewDocument()"
+                                matTooltip="Visualiser">
+                                <mat-icon>visibility</mat-icon>
+                            </button>
+
+                            <!-- Remove File -->
+                            <button mat-icon-button color="warn" class="scale-75 w-8 h-8"
+                                (click)="documentForm.patchValue({file: null}); detectedLines=[]; showOcrData=false;"
+                                matTooltip="Supprimer">
+                                <mat-icon>close</mat-icon>
+                            </button>
+                        </div>
+
+                        <span *ngIf="ocrProcessing"
+                            class="text-sm text-blue-600 animate-pulse flex items-center gap-1 ml-2">
+                            <mat-icon class="text-sm">hourglass_empty</mat-icon> Analyse OCR...
+                        </span>
+                    </div>
+                </form>
+            </div>
+
+            <!-- OCR Results Display -->
+            <div *ngIf="showOcrData"
+                class="border rounded-lg border-blue-200 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
+                <div class="bg-blue-100 px-4 py-3 flex justify-between items-center">
+                    <span class="font-bold text-blue-900 flex items-center gap-2">
+                        <mat-icon>manage_search</mat-icon> Données Détectées via OCR
+                    </span>
+                    <div class="flex items-center gap-2">
+                        <button mat-flat-button color="primary" class="scale-90" (click)="addAllDetectedLines()"
+                            *ngIf="detectedLines.length > 0">
+                            <mat-icon>playlist_add</mat-icon> Tout Ajouter au Panier
+                        </button>
+                        <span class="text-xs bg-white text-blue-800 px-2 py-1 rounded font-bold border border-blue-200">
+                            {{ detectedLines.length }} Ligne(s) trouvée(s)
+                        </span>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-white flex flex-col gap-4">
+
+                    <!-- Detected Lines List -->
+                    <div *ngIf="detectedLines.length > 0">
+                        <p class="text-sm text-gray-500 mb-2 italic">Cliquez sur une ligne pour pré-remplir le
+                            formulaire produit :</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-2">
+                            <button *ngFor="let line of detectedLines" (click)="useDetectedLine(line)"
+                                class="text-left p-3 rounded border border-gray-100 hover:bg-blue-50 hover:border-blue-300 transition-all group flex flex-col gap-1 relative">
+                                <span class="text-sm text-gray-800 font-medium line-clamp-2 pr-6">{{ line.raw }}</span>
+                                <span *ngIf="line.priceCandidates?.length"
+                                    class="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded w-fit">
+                                    Prix estimé : {{ line.priceCandidates[0] }} DH
+                                </span>
+                                <mat-icon
+                                    class="absolute right-2 top-3 text-gray-300 group-hover:text-blue-500 scale-75">ads_click</mat-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div *ngIf="detectedLines.length === 0" class="text-center py-4 text-gray-400">
+                        Aucune ligne structurée détectée. Vérifiez le texte brut ci-dessous.
+                    </div>
+
+                    <!-- Raw Text Toggle -->
+                    <details class="text-xs text-gray-500 cursor-pointer">
+                        <summary class="hover:text-blue-600 mb-2">Voir le texte brut complet</summary>
+                        <div
+                            class="bg-gray-50 p-3 rounded border border-gray-200 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
+                            {{ analyzedText }}
+                        </div>
+                    </details>
+                </div>
+            </div>
+
+            <mat-divider></mat-divider>
+
+            <!-- B. Product Identification Form (Grid Layout) -->
+            <form [formGroup]="entryForm">
+                <div class="grid grid-cols-12 gap-4">
+
+                    <!-- Row 1: Identity -->
+                    <div class="col-span-3">
+                        <mat-form-field appearance="outline" class="w-full">
+                            <mat-label>Référence / Code Barre</mat-label>
+                            <input matInput formControlName="reference" cdkFocusInitial>
+                            <mat-icon matSuffix>qr_code_scanner</mat-icon>
+                        </mat-form-field>
+                    </div>
+                    <div class="col-span-5">
+                        <mat-form-field appearance="outline" class="w-full">
+                            <mat-label>Désignation Produit</mat-label>
+                            <input matInput formControlName="nom">
+                        </mat-form-field>
+                    </div>
+                    <div class="col-span-2">
+                        <mat-form-field appearance="outline" class="w-full">
+                            <mat-label>Marque</mat-label>
+                            <input matInput formControlName="marque">
+                        </mat-form-field>
+                    </div>
+                    <div class="col-span-2">
+                        <mat-form-field appearance="outline" class="w-full">
+                            <mat-label>Catégorie</mat-label>
+                            <mat-select formControlName="categorie">
+                                <mat-option value="MONTURE">Monture</mat-option>
+                                <mat-option value="VERRE">Verre</mat-option>
+                                <mat-option value="LENTILLE">Lentille</mat-option>
+                                <mat-option value="ACCESSOIRE">Accessoire</mat-option>
+                            </mat-select>
+                        </mat-form-field>
+                    </div>
+
+                    <!-- Row 2: Pricing Logic -->
+                    <div class="col-span-12 bg-gray-50 p-4 rounded border border-gray-200 flex items-center gap-6">
+
+                        <!-- Block 1: Cost Base (Default for Batch) -->
+                        <div class="flex gap-2 items-center border-r pr-6 border-gray-300">
+                            <mat-form-field appearance="outline" class="w-32 compact-field bg-white"
+                                subscriptSizing="dynamic">
+                                <mat-label>Qté</mat-label>
+                                <input matInput type="number" formControlName="quantite" min="1">
+                            </mat-form-field>
+                            <mat-form-field appearance="outline" class="w-40 compact-field bg-white"
+                                subscriptSizing="dynamic">
+                                <mat-label>P.Achat (Indicatif)</mat-label>
+                                <input matInput type="number" formControlName="prixAchat">
+                                <span matSuffix>DH</span>
+                            </mat-form-field>
+                        </div>
+
+                        <!-- Block 2: Selling Logic -->
+                        <div class="flex-1 flex gap-4 items-center">
+                            <span class="font-semibold text-gray-700 text-sm">PRIX DE VENTE :</span>
+                            <mat-radio-group formControlName="modePrix" class="flex gap-4">
+                                <mat-radio-button value="FIXE">Fixe</mat-radio-button>
+                                <mat-radio-button value="COEFF">Coefficient</mat-radio-button>
+                            </mat-radio-group>
+
+                            <mat-form-field *ngIf="entryForm.get('modePrix')?.value === 'COEFF'" appearance="outline"
+                                class="w-32 compact-field bg-white" subscriptSizing="dynamic">
+                                <mat-label>Coef (x)</mat-label>
+                                <input matInput type="number" formControlName="coefficient" step="0.1">
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline" class="w-48 compact-field bg-white font-bold"
+                                subscriptSizing="dynamic">
+                                <mat-label>Prix Vente Final</mat-label>
+                                <input matInput type="number" formControlName="prixVente"
+                                    class="text-green-700 font-bold">
+                                <span matSuffix>DH</span>
+                            </mat-form-field>
+                        </div>
+
+                        <!-- Add Button -->
+                        <button mat-flat-button class="h-12 px-8 bg-green-600 text-white hover:bg-green-700"
+                            (click)="addProduct()" [disabled]="entryForm.invalid">
+                            <mat-icon>add</mat-icon> AJOUTER
+                        </button>
+                    </div>
+
+                </div>
+            </form>
+        </mat-card-content>
+    </mat-card>
+
+    <!-- SECTION 2: BASKET Grid -->
+    <div class="flex-1 flex flex-col">
+        <div class="flex justify-between items-end mb-2 px-2">
+            <h3 class="text-xl font-light text-gray-800">Panier d'Entrée <span class="text-gray-500 text-base">({{
+                    stagedProducts.length }} articles)</span></h3>
+        </div>
+
+        <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            <table mat-table [dataSource]="productsSubject" class="w-full">
+
+                <ng-container matColumnDef="reference">
+                    <th mat-header-cell *matHeaderCellDef> Réf </th>
+                    <td mat-cell *matCellDef="let element">
+                        <input [(ngModel)]="element.reference" (input)="updateProduct(element)"
+                            class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-blue-900 font-medium">
+                    </td>
+                </ng-container>
+
+                <ng-container matColumnDef="nom">
+                    <th mat-header-cell *matHeaderCellDef> Désignation </th>
+                    <td mat-cell *matCellDef="let element">
+                        <div class="flex gap-2">
+                            <input [(ngModel)]="element.marque" (input)="updateProduct(element)" placeholder="Marque"
+                                class="w-20 bg-gray-50 border border-gray-100 rounded px-1 py-0.5 text-xs text-gray-400 uppercase">
+                            <input [(ngModel)]="element.nom" (input)="updateProduct(element)"
+                                class="flex-1 bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5">
+                        </div>
+                    </td>
+                </ng-container>
+
+                <ng-container matColumnDef="quantite">
+                    <th mat-header-cell *matHeaderCellDef class="text-center"> Qte </th>
+                    <td mat-cell *matCellDef="let element" class="text-center">
+                        <input type="number" [(ngModel)]="element.quantite" (input)="updateProduct(element)"
+                            class="w-12 bg-transparent border-none text-center focus:ring-1 focus:ring-blue-400 rounded font-bold">
+                    </td>
+                </ng-container>
+
+                <ng-container matColumnDef="prixAchat">
+                    <th mat-header-cell *matHeaderCellDef class="text-right"> P.Achat (Est.) </th>
+                    <td mat-cell *matCellDef="let element" class="text-right">
+                        <input type="number" [(ngModel)]="element.prixAchat" (input)="updateProduct(element)"
+                            class="w-24 bg-transparent border-none text-right focus:ring-1 focus:ring-blue-400 rounded text-gray-500">
+                    </td>
+                </ng-container>
+
+                <ng-container matColumnDef="modePrix">
+                    <th mat-header-cell *matHeaderCellDef class="text-center"> Mode </th>
+                    <td mat-cell *matCellDef="let element" class="text-center">
+                        <select [(ngModel)]="element.modePrix" (change)="updateProduct(element)"
+                            class="bg-transparent border-none text-xs focus:ring-1 focus:ring-blue-400 rounded cursor-pointer">
+                            <option value="FIXE">FIXE</option>
+                            <option value="COEFF">COEFF</option>
+                        </select>
+                        <input *ngIf="element.modePrix==='COEFF'" type="number" step="0.1"
+                            [(ngModel)]="element.coefficient" (input)="updateProduct(element)"
+                            class="w-10 bg-blue-50 text-blue-800 border-none text-center text-xs rounded ml-1">
+                    </td>
+                </ng-container>
+
+                <ng-container matColumnDef="prixVente">
+                    <th mat-header-cell *matHeaderCellDef class="text-right"> P.Vente </th>
+                    <td mat-cell *matCellDef="let element" class="text-right font-bold text-green-700">
+                        <input type="number" [(ngModel)]="element.prixVente" (input)="updateProduct(element)"
+                            class="w-24 bg-transparent border-none text-right focus:ring-1 focus:ring-green-400 rounded text-green-700 font-bold">
+                    </td>
+                </ng-container>
+
+                <ng-container matColumnDef="actions">
+                    <th mat-header-cell *matHeaderCellDef class="w-16"> Actions </th>
+                    <td mat-cell *matCellDef="let element">
+                        <button mat-icon-button color="warn" (click)="removeProduct(element.tempId)">
+                            <mat-icon class="scale-90">delete</mat-icon>
+                        </button>
+                    </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="hover:bg-gray-50 transition-colors">
+                </tr>
+            </table>
+
+            <div *ngIf="stagedProducts.length === 0" class="p-12 text-center text-gray-400 bg-gray-50">
+                <mat-icon class="text-6xl mb-4 text-gray-300">shopping_basket</mat-icon>
+                <p class="text-lg">Commencez par identifier des produits ci-dessus.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN ACTION -->
+    <div class="sticky bottom-0 bg-white p-4 border-t shadow-lg flex justify-end z-10 -m-6 mt-0">
+        <button mat-raised-button color="accent" class="py-3 px-8 text-lg" [disabled]="stagedProducts.length === 0"
+            (click)="openAlimentationDialog()">
+            <mat-icon class="mr-2">archive</mat-icon>
+            ALIMENTER LE STOCK
+        </button>
+    </div>
+
+</div>

@@ -66,6 +66,32 @@ export const MENU: MenuItem[] = [
     ]
   },
   {
+    label: 'Gestion de Stock',
+    icon: 'inventory_2',
+    type: 'sub',
+    route: 'stock-management', // Keeping route generic or strictly semantic, 'logistics' was arbitrary
+    children: [
+      {
+        label: 'Stock',
+        icon: 'inventory',
+        type: 'subchild',
+        route: 'stock',
+      },
+      {
+        label: 'Nouvelle Entrée (V2)',
+        icon: 'add_circle',
+        type: 'subchild',
+        route: 'stock/entry-v2',
+      },
+      {
+        label: 'Transferts Inter-Centres',
+        icon: 'swap_horiz',
+        type: 'subchild',
+        route: 'stock/transfers',
+      },
+    ]
+  },
+  {
     label: 'Commercial',
     icon: 'people',
     type: 'sub',
@@ -76,18 +102,6 @@ export const MENU: MenuItem[] = [
         icon: 'edit_note',
         type: 'subchild',
         route: 'clients',
-      },
-      {
-        label: 'Gestion Stock',
-        icon: 'inventory_2',
-        type: 'subchild',
-        route: 'stock',
-      },
-      {
-        label: 'Transferts Inter-Centres',
-        icon: 'swap_horiz',
-        type: 'subchild',
-        route: 'stock/transfers',
       },
       {
         label: 'Gestion Dépenses',
