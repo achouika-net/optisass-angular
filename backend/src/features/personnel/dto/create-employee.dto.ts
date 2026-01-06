@@ -27,6 +27,11 @@ export class CreateEmployeeDto {
     @IsString()
     adresse?: string;
 
+    @IsOptional()
+    @IsString()
+    photoUrl?: string; // New field for photo
+
+
     @IsString()
     poste: string; // OPTICIEN, VENDEUR, CAISSIER, RESPONSABLE, ADMIN
 

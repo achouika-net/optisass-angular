@@ -1,0 +1,97 @@
+<div class="container space-y-6">
+    <div class="flex items-center gap-2 mb-6">
+        <mat-icon class="text-blue-600">settings</mat-icon>
+        <h1 class="text-2xl font-bold text-gray-800 m-0">Paramétrage des Commissions</h1>
+    </div>
+
+    <!-- Add Rule Form -->
+    <mat-card class="form-card rounded-xl border-none shadow-sm overflow-hidden">
+        <mat-card-header>
+            <mat-card-title class="text-lg">Nouvelle Règle</mat-card-title>
+        </mat-card-header>
+        <mat-card-content class="p-6">
+            <form [formGroup]="commissionForm" (ngSubmit)="onSubmit()"
+                class="flex flex-col md:flex-row gap-4 items-start">
+
+                <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Poste</mat-label>
+                    <mat-select formControlName="poste">
+                        <mat-option *ngFor="let p of postes" [value]="p">{{p}}</mat-option>
+                    </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Type de Produit</mat-label>
+                    <mat-select formControlName="typeProduit">
+                        <mat-option *ngFor="let t of typesProduit" [value]="t">{{t}}</mat-option>
+                    </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Taux (%)</mat-label>
+                    <input matInput type="number" formControlName="taux" placeholder="Ex: 5">
+                    <span matSuffix class="px-2">%</span>
+                </mat-form-field>
+
+                <button mat-flat-button color="primary" type="submit" [disabled]="commissionForm.invalid"
+                    class="py-[1.25em] h-[56px]">
+                    <mat-icon>{{ isEditMode ? 'save' : 'add' }}</mat-icon>
+                    {{ isEditMode ? 'Modifier' : 'Ajouter' }}
+                </button>
+                <button mat-stroked-button color="warn" type="button" *ngIf="isEditMode" (click)="cancelEdit()"
+                    class="py-[1.25em] h-[56px]">
+                    <mat-icon>close</mat-icon>
+                    Annuler
+                </button>
+            </form>
+        </mat-card-content>
+    </mat-card>
+
+    <!-- Rules List -->
+    <mat-card class="rounded-xl border-none shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table mat-table [dataSource]="rules" class="w-full">
+
+                <ng-container matColumnDef="poste">
+                    <th mat-header-cell *matHeaderCellDef> Poste </th>
+                    <td mat-cell *matCellDef="let element">
+                        <span class="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold">
+                            {{element.poste}}
+                        </span>
+                    </td>
+                </ng-container>
+
+                <ng-container matColumnDef="typeProduit">
+                    <th mat-header-cell *matHeaderCellDef> Type de Produit </th>
+                    <td mat-cell *matCellDef="let element"> {{element.typeProduit}} </td>
+                </ng-container>
+
+                <ng-container matColumnDef="taux">
+                    <th mat-header-cell *matHeaderCellDef> Taux de Commission </th>
+                    <td mat-cell *matCellDef="let element" class="font-bold"> {{element.taux}}% </td>
+                </ng-container>
+
+                <ng-container matColumnDef="actions">
+                    <th mat-header-cell *matHeaderCellDef> Actions </th>
+                    <td mat-cell *matCellDef="let element">
+                        <button mat-icon-button color="primary" (click)="editRule(element)" matTooltip="Modifier">
+                            <mat-icon>edit</mat-icon>
+                        </button>
+                        <button mat-icon-button color="warn" (click)="deleteRule(element)" matTooltip="Supprimer">
+                            <mat-icon>delete</mat-icon>
+                        </button>
+                    </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="hover:bg-gray-50"></tr>
+
+                <tr class="mat-row" *matNoDataRow>
+                    <td class="mat-cell p-8 text-center text-gray-400" colspan="3">
+                        Aucune règle de commission définie.
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </mat-card>
+</div>

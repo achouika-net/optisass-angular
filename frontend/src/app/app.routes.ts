@@ -68,6 +68,18 @@ export const routes: Routes = [
         loadComponent: () => import('./features/reports/advanced-stats/advanced-stats.component').then(m => m.AdvancedStatsComponent),
       },
       {
+        path: 'advanced-search',
+        loadComponent: () => import('./features/advanced-search/advanced-search.component').then(m => m.AdvancedSearchComponent),
+      },
+      {
+        path: 'online-payments',
+        loadComponent: () => import('./features/online-payments/online-payments.component').then(m => m.OnlinePaymentsComponent),
+      },
+      {
+        path: 'agenda',
+        loadComponent: () => import('./features/agenda/agenda.component').then(m => m.AgendaComponent),
+      },
+      {
         path: 'finance',
         loadChildren: () => import('./features/finance/finance.routes').then(m => m.routes),
       },

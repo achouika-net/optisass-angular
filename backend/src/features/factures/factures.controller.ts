@@ -1,11 +1,16 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Headers } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Headers, UnauthorizedException } from '@nestjs/common';
+import * as jwt from 'jsonwebtoken';
+import { ConfigService } from '@nestjs/config';
 import { FacturesService } from './factures.service';
 import { CreateFactureDto } from './dto/create-facture.dto';
 import { UpdateFactureDto } from './dto/update-facture.dto';
 
 @Controller('factures')
 export class FacturesController {
-    constructor(private readonly facturesService: FacturesService) { }
+    constructor(
+        private readonly facturesService: FacturesService,
+        private readonly configService: ConfigService
+    ) { }
 
     @Post(':id/exchange')
     createExchange(
@@ -17,11 +22,16 @@ export class FacturesController {
     }
 
     @Post()
-    create(@Body() createFactureDto: CreateFactureDto, @Headers('Tenant') centreId: string) {
+    create(
+        @Body() createFactureDto: CreateFactureDto,
+        @Headers('Tenant') centreId: string,
+        @Headers('authorization') authHeader: string
+    ) {
         if (centreId) {
             createFactureDto.centreId = centreId;
         }
-        return this.facturesService.create(createFactureDto);
+        const userId = this.getUserId(authHeader);
+        return this.facturesService.create(createFactureDto, userId);
     }
 
     @Get()
@@ -92,11 +102,28 @@ export class FacturesController {
     }
 
     @Patch(':id')
-    update(@Param('id') id: string, @Body() updateFactureDto: UpdateFactureDto) {
+    update(
+        @Param('id') id: string,
+        @Body() updateFactureDto: UpdateFactureDto,
+        @Headers('authorization') authHeader: string
+    ) {
+        const userId = this.getUserId(authHeader);
         return this.facturesService.update({
             where: { id },
             data: updateFactureDto,
-        });
+        }, userId);
+    }
+
+    private getUserId(authHeader: string): string | undefined {
+        if (!authHeader || !authHeader.startsWith('Bearer ')) return undefined;
+        try {
+            const token = authHeader.split(' ')[1];
+            const secret = this.configService.get<string>('JWT_SECRET') || 'your-very-secret-key';
+            const payload = jwt.verify(token, secret) as any;
+            return payload.sub;
+        } catch (e) {
+            return undefined;
+        }
     }
 
     @Delete(':id')

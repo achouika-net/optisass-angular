@@ -1,0 +1,34 @@
+<h2 mat-dialog-title>Modifier le Bulletin de Paie</h2>
+<div mat-dialog-content>
+    <form [formGroup]="form" class="flex flex-col gap-4 py-4">
+
+        <mat-form-field appearance="outline">
+            <mat-label>Salaire de Base</mat-label>
+            <input matInput type="number" formControlName="salaireBase">
+            <span matSuffix class="px-2">DH</span>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+            <mat-label>Commissions</mat-label>
+            <input matInput type="number" formControlName="commissions">
+            <span matSuffix class="px-2">DH</span>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+            <mat-label>Heures Supplémentaires / Primes</mat-label>
+            <input matInput type="number" formControlName="heuresSup">
+            <span matSuffix class="px-2">DH</span>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+            <mat-label>Retenues / Absences</mat-label>
+            <input matInput type="number" formControlName="retenues">
+            <span matSuffix class="px-2">DH</span>
+        </mat-form-field>
+
+    </form>
+</div>
+<div mat-dialog-actions align="end">
+    <button mat-button (click)="onCancel()">Annuler</button>
+    <button mat-flat-button color="primary" [disabled]="form.invalid" (click)="onSubmit()">Enregistrer</button>
+</div>

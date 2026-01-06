@@ -11,6 +11,7 @@ export interface ICurrentUser {
   remember_token: string;
   menu_favoris: string;
   centers: ICenter[];
+  employee?: any;
 }
 
 export class CurrentUser implements ICurrentUser {

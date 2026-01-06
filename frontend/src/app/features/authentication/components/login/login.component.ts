@@ -48,16 +48,13 @@ export class LoginComponent implements OnDestroy {
    * Récupération de du login et mot de passe et authentification de l'utilisateur
    */
   login() {
-    // MOCK: Bypass authentication and navigate directly to private layout
-    console.log('🔓 MOCK LOGIN - Bypassing authentication');
-    void this.#router.navigate(['/p']);
+    if (this.loginForm.invalid) return;
 
-    // Real authentication (commented out)
-    // const request: ILoginRequest = {
-    //   email: this.loginForm.controls.email.value,
-    //   password: this.loginForm.controls.password.value,
-    // };
-    // this.#store.dispatch(Login({ request }));
+    const request: ILoginRequest = {
+      email: this.loginForm.controls.email.value,
+      password: this.loginForm.controls.password.value,
+    };
+    this.#store.dispatch(Login({ request }));
   }
 
   gotToForgotPath() {

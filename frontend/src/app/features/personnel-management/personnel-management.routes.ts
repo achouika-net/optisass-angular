@@ -3,6 +3,7 @@ import { EmployeeListComponent } from './employee-list/employee-list.component';
 import { EmployeeFormComponent } from './employee-form/employee-form.component';
 import { PayrollManagerComponent } from './payroll-manager/payroll-manager.component';
 import { HRDashboardComponent } from './hr-dashboard/hr-dashboard.component';
+import { CommissionConfigComponent } from './commission-config/commission-config.component';
 
 export const personnelManagementRoutes: Routes = [
     {
@@ -29,5 +30,9 @@ export const personnelManagementRoutes: Routes = [
     {
         path: 'dashboard',
         component: HRDashboardComponent
+    },
+    {
+        path: 'commissions',
+        component: CommissionConfigComponent
     }
 ];

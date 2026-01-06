@@ -14,6 +14,7 @@ export class OperationCaisseService {
     async create(
         createOperationDto: CreateOperationCaisseDto,
         userRole?: string,
+        userId?: string
     ) {
         // Check if journée exists and is open
         const journee = await this.prisma.journeeCaisse.findUnique({
@@ -51,11 +52,33 @@ export class OperationCaisseService {
             );
         }
 
+        // Get user name if userId exists
+        let userName = createOperationDto.utilisateur || 'System';
+        if (userId) {
+            const user = await this.prisma.user.findUnique({
+                where: { id: userId },
+                select: { nom: true, prenom: true }
+            });
+            if (user) {
+                userName = `${user.prenom} ${user.nom}`;
+            }
+        }
+
         // Create the operation within a transaction to maintain totals
         return await this.prisma.$transaction(async (tx) => {
             const operation = await tx.operationCaisse.create({
-                data: createOperationDto,
+                data: {
+                    ...createOperationDto,
+                    userId: userId || null,
+                    utilisateur: userName
+                },
                 include: {
+                    user: {
+                        select: {
+                            nom: true,
+                            prenom: true
+                        }
+                    },
                     journeeCaisse: {
                         include: {
                             caisse: true,
@@ -126,6 +149,12 @@ export class OperationCaisseService {
         return this.prisma.operationCaisse.findMany({
             where: { journeeCaisseId: journeeId },
             include: {
+                user: {
+                    select: {
+                        nom: true,
+                        prenom: true,
+                    },
+                },
                 facture: {
                     select: {
                         numero: true,
@@ -268,8 +297,21 @@ export class OperationCaisseService {
         fromJourneeId: string;
         toJourneeId: string;
         utilisateur: string;
+        userId?: string;
     }) {
-        const { amount, fromJourneeId, toJourneeId, utilisateur } = dto;
+        const { amount, fromJourneeId, toJourneeId, utilisateur, userId } = dto;
+
+        // Get user name if userId exists
+        let userName = utilisateur || 'Responsable';
+        if (userId) {
+            const user = await this.prisma.user.findUnique({
+                where: { id: userId },
+                select: { nom: true, prenom: true }
+            });
+            if (user) {
+                userName = `${user.prenom} ${user.nom}`;
+            }
+        }
 
         return await this.prisma.$transaction(async (tx) => {
             // 1. Source Operation (Decaissement from Main)
@@ -280,7 +322,8 @@ export class OperationCaisseService {
                     montant: amount,
                     moyenPaiement: 'ESPECES',
                     motif: 'ALIMENTATION_CAISSE_DEPENSES',
-                    utilisateur,
+                    utilisateur: userName,
+                    userId: userId || null,
                     journeeCaisseId: fromJourneeId,
                 },
             });
@@ -293,7 +336,8 @@ export class OperationCaisseService {
                     montant: amount,
                     moyenPaiement: 'ESPECES',
                     motif: 'ALIMENTATION_DEPUIS_CAISSE_PRINCIPALE',
-                    utilisateur,
+                    utilisateur: userName,
+                    userId: userId || null,
                     journeeCaisseId: toJourneeId,
                 },
             });

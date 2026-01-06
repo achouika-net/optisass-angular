@@ -4,35 +4,36 @@
   <button mat-icon-button><mat-icon>calendar_month</mat-icon></button>
   <button mat-icon-button><mat-icon>support_agent</mat-icon></button>
 
-  <button mat-button class="mr-2" [matMenuTriggerFor]="centersMenu">
+  <button mat-button class="mr-2 text-white" [matMenuTriggerFor]="centersMenu">
     <div class="flex items-center gap-1">
-      <mat-icon>store_mall_directory</mat-icon>
-      <span class="text-xs font-medium">
-        {{ currentCentre()?.name?.toUpperCase() || 'SÉLECTIONNER CENTRE' }}
+      <mat-icon class="text-white">store_mall_directory</mat-icon>
+      <span class="text-xs font-medium text-white">
+        {{ (currentCentre()?.name || currentCentre()?.nom || 'SÉLECTIONNER CENTRE') | uppercase }}
       </span>
-      <mat-icon>expand_more</mat-icon>
+      <mat-icon class="text-white">expand_more</mat-icon>
     </div>
   </button>
   <mat-menu #centersMenu="matMenu" class="min-w-56">
     @for (centre of centres(); track centre.id) {
-    <button class="text-center" mat-menu-item (click)="selectCenter(centre)">
-      <span class="font-semibold">
-        {{ centre?.name.toUpperCase() }}
+    <button mat-menu-item (click)="selectCenter(centre)">
+      <mat-icon class="text-gray-900">store</mat-icon>
+      <span class="font-semibold text-gray-900">
+        {{ (centre?.name || centre?.nom || '') | uppercase }}
       </span>
     </button>
     }
   </mat-menu>
 
-  <button mat-button [matMenuTriggerFor]="userMenu">
+  <button mat-button class="text-white" [matMenuTriggerFor]="userMenu">
     <div class="flex items-center gap-1">
-      <mat-icon>person</mat-icon>
+      <mat-icon class="text-white">person</mat-icon>
       @if (!isMobile()) {
       <div class="flex flex-col items-start leading-none">
-        <span class="text-xs font-semibold">{{ userName() }}</span>
-        <span class="text-[10px] text-gray-500 uppercase">{{ roleName() }}</span>
+        <span class="text-xs font-semibold text-white">{{ userName() }}</span>
+        <span class="text-[10px] text-white/70 uppercase">{{ roleName() }}</span>
       </div>
       }
-      <mat-icon>expand_more</mat-icon>
+      <mat-icon class="text-white">expand_more</mat-icon>
     </div>
   </button>
   @if (!isMobile()) {
@@ -43,22 +44,22 @@
 </div>
 
 <mat-menu #userMenu="matMenu">
-  <div class="px-4 py-2 flex flex-col pointer-events-none">
-    <span class="text-sm font-semibold">{{ userName() }}</span>
+  <div class="px-4 py-2 flex flex-col">
+    <span class="text-sm font-semibold text-gray-900">{{ userName() }}</span>
     <span class="text-xs text-gray-500">{{ user()?.email }}</span>
   </div>
   <mat-divider class="m-0" />
   <button mat-menu-item>
-    <mat-icon>account_circle</mat-icon>
-    <span>Mon compte</span>
+    <mat-icon class="text-gray-900">account_circle</mat-icon>
+    <span class="text-gray-900">Mon compte</span>
   </button>
   <button mat-menu-item>
-    <mat-icon>settings</mat-icon>
-    <span>Paramètres</span>
+    <mat-icon class="text-gray-900">settings</mat-icon>
+    <span class="text-gray-900">Paramètres</span>
   </button>
   <mat-divider class="m-0 mx-5" />
   <button mat-menu-item (click)="logout()">
-    <mat-icon>logout</mat-icon>
-    <span>Déconnexion</span>
+    <mat-icon class="text-gray-900 font-bold">logout</mat-icon>
+    <span class="text-gray-900 font-bold">Déconnexion</span>
   </button>
 </mat-menu>

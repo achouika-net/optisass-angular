@@ -44,4 +44,8 @@ export class JourneeCaisseService {
     getResume(id: string): Observable<JourneeResume> {
         return this.http.get<JourneeResume>(`${this.apiUrl}/${id}/resume`);
     }
+
+    getLastClosingBalance(caisseId: string): Observable<{ amount: number }> {
+        return this.http.get<{ amount: number }>(`${this.apiUrl}/caisse/${caisseId}/last-balance`);
+    }
 }

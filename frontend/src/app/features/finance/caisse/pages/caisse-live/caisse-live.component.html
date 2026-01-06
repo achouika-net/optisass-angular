@@ -180,7 +180,9 @@
                 <!-- Utilisateur Column -->
                 <ng-container matColumnDef="utilisateur">
                     <th mat-header-cell *matHeaderCellDef> Utilisateur </th>
-                    <td mat-cell *matCellDef="let op"> {{ op.utilisateur }} </td>
+                    <td mat-cell *matCellDef="let op">
+                        {{ op.user ? (op.user.prenom + ' ' + op.user.nom) : (op.utilisateur || '-') }}
+                    </td>
                 </ng-container>
 
                 <!-- Actions Column -->

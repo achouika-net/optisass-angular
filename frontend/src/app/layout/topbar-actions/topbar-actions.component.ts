@@ -20,12 +20,13 @@ import { ConfirmationPopupComponent } from '../../shared/components/confirmation
 import { toSignal } from '@angular/core/rxjs-interop';
 import { CentersService } from '../../features/centers/services/centers.service';
 import { computed } from '@angular/core';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-topbar-actions',
   templateUrl: './topbar-actions.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatButtonModule, MatIconModule, MatMenuModule, MatDivider],
+  imports: [CommonModule, MatButtonModule, MatIconModule, MatMenuModule, MatDivider],
 })
 export class TopbarActionsComponent {
   private readonly store = inject(Store);

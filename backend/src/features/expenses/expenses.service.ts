@@ -117,74 +117,90 @@ export class ExpensesService {
                 },
             });
 
-            // If payment is in cash (ESPECES), handle expense register deduction
+            // Handle Cash Register Operation (For all payment modes as requested)
+            let targetCaisseTypes: string[] = [];
             if (data.modePaiement === 'ESPECES') {
-                // Find the expense register (Caisse Dépenses) for this center
+                targetCaisseTypes = ['DEPENSES', 'PRINCIPALE', 'SECONDAIRE']; // Prefer Depenses
+            } else if (data.modePaiement === 'VIREMENT' || data.modePaiement === 'CHEQUE') {
+                targetCaisseTypes = ['PRINCIPALE']; // Strictly Main for Bank Ops
+            }
+
+            if (targetCaisseTypes.length > 0) {
+                // Find the appropriate cash register
                 const expenseCaisse = await tx.caisse.findFirst({
                     where: {
                         centreId: data.centreId,
-                        type: 'DEPENSES',
+                        type: { in: targetCaisseTypes },
                         statut: 'ACTIVE'
-                    }
+                    },
+                    orderBy: { type: 'asc' } // DEPENSES < PRINCIPALE < SECONDAIRE (Alphabetical usually, but effectively prioritizes Depenses if present)
                 });
 
-                if (!expenseCaisse) {
-                    throw new BadRequestException('Aucune caisse dépenses active trouvée pour ce centre. Veuillez ouvrir la caisse dépenses avant d’enregistrer un paiement.');
-                }
+                // For Check/Transfer, we might be lenient if no caisse found, but user asked for it.
+                // For Cash, it's critical.
 
-                // Find the open session for this expense register
-                const openSession = await tx.journeeCaisse.findFirst({
-                    where: {
-                        caisseId: expenseCaisse.id,
-                        statut: 'OUVERTE'
+                if (expenseCaisse) {
+                    // Find the open session
+                    const openSession = await tx.journeeCaisse.findFirst({
+                        where: {
+                            caisseId: expenseCaisse.id,
+                            statut: 'OUVERTE'
+                        }
+                    });
+
+                    if (openSession) {
+                        // Check funds ONLY for Cash
+                        let sufficientFunds = true;
+                        if (data.modePaiement === 'ESPECES') {
+                            const availableCash = openSession.fondInitial + openSession.totalInterne - openSession.totalDepenses;
+                            if (availableCash < data.montant) sufficientFunds = false;
+                        }
+
+                        if (!sufficientFunds) {
+                            // Insufficient funds (Cash only) - create funding request
+                            await tx.demandeAlimentation.create({
+                                data: {
+                                    montant: data.montant,
+                                    depenseId: expense.id,
+                                    journeeCaisseId: openSession.id,
+                                    statut: 'EN_ATTENTE'
+                                }
+                            });
+
+                            await tx.depense.update({
+                                where: { id: expense.id },
+                                data: { statut: 'EN_ATTENTE_ALIMENTATION' }
+                            });
+                        } else {
+                            // Sufficient funds or Non-Cash - create operation
+                            // For Non-Cash, this won't affect Solde Reel in JourneeCaisseService (verified)
+                            await tx.operationCaisse.create({
+                                data: {
+                                    type: 'DECAISSEMENT',
+                                    typeOperation: 'INTERNE', // Or COMPTABLE? Expenses usually INTERNE or COMPTABLE. Let's stick to INTERNE for now or match previous.
+                                    // Actually, ExpensesService line 171 used 'INTERNE'.
+                                    montant: data.montant,
+                                    moyenPaiement: data.modePaiement,
+                                    motif: `Dépense: ${data.categorie}`,
+                                    reference: expense.id,
+                                    utilisateur: data.creePar || 'Système',
+                                    journeeCaisseId: openSession.id
+                                }
+                            });
+
+                            // Update session totals
+                            await tx.journeeCaisse.update({
+                                where: { id: openSession.id },
+                                data: {
+                                    totalDepenses: { increment: data.montant }
+                                }
+                            });
+                        }
+                    } else if (data.modePaiement === 'ESPECES') {
+                        throw new BadRequestException('La caisse doit être ouverte pour enregistrer une dépense en espèces.');
                     }
-                });
-
-                if (!openSession) {
-                    throw new BadRequestException('La caisse dépenses doit être ouverte pour enregistrer une dépense en espèces. Veuillez ouvrir la caisse dans le menu Caisse Dépenses.');
-                }
-
-                // Calculate available cash in expense register
-                const availableCash = openSession.fondInitial + openSession.totalInterne - openSession.totalDepenses;
-
-                if (availableCash < data.montant) {
-                    // Insufficient funds - create funding request
-                    await tx.demandeAlimentation.create({
-                        data: {
-                            montant: data.montant,
-                            depenseId: expense.id,
-                            journeeCaisseId: openSession.id,
-                            statut: 'EN_ATTENTE'
-                        }
-                    });
-
-                    // Update expense status to indicate it's waiting for funding
-                    await tx.depense.update({
-                        where: { id: expense.id },
-                        data: { statut: 'EN_ATTENTE_ALIMENTATION' }
-                    });
-                } else {
-                    // Sufficient funds - create automatic deduction operation
-                    await tx.operationCaisse.create({
-                        data: {
-                            type: 'DECAISSEMENT',
-                            typeOperation: 'INTERNE',
-                            montant: data.montant,
-                            moyenPaiement: 'ESPECES',
-                            motif: `Dépense: ${data.categorie}`,
-                            reference: expense.id,
-                            utilisateur: data.creePar || 'Système',
-                            journeeCaisseId: openSession.id
-                        }
-                    });
-
-                    // Update session totals
-                    await tx.journeeCaisse.update({
-                        where: { id: openSession.id },
-                        data: {
-                            totalDepenses: { increment: data.montant }
-                        }
-                    });
+                } else if (data.modePaiement === 'ESPECES') {
+                    throw new BadRequestException('Aucune caisse active trouvée pour ce centre.');
                 }
             }
 

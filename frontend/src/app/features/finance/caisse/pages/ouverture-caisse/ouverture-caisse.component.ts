@@ -67,6 +67,29 @@ export class OuvertureCaisseComponent implements OnInit {
             this.selectedCaisseId = params['caisseId'];
             this.loadCaisses();
         });
+
+        // Listen for caisse selection changes to auto-fill opening balance
+        this.form.get('caisseId')?.valueChanges.subscribe(caisseId => {
+            if (caisseId) {
+                this.updateOpeningBalance(caisseId);
+            }
+        });
+    }
+
+    updateOpeningBalance(caisseId: string): void {
+        this.journeeService.getLastClosingBalance(caisseId).subscribe({
+            next: (data) => {
+                if (data && typeof data.amount === 'number') {
+                    this.form.patchValue({ fondInitial: data.amount });
+                    this.snackBar.open(`Fond de caisse initialisé avec le solde de la veille (${data.amount} DH)`, 'OK', {
+                        duration: 3000
+                    });
+                }
+            },
+            error: (err) => {
+                console.error('Error fetching last closing balance', err);
+            }
+        });
     }
 
     loadCaisses(): void {

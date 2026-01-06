@@ -57,6 +57,14 @@ export class PersonnelService {
         return this.http.post<CommissionRule>(`${this.apiUrl}/commission-rules`, rule);
     }
 
+    updateCommissionRule(id: string, rule: Partial<CommissionRule>): Observable<CommissionRule> {
+        return this.http.patch<CommissionRule>(`${this.apiUrl}/commission-rules/${id}`, rule);
+    }
+
+    deleteCommissionRule(id: string): Observable<any> {
+        return this.http.delete(`${this.apiUrl}/commission-rules/${id}`);
+    }
+
     getEmployeeCommissions(employeeId: string, mois: string): Observable<any[]> {
         return this.http.get<any[]>(`${this.apiUrl}/commissions/${employeeId}`, {
             params: { mois }
@@ -80,7 +88,15 @@ export class PersonnelService {
         return this.http.post<Payroll>(`${this.apiUrl}/payroll/${id}/validate`, {});
     }
 
-    payPayroll(id: string, centreId: string, userId: string): Observable<Payroll> {
-        return this.http.post<Payroll>(`${this.apiUrl}/payroll/${id}/pay`, { centreId, userId });
+    payPayroll(id: string, centreId: string, userId: string, modePaiement: string, banque?: string, reference?: string, dateEcheance?: Date): Observable<Payroll> {
+        return this.http.post<Payroll>(`${this.apiUrl}/payroll/${id}/pay`, { centreId, userId, modePaiement, banque, reference, dateEcheance });
+    }
+
+    updatePayroll(id: string, data: any): Observable<Payroll> {
+        return this.http.patch<Payroll>(`${this.apiUrl}/payroll/${id}`, data);
+    }
+
+    deletePayroll(id: string): Observable<any> {
+        return this.http.delete(`${this.apiUrl}/payroll/${id}`);
     }
 }

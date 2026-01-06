@@ -115,6 +115,24 @@
                     <mat-datepicker-toggle matIconSuffix [for]="picker" [disabled]="isViewMode"></mat-datepicker-toggle>
                     <mat-datepicker #picker></mat-datepicker>
                 </mat-form-field>
+
+                <!-- Vendeur (Automated Display) -->
+                <div
+                    class="p-3 mt-4 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-200">
+                            <mat-icon>person</mat-icon>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-black uppercase tracking-widest text-blue-400">Vendeur /
+                                Opticien</div>
+                            <div class="text-sm font-black text-blue-900 leading-tight">
+                                {{ (currentUser$ | async)?.fullName || 'Chargement...' }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <mat-divider style="margin: 20px 0"></mat-divider>

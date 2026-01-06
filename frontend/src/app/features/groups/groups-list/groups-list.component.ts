@@ -8,6 +8,9 @@ import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { GroupsService } from '../services/groups.service';
 import { Groupe } from '../../../shared/interfaces/warehouse.interface';
 import { GroupFormDialogComponent } from '../group-form-dialog/group-form-dialog.component';
@@ -25,6 +28,9 @@ import { GroupFormDialogComponent } from '../group-form-dialog/group-form-dialog
         MatDialogModule,
         MatMenuModule,
         MatDividerModule,
+        MatFormFieldModule,
+        MatInputModule,
+        ReactiveFormsModule,
     ],
     templateUrl: './groups-list.component.html',
     styleUrls: ['./groups-list.component.scss']
@@ -32,13 +38,23 @@ import { GroupFormDialogComponent } from '../group-form-dialog/group-form-dialog
 export class GroupsListComponent implements OnInit {
     displayedColumns: string[] = ['nom', 'description', 'ville', 'telephone', 'centresCount', 'actions'];
     groupes: Groupe[] = [];
+    allGroupes: Groupe[] = []; // Store all groups for client-side filtering
+    searchForm: FormGroup;
     loading = false;
 
     constructor(
         private groupsService: GroupsService,
         private dialog: MatDialog,
-        private cdr: ChangeDetectorRef
-    ) { }
+        private cdr: ChangeDetectorRef,
+        private fb: FormBuilder
+    ) {
+        this.searchForm = this.fb.group({
+            nom: [''],
+            adresse: [''],
+            telephone: [''],
+            email: ['']
+        });
+    }
 
     ngOnInit(): void {
         this.loadGroupes();
@@ -48,7 +64,8 @@ export class GroupsListComponent implements OnInit {
         this.loading = true;
         this.groupsService.findAll().subscribe({
             next: (data) => {
-                this.groupes = data;
+                this.allGroupes = data;
+                this.applyFilter(); // Apply current filters if any
                 this.loading = false;
                 this.cdr.detectChanges();
             },
@@ -57,6 +74,23 @@ export class GroupsListComponent implements OnInit {
                 this.loading = false;
                 this.cdr.detectChanges();
             }
+        });
+    }
+
+    onSearch(): void {
+        this.applyFilter();
+    }
+
+    applyFilter(): void {
+        const filters = this.searchForm.value;
+
+        this.groupes = this.allGroupes.filter(groupe => {
+            const matchesNom = !filters.nom || (groupe.nom || '').toLowerCase().includes(filters.nom.toLowerCase());
+            const matchesAdresse = !filters.adresse || (groupe.adresse || '').toLowerCase().includes(filters.adresse.toLowerCase());
+            const matchesPhone = !filters.telephone || (groupe.telephone || '').toLowerCase().includes(filters.telephone.toLowerCase());
+            const matchesEmail = !filters.email || (groupe.email || '').toLowerCase().includes(filters.email.toLowerCase());
+
+            return matchesNom && matchesAdresse && matchesPhone && matchesEmail;
         });
     }
 

@@ -30,94 +30,45 @@
                         </div>
 
                         <!-- Row 1: Civilité, Nom, Prénom -->
-                        <div class="form-row three-cols">
-                            <mat-form-field class="form-field">
-                                <mat-label>Civilité</mat-label>
-                                <mat-select formControlName="civilite">
-                                    <mat-option *ngFor="let civilite of civilites" [value]="civilite">
-                                        {{ civilite }}
+                        <!-- Employee Selection -->
+                        <div class="mb-6">
+                            <mat-form-field appearance="outline" class="w-full">
+                                <mat-label>Sélectionner le personnel</mat-label>
+                                <mat-select formControlName="employeeId"
+                                    (selectionChange)="onEmployeeChange($event.value)">
+                                    <mat-option *ngFor="let emp of employees()" [value]="emp.id">
+                                        {{ emp.nom }} {{ emp.prenom }} ({{ emp.matricule || 'N/A' }})
                                     </mat-option>
                                 </mat-select>
-                            </mat-form-field>
-
-                            <mat-form-field class="form-field">
-                                <mat-label>Nom</mat-label>
-                                <input matInput formControlName="nom" placeholder="Saisir le nom">
-                                <mat-error *ngIf="userForm.get('nom')?.hasError('required')">
-                                    Le nom est requis
-                                </mat-error>
-                            </mat-form-field>
-
-                            <mat-form-field class="form-field">
-                                <mat-label>Prénom</mat-label>
-                                <input matInput formControlName="prenom" placeholder="Saisir le prénom">
-                                <mat-error *ngIf="userForm.get('prenom')?.hasError('required')">
-                                    Le prénom est requis
+                                <mat-error *ngIf="userForm.get('employeeId')?.hasError('required')">
+                                    Veuillez sélectionner un membre du personnel
                                 </mat-error>
                             </mat-form-field>
                         </div>
 
-                        <!-- Row 2: Email, Téléphone, Matricule -->
-                        <div class="form-row three-cols">
-                            <mat-form-field class="form-field">
-                                <mat-label>Email</mat-label>
-                                <input matInput type="email" formControlName="email" placeholder="email@exemple.com">
-                                <mat-error *ngIf="userForm.get('email')?.hasError('required')">
-                                    L'email est requis
-                                </mat-error>
-                                <mat-error *ngIf="userForm.get('email')?.hasError('email')">
-                                    Email invalide
-                                </mat-error>
-                            </mat-form-field>
-
-                            <mat-form-field class="form-field">
-                                <mat-label>Téléphone</mat-label>
-                                <input matInput formControlName="telephone" placeholder="0XXXXXXXXX">
-                            </mat-form-field>
-
-                            <mat-form-field class="form-field">
-                                <mat-label>Matricule</mat-label>
-                                <input matInput formControlName="matricule" placeholder="Saisir le matricule">
-                            </mat-form-field>
-                        </div>
-
-                    </div>
-
-                    <div class="photo-column">
-                        <!-- Photo Section -->
-                        <div class="photo-section">
-                            <label class="section-label">Photo de profil</label>
-
-                            <div class="photo-display">
-                                <!-- Photo Preview or Placeholder -->
-                                <div class="photo-preview-compact"
-                                    *ngIf="photoPreview || userForm.get('photoUrl')?.value">
-                                    <img [src]="photoPreview || userForm.get('photoUrl')?.value"
-                                        alt="Photo de profil" />
-                                    <button mat-icon-button type="button" class="remove-photo-btn-compact"
-                                        (click)="removePhoto()" matTooltip="Supprimer">
-                                        <mat-icon>close</mat-icon>
-                                    </button>
+                        <!-- Read-Only Preview of Selected Employee -->
+                        <div *ngIf="selectedEmployee" class="bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
+                            <div class="flex items-start gap-4">
+                                <img *ngIf="selectedEmployee.photoUrl" [src]="selectedEmployee.photoUrl"
+                                    class="w-16 h-16 rounded-full object-cover border">
+                                <div *ngIf="!selectedEmployee.photoUrl"
+                                    class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-400">
+                                    <mat-icon>person</mat-icon>
                                 </div>
-                                <div class="photo-placeholder-compact"
-                                    *ngIf="!photoPreview && !userForm.get('photoUrl')?.value">
-                                    <mat-icon>account_circle</mat-icon>
-                                </div>
-
-                                <!-- Upload Buttons -->
-                                <div class="upload-buttons-compact">
-                                    <input type="file" #photoInput accept="image/*" (change)="onPhotoSelected($event)"
-                                        style="display: none" />
-                                    <button mat-icon-button color="accent" type="button" (click)="photoInput.click()"
-                                        matTooltip="Choisir fichier">
-                                        <mat-icon>upload</mat-icon>
-                                    </button>
-                                    <button mat-icon-button color="primary" type="button" (click)="openCamera()"
-                                        matTooltip="Prendre photo">
-                                        <mat-icon>photo_camera</mat-icon>
-                                    </button>
+                                <div>
+                                    <h3 class="font-bold text-lg text-gray-800">{{ selectedEmployee.nom }} {{
+                                        selectedEmployee.prenom }}</h3>
+                                    <p class="text-sm text-gray-600">{{ selectedEmployee.email }}</p>
+                                    <p class="text-sm text-gray-500">Tel: {{ selectedEmployee.telephone }}</p>
+                                    <p class="text-xs text-gray-400 mt-1">Matricule: {{ selectedEmployee.matricule }}
+                                    </p>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Hidden Fields for Backend Compatibility (Visually hidden but present in form) -->
+                        <div class="hidden">
+                            <!-- Inputs are bound via formControlName, no need to render them if we patchValue -->
                         </div>
                     </div>
                 </div>

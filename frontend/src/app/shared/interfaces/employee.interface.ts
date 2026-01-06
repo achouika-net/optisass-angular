@@ -13,6 +13,7 @@ export interface Employee {
     salaireBase: number;
     statut: string; // ACTIF, SUSPENDU, SORTI
     userId?: string;
+    photoUrl?: string; // New field
     centres?: any[];
 }
 

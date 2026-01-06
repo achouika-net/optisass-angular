@@ -11,7 +11,7 @@ export const MENU: MenuItem[] = [
     label: 'Recherche Avancée',
     icon: 'search',
     type: 'link',
-    route: 'appointments',
+    route: 'advanced-search',
   },
   {
     label: 'Statistiques Avancées',
@@ -133,6 +133,12 @@ export const MENU: MenuItem[] = [
         icon: 'payments',
         type: 'subchild',
         route: 'personnel/payroll',
+      },
+      {
+        label: 'Gestion Commissions',
+        icon: 'percent',
+        type: 'subchild',
+        route: 'personnel/commissions',
       },
       {
         label: 'Tableau de bord RH',

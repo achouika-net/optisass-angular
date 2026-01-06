@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCommissionRuleDto } from './dto/create-commission-rule.dto';
+import { UpdateCommissionRuleDto } from './dto/update-commission-rule.dto';
 
 @Injectable()
 export class CommissionService {
@@ -13,6 +14,19 @@ export class CommissionService {
     async getRules(centreId?: string) {
         return this.prisma.commissionRule.findMany({
             where: centreId ? { centreId } : {}
+        });
+    }
+
+    async updateRule(id: string, dto: UpdateCommissionRuleDto) {
+        return this.prisma.commissionRule.update({
+            where: { id },
+            data: dto
+        });
+    }
+
+    async deleteRule(id: string) {
+        return this.prisma.commissionRule.delete({
+            where: { id }
         });
     }
 
@@ -48,29 +62,38 @@ export class CommissionService {
         const results: any[] = [];
 
         for (const line of lines) {
-            const product = await this.prisma.product.findUnique({
-                where: { id: line.productId }
-            });
+            let typeArticle: string | null = null;
 
-            if (!product) continue;
+            if (line.productId) {
+                const product = await this.prisma.product.findUnique({
+                    where: { id: line.productId }
+                });
+                if (product) {
+                    typeArticle = product.typeArticle;
+                }
+            }
+
+            // Fallback: If no product found or no type, try to infer from line properties if they exist
+            // Or just use 'GLOBAL' rule if no specific rule matches.
 
             // Find matching rule
-            const rule = rules.find(r => r.typeProduit === product.typeArticle) ||
-                rules.find(r => r.typeProduit === 'GLOBAL');
+            const rule = rules.find(r =>
+                typeArticle && r.typeProduit.toUpperCase() === typeArticle.toUpperCase()
+            ) || rules.find(r => r.typeProduit === 'GLOBAL');
 
             if (rule) {
                 const montantCom = (line.totalTTC || 0) * (rule.taux / 100);
                 if (montantCom > 0) {
-                    const com = await this.prisma.commission.create({
+                    await this.prisma.commission.create({
                         data: {
                             employeeId: employee.id,
                             factureId: facture.id,
-                            type: product.typeArticle,
+                            type: typeArticle || 'INCONNU',
                             montant: montantCom,
                             mois: mois
                         }
                     });
-                    results.push(com);
+                    results.push({ type: typeArticle, montant: montantCom });
                 }
             }
         }

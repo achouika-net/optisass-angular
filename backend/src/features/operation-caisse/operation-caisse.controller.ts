@@ -1,4 +1,6 @@
-import { Controller, Get, Post, Body, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Query, Headers } from '@nestjs/common';
+import * as jwt from 'jsonwebtoken';
+import { ConfigService } from '@nestjs/config';
 import { OperationCaisseService } from './operation-caisse.service';
 import { CreateOperationCaisseDto } from './dto/create-operation-caisse.dto';
 
@@ -6,14 +8,17 @@ import { CreateOperationCaisseDto } from './dto/create-operation-caisse.dto';
 export class OperationCaisseController {
     constructor(
         private readonly operationCaisseService: OperationCaisseService,
+        private readonly configService: ConfigService
     ) { }
 
     @Post()
     create(
         @Body() createOperationDto: CreateOperationCaisseDto,
         @Query('userRole') userRole?: string,
+        @Headers('authorization') authHeader?: string
     ) {
-        return this.operationCaisseService.create(createOperationDto, userRole);
+        const userId = this.getUserId(authHeader);
+        return this.operationCaisseService.create(createOperationDto, userRole, userId);
     }
 
     @Get('journee/:journeeId')
@@ -34,8 +39,22 @@ export class OperationCaisseController {
             toJourneeId: string;
             utilisateur: string;
         },
+        @Headers('authorization') authHeader?: string
     ) {
-        return this.operationCaisseService.transfer(transferDto);
+        const userId = this.getUserId(authHeader);
+        return this.operationCaisseService.transfer({ ...transferDto, userId });
+    }
+
+    private getUserId(authHeader?: string): string | undefined {
+        if (!authHeader || !authHeader.startsWith('Bearer ')) return undefined;
+        try {
+            const token = authHeader.split(' ')[1];
+            const secret = this.configService.get<string>('JWT_SECRET') || 'your-very-secret-key';
+            const payload = jwt.verify(token, secret) as any;
+            return payload.sub;
+        } catch (e) {
+            return undefined;
+        }
     }
 
     @Delete(':id')

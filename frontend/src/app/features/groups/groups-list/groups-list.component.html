@@ -12,6 +12,45 @@
         </div>
     </div>
 
+    <mat-card class="!shadow-sm !border !border-gray-200 mb-6">
+        <mat-card-content>
+            <form [formGroup]="searchForm" (ngSubmit)="onSearch()">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <mat-form-field appearance="outline" class="w-full">
+                        <mat-label>Nom</mat-label>
+                        <input matInput formControlName="nom" placeholder="Rechercher par nom...">
+                        <mat-icon matSuffix>search</mat-icon>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="w-full">
+                        <mat-label>Adresse</mat-label>
+                        <input matInput formControlName="adresse" placeholder="Rechercher par adresse...">
+                        <mat-icon matSuffix>location_on</mat-icon>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="w-full">
+                        <mat-label>Téléphone</mat-label>
+                        <input matInput formControlName="telephone" placeholder="Rechercher par téléphone...">
+                        <mat-icon matSuffix>phone</mat-icon>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="w-full">
+                        <mat-label>Email</mat-label>
+                        <input matInput formControlName="email" placeholder="Rechercher par email...">
+                        <mat-icon matSuffix>email</mat-icon>
+                    </mat-form-field>
+                </div>
+
+                <div class="flex justify-end mt-2">
+                    <button mat-raised-button color="primary" type="submit">
+                        <mat-icon>filter_list</mat-icon>
+                        Filtrer
+                    </button>
+                </div>
+            </form>
+        </mat-card-content>
+    </mat-card>
+
     <mat-card class="!shadow-sm !border !border-gray-200">
         <mat-card-content>
             <div *ngIf="loading" class="p-4 text-center">Chargement...</div>

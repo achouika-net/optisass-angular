@@ -9,6 +9,7 @@ export const IsAuthenticatedSelector = createSelector(
     !!state.user?.id && !!state.jwtTokens?.token && !!state.jwtTokens?.refresh_token
 );
 export const UserSelector = createSelector(selectAuth, (state: AuthState) => state.user);
+export const UserIdSelector = createSelector(selectAuth, (state: AuthState) => state.user?.id);
 
 export const UserRoleSelector = createSelector(
   selectAuth,

@@ -37,7 +37,7 @@ export class FacturesService implements OnModuleInit {
         }
     }
 
-    async create(data: CreateFactureDto) {
+    async create(data: CreateFactureDto, userId?: string) {
         // 1. Vérifier que le client existe
         const client = await this.prisma.client.findUnique({
             where: { id: data.clientId }
@@ -67,6 +67,7 @@ export class FacturesService implements OnModuleInit {
 
         console.log('💾 Creating facture with proprietes:', data.proprietes);
 
+        // 4. Créer la facture
         // 4. Créer la facture
         // 4. Créer la facture - FIX: Sanitize input to remove nested relations
         const { client: ignoredClient, paiements, fiche, ...cleanData } = data as any;
@@ -127,7 +128,7 @@ export class FacturesService implements OnModuleInit {
             (facture.proprietes as any)?.forceStockDecrement === true;
 
         if (shouldDecrement) {
-            await this.decrementStockForInvoice(this.prisma, facture);
+            await this.decrementStockForInvoice(this.prisma, facture, userId);
             await this.loyaltyService.awardPointsForPurchase(facture.id);
 
             // Deduct points if used
@@ -174,7 +175,7 @@ export class FacturesService implements OnModuleInit {
     }
 
     // Helper: Decrement Stock for Valid Invoice (Principal Warehouses)
-    private async decrementStockForInvoice(tx: any, invoice: any) {
+    private async decrementStockForInvoice(tx: any, invoice: any, userId?: string) {
         console.log(`🎬[DEBUG] Starting Stock Decrement for ${invoice.numero}(${invoice.id})`);
 
         // Load full invoice with line items to ensure we have the latest JSON data
@@ -299,7 +300,8 @@ export class FacturesService implements OnModuleInit {
                         prixAchatUnitaire: product.prixAchatHT,
                         prixVenteUnitaire: fullInvoice.type === 'AVOIR' ? undefined : line.prixUnitaireTTC,
                         motif: `Facturation ${fullInvoice.numero} (${fullInvoice.statut})`,
-                        utilisateur: 'System',
+                        utilisateur: userId ? `User ${userId} ` : 'System',
+                        userId: userId || null,
                         dateMovement: new Date()
                     }
                 });
@@ -479,7 +481,7 @@ export class FacturesService implements OnModuleInit {
     async update(params: {
         where: Prisma.FactureWhereUniqueInput;
         data: UpdateFactureDto;
-    }) {
+    }, userId?: string) {
         const { where, data } = params;
         console.log('🔄 FacturesService.update called with:', {
             id: where.id,
@@ -495,18 +497,23 @@ export class FacturesService implements OnModuleInit {
                 include: { paiements: true, client: true }
             });
 
-            // [FIX] SIMPLIFIED FISCAL TRIGGER
-            // If the invoice is being VALIDATED and is not yet an official FACTURE, we MUST generate the number.
-            // This bypasses all "Draft" detection heuristics which were failing on "Nouveau Document" or legacy formats.
+            // [FIX] STRENGTHENED FISCAL TRIGGER
+            // CRITICAL: Only trigger fiscal flow if this is the FIRST validation OR if amount changed
             const isBecomingValid = (data.statut === 'VALIDE');
-            // [FIX] Use OR because EITHER condition justifies regeneration (Wrong Type OR Wrong Number formatting)
-            const isNotYetOfficial = (currentFacture?.type !== 'FACTURE' || !currentFacture?.numero?.startsWith('FAC'));
 
-            console.log(`🧐 [FISCAL FLOW CHECK] BecomingValid=${isBecomingValid}, NotYetOfficial=${isNotYetOfficial}, CurrentStatus=${currentFacture?.statut}`);
+            // First validation = Any document (BROUILLON, DEVIS, VENTE_EN_INSTANCE) that validates without an official number
+            const isFirstValidation = !currentFacture?.numero?.startsWith('FAC');
 
-            // Trigger fiscal traceability flow:
-            // Trigger fiscal traceability flow:
-            if (currentFacture && isBecomingValid && isNotYetOfficial) {
+            // Amount changed = totalTTC differs by more than 0.1 MAD
+            const amountChanged = data.totalTTC !== undefined && Math.abs((data.totalTTC || 0) - (currentFacture?.totalTTC || 0)) > 0.1;
+
+            // Only trigger if: (First validation) OR (Amount changed)
+            // This prevents fiscal flow on DEVIS/VENTE_EN_INSTANCE re-validations
+            const shouldTriggerFiscalFlow = isBecomingValid && (isFirstValidation || amountChanged);
+
+            console.log(`🧐 [FISCAL FLOW CHECK] BecomingValid=${isBecomingValid}, FirstValidation=${isFirstValidation}, AmountChanged=${amountChanged} (Current: ${currentFacture?.totalTTC}, New: ${data.totalTTC})`);
+
+            if (currentFacture && shouldTriggerFiscalFlow) {
                 await this.verifyProductsAreReceived(currentFacture.lignes as any[], 'FACTURE');
 
                 console.log(`🚀[FISCAL FLOW] STARTING conversion for ${currentFacture.numero}`);
@@ -552,7 +559,7 @@ export class FacturesService implements OnModuleInit {
                         const draftWasDecremented = (currentFacture.proprietes as any)?.stockDecremented === true || (currentFacture.proprietes as any)?.stockDecremented === 'true';
                         if (draftWasDecremented) {
                             console.log(`🔄[FISCAL] Original was decremented. Restoring via Avoir.`);
-                            await this.decrementStockForInvoice(tx, autoAvoir);
+                            await this.decrementStockForInvoice(tx, autoAvoir, userId);
                         }
                     } else {
                         // 1b. DRAFT/DEVIS -> Silent Restoration (No Avoir needed)
@@ -698,7 +705,7 @@ export class FacturesService implements OnModuleInit {
                     });
 
                     // 7. STOCK DECREMENT LOGIC
-                    await this.decrementStockForInvoice(tx, finalInvoice);
+                    await this.decrementStockForInvoice(tx, finalInvoice, userId);
 
                     // 7.5 COMMISSION CALCULATION
                     if ((finalInvoice as any).vendeurId) {
@@ -778,7 +785,7 @@ export class FacturesService implements OnModuleInit {
         if (updatedFacture.statut === 'VALIDE' ||
             (updatedFacture.proprietes as any)?.forceStockDecrement === true) {
             console.log('📦 Post-Update Stock Trigger (Validation, Instance, or Archive)');
-            await this.decrementStockForInvoice(this.prisma, updatedFacture);
+            await this.decrementStockForInvoice(this.prisma, updatedFacture, userId);
 
             // [NEW] Commission Trigger
             if ((updatedFacture as any).vendeurId) {

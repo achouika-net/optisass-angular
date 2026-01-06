@@ -1,4 +1,6 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Headers } from '@nestjs/common';
+import * as jwt from 'jsonwebtoken';
+import { ConfigService } from '@nestjs/config';
 import { PersonnelService } from './personnel.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
@@ -6,8 +8,10 @@ import { AttendanceService } from './attendance.service';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { CommissionService } from './commission.service';
 import { CreateCommissionRuleDto } from './dto/create-commission-rule.dto';
+import { UpdateCommissionRuleDto } from './dto/update-commission-rule.dto';
 import { PayrollService } from './payroll.service';
 import { GeneratePayrollDto } from './dto/generate-payroll.dto';
+import { UpdatePayrollDto } from './dto/update-payroll.dto';
 
 @Controller('personnel')
 export class PersonnelController {
@@ -16,6 +20,7 @@ export class PersonnelController {
         private readonly attendanceService: AttendanceService,
         private readonly commissionService: CommissionService,
         private readonly payrollService: PayrollService,
+        private readonly configService: ConfigService
     ) { }
 
     // --- Employees ---
@@ -70,6 +75,16 @@ export class PersonnelController {
         return this.commissionService.getRules(centreId);
     }
 
+    @Patch('commission-rules/:id')
+    updateCommissionRule(@Param('id') id: string, @Body() dto: UpdateCommissionRuleDto) {
+        return this.commissionService.updateRule(id, dto);
+    }
+
+    @Delete('commission-rules/:id')
+    deleteCommissionRule(@Param('id') id: string) {
+        return this.commissionService.deleteRule(id);
+    }
+
     @Get('commissions/:employeeId')
     getEmployeeCommissions(
         @Param('employeeId') employeeId: string,
@@ -92,10 +107,23 @@ export class PersonnelController {
     @Post('payroll/:id/pay')
     payPayroll(
         @Param('id') id: string,
-        @Body('centreId') centreId: string,
-        @Body('userId') userId: string,
+        @Body() body: { centreId: string, userId: string, modePaiement?: string, banque?: string, reference?: string, dateEcheance?: string },
+        @Headers('authorization') authHeader?: string
     ) {
-        return this.payrollService.markAsPaid(id, centreId, userId);
+        const userId = this.getUserId(authHeader) || body.userId;
+        return this.payrollService.markAsPaid(id, body.centreId, userId, body.modePaiement, body.banque, body.reference, body.dateEcheance);
+    }
+
+    private getUserId(authHeader?: string): string | undefined {
+        if (!authHeader || !authHeader.startsWith('Bearer ')) return undefined;
+        try {
+            const token = authHeader.split(' ')[1];
+            const secret = this.configService.get<string>('JWT_SECRET') || 'your-very-secret-key';
+            const payload = jwt.verify(token, secret) as any;
+            return payload.sub;
+        } catch (e) {
+            return undefined;
+        }
     }
 
     @Get('payroll')
@@ -105,5 +133,15 @@ export class PersonnelController {
         @Query('centreId') centreId?: string,
     ) {
         return this.payrollService.findAll(mois, annee ? parseInt(annee) : undefined, centreId);
+    }
+
+    @Patch('payroll/:id')
+    updatePayroll(@Param('id') id: string, @Body() dto: UpdatePayrollDto) {
+        return this.payrollService.update(id, dto);
+    }
+
+    @Delete('payroll/:id')
+    deletePayroll(@Param('id') id: string) {
+        return this.payrollService.remove(id);
     }
 }

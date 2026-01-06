@@ -19,6 +19,8 @@ import { UserService } from '../services/user.service';
 import { User, UserStatus, UserRole, Civilite, CentreRole } from '../../../shared/interfaces/user.interface';
 import { CentersService } from '../../centers/services/centers.service';
 import { Centre, Entrepot } from '../../../shared/interfaces/warehouse.interface';
+import { PersonnelService } from '../../personnel-management/services/personnel.service';
+import { Employee } from '../../../shared/interfaces/employee.interface';
 
 @Component({
     selector: 'app-user-form',
@@ -45,9 +47,22 @@ export class UserFormComponent implements OnInit {
     isEditMode = false;
     userId?: string;
 
-    // Photo upload
-    selectedPhoto: File | null = null;
-    photoPreview: string | null = null;
+    // Personnel
+    // Personnel
+    private personnelService = inject(PersonnelService);
+    allEmployees = toSignal(this.personnelService.getEmployees(), { initialValue: [] as Employee[] });
+
+    // Filter employees: Show all if editing (to include current), otherwise only show those without user
+    employees = computed(() => {
+        const all = this.allEmployees();
+        if (this.isEditMode && this.selectedEmployee) {
+            // If editing, we still want to be able to see the current one
+            return all.filter(e => !e.userId || e.id === this.selectedEmployee?.id);
+        }
+        return all.filter(e => !e.userId);
+    });
+
+    selectedEmployee: Employee | null = null;
 
     // Enums for dropdowns
     civilites = Object.values(Civilite);
@@ -91,13 +106,19 @@ export class UserFormComponent implements OnInit {
      */
     private createForm(): FormGroup {
         return this.fb.group({
+            employeeId: ['', Validators.required],
+            // Personal info fields removed as they come from Employee
+            // Keeping them as hidden/readonly controls if needed for backend compat? 
+            // The backend CreateUserDto still expects nom, prenom, email.
+            // So we should keep them in the form but populate them from Employee and maybe disable them or hide them.
             nom: ['', Validators.required],
             prenom: ['', Validators.required],
             civilite: [Civilite.MONSIEUR, Validators.required],
-            telephone: [''],
             email: ['', [Validators.required, Validators.email]],
-            photoUrl: [''], // Photo URL
-            matricule: [''], // Formerly Agrement
+            telephone: [''],
+            matricule: [''],
+            photoUrl: [''],
+
             statut: [UserStatus.ACTIF, Validators.required],
             centreRoles: this.fb.array([])
         });
@@ -108,6 +129,42 @@ export class UserFormComponent implements OnInit {
      */
     get centreRoles(): FormArray {
         return this.userForm.get('centreRoles') as FormArray;
+    }
+
+    onEmployeeChange(employeeId: string): void {
+        const employee = this.allEmployees().find(e => e.id === employeeId);
+        if (employee) {
+            this.selectedEmployee = employee;
+            // Populate hidden fields required by backend
+            this.userForm.patchValue({
+                nom: employee.nom,
+                prenom: employee.prenom,
+                email: employee.email,
+                telephone: employee.telephone,
+                matricule: employee.matricule,
+                photoUrl: employee.photoUrl
+                // civilite? Employee doesn't have civilite strictly in interface but User does. Default to Monsieur or infer?
+                // Let's leave civilite as manual or default.
+            });
+
+            // Auto-generate roles based on employee centers
+            this.centreRoles.clear();
+            if (employee.centres && employee.centres.length > 0) {
+                employee.centres.forEach((c: any) => {
+                    // Find the full centre object to get name
+                    const fullCentre = this.realCentres().find(rc => rc.id === c.centreId);
+                    if (fullCentre) {
+                        this.centreRoles.push(this.fb.group({
+                            centreId: [fullCentre.id, Validators.required],
+                            centreName: [fullCentre.nom],
+                            role: [UserRole.VENDEUR, Validators.required], // Default role?
+                            entrepotIds: [fullCentre.entrepots.map(e => e.id)],
+                            entrepotNames: [fullCentre.entrepots.map(e => e.nom)]
+                        }));
+                    }
+                });
+            }
+        }
     }
 
     /**
@@ -147,8 +204,8 @@ export class UserFormComponent implements OnInit {
         if (centre) {
             this.centreRoles.at(index).patchValue({
                 centreName: centre.nom,
-                entrepotIds: [], // Reset warehouses when center changes
-                entrepotNames: []
+                entrepotIds: centre.entrepots.map(e => e.id), // Auto-select all warehouses
+                entrepotNames: centre.entrepots.map(e => e.nom)
             });
         }
     }
@@ -185,7 +242,12 @@ export class UserFormComponent implements OnInit {
     private loadUser(id: string): void {
         this.userService.getUserById(id).subscribe((user: User | undefined) => {
             if (user) {
+                // If editing existing user, we might not have employeeId link in frontend model yet (if not returned by API)
+                // But if we do, we set it.
+                // NOTE: User Interface needs employeeId field if we want to bind it.
+
                 this.userForm.patchValue({
+                    // employeeId: user.employeeId, // Needs to be added to User interface if we want to load it
                     nom: user.nom,
                     prenom: user.prenom,
                     civilite: user.civilite,
@@ -196,10 +258,10 @@ export class UserFormComponent implements OnInit {
                     statut: user.statut
                 });
 
-                // Set photo preview if exists
-                if (user.photoUrl) {
-                    this.photoPreview = user.photoUrl;
-                }
+                // Set photo preview if exists - No longer used as we use selectedEmployee
+                // if (user.photoUrl) {
+                //    this.photoPreview = user.photoUrl;
+                // }
 
                 // Load centre-roles
                 user.centreRoles.forEach((cr: CentreRole) => {
@@ -262,149 +324,6 @@ export class UserFormComponent implements OnInit {
                 console.error('Error saving user:', err);
                 this.snackBar.open('Une erreur est survenue lors de l\'enregistrement', 'Fermer', { duration: 5000 });
             }
-        });
-    }
-
-    /**
-     * Handle photo file selection
-     */
-    onPhotoSelected(event: Event): void {
-        const input = event.target as HTMLInputElement;
-        if (input.files && input.files[0]) {
-            const file = input.files[0];
-
-            // Validate file type
-            if (!file.type.startsWith('image/')) {
-                alert('Veuillez sélectionner une image valide');
-                return;
-            }
-
-            // Validate file size (max 5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                alert('La taille de l\'image ne doit pas dépasser 5MB');
-                return;
-            }
-
-            this.selectedPhoto = file;
-
-            // Create preview
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const originalDataUrl = e.target?.result as string;
-                try {
-                    // Compress image before storing
-                    this.photoPreview = await this.compressImage(originalDataUrl);
-                    this.userForm.patchValue({ photoUrl: this.photoPreview });
-                } catch (error) {
-                    console.error('Compression error:', error);
-                    this.photoPreview = originalDataUrl;
-                    this.userForm.patchValue({ photoUrl: this.photoPreview });
-                }
-            };
-            reader.readAsDataURL(file);
-        }
-    }
-
-    /**
-     * Remove selected photo
-     */
-    removePhoto(): void {
-        this.selectedPhoto = null;
-        this.photoPreview = null;
-        this.userForm.patchValue({ photoUrl: '' });
-    }
-
-    /**
-     * Open camera for photo capture
-     */
-    async openCamera(): Promise<void> {
-        const dialogRef = this.dialog.open(CameraCaptureDialogComponent, {
-            width: '800px',
-            disableClose: true
-        });
-
-        dialogRef.afterClosed().subscribe(dataUrl => {
-            if (dataUrl) {
-                this.handleCapturedPhoto(dataUrl);
-            }
-        });
-    }
-
-    private async handleCapturedPhoto(dataUrl: string): Promise<void> {
-        try {
-            // Compress image
-            this.photoPreview = await this.compressImage(dataUrl);
-            this.userForm.patchValue({ photoUrl: this.photoPreview });
-
-            // Store as file
-            this.selectedPhoto = this.dataURLtoFile(this.photoPreview, 'camera-photo.jpg');
-            this.cdr.markForCheck();
-        } catch (err) {
-            console.error('Photo handling error:', err);
-            this.photoPreview = dataUrl;
-            this.userForm.patchValue({ photoUrl: this.photoPreview });
-            this.selectedPhoto = this.dataURLtoFile(dataUrl, 'camera-photo.jpg');
-            this.cdr.markForCheck();
-        }
-    }
-
-    private dataURLtoFile(dataurl: string, filename: string): File {
-        const arr = dataurl.split(',');
-        const mime = arr[0].match(/:(.*?);/)![1];
-        const bstr = atob(arr[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) {
-            u8arr[n] = bstr.charCodeAt(n);
-        }
-        return new File([u8arr], filename, { type: mime });
-    }
-
-    /**
-     * Close camera - Placeholder for compatibility if needed, but no longer used internally
-     */
-    closeCamera(): void {
-        // No longer needed as dialog handles its own closure
-    }
-
-    /**
-     * Compress an image to a maximum dimension and quality
-     */
-    private compressImage(dataUrl: string, maxWidth: number = 400, quality: number = 0.7): Promise<string> {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-
-                // Calculate new dimensions
-                if (width > height) {
-                    if (width > maxWidth) {
-                        height *= maxWidth / width;
-                        width = maxWidth;
-                    }
-                } else {
-                    if (height > maxWidth) {
-                        width *= maxWidth / height;
-                        height = maxWidth;
-                    }
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    reject(new Error('Could not get canvas context'));
-                    return;
-                }
-
-                ctx.drawImage(img, 0, 0, width, height);
-                const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-                resolve(compressedDataUrl);
-            };
-            img.onerror = (e) => reject(e);
-            img.src = dataUrl;
         });
     }
 

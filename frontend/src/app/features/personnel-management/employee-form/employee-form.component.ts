@@ -1,5 +1,7 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { CameraCaptureDialogComponent } from '../../../shared/components/camera-capture/camera-capture-dialog.component';
+import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -50,6 +52,10 @@ export class EmployeeFormComponent implements OnInit {
     private centersService = inject(CentersService);
     centers = toSignal(this.centersService.findAll(), { initialValue: [] as Centre[] });
 
+    // Photo
+    selectedPhoto: File | null = null;
+    photoPreview: string | null = null;
+
     postes = ['OPTICIEN', 'VENDEUR', 'CAISSIER', 'RESPONSABLE', 'ADMIN', 'STAGIAIRE'];
     contrats = ['CDI', 'CDD', 'JOURNALIER', 'PARTIEL', 'STAGE'];
     statuts = ['ACTIF', 'SUSPENDU', 'SORTI'];
@@ -59,7 +65,9 @@ export class EmployeeFormComponent implements OnInit {
         private personnelService: PersonnelService,
         private router: Router,
         private route: ActivatedRoute,
-        private snackBar: MatSnackBar
+        private snackBar: MatSnackBar,
+        private dialog: MatDialog,
+        private cdr: ChangeDetectorRef
     ) {
         this.employeeForm = this.fb.group({
             matricule: [''],
@@ -74,7 +82,8 @@ export class EmployeeFormComponent implements OnInit {
             dateEmbauche: [new Date()],
             salaireBase: [0, [Validators.required, Validators.min(0)]],
             statut: ['ACTIF', Validators.required],
-            centreIds: [[], Validators.required]
+            centreIds: [[], Validators.required],
+            photoUrl: ['']
         });
     }
 
@@ -93,8 +102,12 @@ export class EmployeeFormComponent implements OnInit {
             this.employeeForm.patchValue({
                 ...employee,
                 dateEmbauche: employee.dateEmbauche ? new Date(employee.dateEmbauche) : null,
-                centreIds: employee.centres?.map((c: any) => c.centreId) || []
+                centreIds: employee.centres?.map((c: any) => c.centreId) || [],
+                photoUrl: employee.photoUrl
             });
+            if (employee.photoUrl) {
+                this.photoPreview = employee.photoUrl;
+            }
         });
     }
 
@@ -129,6 +142,114 @@ export class EmployeeFormComponent implements OnInit {
                 const errorMessage = err?.error?.message || err?.message || 'Erreur lors de l\'enregistrement';
                 this.snackBar.open(errorMessage, 'Fermer', { duration: 5000 });
             }
+        });
+    }
+    onPhotoSelected(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            if (!file.type.startsWith('image/')) {
+                alert('Veuillez sélectionner une image valide');
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                alert('La taille de l\'image ne doit pas dépasser 5MB');
+                return;
+            }
+            this.selectedPhoto = file;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const originalDataUrl = e.target?.result as string;
+                try {
+                    this.photoPreview = await this.compressImage(originalDataUrl);
+                    this.employeeForm.patchValue({ photoUrl: this.photoPreview });
+                } catch (error) {
+                    console.error('Compression error:', error);
+                    this.photoPreview = originalDataUrl;
+                    this.employeeForm.patchValue({ photoUrl: this.photoPreview });
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    removePhoto(): void {
+        this.selectedPhoto = null;
+        this.photoPreview = null;
+        this.employeeForm.patchValue({ photoUrl: '' });
+    }
+
+    async openCamera(): Promise<void> {
+        const dialogRef = this.dialog.open(CameraCaptureDialogComponent, {
+            width: '800px',
+            disableClose: true
+        });
+
+        dialogRef.afterClosed().subscribe(dataUrl => {
+            if (dataUrl) {
+                this.handleCapturedPhoto(dataUrl);
+            }
+        });
+    }
+
+    private async handleCapturedPhoto(dataUrl: string): Promise<void> {
+        try {
+            this.photoPreview = await this.compressImage(dataUrl);
+            this.employeeForm.patchValue({ photoUrl: this.photoPreview });
+            this.selectedPhoto = this.dataURLtoFile(this.photoPreview, 'camera-photo.jpg');
+            this.cdr.markForCheck();
+        } catch (err) {
+            console.error('Photo handling error:', err);
+            this.photoPreview = dataUrl;
+            this.employeeForm.patchValue({ photoUrl: this.photoPreview });
+            this.selectedPhoto = this.dataURLtoFile(dataUrl, 'camera-photo.jpg');
+            this.cdr.markForCheck();
+        }
+    }
+
+    private dataURLtoFile(dataurl: string, filename: string): File {
+        const arr = dataurl.split(',');
+        const mime = arr[0].match(/:(.*?);/)![1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new File([u8arr], filename, { type: mime });
+    }
+
+    private compressImage(dataUrl: string, maxWidth: number = 400, quality: number = 0.7): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height *= maxWidth / width;
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxWidth) {
+                        width *= maxWidth / height;
+                        height = maxWidth;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    reject(new Error('Could not get canvas context'));
+                    return;
+                }
+                ctx.drawImage(img, 0, 0, width, height);
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(compressedDataUrl);
+            };
+            img.onerror = (e) => reject(e);
+            img.src = dataUrl;
         });
     }
 }

@@ -17,6 +17,7 @@ export interface User {
     matricule?: string; // Optional field
     statut: UserStatus;
     centreRoles: CentreRole[];
+    employee?: any; // To avoid circular dependency import issues for now, or use Employee type
     createdAt: Date;
     updatedAt: Date;
 }

@@ -207,7 +207,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
     // Facturation
     clientFactures$: Observable<Facture[]> | null = null;
-    private linkedFactureSubject = new BehaviorSubject<Facture | null>(null);
+    public linkedFactureSubject = new BehaviorSubject<Facture | null>(null);
     linkedFacture$ = this.linkedFactureSubject.asObservable();
 
     private destroy$ = new Subject<void>();
@@ -335,9 +335,10 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 this.ficheForm.disable(); // Disable form in view mode
                 this.loadFiche();
 
-                // Load linked facture via Service
+                // Load linked facture via Service (One reliable method)
                 this.loadLinkedFacture();
-            } else {
+            }
+            else {
                 // CREATE MODE: New Fiche
                 this.isEditMode = true;
                 this.ficheForm.enable();
@@ -1897,16 +1898,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
     }
 
-    // Load client invoices
     loadClientFactures() {
-        if (this.clientId) {
-            this.clientFactures$ = this.factureService.findAll({ clientId: this.clientId });
-            if (this.ficheId && this.ficheId !== 'new') {
-                this.linkedFacture$ = this.clientFactures$.pipe(
-                    map(factures => factures.find(f => f.ficheId === this.ficheId) || null)
-                );
-            }
-        }
+        this.loadLinkedFacture();
     }
 
     updateInitialLines() {
@@ -2490,7 +2483,25 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         let userForcedType: string | null = null;
         let userForcedStockDecrement = false;
 
-        if (hasPendingTransfer) {
+        // [CRITICAL FIX] Protect existing official invoices from status changes
+        // If an official invoice exists, DO NOT force status/type changes
+        // This prevents unwanted fiscal flow triggers during medical record edits
+        const existingInvoice = this.linkedFactureSubject.value;
+        const hasExistingOfficialInvoice = existingInvoice &&
+            (existingInvoice.type === 'FACTURE' ||
+                existingInvoice.statut === 'VALIDE' ||
+                existingInvoice.statut === 'PAYEE' ||
+                existingInvoice.statut === 'PARTIEL');
+
+        if (hasExistingOfficialInvoice) {
+            console.log('🛡️ [INVOICE PROTECTION] Existing official invoice detected. Skipping status override to prevent unwanted fiscal operations.');
+            console.log('   Current invoice:', {
+                numero: existingInvoice.numero,
+                type: existingInvoice.type,
+                statut: existingInvoice.statut
+            });
+            // Do NOT force any status changes - preserve existing invoice as-is
+        } else if (hasPendingTransfer) {
             // [NEW] Reinforced Financial Status Logic (Devis vs Vente en Instance)
             // If there is a payment, it's an Instance. If not, it's a Devis.
             // [RESTORED & FIXED] Logic to ensure DEVIS/INSTANCE is created so payments can attach.
@@ -2592,6 +2603,25 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                         if (userForcedType) {
                             this.factureComponent.form.patchValue({ type: userForcedType }, { emitEvent: false });
                         }
+
+                        // [CRITICAL FIX] Dirty check: Only save invoice if lines changed OR it's new
+                        // This prevents unnecessary backend calls and fiscal flow triggers
+                        const currentLines = this.getInvoiceLines();
+                        const linesChanged = JSON.stringify(currentLines) !== JSON.stringify(this.initialLines);
+                        const isNewInvoice = !this.factureComponent.id || this.factureComponent.id === 'new';
+
+                        if (!linesChanged && !isNewInvoice && !userForcedStatut && !userForcedType) {
+                            console.log('📋 [INVOICE SKIP] No changes to invoice lines or status. Skipping save to prevent unwanted fiscal operations.');
+                            console.log('   Initial lines:', this.initialLines.length, 'Current lines:', currentLines.length);
+                            return of(fiche); // Skip invoice save, just return fiche
+                        }
+
+                        console.log('💾 [INVOICE SAVE] Lines changed or new invoice. Proceeding with save.', {
+                            linesChanged,
+                            isNewInvoice,
+                            forcedStatus: userForcedStatut,
+                            forcedType: userForcedType
+                        });
 
                         // Pass extraProps to saveAsObservable
                         return this.factureComponent.saveAsObservable(true, extraProps).pipe(

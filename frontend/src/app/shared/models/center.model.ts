@@ -11,6 +11,7 @@ export interface ICenter {
   id: string;
   migrated: boolean;
   name: string;
+  nom?: string;
   numero_affaire: string;
   phone: string;
   zipcode: string;

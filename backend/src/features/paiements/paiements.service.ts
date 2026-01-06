@@ -7,7 +7,7 @@ import { UpdatePaiementDto } from './dto/update-paiement.dto';
 export class PaiementsService {
     constructor(private prisma: PrismaService) { }
 
-    async create(createPaiementDto: CreatePaiementDto) {
+    async create(createPaiementDto: CreatePaiementDto, userId?: string) {
         const { factureId, montant } = createPaiementDto;
 
         // 1. Vérifier que la facture existe et est VALIDE
@@ -41,7 +41,8 @@ export class PaiementsService {
         const paiement = await this.prisma.paiement.create({
             data: {
                 ...createPaiementDto,
-                statut: finalStatut
+                statut: finalStatut,
+                userId: userId || null
             }
         });
 
@@ -49,7 +50,7 @@ export class PaiementsService {
         if (createPaiementDto.mode === 'ESPECES' || createPaiementDto.mode === 'CARTE' || createPaiementDto.mode === 'CHEQUE') {
             try {
                 await this.prisma.$transaction(async (tx) => {
-                    await this.handleCaisseIntegration(tx, paiement, facture);
+                    await this.handleCaisseIntegration(tx, paiement, facture, userId);
                 });
             } catch (caisseError) {
                 console.error('Failed to link payment to Caisse', caisseError);
@@ -72,7 +73,7 @@ export class PaiementsService {
         return paiement;
     }
 
-    async handleCaisseIntegration(tx: any, paiement: any, facture: any) {
+    async handleCaisseIntegration(tx: any, paiement: any, facture: any, userId?: string) {
         const isRefund = paiement.montant < 0;
         let caisseType = 'PRINCIPALE';
 
@@ -141,7 +142,8 @@ export class PaiementsService {
                     moyenPaiement: paiement.mode,
                     reference: paiement.reference || `FAC ${facture.numero}`,
                     motif: isRefund ? 'Régularisation Avoir' : `Paiement: FAC ${facture.numero}`,
-                    utilisateur: 'Système',
+                    utilisateur: userId ? `User ${userId} ` : 'Système',
+                    userId: userId || null,
                     journeeCaisseId: openJournee.id,
                     factureId: facture.id
                 }

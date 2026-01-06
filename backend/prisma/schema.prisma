@@ -8,47 +8,47 @@ datasource db {
 }
 
 model Client {
-  id                  String             @id @default(uuid())
-  typeClient          String
-  dateCreation        DateTime           @default(now())
-  email               String?
-  telephone           String?
-  adresse             String?
-  ville               String?
-  codePostal          String?
-  pointsFidelite      Int                @default(0)
-  statut              String             @default("INACTIF")
-  commentaires        String?
-  nom                 String?
-  prenom              String?
-  dateNaissance       DateTime?
-  typePieceIdentite   String?
-  numeroPieceIdentite String?
-  cinParent           String?
-  groupeFamille       Json?
-  dossierMedical      Json?
-  couvertureSociale   Json?
-  raisonSociale       String?
-  identifiantFiscal   String?
-  ice                 String?
-  registreCommerce    String?
-  patente             String?
-  tvaAssujetti        Boolean?           @default(false)
-  numeroAutorisation  String?
-  siteWeb             String?
-  contacts            Json?
-  convention          Json?
-  parrainId           String?
-  centreId            String?
-  titre               String?
-  centre              Centre?            @relation(fields: [centreId], references: [id])
-  parrain             Client?            @relation("Parrainage", fields: [parrainId], references: [id])
-  filleuls            Client[]           @relation("Parrainage")
-  factures            Facture[]
+  id                   String               @id @default(uuid())
+  typeClient           String
+  dateCreation         DateTime             @default(now())
+  email                String?
+  telephone            String?
+  adresse              String?
+  ville                String?
+  codePostal           String?
+  pointsFidelite       Int                  @default(0)
+  statut               String               @default("INACTIF")
+  commentaires         String?
+  nom                  String?
+  prenom               String?
+  dateNaissance        DateTime?
+  typePieceIdentite    String?
+  numeroPieceIdentite  String?
+  cinParent            String?
+  groupeFamille        Json?
+  dossierMedical       Json?
+  couvertureSociale    Json?
+  raisonSociale        String?
+  identifiantFiscal    String?
+  ice                  String?
+  registreCommerce     String?
+  patente              String?
+  tvaAssujetti         Boolean?             @default(false)
+  numeroAutorisation   String?
+  siteWeb              String?
+  contacts             Json?
+  convention           Json?
+  parrainId            String?
+  centreId             String?
+  titre                String?
+  centre               Centre?              @relation(fields: [centreId], references: [id])
+  parrain              Client?              @relation("Parrainage", fields: [parrainId], references: [id])
+  filleuls             Client[]             @relation("Parrainage")
+  factures             Facture[]
   facturesFournisseurs FactureFournisseur[]
-  fiches              Fiche[]
-  pointsHistory       PointsHistory[]
-  rewardRedemptions   RewardRedemption[]
+  fiches               Fiche[]
+  pointsHistory        PointsHistory[]
+  rewardRedemptions    RewardRedemption[]
 }
 
 model Fiche {
@@ -88,46 +88,47 @@ model Facture {
   centreId         String?
   exportComptable  Boolean           @default(true)
   typeOperation    String            @default("COMPTABLE")
+  vendeurId        String?
+  commissions      Commission[]
   centre           Centre?           @relation(fields: [centreId], references: [id])
   client           Client            @relation(fields: [clientId], references: [id])
   fiche            Fiche?            @relation(fields: [ficheId], references: [id])
   parentFacture    Facture?          @relation("FactureRelations", fields: [parentFactureId], references: [id])
   children         Facture[]         @relation("FactureRelations")
+  vendeur          Employee?         @relation("VendeurFactures", fields: [vendeurId], references: [id])
   mouvementsStock  MouvementStock[]
   operationsCaisse OperationCaisse[]
   paiements        Paiement[]
   pointsHistory    PointsHistory[]
-  
-  vendeurId        String?
-  vendeur          Employee?         @relation("VendeurFactures", fields: [vendeurId], references: [id])
-  commissions      Commission[]
 
   @@index([centreId])
   @@index([vendeurId])
 }
 
 model Paiement {
-  id                String           @id @default(uuid())
-  montant           Float
-  date              DateTime         @default(now())
-  mode              String
-  reference         String?
-  notes             String?
-  dateVersement     DateTime?
-  banque            String?
-  tiersNom          String?
-  tiersCin          String?
-  remarque          String?
-  pieceJointe       String?
-  factureId         String
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  dateEncaissement  DateTime?
-  statut            String           @default("ENCAISSE")
-  operationCaisseId String?
-  facture           Facture          @relation(fields: [factureId], references: [id], onDelete: Cascade)
-  operationCaisse   OperationCaisse? @relation(fields: [operationCaisseId], references: [id])
+  id                  String               @id @default(uuid())
+  montant             Float
+  date                DateTime             @default(now())
+  mode                String
+  reference           String?
+  notes               String?
+  dateVersement       DateTime?
+  banque              String?
+  tiersNom            String?
+  tiersCin            String?
+  remarque            String?
+  pieceJointe         String?
+  factureId           String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  dateEncaissement    DateTime?
+  statut              String               @default("ENCAISSE")
+  operationCaisseId   String?
+  userId              String?
   demandeAlimentation DemandeAlimentation?
+  facture             Facture              @relation(fields: [factureId], references: [id], onDelete: Cascade)
+  operationCaisse     OperationCaisse?     @relation(fields: [operationCaisseId], references: [id])
+  user                User?                @relation(fields: [userId], references: [id])
 
   @@index([date])
   @@index([mode])
@@ -162,13 +163,13 @@ model Centre {
   caisses              Caisse[]
   groupe               Groupe               @relation(fields: [groupeId], references: [id], onDelete: Cascade)
   clients              Client[]
+  commissionRules      CommissionRule[]
   depenses             Depense[]
+  employeeCentres      EmployeeCentre[]
   entrepots            Entrepot[]
   factures             Facture[]
   facturesFournisseurs FactureFournisseur[]
   journeesCaisse       JourneeCaisse[]
-  employeeCentres      EmployeeCentre[]
-  commissionRules      CommissionRule[]
 
   @@unique([groupeId, nom])
 }
@@ -245,26 +246,35 @@ model MouvementStock {
   datePeremption        DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+  userId                String?
   entrepotDestination   Entrepot? @relation("EntrepotDestination", fields: [entrepotDestinationId], references: [id])
   entrepotSource        Entrepot? @relation("EntrepotSource", fields: [entrepotSourceId], references: [id])
   facture               Facture?  @relation(fields: [factureId], references: [id])
   produit               Product   @relation(fields: [produitId], references: [id], onDelete: Cascade)
+  user                  User?     @relation(fields: [userId], references: [id])
 }
 
 model User {
-  id          String           @id @default(uuid())
-  nom         String
-  prenom      String
-  civilite    String
-  telephone   String?
-  email       String           @unique
-  photoUrl    String?
-  matricule   String?
-  statut      String           @default("actif")
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  centreRoles UserCentreRole[]
-  employee    Employee?
+  id               String             @id @default(uuid())
+  nom              String
+  prenom           String
+  civilite         String
+  telephone        String?
+  email            String             @unique
+  photoUrl         String?
+  matricule        String?
+  statut           String             @default("actif")
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  password         String             @default("$2b$10$vYpY.oP6y9G8v6z2X3G2.O7h2/Gk8v6z2X3G2.O7h2/Gk8v6z2X3")
+  depensesCrees    Depense[]          @relation("CreePar")
+  depensesValides  Depense[]          @relation("ValidePar")
+  employee         Employee?
+  stockMovements   MouvementStock[]
+  operationCaisses OperationCaisse[]
+  paiements        Paiement[]
+  redemptions      RewardRedemption[]
+  centreRoles      UserCentreRole[]
 }
 
 model UserCentreRole {
@@ -312,7 +322,9 @@ model RewardRedemption {
   madValue   Float
   redeemedAt DateTime @default(now())
   redeemedBy String?
+  userId     String?
   client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id])
 }
 
 model Fournisseur {
@@ -342,8 +354,8 @@ model Fournisseur {
 }
 
 model Depense {
-  id                   String              @id @default(uuid())
-  date                 DateTime            @default(now())
+  id                   String               @id @default(uuid())
+  date                 DateTime             @default(now())
   montant              Float
   categorie            String
   description          String?
@@ -351,20 +363,24 @@ model Depense {
   statut               String
   justificatifUrl      String?
   centreId             String
-  factureFournisseurId String?             @unique
-  echeanceId           String?             @unique
+  factureFournisseurId String?              @unique
+  echeanceId           String?              @unique
   creePar              String?
   validePar            String?
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
   dateEcheance         DateTime?
   reference            String?
   fournisseurId        String?
-  centre               Centre                 @relation(fields: [centreId], references: [id])
-  echeance             EcheancePaiement?      @relation(fields: [echeanceId], references: [id])
-  factureFournisseur   FactureFournisseur?    @relation(fields: [factureFournisseurId], references: [id])
-  fournisseur          Fournisseur?           @relation(fields: [fournisseurId], references: [id])
+  creeParId            String?
+  valideParId          String?
   demandeAlimentation  DemandeAlimentation?
+  centre               Centre               @relation(fields: [centreId], references: [id])
+  creeParUser          User?                @relation("CreePar", fields: [creeParId], references: [id])
+  echeance             EcheancePaiement?    @relation(fields: [echeanceId], references: [id])
+  factureFournisseur   FactureFournisseur?  @relation(fields: [factureFournisseurId], references: [id])
+  fournisseur          Fournisseur?         @relation(fields: [fournisseurId], references: [id])
+  valideParUser        User?                @relation("ValidePar", fields: [valideParId], references: [id])
   payroll              Payroll?
 
   @@index([date])
@@ -385,8 +401,8 @@ model FactureFournisseur {
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   centreId       String?
-  clientId       String?
   pieceJointeUrl String?
+  clientId       String?
   depenses       Depense?
   echeances      EcheancePaiement[]
   centre         Centre?            @relation(fields: [centreId], references: [id])
@@ -442,32 +458,32 @@ model Caisse {
 }
 
 model JourneeCaisse {
-  id                      String            @id @default(uuid())
-  dateOuverture           DateTime          @default(now())
+  id                      String                @id @default(uuid())
+  dateOuverture           DateTime              @default(now())
   dateCloture             DateTime?
   fondInitial             Float
   soldeTheorique          Float?
   soldeReel               Float?
   ecart                   Float?
   justificationEcart      String?
-  statut                  String            @default("OUVERTE")
+  statut                  String                @default("OUVERTE")
   caissier                String
   responsableCloture      String?
-  totalComptable          Float             @default(0)
-  totalInterne            Float             @default(0)
-  totalDepenses           Float             @default(0)
+  totalComptable          Float                 @default(0)
+  totalInterne            Float                 @default(0)
+  totalDepenses           Float                 @default(0)
   caisseId                String
   centreId                String
-  createdAt               DateTime          @default(now())
-  updatedAt               DateTime          @updatedAt
-  totalTransfertsDepenses Float             @default(0)
-  totalVentesCarte        Float             @default(0)
-  totalVentesEspeces      Float             @default(0)
-  totalVentesCheque       Float             @default(0)
-  caisse                  Caisse                    @relation(fields: [caisseId], references: [id], onDelete: Cascade)
-  centre                  Centre                    @relation(fields: [centreId], references: [id])
-  operations              OperationCaisse[]
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  totalTransfertsDepenses Float                 @default(0)
+  totalVentesCarte        Float                 @default(0)
+  totalVentesEspeces      Float                 @default(0)
+  totalVentesCheque       Float                 @default(0)
   demandesAlimentation    DemandeAlimentation[]
+  caisse                  Caisse                @relation(fields: [caisseId], references: [id], onDelete: Cascade)
+  centre                  Centre                @relation(fields: [centreId], references: [id])
+  operations              OperationCaisse[]
 
   @@index([caisseId])
   @@index([centreId])
@@ -489,8 +505,10 @@ model OperationCaisse {
   factureId       String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+  userId          String?
   facture         Facture?      @relation(fields: [factureId], references: [id])
   journeeCaisse   JourneeCaisse @relation(fields: [journeeCaisseId], references: [id], onDelete: Cascade)
+  user            User?         @relation(fields: [userId], references: [id])
   paiements       Paiement[]
 
   @@index([journeeCaisseId])
@@ -504,130 +522,119 @@ model DemandeAlimentation {
   id              String        @id @default(uuid())
   montant         Float
   depenseId       String?       @unique
-  paiementId      String?       @unique
   journeeCaisseId String
-  statut          String        @default("EN_ATTENTE") // EN_ATTENTE, VALIDEE, REJETEE
+  statut          String        @default("EN_ATTENTE")
   createdAt       DateTime      @default(now())
   validatedAt     DateTime?
   validatedBy     String?
   remarque        String?
+  paiementId      String?       @unique
   depense         Depense?      @relation(fields: [depenseId], references: [id], onDelete: Cascade)
-  paiement        Paiement?     @relation(fields: [paiementId], references: [id], onDelete: Cascade)
   journeeCaisse   JourneeCaisse @relation(fields: [journeeCaisseId], references: [id])
+  paiement        Paiement?     @relation(fields: [paiementId], references: [id], onDelete: Cascade)
 
   @@index([statut])
   @@index([createdAt])
 }
 
 model MarketingConfig {
-  id                  String   @id @default(uuid())
-  // WhatsApp
-  whatsappApiUrl      String?
-  whatsappInstanceId  String?
-  whatsappToken       String?
-  // SMS
-  smsGatewayUrl       String?
-  smsApiKey           String?
-  // Email
-  smtpHost            String?
-  smtpPort            Int      @default(587)
-  smtpUser            String?
-  smtpPass            String?
-  smtpFrom            String?
-  
-  updatedAt           DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  whatsappApiUrl     String?
+  whatsappInstanceId String?
+  whatsappToken      String?
+  smsGatewayUrl      String?
+  smsApiKey          String?
+  smtpHost           String?
+  smtpPort           Int      @default(587)
+  smtpUser           String?
+  smtpPass           String?
+  smtpFrom           String?
+  updatedAt          DateTime @updatedAt
 }
 
 model Employee {
-  id                  String             @id @default(uuid())
-  matricule           String?            @unique
-  nom                 String
-  prenom              String
-  cin                 String?
-  telephone           String?
-  email               String?
-  adresse             String?
-  poste               String             // OPTICIEN, VENDEUR, CAISSIER, RESPONSABLE, ADMIN
-  contrat             String             // CDI, CDD, JOURNALIER, PARTIEL
-  dateEmbauche        DateTime           @default(now())
-  salaireBase         Float              @default(0)
-  statut              String             @default("ACTIF") // ACTIF, SUSPENDU, SORTI
-  
-  userId              String?            @unique
-  user                User?              @relation(fields: [userId], references: [id])
-  
-  centres             EmployeeCentre[]
-  attendance          Attendance[]
-  commissions         Commission[]
-  payrolls            Payroll[]
-  facturesVente       Facture[]          @relation("VendeurFactures")
-
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
+  id            String           @id @default(uuid())
+  matricule     String?          @unique
+  nom           String
+  prenom        String
+  cin           String?
+  telephone     String?
+  email         String?
+  adresse       String?
+  poste         String
+  contrat       String
+  dateEmbauche  DateTime         @default(now())
+  salaireBase   Float            @default(0)
+  statut        String           @default("ACTIF")
+  userId        String?          @unique
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  photoUrl      String?
+  attendance    Attendance[]
+  commissions   Commission[]
+  user          User?            @relation(fields: [userId], references: [id])
+  centres       EmployeeCentre[]
+  facturesVente Facture[]        @relation("VendeurFactures")
+  payrolls      Payroll[]
 }
 
 model EmployeeCentre {
   employeeId String
   centreId   String
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   centre     Centre   @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@id([employeeId, centreId])
 }
 
 model Attendance {
-  id                String           @id @default(uuid())
+  id                String   @id @default(uuid())
   employeeId        String
   date              DateTime
-  heuresTravaillees Float            @default(8)
-  retardMinutes     Int              @default(0)
-  estAbsent         Boolean          @default(false)
+  heuresTravaillees Float    @default(8)
+  retardMinutes     Int      @default(0)
+  estAbsent         Boolean  @default(false)
   motif             String?
-  
-  employee          Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  createdAt         DateTime         @default(now())
+  createdAt         DateTime @default(now())
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
 model CommissionRule {
-  id                String           @id @default(uuid())
-  poste             String
-  centreId          String?
-  typeProduit       String           // MONTURE, VERRE, LENTILLE, GLOBAL
-  taux              Float            // Pourcentage
-  
-  centre            Centre?          @relation(fields: [centreId], references: [id])
+  id          String  @id @default(uuid())
+  poste       String
+  centreId    String?
+  typeProduit String
+  taux        Float
+  centre      Centre? @relation(fields: [centreId], references: [id])
 }
 
 model Commission {
-  id                String           @id @default(uuid())
-  employeeId        String
-  factureId         String
-  type              String           // MONTURE, VERRE, LENTILLE, GLOBAL
-  montant           Float
-  mois              String           // YYYY-MM
-  createdAt         DateTime         @default(now())
-  
-  employee          Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  facture           Facture          @relation(fields: [factureId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  employeeId String
+  factureId  String
+  type       String
+  montant    Float
+  mois       String
+  createdAt  DateTime @default(now())
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  facture    Facture  @relation(fields: [factureId], references: [id], onDelete: Cascade)
 }
 
 model Payroll {
-  id                String           @id @default(uuid())
-  employeeId        String
-  mois              String           // YYYY-MM
-  annee             Int
-  salaireBase       Float
-  commissions       Float            @default(0)
-  heuresSup         Float            @default(0)
-  retenues          Float            @default(0)
-  netAPayer         Float
-  statut            String           @default("BROUILLON") // BROUILLON, VALIDE, PAYE
-  pdfUrl            String?
-  
-  expenseId         String?          @unique
-  expense           Depense?         @relation(fields: [expenseId], references: [id])
-  
-  employee          Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  id          String   @id @default(uuid())
+  employeeId  String
+  mois        String
+  annee       Int
+  salaireBase Float
+  commissions Float    @default(0)
+  heuresSup   Float    @default(0)
+  retenues    Float    @default(0)
+  netAPayer   Float
+  statut      String   @default("BROUILLON")
+  pdfUrl      String?
+  expenseId   String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  expense     Depense? @relation(fields: [expenseId], references: [id])
 }

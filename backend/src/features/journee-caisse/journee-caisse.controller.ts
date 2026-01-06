@@ -44,4 +44,9 @@ export class JourneeCaisseController {
     getResume(@Param('id') id: string) {
         return this.journeeCaisseService.getResume(id);
     }
+
+    @Get('caisse/:caisseId/last-balance')
+    getLastClosingBalance(@Param('caisseId') caisseId: string) {
+        return this.journeeCaisseService.getLastClosingBalance(caisseId);
+    }
 }

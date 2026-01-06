@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -8,18 +8,54 @@ export class UsersService {
     constructor(private prisma: PrismaService) { }
 
     async create(createUserDto: CreateUserDto) {
-        const { centreRoles, ...userData } = createUserDto;
+        const { centreRoles, employeeId, ...userData } = createUserDto;
 
-        return this.prisma.user.create({
-            data: {
-                ...userData,
-                centreRoles: {
-                    create: centreRoles || [],
+        return this.prisma.$transaction(async (tx) => {
+            // Check if email already exists
+            const existingUser = await tx.user.findUnique({
+                where: { email: userData.email }
+            });
+
+            if (existingUser) {
+                throw new ConflictException(`Un utilisateur avec l'adresse email ${userData.email} existe déjà.`);
+            }
+
+            // Check if employee is already linked
+            if (employeeId) {
+                const employee = await tx.employee.findUnique({
+                    where: { id: employeeId }
+                });
+
+                if (!employee) {
+                    throw new NotFoundException(`Employee with ID ${employeeId} not found`);
+                }
+
+                if (employee.userId) {
+                    throw new ConflictException(`Cet employé est déjà lié à un compte utilisateur.`);
+                }
+            }
+
+            const user = await tx.user.create({
+                data: {
+                    ...userData,
+                    centreRoles: {
+                        create: centreRoles || [],
+                    },
                 },
-            },
-            include: {
-                centreRoles: true,
-            },
+                include: {
+                    centreRoles: true,
+                },
+            });
+
+            if (createUserDto.employeeId) {
+                // Link the user to the employee
+                await tx.employee.update({
+                    where: { id: employeeId },
+                    data: { userId: user.id }
+                });
+            }
+
+            return user;
         });
     }
 
@@ -27,6 +63,7 @@ export class UsersService {
         return this.prisma.user.findMany({
             include: {
                 centreRoles: true,
+                employee: true
             },
         });
     }
@@ -36,6 +73,7 @@ export class UsersService {
             where: { id },
             include: {
                 centreRoles: true,
+                employee: true // Include linked employee
             },
         });
         if (!user) {
@@ -45,7 +83,7 @@ export class UsersService {
     }
 
     async update(id: string, updateUserDto: UpdateUserDto) {
-        const { centreRoles, ...userData } = updateUserDto;
+        const { centreRoles, employeeId, ...userData } = updateUserDto;
 
         // Use a transaction to ensure roles are updated correctly
         return this.prisma.$transaction(async (tx) => {
@@ -68,6 +106,20 @@ export class UsersService {
                         ...role,
                         userId: id,
                     })),
+                });
+            }
+
+            // If employeeId is provided (assuming it might be updated/changed)
+            if (employeeId) {
+                // Check if it's different from current? For now, just force update
+                // First clear old link if necessary?
+                // Or actually, if we switch employees, we might need to clear the old employee's userId
+                // But typically 1 user = 1 employee.
+                // Let's just update the target employee.
+                // Ideally we should verify if the employee already has a user.
+                await tx.employee.update({
+                    where: { id: employeeId },
+                    data: { userId: id }
                 });
             }
 

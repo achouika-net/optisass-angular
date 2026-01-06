@@ -930,9 +930,10 @@
                 </app-facture-form>
             </div>
             <ng-template #newFactureTemplate>
-                <div class="facturation-container">
-                    <app-facture-form [clientIdInput]="clientId" [ficheIdInput]="ficheId" [initialLines]="initialLines"
-                        [embedded]="true" (onSaved)="onInvoiceSaved($event)" [nomenclature]="nomenclatureString"
+                <div class="section-card-clean">
+                    <app-facture-form [factureId]="linkedFactureSubject.value?.id" [clientIdInput]="clientId"
+                        [ficheIdInput]="ficheId" [initialLines]="initialLines" [embedded]="true"
+                        (onSaved)="onInvoiceSaved($event)" [nomenclature]="nomenclatureString"
                         [isReadonly]="!isEditMode">
                     </app-facture-form>
                 </div>

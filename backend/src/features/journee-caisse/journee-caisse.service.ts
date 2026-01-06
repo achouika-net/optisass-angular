@@ -36,13 +36,25 @@ export class JourneeCaisseService {
             );
         }
 
+        // Resolve caissier name if it's a UUID
+        let caissierName = ouvrirCaisseDto.caissier;
+        if (ouvrirCaisseDto.caissier.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            const user = await this.prisma.user.findUnique({
+                where: { id: ouvrirCaisseDto.caissier },
+                select: { nom: true, prenom: true }
+            });
+            if (user) {
+                caissierName = `${user.prenom} ${user.nom}`;
+            }
+        }
+
         // Create new session
         return this.prisma.journeeCaisse.create({
             data: {
                 caisseId: ouvrirCaisseDto.caisseId,
                 centreId: ouvrirCaisseDto.centreId,
                 fondInitial: ouvrirCaisseDto.fondInitial,
-                caissier: ouvrirCaisseDto.caissier,
+                caissier: caissierName,
             },
             include: {
                 caisse: true,
@@ -127,6 +139,18 @@ export class JourneeCaisseService {
             );
         }
 
+        // Resolve responsableCloture name if it's a UUID
+        let responsableName = cloturerCaisseDto.responsableCloture;
+        if (cloturerCaisseDto.responsableCloture.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            const user = await this.prisma.user.findUnique({
+                where: { id: cloturerCaisseDto.responsableCloture },
+                select: { nom: true, prenom: true }
+            });
+            if (user) {
+                responsableName = `${user.prenom} ${user.nom}`;
+            }
+        }
+
         // Close the session
         return this.prisma.journeeCaisse.update({
             where: { id },
@@ -137,7 +161,7 @@ export class JourneeCaisseService {
                 soldeReel: cloturerCaisseDto.soldeReel,
                 ecart: ecartEspeces,
                 justificationEcart: cloturerCaisseDto.justificationEcart,
-                responsableCloture: cloturerCaisseDto.responsableCloture,
+                responsableCloture: responsableName,
                 // Audit trails can be expanded here to store detailed ecarts in metadata if needed
             },
             include: {
@@ -435,4 +459,24 @@ export class JourneeCaisseService {
             ecart: journee.ecart || 0,
         };
     }
+
+    async getLastClosingBalance(caisseId: string) {
+        const lastClosedSession = await this.prisma.journeeCaisse.findFirst({
+            where: {
+                caisseId,
+                statut: 'FERMEE'
+            },
+            orderBy: {
+                dateCloture: 'desc'
+            },
+            select: {
+                soldeReel: true
+            }
+        });
+
+        return {
+            amount: lastClosedSession?.soldeReel || 0
+        };
+    }
 }
+

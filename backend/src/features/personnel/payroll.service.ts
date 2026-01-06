@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GeneratePayrollDto } from './dto/generate-payroll.dto';
+import { UpdatePayrollDto } from './dto/update-payroll.dto';
 import { CommissionService } from './commission.service';
 import { AttendanceService } from './attendance.service';
 import { PayslipService } from './payslip.service';
@@ -94,7 +95,7 @@ export class PayrollService {
         });
     }
 
-    async markAsPaid(id: string, centreId: string, userId: string) {
+    async markAsPaid(id: string, centreId: string, userId: string, modePaiement: string = 'VIREMENT', banque?: string, reference?: string, dateEcheance?: string) {
         const payroll = await this.prisma.payroll.findUnique({
             where: { id },
             include: { employee: true }
@@ -110,7 +111,10 @@ export class PayrollService {
                 montant: payroll.netAPayer,
                 categorie: 'SALAIRES',
                 description: `Salaire ${payroll.mois}/${payroll.annee} - ${payroll.employee.nom} ${payroll.employee.prenom}`,
-                modePaiement: 'VIREMENT', // Default
+                modePaiement: modePaiement,
+                banque: banque,
+                reference: reference, // Check number or transaction ref
+                dateEcheance: dateEcheance,
                 statut: 'VALIDEE',
                 centreId: centreId, // Usually paid from the main centre or passed by user
                 creePar: userId
@@ -138,8 +142,46 @@ export class PayrollService {
 
         return this.prisma.payroll.findMany({
             where,
-            include: { employee: true },
+            include: {
+                employee: {
+                    include: {
+                        centres: true
+                    }
+                }
+            },
             orderBy: [{ annee: 'desc' }, { mois: 'desc' }]
+        });
+    }
+    async update(id: string, dto: UpdatePayrollDto) {
+        const payroll = await this.prisma.payroll.findUnique({ where: { id } });
+        if (!payroll) throw new NotFoundException('Bulletin non trouvé');
+
+        const updates: any = { ...dto };
+
+        // Recalculate Net if financial fields change
+        if (
+            dto.salaireBase !== undefined ||
+            dto.commissions !== undefined ||
+            dto.heuresSup !== undefined ||
+            dto.retenues !== undefined
+        ) {
+            const salaireBase = dto.salaireBase ?? payroll.salaireBase;
+            const commissions = dto.commissions ?? payroll.commissions;
+            const heuresSup = dto.heuresSup ?? payroll.heuresSup;
+            const retenues = dto.retenues ?? payroll.retenues;
+
+            updates.netAPayer = salaireBase + commissions + heuresSup - retenues;
+        }
+
+        return this.prisma.payroll.update({
+            where: { id },
+            data: updates
+        });
+    }
+
+    async remove(id: string) {
+        return this.prisma.payroll.delete({
+            where: { id }
         });
     }
 }

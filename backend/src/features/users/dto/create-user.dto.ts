@@ -49,6 +49,10 @@ export class CreateUserDto {
 
     @IsString()
     @IsOptional()
+    employeeId?: string; // New Linkage field
+
+    @IsString()
+    @IsOptional()
     matricule?: string;
 
     @IsString()

@@ -97,6 +97,10 @@ export interface OperationCaisse {
             prenom?: string;
         };
     };
+    user?: {
+        nom: string;
+        prenom: string;
+    };
     createdAt: Date;
     updatedAt: Date;
 }

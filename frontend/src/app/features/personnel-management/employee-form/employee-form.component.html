@@ -20,36 +20,70 @@
                     <mat-icon>person</mat-icon> Informations Personnelles
                 </h2>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <mat-form-field appearance="outline">
-                        <mat-label>Nom</mat-label>
-                        <input matInput formControlName="nom" placeholder="Nom de famille">
-                    </mat-form-field>
+                <div class="flex flex-col md:flex-row gap-6 mb-6">
+                    <!-- Photo Section -->
+                    <!-- Photo Section -->
+                    <div class="flex-shrink-0 flex flex-col items-center gap-2">
+                        <div
+                            class="relative w-32 h-32 rounded-full overflow-hidden border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
+                            <img *ngIf="photoPreview" [src]="photoPreview" class="w-full h-full object-cover">
+                            <mat-icon *ngIf="!photoPreview"
+                                class="text-4xl text-gray-400 w-10 h-10">account_circle</mat-icon>
+                        </div>
 
-                    <mat-form-field appearance="outline">
-                        <mat-label>Prénom</mat-label>
-                        <input matInput formControlName="prenom" placeholder="Prénom">
-                    </mat-form-field>
+                        <!-- Action Buttons Row -->
+                        <div class="flex items-center gap-2 mt-1">
+                            <button type="button" mat-mini-fab color="primary" class="scale-75"
+                                (click)="photoInput.click()" matTooltip="Charger une photo">
+                                <mat-icon>upload</mat-icon>
+                            </button>
+                            <button type="button" mat-mini-fab color="accent" class="scale-75" (click)="openCamera()"
+                                matTooltip="Prendre une photo">
+                                <mat-icon>photo_camera</mat-icon>
+                            </button>
+                            <button type="button" *ngIf="photoPreview" mat-mini-fab color="warn" class="scale-75"
+                                (click)="removePhoto()" matTooltip="Supprimer">
+                                <mat-icon>close</mat-icon>
+                            </button>
+                        </div>
 
-                    <mat-form-field appearance="outline">
-                        <mat-label>CIN</mat-label>
-                        <input matInput formControlName="cin" placeholder="Numéro de carte d'identité">
-                    </mat-form-field>
+                        <span class="text-xs text-gray-500">Photo de profil</span>
+                        <input #photoInput type="file" accept="image/*" class="hidden"
+                            (change)="onPhotoSelected($event)">
+                    </div>
 
-                    <mat-form-field appearance="outline">
-                        <mat-label>Téléphone</mat-label>
-                        <input matInput formControlName="telephone" placeholder="Numéro de téléphone">
-                    </mat-form-field>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow">
+                        <mat-form-field appearance="outline">
+                            <mat-label>Nom</mat-label>
+                            <input matInput formControlName="nom" placeholder="Nom de famille">
+                        </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="md:col-span-2">
-                        <mat-label>Email</mat-label>
-                        <input matInput formControlName="email" type="email" placeholder="adresse@email.com">
-                    </mat-form-field>
+                        <mat-form-field appearance="outline">
+                            <mat-label>Prénom</mat-label>
+                            <input matInput formControlName="prenom" placeholder="Prénom">
+                        </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="md:col-span-2">
-                        <mat-label>Adresse</mat-label>
-                        <textarea matInput formControlName="adresse" rows="2" placeholder="Adresse complète"></textarea>
-                    </mat-form-field>
+                        <mat-form-field appearance="outline">
+                            <mat-label>CIN</mat-label>
+                            <input matInput formControlName="cin" placeholder="Numéro de carte d'identité">
+                        </mat-form-field>
+
+                        <mat-form-field appearance="outline">
+                            <mat-label>Téléphone</mat-label>
+                            <input matInput formControlName="telephone" placeholder="Numéro de téléphone">
+                        </mat-form-field>
+
+                        <mat-form-field appearance="outline" class="md:col-span-2">
+                            <mat-label>Email</mat-label>
+                            <input matInput formControlName="email" type="email" placeholder="adresse@email.com">
+                        </mat-form-field>
+
+                        <mat-form-field appearance="outline" class="md:col-span-2">
+                            <mat-label>Adresse</mat-label>
+                            <textarea matInput formControlName="adresse" rows="2"
+                                placeholder="Adresse complète"></textarea>
+                        </mat-form-field>
+                    </div>
                 </div>
             </mat-card>
 

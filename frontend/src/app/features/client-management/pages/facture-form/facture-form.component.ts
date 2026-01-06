@@ -22,8 +22,9 @@ import { LoyaltyService } from '../../services/loyalty.service';
 import { ClientManagementService } from '../../services/client.service';
 import { numberToFrench } from '../../../../utils/number-to-text';
 import { Store } from '@ngrx/store';
-import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
+import { UserCurrentCentreSelector, UserSelector } from '../../../../core/store/auth/auth.selectors';
 import { take } from 'rxjs';
+import { Employee } from '../../../../shared/interfaces/employee.interface';
 
 @Component({
     selector: 'app-facture-form',
@@ -78,6 +79,8 @@ export class FactureFormComponent implements OnInit {
     // Loyalty
     pointsFideliteClient = 0;
 
+    currentUser$: Observable<any> = this.store.select(UserSelector);
+
     constructor(
         private fb: FormBuilder,
         private route: ActivatedRoute,
@@ -102,7 +105,8 @@ export class FactureFormComponent implements OnInit {
                 nomenclature: [''],
                 remiseGlobalType: ['PERCENT'], // PERCENT or AMOUNT
                 remiseGlobalValue: [0],
-                pointsUtilises: [0]
+                pointsUtilises: [0],
+                vendeurId: [null]
             })
         });
     }
@@ -117,6 +121,19 @@ export class FactureFormComponent implements OnInit {
         } else {
             this.handleRouteInit();
         }
+
+        if (!this.id || this.id === 'new') {
+            this.setVendeurFromUser();
+        }
+    }
+
+    setVendeurFromUser() {
+        this.store.select(UserSelector).pipe(take(1)).subscribe(user => {
+            if (user?.employee?.id) {
+                console.log('👤 [FactureForm] Auto-setting vendeurId from current user employee:', user.employee.id);
+                this.form.get('proprietes.vendeurId')?.setValue(user.employee.id);
+            }
+        });
     }
 
     ngOnChanges(changes: SimpleChanges) {
@@ -375,13 +392,25 @@ export class FactureFormComponent implements OnInit {
 
         const formData = this.form.getRawValue();
 
-        // Extract paiements to avoid sending them to invoice update (handled separately)
         // proprietes MUST be included now, merged with extraProperties
         const { paiements, ...restFormData } = formData;
 
+        // FORCE: Always re-apply current session user for traceability (unless read-only maybe?)
+        // But better to ensure it's there for any save operation.
+        const currentProprietes = restFormData.proprietes || {};
+
+        // We attempt to get the employee ID one last time if missing in the form for some reason
+        let finalVendeurId = currentProprietes.vendeurId;
+        if (!finalVendeurId) {
+            this.store.select(UserSelector).pipe(take(1)).subscribe(user => {
+                if (user?.employee?.id) finalVendeurId = user.employee.id;
+            });
+        }
+
         const mergedProprietes = {
-            ...(restFormData.proprietes || {}),
-            ...(extraProperties || {})
+            ...currentProprietes,
+            ...(extraProperties || {}),
+            vendeurId: finalVendeurId // Force the ID
         };
 
         console.log('📝 FactureFormComponent.saveAsObservable - Merged Properties:', mergedProprietes);
