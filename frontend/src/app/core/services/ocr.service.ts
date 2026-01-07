@@ -9,91 +9,102 @@ export class OcrService {
 
     constructor() {
         // Configure PDF.js worker
-        // vital: Ensure version matches the installed package. For now using a fixed recent version known to work.
-        (pdfjsLib as any).GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+        // vital: Ensure version matches the installed package (5.4.530).
+        (pdfjsLib as any).GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@5.4.530/build/pdf.worker.min.mjs`;
     }
 
     async recognizeText(input: File | string): Promise<any> {
         try {
-            let imageUrl: string;
+            let imageUrls: string[] = [];
 
-            // 1. Determine Input Type and Convert to Image URL if needed
+            // 1. Determine Input Type and Convert to Image URLs
             if (input instanceof File) {
                 if (input.type === 'application/pdf') {
-                    console.log('📄 PDF detected. Converting to image...');
-                    imageUrl = await this.convertPdfToImage(input);
+                    console.log('📄 OCR: PDF detected. Rendering all pages...');
+                    imageUrls = await this.convertPdfToImages(input);
                 } else {
-                    // Assume Image
-                    imageUrl = URL.createObjectURL(input);
+                    imageUrls = [URL.createObjectURL(input)];
                 }
             } else {
-                // String URL (already an image URL assumed)
-                imageUrl = input;
+                imageUrls = [input];
             }
 
-            // 2. Pre-process Image (Grayscale + Contrast)
-            const processedImage = await this.preprocessImage(imageUrl);
+            if (imageUrls.length === 0) throw new Error('Failed to generate image URLs');
 
-            // 3. OCR with French & English (for numbers/currency)
-            const worker = await createWorker('fra+eng');
+            console.log(`🤖 OCR: Initializing Tesseract (fra+eng) for ${imageUrls.length} page(s)...`);
+            const worker = await createWorker('fra+eng', 1, {
+                logger: m => console.log('🤖 Tesseract Progress:', m)
+            });
 
-            const ret = await worker.recognize(processedImage);
-            const text = ret.data.text;
+            let combinedText = '';
 
-            console.log('📝 Raw OCR Text:', text);
+            for (let i = 0; i < imageUrls.length; i++) {
+                console.log(`🖼️ OCR: Processing page ${i + 1}/${imageUrls.length}...`);
+                const processedImage = await this.preprocessImage(imageUrls[i]);
+                const ret = await worker.recognize(processedImage);
+                combinedText += ret.data.text + '\n---\n';
+            }
 
-            // 4. Structured Data Extraction (Heuristics)
-            const extracted = this.extractData(text);
+            console.log('✅ OCR: Total Raw Text Length:', combinedText.length);
+
+            // 4. Structured Data Extraction
+            const extracted = this.extractData(combinedText);
 
             await worker.terminate();
 
-            // Clean up created URLs to avoid leaks (if we created them)
-            // Note: If we passed a string URL from outside, we shouldn't revoke it here strictly speaking, 
-            // but if we created it from File, we should. 
-            // For now, relying on the browser/component to handle major cleanup or just let it be for this session.
-
             return {
-                rawText: text,
+                rawText: combinedText || '[No text detected]',
                 ...extracted
             };
-        } catch (error) {
-            console.error('OCR Error:', error);
-            return { rawText: '', error: 'Failed to process image' };
+        } catch (error: any) {
+            console.error('❌ OCR Fatal Error:', error);
+            return {
+                rawText: '',
+                error: `Erreur: ${error.message || 'Échec du traitement'}.`,
+                lines: []
+            };
         }
     }
 
-    private async convertPdfToImage(file: File): Promise<string> {
+    private async convertPdfToImages(file: File): Promise<string[]> {
         return new Promise((resolve, reject) => {
             const fileReader = new FileReader();
             fileReader.onload = async (e: any) => {
                 try {
+                    console.log('📄 PDF: Starting full document conversion...');
                     const typedarray = new Uint8Array(e.target.result);
                     const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                    const pages: string[] = [];
 
-                    // Get first page
-                    const page = await pdf.getPage(1);
+                    console.log(`📄 PDF: ${pdf.numPages} pages found.`);
 
-                    // Render to Canvas
-                    const scale = 3.0; // Higher scale for better OCR resolution
-                    const viewport = page.getViewport({ scale });
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        console.log(`📄 PDF: Rendering page ${i}...`);
+                        const page = await pdf.getPage(i);
+                        const scale = 4.0;
+                        const viewport = page.getViewport({ scale });
 
-                    const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d');
-                    if (!context) throw new Error('Canvas context not available');
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d', { willReadFrequently: true });
+                        if (!context) throw new Error('Canvas context not available');
 
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
 
-                    const renderContext: any = {
-                        canvasContext: context,
-                        viewport: viewport
-                    };
+                        const renderContext: any = {
+                            canvasContext: context,
+                            viewport: viewport,
+                            enableWebGL: true
+                        };
 
-                    await page.render(renderContext).promise;
+                        await page.render(renderContext).promise;
+                        pages.push(canvas.toDataURL('image/png'));
+                    }
 
-                    // Convert to Image URL
-                    resolve(canvas.toDataURL('image/jpeg'));
+                    console.log('📄 PDF: All pages rendered.');
+                    resolve(pages);
                 } catch (err) {
+                    console.error('❌ PDF Conversion Error:', err);
                     reject(err);
                 }
             };
@@ -188,33 +199,36 @@ export class OcrService {
 
         lines.forEach(line => {
             line = line.trim();
-            if (line.length < 15) return; // Slightly more lenient
+            if (line.length < 15) return;
 
-            // Exclude common footer keywords
             const lowerLine = line.toLowerCase();
-            if (lowerLine.includes('total') || lowerLine.includes('reporter') || lowerLine.includes('tva') || lowerLine.includes('net à payer')) {
-                return;
-            }
+            const noiseKeywords = [
+                'a reporter', 'net à payer', 'tva ', 't.v.a', 'montant h.t', 'total h.t',
+                'facture n', 'date :', 'tél :', 'fixe :', 'site :', 'email :', 'rib :', 'if :', 'rc :',
+                'arrêtée la présente', 'page ', 'somme ttc', 'dirhams'
+            ];
+            if (noiseKeywords.some(k => lowerLine.includes(k))) return;
+            if (/^total/i.test(lowerLine) && !lowerLine.includes('total 1')) return;
 
-            // Even more Robust Regex (removed strict $ anchor to allow trailing debris)
-            // Pattern: [Code] [Designation] [Qty] [PU] [Remise] [Total]
-            const lineRegex = /^(\d+)\s+(.+?)\s+(\d+)\s+([\d\s\.,\]\[\}\{\)\|]+)\s+([\d\.\s]+)%?\s+([\d\s\.,]+)/;
+            // Updated Regex:
+            // 1. Code: Alphanumeric
+            // 2. Designation: Text
+            // 3. Qty: Number (integer or decimal like 1,00)
+            const lineRegex = /^([a-z0-9\-\.]+)\s+(.+?)\s+(\d+(?:[\.,]\d+)?)\s+([\d\s\.,\]\[\}\{\)\|]+)\s+([\d\.\s]+)%?\s+([\d\s\.,]+)/i;
             const match = line.match(lineRegex);
 
             if (match) {
                 const ref = match[1];
                 const rawDesignation = match[2];
-                const qty = parseInt(match[3], 10);
+                const qtyRaw = match[3].replace(',', '.');
+                const qty = parseFloat(qtyRaw) || 1;
 
-                // Clean numbers from noise like ']' or extra spaces or random letters
                 const cleanNum = (s: string) => s.replace(/[^\d\.]/g, '');
-
-                const puRaw = cleanNum(match[4]);
-                const discountRaw = cleanNum(match[5]);
+                const puRaw = cleanNum(match[4].replace(',', '.'));
+                const discountRaw = cleanNum(match[5].replace(',', '.'));
 
                 const pu = parseFloat(puRaw) || 0;
                 const discount = parseFloat(discountRaw) || 0;
-
                 const netPrice = pu * (1 - (discount / 100));
 
                 result.lines.push({
@@ -227,22 +241,21 @@ export class OcrService {
                     computedPrice: parseFloat(netPrice.toFixed(2))
                 });
             } else {
-                // Secondary check for lines that might have shifted layout
-                // Example: "197737121334 CH-HER 0286.15G.53.18 1 1105.00) 15.00%"
-                const refMatch = line.match(/^(\d{8,})/);
-                if (refMatch) {
-                    const ref = refMatch[1];
-                    let remaining = line.substring(ref.length).trim();
-
-                    // Try to find a decimal number at the end (the total or price)
-                    const priceMatch = remaining.match(/([\d\s\.,]+)$/);
-                    const price = priceMatch ? parseFloat(priceMatch[1].replace(/[^\d\.]/g, '')) : 0;
+                // MODERATE FALLBACK
+                const fallbackRegex = /^([a-z0-9\-\.]{4,})\s+(.+?)\s+(\d+(?:[\.,]\d+)?)\s+([\d\s\.,]+)$/i;
+                const fMatch = line.match(fallbackRegex);
+                if (fMatch) {
+                    const ref = fMatch[1];
+                    const text = fMatch[2];
+                    const qtyRaw = fMatch[3].replace(',', '.');
+                    const qty = parseFloat(qtyRaw) || 1;
+                    const price = parseFloat(fMatch[4].replace(/[^\d\.]/g, '').replace(',', '.')) || 0;
 
                     result.lines.push({
                         raw: line,
                         reference: ref,
-                        designation: remaining.replace(/[\d\s\.,]+$/, '').trim(),
-                        qty: 1,
+                        designation: text.trim(),
+                        qty: qty,
                         priceCandidates: [price],
                         computedPrice: price,
                         rawFallback: true

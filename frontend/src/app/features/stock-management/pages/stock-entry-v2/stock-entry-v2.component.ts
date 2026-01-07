@@ -14,11 +14,14 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Observable, of } from 'rxjs';
+import { catchError, tap } from 'rxjs/operators';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { StockAlimentationDialogComponent, AlimentationResult } from '../../components/stock-alimentation-dialog/stock-alimentation-dialog.component';
 import { CameraCaptureDialogComponent } from '../../../../shared/components/camera-capture/camera-capture-dialog.component';
 import { OcrService } from '../../../../core/services/ocr.service';
+import { FinanceService } from '../../../finance/services/finance.service';
+import { Supplier } from '../../../finance/models/finance.models';
 
 export interface StagedProduct {
     id?: string; // If existing product found
@@ -55,7 +58,8 @@ export interface StagedProduct {
         MatTabsModule,
         MatDividerModule,
         MatSnackBarModule,
-        MatTooltipModule
+        MatTooltipModule,
+        MatDialogModule // Added MatDialogModule as it's used
     ],
     templateUrl: './stock-entry-v2.component.html',
     styleUrls: ['./stock-entry-v2.component.scss']
@@ -65,18 +69,25 @@ export class StockEntryV2Component implements OnInit {
     entryForm: FormGroup;
     documentForm: FormGroup;
 
+    // List of common Moroccan TVA rates
+    tvaOptions = [20, 14, 10, 7, 0];
+
     // Staging Data
     stagedProducts: StagedProduct[] = [];
     productsSubject = new BehaviorSubject<StagedProduct[]>([]);
-    displayedColumns: string[] = ['reference', 'nom', 'quantite', 'prixAchat', 'modePrix', 'prixVente', 'actions'];
+    displayedColumns: string[] = ['reference', 'marque', 'nom', 'categorie', 'quantite', 'prixAchat', 'tva', 'modePrix', 'prixVente', 'actions'];
 
     // OCR State
     ocrProcessing = false;
     analyzedText = '';
 
+    // Data lists
+    suppliers$!: Observable<Supplier[]>;
+
     constructor(
         private fb: FormBuilder,
         private ocrService: OcrService,
+        private financeService: FinanceService,
         private snackBar: MatSnackBar,
         private dialog: MatDialog
     ) {
@@ -84,7 +95,7 @@ export class StockEntryV2Component implements OnInit {
             reference: ['', Validators.required],
             nom: ['', Validators.required],
             marque: [''],
-            categorie: ['MONTURE', Validators.required],
+            categorie: ['MONTURE_OPTIQUE', Validators.required],
             quantite: [1, [Validators.required, Validators.min(1)]],
             prixAchat: [0, [Validators.required, Validators.min(0)]],
             tva: [20, Validators.required],
@@ -95,6 +106,7 @@ export class StockEntryV2Component implements OnInit {
 
         this.documentForm = this.fb.group({
             type: ['FACTURE', Validators.required], // FACTURE or BL
+            fournisseurId: ['', Validators.required],
             numero: [''],
             date: [new Date()],
             file: [null]
@@ -102,6 +114,14 @@ export class StockEntryV2Component implements OnInit {
     }
 
     ngOnInit(): void {
+        this.suppliers$ = this.financeService.getSuppliers().pipe(
+            tap(suppliers => console.log('[StockEntryV2] Suppliers loaded:', suppliers?.length)),
+            catchError(err => {
+                console.error('[StockEntryV2] Error loading suppliers:', err);
+                this.snackBar.open('Erreur lors du chargement des fournisseurs', 'OK', { duration: 5000 });
+                return of([]);
+            })
+        );
         // Auto-calculate selling price when Purchase Price or Coef changes
         this.entryForm.valueChanges.subscribe(val => {
             if (val.modePrix === 'COEFF' && val.prixAchat && val.coefficient) {
@@ -123,15 +143,17 @@ export class StockEntryV2Component implements OnInit {
         if (this.stagedProducts.length === 0) return;
 
         const dialogRef = this.dialog.open(StockAlimentationDialogComponent, {
-            width: '850px',
-            maxHeight: '90vh',
-            data: { products: [...this.stagedProducts] }
+            width: '98vw',
+            maxWidth: '1500px',
+            maxHeight: '95vh',
+            data: {
+                products: [...this.stagedProducts],
+                document: this.documentForm.getRawValue()
+            }
         });
 
-        dialogRef.afterClosed().subscribe((result: AlimentationResult) => {
-            if (result) {
-                console.log('📦 Committing Stock Entry:', result);
-                this.snackBar.open('Stock alimenté avec succès (Simulation)', 'OK', { duration: 3000 });
+        dialogRef.afterClosed().subscribe((result: any) => {
+            if (result && result.success) {
                 this.stagedProducts = [];
                 this.productsSubject.next([]);
                 this.documentForm.reset({ type: 'FACTURE', date: new Date() });
@@ -154,7 +176,7 @@ export class StockEntryV2Component implements OnInit {
         this.productsSubject.next(this.stagedProducts);
 
         this.entryForm.reset({
-            categorie: 'MONTURE',
+            categorie: 'MONTURE_OPTIQUE',
             quantite: 1,
             prixAchat: 0,
             tva: 20,
@@ -191,22 +213,29 @@ export class StockEntryV2Component implements OnInit {
 
     detectedLines: any[] = [];
     showOcrData = false;
+    ocrError: string | null = null;
 
     async processOCR(file: File) {
         this.ocrProcessing = true;
         this.detectedLines = [];
         this.analyzedText = '';
+        this.ocrError = null;
 
         try {
             // Pass file directly; service handles PDF/Image logic
             const result = await this.ocrService.recognizeText(file);
 
+            if (result.error) {
+                this.ocrError = result.error;
+            }
+
             this.analyzedText = result.rawText;
             this.detectedLines = result.lines || [];
             this.showOcrData = true;
 
-            console.log('🔍 OCR Extraction:', result);
-            this.snackBar.open('Analyse terminée. Vérifiez les données détectées.', 'OK', { duration: 3000 });
+            if (!result.error) {
+                this.snackBar.open('Analyse terminée. Vérifiez les données détectées.', 'OK', { duration: 3000 });
+            }
 
             if (result.date) {
                 this.documentForm.patchValue({ date: result.date });
@@ -261,7 +290,7 @@ export class StockEntryV2Component implements OnInit {
         if (file) {
             const url = URL.createObjectURL(file);
             window.open(url, '_blank');
-            // Suggestion: Revoke object URL after some time or on destroy to prevent leaks, 
+            // Suggestion: Revoke object URL after some time or on destroy to prevent leaks,
             // though window.open might need it for a bit.
         }
     }
@@ -325,6 +354,8 @@ export class StockEntryV2Component implements OnInit {
             return t.trim();
         };
 
+        const defaultTva = this.entryForm.get('tva')?.value || 20;
+
         this.detectedLines.forEach(line => {
             const prixAchat = line.computedPrice || (line.priceCandidates && line.priceCandidates[0]) || 0;
             const reference = line.reference || '';
@@ -343,10 +374,10 @@ export class StockEntryV2Component implements OnInit {
                 reference: reference,
                 nom: nom,
                 marque: marque,
-                categorie: 'MONTURE', // Default
+                categorie: 'MONTURE_OPTIQUE', // Default
                 quantite: line.qty || 1,
                 prixAchat: prixAchat,
-                tva: 20, // Default
+                tva: defaultTva,
                 modePrix: 'COEFF',
                 coefficient: 2.5,
                 prixVente: parseFloat((prixAchat * 2.5).toFixed(2))

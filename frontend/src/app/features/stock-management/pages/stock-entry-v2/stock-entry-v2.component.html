@@ -13,6 +13,21 @@
                     <mat-icon class="text-blue-600">description</mat-icon>
                     <span class="font-medium text-blue-800 mr-4">Pièce Jointe :</span>
 
+                    <mat-form-field appearance="outline" class="w-64 compact-field">
+                        <mat-label>Fournisseur</mat-label>
+                        <mat-select formControlName="fournisseurId">
+                            <mat-option *ngIf="!(suppliers$ | async)" disabled>
+                                <div class="flex items-center gap-2">
+                                    <mat-icon class="animate-spin text-sm">sync</mat-icon>
+                                    <span>Chargement...</span>
+                                </div>
+                            </mat-option>
+                            <mat-option *ngFor="let s of suppliers$ | async" [value]="s.id">{{ s.nom }}</mat-option>
+                            <mat-option *ngIf="(suppliers$ | async)?.length === 0" disabled>Aucun fournisseur
+                                trouvé</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+
                     <mat-form-field appearance="outline" class="w-40 compact-field">
                         <mat-label>Type</mat-label>
                         <mat-select formControlName="type">
@@ -111,7 +126,17 @@
                         </div>
                     </div>
 
-                    <div *ngIf="detectedLines.length === 0" class="text-center py-4 text-gray-400">
+                    <div *ngIf="ocrError"
+                        class="m-4 p-4 bg-red-50 border border-red-100 rounded text-red-700 text-sm flex items-center gap-3">
+                        <mat-icon>error</mat-icon>
+                        <div>
+                            <p class="font-bold">Erreur d'analyse</p>
+                            <p>{{ ocrError }}</p>
+                        </div>
+                    </div>
+
+                    <div *ngIf="detectedLines.length === 0 && !ocrError && analyzedText"
+                        class="text-center py-4 text-gray-400">
                         Aucune ligne structurée détectée. Vérifiez le texte brut ci-dessous.
                     </div>
 
@@ -156,7 +181,8 @@
                         <mat-form-field appearance="outline" class="w-full">
                             <mat-label>Catégorie</mat-label>
                             <mat-select formControlName="categorie">
-                                <mat-option value="MONTURE">Monture</mat-option>
+                                <mat-option value="MONTURE_OPTIQUE">Monture Optique</mat-option>
+                                <mat-option value="MONTURE_SOLAIRE">Monture Solaire</mat-option>
                                 <mat-option value="VERRE">Verre</mat-option>
                                 <mat-option value="LENTILLE">Lentille</mat-option>
                                 <mat-option value="ACCESSOIRE">Accessoire</mat-option>
@@ -178,7 +204,14 @@
                                 subscriptSizing="dynamic">
                                 <mat-label>P.Achat (Indicatif)</mat-label>
                                 <input matInput type="number" formControlName="prixAchat">
-                                <span matSuffix>DH</span>
+                                <span matSuffix class="text-xs text-gray-400">DH</span>
+                            </mat-form-field>
+                            <mat-form-field appearance="outline" class="w-24 compact-field bg-white"
+                                subscriptSizing="dynamic">
+                                <mat-label>TVA</mat-label>
+                                <mat-select formControlName="tva">
+                                    <mat-option *ngFor="let rate of tvaOptions" [value]="rate">{{rate}}%</mat-option>
+                                </mat-select>
                             </mat-form-field>
                         </div>
 
@@ -224,7 +257,7 @@
                     stagedProducts.length }} articles)</span></h3>
         </div>
 
-        <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+        <div class="bg-white rounded-lg shadow border border-gray-200">
             <table mat-table [dataSource]="productsSubject" class="w-full">
 
                 <ng-container matColumnDef="reference">
@@ -235,15 +268,33 @@
                     </td>
                 </ng-container>
 
+                <ng-container matColumnDef="marque">
+                    <th mat-header-cell *matHeaderCellDef> Marque </th>
+                    <td mat-cell *matCellDef="let element">
+                        <input [(ngModel)]="element.marque" (input)="updateProduct(element)"
+                            class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 uppercase font-bold text-slate-500">
+                    </td>
+                </ng-container>
+
                 <ng-container matColumnDef="nom">
                     <th mat-header-cell *matHeaderCellDef> Désignation </th>
                     <td mat-cell *matCellDef="let element">
-                        <div class="flex gap-2">
-                            <input [(ngModel)]="element.marque" (input)="updateProduct(element)" placeholder="Marque"
-                                class="w-20 bg-gray-50 border border-gray-100 rounded px-1 py-0.5 text-xs text-gray-400 uppercase">
-                            <input [(ngModel)]="element.nom" (input)="updateProduct(element)"
-                                class="flex-1 bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5">
-                        </div>
+                        <input [(ngModel)]="element.nom" (input)="updateProduct(element)"
+                            class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5">
+                    </td>
+                </ng-container>
+
+                <ng-container matColumnDef="categorie">
+                    <th mat-header-cell *matHeaderCellDef> Catégorie </th>
+                    <td mat-cell *matCellDef="let element">
+                        <select [(ngModel)]="element.categorie" (change)="updateProduct(element)"
+                            class="bg-transparent border-none text-xs focus:ring-1 focus:ring-blue-400 rounded cursor-pointer uppercase font-bold text-gray-500">
+                            <option value="MONTURE_OPTIQUE">Monture Optique</option>
+                            <option value="MONTURE_SOLAIRE">Monture Solaire</option>
+                            <option value="VERRE">Verre</option>
+                            <option value="LENTILLE">Lentille</option>
+                            <option value="ACCESSOIRE">Accessoire</option>
+                        </select>
                     </td>
                 </ng-container>
 
@@ -260,6 +311,16 @@
                     <td mat-cell *matCellDef="let element" class="text-right">
                         <input type="number" [(ngModel)]="element.prixAchat" (input)="updateProduct(element)"
                             class="w-24 bg-transparent border-none text-right focus:ring-1 focus:ring-blue-400 rounded text-gray-500">
+                    </td>
+                </ng-container>
+
+                <ng-container matColumnDef="tva">
+                    <th mat-header-cell *matHeaderCellDef class="text-center"> TVA </th>
+                    <td mat-cell *matCellDef="let element" class="text-center">
+                        <select [(ngModel)]="element.tva" (change)="updateProduct(element)"
+                            class="bg-transparent border-none text-xs focus:ring-1 focus:ring-blue-400 rounded cursor-pointer">
+                            <option *ngFor="let rate of tvaOptions" [value]="rate">{{rate}}%</option>
+                        </select>
                     </td>
                 </ng-container>
 

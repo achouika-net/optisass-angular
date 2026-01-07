@@ -249,8 +249,10 @@ model MouvementStock {
   userId                String?
   entrepotDestination   Entrepot? @relation("EntrepotDestination", fields: [entrepotDestinationId], references: [id])
   entrepotSource        Entrepot? @relation("EntrepotSource", fields: [entrepotSourceId], references: [id])
-  facture               Facture?  @relation(fields: [factureId], references: [id])
-  produit               Product   @relation(fields: [produitId], references: [id], onDelete: Cascade)
+  factureFournisseurId String?
+  factureFournisseur    FactureFournisseur? @relation(fields: [factureFournisseurId], references: [id])
+  facture               Facture?            @relation(fields: [factureId], references: [id])
+  produit               Product             @relation(fields: [produitId], references: [id], onDelete: Cascade)
   user                  User?     @relation(fields: [userId], references: [id])
 }
 
@@ -389,7 +391,7 @@ model Depense {
 
 model FactureFournisseur {
   id             String             @id @default(uuid())
-  numeroFacture  String             @unique
+  numeroFacture  String
   dateEmission   DateTime
   dateEcheance   DateTime?
   montantHT      Float
@@ -405,6 +407,7 @@ model FactureFournisseur {
   clientId       String?
   depenses       Depense?
   echeances      EcheancePaiement[]
+  mouvementsStock MouvementStock[]
   centre         Centre?            @relation(fields: [centreId], references: [id])
   client         Client?            @relation(fields: [clientId], references: [id])
   fournisseur    Fournisseur        @relation(fields: [fournisseurId], references: [id])

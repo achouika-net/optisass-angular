@@ -1,6 +1,6 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormArray } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormArray, FormControl } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -8,15 +8,26 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { Entrepot } from '../../../../shared/interfaces/warehouse.interface';
 import { WarehousesService } from '../../../warehouses/services/warehouses.service';
 import { StagedProduct } from '../../pages/stock-entry-v2/stock-entry-v2.component';
+import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
+import { switchMap, finalize } from 'rxjs/operators';
+import { StockAlimentationService, BulkAlimentationPayload } from '../../services/stock-alimentation.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 export interface AlimentationResult {
-  warehouseId: string;
-  products: StagedProduct[];
+  allocations: {
+    productId: string;
+    reference: string;
+    warehouseId: string;
+    quantite: number;
+    prixAchat: number;
+    tva: number;
+  }[];
 }
 
 @Component({
@@ -31,160 +42,604 @@ export interface AlimentationResult {
     MatInputModule,
     MatSelectModule,
     MatTableModule,
-    MatIconModule
+    MatIconModule,
+    MatTooltipModule
   ],
   template: `
-    <h2 mat-dialog-title>Alimentation du Stock</h2>
-    <mat-dialog-content class="w-[800px] max-h-[80vh] flex flex-col gap-4">
-      
-      <!-- Warehouse Selection -->
-      <form [formGroup]="form" class="flex flex-col gap-4 pt-2">
-        <mat-form-field appearance="outline" class="w-full">
-          <mat-label>Entrepôt de destination</mat-label>
-          <mat-select formControlName="warehouseId">
-             <mat-option *ngFor="let w of warehouses$ | async" [value]="w.id">
-                {{ w.nom }}
-             </mat-option>
-          </mat-select>
-          <mat-error *ngIf="form.get('warehouseId')?.hasError('required')">
-            L'entrepôt est obligatoire
-          </mat-error>
-        </mat-form-field>
-      </form>
+    <div [formGroup]="form" class="h-full flex flex-col overflow-hidden">
+      <!-- HEADER -->
+      <header class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between shadow-lg z-30">
+        <div class="flex items-center gap-3">
+          <mat-icon class="text-blue-400">inventory_2</mat-icon>
+          <div>
+            <h2 class="text-lg font-bold m-0 leading-tight">Alimentation des Stocks</h2>
+            <p class="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Répartition & Destinations</p>
+          </div>
+        </div>
+        <button mat-icon-button mat-dialog-close class="text-slate-400 hover:text-white transition-colors">
+          <mat-icon>close</mat-icon>
+        </button>
+      </header>
 
-      <!-- Products Financial Review Table -->
-      <div class="overflow-auto border rounded-lg max-h-[400px]">
-        <table mat-table [dataSource]="productsSource" class="w-full">
+      <mat-dialog-content class="!p-0 !m-0 bg-slate-50 flex-1 overflow-hidden flex flex-col">
+        
+        <!-- BULK ACTIONS TOOLBAR -->
+        <div class="px-6 py-6 bg-white border-b flex items-center justify-between gap-6 shadow-sm z-20">
+          <div class="flex items-center gap-4 min-w-max">
+             <div class="p-3 bg-blue-50 text-blue-600 rounded-xl border border-blue-100">
+                <mat-icon class="scale-110">auto_fix_high</mat-icon>
+             </div>
+             <div class="flex flex-col">
+                <span class="text-[13px] font-black text-slate-800 uppercase tracking-wider">Affectation Rapide</span>
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Saisie Groupée & Répartition Intelligente</span>
+             </div>
+          </div>
           
-          <!-- Name Column -->
-          <ng-container matColumnDef="nom">
-            <th mat-header-cell *matHeaderCellDef> Produit </th>
-            <td mat-cell *matCellDef="let element"> 
-                <div class="flex flex-col">
-                    <span class="font-medium">{{element.original.nom}}</span>
-                    <span class="text-xs text-gray-500">{{element.original.reference}}</span>
-                </div>
-            </td>
-          </ng-container>
+          <div class="flex items-center gap-8">
+              <!-- Global Warehouse -->
+              <div class="flex flex-col gap-1">
+                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Entrepôt Global</span>
+                 <mat-form-field appearance="outline" class="w-40 compact-field" subscriptSizing="dynamic">
+                   <mat-select [formControl]="batchWh" placeholder="Choisir...">
+                     <mat-option *ngFor="let w of warehouses$ | async" [value]="w.id" class="text-[11px]">{{ w.nom }}</mat-option>
+                   </mat-select>
+                 </mat-form-field>
+              </div>
 
-          <!-- Qty Column -->
-          <ng-container matColumnDef="quantite">
-            <th mat-header-cell *matHeaderCellDef> Qte </th>
-            <td mat-cell *matCellDef="let element"> {{element.original.quantite}} </td>
-          </ng-container>
+              <!-- Global Qty -->
+              <div class="flex flex-col gap-1">
+                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantité</span>
+                 <div class="relative w-16">
+                    <input type="number" [formControl]="batchQty" placeholder="Qté"
+                           class="w-full h-10 px-2 border-2 border-slate-100 rounded-lg font-black text-slate-700 bg-white focus:border-blue-500 outline-none transition-all text-sm">
+                 </div>
+              </div>
 
-          <!-- Purchase Price Column (Editable) -->
-           <ng-container matColumnDef="prixAchat">
-            <th mat-header-cell *matHeaderCellDef> P.Achat HT </th>
-            <td mat-cell *matCellDef="let element; let i = index">
-                <mat-form-field appearance="outline" class="w-24 compact-form-field">
-                    <input matInput type="number" [formControl]="getControl(i, 'prixAchat')" min="0">
-                </mat-form-field>
-            </td>
-          </ng-container>
+              <!-- Global TVA -->
+              <div class="flex flex-col gap-1">
+                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">TVA</span>
+                 <mat-form-field appearance="outline" class="w-20 compact-field" subscriptSizing="dynamic">
+                   <mat-select [formControl]="batchTva" placeholder="TVA">
+                     <mat-option *ngFor="let r of [0, 7, 10, 14, 20]" [value]="r" class="text-[11px]">{{ r }}%</mat-option>
+                   </mat-select>
+                 </mat-form-field>
+              </div>
 
-          <!-- VAT Column (Editable Multi-choice) -->
-          <ng-container matColumnDef="tva">
-            <th mat-header-cell *matHeaderCellDef> TVA </th>
-            <td mat-cell *matCellDef="let element; let i = index">
-                <mat-form-field appearance="outline" class="w-24 compact-form-field">
-                    <mat-select [formControl]="getControl(i, 'tva')">
-                        <mat-option [value]="0">0%</mat-option>
-                        <mat-option [value]="7">7%</mat-option>
-                        <mat-option [value]="10">10%</mat-option>
-                        <mat-option [value]="20">20%</mat-option>
-                    </mat-select>
-                </mat-form-field>
-            </td>
-          </ng-container>
+              <!-- Global Category -->
+              <div class="flex flex-col gap-1">
+                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Catégorie</span>
+                 <mat-form-field appearance="outline" class="w-32 compact-field" subscriptSizing="dynamic">
+                   <mat-select [formControl]="batchCat" placeholder="Cat.">
+                     <mat-option value="MONTURE_OPTIQUE" class="text-[11px]">Optique</mat-option>
+                     <mat-option value="MONTURE_SOLAIRE" class="text-[11px]">Solaire</mat-option>
+                     <mat-option value="VERRE" class="text-[11px]">Verre</mat-option>
+                     <mat-option value="LENTILLE" class="text-[11px]">Lentille</mat-option>
+                     <mat-option value="ACCESSOIRE" class="text-[11px]">Acc.</mat-option>
+                   </mat-select>
+                 </mat-form-field>
+              </div>
 
-          <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-        </table>
-      </div>
+              <!-- Global P.Vente -->
+              <div class="flex flex-col gap-1">
+                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">P.Vente HT</span>
+                 <div class="relative w-20">
+                    <input type="number" [formControl]="batchPrixVente" placeholder="Prix"
+                           class="w-full h-10 px-2 border-2 border-slate-100 rounded-lg font-black text-blue-600 bg-white focus:border-blue-500 outline-none transition-all text-sm">
+                 </div>
+              </div>
 
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Annuler</button>
-      <button mat-flat-button color="primary" [disabled]="form.invalid || productsFormArray.invalid" (click)="confirm()">
-        Valider l'Alimentation
-      </button>
-    </mat-dialog-actions>
+             <div class="flex items-center gap-3 self-end min-max">
+                <button mat-flat-button color="primary" 
+                        class="!h-10 !px-6 !rounded-lg !text-[11px] !font-black !uppercase !tracking-wider shadow-md shadow-blue-100 transition-all active:scale-95"
+                        (click)="applyGlobalSettings()">
+                  Appliquer
+                </button>
+                <div class="w-px h-10 bg-slate-100 mx-1"></div>
+                <button mat-stroked-button 
+                        class="!h-10 !px-6 !rounded-lg !text-[11px] !font-black !uppercase !tracking-wider !border-2 !border-blue-100 !text-blue-600 hover:!bg-blue-50 transition-all active:scale-95"
+                        [disabled]="!batchWh.value"
+                        (click)="distributeRemainder()">
+                  Répartir le Reliquat
+                </button>
+             </div>
+          </div>
+        </div>
+
+        <!-- MAIN DATA TABLE -->
+        <div class="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-slate-200">
+          <table class="w-full border-collapse bg-white table-fixed">
+            <thead class="sticky top-0 z-10 bg-slate-100 border-b shadow-sm">
+              <tr class="text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">
+                  <th class="px-2 py-3 w-8 text-center text-[9px]">#</th>
+                  <th class="px-3 py-3 text-left w-16 text-[9px] uppercase">Marque</th>
+                  <th class="px-3 py-3 text-left w-32 text-[9px] uppercase">Produit</th>
+                  <th class="px-3 py-3 text-left w-24 text-[9px] uppercase">Réf.</th>
+                  <th class="px-3 py-3 text-left w-36 text-[9px] uppercase">Entrepôt</th>
+                  <th class="px-3 py-3 text-center w-12 text-[9px] uppercase">Qté</th>
+                  <th class="px-3 py-3 text-left w-20 text-[9px] uppercase">P.Ach HT</th>
+                  <th class="px-3 py-3 text-left w-20 text-[9px] uppercase">P.Ven HT</th>
+                  <th class="px-3 py-3 text-left w-24 text-[9px] uppercase">Catégorie</th>
+                  <th class="px-3 py-3 text-left w-14 text-[9px] uppercase">TVA</th>
+                  <th class="px-3 py-3 text-center w-14 text-[9px] uppercase">Excl.</th>
+                  <th class="px-2 py-3 w-12 text-center"></th>
+                </tr>
+              </thead>
+            
+            <tbody formArrayName="products">
+              <ng-container *ngFor="let product of data.products; let i = index" [formGroupName]="i">
+                <ng-container formArrayName="allocations">
+                   <tr *ngFor="let alloc of getAllocationsControls(i); let j = index" 
+                       [formGroupName]="j"
+                       class="group hover:bg-slate-50/80 transition-all border-b border-slate-100">
+                      
+                      <!-- INDEX -->
+                      <td class="px-2 py-2 text-center font-bold text-slate-300 border-r border-slate-50 w-8">
+                        <span *ngIf="j === 0" class="text-[10px]">{{ i + 1 }}</span>
+                      </td>
+
+                      <!-- MARQUE -->
+                      <td class="px-2 py-2 w-16">
+                        <div *ngIf="j === 0" class="flex items-center">
+                          <span class="px-1 py-0 bg-slate-100 text-slate-500 rounded text-[8px] font-black uppercase tracking-tighter border border-slate-200 truncate max-w-full" [matTooltip]="product.marque || ''">{{ product.marque || '---' }}</span>
+                        </div>
+                      </td>
+
+                      <!-- PRODUCT INFO -->
+                      <td class="px-3 py-2 w-32">
+                        <div *ngIf="j === 0" class="flex flex-col gap-0">
+                          <span class="font-bold text-slate-800 text-[11px] leading-tight truncate w-full" [matTooltip]="product.nom">{{ product.nom }}</span>
+                          <div class="flex items-center gap-1">
+                             <span class="px-1 py-0 bg-blue-50 text-blue-600 rounded text-[8px] font-black uppercase tracking-tighter border border-blue-100 italic shrink-0">{{ product.categorie }}</span>
+                             <span class="px-1 py-0 bg-slate-50 text-slate-400 rounded text-[8px] font-bold border border-slate-100 shrink-0">C: {{ product.quantite }}</span>
+                          </div>
+                        </div>
+                        <div *ngIf="j > 0" class="flex items-center gap-1 pl-1">
+                           <mat-icon class="text-slate-200 scale-50 rotate-90">subdirectory_arrow_right</mat-icon>
+                           <span class="text-[8px] font-bold text-slate-300 uppercase italic">Suite</span>
+                        </div>
+                      </td>
+
+                      <!-- REFERENCE -->
+                      <td class="px-3 py-2 w-24">
+                        <div *ngIf="j === 0" class="flex items-center">
+                          <span class="text-[9px] font-black text-slate-400 font-mono tracking-tighter truncate max-w-full" [matTooltip]="product.reference">{{ product.reference }}</span>
+                        </div>
+                      </td>
+
+                      <!-- WAREHOUSE SELECT -->
+                      <td class="px-2 py-2 w-36">
+                        <mat-form-field appearance="outline" class="w-full compact-field" subscriptSizing="dynamic">
+                          <mat-select formControlName="warehouseId" placeholder="Dest.">
+                            <mat-option *ngFor="let w of warehouses$ | async" [value]="w.id" class="text-[11px]">{{ w.nom }}</mat-option>
+                          </mat-select>
+                        </mat-form-field>
+                      </td>
+
+                      <!-- QUANTITE -->
+                      <td class="px-2 py-2 w-12 text-center">
+                        <div class="relative">
+                          <input type="number" formControlName="quantite" 
+                                 class="w-full h-8 text-center border-2 rounded-lg font-black text-slate-700 bg-white focus:border-blue-500 outline-none transition-all text-[11px]"
+                                 [ngClass]="getAllocationStatus(i) !== 'OK' ? 'border-orange-200 bg-orange-50/30' : 'border-slate-100'">
+                        </div>
+                      </td>
+
+                      <!-- PRED ACHAT -->
+                      <td class="px-2 py-2 w-20 uppercase">
+                        <div class="relative">
+                          <input type="number" formControlName="prixAchat"
+                                 class="w-full h-8 px-1.5 border-slate-100 border-2 rounded-lg font-bold text-slate-600 bg-white focus:border-blue-500 outline-none transition-all text-[10px]">
+                        </div>
+                      </td>
+
+                      <!-- PRED VENTE -->
+                      <td class="px-2 py-2 w-20 uppercase">
+                        <div class="relative">
+                          <input type="number" formControlName="prixVente"
+                                 class="w-full h-8 px-1.5 border-slate-100 border-2 rounded-lg font-bold text-blue-600 bg-white focus:border-blue-500 outline-none transition-all text-[10px]">
+                        </div>
+                      </td>
+
+                      <!-- CATEGORIE -->
+                      <td class="px-2 py-2 w-24">
+                        <mat-form-field appearance="outline" class="w-full compact-field" subscriptSizing="dynamic">
+                          <mat-select formControlName="categorie">
+                            <mat-option value="MONTURE_OPTIQUE" class="text-[11px]">Optique</mat-option>
+                            <mat-option value="MONTURE_SOLAIRE" class="text-[11px]">Solaire</mat-option>
+                            <mat-option value="VERRE" class="text-[11px]">Verre</mat-option>
+                            <mat-option value="LENTILLE" class="text-[11px]">Lentille</mat-option>
+                            <mat-option value="ACCESSOIRE" class="text-[11px]">Acc.</mat-option>
+                          </mat-select>
+                        </mat-form-field>
+                      </td>
+
+                      <!-- TVA -->
+                      <td class="px-2 py-2 w-14">
+                        <mat-form-field appearance="outline" class="w-full compact-field" subscriptSizing="dynamic">
+                          <mat-select formControlName="tva">
+                            <mat-option *ngFor="let r of [0, 7, 10, 14, 20]" [value]="r" class="text-[11px]">{{ r }}%</mat-option>
+                          </mat-select>
+                        </mat-form-field>
+                      </td>
+
+                      <!-- EXCLUDE -->
+                      <td class="px-2 py-2 text-center w-14">
+                        <div *ngIf="j === 0" class="flex items-center justify-center">
+                          <input type="checkbox" [formControl]="$any(getGroup(i).get('exclure'))" 
+                                 class="w-3.5 h-3.5 rounded border-2 border-slate-200 text-blue-600 cursor-pointer">
+                        </div>
+                      </td>
+
+                      <!-- ACTIONS -->
+                      <td class="px-2 py-2 text-center w-12">
+                        <div class="flex items-center justify-center gap-0">
+                          <button *ngIf="j === 0" mat-icon-button class="scale-[0.65] text-blue-500 hover:bg-blue-50" 
+                                  (click)="addAllocation(i)" matTooltip="Scinder">
+                            <mat-icon>add_circle</mat-icon>
+                          </button>
+                          <button *ngIf="j > 0" mat-icon-button class="scale-[0.65] text-red-400 hover:bg-red-50" (click)="removeAllocation(i, j)">
+                            <mat-icon>delete_outline</mat-icon>
+                          </button>
+                        </div>
+                      </td>
+                   </tr>
+                </ng-container>
+              </ng-container>
+            </tbody>
+          </table>
+        </div>
+      </mat-dialog-content>
+
+      <!-- FOOTER ACTIONS -->
+      <footer class="bg-white border-t px-8 py-4 flex items-center justify-between shadow-[0_-4px_10px_rgba(0,0,0,0.03)] z-30">
+        <div class="flex items-center gap-8">
+           <div class="flex flex-col">
+              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total Articles</span>
+              <span class="text-base font-black text-slate-800">{{ data.products.length }}</span>
+           </div>
+           <div class="h-8 w-px bg-slate-100"></div>
+           <div class="flex flex-col">
+              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Statut de Répartition</span>
+              <div class="flex items-center gap-2">
+                 <span [ngClass]="isAllocationValid() ? 'text-green-600' : 'text-orange-500'" class="text-[11px] font-black uppercase">
+                    {{ isAllocationValid() ? 'Toutes les quantités réparties' : 'Répartition incomplète' }}
+                 </span>
+                 <mat-icon *ngIf="isAllocationValid()" class="text-green-500 scale-75">verified</mat-icon>
+              </div>
+           </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+           <button mat-button mat-dialog-close class="!font-bold !text-slate-400 !px-6 hover:!text-slate-600">Annuler</button>
+           <button mat-flat-button color="primary" 
+                   class="!h-12 !px-10 !rounded-xl !font-black !text-[13px] !uppercase !tracking-widest shadow-xl shadow-blue-100 disabled:!bg-slate-100 disabled:!text-slate-300 transition-all active:scale-[0.98]"
+                   [disabled]="form.invalid || !isAllocationValid()" 
+                   (click)="confirm()">
+             Finaliser l'Alimentation
+           </button>
+        </div>
+      </footer>
+    </div>
   `,
   styles: [`
-    .compact-form-field .mat-mdc-form-field-wrapper {
-        padding-bottom: 0;
+    :host ::ng-deep .compact-field .mat-mdc-text-field-wrapper {
+        padding: 0 10px !important;
+        background-color: white !important;
+        border-radius: 8px !important;
+        height: 36px !important;
+        border: 2px solid #f1f5f9 !important;
+        transition: all 0.2s ease !important;
     }
-    .compact-form-field .mat-mdc-form-field-infix {
-        padding-top: 4px;
-        padding-bottom: 4px;
-        min-height: 32px;
+    :host ::ng-deep .compact-field.mat-focused .mat-mdc-text-field-wrapper {
+        border-color: #3b82f6 !important;
+        background-color: #fff !important;
+    }
+    :host ::ng-deep .compact-field .mat-mdc-form-field-infix {
+        padding-top: 4px !important;
+        padding-bottom: 4px !important;
+        min-height: 32px !important;
+    }
+    :host ::ng-deep .mat-mdc-dialog-container {
+        border-radius: 16px !important;
+        overflow: hidden !important;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+    } 
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
     }
   `]
 })
 export class StockAlimentationDialogComponent implements OnInit {
   form: FormGroup;
-  productsFormArray: FormArray;
-
   warehouses$: Observable<Entrepot[]>;
-  productsSource: any[] = []; // Wrapper for template
 
-  displayedColumns = ['nom', 'quantite', 'prixAchat', 'tva'];
+  // Global Controls for Toolbar
+  batchWh = new FormControl<string>('');
+  batchQty = new FormControl<number | null>(null);
+  batchTva = new FormControl<number | null>(null);
+  batchPrixVente = new FormControl<number | null>(null);
+  batchCat = new FormControl<string | null>(null);
 
   constructor(
     private fb: FormBuilder,
     private dialogRef: MatDialogRef<StockAlimentationDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: { products: StagedProduct[] },
-    private warehousesService: WarehousesService
+    @Inject(MAT_DIALOG_DATA) public data: {
+      products: StagedProduct[],
+      document: { type: string, numero: string, date: Date, file: File | null, fournisseurId: string }
+    },
+    private warehousesService: WarehousesService,
+    private stockService: StockAlimentationService,
+    private snackBar: MatSnackBar,
+    private store: Store
   ) {
-    this.productsFormArray = this.fb.array([]);
+    // 1. Initialize form
     this.form = this.fb.group({
-      warehouseId: ['', Validators.required],
-      items: this.productsFormArray
+      products: this.fb.array([])
     });
 
-    this.warehouses$ = this.warehousesService.findAll();
+    // 2. Fetch warehouses
+    this.warehouses$ = this.store.select(UserCurrentCentreSelector).pipe(
+      switchMap(center => this.warehousesService.findAll(center?.id))
+    );
+  }
+
+  get productsFormArray() {
+    return this.form.get('products') as FormArray;
   }
 
   ngOnInit() {
-    // Initialize Form Array from passed products
+    // 3. Populate products array
     this.data.products.forEach(p => {
-      const group = this.fb.group({
-        prixAchat: [p.prixAchat, [Validators.required, Validators.min(0)]],
-        tva: [p.tva, Validators.required]
+      // Ensure numeric types
+      p.quantite = Number(p.quantite);
+      p.prixAchat = Number(p.prixAchat);
+      p.prixVente = Number(p.prixVente);
+      p.tva = Number(p.tva);
+
+      const productGroup = this.fb.group({
+        exclure: [false],
+        allocations: this.fb.array([
+          this.createAllocationGroup(p.quantite, p.prixAchat, p.prixVente, p.tva, p.categorie)
+        ])
       });
-      this.productsFormArray.push(group);
+      this.productsFormArray.push(productGroup);
+    });
+  }
+
+  createAllocationGroup(qty: number, price: number, sellingPrice: number, tva: number, cat: string) {
+    return this.fb.group({
+      warehouseId: ['', Validators.required],
+      quantite: [Number(qty) || 0, [Validators.required, Validators.min(0.001)]],
+      prixAchat: [Number(price) || 0, [Validators.required, Validators.min(0)]],
+      prixVente: [Number(sellingPrice) || 0, [Validators.required, Validators.min(0)]],
+      tva: [Number(tva) || 0, Validators.required],
+      categorie: [cat, Validators.required]
+    });
+  }
+
+  getGroup(productIndex: number): FormGroup {
+    return this.productsFormArray.at(productIndex) as FormGroup;
+  }
+
+  getAllocations(productIndex: number): FormArray {
+    return this.getGroup(productIndex).get('allocations') as FormArray;
+  }
+
+  getAllocationsControls(productIndex: number) {
+    return this.getAllocations(productIndex).controls;
+  }
+
+  addAllocation(productIndex: number) {
+    const p = this.data.products[productIndex];
+    const currentSum = this.getAllocatedSum(productIndex);
+    const remaining = Number((p.quantite - currentSum).toFixed(3));
+
+    // Use global settings if available
+    const globalWh = this.batchWh.value;
+    const globalTva = this.batchTva.value;
+    const globalCat = this.batchCat.value;
+    const tvaToUse = (globalTva !== null && globalTva !== undefined) ? Number(globalTva) : p.tva;
+    const catToUse = globalCat || p.categorie;
+    const prixVenteToUse = (this.batchPrixVente.value !== null && this.batchPrixVente.value !== undefined) ? Number(this.batchPrixVente.value) : p.prixVente;
+
+    const group = this.createAllocationGroup(Math.max(0, remaining), p.prixAchat, prixVenteToUse, tvaToUse, catToUse);
+    if (globalWh) {
+      group.get('warehouseId')?.setValue(globalWh);
+    }
+
+    this.getAllocations(productIndex).push(group);
+  }
+
+  removeAllocation(productIndex: number, allocIndex: number) {
+    const allocations = this.getAllocations(productIndex);
+    if (allocations.length > 1) {
+      allocations.removeAt(allocIndex);
+    }
+  }
+
+  getAllocatedSum(productIndex: number): number {
+    const allocations = this.getAllocations(productIndex).value;
+    const sum = allocations.reduce((acc: number, a: any) => acc + (Number(a.quantite) || 0), 0);
+    return Number(sum.toFixed(3));
+  }
+
+  getAllocationStatus(productIndex: number): 'OK' | 'WARN' {
+    const p = this.data.products[productIndex];
+    const sum = this.getAllocatedSum(productIndex);
+    return Math.abs(sum - Number(p.quantite)) < 0.001 ? 'OK' : 'WARN';
+  }
+
+  isAllocationValid(): boolean {
+    return this.data.products.every((p, i) => {
+      const g = this.getGroup(i);
+      if (g.get('exclure')?.value) return true;
+      return this.getAllocationStatus(i) === 'OK';
+    });
+  }
+
+  applyGlobalSettings() {
+    const warehouseId = this.batchWh.value;
+    const qty = this.batchQty.value;
+    const tva = this.batchTva.value;
+    const cat = this.batchCat.value;
+    const prixVente = this.batchPrixVente.value;
+
+    this.productsFormArray.controls.forEach((pGroup: any) => {
+      const allocations = pGroup.get('allocations') as FormArray;
+      allocations.controls.forEach((aGroup: any) => {
+        // Apply Warehouse if provided
+        if (warehouseId) {
+          aGroup.get('warehouseId').setValue(warehouseId);
+        }
+        // Apply Quantity if provided
+        if (qty !== null && qty !== undefined) {
+          aGroup.get('quantite').setValue(Number(qty));
+        }
+        // Apply TVA if provided
+        if (tva !== null && tva !== undefined) {
+          aGroup.get('tva').setValue(Number(tva));
+        }
+        // Apply Category if provided
+        if (cat) {
+          aGroup.get('categorie').setValue(cat);
+        }
+        // Apply Prix Vente if provided
+        if (prixVente !== null && prixVente !== undefined) {
+          aGroup.get('prixVente').setValue(Number(prixVente));
+        }
+      });
+    });
+  }
+
+  distributeRemainder() {
+    const warehouseId = this.batchWh.value;
+    const requestedQty = this.batchQty.value;
+    const globalTva = this.batchTva.value;
+    const globalCat = this.batchCat.value;
+
+    if (!warehouseId) return;
+    const qtyToUse = (requestedQty !== undefined && requestedQty !== null) ? Number(requestedQty) : null;
+
+    this.productsFormArray.controls.forEach((pGroup: any, i: number) => {
+      const p = this.data.products[i];
+      const allocations = pGroup.get('allocations') as FormArray;
+
+      // 1. Fill missing warehouse IDs on existing rows
+      allocations.controls.forEach(c => {
+        if (!c.get('warehouseId').value) {
+          c.get('warehouseId').setValue(warehouseId);
+          // Also apply global TVA if set
+          if (globalTva !== null && globalTva !== undefined) {
+            c.get('tva').setValue(Number(globalTva));
+          }
+          // Also apply global Category if set
+          if (globalCat) {
+            c.get('categorie').setValue(globalCat);
+          }
+        }
+      });
+
+      // 2. Check if we still have a remainder to distribute
+      const currentSum = this.getAllocatedSum(i);
+      const remainingTotal = Number((p.quantite - currentSum).toFixed(3));
+
+      if (remainingTotal > 0.001) {
+        // Use requested quantity if valid, otherwise finish the remainder
+        const qtyToAllocate = (qtyToUse !== null && qtyToUse > 0) ? Number(Math.min(qtyToUse, remainingTotal).toFixed(3)) : remainingTotal;
+
+        if (qtyToAllocate > 0.001) {
+          const tvaToUse = (globalTva !== null && globalTva !== undefined) ? Number(globalTva) : p.tva;
+          const catToUse = globalCat || p.categorie;
+          const prixVenteToUse = (this.batchPrixVente.value !== null && this.batchPrixVente.value !== undefined) ? Number(this.batchPrixVente.value) : p.prixVente;
+
+          allocations.push(
+            this.createAllocationGroup(qtyToAllocate, p.prixAchat, prixVenteToUse, tvaToUse, catToUse)
+          );
+        }
+      }
     });
 
-    // Create a datasource that links the form controls to the original data for display
-    this.productsSource = this.data.products.map((p, index) => ({
-      original: p,
-      index: index
-    }));
+    // 3. Update the global quantity field with the "NEW" remaining for the first product
+    // (This assumes the batch has common quantities, which is the user's workflow)
+    const firstRem = Number((this.data.products[0].quantite - this.getAllocatedSum(0)).toFixed(3));
+    this.batchQty.setValue(firstRem > 0 ? firstRem : null);
   }
 
-  getControl(index: number, controlName: string) {
-    return this.productsFormArray.at(index).get(controlName) as any;
-  }
-
-  confirm() {
-    if (this.form.valid) {
-      // Merge form values back into products
-      const updatedProducts = this.data.products.map((p, index) => {
-        const formVal = this.productsFormArray.at(index).value;
-        return {
-          ...p,
-          prixAchat: formVal.prixAchat,
-          tva: formVal.tva
-        };
+  async confirm() {
+    if (this.form.valid && this.isAllocationValid()) {
+      const allAllocations: any[] = [];
+      const centreId = await new Promise<string | undefined>(resolve => {
+        this.store.select(UserCurrentCentreSelector).subscribe(c => resolve(c?.id)).unsubscribe();
       });
 
-      const result: AlimentationResult = {
-        warehouseId: this.form.get('warehouseId')?.value,
-        products: updatedProducts
+      this.productsFormArray.controls.forEach((pGroup: any, i) => {
+        if (pGroup.get('exclure')?.value) return;
+
+        const original = this.data.products[i];
+        const allocations = pGroup.get('allocations').value;
+
+        allocations.forEach((a: any) => {
+          allAllocations.push({
+            productId: original.id,
+            reference: original.reference,
+            nom: original.nom,
+            marque: original.marque,
+            categorie: a.categorie || original.categorie,
+            warehouseId: a.warehouseId,
+            quantite: Number(a.quantite),
+            prixAchat: Number(a.prixAchat),
+            prixVente: Number(a.prixVente),
+            tva: Number(a.tva)
+          });
+        });
+      });
+
+      if (allAllocations.length === 0) {
+        this.snackBar.open('Aucune ligne à enregistrer', 'OK', { duration: 3000 });
+        return;
+      }
+
+      // Handle File Attachment
+      let base64File: string | undefined;
+      let fileName: string | undefined;
+      if (this.data.document.file) {
+        base64File = await this.fileToBase64(this.data.document.file);
+        fileName = this.data.document.file.name;
+      }
+
+      const payload: BulkAlimentationPayload = {
+        numeroFacture: this.data.document.numero || `ENTREE_${Date.now()}`,
+        dateEmission: this.data.document.date.toISOString(),
+        type: this.data.document.type,
+        fournisseurId: this.data.document.fournisseurId,
+        centreId: centreId,
+        base64File: base64File,
+        fileName: fileName,
+        allocations: allAllocations
       };
 
-      this.dialogRef.close(result);
+      this.stockService.bulkAlimentation(payload).subscribe({
+        next: (res) => {
+          this.snackBar.open('Stock alimenté avec succès !', 'OK', { duration: 3000 });
+          this.dialogRef.close({ success: true, allocations: allAllocations });
+        },
+        error: (err) => {
+          console.error('Persistence failed', err);
+          const msg = err.error?.message || 'Erreur lors de l\'enregistrement du stock';
+          this.snackBar.open(msg, 'OK', { duration: 5000 });
+        }
+      });
     }
+  }
+
+  private fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
   }
 }
