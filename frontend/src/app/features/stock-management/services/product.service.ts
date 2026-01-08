@@ -128,10 +128,8 @@ export class ProductService {
     }
 
     // Search methods would be API calls with query params
-    searchByBarcode(barcode: string): Observable<Product> {
-        // Ideally backend endpoint
-        // For now, findAll and filter? Or add specific endpoint?
-        // Let's assume we use findAll(search=...) later
-        return new Observable();
+    searchByBarcodeOrReference(query: string): Observable<Product[]> {
+        let params = new HttpParams().set('search', query);
+        return this.http.get<Product[]>(this.apiUrl, { params });
     }
 }

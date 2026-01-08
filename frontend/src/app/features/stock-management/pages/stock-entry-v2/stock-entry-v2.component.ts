@@ -22,6 +22,8 @@ import { CameraCaptureDialogComponent } from '../../../../shared/components/came
 import { OcrService } from '../../../../core/services/ocr.service';
 import { FinanceService } from '../../../finance/services/finance.service';
 import { Supplier } from '../../../finance/models/finance.models';
+import { ProductService } from '../../services/product.service';
+import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
 export interface StagedProduct {
     id?: string; // If existing product found
@@ -30,15 +32,21 @@ export interface StagedProduct {
     codeBarre?: string; // Code Barre (Manuel ou Scanné)
     nom: string;
     marque: string;
-    categorie: string; // 'MONTURE', 'VERRE', etc.
+    categorie: string;
     quantite: number;
     prixAchat: number;
-    tva: number; // 0 or 20
+    tva: number;
+
     // Pricing Mode
     modePrix: 'FIXE' | 'COEFF';
     coefficient?: number;
     margeFixe?: number;
     prixVente: number;
+
+    // Existing Data Helper
+    existingStock?: number;
+    existingPrixAchat?: number;
+    suggestedWAP?: number;
 }
 
 @Component({
@@ -84,6 +92,10 @@ export class StockEntryV2Component implements OnInit {
     ocrProcessing = false;
     analyzedText = '';
 
+    // Search State
+    foundProduct: any = null;
+    isSearching = false;
+
     // Data lists
     suppliers$!: Observable<Supplier[]>;
 
@@ -91,6 +103,7 @@ export class StockEntryV2Component implements OnInit {
         private fb: FormBuilder,
         private ocrService: OcrService,
         private financeService: FinanceService,
+        private productService: ProductService,
         private snackBar: MatSnackBar,
         private dialog: MatDialog
     ) {
@@ -122,6 +135,8 @@ export class StockEntryV2Component implements OnInit {
             coefficient: [2.5],
             margeFixe: [0]
         });
+
+        this.setupProductSearch();
     }
 
     ngOnInit(): void {
@@ -152,6 +167,47 @@ export class StockEntryV2Component implements OnInit {
         // Inverse: If Prix Vente changes manually in Coeff mode (optional UX choice: update coef?)
         // For now, let's keep Coeff master if Mode IS Coeff.
     }
+
+    private setupProductSearch() {
+        // Search triggered by reference or codeBarre
+        const searchInput$ = new BehaviorSubject<string>('');
+
+        this.entryForm.get('reference')?.valueChanges.subscribe(v => searchInput$.next(v));
+        this.entryForm.get('codeBarre')?.valueChanges.subscribe(v => searchInput$.next(v));
+
+        searchInput$.pipe(
+            debounceTime(500),
+            distinctUntilChanged(),
+            switchMap(query => {
+                if (!query || query.length < 3) {
+                    this.foundProduct = null;
+                    return of([]);
+                }
+                this.isSearching = true;
+                return this.productService.searchByBarcodeOrReference(query).pipe(
+                    catchError(() => of([]))
+                );
+            })
+        ).subscribe(results => {
+            this.isSearching = false;
+            if (results && results.length > 0) {
+                this.foundProduct = results[0];
+                this.snackBar.open(`Produit existant détecté : ${this.foundProduct.nom}`, 'OK', { duration: 2000 });
+                // We don't auto-patch to avoid overwriting user intent, 
+                // but we store it in foundProduct for addProduct.
+            } else {
+                this.foundProduct = null;
+            }
+        });
+    }
+
+    calculateWAP(existingStock: number, existingPrice: number, newQty: number, newPrice: number): number {
+        if (existingStock <= 0) return newPrice;
+        const totalValue = (existingStock * existingPrice) + (newQty * newPrice);
+        const totalQty = existingStock + newQty;
+        return parseFloat((totalValue / totalQty).toFixed(2));
+    }
+
 
     // --- Staging Logic ---
 
@@ -185,9 +241,22 @@ export class StockEntryV2Component implements OnInit {
         const val = this.entryForm.getRawValue();
         const product: StagedProduct = {
             tempId: crypto.randomUUID(),
-            codeBarre: val.codeBarre, // New field mapping
+            id: this.foundProduct?.id, // Link if existing
+            codeBarre: val.codeBarre,
             ...val
         };
+
+        // If existing product, attach stock info and calculate WAP preview
+        if (this.foundProduct) {
+            product.existingStock = this.foundProduct.stock;
+            product.existingPrixAchat = this.foundProduct.prixAchatHT;
+            product.suggestedWAP = this.calculateWAP(
+                this.foundProduct.stock || 0,
+                this.foundProduct.prixAchatHT || 0,
+                val.quantite,
+                val.prixAchat
+            );
+        }
 
         this.stagedProducts = [...this.stagedProducts, product];
         this.productsSubject.next(this.stagedProducts);
@@ -201,8 +270,10 @@ export class StockEntryV2Component implements OnInit {
             coefficient: 2.5,
             margeFixe: 0,
             prixVente: 0,
-            codeBarre: '' // Reset codeBarre
+            codeBarre: ''
         });
+
+        this.foundProduct = null;
     }
 
     removeProduct(tempId: string) {
