@@ -39,4 +39,14 @@ export class StockMovementsService {
     getHistory(productId: string): Observable<StockMovement[]> {
         return this.http.get<StockMovement[]>(`${this.apiUrl}/product/${productId}`);
     }
+
+    getStockEntryHistory(filters?: { dateFrom?: string; dateTo?: string; supplierId?: string; docType?: string }): Observable<any[]> {
+        const params: any = {};
+        if (filters?.dateFrom) params.dateFrom = filters.dateFrom;
+        if (filters?.dateTo) params.dateTo = filters.dateTo;
+        if (filters?.supplierId) params.supplierId = filters.supplierId;
+        if (filters?.docType) params.docType = filters.docType;
+
+        return this.http.get<any[]>(`${this.apiUrl}/history`, { params });
+    }
 }

@@ -72,16 +72,22 @@ export const MENU: MenuItem[] = [
     route: 'stock-management', // Keeping route generic or strictly semantic, 'logistics' was arbitrary
     children: [
       {
-        label: 'Stock',
-        icon: 'inventory',
+        label: 'Liste des produits',
+        icon: 'inventory_2',
         type: 'subchild',
         route: 'stock',
       },
       {
-        label: 'Nouvelle Entrée (V2)',
+        label: "Gestion d'entrée stock",
         icon: 'add_circle',
         type: 'subchild',
         route: 'stock/entry-v2',
+      },
+      {
+        label: 'Historique des Entrées',
+        icon: 'history',
+        type: 'subchild',
+        route: 'stock/history',
       },
       {
         label: 'Transferts Inter-Centres',

@@ -23,6 +23,10 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/stock-entry-v2/stock-entry-v2.component').then(m => m.StockEntryV2Component)
     },
     {
+        path: 'history',
+        loadComponent: () => import('./pages/stock-entry-history/stock-entry-history-page.component').then(m => m.StockEntryHistoryPageComponent)
+    },
+    {
         path: ':id',
         loadComponent: () => import('./pages/product-detail/product-detail.component').then(m => m.ProductDetailComponent)
     },

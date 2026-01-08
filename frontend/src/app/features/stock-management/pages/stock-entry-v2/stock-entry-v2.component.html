@@ -1,5 +1,10 @@
 <div class="stock-entry-container p-6 flex flex-col gap-6">
 
+    <div class="header-left">
+        <h2>Gestion d'entrée stock</h2>
+        <span class="subtitle">Saisie rapide des entrées</span>
+    </div>
+
     <!-- SECTION 1: DOCUMENT & IDENTIFICATION -->
     <mat-card>
         <mat-card-header>
@@ -39,52 +44,46 @@
                     <mat-form-field appearance="outline" class="w-48 compact-field">
                         <mat-label>N° Pièce</mat-label>
                         <input matInput formControlName="numero" placeholder="ex: FAC-2023-001" class="text-center">
-                    </mat-form-field>
+                    </mat-form-field> <input type="file" #fileInput hidden (change)="onFileSelected($event)"
+                        accept="image/*,application/pdf">
 
-                    <div class="flex-1"></div>
+                    <!-- Attach Button -->
+                    <button mat-stroked-button color="primary" (click)="fileInput.click()"
+                        *ngIf="!documentForm.get('file')?.value">
+                        <mat-icon>attach_file</mat-icon> Joindre Document
+                    </button>
 
-                    <div class="flex items-center gap-2">
-                        <input type="file" #fileInput hidden (change)="onFileSelected($event)"
-                            accept="image/*,application/pdf">
+                    <!-- Camera Button -->
+                    <button mat-flat-button color="accent" (click)="openCamera()"
+                        *ngIf="!documentForm.get('file')?.value">
+                        <mat-icon>photo_camera</mat-icon> Scanner
+                    </button>
 
-                        <!-- Attach Button -->
-                        <button mat-stroked-button color="primary" (click)="fileInput.click()"
-                            *ngIf="!documentForm.get('file')?.value">
-                            <mat-icon>attach_file</mat-icon> Joindre Document
+                    <!-- Active File Display -->
+                    <div *ngIf="documentForm.get('file')?.value as file"
+                        class="flex items-center gap-2 bg-blue-100 text-blue-900 px-3 py-1.5 rounded-full border border-blue-200 animate-in fade-in zoom-in duration-300">
+                        <mat-icon class="text-sm">description</mat-icon>
+                        <span class="text-sm font-medium max-w-[150px] truncate" [matTooltip]="file.name">{{
+                            file.name }}</span>
+
+                        <!-- View File -->
+                        <button mat-icon-button class="scale-75 w-8 h-8" (click)="viewDocument()"
+                            matTooltip="Visualiser">
+                            <mat-icon>visibility</mat-icon>
                         </button>
 
-                        <!-- Camera Button -->
-                        <button mat-flat-button color="accent" (click)="openCamera()"
-                            *ngIf="!documentForm.get('file')?.value">
-                            <mat-icon>photo_camera</mat-icon> Scanner
+                        <!-- Remove File -->
+                        <button mat-icon-button color="warn" class="scale-75 w-8 h-8"
+                            (click)="documentForm.patchValue({file: null}); detectedLines=[]; showOcrData=false;"
+                            matTooltip="Supprimer">
+                            <mat-icon>close</mat-icon>
                         </button>
-
-                        <!-- Active File Display -->
-                        <div *ngIf="documentForm.get('file')?.value as file"
-                            class="flex items-center gap-2 bg-blue-100 text-blue-900 px-3 py-1.5 rounded-full border border-blue-200 animate-in fade-in zoom-in duration-300">
-                            <mat-icon class="text-sm">description</mat-icon>
-                            <span class="text-sm font-medium max-w-[150px] truncate" [matTooltip]="file.name">{{
-                                file.name }}</span>
-
-                            <!-- View File -->
-                            <button mat-icon-button class="scale-75 w-8 h-8" (click)="viewDocument()"
-                                matTooltip="Visualiser">
-                                <mat-icon>visibility</mat-icon>
-                            </button>
-
-                            <!-- Remove File -->
-                            <button mat-icon-button color="warn" class="scale-75 w-8 h-8"
-                                (click)="documentForm.patchValue({file: null}); detectedLines=[]; showOcrData=false;"
-                                matTooltip="Supprimer">
-                                <mat-icon>close</mat-icon>
-                            </button>
-                        </div>
-
-                        <span *ngIf="ocrProcessing"
-                            class="text-sm text-blue-600 animate-pulse flex items-center gap-1 ml-2">
-                            <mat-icon class="text-sm">hourglass_empty</mat-icon> Analyse OCR...
-                        </span>
                     </div>
+
+                    <span *ngIf="ocrProcessing"
+                        class="text-sm text-blue-600 animate-pulse flex items-center gap-1 ml-2">
+                        <mat-icon class="text-sm">hourglass_empty</mat-icon> Analyse OCR...
+                    </span>
                 </form>
             </div>
 
@@ -229,6 +228,12 @@
                                 <input matInput type="number" formControlName="coefficient" step="0.1">
                             </mat-form-field>
 
+                            <mat-form-field *ngIf="entryForm.get('modePrix')?.value === 'FIXE'" appearance="outline"
+                                class="w-32 compact-field bg-white" subscriptSizing="dynamic">
+                                <mat-label>Marge Fixe (DH)</mat-label>
+                                <input matInput type="number" formControlName="margeFixe">
+                            </mat-form-field>
+
                             <mat-form-field appearance="outline" class="w-48 compact-field bg-white font-bold"
                                 subscriptSizing="dynamic">
                                 <mat-label>Prix Vente Final</mat-label>
@@ -255,6 +260,44 @@
         <div class="flex justify-between items-end mb-2 px-2">
             <h3 class="text-xl font-light text-gray-800">Panier d'Entrée <span class="text-gray-500 text-base">({{
                     stagedProducts.length }} articles)</span></h3>
+        </div>
+
+        <!-- Batch Pricing Toolbar -->
+        <div *ngIf="stagedProducts.length > 0"
+            class="mb-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm">
+            <form [formGroup]="batchPricingForm" class="flex items-center gap-6">
+                <div class="flex items-center gap-2">
+                    <mat-icon class="text-blue-600">auto_awesome</mat-icon>
+                    <span class="font-bold text-blue-900 text-sm uppercase tracking-wide">Actions Groupées</span>
+                </div>
+
+                <mat-divider [vertical]="true" class="h-8"></mat-divider>
+
+                <div class="flex items-center gap-4">
+                    <span class="text-sm font-semibold text-gray-700">Mode :</span>
+                    <mat-radio-group formControlName="modePrix" class="flex gap-3">
+                        <mat-radio-button value="FIXE" class="text-sm">Marge Fixe (DH)</mat-radio-button>
+                        <mat-radio-button value="COEFF" class="text-sm">Coefficient (x)</mat-radio-button>
+                    </mat-radio-group>
+                </div>
+
+                <mat-form-field *ngIf="batchPricingForm.get('modePrix')?.value === 'COEFF'" appearance="outline"
+                    class="w-32 compact-field" subscriptSizing="dynamic">
+                    <mat-label>Coefficient</mat-label>
+                    <input matInput type="number" formControlName="coefficient" step="0.1">
+                </mat-form-field>
+
+                <mat-form-field *ngIf="batchPricingForm.get('modePrix')?.value === 'FIXE'" appearance="outline"
+                    class="w-32 compact-field" subscriptSizing="dynamic">
+                    <mat-label>Marge (DH)</mat-label>
+                    <input matInput type="number" formControlName="margeFixe">
+                </mat-form-field>
+
+                <button mat-raised-button color="primary" type="button" (click)="applyBatchPricing()" class="ml-auto">
+                    <mat-icon class="mr-1">done_all</mat-icon>
+                    Appliquer à tous
+                </button>
+            </form>
         </div>
 
         <div class="bg-white rounded-lg shadow border border-gray-200">
@@ -328,13 +371,21 @@
                     <th mat-header-cell *matHeaderCellDef class="text-center"> Mode </th>
                     <td mat-cell *matCellDef="let element" class="text-center">
                         <select [(ngModel)]="element.modePrix" (change)="updateProduct(element)"
-                            class="bg-transparent border-none text-xs focus:ring-1 focus:ring-blue-400 rounded cursor-pointer">
-                            <option value="FIXE">FIXE</option>
-                            <option value="COEFF">COEFF</option>
+                            class="bg-transparent border-none text-[10px] focus:ring-1 focus:ring-blue-400 rounded cursor-pointer p-0 font-bold text-blue-600">
+                            <option value="FIXE">FIXE (DH)</option>
+                            <option value="COEFF">COEFF (x)</option>
                         </select>
-                        <input *ngIf="element.modePrix==='COEFF'" type="number" step="0.1"
-                            [(ngModel)]="element.coefficient" (input)="updateProduct(element)"
-                            class="w-10 bg-blue-50 text-blue-800 border-none text-center text-xs rounded ml-1">
+                        <div class="mt-1">
+                            <input *ngIf="element.modePrix==='COEFF'" type="number" step="0.1"
+                                [(ngModel)]="element.coefficient" (input)="updateProduct(element)"
+                                class="w-14 bg-blue-50 text-blue-800 border border-blue-100 text-center text-[10px] rounded h-6 font-bold"
+                                placeholder="Coef">
+
+                            <input *ngIf="element.modePrix==='FIXE'" type="number" [(ngModel)]="element.margeFixe"
+                                (input)="updateProduct(element)"
+                                class="w-14 bg-blue-50 text-blue-800 border border-blue-100 text-center text-[10px] rounded h-6 font-bold"
+                                placeholder="Marge">
+                        </div>
                     </td>
                 </ng-container>
 

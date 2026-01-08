@@ -30,21 +30,19 @@
     padding: 0;
     margin: 0;
     overflow-y: auto !important;
-    overflow-x: auto !important;
+    overflow-x: hidden !important; // Remove horizontal scroll
     display: block;
 }
 
 .table-container {
     width: 100%;
-    padding: 0 32px;
+    padding: 0 32px; // Match dialog-actions padding for alignment
     box-sizing: border-box;
 
     table {
-        min-width: 1500px;
         width: 100%;
         background: white;
         table-layout: fixed;
-        margin: 0 auto;
     }
 }
 
@@ -96,61 +94,60 @@ table {
         overflow: hidden;
     }
 
-    // Column widths
     th:nth-child(1),
     td:nth-child(1) {
-        width: 140px; // Date
+        width: 130px; // Date - reduced
     }
 
     th:nth-child(2),
     td:nth-child(2) {
-        width: 120px; // Type
+        width: 90px; // Type - reduced
     }
 
     th:nth-child(3),
     td:nth-child(3) {
-        width: 220px; // Entrepôt
+        width: 180px; // Entrepôt - reduced
     }
 
     th:nth-child(4),
     td:nth-child(4) {
-        width: 70px; // Qte
+        width: 60px; // Qte - reduced
         text-align: center;
     }
 
     th:nth-child(5),
     td:nth-child(5) {
-        width: 100px; // PA
+        width: 90px; // PA - reduced
         text-align: right;
     }
 
     th:nth-child(6),
     td:nth-child(6) {
-        width: 100px; // PV
+        width: 90px; // PV - reduced
         text-align: right;
     }
 
     th:nth-child(7),
     td:nth-child(7) {
-        width: 130px; // Fiche
+        width: 120px; // Fiche - reduced
     }
 
     th:nth-child(8),
     td:nth-child(8) {
-        width: 160px; // Client
+        width: 140px; // Client - reduced
     }
 
     th:nth-child(9),
     td:nth-child(9) {
         width: auto; // Motif (flexible)
-        min-width: 250px;
+        min-width: 200px; // Reduced
         white-space: normal; // Allow motif to wrap
         line-height: 1.4;
     }
 
     th:nth-child(10),
     td:nth-child(10) {
-        width: 100px; // Utilisateur
+        width: 120px; // Utilisateur - increased for more space
     }
 
     // Utilisateur
