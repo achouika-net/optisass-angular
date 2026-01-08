@@ -174,7 +174,19 @@
                         <mat-form-field appearance="outline" class="w-full">
                             <mat-label>Désignation Produit</mat-label>
                             <input matInput formControlName="nom">
+                            <mat-icon matSuffix *ngIf="isSearching">loop</mat-icon>
                         </mat-form-field>
+                        <!-- Existing Product Badge -->
+                        <div *ngIf="foundProduct" class="mt-[-10px] mb-2 flex items-center gap-2">
+                            <span
+                                class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold uppercase border border-blue-200 shadow-sm animate-pulse">
+                                Produit Existant
+                            </span>
+                            <span class="text-[10px] text-slate-500 font-medium">
+                                Stock actuel: <b class="text-slate-700">{{foundProduct.stock || 0}}</b> |
+                                Prix Achat: <b class="text-slate-700">{{foundProduct.prixAchatHT}} DH</b>
+                            </span>
+                        </div>
                     </div>
                     <div class="col-span-2">
                         <mat-form-field appearance="outline" class="w-full">
