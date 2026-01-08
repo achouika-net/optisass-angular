@@ -26,7 +26,8 @@ import { Supplier } from '../../../finance/models/finance.models';
 export interface StagedProduct {
     id?: string; // If existing product found
     tempId: string; // Unique ID for table management
-    reference: string;
+    reference: string; // Référence Fournisseur
+    codeBarre?: string; // Code Barre (Manuel ou Scanné)
     nom: string;
     marque: string;
     categorie: string; // 'MONTURE', 'VERRE', etc.
@@ -77,7 +78,7 @@ export class StockEntryV2Component implements OnInit {
     // Staging Data
     stagedProducts: StagedProduct[] = [];
     productsSubject = new BehaviorSubject<StagedProduct[]>([]);
-    displayedColumns: string[] = ['reference', 'marque', 'nom', 'categorie', 'quantite', 'prixAchat', 'tva', 'modePrix', 'prixVente', 'actions'];
+    displayedColumns: string[] = ['reference', 'codeBarre', 'marque', 'nom', 'categorie', 'quantite', 'prixAchat', 'tva', 'modePrix', 'prixVente', 'actions'];
 
     // OCR State
     ocrProcessing = false;
@@ -95,6 +96,7 @@ export class StockEntryV2Component implements OnInit {
     ) {
         this.entryForm = this.fb.group({
             reference: ['', Validators.required],
+            codeBarre: [''], // Nouveau champ
             nom: ['', Validators.required],
             marque: [''],
             categorie: ['MONTURE_OPTIQUE', Validators.required],
@@ -183,6 +185,7 @@ export class StockEntryV2Component implements OnInit {
         const val = this.entryForm.getRawValue();
         const product: StagedProduct = {
             tempId: crypto.randomUUID(),
+            codeBarre: val.codeBarre, // New field mapping
             ...val
         };
 
@@ -197,7 +200,8 @@ export class StockEntryV2Component implements OnInit {
             modePrix: 'FIXE',
             coefficient: 2.5,
             margeFixe: 0,
-            prixVente: 0
+            prixVente: 0,
+            codeBarre: '' // Reset codeBarre
         });
     }
 
@@ -334,7 +338,25 @@ export class StockEntryV2Component implements OnInit {
     useDetectedLine(line: any) {
         // Use structured fields if available, otherwise fallback to raw logic
         const finalPrice = line.computedPrice || (line.priceCandidates && line.priceCandidates[0]) || 0;
-        const reference = line.reference || '';
+        let reference = line.reference || '';
+        const rawContent = line.raw || '';
+
+        // --- LOGIC UPDATE: Handle Barcode vs Reference ---
+        let codeBarre = '';
+
+        // If 'reference' or raw string looks like a EAN/UPC (8, 12, 13 digits), consider it a barcode
+        // "si dans une facture fournisseur on trouve un code, on peut le considerer comme un code a barre"
+        const isBarcode = (str: string) => /^\d{8}$|^\d{12,14}$/.test(str?.trim());
+
+        if (isBarcode(rawContent)) {
+            codeBarre = rawContent.trim();
+            // If the raw content was JUST a detected barcode, don't use it as reference
+            if (reference === rawContent) reference = '';
+        } else if (isBarcode(reference)) {
+            codeBarre = reference;
+            reference = ''; // Move it to codeBarre
+        }
+
         // Create a cleaner function to remove detected values from name
         const cleanDesignation = (text: string, ref: string, qty: number, price: number, disc: number) => {
             let t = text;
@@ -351,84 +373,99 @@ export class StockEntryV2Component implements OnInit {
             return t.trim();
         };
 
-        let rawNom = cleanDesignation(line.designation || line.raw || '', reference, line.qty || 1, finalPrice, line.discount || 0);
+        // Use line.designation if available (from parser), else raw
+        const textToClean = line.designation || line.raw || '';
+        let rawNom = cleanDesignation(textToClean, reference, line.qty || 1, finalPrice, line.discount || 0);
 
         // Split designation into Marque and Nom
         let marque = '';
         let nom = rawNom;
-
-        if (nom.includes(' ')) {
+        // Basic heuristic: First word is often Brand if uppercase
+        if (nom.includes(' ') && nom.split(' ')[0] === nom.split(' ')[0].toUpperCase() && nom.split(' ')[0].length > 2) {
             const parts = nom.split(/\s+/);
-            // In these invoices, the first word after the code is usually the brand (CH-HER)
             marque = parts[0];
             nom = parts.slice(1).join(' ');
         }
 
         this.entryForm.patchValue({
-            reference: reference,
+            reference: reference, // Supplier Ref
+            codeBarre: codeBarre, // Detected Barcode
             nom: nom,
             marque: marque,
             quantite: line.qty || 1,
-            prixAchat: finalPrice
+            prixAchat: finalPrice,
+            tva: 20
         });
+
+        // Trigger price verification
+        this.entryForm.markAsDirty();
     }
 
-    addAllDetectedLines() {
-        const newProducts: StagedProduct[] = [];
+        this.entryForm.patchValue({
+        reference: reference,
+        nom: nom,
+        marque: marque,
+        quantite: line.qty || 1,
+        prixAchat: finalPrice
+    });
+    }
 
-        // Create a cleaner function to remove detected values from name
-        const cleanDesignation = (text: string, ref: string, qty: number, price: number, disc: number) => {
-            let t = text;
-            if (ref) t = t.replace(ref, '').trim();
-            const valuesToStrip = [qty.toString(), price.toFixed(2), disc.toFixed(2), disc.toString()];
-            valuesToStrip.forEach(v => {
-                if (v && v !== '0') {
-                    const escaped = v.replace(/\./g, '\\.');
-                    t = t.replace(new RegExp('\\s+' + escaped + '(%|f|DH|MAD)?', 'gi'), '');
-                }
-            });
-            return t.trim();
+addAllDetectedLines() {
+    const newProducts: StagedProduct[] = [];
+
+    // Create a cleaner function to remove detected values from name
+    const cleanDesignation = (text: string, ref: string, qty: number, price: number, disc: number) => {
+        let t = text;
+        if (ref) t = t.replace(ref, '').trim();
+        const valuesToStrip = [qty.toString(), price.toFixed(2), disc.toFixed(2), disc.toString()];
+        valuesToStrip.forEach(v => {
+            if (v && v !== '0') {
+                const escaped = v.replace(/\./g, '\\.');
+                t = t.replace(new RegExp('\\s+' + escaped + '(%|f|DH|MAD)?', 'gi'), '');
+            }
+        });
+        return t.trim();
+    };
+
+    const defaultTva = this.entryForm.get('tva')?.value || 20;
+
+    this.detectedLines.forEach(line => {
+        const prixAchat = line.computedPrice || (line.priceCandidates && line.priceCandidates[0]) || 0;
+        const reference = line.reference || '';
+        const rawNom = cleanDesignation(line.designation || line.raw || '', reference, line.qty || 1, prixAchat, line.discount || 0);
+
+        let marque = '';
+        let nom = rawNom;
+        if (nom.includes(' ')) {
+            const parts = nom.split(/\s+/);
+            marque = parts[0];
+            nom = parts.slice(1).join(' ');
+        }
+
+        const product: StagedProduct = {
+            tempId: crypto.randomUUID(),
+            reference: reference,
+            nom: nom,
+            marque: marque,
+            categorie: 'MONTURE_OPTIQUE', // Default
+            quantite: line.qty || 1,
+            prixAchat: prixAchat,
+            tva: defaultTva,
+            modePrix: 'COEFF',
+            coefficient: 2.5,
+            margeFixe: 0,
+            prixVente: parseFloat((prixAchat * 2.5).toFixed(2))
         };
 
-        const defaultTva = this.entryForm.get('tva')?.value || 20;
+        newProducts.push(product);
+    });
 
-        this.detectedLines.forEach(line => {
-            const prixAchat = line.computedPrice || (line.priceCandidates && line.priceCandidates[0]) || 0;
-            const reference = line.reference || '';
-            const rawNom = cleanDesignation(line.designation || line.raw || '', reference, line.qty || 1, prixAchat, line.discount || 0);
+    this.stagedProducts = [...this.stagedProducts, ...newProducts];
+    this.productsSubject.next(this.stagedProducts);
+    this.snackBar.open(`${newProducts.length} articles ajoutés au panier`, 'OK', { duration: 3000 });
 
-            let marque = '';
-            let nom = rawNom;
-            if (nom.includes(' ')) {
-                const parts = nom.split(/\s+/);
-                marque = parts[0];
-                nom = parts.slice(1).join(' ');
-            }
-
-            const product: StagedProduct = {
-                tempId: crypto.randomUUID(),
-                reference: reference,
-                nom: nom,
-                marque: marque,
-                categorie: 'MONTURE_OPTIQUE', // Default
-                quantite: line.qty || 1,
-                prixAchat: prixAchat,
-                tva: defaultTva,
-                modePrix: 'COEFF',
-                coefficient: 2.5,
-                margeFixe: 0,
-                prixVente: parseFloat((prixAchat * 2.5).toFixed(2))
-            };
-
-            newProducts.push(product);
-        });
-
-        this.stagedProducts = [...this.stagedProducts, ...newProducts];
-        this.productsSubject.next(this.stagedProducts);
-        this.snackBar.open(`${newProducts.length} articles ajoutés au panier`, 'OK', { duration: 3000 });
-
-        // Clear results after successful bulk addition
-        this.detectedLines = [];
-        this.showOcrData = false;
-    }
+    // Clear results after successful bulk addition
+    this.detectedLines = [];
+    this.showOcrData = false;
+}
 }
