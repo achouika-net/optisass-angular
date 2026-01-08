@@ -115,11 +115,24 @@ export class StockMovementsService {
                     }
 
                     if (targetProduct) {
+                        const existingStock = Number(targetProduct.quantiteActuelle || 0);
+                        const existingPrice = Number(targetProduct.prixAchatHT || 0);
+                        const newQty = Number(alloc.quantite);
+                        const newPrice = Number(alloc.prixAchat);
+
+                        let finalPrixAchatHT = newPrice;
+                        if (existingStock > 0) {
+                            // CUMP = (OldValue + NewValue) / TotalQty
+                            const totalValue = (existingStock * existingPrice) + (newQty * newPrice);
+                            const totalQty = existingStock + newQty;
+                            finalPrixAchatHT = totalValue / totalQty;
+                        }
+
                         await tx.product.update({
                             where: { id: targetProduct.id },
                             data: {
-                                quantiteActuelle: { increment: Number(alloc.quantite) },
-                                prixAchatHT: Number(alloc.prixAchat),
+                                quantiteActuelle: { increment: newQty },
+                                prixAchatHT: finalPrixAchatHT,
                                 prixVenteHT: Number(alloc.prixVente),
                                 prixVenteTTC: Number(alloc.prixVente) * (1 + Number(alloc.tva) / 100),
                                 marque: targetProduct.marque || alloc.marque,
@@ -151,5 +164,45 @@ export class StockMovementsService {
             }
             throw new BadRequestException(`Erreur lors de l'enregistrement : ${error.message}`);
         }
+    }
+
+    async getHistory(filters: { dateFrom?: string; dateTo?: string; supplierId?: string; docType?: string }) {
+        const whereClause: any = {};
+
+        // Handle Document Type Filter
+        if (filters.docType === 'BL') {
+            whereClause.type = 'BL';
+        } else if (filters.docType === 'FACTURE') {
+            whereClause.type = { in: ['ACHAT_STOCK', 'FACTURE'] };
+        } else {
+            // Default: Show all relevant types
+            whereClause.type = { in: ['ACHAT_STOCK', 'FACTURE', 'BL'] };
+        }
+
+        if (filters.dateFrom || filters.dateTo) {
+            whereClause.dateEmission = {};
+            if (filters.dateFrom) whereClause.dateEmission.gte = new Date(filters.dateFrom);
+            if (filters.dateTo) whereClause.dateEmission.lte = new Date(filters.dateTo);
+        }
+
+        if (filters.supplierId) {
+            whereClause.fournisseurId = filters.supplierId;
+        }
+
+        const results = await this.prisma.factureFournisseur.findMany({
+            where: whereClause,
+            take: 50,
+            orderBy: { createdAt: 'desc' },
+            include: {
+                fournisseur: true,
+                mouvementsStock: {
+                    include: {
+                        produit: true,
+                        entrepotDestination: true
+                    }
+                }
+            }
+        });
+        return results;
     }
 }

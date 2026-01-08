@@ -135,8 +135,9 @@ export class ProductListComponent implements OnInit {
         });
     }
 
-    loadStats(): void {
-        this.productService.getStockStats().subscribe(stats => {
+    loadStats() {
+        if (!this.currentCentre()) return;
+        this.productService.getStockStatistics(this.currentCentre()?.id).subscribe((stats: StockStats) => {
             this.stats = stats;
         });
     }

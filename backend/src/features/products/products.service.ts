@@ -145,7 +145,12 @@ export class ProductsService {
         }
     }
 
-    async findAll(entrepotId?: string, centreId?: string, globalSearch: boolean = false) {
+    async findAll(
+        entrepotId?: string,
+        centreId?: string,
+        globalSearch: boolean = false,
+        filters?: { marque?: string; typeArticle?: string; reference?: string; codeBarres?: string }
+    ) {
         const where: any = {};
 
         if (!centreId && !entrepotId && !globalSearch) return []; // Isolation
@@ -153,6 +158,22 @@ export class ProductsService {
             where.entrepotId = entrepotId;
         } else if (!globalSearch && centreId) {
             where.entrepot = { centreId };
+        }
+
+        // Advanced Filters
+        if (filters) {
+            if (filters.marque) {
+                where.marque = { contains: filters.marque, mode: 'insensitive' };
+            }
+            if (filters.typeArticle) {
+                where.typeArticle = filters.typeArticle;
+            }
+            if (filters.reference) {
+                where.codeInterne = { contains: filters.reference, mode: 'insensitive' };
+            }
+            if (filters.codeBarres) {
+                where.codeBarres = { contains: filters.codeBarres, mode: 'insensitive' };
+            }
         }
 
         const products = await this.prisma.product.findMany({
@@ -650,7 +671,7 @@ export class ProductsService {
                 p.entrepot?.nom?.toUpperCase() === 'DÉFECTUEUX';
 
             if (isDefective) {
-                stats.caNonConsolide += (p.quantiteActuelle * (p.prixVenteHT || 0));
+                stats.caNonConsolide += (p.quantiteActuelle * (p.prixAchatHT || 0));
             } else {
                 // Main stats only for salable stock
                 stats.totalProduits += p.quantiteActuelle;

@@ -31,6 +31,21 @@ export class ProductService {
             if (filters.global) {
                 params = params.set('global', 'true');
             }
+            if (filters.search) {
+                params = params.set('search', filters.search);
+            }
+            if (filters.marque) {
+                params = params.set('marque', filters.marque);
+            }
+            if (filters.typeArticle) {
+                params = params.set('typeArticle', filters.typeArticle);
+            }
+            if (filters.reference) {
+                params = params.set('reference', filters.reference);
+            }
+            if (filters.codeBarres) {
+                params = params.set('codeBarres', filters.codeBarres);
+            }
         }
 
         return this.http.get<Product[]>(this.apiUrl, { params });
@@ -112,8 +127,10 @@ export class ProductService {
     // Keeping simple placeholder or fetching all products to calc stats client-side is heavy.
     // Better to have stats endpoint. For now, let's keep them as minimal or client-side calc on small datasets.
 
-    getStockStats(): Observable<StockStats> {
-        return this.http.get<StockStats>(`${this.apiUrl}/stats`);
+    getStockStatistics(centreId?: string): Observable<StockStats> {
+        let params = new HttpParams();
+        if (centreId) params = params.set('centreId', centreId);
+        return this.http.get<StockStats>(`${this.apiUrl}/stats`, { params });
     }
 
     getTransferHistory(params: { startDate?: string; endDate?: string; centreId?: string; productId?: string; type?: string }): Observable<any[]> {

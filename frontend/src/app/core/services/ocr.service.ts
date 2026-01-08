@@ -214,7 +214,8 @@ export class OcrService {
             // 1. Code: Alphanumeric
             // 2. Designation: Text
             // 3. Qty: Number (integer or decimal like 1,00)
-            const lineRegex = /^([a-z0-9\-\.]+)\s+(.+?)\s+(\d+(?:[\.,]\d+)?)\s+([\d\s\.,\]\[\}\{\)\|]+)\s+([\d\.\s]+)%?\s+([\d\s\.,]+)/i;
+            // 4. Price Block: Allowing malformed delimiters like f, ], }, etc.
+            const lineRegex = /^([a-z0-9\-\.]+)\s+(.+?)\s+(\d+(?:[\.,]\d+)?)\s+([\d\s\.,\]\[\}\{\)\|f]+)\s+([\d\.\s]+)%?\s+([\d\s\.,]+)/i;
             const match = line.match(lineRegex);
 
             if (match) {

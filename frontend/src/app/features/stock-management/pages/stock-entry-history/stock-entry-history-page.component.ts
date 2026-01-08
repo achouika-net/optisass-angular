@@ -15,6 +15,7 @@ import { animate, state, style, transition, trigger } from '@angular/animations'
 import { StockMovementsService } from '../../services/stock-movements.service';
 import { FinanceService } from '../../../finance/services/finance.service';
 import { finalize } from 'rxjs/operators';
+import { environment } from '../../../../../environments/environment';
 
 @Component({
     selector: 'app-stock-entry-history-page',
@@ -158,5 +159,11 @@ export class StockEntryHistoryPageComponent implements OnInit {
             summary.set(warehouseName, current + m.quantite);
         });
         return Array.from(summary.entries()).map(([name, count]) => ({ name, count }));
+    }
+
+    getAttachmentUrl(path: string): string {
+        if (!path) return '';
+        if (path.startsWith('http')) return path;
+        return `${environment.apiUrl}${path}`;
     }
 }

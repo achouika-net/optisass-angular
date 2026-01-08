@@ -15,4 +15,14 @@ export class StockMovementsController {
     findAllByProduct(@Param('productId') productId: string) {
         return this.service.findAllByProduct(productId);
     }
+
+    @Get('history')
+    getHistory(
+        @Query('dateFrom') dateFrom?: string,
+        @Query('dateTo') dateTo?: string,
+        @Query('supplierId') supplierId?: string,
+        @Query('docType') docType?: string
+    ) {
+        return this.service.getHistory({ dateFrom, dateTo, supplierId, docType });
+    }
 }
