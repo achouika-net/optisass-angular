@@ -36,6 +36,7 @@ export interface StagedProduct {
     // Pricing Mode
     modePrix: 'FIXE' | 'COEFF';
     coefficient?: number;
+    margeFixe?: number;
     prixVente: number;
 }
 
@@ -68,6 +69,7 @@ export class StockEntryV2Component implements OnInit {
     // Forms
     entryForm: FormGroup;
     documentForm: FormGroup;
+    batchPricingForm: FormGroup;
 
     // List of common Moroccan TVA rates
     tvaOptions = [20, 14, 10, 7, 0];
@@ -101,6 +103,7 @@ export class StockEntryV2Component implements OnInit {
             tva: [20, Validators.required],
             modePrix: ['FIXE', Validators.required], // FIXE or COEFF
             coefficient: [2.5],
+            margeFixe: [0],
             prixVente: [0, Validators.required]
         });
 
@@ -111,25 +114,36 @@ export class StockEntryV2Component implements OnInit {
             date: [new Date()],
             file: [null]
         });
+
+        this.batchPricingForm = this.fb.group({
+            modePrix: ['COEFF'],
+            coefficient: [2.5],
+            margeFixe: [0]
+        });
     }
 
     ngOnInit(): void {
         this.suppliers$ = this.financeService.getSuppliers().pipe(
-            tap(suppliers => console.log('[StockEntryV2] Suppliers loaded:', suppliers?.length)),
-            catchError(err => {
+            tap((suppliers: any[]) => console.log('[StockEntryV2] Suppliers loaded:', suppliers?.length)),
+            catchError((err: any) => {
                 console.error('[StockEntryV2] Error loading suppliers:', err);
                 this.snackBar.open('Erreur lors du chargement des fournisseurs', 'OK', { duration: 5000 });
                 return of([]);
             })
         );
-        // Auto-calculate selling price when Purchase Price or Coef changes
+        // Auto-calculate selling price when Purchase Price, Coef or Fixed Margin changes
         this.entryForm.valueChanges.subscribe(val => {
+            let calculatedPrice = val.prixVente;
+
             if (val.modePrix === 'COEFF' && val.prixAchat && val.coefficient) {
-                const calculatedPrice = val.prixAchat * val.coefficient;
-                // avoid infinite loop if no change
-                if (Math.abs(calculatedPrice - val.prixVente) > 0.01) {
-                    this.entryForm.patchValue({ prixVente: parseFloat(calculatedPrice.toFixed(2)) }, { emitEvent: false });
-                }
+                calculatedPrice = val.prixAchat * val.coefficient;
+            } else if (val.modePrix === 'FIXE' && val.prixAchat && val.margeFixe !== undefined) {
+                calculatedPrice = Number(val.prixAchat) + Number(val.margeFixe);
+            }
+
+            // avoid infinite loop if no change
+            if (Math.abs(calculatedPrice - val.prixVente) > 0.01) {
+                this.entryForm.patchValue({ prixVente: parseFloat(calculatedPrice.toFixed(2)) }, { emitEvent: false });
             }
         });
 
@@ -182,6 +196,7 @@ export class StockEntryV2Component implements OnInit {
             tva: 20,
             modePrix: 'FIXE',
             coefficient: 2.5,
+            margeFixe: 0,
             prixVente: 0
         });
     }
@@ -192,13 +207,34 @@ export class StockEntryV2Component implements OnInit {
     }
 
     updateProduct(element: StagedProduct) {
-        // Recalculate if in Coefficient mode
+        // Recalculate based on mode
         if (element.modePrix === 'COEFF' && element.coefficient) {
             element.prixVente = parseFloat((element.prixAchat * element.coefficient).toFixed(2));
+        } else if (element.modePrix === 'FIXE' && element.margeFixe !== undefined) {
+            element.prixVente = parseFloat((Number(element.prixAchat) + Number(element.margeFixe)).toFixed(2));
         }
 
         // Notify subject
         this.productsSubject.next(this.stagedProducts);
+    }
+
+    applyBatchPricing() {
+        const batchValues = this.batchPricingForm.getRawValue();
+
+        this.stagedProducts.forEach(product => {
+            product.modePrix = batchValues.modePrix;
+
+            if (batchValues.modePrix === 'COEFF') {
+                product.coefficient = batchValues.coefficient;
+                product.prixVente = parseFloat((product.prixAchat * batchValues.coefficient).toFixed(2));
+            } else if (batchValues.modePrix === 'FIXE') {
+                product.margeFixe = batchValues.margeFixe;
+                product.prixVente = parseFloat((Number(product.prixAchat) + Number(batchValues.margeFixe)).toFixed(2));
+            }
+        });
+
+        this.productsSubject.next(this.stagedProducts);
+        this.snackBar.open(`Tarification appliquée à ${this.stagedProducts.length} article(s)`, 'OK', { duration: 2000 });
     }
     // --- OCR Logic (Max Best Effort) ---
 
@@ -380,6 +416,7 @@ export class StockEntryV2Component implements OnInit {
                 tva: defaultTva,
                 modePrix: 'COEFF',
                 coefficient: 2.5,
+                margeFixe: 0,
                 prixVente: parseFloat((prixAchat * 2.5).toFixed(2))
             };
 
