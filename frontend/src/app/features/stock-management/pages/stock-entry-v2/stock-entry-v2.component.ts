@@ -26,7 +26,7 @@ import { Supplier } from '../../../finance/models/finance.models';
 export interface StagedProduct {
     id?: string; // If existing product found
     tempId: string; // Unique ID for table management
-    reference: string; // Référence Fournisseur
+    reference: string; // Référence Produit
     codeBarre?: string; // Code Barre (Manuel ou Scanné)
     nom: string;
     marque: string;
@@ -335,6 +335,16 @@ export class StockEntryV2Component implements OnInit {
         }
     }
 
+    private determineCategory(text: string): string {
+        const lower = text.toLowerCase();
+        if (lower.includes('solaire')) return 'MONTURE_SOLAIRE';
+        if (lower.includes('verre')) return 'VERRE';
+        if (lower.includes('optique')) return 'MONTURE_OPTIQUE';
+        if (lower.includes('lentille')) return 'LENTILLE';
+        // Default fallback changed to ACCESSOIRE per user request
+        return 'ACCESSOIRE';
+    }
+
     useDetectedLine(line: any) {
         // Use structured fields if available, otherwise fallback to raw logic
         const finalPrice = line.computedPrice || (line.priceCandidates && line.priceCandidates[0]) || 0;
@@ -387,11 +397,15 @@ export class StockEntryV2Component implements OnInit {
             nom = parts.slice(1).join(' ');
         }
 
+        // Auto-detect category
+        const categorie = this.determineCategory(rawContent);
+
         this.entryForm.patchValue({
             reference: reference, // Supplier Ref
             codeBarre: codeBarre, // Detected Barcode
             nom: nom,
             marque: marque,
+            categorie: categorie,
             quantite: line.qty || 1,
             prixAchat: finalPrice,
             tva: 20
@@ -401,71 +415,74 @@ export class StockEntryV2Component implements OnInit {
         this.entryForm.markAsDirty();
     }
 
-        this.entryForm.patchValue({
-        reference: reference,
-        nom: nom,
-        marque: marque,
-        quantite: line.qty || 1,
-        prixAchat: finalPrice
-    });
-    }
 
-addAllDetectedLines() {
-    const newProducts: StagedProduct[] = [];
+    addAllDetectedLines() {
+        const newProducts: StagedProduct[] = [];
 
-    // Create a cleaner function to remove detected values from name
-    const cleanDesignation = (text: string, ref: string, qty: number, price: number, disc: number) => {
-        let t = text;
-        if (ref) t = t.replace(ref, '').trim();
-        const valuesToStrip = [qty.toString(), price.toFixed(2), disc.toFixed(2), disc.toString()];
-        valuesToStrip.forEach(v => {
-            if (v && v !== '0') {
-                const escaped = v.replace(/\./g, '\\.');
-                t = t.replace(new RegExp('\\s+' + escaped + '(%|f|DH|MAD)?', 'gi'), '');
-            }
-        });
-        return t.trim();
-    };
-
-    const defaultTva = this.entryForm.get('tva')?.value || 20;
-
-    this.detectedLines.forEach(line => {
-        const prixAchat = line.computedPrice || (line.priceCandidates && line.priceCandidates[0]) || 0;
-        const reference = line.reference || '';
-        const rawNom = cleanDesignation(line.designation || line.raw || '', reference, line.qty || 1, prixAchat, line.discount || 0);
-
-        let marque = '';
-        let nom = rawNom;
-        if (nom.includes(' ')) {
-            const parts = nom.split(/\s+/);
-            marque = parts[0];
-            nom = parts.slice(1).join(' ');
-        }
-
-        const product: StagedProduct = {
-            tempId: crypto.randomUUID(),
-            reference: reference,
-            nom: nom,
-            marque: marque,
-            categorie: 'MONTURE_OPTIQUE', // Default
-            quantite: line.qty || 1,
-            prixAchat: prixAchat,
-            tva: defaultTva,
-            modePrix: 'COEFF',
-            coefficient: 2.5,
-            margeFixe: 0,
-            prixVente: parseFloat((prixAchat * 2.5).toFixed(2))
+        // Create a cleaner function to remove detected values from name
+        const cleanDesignation = (text: string, ref: string, qty: number, price: number, disc: number) => {
+            let t = text;
+            if (ref) t = t.replace(ref, '').trim();
+            const valuesToStrip = [qty.toString(), price.toFixed(2), disc.toFixed(2), disc.toString()];
+            valuesToStrip.forEach(v => {
+                if (v && v !== '0') {
+                    const escaped = v.replace(/\./g, '\\.');
+                    t = t.replace(new RegExp('\\s+' + escaped + '(%|f|DH|MAD)?', 'gi'), '');
+                }
+            });
+            return t.trim();
         };
 
-        newProducts.push(product);
-    });
+        const defaultTva = this.entryForm.get('tva')?.value || 20;
 
-    this.stagedProducts = [...this.stagedProducts, ...newProducts];
-    this.productsSubject.next(this.stagedProducts);
-    this.snackBar.open(`${newProducts.length} articles ajoutés au panier`, 'OK', { duration: 3000 });
+        this.detectedLines.forEach(line => {
+            const prixAchat = line.computedPrice || (line.priceCandidates && line.priceCandidates[0]) || 0;
+            const reference = line.reference || '';
+            const rawContent = line.raw || '';
 
-    // Clear results after successful bulk addition
-    this.detectedLines = [];
-    this.showOcrData = false;
-}
+            // Handle Barcode Logic for Bulk too? Maybe keep simple for now or mirror
+            let codeBarre = '';
+            const isBarcode = (str: string) => /^\d{8}$|^\d{12,14}$/.test(str?.trim());
+            if (isBarcode(rawContent)) codeBarre = rawContent.trim(); // Simplified
+
+            const rawNom = cleanDesignation(line.designation || rawContent, reference, line.qty || 1, prixAchat, line.discount || 0);
+
+            let marque = '';
+            let nom = rawNom;
+            if (nom.includes(' ')) {
+                const parts = nom.split(/\s+/);
+                marque = parts[0];
+                nom = parts.slice(1).join(' ');
+            }
+
+            // Auto-detect category
+            const categorie = this.determineCategory(rawContent);
+
+            const product: StagedProduct = {
+                tempId: crypto.randomUUID(),
+                reference: reference,
+                codeBarre: codeBarre,
+                nom: nom,
+                marque: marque,
+                categorie: categorie,
+                quantite: line.qty || 1,
+                prixAchat: prixAchat,
+                tva: defaultTva,
+                modePrix: 'COEFF',
+                coefficient: 2.5,
+                margeFixe: 0,
+                prixVente: parseFloat((prixAchat * 2.5).toFixed(2))
+            };
+
+            newProducts.push(product);
+        });
+
+        this.stagedProducts = [...this.stagedProducts, ...newProducts];
+        this.productsSubject.next(this.stagedProducts);
+        this.snackBar.open(`${newProducts.length} articles ajoutés au panier`, 'OK', { duration: 3000 });
+
+        // Clear results after successful bulk addition
+        this.detectedLines = [];
+        this.showOcrData = false;
+    }
 }
