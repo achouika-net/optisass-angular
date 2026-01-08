@@ -22,10 +22,19 @@ export class ProductsController {
     findAll(
         @Query('entrepotId') entrepotId?: string,
         @Query('global') global?: string,
+        @Query('marque') marque?: string,
+        @Query('typeArticle') typeArticle?: string,
+        @Query('reference') reference?: string,
+        @Query('codeBarres') codeBarres?: string,
         @Headers('Tenant') centreId?: string
     ) {
         const isGlobal = global === 'true';
-        return this.productsService.findAll(entrepotId, centreId, isGlobal);
+        return this.productsService.findAll(entrepotId, centreId, isGlobal, {
+            marque,
+            typeArticle,
+            reference,
+            codeBarres
+        });
     }
 
     @Get(':id')

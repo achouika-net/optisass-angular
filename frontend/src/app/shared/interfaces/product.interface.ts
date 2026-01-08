@@ -406,6 +406,8 @@ export interface ProductFilters {
     prixMax?: number;
     search?: string;
     global?: boolean;
+    reference?: string;
+    codeBarres?: string;
 }
 
 /**

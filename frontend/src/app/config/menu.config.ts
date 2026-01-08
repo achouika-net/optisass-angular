@@ -78,8 +78,8 @@ export const MENU: MenuItem[] = [
         route: 'stock',
       },
       {
-        label: "Gestion d'entrée stock",
-        icon: 'add_circle',
+        label: 'Mouvements de Stock',
+        icon: 'swap_vert',
         type: 'subchild',
         route: 'stock/entry-v2',
       },

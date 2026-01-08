@@ -135,8 +135,9 @@
                                     </div>
                                     <div class="info-item" *ngIf="element.pieceJointeUrl">
                                         <span class="label">Pièce jointe:</span>
-                                        <a [href]="element.pieceJointeUrl" target="_blank" class="link-download">
-                                            <mat-icon class="text-sm">file_download</mat-icon> Télécharger
+                                        <a [href]="getAttachmentUrl(element.pieceJointeUrl)" target="_blank"
+                                            class="link-download">
+                                            <mat-icon class="text-sm">visibility</mat-icon> Visualiser / Enregistrer
                                         </a>
                                     </div>
                                 </div>

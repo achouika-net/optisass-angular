@@ -18,6 +18,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ProductService } from '../../stock-management/services/product.service';
+import { StockStats } from '../../../shared/interfaces/product.interface';
 
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -191,11 +192,12 @@ export class SalesControlReportComponent implements OnInit {
         // this.clientSearch = ''; 
 
         // Load stock stats for CA Non Consolidé
-        this.productService.getStockStats().subscribe({
-            next: (stats) => {
+        const centerId = this.currentCentre()?.id;
+        this.productService.getStockStatistics(centerId).subscribe({
+            next: (stats: StockStats) => {
                 this.stockStats = stats;
             },
-            error: (err) => console.error('Error loading stock stats:', err)
+            error: (err: any) => console.error('Error loading stock stats:', err)
         });
 
         // Trigger the refresh stream

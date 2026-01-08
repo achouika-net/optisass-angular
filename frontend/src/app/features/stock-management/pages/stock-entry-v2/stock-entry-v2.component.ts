@@ -15,15 +15,22 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { BehaviorSubject, Observable, of } from 'rxjs';
-import { catchError, tap } from 'rxjs/operators';
+import { catchError, debounceTime, distinctUntilChanged, shareReplay, switchMap, tap } from 'rxjs/operators';
+import { Product, ProductType, ProductFilters, StockStats } from '../../../../shared/interfaces/product.interface';
+import { Entrepot } from '../../../../shared/interfaces/warehouse.interface';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { StockAlimentationDialogComponent, AlimentationResult } from '../../components/stock-alimentation-dialog/stock-alimentation-dialog.component';
 import { CameraCaptureDialogComponent } from '../../../../shared/components/camera-capture/camera-capture-dialog.component';
 import { OcrService } from '../../../../core/services/ocr.service';
+import { Store } from '@ngrx/store';
+import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
 import { FinanceService } from '../../../finance/services/finance.service';
 import { Supplier } from '../../../finance/models/finance.models';
 import { ProductService } from '../../services/product.service';
-import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
+import { WarehousesService } from '../../../warehouses/services/warehouses.service';
+import { SelectionModel } from '@angular/cdk/collections';
+import { BulkStockOutDialogComponent } from '../../dialogs/bulk-stock-out-dialog/bulk-stock-out-dialog.component';
+import { BulkStockTransferDialogComponent } from '../../dialogs/bulk-stock-transfer-dialog/bulk-stock-transfer-dialog.component';
 
 export interface StagedProduct {
     id?: string; // If existing product found
@@ -99,16 +106,35 @@ export class StockEntryV2Component implements OnInit {
     // Data lists
     suppliers$!: Observable<Supplier[]>;
 
+    // Bulk Operations State
+    bulkSelection = new SelectionModel<Product>(true, []);
+    bulkReference = '';
+    bulkBarcode = '';
+    bulkMarque = '';
+    bulkEntrepotId?: string;
+    bulkType?: ProductType;
+    bulkProducts$ = new BehaviorSubject<Product[]>([]);
+    bulkDisplayedColumns: string[] = ['select', 'reference', 'marque', 'designation', 'entrepot', 'stock'];
+    loadingBulk = false;
+
+    currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
+
+    entrepots$ = new BehaviorSubject<Entrepot[]>([]);
+    stats$ = new BehaviorSubject<StockStats | null>(null);
+    productTypes = Object.values(ProductType);
+
     constructor(
         private fb: FormBuilder,
         private ocrService: OcrService,
         private financeService: FinanceService,
         private productService: ProductService,
+        private warehousesService: WarehousesService,
         private snackBar: MatSnackBar,
-        private dialog: MatDialog
+        private dialog: MatDialog,
+        private store: Store
     ) {
         this.entryForm = this.fb.group({
-            reference: ['', Validators.required],
+            reference: [''], // Not required if codeBarre present
             codeBarre: [''], // Nouveau champ
             nom: ['', Validators.required],
             marque: [''],
@@ -148,6 +174,19 @@ export class StockEntryV2Component implements OnInit {
                 return of([]);
             })
         );
+
+        // Load warehouses for current centre
+        const center = this.currentCentre();
+        const centerId = center ? center.id : undefined;
+
+        this.warehousesService.findAll(centerId).subscribe({
+            next: (data) => {
+                console.log('Warehouses loaded:', data);
+                this.entrepots$.next(data);
+            },
+            error: (err) => console.error('Error loading warehouses:', err)
+        });
+
         // Auto-calculate selling price when Purchase Price, Coef or Fixed Margin changes
         this.entryForm.valueChanges.subscribe(val => {
             let calculatedPrice = val.prixVente;
@@ -166,6 +205,7 @@ export class StockEntryV2Component implements OnInit {
 
         // Inverse: If Prix Vente changes manually in Coeff mode (optional UX choice: update coef?)
         // For now, let's keep Coeff master if Mode IS Coeff.
+        this.searchBulkProducts();
     }
 
     private setupProductSearch() {
@@ -239,9 +279,20 @@ export class StockEntryV2Component implements OnInit {
         if (this.entryForm.invalid) return;
 
         const val = this.entryForm.getRawValue();
+
+        // Validation: Must have at least a reference OR a barcode
+        if (!val.reference?.trim() && !val.codeBarre?.trim()) {
+            this.snackBar.open('Veuillez saisir une référence ou un code-barres', 'OK', { duration: 3000 });
+            return;
+        }
+
+        // Backend fallback: if no reference, use codeBarre as reference
+        const finalRef = val.reference?.trim() || val.codeBarre?.trim() || '';
+
         const product: StagedProduct = {
             tempId: crypto.randomUUID(),
             id: this.foundProduct?.id, // Link if existing
+            reference: finalRef,
             codeBarre: val.codeBarre,
             ...val
         };
@@ -326,6 +377,45 @@ export class StockEntryV2Component implements OnInit {
     showOcrData = false;
     ocrError: string | null = null;
 
+    private isValidProductLine(line: any): boolean {
+        const raw = (line.raw || '').trim();
+        const text = (line.designation || line.raw || '').toLowerCase();
+
+        // 1. Force Allow if starts with a long numeric sequence (Barcode/Ref)
+        // Optician invoices often start with EAN-13 or internal codes.
+        const startsWithCode = /^\d{8,14}/.test(raw);
+        if (startsWithCode) return true;
+
+        // 2. Exclude headers/metadata/footers
+        const keywordsToExclude = [
+            'bl n°', 'bon de livraison', 'facture n°', 'date', 'page',
+            'total ht', 'total ttc', 'montant tva', 'arrête la présente',
+            'net à payer', 'téléphone', 'ice', 'siège', 'capital', 'r.c',
+            'total à reporter', 'à reporter', 'montant ht', 'net a payer', 'total net',
+            'service - sérieux - satisfaction'
+        ];
+
+        if (keywordsToExclude.some(k => text.includes(k))) {
+            console.warn('[OCR] Filtering out metadata line:', line.raw);
+            return false;
+        }
+
+        // 3. Contextual noise (Logo/Company info) - Only if not a product line
+        if (text.includes('contrast') || text.includes('lens')) {
+            if (text.includes('galerie') || text.includes('casablanca') || text.includes('maroc')) {
+                return false;
+            }
+        }
+
+        // 4. Short Junk Filter
+        if (text.length < 5 && !line.reference && !line.qty) {
+            console.warn('[OCR] Filtering out short junk line:', line.raw);
+            return false;
+        }
+
+        return true;
+    }
+
     async processOCR(file: File) {
         this.ocrProcessing = true;
         this.detectedLines = [];
@@ -341,7 +431,7 @@ export class StockEntryV2Component implements OnInit {
             }
 
             this.analyzedText = result.rawText;
-            this.detectedLines = result.lines || [];
+            this.detectedLines = (result.lines || []).filter((line: any) => this.isValidProductLine(line));
             this.showOcrData = true;
 
             if (!result.error) {
@@ -468,6 +558,13 @@ export class StockEntryV2Component implements OnInit {
             nom = parts.slice(1).join(' ');
         }
 
+        // Final fallback: if marque looks like a barcode and we don't have one, move it
+        if (!codeBarre && isBarcode(marque)) {
+            codeBarre = marque;
+            reference = marque; // Use it as reference too if missing
+            marque = '';
+        }
+
         // Auto-detect category
         const categorie = this.determineCategory(rawContent);
 
@@ -506,46 +603,75 @@ export class StockEntryV2Component implements OnInit {
 
         const defaultTva = this.entryForm.get('tva')?.value || 20;
 
-        this.detectedLines.forEach(line => {
-            const prixAchat = line.computedPrice || (line.priceCandidates && line.priceCandidates[0]) || 0;
-            const reference = line.reference || '';
-            const rawContent = line.raw || '';
+        console.log(`[OCR] Bulk adding ${this.detectedLines.length} lines.`, this.detectedLines);
+        this.detectedLines.forEach((line, index) => {
+            try {
+                const prixAchat = line.computedPrice || (line.priceCandidates && line.priceCandidates[0]) || 0;
+                const reference = line.reference || '';
+                const rawContent = line.raw || '';
 
-            // Handle Barcode Logic for Bulk too? Maybe keep simple for now or mirror
-            let codeBarre = '';
-            const isBarcode = (str: string) => /^\d{8}$|^\d{12,14}$/.test(str?.trim());
-            if (isBarcode(rawContent)) codeBarre = rawContent.trim(); // Simplified
+                // Improved Barcode Logic (Sync with useDetectedLine)
+                let codeBarre = '';
+                const isBarcode = (str: string) => /^\d{8}$|^\d{12,14}$/.test(str?.trim());
 
-            const rawNom = cleanDesignation(line.designation || rawContent, reference, line.qty || 1, prixAchat, line.discount || 0);
+                if (isBarcode(rawContent)) {
+                    codeBarre = rawContent.trim();
+                } else if (isBarcode(reference)) {
+                    codeBarre = reference;
+                }
 
-            let marque = '';
-            let nom = rawNom;
-            if (nom.includes(' ')) {
-                const parts = nom.split(/\s+/);
-                marque = parts[0];
-                nom = parts.slice(1).join(' ');
+                const rawNom = cleanDesignation(line.designation || rawContent, reference, line.qty || 1, prixAchat, line.discount || 0);
+
+                let marque = '';
+                let nom = rawNom;
+                if (nom.includes(' ')) {
+                    const parts = nom.split(/\s+/);
+                    marque = parts[0];
+                    nom = parts.slice(1).join(' ');
+                }
+
+                // Final fallback: if marque looks like a barcode and we don't have one, move it
+                let finalRef = reference;
+                let finalCodeBarre = codeBarre;
+                if (!finalCodeBarre && isBarcode(marque)) {
+                    finalCodeBarre = marque;
+                    if (!finalRef) finalRef = marque;
+                    marque = '';
+                }
+
+                // Last check: if we still have no codeBarre but first word of 'nom' is a long number
+                if (!finalCodeBarre) {
+                    const firstWord = nom.split(/\s+/)[0];
+                    if (isBarcode(firstWord)) {
+                        finalCodeBarre = firstWord;
+                        if (!finalRef) finalRef = firstWord;
+                        nom = nom.replace(firstWord, '').trim();
+                    }
+                }
+
+                // Auto-detect category
+                const categorie = this.determineCategory(rawContent);
+
+                const product: StagedProduct = {
+                    tempId: crypto.randomUUID(),
+                    reference: finalRef || 'SANS-REF',
+                    codeBarre: finalCodeBarre,
+                    nom: nom || 'Produit sans nom',
+                    marque: marque || 'Sans Marque',
+                    categorie: categorie,
+                    quantite: line.qty || 1,
+                    prixAchat: prixAchat,
+                    tva: defaultTva,
+                    modePrix: 'COEFF',
+                    coefficient: 2.5,
+                    margeFixe: 0,
+                    prixVente: parseFloat((prixAchat * 2.5).toFixed(2))
+                };
+
+                newProducts.push(product);
+            } catch (err) {
+                console.error(`[OCR] Fatal error processing line ${index}:`, err, line);
             }
-
-            // Auto-detect category
-            const categorie = this.determineCategory(rawContent);
-
-            const product: StagedProduct = {
-                tempId: crypto.randomUUID(),
-                reference: reference,
-                codeBarre: codeBarre,
-                nom: nom,
-                marque: marque,
-                categorie: categorie,
-                quantite: line.qty || 1,
-                prixAchat: prixAchat,
-                tva: defaultTva,
-                modePrix: 'COEFF',
-                coefficient: 2.5,
-                margeFixe: 0,
-                prixVente: parseFloat((prixAchat * 2.5).toFixed(2))
-            };
-
-            newProducts.push(product);
         });
 
         this.stagedProducts = [...this.stagedProducts, ...newProducts];
@@ -555,5 +681,95 @@ export class StockEntryV2Component implements OnInit {
         // Clear results after successful bulk addition
         this.detectedLines = [];
         this.showOcrData = false;
+    }
+
+    // --- BULK OPERATIONS LOGIC ---
+
+    searchBulkProducts(): void {
+        this.loadingBulk = true;
+        const filters: ProductFilters = {
+            reference: this.bulkReference?.trim() || undefined,
+            codeBarres: this.bulkBarcode?.trim() || undefined,
+            marque: this.bulkMarque?.trim() || undefined,
+            typeArticle: this.bulkType,
+            entrepotId: this.bulkEntrepotId
+        };
+
+        this.productService.findAll(filters).pipe(
+            tap(products => {
+                this.bulkProducts$.next(products);
+                this.loadingBulk = false;
+                this.bulkSelection.clear();
+            }),
+            catchError(err => {
+                console.error('Error fetching bulk products:', err);
+                this.bulkProducts$.next([]);
+                this.loadingBulk = false;
+                return of([]);
+            })
+        ).subscribe();
+    }
+
+    refreshStats(): void {
+        const center = this.currentCentre();
+        const centerId = center ? center.id : undefined;
+        this.productService.getStockStatistics(centerId).subscribe((stats: StockStats) => {
+            this.stats$.next(stats);
+        });
+    }
+
+    resetBulkFilters(): void {
+        this.bulkReference = '';
+        this.bulkBarcode = '';
+        this.bulkMarque = '';
+        this.bulkType = undefined;
+        this.bulkEntrepotId = undefined;
+        this.searchBulkProducts();
+    }
+
+    isAllBulkSelected() {
+        const numSelected = this.bulkSelection.selected.length;
+        const numRows = this.bulkProducts$.value.length;
+        return numSelected === numRows && numRows > 0;
+    }
+
+    masterBulkToggle() {
+        if (this.isAllBulkSelected()) {
+            this.bulkSelection.clear();
+        } else {
+            this.bulkProducts$.value.forEach(row => this.bulkSelection.select(row));
+        }
+    }
+
+    openBulkStockOut() {
+        if (this.bulkSelection.isEmpty()) return;
+
+        const dialogRef = this.dialog.open(BulkStockOutDialogComponent, {
+            width: '900px',
+            data: { products: this.bulkSelection.selected }
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result) {
+                this.bulkSelection.clear();
+                this.searchBulkProducts();
+            }
+        });
+    }
+
+    openBulkTransfer() {
+        if (this.bulkSelection.isEmpty()) return;
+
+        const dialogRef = this.dialog.open(BulkStockTransferDialogComponent, {
+            width: '900px',
+            data: { products: this.bulkSelection.selected }
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result) {
+                this.bulkSelection.clear();
+                this.searchBulkProducts();
+            }
+        });
     }
 }
