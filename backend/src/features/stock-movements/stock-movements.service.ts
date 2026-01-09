@@ -55,30 +55,46 @@ export class StockMovementsService {
                     return sum + ((Number(a.prixAchat) + tvaAmount) * Number(a.quantite));
                 }, 0);
 
-                const invoice = await tx.factureFournisseur.create({
-                    data: {
-                        numeroFacture: invoiceData.numeroFacture,
-                        dateEmission: new Date(invoiceData.dateEmission),
-                        type: invoiceData.type,
-                        statut: 'A_PAYER',
-                        montantHT: totalHT,
-                        montantTVA: totalTTC - totalHT,
-                        montantTTC: totalTTC,
+                // Check if invoice already exists for this supplier
+                let invoice = await tx.factureFournisseur.findFirst({
+                    where: {
                         fournisseurId: invoiceData.fournisseurId,
-                        centreId: invoiceData.centreId,
-                        pieceJointeUrl: pieceJointeUrl,
-                        echeances: {
-                            create: [
-                                {
-                                    type: 'ESPECES',
-                                    dateEcheance: new Date(invoiceData.dateEmission),
-                                    montant: totalTTC,
-                                    statut: 'EN_ATTENTE'
-                                }
-                            ]
-                        }
-                    }
+                        numeroFacture: invoiceData.numeroFacture
+                    },
+                    include: { echeances: true }
                 });
+
+                if (!invoice) {
+                    // Create new invoice only if it doesn't exist
+                    invoice = await tx.factureFournisseur.create({
+                        data: {
+                            numeroFacture: invoiceData.numeroFacture,
+                            dateEmission: new Date(invoiceData.dateEmission),
+                            dateEcheance: new Date(invoiceData.dateEcheance || invoiceData.dateEmission),
+                            type: invoiceData.type,
+                            statut: 'A_PAYER',
+                            montantHT: totalHT,
+                            montantTVA: totalTTC - totalHT,
+                            montantTTC: totalTTC,
+                            fournisseurId: invoiceData.fournisseurId,
+                            centreId: invoiceData.centreId,
+                            pieceJointeUrl: pieceJointeUrl,
+                            echeances: {
+                                create: [
+                                    {
+                                        type: 'CHEQUE',
+                                        dateEcheance: new Date(invoiceData.dateEcheance || invoiceData.dateEmission),
+                                        montant: totalTTC,
+                                        statut: 'EN_ATTENTE'
+                                    }
+                                ]
+                            }
+                        },
+                        include: { echeances: true }
+                    });
+                } else {
+                    console.log(`[STOCK] Reusing existing invoice ${invoice.numeroFacture} for supplier ${invoiceData.fournisseurId}`);
+                }
 
                 for (const alloc of allocations) {
                     let targetProduct = await this.productsService.findLocalCounterpart({
@@ -204,5 +220,39 @@ export class StockMovementsService {
             }
         });
         return results;
+    }
+
+    async removeEntryHistory(id: string) {
+        return await this.prisma.$transaction(async (tx) => {
+            const invoice = await tx.factureFournisseur.findUnique({
+                where: { id },
+                include: { mouvementsStock: true }
+            });
+
+            if (!invoice) throw new NotFoundException('Entrée historique introuvable');
+
+            // 0. Get affected product IDs before deletion
+            const productIds = Array.from(new Set(invoice.mouvementsStock.map(m => m.produitId)));
+
+            // 1. Clear Movements (This triggers the sync later)
+            await tx.mouvementStock.deleteMany({
+                where: { factureFournisseurId: id }
+            });
+
+            // 2. Sync each affected product
+            for (const productId of productIds) {
+                await this.productsService.syncProductState(productId, tx);
+            }
+
+            // 3. Delete linked Expense if exists
+            await tx.depense.deleteMany({
+                where: { factureFournisseurId: id }
+            });
+
+            // 4. Delete the Invoice itself
+            return await tx.factureFournisseur.delete({
+                where: { id }
+            });
+        });
     }
 }

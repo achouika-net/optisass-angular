@@ -82,7 +82,7 @@
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
                                             <mat-select formControlName="typeArticle">
                                                 <mat-option *ngFor="let type of productTypes" [value]="type">
-                                                    {{ type | titlecase }}
+                                                    {{ formatTypeLabel(type) }}
                                                 </mat-option>
                                             </mat-select>
                                         </mat-form-field>
@@ -229,7 +229,8 @@
 
                         <div class="step-container">
                             <!-- Frame Specific Fields -->
-                            <div class="section" *ngIf="productType === 'monture'">
+                            <div class="section"
+                                *ngIf="productType === ProductType.MONTURE_OPTIQUE || productType === ProductType.MONTURE_SOLAIRE">
                                 <h2 class="section-title">Caractéristiques Monture</h2>
 
                                 <div class="form-row">
@@ -327,7 +328,7 @@
                             </div>
 
                             <!-- Lens Specific Fields -->
-                            <div class="section" *ngIf="productType === 'verre'">
+                            <div class="section" *ngIf="productType === ProductType.VERRE">
                                 <h2 class="section-title">Caractéristiques Verre</h2>
                                 <div class="form-row">
                                     <div class="form-field">
@@ -366,7 +367,7 @@
                             </div>
 
                             <!-- Contact Lens Specific Fields -->
-                            <div class="section" *ngIf="productType === 'lentille'">
+                            <div class="section" *ngIf="productType === ProductType.LENTILLE">
                                 <h2 class="section-title">Caractéristiques Lentille</h2>
                                 <div class="form-row">
                                     <div class="form-field">
@@ -443,7 +444,7 @@
                             </div>
 
                             <!-- Accessory Specific Fields -->
-                            <div class="section" *ngIf="productType === 'accessoire'">
+                            <div class="section" *ngIf="productType === ProductType.ACCESSOIRE">
                                 <h2 class="section-title">Caractéristiques Accessoire</h2>
                                 <div class="form-row">
                                     <div class="form-field">

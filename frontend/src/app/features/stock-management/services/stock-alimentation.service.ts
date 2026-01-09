@@ -11,6 +11,7 @@ export interface BulkAlimentationPayload {
     centreId?: string;
     base64File?: string;
     fileName?: string;
+    dateEcheance?: string;
     allocations: {
         productId?: string;
         reference: string;

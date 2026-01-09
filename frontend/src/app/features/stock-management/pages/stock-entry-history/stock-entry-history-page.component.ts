@@ -11,6 +11,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { animate, state, style, transition, trigger } from '@angular/animations';
 import { StockMovementsService } from '../../services/stock-movements.service';
 import { FinanceService } from '../../../finance/services/finance.service';
@@ -32,7 +33,8 @@ import { environment } from '../../../../../environments/environment';
         MatSelectModule,
         MatMenuModule,
         MatProgressSpinnerModule,
-        ReactiveFormsModule
+        ReactiveFormsModule,
+        MatSnackBarModule
     ],
     templateUrl: './stock-entry-history-page.component.html',
     styleUrls: ['./stock-entry-history-page.component.scss'],
@@ -46,7 +48,7 @@ import { environment } from '../../../../../environments/environment';
 })
 export class StockEntryHistoryPageComponent implements OnInit {
     dataSource = new MatTableDataSource<any>([]);
-    columnsToDisplay = ['dateEmission', 'fournisseur', 'numeroFacture', 'montantTTC', 'itemsCount', 'expand'];
+    columnsToDisplay = ['dateEmission', 'fournisseur', 'numeroFacture', 'montantTTC', 'itemsCount', 'actions', 'expand'];
     expandedElement: any | null;
 
     filterForm: FormGroup;
@@ -57,7 +59,8 @@ export class StockEntryHistoryPageComponent implements OnInit {
         private stockService: StockMovementsService,
         private financeService: FinanceService,
         private fb: FormBuilder,
-        private cdr: ChangeDetectorRef
+        private cdr: ChangeDetectorRef,
+        private snackBar: MatSnackBar
     ) {
         this.filterForm = this.fb.group({
             dateFrom: [null],
@@ -165,5 +168,22 @@ export class StockEntryHistoryPageComponent implements OnInit {
         if (!path) return '';
         if (path.startsWith('http')) return path;
         return `${environment.apiUrl}${path}`;
+    }
+
+    deleteEntry(element: any) {
+        if (confirm(`Êtes-vous sûr de vouloir supprimer cette entrée (${element.numeroFacture}) ? \n\nATTENTION: Cela annulera l'ajout en stock et supprimera la dépense associée.`)) {
+            this.loading = true;
+            this.stockService.deleteHistory(element.id).subscribe({
+                next: () => {
+                    this.snackBar.open('Entrée supprimée avec succès (Stock et Dépenses mis à jour)', 'OK', { duration: 5000 });
+                    this.loadHistory();
+                },
+                error: (err) => {
+                    this.loading = false;
+                    console.error('Erreur suppression:', err);
+                    this.snackBar.open('Erreur lors de la suppression', 'Fermer', { duration: 5000 });
+                }
+            });
+        }
     }
 }

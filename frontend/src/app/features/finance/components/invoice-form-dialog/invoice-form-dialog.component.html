@@ -82,7 +82,8 @@
                                 class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 pt-6 border-t bg-gray-50 p-4 rounded-xl">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Total TTC *</mat-label>
-                                    <input matInput type="number" formControlName="montantTTC">
+                                    <input matInput type="number" formControlName="montantTTC"
+                                        (blur)="calculateFromTTC()">
                                     <mat-hint>Saisissez le montant TTC</mat-hint>
                                 </mat-form-field>
 
@@ -185,9 +186,15 @@
                                         class="font-bold text-gray-800">{{ detailsGroup.get('montantTTC')?.value |
                                         number:'1.2-2' }} MAD</span></p>
                             </div>
-                            <button mat-stroked-button color="primary" (click)="addEcheance()" *ngIf="!isViewMode">
-                                <mat-icon>add</mat-icon> Ajouter une échéance
-                            </button>
+                            <div class="flex gap-2">
+                                <button mat-stroked-button color="accent" (click)="manualApplyConditions()"
+                                    *ngIf="!isViewMode" matTooltip="Ré-appliquer les conditions du fournisseur">
+                                    <mat-icon>refresh</mat-icon> Rafraîchir
+                                </button>
+                                <button mat-stroked-button color="primary" (click)="addEcheance()" *ngIf="!isViewMode">
+                                    <mat-icon>add</mat-icon> Ajouter une échéance
+                                </button>
+                            </div>
                         </div>
 
                         <div class="space-y-4">
@@ -222,12 +229,14 @@
                                         <input matInput type="number" formControlName="montant">
                                     </mat-form-field>
 
-                                    <mat-form-field appearance="outline" class="dense-field">
+                                    <mat-form-field appearance="outline" class="dense-field"
+                                        *ngIf="$any(eg).get('type')?.value !== 'ESPECES'">
                                         <mat-label>N° Pièce</mat-label>
                                         <input matInput formControlName="reference" placeholder="N° Chèque/LCN">
                                     </mat-form-field>
 
-                                    <mat-form-field appearance="outline" class="dense-field">
+                                    <mat-form-field appearance="outline" class="dense-field"
+                                        *ngIf="$any(eg).get('type')?.value !== 'ESPECES'">
                                         <mat-label>Banque</mat-label>
                                         <input matInput formControlName="banque" placeholder="Nom de la banque">
                                     </mat-form-field>

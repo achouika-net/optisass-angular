@@ -380,7 +380,7 @@ model Depense {
   centre               Centre               @relation(fields: [centreId], references: [id])
   creeParUser          User?                @relation("CreePar", fields: [creeParId], references: [id])
   echeance             EcheancePaiement?    @relation(fields: [echeanceId], references: [id])
-  factureFournisseur   FactureFournisseur?  @relation(fields: [factureFournisseurId], references: [id])
+  factureFournisseur   FactureFournisseur?  @relation(fields: [factureFournisseurId], references: [id], onDelete: Cascade)
   fournisseur          Fournisseur?         @relation(fields: [fournisseurId], references: [id])
   valideParUser        User?                @relation("ValidePar", fields: [valideParId], references: [id])
   payroll              Payroll?
@@ -432,7 +432,7 @@ model EcheancePaiement {
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
   depense              Depense?
-  factureFournisseur   FactureFournisseur? @relation(fields: [factureFournisseurId], references: [id])
+  factureFournisseur   FactureFournisseur? @relation(fields: [factureFournisseurId], references: [id], onDelete: Cascade)
 
   @@index([dateEcheance])
   @@index([statut])

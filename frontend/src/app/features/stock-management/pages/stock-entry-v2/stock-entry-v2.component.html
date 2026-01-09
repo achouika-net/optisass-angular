@@ -57,6 +57,13 @@
                                         class="text-center">
                                 </mat-form-field>
 
+                                <mat-form-field appearance="outline" class="w-44 compact-field">
+                                    <mat-label>Date d'émission *</mat-label>
+                                    <input matInput [matDatepicker]="docPicker" formControlName="date">
+                                    <mat-datepicker-toggle matIconSuffix [for]="docPicker"></mat-datepicker-toggle>
+                                    <mat-datepicker #docPicker></mat-datepicker>
+                                </mat-form-field>
+
                                 <input type="file" #fileInput hidden (change)="onFileSelected($event)"
                                     accept="image/*,application/pdf">
 
@@ -211,11 +218,9 @@
                                     <mat-form-field appearance="outline" class="w-full">
                                         <mat-label>Catégorie</mat-label>
                                         <mat-select formControlName="categorie">
-                                            <mat-option value="MONTURE_OPTIQUE">Monture Optique</mat-option>
-                                            <mat-option value="MONTURE_SOLAIRE">Monture Solaire</mat-option>
-                                            <mat-option value="VERRE">Verre</mat-option>
-                                            <mat-option value="LENTILLE">Lentille</mat-option>
-                                            <mat-option value="ACCESSOIRE">Accessoire</mat-option>
+                                            <mat-option *ngFor="let type of productTypes" [value]="type">
+                                                {{ formatTypeLabel(type) }}
+                                            </mat-option>
                                         </mat-select>
                                     </mat-form-field>
                                 </div>
@@ -364,12 +369,10 @@
                                 <th mat-header-cell *matHeaderCellDef> Catégorie </th>
                                 <td mat-cell *matCellDef="let element">
                                     <select [(ngModel)]="element.categorie" (change)="updateProduct(element)"
-                                        class="bg-transparent border-none text-xs focus:ring-1 focus:ring-blue-400 rounded cursor-pointer uppercase font-bold text-gray-500">
-                                        <option value="MONTURE_OPTIQUE">Monture Optique</option>
-                                        <option value="MONTURE_SOLAIRE">Monture Solaire</option>
-                                        <option value="VERRE">Verre</option>
-                                        <option value="LENTILLE">Lentille</option>
-                                        <option value="ACCESSOIRE">Accessoire</option>
+                                        class="bg-transparent border-none text-xs focus:ring-1 focus:ring-blue-400 rounded cursor-pointer font-bold text-gray-500">
+                                        <option *ngFor="let type of productTypes" [value]="type">
+                                            {{ formatTypeLabel(type) }}
+                                        </option>
                                     </select>
                                 </td>
                             </ng-container>
@@ -546,11 +549,11 @@
                             </mat-form-field>
 
                             <mat-form-field appearance="outline">
-                                <mat-label>Type d'article</mat-label>
+                                <mat-label>Catégorie</mat-label>
                                 <mat-select [(ngModel)]="bulkType" (selectionChange)="searchBulkProducts()">
-                                    <mat-option [value]="undefined">Tous les types</mat-option>
+                                    <mat-option [value]="undefined">Toutes les catégories</mat-option>
                                     <mat-option *ngFor="let type of productTypes" [value]="type">
-                                        {{ type | uppercase }}
+                                        {{ formatTypeLabel(type) }}
                                     </mat-option>
                                 </mat-select>
                                 <mat-icon matSuffix>category</mat-icon>

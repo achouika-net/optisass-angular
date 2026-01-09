@@ -15,8 +15,10 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { FinanceService } from '../../services/finance.service';
 import { Optional } from '@angular/core';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
-import { Observable } from 'rxjs';
-import { map, startWith } from 'rxjs/operators';
+import { Observable, of } from 'rxjs';
+import { map, startWith, switchMap } from 'rxjs/operators';
+import { MatDialog } from '@angular/material/dialog';
+import { CeilingWarningDialogComponent } from '../ceiling-warning-dialog/ceiling-warning-dialog.component';
 
 import { Expense, Supplier } from '../../models/finance.models';
 import { HttpClient } from '@angular/common/http';
@@ -85,6 +87,7 @@ export class ExpenseFormDialogComponent implements OnInit {
         private zone: NgZone,
         private store: Store,
         private snackBar: MatSnackBar,
+        private dialog: MatDialog,
         @Optional() public dialogRef: MatDialogRef<ExpenseFormDialogComponent>,
         @Optional() @Inject(MAT_DIALOG_DATA) public data: { expense?: Expense, viewMode?: boolean }
     ) {
@@ -265,28 +268,79 @@ export class ExpenseFormDialogComponent implements OnInit {
                     }
                 });
             } else {
-                // Fallback to create if no ID but isEditMode was somehow true
-                this.financeService.createExpense(expenseData).subscribe({
-                    next: res => this.finalize(res),
-                    error: (err) => {
-                        this.submitting = false;
-                        const msg = this.getErrorMessage(err);
-                        this.snackBar.open(msg || 'Erreur lors de la création', 'Fermer', { duration: 7000 });
-                    }
-                });
+                this.createExpenseWithCeilingCheck(expenseData);
             }
         } else {
-            this.financeService.createExpense(expenseData).subscribe({
-                next: res => this.finalize(res),
-                error: (err) => {
-                    this.submitting = false;
-                    const msg = this.getErrorMessage(err);
-                    this.snackBar.open(msg || 'Erreur lors de la création', 'Fermer', { duration: 7000 });
-                }
-            });
+            this.createExpenseWithCeilingCheck(expenseData);
         }
     }
 
+    private createExpenseWithCeilingCheck(expenseData: any) {
+        const expenseDate = new Date(expenseData.date);
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        // ceiling check if is current month
+        if (expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear && expenseData.centreId) {
+            this.financeService.getTreasurySummary(currentYear, currentMonth + 1, expenseData.centreId).pipe(
+                switchMap(summary => {
+                    const threshold = summary?.monthlyThreshold || 50000;
+                    const totalWithEntry = (summary?.totalExpenses || 0) + expenseData.montant;
+
+                    if (totalWithEntry > threshold) {
+                        return this.financeService.getYearlyProjection(currentYear, expenseData.centreId).pipe(
+                            switchMap(projection => {
+                                const dialogRef = this.dialog.open(CeilingWarningDialogComponent, {
+                                    width: '600px',
+                                    disableClose: true,
+                                    data: {
+                                        amount: expenseData.montant,
+                                        currentDetails: {
+                                            totalExpenses: summary.totalExpenses,
+                                            monthlyThreshold: threshold,
+                                            balance: summary.balance
+                                        },
+                                        projection: projection,
+                                        currentMonth: currentMonth,
+                                        currentYear: currentYear
+                                    }
+                                });
+                                return dialogRef.afterClosed();
+                            })
+                        );
+                    }
+                    return of({ action: 'FORCE' });
+                })
+            ).subscribe((result: any) => {
+                if (!result || result.action === 'CANCEL') {
+                    this.submitting = false;
+                    return;
+                }
+
+                if (result.action === 'RESCHEDULE' && result.date) {
+                    expenseData.date = result.date;
+                    // Also update dateEcheance if it exists to ensure treasury views reflect the new month
+                    expenseData.dateEcheance = result.date;
+                }
+
+                this.performCreateExpense(expenseData);
+            });
+        } else {
+            this.performCreateExpense(expenseData);
+        }
+    }
+
+    private performCreateExpense(expenseData: any) {
+        this.financeService.createExpense(expenseData).subscribe({
+            next: res => this.finalize(res),
+            error: (err) => {
+                this.submitting = false;
+                const msg = this.getErrorMessage(err);
+                this.snackBar.open(msg || 'Erreur lors de la création', 'Fermer', { duration: 7000 });
+            }
+        });
+    }
     private getErrorMessage(err: any): string {
         console.error('Error details:', err);
         if (!err) return 'Une erreur inconnue est survenue';

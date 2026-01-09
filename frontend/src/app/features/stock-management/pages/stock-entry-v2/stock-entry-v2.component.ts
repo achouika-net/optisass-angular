@@ -14,6 +14,9 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
+import { ActivatedRoute } from '@angular/router';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, shareReplay, switchMap, tap } from 'rxjs/operators';
 import { Product, ProductType, ProductFilters, StockStats } from '../../../../shared/interfaces/product.interface';
@@ -76,7 +79,9 @@ export interface StagedProduct {
         MatDividerModule,
         MatSnackBarModule,
         MatTooltipModule,
-        MatDialogModule // Added MatDialogModule as it's used
+        MatDialogModule,
+        MatDatepickerModule,
+        MatNativeDateModule
     ],
     templateUrl: './stock-entry-v2.component.html',
     styleUrls: ['./stock-entry-v2.component.scss']
@@ -116,8 +121,10 @@ export class StockEntryV2Component implements OnInit {
     bulkProducts$ = new BehaviorSubject<Product[]>([]);
     bulkDisplayedColumns: string[] = ['select', 'reference', 'marque', 'designation', 'entrepot', 'stock'];
     loadingBulk = false;
+    skipPaymentPrompt = false;
 
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
+    ProductType = ProductType;
 
     entrepots$ = new BehaviorSubject<Entrepot[]>([]);
     stats$ = new BehaviorSubject<StockStats | null>(null);
@@ -131,7 +138,8 @@ export class StockEntryV2Component implements OnInit {
         private warehousesService: WarehousesService,
         private snackBar: MatSnackBar,
         private dialog: MatDialog,
-        private store: Store
+        private store: Store,
+        private route: ActivatedRoute
     ) {
         this.entryForm = this.fb.group({
             reference: [''], // Not required if codeBarre present
@@ -152,8 +160,9 @@ export class StockEntryV2Component implements OnInit {
             type: ['FACTURE', Validators.required], // FACTURE or BL
             fournisseurId: ['', Validators.required],
             numero: [''],
-            date: [new Date()],
-            file: [null]
+            date: [new Date(), Validators.required],
+            file: [null],
+            centreId: [null]
         });
 
         this.batchPricingForm = this.fb.group({
@@ -206,6 +215,29 @@ export class StockEntryV2Component implements OnInit {
         // Inverse: If Prix Vente changes manually in Coeff mode (optional UX choice: update coef?)
         // For now, let's keep Coeff master if Mode IS Coeff.
         this.searchBulkProducts();
+
+        // Initial patch for centreId
+        const activeCenterId = this.currentCentre()?.id;
+        if (activeCenterId) {
+            this.documentForm.patchValue({ centreId: activeCenterId });
+        }
+
+        // Handle prefilled data from query params
+        this.route.queryParams.subscribe(params => {
+            if (params['prefillInvoice'] || params['prefillSupplier']) {
+                this.documentForm.patchValue({
+                    numero: params['prefillInvoice'] || '',
+                    fournisseurId: params['prefillSupplier'] || '',
+                    date: params['prefillDate'] ? new Date(params['prefillDate']) : new Date()
+                });
+
+                if (params['prefillInvoice']) {
+                    this.skipPaymentPrompt = true;
+                }
+
+                this.snackBar.open('Données de la facture pré-remplies', 'OK', { duration: 3000 });
+            }
+        });
     }
 
     private setupProductSearch() {
@@ -260,7 +292,8 @@ export class StockEntryV2Component implements OnInit {
             maxHeight: '95vh',
             data: {
                 products: [...this.stagedProducts],
-                document: this.documentForm.getRawValue()
+                document: this.documentForm.getRawValue(),
+                skipPaymentPrompt: this.skipPaymentPrompt
             }
         });
 
@@ -439,7 +472,17 @@ export class StockEntryV2Component implements OnInit {
             }
 
             if (result.date) {
+                const detected = new Date(result.date);
+                const current = new Date();
+                const isDifferentMonth = detected.getMonth() !== current.getMonth() || detected.getFullYear() !== current.getFullYear();
+
                 this.documentForm.patchValue({ date: result.date });
+
+                if (isDifferentMonth) {
+                    this.snackBar.open(`⚠️ Date détectée: ${detected.toLocaleDateString()}. Vérifiez si elle est correcte !`, 'COMPRIS', { duration: 8000 });
+                } else {
+                    this.snackBar.open(`Date document mise à jour: ${detected.toLocaleDateString()}`, 'OK', { duration: 3000 });
+                }
             }
 
             // Auto-open OCR panel if lines found
@@ -771,5 +814,12 @@ export class StockEntryV2Component implements OnInit {
                 this.searchBulkProducts();
             }
         });
+    }
+
+    formatTypeLabel(type: string | undefined): string {
+        if (!type) return '';
+        return type.split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
     }
 }

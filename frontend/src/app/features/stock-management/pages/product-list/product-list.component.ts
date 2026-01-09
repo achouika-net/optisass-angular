@@ -85,6 +85,7 @@ export class ProductListComponent implements OnInit {
     productTypes = Object.values(ProductType);
     productStatuses = Object.values(ProductStatus);
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
+    ProductType = ProductType;
 
     constructor(
         private productService: ProductService,
@@ -452,5 +453,13 @@ export class ProductListComponent implements OnInit {
                 }
             });
         }
+    }
+
+    formatTypeLabel(type: string | undefined | null): string {
+        if (!type) return '';
+        const t = (type as string).toUpperCase();
+        return t.split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
     }
 }

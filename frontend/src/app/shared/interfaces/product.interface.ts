@@ -2,10 +2,11 @@
  * Product Types and Categories
  */
 export enum ProductType {
-    MONTURE = 'monture',
-    VERRE = 'verre',
-    LENTILLE = 'lentille',
-    ACCESSOIRE = 'accessoire'
+    MONTURE_OPTIQUE = 'MONTURE_OPTIQUE',
+    MONTURE_SOLAIRE = 'MONTURE_SOLAIRE',
+    VERRE = 'VERRE',
+    LENTILLE = 'LENTILLE',
+    ACCESSOIRE = 'ACCESSOIRE'
 }
 
 export enum ProductStatus {
@@ -124,7 +125,7 @@ export enum FrameType {
 }
 
 export interface Frame extends BaseProduct {
-    typeArticle: ProductType.MONTURE;
+    typeArticle: ProductType.MONTURE_OPTIQUE | ProductType.MONTURE_SOLAIRE;
 
     // Frame specific
     categorie: FrameCategory;

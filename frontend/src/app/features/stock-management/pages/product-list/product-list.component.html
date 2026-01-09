@@ -89,7 +89,7 @@
                         <mat-select [(ngModel)]="filter.typeArticle" (selectionChange)="applyFilter()">
                             <mat-option value="">Tous</mat-option>
                             <mat-option *ngFor="let type of productTypes" [value]="type">
-                                {{ type | titlecase }}
+                                {{ formatTypeLabel(type) }}
                             </mat-option>
                         </mat-select>
                     </mat-form-field>
@@ -178,7 +178,7 @@
                     <!-- Type Column -->
                     <ng-container matColumnDef="typeArticle">
                         <th mat-header-cell *matHeaderCellDef mat-sort-header> Type </th>
-                        <td mat-cell *matCellDef="let row"> {{row.typeArticle | titlecase}} </td>
+                        <td mat-cell *matCellDef="let row"> {{ formatTypeLabel(row.typeArticle) }} </td>
                     </ng-container>
 
                     <!-- Centre Column -->

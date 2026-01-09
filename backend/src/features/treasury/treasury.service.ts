@@ -334,12 +334,21 @@ export class TreasuryService {
         });
     }
 
-    async getConsolidatedOutgoings(filters: { fournisseurId?: string; type?: string; startDate?: string; endDate?: string; source?: string; centreId?: string; mode?: string }) {
-        // If mode (CHEQUE, LCN) is provided, we fetch individual pieces (EcheancePaiement)
-        if (filters.mode && (filters.mode.includes('CHEQUE') || filters.mode.includes('LCN'))) {
-            const where: any = {
-                type: { in: filters.mode.split(',') }
-            };
+    async getConsolidatedOutgoings(filters: { fournisseurId?: string; type?: string; startDate?: string; endDate?: string; source?: string; centreId?: string; mode?: string; statut?: string }) {
+        // If mode (CHEQUE, LCN, VIREMENT, ESPECES) is provided, we fetch individual pieces (EcheancePaiement)
+        // If 'ALL' is provided or no mode is strictly 'FACTURE'/'DEPENSE' source, we consider Echeances as the primary view for Portfolio
+        if (filters.mode && (filters.mode.includes('CHEQUE') || filters.mode.includes('LCN') || filters.mode.includes('VIREMENT') || filters.mode.includes('ESPECES'))) {
+            const where: any = {};
+
+            if (filters.mode !== 'ALL') {
+                where.type = { in: filters.mode.split(',') };
+            }
+
+            if (filters.statut && filters.statut !== 'ALL') {
+                where.statut = filters.statut;
+            } else {
+                where.statut = { not: 'ANNULE' };
+            }
 
             if (filters.startDate || filters.endDate) {
                 const dateRange: any = {};
@@ -348,13 +357,21 @@ export class TreasuryService {
                 where.dateEcheance = dateRange;
             }
 
+            if (filters.centreId) {
+                where.OR = [
+                    { factureFournisseur: { centreId: filters.centreId } },
+                    { depense: { centreId: filters.centreId } }
+                ];
+            }
+
             const pieces = await this.prisma.echeancePaiement.findMany({
                 where,
                 include: {
                     factureFournisseur: { include: { fournisseur: { select: { nom: true } } } },
                     depense: { include: { fournisseur: { select: { nom: true } } } }
                 },
-                orderBy: { dateEcheance: 'desc' }
+                orderBy: { dateEcheance: 'desc' },
+                take: 100
             });
 
             return pieces.map(p => ({

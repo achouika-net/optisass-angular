@@ -42,6 +42,10 @@ export class BulkAlimentationDto {
     @IsDateString()
     dateEmission: string;
 
+    @IsOptional()
+    @IsDateString()
+    dateEcheance?: string;
+
     @IsString()
     type: string; // FACTURE or BL
 

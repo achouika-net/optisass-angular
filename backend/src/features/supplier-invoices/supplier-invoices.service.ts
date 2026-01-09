@@ -1,13 +1,34 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSupplierInvoiceDto } from './dto/create-supplier-invoice.dto';
+import { ProductsService } from '../products/products.service';
 
 @Injectable()
 export class SupplierInvoicesService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private productsService: ProductsService
+    ) { }
 
     async create(createDto: CreateSupplierInvoiceDto) {
         const { echeances, ...invoiceData } = createDto;
+
+        // Check if invoice already exists for this supplier
+        const existingInvoice = await this.prisma.factureFournisseur.findFirst({
+            where: {
+                fournisseurId: invoiceData.fournisseurId,
+                numeroFacture: invoiceData.numeroFacture
+            },
+            include: {
+                echeances: true,
+                fournisseur: true
+            }
+        });
+
+        if (existingInvoice) {
+            console.log(`[INVOICE] Update existing invoice ${existingInvoice.numeroFacture} for supplier ${invoiceData.fournisseurId}`);
+            return this.update(existingInvoice.id, createDto);
+        }
 
         const status = this.calculateInvoiceStatus(invoiceData.montantTTC, echeances || []);
 
@@ -70,6 +91,22 @@ export class SupplierInvoicesService {
     async update(id: string, updateDto: any) {
         const { echeances, ...invoiceData } = updateDto;
 
+        // Clean invoiceData to remove unwanted circular or extra relation objects
+        const cleanedInvoiceData: any = {
+            numeroFacture: invoiceData.numeroFacture,
+            dateEmission: invoiceData.dateEmission ? new Date(invoiceData.dateEmission) : undefined,
+            dateEcheance: invoiceData.dateEcheance ? new Date(invoiceData.dateEcheance) : undefined,
+            montantHT: invoiceData.montantHT,
+            montantTVA: invoiceData.montantTVA,
+            montantTTC: invoiceData.montantTTC,
+            statut: invoiceData.statut,
+            type: invoiceData.type,
+            pieceJointeUrl: invoiceData.pieceJointeUrl,
+            fournisseurId: invoiceData.fournisseurId,
+            centreId: invoiceData.centreId,
+            clientId: invoiceData.clientId,
+        };
+
         return this.prisma.$transaction(async (tx) => {
             if (echeances) {
                 // Pour simplifier, on supprime les anciennes échéances et on recrée
@@ -78,15 +115,24 @@ export class SupplierInvoicesService {
                 });
             }
 
-            const status = this.calculateInvoiceStatus(invoiceData.montantTTC || 0, echeances || []);
+            const status = this.calculateInvoiceStatus(cleanedInvoiceData.montantTTC || 0, echeances || []);
+            cleanedInvoiceData.statut = status;
 
             return tx.factureFournisseur.update({
                 where: { id },
                 data: {
-                    ...invoiceData,
-                    statut: status,
+                    ...cleanedInvoiceData,
                     echeances: echeances ? {
-                        create: echeances
+                        create: echeances.map((e: any) => ({
+                            type: e.type,
+                            dateEcheance: new Date(e.dateEcheance),
+                            dateEncaissement: e.dateEncaissement ? new Date(e.dateEncaissement) : undefined,
+                            montant: e.montant,
+                            statut: e.statut,
+                            reference: e.reference || null,
+                            banque: e.banque || null,
+                            remarque: e.remarque || null
+                        }))
                     } : undefined
                 },
                 include: {
@@ -120,8 +166,41 @@ export class SupplierInvoicesService {
     }
 
     async remove(id: string) {
-        return this.prisma.factureFournisseur.delete({
-            where: { id },
+        return this.prisma.$transaction(async (tx) => {
+            const invoice = await tx.factureFournisseur.findUnique({
+                where: { id },
+                include: { mouvementsStock: true }
+            });
+
+            if (!invoice) return null;
+
+            // 0. Get affected product IDs before deletion
+            const productIds = Array.from(new Set(invoice.mouvementsStock.map(m => m.produitId)));
+
+            // 1. Clear Movements (This triggers the sync later)
+            await tx.mouvementStock.deleteMany({
+                where: { factureFournisseurId: id }
+            });
+
+            // 2. Sync each affected product
+            for (const productId of productIds) {
+                await this.productsService.syncProductState(productId, tx);
+            }
+
+            // 3. Delete linked Expense if exists
+            await tx.depense.deleteMany({
+                where: { factureFournisseurId: id }
+            });
+
+            // 4. Delete payment schedules
+            await tx.echeancePaiement.deleteMany({
+                where: { factureFournisseurId: id }
+            });
+
+            // 5. Delete the Invoice itself
+            return tx.factureFournisseur.delete({
+                where: { id }
+            });
         });
     }
 

@@ -49,4 +49,8 @@ export class StockMovementsService {
 
         return this.http.get<any[]>(`${this.apiUrl}/history`, { params });
     }
+
+    deleteHistory(id: string): Observable<void> {
+        return this.http.delete<void>(`${this.apiUrl}/history/${id}`);
+    }
 }

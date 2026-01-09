@@ -662,7 +662,13 @@ export class ProductsService {
             produitsStockBas: 0,
             produitsRupture: 0,
             produitsReserves: 0,
-            produitsEnTransit: 0
+            produitsEnTransit: 0,
+            byType: {
+                montures: 0,
+                verres: 0,
+                lentilles: 0,
+                accessoires: 0
+            }
         };
 
         allProducts.forEach(p => {
@@ -691,6 +697,18 @@ export class ProductsService {
                 }
                 if (sd.pendingIncoming?.status === 'SHIPPED') {
                     stats.produitsEnTransit++;
+                }
+
+                // byType breakdown
+                const type = p.typeArticle;
+                if (type === 'MONTURE_OPTIQUE' || type === 'MONTURE_SOLAIRE' || type === 'monture') {
+                    stats.byType.montures += p.quantiteActuelle;
+                } else if (type === 'VERRE' || type === 'verre') {
+                    stats.byType.verres += p.quantiteActuelle;
+                } else if (type === 'LENTILLE' || type === 'lentille') {
+                    stats.byType.lentilles += p.quantiteActuelle;
+                } else if (type === 'ACCESSOIRE' || type === 'accessoire') {
+                    stats.byType.accessoires += p.quantiteActuelle;
                 }
             }
         });
@@ -1035,6 +1053,73 @@ export class ProductsService {
                 entrepotDestination: { include: { centre: true } }
             },
             orderBy: { dateMovement: 'desc' }
+        });
+    }
+
+    async syncProductState(productId: string, tx?: any) {
+        const prisma = tx || this.prisma;
+
+        const product = await prisma.product.findUnique({
+            where: { id: productId },
+            include: {
+                mouvements: {
+                    orderBy: { dateMovement: 'asc' }
+                }
+            }
+        });
+
+        if (!product) return;
+
+        // 1. If NO movements left AND created by system, delete product
+        if (product.mouvements.length === 0) {
+            if (product.utilisateurCreation === 'system' || product.utilisateurCreation === 'System') {
+                return await prisma.product.delete({ where: { id: productId } });
+            }
+            // If manual product but no movements, just reset to 0
+            return await prisma.product.update({
+                where: { id: productId },
+                data: { quantiteActuelle: 0, prixAchatHT: product.prixAchatHT || 0 }
+            });
+        }
+
+        // 2. Recalculate Quantite Actuelle
+        const newQty = product.mouvements.reduce((sum, mov) => sum + mov.quantite, 0);
+
+        // 3. Recalculate Weighted Average Price (PMP)
+        // Formula: New PMP = (Current Value + New Entry Value) / (Current Qty + New Qty)
+        let calculatedPMP = 0;
+        let currentQtyForPMP = 0;
+
+        for (const mov of product.mouvements) {
+            if (mov.quantite > 0) {
+                // Entry (Purchase, Reception, Inventaire)
+                const entryQty = mov.quantite;
+                const entryPrice = mov.prixAchatUnitaire || 0;
+
+                if (currentQtyForPMP <= 0) {
+                    calculatedPMP = entryPrice;
+                } else {
+                    const currentValue = currentQtyForPMP * calculatedPMP;
+                    const entryValue = entryQty * entryPrice;
+                    calculatedPMP = (currentValue + entryValue) / (currentQtyForPMP + entryQty);
+                }
+                currentQtyForPMP += entryQty;
+            } else if (mov.quantite < 0) {
+                // Exit (Sale, Transfer, Sortie)
+                // PMP doesn't change on exit, only quantity does
+                currentQtyForPMP += mov.quantite;
+                if (currentQtyForPMP < 0) currentQtyForPMP = 0;
+            }
+        }
+
+        // 4. Update Product
+        return await prisma.product.update({
+            where: { id: productId },
+            data: {
+                quantiteActuelle: newQty,
+                prixAchatHT: Math.round(calculatedPMP * 100) / 100,
+                statut: newQty > 0 ? 'DISPONIBLE' : 'RUPTURE'
+            }
         });
     }
 }

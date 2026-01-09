@@ -107,6 +107,17 @@
                     </td>
                 </ng-container>
 
+                <!-- Actions Column -->
+                <ng-container matColumnDef="actions">
+                    <th mat-header-cell *matHeaderCellDef> </th>
+                    <td mat-cell *matCellDef="let element">
+                        <button mat-icon-button color="warn" matTooltip="Supprimer l'entrée"
+                            (click)="deleteEntry(element); $event.stopPropagation()">
+                            <mat-icon>delete</mat-icon>
+                        </button>
+                    </td>
+                </ng-container>
+
                 <!-- Expand Column -->
                 <ng-container matColumnDef="expand">
                     <th mat-header-cell *matHeaderCellDef aria-label="row actions">&nbsp;</th>

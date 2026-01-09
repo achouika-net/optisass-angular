@@ -25,4 +25,9 @@ export class StockMovementsController {
     ) {
         return this.service.getHistory({ dateFrom, dateTo, supplierId, docType });
     }
+
+    @Delete('history/:id')
+    deleteHistory(@Param('id') id: string) {
+        return this.service.removeEntryHistory(id);
+    }
 }

@@ -65,7 +65,7 @@ export class ProductFormComponent implements OnInit {
     isEditMode = false;
     productId: string | null = null;
     entrepotId: string | null = null;
-    productType: ProductType = ProductType.MONTURE;
+    productType: ProductType = ProductType.MONTURE_OPTIQUE;
     isSubmitting = false;
 
     // Hierarchy Data
@@ -102,6 +102,9 @@ export class ProductFormComponent implements OnInit {
 
     // Accessory enums
     accessoryCategories = Object.values(AccessoryCategory);
+
+    // Expose enum to template
+    ProductType = ProductType;
 
     constructor(
         private fb: FormBuilder,
@@ -248,7 +251,7 @@ export class ProductFormComponent implements OnInit {
     createForm(): FormGroup {
         return this.fb.group({
             // Common fields
-            typeArticle: [ProductType.MONTURE, Validators.required],
+            typeArticle: [ProductType.MONTURE_OPTIQUE, Validators.required],
             // Disabled by default as requested
             codeInterne: [{ value: '', disabled: true }, Validators.required],
             codeBarres: [{ value: '', disabled: true }],
@@ -337,7 +340,7 @@ export class ProductFormComponent implements OnInit {
         });
 
         // Add validators based on type
-        if (type === ProductType.MONTURE) {
+        if (type === ProductType.MONTURE_OPTIQUE || type === ProductType.MONTURE_SOLAIRE) {
             this.productForm.get('designation')?.setValidators(Validators.required);
             this.productForm.get('categorie')?.setValidators(Validators.required);
             this.productForm.get('forme')?.setValidators(Validators.required);
@@ -417,7 +420,8 @@ export class ProductFormComponent implements OnInit {
         let prefix = 'PRD';
 
         switch (type) {
-            case ProductType.MONTURE:
+            case ProductType.MONTURE_OPTIQUE:
+            case ProductType.MONTURE_SOLAIRE:
                 prefix = 'MON';
                 break;
             case ProductType.VERRE:
@@ -547,5 +551,12 @@ export class ProductFormComponent implements OnInit {
 
     onCancel(): void {
         this.navigateBack();
+    }
+
+    formatTypeLabel(type: string | undefined): string {
+        if (!type) return '';
+        return type.split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
     }
 }

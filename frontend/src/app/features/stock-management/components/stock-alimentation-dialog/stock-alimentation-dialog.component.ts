@@ -18,6 +18,10 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
 import { switchMap, finalize } from 'rxjs/operators';
 import { StockAlimentationService, BulkAlimentationPayload } from '../../services/stock-alimentation.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { FinanceService } from '../../../finance/services/finance.service';
+import { InvoiceFormDialogComponent } from '../../../finance/components/invoice-form-dialog/invoice-form-dialog.component';
+import { MatDialog } from '@angular/material/dialog';
+import { CeilingWarningDialogComponent, CeilingWarningAction } from '../../../finance/components/ceiling-warning-dialog/ceiling-warning-dialog.component';
 
 export interface AlimentationResult {
   allocations: {
@@ -354,6 +358,8 @@ export interface AlimentationResult {
 export class StockAlimentationDialogComponent implements OnInit {
   form: FormGroup;
   warehouses$: Observable<Entrepot[]>;
+  saving = false;
+  ocrProcessing = false;
 
   // Global Controls for Toolbar
   batchWh = new FormControl<string>('');
@@ -367,12 +373,15 @@ export class StockAlimentationDialogComponent implements OnInit {
     private dialogRef: MatDialogRef<StockAlimentationDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: {
       products: StagedProduct[],
-      document: { type: string, numero: string, date: Date, file: File | null, fournisseurId: string }
+      document: any,
+      skipPaymentPrompt?: boolean
     },
     private warehousesService: WarehousesService,
     private stockService: StockAlimentationService,
+    private financeService: FinanceService,
     private snackBar: MatSnackBar,
-    private store: Store
+    private store: Store,
+    private dialog: MatDialog
   ) {
     // 1. Initialize form
     this.form = this.fb.group({
@@ -570,9 +579,8 @@ export class StockAlimentationDialogComponent implements OnInit {
   async confirm() {
     if (this.form.valid && this.isAllocationValid()) {
       const allAllocations: any[] = [];
-      const centreId = await new Promise<string | undefined>(resolve => {
-        this.store.select(UserCurrentCentreSelector).subscribe(c => resolve(c?.id)).unsubscribe();
-      });
+      const doc = this.data.document as any;
+      const centreId = doc.centreId;
 
       this.productsFormArray.controls.forEach((pGroup: any, i) => {
         if (pGroup.get('exclure')?.value) return;
@@ -604,34 +612,152 @@ export class StockAlimentationDialogComponent implements OnInit {
       // Handle File Attachment
       let base64File: string | undefined;
       let fileName: string | undefined;
-      if (this.data.document.file) {
-        base64File = await this.fileToBase64(this.data.document.file);
-        fileName = this.data.document.file.name;
+      if (doc.file) {
+        base64File = await this.fileToBase64(doc.file);
+        fileName = doc.file.name;
       }
 
       const payload: BulkAlimentationPayload = {
-        numeroFacture: this.data.document.numero || `ENTREE_${Date.now()}`,
-        dateEmission: this.data.document.date.toISOString(),
-        type: this.data.document.type,
-        fournisseurId: this.data.document.fournisseurId,
-        centreId: centreId,
+        numeroFacture: doc.numero || `ENTREE_${Date.now()}`,
+        dateEmission: doc.date.toISOString(),
+        type: doc.type,
+        fournisseurId: doc.fournisseurId,
+        centreId: doc.centreId,
         base64File: base64File,
         fileName: fileName,
         allocations: allAllocations
       };
 
-      this.stockService.bulkAlimentation(payload).subscribe({
-        next: (res) => {
-          this.snackBar.open('Stock alimenté avec succès !', 'OK', { duration: 3000 });
-          this.dialogRef.close({ success: true, allocations: allAllocations });
-        },
-        error: (err) => {
-          console.error('Persistence failed', err);
-          const msg = err.error?.message || 'Erreur lors de l\'enregistrement du stock';
-          this.snackBar.open(msg, 'OK', { duration: 5000 });
+      // Calculate payment amount that will be disbursed THIS MONTH
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      const invoiceDate = this.data.document.date;
+      const invoiceMonth = invoiceDate.getMonth();
+      const invoiceYear = invoiceDate.getFullYear();
+
+      const totalTTC = allAllocations.reduce((sum, a) => {
+        const tvaAmount = Number(a.prixAchat) * (Number(a.tva) / 100);
+        return sum + ((Number(a.prixAchat) + tvaAmount) * Number(a.quantite));
+      }, 0);
+
+      // Fetch supplier to get payment conditions and calculate REAL impact this month
+      this.financeService.getSupplier(payload.fournisseurId).pipe(
+        switchMap(supplier => {
+          let monthlyPaymentAmount = 0;
+
+          // If invoice is in the future, impact is 0 this month (unless logic changes)
+          if (invoiceMonth === currentMonth && invoiceYear === currentYear) {
+            monthlyPaymentAmount = this.calculateFirstInstallment(supplier, totalTTC);
+          } else {
+            // Check if first installment (e.g. 30j) falls in THIS month even if invoice was last month?
+            // Usually ceiling check is for NEW entries.
+            // If invoice is TODAY, we check its first installment.
+          }
+
+          // 1. Ceiling Alert Check
+          return this.financeService.getTreasurySummary(currentYear, currentMonth + 1, centreId).pipe(
+            switchMap(summary => {
+              const threshold = summary?.monthlyThreshold || 50000;
+              const totalWithEntry = (summary?.totalExpenses || 0) + monthlyPaymentAmount;
+
+              if (totalWithEntry > threshold && monthlyPaymentAmount > 0) {
+                return this.financeService.getYearlyProjection(currentYear, centreId).pipe(
+                  switchMap(projection => {
+                    const dialogRef = this.dialog.open(CeilingWarningDialogComponent, {
+                      width: '600px',
+                      disableClose: true,
+                      data: {
+                        amount: monthlyPaymentAmount,
+                        currentDetails: {
+                          totalExpenses: summary.totalExpenses,
+                          monthlyThreshold: threshold,
+                          balance: summary.balance
+                        },
+                        projection: projection,
+                        currentMonth: currentMonth,
+                        currentYear: currentYear
+                      }
+                    });
+                    return dialogRef.afterClosed();
+                  })
+                );
+              }
+              return of({ action: 'FORCE' });
+            })
+          );
+        }),
+        finalize(() => this.ocrProcessing = false)
+      ).subscribe((result: any) => {
+        if (!result || result.action === 'CANCEL') return;
+
+        if (result.action === 'RESCHEDULE' && result.date) {
+          const targetDateStr = result.date.toISOString();
+          payload.dateEmission = targetDateStr;
+          payload.dateEcheance = targetDateStr;
         }
+
+        // 2. Perform Save
+        this.saveEntry(payload);
       });
     }
+  }
+
+  private calculateFirstInstallment(supplier: any, totalTTC: number): number {
+    const echeanceArray = supplier.convention?.echeancePaiement || [];
+    const conditions = (echeanceArray[0] || supplier.conditionsPaiement2 || supplier.conditionsPaiement || '').toLowerCase();
+
+    if (conditions.includes('60 jours')) {
+      return totalTTC / 2;
+    } else if (conditions.includes('90 jours')) {
+      return totalTTC / 3;
+    } else if (conditions.includes('30 jours')) {
+      // 30 days usually means next month, so impact THIS month is 0
+      // BUT if user selects a Date in the past (unlikely) or if "Comptant" is implied.
+      // Usually "30 jours" means impact start next month.
+      return 0;
+    } else if (conditions.match(/r[eé]partie?\s*sur\s*(\d+)\s*mois/)) {
+      const match = conditions.match(/r[eé]partie?\s*sur\s*(\d+)\s*mois/);
+      const months = parseInt(match![1], 10);
+      return totalTTC / months;
+    }
+
+    // Default: Comptant / Exception
+    return totalTTC;
+  }
+  private saveEntry(payload: BulkAlimentationPayload) {
+    this.stockService.bulkAlimentation(payload).subscribe({
+      next: (res: any) => {
+        this.snackBar.open('Stock alimenté avec succès !', 'OK', { duration: 3000 });
+
+        // 3. Workflow Bridge: Prompt only if NOT skipped (i.e. not coming from Invoice flow)
+        if (!this.data.skipPaymentPrompt) {
+          const completePayment = confirm('Stock alimenté. Souhaitez-vous maintenant compléter les modalités de paiement (échéances, chèques, etc.) pour cette facture ?');
+
+          if (completePayment && res && res.id) {
+            // Open Invoice Form Dialog in edit mode
+            const invoiceDialog = this.dialog.open(InvoiceFormDialogComponent, {
+              width: '1200px',
+              maxWidth: '95vw',
+              data: { invoice: res }
+            });
+
+            invoiceDialog.afterClosed().subscribe(() => {
+              this.dialogRef.close({ success: true, allocations: payload.allocations });
+            });
+            return;
+          }
+        }
+
+        this.dialogRef.close({ success: true, allocations: payload.allocations });
+      },
+      error: (err) => {
+        console.error('Persistence failed', err);
+        const msg = err.error?.message || 'Erreur lors de l\'enregistrement du stock';
+        this.snackBar.open(msg, 'OK', { duration: 5000 });
+      }
+    });
   }
 
   private fileToBase64(file: File): Promise<string> {

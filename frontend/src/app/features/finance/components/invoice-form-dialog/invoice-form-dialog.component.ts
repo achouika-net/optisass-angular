@@ -20,8 +20,9 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
 import { Supplier, SupplierInvoice, Echeance } from '../../models/finance.models';
 import { FinanceService } from '../../services/finance.service';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
-import { Observable } from 'rxjs';
-import { map, startWith } from 'rxjs/operators';
+import { Observable, of } from 'rxjs';
+import { map, startWith, switchMap } from 'rxjs/operators';
+import { CeilingWarningDialogComponent } from '../ceiling-warning-dialog/ceiling-warning-dialog.component';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { CameraCaptureDialogComponent } from '../../../../shared/components/camera-capture/camera-capture-dialog.component';
 import { MatDialog } from '@angular/material/dialog';
@@ -158,7 +159,11 @@ export class InvoiceFormDialogComponent implements OnInit {
                 dateEmission: [data?.invoice?.dateEmission || new Date(), Validators.required],
                 dateEcheance: [data?.invoice?.dateEcheance || null],
                 montantHT: [data?.invoice?.montantHT || 0, [Validators.required, Validators.min(0)]],
-                tauxTVA: [20], // Default 20%
+                tauxTVA: [
+                    (data?.invoice?.montantTVA !== undefined && data?.invoice?.montantHT)
+                        ? Math.round((data.invoice.montantTVA / data.invoice.montantHT) * 100)
+                        : 20
+                ],
                 montantTVA: [data?.invoice?.montantTVA || 0, [Validators.required, Validators.min(0)]],
                 montantTTC: [data?.invoice?.montantTTC || 0, [Validators.required, Validators.min(0)]],
                 type: [data?.invoice?.type || (data as any)?.prefilledType || 'ACHAT_STOCK', Validators.required],
@@ -186,6 +191,7 @@ export class InvoiceFormDialogComponent implements OnInit {
     }
 
     ngOnInit() {
+        console.log('[InvoiceForm] VERSION CHECK: Aggressive Rounding & Sync Date Update ACTIVE');
         this.loadSuppliers();
 
         // Check if opened as dialog with viewMode in data
@@ -207,15 +213,22 @@ export class InvoiceFormDialogComponent implements OnInit {
         if (id) {
             this.isEditMode = true;
             this.financeService.getInvoice(id).subscribe(invoice => {
+                // AGGRESSIVE ROUNDING
+                const mHT = Math.round(Number(invoice.montantHT || 0) * 100) / 100;
+                const mTVA = Math.round(Number(invoice.montantTVA || 0) * 100) / 100;
+                const mTTC = Math.round(Number(invoice.montantTTC || 0) * 100) / 100;
+
+                console.log('[InvoiceForm] Loaded Invoice:', { mHT, mTVA, mTTC });
+
                 this.form.patchValue({
                     details: {
                         fournisseurId: invoice.fournisseurId,
                         numeroFacture: invoice.numeroFacture,
                         dateEmission: invoice.dateEmission,
                         dateEcheance: invoice.dateEcheance,
-                        montantHT: invoice.montantHT,
-                        montantTVA: invoice.montantTVA,
-                        montantTTC: invoice.montantTTC,
+                        montantHT: mHT,
+                        montantTVA: mTVA,
+                        montantTTC: mTTC,
                         type: invoice.type,
                         pieceJointeUrl: invoice.pieceJointeUrl,
                         clientId: invoice.clientId
@@ -227,18 +240,35 @@ export class InvoiceFormDialogComponent implements OnInit {
                 this.echeances.clear();
                 invoice.echeances?.forEach(e => this.addEcheance(e));
 
+                // Force Auto-Apply if supplier exists and conditions look mismatched or it's a "draft" invoice
+                // We do this inside loadSuppliers usually, but let's prep the data here
                 if (invoice.fournisseur) {
                     this.supplierCtrl.setValue(invoice.fournisseur.nom);
                     this.selectedSupplier = invoice.fournisseur;
                 }
 
                 this.autoUpdateStatus();
-
-                if (this.isViewMode) {
-                    this.form.disable();
-                    this.supplierCtrl.disable();
-                }
+                if (invoice.montantTTC > 0) this.calculateFromTTC();
             });
+        }
+
+        // Handle passed data invoice (not from URL ID but from @Inject)
+        if (this.data?.invoice && !this.isEditMode) {
+            // Logic for passed data is handled in constructor mostly, 
+            // but we might need to trigger recalc here if it wasn't an edit mode fetch
+            // Actually constructor handles it. 
+            // But wait, constructor patches the form. 
+            // If we want to enforce consistency for passed data too:
+        }
+
+        // Also check if we have data.invoice from constructor and we are in EditMode (but not ID fetch)
+        // The constructor sets values. Let's trigger recalc for that case too if needed in ngAfterViewInit or here.
+        if (this.data?.invoice && this.data.invoice.montantTTC > 0) {
+            // We need to be careful not to overwrite if user actively changed something, 
+            // but this is ngOnInit, so it's initial load.
+            // However, calculateFromTTC reads from form control.
+            // The form controls are already set in constructor.
+            setTimeout(() => this.calculateFromTTC());
         }
 
         // Auto-calculate TVA and TTC / HT
@@ -308,11 +338,38 @@ export class InvoiceFormDialogComponent implements OnInit {
                 this.suppliers = data;
                 this.setupSupplierFilter();
 
-                // If editing and has provider
+                // If editing and has provider, ensure we have the full object
                 const currentId = this.detailsGroup.get('fournisseurId')?.value;
                 if (currentId) {
                     const s = this.suppliers.find(x => x.id === currentId);
-                    if (s) this.supplierCtrl.setValue(s.nom);
+                    if (s) {
+                        this.selectedSupplier = s;
+                        this.supplierCtrl.setValue(s.nom, { emitEvent: false });
+
+                        // AGGRESSIVE AUTO-APPLY
+                        // If all echeances are EN_ATTENTE (editable), we check if we should re-apply default conditions
+                        const allPending = this.echeances.controls.every(c => c.get('statut')?.value === 'EN_ATTENTE');
+                        const hasManualData = this.echeances.controls.some(c =>
+                            !!c.get('reference')?.value || (c.get('type')?.value !== 'CHEQUE' && c.get('type')?.value !== 'ESPECES')
+                        );
+
+                        if (allPending && !hasManualData && !this.isViewMode) {
+                            console.log('[InvoiceForm] All installments pending and no manual data. Re-evaluating conditions...');
+                            // Check if current echeances match the supplier's default? 
+                            // For now, let's just Apply to ensure consistency as user requested "Why isn't it applied?"
+                            // But we must be careful not to annoy users who manually customized.
+                            // Let's rely on the "Refresh" button primarily, but if the count is 1 and supplier says "60 jours" (which implies 2), we Auto-Fix.
+                            const conditions = (s.convention?.echeancePaiement?.[0] || s.conditionsPaiement || '').toLowerCase();
+
+                            if (conditions.includes('60 jours') && this.echeances.length !== 2) {
+                                console.log('[InvoiceForm] Detected mismatch (1 vs 2 installments). Auto-Applying 60 jours logic.');
+                                this.applyPaymentConditions(s);
+                            } else if (conditions.includes('90 jours') && this.echeances.length !== 3) {
+                                console.log('[InvoiceForm] Detected mismatch (1 vs 3 installments). Auto-Applying 90 jours logic.');
+                                this.applyPaymentConditions(s);
+                            }
+                        }
+                    }
                 }
             },
             error: (err) => console.error('Erreur chargement fournisseurs', err)
@@ -364,90 +421,254 @@ export class InvoiceFormDialogComponent implements OnInit {
 
         this.selectedSupplier = this.suppliers.find(s => s.id === id) || null;
 
-        // Auto-schedule payment terms if available and creating new invoice logic
-        if (this.selectedSupplier && this.echeances.length === 0 && !this.isEditMode) {
-            const echeanceArray = this.selectedSupplier.convention?.echeancePaiement || [];
-            const conditions = (echeanceArray[0] || this.selectedSupplier.conditionsPaiement2 || this.selectedSupplier.conditionsPaiement || '').trim();
+        if (this.selectedSupplier) {
+            this.applyPaymentConditions(this.selectedSupplier);
+        }
+    }
 
-            if (!conditions) return;
+    manualApplyConditions() {
+        if (this.selectedSupplier) {
+            if (confirm('Voulez-vous écraser les échéances actuelles par les conditions par défaut du fournisseur ?')) {
+                this.applyPaymentConditions(this.selectedSupplier);
+                // Force UI update
+                this.cdr.detectChanges();
+            }
+        } else {
+            this.snackBar.open('Veuillez d\'abord sélectionner un fournisseur', 'OK', { duration: 3000 });
+        }
+    }
 
-            const conditionsLower = conditions.toLowerCase();
-            let finalDate = new Date(); // Default basis
+    private isSameDay(d1: any, d2: any): boolean {
+        if (!d1 || !d2) return false;
+        const date1 = new Date(d1);
+        const date2 = new Date(d2);
+        return date1.getFullYear() === date2.getFullYear() &&
+            date1.getMonth() === date2.getMonth() &&
+            date1.getDate() === date2.getDate();
+    }
 
-            if (conditionsLower === 'comptant' || conditionsLower === 'espèces') {
-                this.addEcheance({
-                    type: 'ESPECES',
-                    dateEcheance: finalDate.toISOString(),
-                    statut: 'EN_ATTENTE',
-                    montant: 0
-                });
-            } else if (conditionsLower.includes('30 jours') || conditionsLower.includes('30jours')) {
-                finalDate.setDate(finalDate.getDate() + 30);
-                this.addEcheance({
-                    type: 'CHEQUE',
-                    dateEcheance: finalDate.toISOString(),
-                    statut: 'EN_ATTENTE',
-                    montant: 0
-                });
-            } else if (conditionsLower.includes('60 jours') || conditionsLower.includes('60jours')) {
-                finalDate.setDate(finalDate.getDate() + 60);
-                // Generate 2 payments: 30, 60 days
-                for (let i = 1; i <= 2; i++) {
-                    const date = new Date();
-                    date.setDate(date.getDate() + (30 * i));
-                    this.addEcheance({
-                        type: 'LCN',
-                        dateEcheance: date.toISOString(),
-                        statut: 'EN_ATTENTE',
-                        montant: 0
-                    });
+    applyPaymentConditions(supplier: Supplier) {
+        const echeanceArray = supplier.convention?.echeancePaiement || [];
+        const conditions = (echeanceArray[0] || supplier.conditionsPaiement2 || supplier.conditionsPaiement || '').trim();
+
+        console.log(`[InvoiceForm] Applying conditions: "${conditions}" for supplier ${supplier.nom}`);
+
+        if (!conditions) {
+            console.log('[InvoiceForm] No conditions found for this supplier.');
+            this.snackBar.open(`Aucune modalité de paiement définie pour ${supplier.nom}`, 'INFO', { duration: 3000 });
+            return;
+        }
+
+        const conditionsLower = conditions.toLowerCase();
+        this.snackBar.open(`Conditions détectées: "${conditions}"`, 'OK', { duration: 4000 });
+
+        const emissionDate = new Date(this.detailsGroup.get('dateEmission')?.value || new Date());
+        const previousEcheances = this.echeances.value;
+
+        // PRESERVE: Logic to check if we should keep existing dates
+        // We only preserve manual dates if the user actually changed them from the default (Today/Emission date)
+        const getPreservedDate = (index: number, defaultDate: Date): string => {
+            const existing = previousEcheances[index];
+            if (existing && existing.dateEcheance) {
+                // If existing date is different from emission date, we consider it "manual" or "calculée" and keep it
+                if (!this.isSameDay(existing.dateEcheance, emissionDate)) {
+                    return existing.dateEcheance;
                 }
-            } else if (conditionsLower.includes('90 jours') || conditionsLower.includes('90jours')) {
-                finalDate.setDate(finalDate.getDate() + 90);
-                // Generate 3 payments: 30, 60, 90 days
-                for (let i = 1; i <= 3; i++) {
-                    const date = new Date();
-                    date.setDate(date.getDate() + (30 * i));
-                    this.addEcheance({
-                        type: 'CHEQUE',
-                        dateEcheance: date.toISOString(),
-                        statut: 'EN_ATTENTE',
-                        montant: 0
-                    });
-                }
-            } else if (conditionsLower.includes('fin de mois')) {
-                // Last day of current month
-                finalDate.setMonth(finalDate.getMonth() + 1);
-                finalDate.setDate(0);
+            }
+            return defaultDate.toISOString();
+        };
+
+        this.echeances.clear();
+
+        if (conditionsLower.includes('comptant') || conditionsLower.includes('espèces')) {
+            console.log('[InvoiceForm] Condition matched: COMPTANT/ESPECES');
+            const existing = previousEcheances[0];
+            this.addEcheance({
+                type: (existing?.type === 'ESPECES' || existing?.type === 'CHEQUE') ? existing.type : 'ESPECES',
+                dateEcheance: getPreservedDate(0, emissionDate),
+                statut: 'EN_ATTENTE',
+                montant: 0
+            });
+        } else if (conditionsLower.match(/r[eé]partie?\s*sur\s*(\d+)\s*mois/)) {
+            const match = conditionsLower.match(/r[eé]partie?\s*sur\s*(\d+)\s*mois/);
+            const months = parseInt(match![1], 10);
+            console.log(`[InvoiceForm] Condition matched: REPARTIE SUR ${months} MOIS`);
+
+            for (let i = 1; i <= months; i++) {
+                const targetDate = new Date(emissionDate);
+                targetDate.setMonth(targetDate.getMonth() + i);
+
+                const existing = previousEcheances[i - 1];
+                // Use existing type if it's already a standard paper/bank type, else default to CHEQUE for split payments
+                let type = existing?.type || 'CHEQUE';
+                if (type === 'ESPECES' && months > 1) type = 'CHEQUE'; // Avoid 'ESPECES' for split installments
+
                 this.addEcheance({
-                    type: 'VIREMENT',
-                    dateEcheance: finalDate.toISOString(),
+                    type: type,
+                    reference: existing?.reference || '',
+                    banque: existing?.banque || (supplier.banque || ''),
+                    dateEcheance: getPreservedDate(i - 1, targetDate),
                     statut: 'EN_ATTENTE',
                     montant: 0
                 });
             }
+        } else if (conditionsLower.includes('60 jours') || conditionsLower.includes('60jours')) {
+            console.log('[InvoiceForm] Condition matched: 60 JOURS (Split 50/50)');
+            const totalTTC = this.detailsGroup.get('montantTTC')?.value || 0;
+            const splitAmount = Math.floor((totalTTC / 2) * 100) / 100;
+            const remainder = Math.round((totalTTC - (splitAmount * 2)) * 100) / 100;
 
-            // Fix 1: Always update the invoice due date
-            this.detailsGroup.get('dateEcheance')?.setValue(finalDate);
+            // +1 Month (approx 30 days but user wants 09/02 for 09/01)
+            const d1 = new Date(emissionDate);
+            d1.setMonth(d1.getMonth() + 1);
 
-            // Fix 2: Always trigger redistribution to set amounts
-            // This ensures that even if montantTTC was already set, the new installments get their share
+            // +2 Months
+            const d2 = new Date(emissionDate);
+            d2.setMonth(d2.getMonth() + 2);
+
+            const existing1 = previousEcheances[0];
+            const existing2 = previousEcheances[1];
+
+            let type1 = existing1?.type || 'CHEQUE';
+            if (type1 === 'ESPECES') type1 = 'CHEQUE'; // Force uniform non-cash for splits
+
+            this.addEcheance({
+                type: type1,
+                reference: existing1?.reference || '',
+                banque: existing1?.banque || (supplier.banque || ''),
+                dateEcheance: getPreservedDate(0, d1),
+                statut: 'EN_ATTENTE',
+                montant: splitAmount
+            });
+
+            let type2 = existing2?.type || 'CHEQUE';
+            if (type2 === 'ESPECES') type2 = 'CHEQUE';
+
+            this.addEcheance({
+                type: type2,
+                reference: existing2?.reference || '',
+                banque: existing2?.banque || (supplier.banque || ''),
+                dateEcheance: getPreservedDate(1, d2),
+                statut: 'EN_ATTENTE',
+                montant: splitAmount + remainder
+            });
+
+            this.snackBar.open(`Conditions appliquées: 60 jours (2 échéances)`, 'OK', { duration: 4000 });
+
+        } else if (conditionsLower.includes('90 jours') || conditionsLower.includes('90jours')) {
+            console.log('[InvoiceForm] Condition matched: 90 JOURS (Split 1/3 each)');
+            const totalTTC = this.detailsGroup.get('montantTTC')?.value || 0;
+            const splitAmount = Math.floor((totalTTC / 3) * 100) / 100;
+            const remainder = Math.round((totalTTC - (splitAmount * 3)) * 100) / 100;
+
+            for (let i = 1; i <= 3; i++) {
+                const targetDate = new Date(emissionDate);
+                targetDate.setMonth(targetDate.getMonth() + i);
+
+                const amt = (i === 3) ? (splitAmount + remainder) : splitAmount;
+                const existing = previousEcheances[i - 1];
+                let type = existing?.type || 'CHEQUE';
+                if (type === 'ESPECES') type = 'CHEQUE';
+
+                this.addEcheance({
+                    type: type,
+                    reference: existing?.reference || '',
+                    banque: existing?.banque || (supplier.banque || ''),
+                    dateEcheance: getPreservedDate(i - 1, targetDate),
+                    statut: 'EN_ATTENTE',
+                    montant: amt
+                });
+            }
+            this.snackBar.open(`Conditions appliquées: 90 jours (3 échéances)`, 'OK', { duration: 4000 });
+
+        } else if (conditionsLower.includes('30 jours') || conditionsLower.includes('30jours')) {
+            console.log('[InvoiceForm] Condition matched: 30 JOURS');
+            const totalTTC = this.detailsGroup.get('montantTTC')?.value || 0;
+            const targetDate = new Date(emissionDate);
+            targetDate.setMonth(targetDate.getMonth() + 1);
+
+            const existing = previousEcheances[0];
+            let type = existing?.type || 'CHEQUE';
+            if (type === 'ESPECES') type = 'CHEQUE';
+
+            this.addEcheance({
+                type: type,
+                reference: existing?.reference || '',
+                banque: existing?.banque || (supplier.banque || ''),
+                dateEcheance: getPreservedDate(0, targetDate),
+                statut: 'EN_ATTENTE',
+                montant: totalTTC
+            });
+            this.snackBar.open(`Conditions appliquées: 30 jours (1 échéance)`, 'OK', { duration: 4000 });
+        } else if (conditionsLower.includes('fin de mois')) {
+            console.log('[InvoiceForm] Condition matched: FIN DE MOIS');
+            const targetDate = new Date(emissionDate);
+            targetDate.setMonth(targetDate.getMonth() + 1);
+            targetDate.setDate(0);
+            const existing = previousEcheances[0];
+            this.addEcheance({
+                type: existing?.type || 'VIREMENT',
+                reference: existing?.reference || '',
+                banque: existing?.banque || (supplier.banque || ''),
+                dateEcheance: getPreservedDate(0, targetDate),
+                statut: 'EN_ATTENTE',
+                montant: 0
+            });
+        } else {
+            console.log('[InvoiceForm] No specific condition matched, triggering manual handling or default.');
+        }
+
+        // Logic to update the invoice due date remains in the addEcheance sync or handled here
+        this.updateInvoiceDueDateFromEcheances();
+        this.cdr.detectChanges();
+
+        if (!conditionsLower.includes('60 jours') && !conditionsLower.includes('90 jours')) {
             this.redistributeAmountAcrossEcheances();
         }
     }
+
+    private updateInvoiceDueDateFromEcheances() {
+        if (this.echeances.length > 0) {
+            const dates = this.echeances.controls
+                .map(c => c.get('dateEcheance')?.value)
+                .filter(v => !!v)
+                .map(v => new Date(v));
+            if (dates.length > 0) {
+                const maxDate = new Date(Math.max.apply(null, dates.map(d => d.getTime())));
+                const currentInvoiceDate = this.detailsGroup.get('dateEcheance')?.value;
+
+                if (!currentInvoiceDate || !this.isSameDay(currentInvoiceDate, maxDate)) {
+                    this.detailsGroup.get('dateEcheance')?.setValue(maxDate, { emitEvent: false });
+                }
+            }
+        }
+    }
+
 
     private redistributeAmountAcrossEcheances() {
         const montantTTC = this.detailsGroup.get('montantTTC')?.value || 0;
         const echeancesCount = this.echeances.length;
 
         if (echeancesCount > 0 && montantTTC > 0) {
-            const montantParEcheance = Math.round((montantTTC / echeancesCount) * 100) / 100;
+            let montantParEcheance = Math.floor((montantTTC / echeancesCount) * 100) / 100;
+            let remainder = Math.round((montantTTC - (montantParEcheance * echeancesCount)) * 100) / 100;
 
             this.echeances.controls.forEach((control, index) => {
-                control.patchValue({ montant: montantParEcheance }, { emitEvent: false });
+                let amount = montantParEcheance;
+                // Add remainder to the last installment to ensure total matches exactly
+                if (index === echeancesCount - 1) {
+                    amount += remainder;
+                    // Fix floating point issues
+                    amount = Math.round(amount * 100) / 100;
+                }
+
+                // Only update if value is different to avoid loops
+                if (control.get('montant')?.value !== amount) {
+                    control.patchValue({ montant: amount }, { emitEvent: false });
+                }
             });
 
-            console.log(`[InvoiceForm] Redistributed ${montantTTC} MAD across ${echeancesCount} installments (${montantParEcheance} each)`);
+            console.log(`[InvoiceForm] Redistributed ${montantTTC} MAD across ${echeancesCount} installments`);
         }
     }
 
@@ -478,26 +699,28 @@ export class InvoiceFormDialogComponent implements OnInit {
     }
 
     calculateFromHT() {
-        const ht = this.detailsGroup.get('montantHT')?.value || 0;
+        const ht = Math.round((this.detailsGroup.get('montantHT')?.value || 0) * 100) / 100;
         const taux = this.detailsGroup.get('tauxTVA')?.value || 0;
         const tva = Math.round(ht * (taux / 100) * 100) / 100;
         const ttc = Math.round((ht + tva) * 100) / 100;
 
         this.detailsGroup.patchValue({
+            montantHT: ht,
             montantTVA: tva,
             montantTTC: ttc
         }, { emitEvent: false });
     }
 
     calculateFromTTC() {
-        const ttc = this.detailsGroup.get('montantTTC')?.value || 0;
+        const ttc = Math.round((this.detailsGroup.get('montantTTC')?.value || 0) * 100) / 100;
         const taux = this.detailsGroup.get('tauxTVA')?.value || 0;
         const ht = Math.round((ttc / (1 + taux / 100)) * 100) / 100;
         const tva = Math.round((ttc - ht) * 100) / 100;
 
         this.detailsGroup.patchValue({
             montantHT: ht,
-            montantTVA: tva
+            montantTVA: tva,
+            montantTTC: ttc
         }, { emitEvent: false });
     }
 
@@ -511,6 +734,68 @@ export class InvoiceFormDialogComponent implements OnInit {
             statut: [echeance?.statut || 'EN_ATTENTE', Validators.required],
             banque: [echeance?.banque || (this.selectedSupplier?.banque || ''), Validators.required]
         });
+
+        // Dynamic validation based on type
+        group.get('type')?.valueChanges.subscribe(type => {
+            console.log('[InvoiceForm] Echeance type changed to:', type);
+            const banqueCtrl = group.get('banque');
+            const refCtrl = group.get('reference');
+
+            if (type === 'ESPECES') {
+                banqueCtrl?.clearValidators();
+                banqueCtrl?.disable({ emitEvent: false }); // Disable to exclude from validity
+                banqueCtrl?.setValue('');
+
+                refCtrl?.clearValidators();
+                refCtrl?.disable({ emitEvent: false });
+                refCtrl?.setValue('');
+            } else {
+                banqueCtrl?.setValidators([Validators.required]);
+                banqueCtrl?.enable({ emitEvent: false });
+
+                refCtrl?.enable({ emitEvent: false });
+            }
+            banqueCtrl?.updateValueAndValidity();
+            refCtrl?.updateValueAndValidity();
+        });
+
+        // SYNC: Update main invoice due date when an installment date changes
+        const syncInvoiceDate = () => {
+            if (this.echeances.length > 0) {
+                const dates = this.echeances.controls
+                    .map(c => c.get('dateEcheance')?.value)
+                    .filter(v => !!v)
+                    .map(v => new Date(v));
+                if (dates.length > 0) {
+                    const maxDate = new Date(Math.max.apply(null, dates.map(d => d.getTime())));
+                    const currentInvoiceDate = this.detailsGroup.get('dateEcheance')?.value;
+
+                    // Only update if it's actually different to avoid unnecessary triggers
+                    if (!currentInvoiceDate || new Date(currentInvoiceDate).getTime() !== maxDate.getTime()) {
+                        this.detailsGroup.get('dateEcheance')?.setValue(maxDate, { emitEvent: false });
+                    }
+                }
+            }
+        };
+
+        group.get('dateEcheance')?.valueChanges.subscribe(() => syncInvoiceDate());
+
+        // Also trigger on creation to ensure initial state is correct
+        syncInvoiceDate();
+
+        // Trigger initial check
+        const initialType = group.get('type')?.value;
+        if (initialType === 'ESPECES') {
+            const banqueCtrl = group.get('banque');
+            const refCtrl = group.get('reference');
+            banqueCtrl?.clearValidators();
+            banqueCtrl?.disable({ emitEvent: false });
+            refCtrl?.clearValidators();
+            refCtrl?.disable({ emitEvent: false });
+            banqueCtrl?.updateValueAndValidity();
+            refCtrl?.updateValueAndValidity();
+        }
+
         this.echeances.push(group);
     }
 
@@ -618,18 +903,128 @@ export class InvoiceFormDialogComponent implements OnInit {
                 this.finalize(invoiceData);
             }
         } else {
-            this.financeService.createInvoice(invoiceData).subscribe({
-                next: res => {
-                    this.snackBar.open('Enregistrement réussi', 'Fermer', { duration: 3000 });
-                    this.finalize(res);
-                },
-                error: (err) => {
-                    this.submitting = false;
-                    const msg = this.getErrorMessage(err);
-                    this.snackBar.open(msg || 'Erreur lors de la création', 'Fermer', { duration: 7000 });
+            // Before creating invoice, check expense ceiling for current month
+            // Only count échéances (payment schedules) that fall within the current month
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+
+            const echeances = invoiceData.echeances || [];
+            const monthlyPaymentAmount = echeances.reduce((sum: number, ech: any) => {
+                const echeanceDate = new Date(ech.dateEcheance);
+                const echMonth = echeanceDate.getMonth();
+                const echYear = echeanceDate.getFullYear();
+
+                // Only count active (=not cancelled) installments that fall within the current month
+                if (echMonth === currentMonth && echYear === currentYear && ech.statut !== 'ANNULE') {
+                    return sum + (Number(ech.montant) || 0);
                 }
-            });
+                return sum;
+            }, 0);
+
+            // Get current centre for ceiling check
+            const centreId = invoiceData.centreId || this.currentCentre()?.id;
+
+            // Check ceiling if there are payments this month
+            if (monthlyPaymentAmount > 0 && centreId) {
+                this.financeService.getTreasurySummary(currentYear, currentMonth + 1, centreId).pipe(
+                    switchMap(summary => {
+                        const threshold = summary?.monthlyThreshold || 50000;
+                        const totalWithEntry = (summary?.totalExpenses || 0) + monthlyPaymentAmount;
+
+                        if (totalWithEntry > threshold) {
+                            return this.financeService.getYearlyProjection(currentYear, centreId).pipe(
+                                switchMap(projection => {
+                                    const dialogRef = this.dialog.open(CeilingWarningDialogComponent, {
+                                        width: '600px',
+                                        disableClose: true,
+                                        data: {
+                                            amount: monthlyPaymentAmount,
+                                            currentDetails: {
+                                                totalExpenses: summary.totalExpenses,
+                                                monthlyThreshold: threshold,
+                                                balance: summary.balance
+                                            },
+                                            projection: projection,
+                                            currentMonth: currentMonth,
+                                            currentYear: currentYear
+                                        }
+                                    });
+                                    return dialogRef.afterClosed();
+                                })
+                            );
+                        }
+                        return of({ action: 'FORCE' });
+                    })
+                ).subscribe((result: any) => {
+                    if (!result || result.action === 'CANCEL') {
+                        this.submitting = false;
+                        return;
+                    }
+
+                    if (result.action === 'RESCHEDULE' && result.date) {
+                        const targetDateStr = result.date.toISOString();
+
+                        // Reschedule logic: Move ALL installments that fall in the current month 
+                        // to the target month to ensure we actually clear the ceiling breach.
+                        let movedAny = false;
+                        (invoiceData.echeances || []).forEach((ech: any) => {
+                            const d = new Date(ech.dateEcheance);
+                            if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                                ech.dateEcheance = targetDateStr;
+                                movedAny = true;
+                            }
+                        });
+
+                        // Also update the main invoice-level dateEcheance if it was in the current month
+                        const mainDate = new Date(invoiceData.dateEcheance);
+                        if (mainDate.getMonth() === currentMonth && mainDate.getFullYear() === currentYear) {
+                            invoiceData.dateEcheance = targetDateStr;
+                        } else if (movedAny) {
+                            // If we moved installments but not the main date, 
+                            // we should still ensure the main date is at least as late as the latest installment
+                            invoiceData.dateEcheance = targetDateStr;
+                        }
+                    }
+
+                    // Proceed with creation
+                    this.createInvoiceAfterCeilingCheck(invoiceData);
+                });
+            } else {
+                // No payments this month or no centre, proceed directly
+                this.createInvoiceAfterCeilingCheck(invoiceData);
+            }
         }
+    }
+
+    private createInvoiceAfterCeilingCheck(invoiceData: any) {
+        this.financeService.createInvoice(invoiceData).subscribe({
+            next: res => {
+                this.snackBar.open('Enregistrement réussi', 'Fermer', { duration: 3000 });
+
+                const stockTypes = ['ACHAT_VERRE_OPTIQUE', 'ACHAT_MONTURES_OPTIQUE', 'ACHAT_MONTURES_SOLAIRE', 'ACHAT_LENTILLES', 'ACHAT_PRODUITS', 'ACHAT_STOCK'];
+                if (stockTypes.includes(res.type)) {
+                    const feedStock = confirm('Facture enregistrée. Souhaitez-vous maintenant alimenter le stock avec les articles de cette facture ?');
+                    if (feedStock) {
+                        this.dialogRef.close(res);
+                        this.router.navigate(['/p/stock/entry-v2'], {
+                            queryParams: {
+                                prefillInvoice: res.numeroFacture,
+                                prefillSupplier: res.fournisseurId,
+                                prefillDate: res.dateEmission
+                            }
+                        });
+                        return;
+                    }
+                }
+                this.finalize(res);
+            },
+            error: (err) => {
+                this.submitting = false;
+                const msg = this.getErrorMessage(err);
+                this.snackBar.open(msg || 'Erreur lors de la création', 'Fermer', { duration: 7000 });
+            }
+        });
     }
 
     private getErrorMessage(err: any): string {

@@ -181,13 +181,29 @@ export class OcrService {
         const totalMatch = cleanText.match(totalRegex);
         if (totalMatch) result.total = parseFloat(totalMatch[1].replace(/\s/g, ''));
 
-        // B. Extract Date
-        const dateRegex = /(\d{2}[/-]\d{2}[/-]\d{4})/;
-        const dateMatch = cleanText.match(dateRegex);
+        // B. Extract Date with Context
+        // Look for common date formats near labels like "Date", "Le", "Emis"
+        const dateRegex = /(?:date|le|emis|du)[\s:]*(\d{2}[/-]\d{2}[/-]\d{4})/i;
+        const fallbackDateRegex = /(\d{2}[/-]\d{2}[/-]\d{4})/;
+
+        let dateMatch = cleanText.match(dateRegex);
+        if (!dateMatch) dateMatch = cleanText.match(fallbackDateRegex);
+
         if (dateMatch) {
             const parts = dateMatch[1].split(/[-/]/);
             if (parts.length === 3) {
-                result.date = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                const detectedDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                const now = new Date();
+                const oneYearFromNow = new Date();
+                oneYearFromNow.setFullYear(now.getFullYear() + 1);
+
+                // Validation: Avoid obvious future junk dates (e.g. > 1 year in the future)
+                if (!isNaN(detectedDate.getTime()) && detectedDate <= oneYearFromNow) {
+                    result.date = detectedDate;
+                    console.log(`[OCR] Valid date detected: ${detectedDate.toLocaleDateString()}`);
+                } else {
+                    console.warn(`[OCR] Ignored suspicious future date: ${dateMatch[1]}`);
+                }
             }
         }
 

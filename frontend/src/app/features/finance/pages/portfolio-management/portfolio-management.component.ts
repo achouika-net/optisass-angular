@@ -41,6 +41,7 @@ import { FormsModule } from '@angular/forms';
           <mat-form-field appearance="outline" subscriptSizing="dynamic" class="!w-44 dense-form-field">
             <mat-label>Mois</mat-label>
             <mat-select [(ngModel)]="currentMonth" (selectionChange)="loadData()">
+              <mat-option [value]="0">Tous les mois</mat-option>
               <mat-option *ngFor="let m of months" [value]="m.value">{{ m.label }}</mat-option>
             </mat-select>
           </mat-form-field>
@@ -60,7 +61,7 @@ import { FormsModule } from '@angular/forms';
       <!-- Subtotals -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <mat-card class="kpi-card border-l-4 border-blue-500">
-          <div class="kpi-label">En Portefeuille</div>
+          <div class="kpi-label">À Venir / En Portefeuille</div>
           <div class="kpi-value text-blue-600">{{ totals.inHand | number:'1.2-2' }} DH</div>
           <div class="w-full bg-blue-100 h-1 rounded-full mt-2"></div>
         </mat-card>
@@ -80,14 +81,14 @@ import { FormsModule } from '@angular/forms';
 
       <mat-card class="main-card">
         <mat-tab-group (selectedTabChange)="onTabChange($event)">
-          <mat-tab label="Chèques à Encaisser (Clients)">
+          <mat-tab label="Encaissements (Clients)">
             <ng-template matTabContent>
               <div class="p-6 border-b border-slate-50 grid grid-cols-1 lg:grid-cols-2 gap-4 items-center">
                 <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
                   <mat-label>Filtrer par statut</mat-label>
                   <mat-select [(ngModel)]="statusFilter" (ngModelChange)="loadData()">
                     <mat-option value="ALL">Tous les statuts</mat-option>
-                    <mat-option value="EN_ATTENTE">En Portefeuille</mat-option>
+                    <mat-option value="EN_ATTENTE">À Encaisser / Portefeuille</mat-option>
                     <mat-option value="REMIS_EN_BANQUE">Remis en Banque</mat-option>
                     <mat-option value="ENCAISSE">Encaissé</mat-option>
                   </mat-select>
@@ -96,9 +97,11 @@ import { FormsModule } from '@angular/forms';
                 <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
                   <mat-label>Type</mat-label>
                   <mat-select [(ngModel)]="modeFilter" (ngModelChange)="loadData()">
-                    <mat-option value="CHEQUE,LCN">Tous (Chèque & LCN)</mat-option>
+                    <mat-option value="CHEQUE,LCN,VIREMENT,ESPECES">Tous les modes</mat-option>
                     <mat-option value="CHEQUE">Chèque uniquement</mat-option>
                     <mat-option value="LCN">LCN uniquement</mat-option>
+                    <mat-option value="VIREMENT">Virement uniquement</mat-option>
+                    <mat-option value="ESPECES">Espèces uniquement</mat-option>
                   </mat-select>
                 </mat-form-field>
               </div>
@@ -194,14 +197,14 @@ import { FormsModule } from '@angular/forms';
             </ng-template>
           </mat-tab>
           
-          <mat-tab label="Chèques à Décaisser (Fournisseurs)">
+          <mat-tab label="Décaissements (Fournisseurs)">
              <ng-template matTabContent>
                 <div class="p-6 border-b border-slate-50 grid grid-cols-1 lg:grid-cols-2 gap-4 items-center">
                   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
                     <mat-label>Filtrer par statut</mat-label>
                     <mat-select [(ngModel)]="statusFilter" (ngModelChange)="loadData()">
                       <mat-option value="ALL">Tous les statuts</mat-option>
-                      <mat-option value="EN_ATTENTE">En Portefeuille</mat-option>
+                      <mat-option value="EN_ATTENTE">À Décaisser / Portefeuille</mat-option>
                       <mat-option value="PAYE">Payé</mat-option>
                     </mat-select>
                   </mat-form-field>
@@ -209,9 +212,11 @@ import { FormsModule } from '@angular/forms';
                   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
                     <mat-label>Type</mat-label>
                     <mat-select [(ngModel)]="modeFilter" (ngModelChange)="loadData()">
-                      <mat-option value="CHEQUE,LCN">Tous (Chèque & LCN)</mat-option>
+                      <mat-option value="CHEQUE,LCN,VIREMENT,ESPECES">Tous les modes</mat-option>
                       <mat-option value="CHEQUE">Chèque uniquement</mat-option>
                       <mat-option value="LCN">LCN uniquement</mat-option>
+                      <mat-option value="VIREMENT">Virement uniquement</mat-option>
+                      <mat-option value="ESPECES">Espèces uniquement</mat-option>
                     </mat-select>
                   </mat-form-field>
                 </div>
@@ -383,13 +388,21 @@ export class PortfolioManagementComponent implements OnInit {
   loadData() {
     this.loading = true;
 
-    // Calculate date range for the selected month
-    const startDate = new Date(this.currentYear, this.currentMonth - 1, 1).toISOString();
-    const endDate = new Date(this.currentYear, this.currentMonth, 0, 23, 59, 59).toISOString();
+    let startDate: string | undefined;
+    let endDate: string | undefined;
+
+    if (this.currentMonth > 0) {
+      startDate = new Date(this.currentYear, this.currentMonth - 1, 1).toISOString();
+      endDate = new Date(this.currentYear, this.currentMonth, 0, 23, 59, 59).toISOString();
+    } else {
+      // Tous les mois de l'année sélectionnée
+      startDate = new Date(this.currentYear, 0, 1).toISOString();
+      endDate = new Date(this.currentYear, 11, 31, 23, 59, 59).toISOString();
+    }
 
     const filters = {
       mode: this.modeFilter,
-      statut: this.statusFilter !== 'ALL' ? this.statusFilter : undefined,
+      statut: this.statusFilter,
       startDate,
       endDate
     };
@@ -412,19 +425,19 @@ export class PortfolioManagementComponent implements OnInit {
   }
 
   calculateTotals() {
-    // Basic aggregation for current view
     this.totals = {
-      inHand: this.items.filter(i => i.statut === 'EN_ATTENTE' || i.statut === 'PORTEFEUILLE').reduce((acc, i) => acc + Math.abs(i.montant), 0),
-      deposited: this.items.filter(i => i.statut === 'REMIS_EN_BANQUE' || i.statut === 'DÉPOSÉ').reduce((acc, i) => acc + Math.abs(i.montant), 0),
-      paid: this.items.filter(i => i.statut === 'ENCAISSE' || i.statut === 'PAYÉ' || i.statut === 'PAYE').reduce((acc, i) => acc + Math.abs(i.montant), 0)
+      inHand: this.items.filter(i => ['EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON'].includes(i.statut.toUpperCase())).reduce((acc, i) => acc + Math.abs(i.montant), 0),
+      deposited: this.items.filter(i => ['REMIS_EN_BANQUE', 'DEPOSE', 'DÉPOSÉ'].includes(i.statut.toUpperCase())).reduce((acc, i) => acc + Math.abs(i.montant), 0),
+      paid: this.items.filter(i => ['ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ'].includes(i.statut.toUpperCase())).reduce((acc, i) => acc + Math.abs(i.montant), 0)
     };
   }
 
   getStatusClass(status: string) {
+    if (!status) return 'bg-slate-50 text-slate-700';
     status = status.toUpperCase();
-    if (status.includes('ATTENTE') || status.includes('PORTEFEUILLE')) return 'bg-blue-50 text-blue-700 border border-blue-100';
-    if (status.includes('BANQUE') || status.includes('DEPOS')) return 'bg-amber-50 text-amber-700 border border-amber-100';
-    if (status.includes('ENCAISSE') || status.includes('PAYE')) return 'bg-emerald-50 text-emerald-700 border border-emerald-100';
+    if (['EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON'].some(s => status.includes(s))) return 'bg-blue-50 text-blue-700 border border-blue-100';
+    if (['BANQUE', 'DEPOS'].some(s => status.includes(s))) return 'bg-amber-50 text-amber-700 border border-amber-100';
+    if (['ENCAISSE', 'PAYE', 'VALIDE'].some(s => status.includes(s))) return 'bg-emerald-50 text-emerald-700 border border-emerald-100';
     if (status.includes('REJET')) return 'bg-red-50 text-red-700 border border-red-100';
     return 'bg-slate-50 text-slate-700';
   }
