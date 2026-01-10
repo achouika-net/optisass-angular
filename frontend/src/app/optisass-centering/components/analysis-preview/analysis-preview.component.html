@@ -18,13 +18,60 @@
         <a *ngIf="animUrl" [href]="animUrl" download="optisass_anim.webm">Télécharger animation</a>
     </div>
 
-    <div *ngIf="measures" class="measures"
-        style="margin-top:8px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-        <div style="grid-column: 1 / -1"><strong>Mesures Calculées</strong></div>
-        <div>PD Total: {{measures.pd | number:'1.1-1'}} mm</div>
-        <div>PD G (Img D): {{measures.pdLeft | number:'1.1-1'}} mm</div>
-        <div>PD D (Img G): {{measures.pdRight | number:'1.1-1'}} mm</div>
-        <div>Hauteur G: {{measures.hpLeft | number:'1.1-1'}} mm</div>
-        <div>Hauteur D: {{measures.hpRight | number:'1.1-1'}} mm</div>
+    <div *ngIf="measures" class="measures-container">
+        <!-- 3 Cards Row -->
+        <div class="cards-row">
+            <!-- Card 1: HAUTEUR MONTURE (B) -->
+            <div class="kpi-card green-card">
+                <div class="card-header">
+                    <span class="dot">●</span> HAUTEUR MONTURE (B)
+                </div>
+                <div class="card-value">
+                    {{ measures.frameHeightMM | number:'1.1-1' }} <span class="unit">MM</span>
+                </div>
+            </div>
+
+            <!-- Card 2: DIAMÈTRE UTILE (ED) -->
+            <div class="kpi-card blue-card">
+                <div class="card-header">
+                    <span class="dot">●</span> DIAMÈTRE UTILE (ED)
+                </div>
+                <div class="card-value">
+                    {{ measures.usableDiameterLeft | number:'1.1-1' }}/{{ measures.usableDiameterRight | number:'1.1-1'
+                    }} <span class="unit">MM</span>
+                </div>
+            </div>
+
+            <!-- Card 3: DIAGONALE (Ø MAX) -->
+            <div class="kpi-card yellow-card">
+                <div class="card-header">
+                    <span class="dot">●</span> DIAGONALE (Ø MAX)
+                </div>
+                <div class="card-value">
+                    {{ measures.diagonal | number:'1.1-1' }} <span class="unit">MM</span>
+                    <!-- Note: Using Avg ED as proxy for Diagonal if actual diagonal not available, or I'll calculate logic later -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommendation Banner -->
+        <div class="recommendation-banner">
+            <div class="banner-icon">ⓘ</div>
+            <div class="banner-text">
+                Diamètre utile est <strong>{{ measures.usableDiameterLeft | number:'1.1-1' }}/{{
+                    measures.usableDiameterRight | number:'1.1-1' }} mm</strong>.
+                On ajoute 2 mm marge d'erreur <strong>{{ measures.usableDiameterLeft + 2 | number:'1.1-1' }}/{{
+                    measures.usableDiameterRight + 2 | number:'1.1-1' }} mm (+2mm)</strong>,
+                on commande <strong>{{ measures.standardDiameterLeft }}/{{ measures.standardDiameterRight }} mm</strong>
+            </div>
+        </div>
+
+        <!-- Detailed List (Hidden or below if needed, but user wants clean UI) -->
+        <!-- Keeping basic details small below if needed -->
+        <div class="details-grid">
+            <div>PD Total: {{measures.pd | number:'1.1-1'}} mm</div>
+            <div>PD G: {{measures.pdLeft | number:'1.1-1'}} mm</div>
+            <div>PD D: {{measures.pdRight | number:'1.1-1'}} mm</div>
+        </div>
     </div>
 </div>

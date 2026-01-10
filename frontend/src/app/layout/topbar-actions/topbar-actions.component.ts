@@ -63,11 +63,34 @@ export class TopbarActionsComponent {
       migrated: false
     } as ICenter));
 
-    // Combine with user centers and deduplicate by ID
+    // Aggressive deduplication:
+    // 1. By ID (primary)
+    // 2. By Name (secondary, normalized)
     const all = [...this.userCentres(), ...mappedApiCentres];
-    return all.filter((c, index, self) =>
-      index === self.findIndex((t) => t.id === c.id)
-    );
+    const uniqueMap = new Map();
+    const uniqueNames = new Set();
+
+    all.forEach(c => {
+      // Normalize name for comparison
+      const nameKey = (c.name || c.nom || '').trim().toUpperCase();
+
+      // Skip invalid entries
+      if (!c.id && !nameKey) return;
+
+      // Key Strategy: Use ID if present, otherwise ignore (or generate temp ID?)
+      // If we have an ID, we check map.
+      // If we have a name, we check name set.
+
+      const idExists = c.id && uniqueMap.has(c.id);
+      const nameExists = nameKey && uniqueNames.has(nameKey);
+
+      if (!idExists && !nameExists) {
+        uniqueMap.set(c.id || `temp-${nameKey}`, c);
+        if (nameKey) uniqueNames.add(nameKey);
+      }
+    });
+
+    return Array.from(uniqueMap.values());
   });
 
   logout() {

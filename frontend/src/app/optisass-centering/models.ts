@@ -12,7 +12,13 @@ export interface SimpleMeasureResult {
     hpRight: number;
     shiftLeft: number; // mm (pupille -> centre verre)
     shiftRight: number;
+    usableDiameterLeft?: number; // Diamètre utile calculé
+    usableDiameterRight?: number;
+    standardDiameterLeft?: number; // Diamètre standard fournisseur
+    standardDiameterRight?: number;
     frameHeightMM?: number; // Hauteur totale du verre (B)
+    diagonal?: number; // Diagonale du rectangle englobant (A x B)
+    lensWidthMM?: number; // Largeur A
     pxPerMm: number;
     pupils: Pupils;
     frameGeom: FrameGeometry;

@@ -98,7 +98,7 @@ export class StockEntryV2Component implements OnInit {
     // Staging Data
     stagedProducts: StagedProduct[] = [];
     productsSubject = new BehaviorSubject<StagedProduct[]>([]);
-    displayedColumns: string[] = ['reference', 'codeBarre', 'marque', 'nom', 'categorie', 'quantite', 'prixAchat', 'tva', 'modePrix', 'prixVente', 'actions'];
+    displayedColumns: string[] = ['codeBarre', 'reference', 'marque', 'nom', 'categorie', 'quantite', 'prixAchat', 'tva', 'modePrix', 'prixVente', 'actions'];
 
     // OCR State
     ocrProcessing = false;
@@ -552,68 +552,31 @@ export class StockEntryV2Component implements OnInit {
     useDetectedLine(line: any) {
         // Use structured fields if available, otherwise fallback to raw logic
         const finalPrice = line.computedPrice || (line.priceCandidates && line.priceCandidates[0]) || 0;
+        // MAPPING UPDATE:
+        // User requested:
+        // 1. Code detected in invoice -> Code Barre (UI: "Code")
+        // 2. Ref detected (shortened) -> Reference (UI: "Reference")
+        // 3. Brand -> Marque
+        // 4. Designation -> Nom (Full)
+
+        let codeBarre = line.code || '';
         let reference = line.reference || '';
-        const rawContent = line.raw || '';
+        let marque = line.brand || '';
+        let nom = line.designation || line.raw || '';
 
-        // --- LOGIC UPDATE: Handle Barcode vs Reference ---
-        let codeBarre = '';
-
-        // If 'reference' or raw string looks like a EAN/UPC (8, 12, 13 digits), consider it a barcode
-        // "si dans une facture fournisseur on trouve un code, on peut le considerer comme un code a barre"
+        // Fallback: If no code detected, check if we can infer it
         const isBarcode = (str: string) => /^\d{8}$|^\d{12,14}$/.test(str?.trim());
 
-        if (isBarcode(rawContent)) {
-            codeBarre = rawContent.trim();
-            // If the raw content was JUST a detected barcode, don't use it as reference
-            if (reference === rawContent) reference = '';
-        } else if (isBarcode(reference)) {
-            codeBarre = reference;
-            reference = ''; // Move it to codeBarre
-        }
-
-        // Create a cleaner function to remove detected values from name
-        const cleanDesignation = (text: string, ref: string, qty: number, price: number, disc: number) => {
-            let t = text;
-            if (ref) t = t.replace(ref, '').trim();
-            // Remove Qty + Price + Discount if they appear at the end or as a block
-            // We use a regex to find numbers matching our values
-            const valuesToStrip = [qty.toString(), price.toFixed(2), disc.toFixed(2), disc.toString()];
-            valuesToStrip.forEach(v => {
-                if (v && v !== '0') {
-                    const escaped = v.replace(/\./g, '\\.');
-                    t = t.replace(new RegExp('\\s+' + escaped + '(%|f|DH|MAD)?', 'gi'), '');
-                }
-            });
-            return t.trim();
-        };
-
-        // Use line.designation if available (from parser), else raw
-        const textToClean = line.designation || line.raw || '';
-        let rawNom = cleanDesignation(textToClean, reference, line.qty || 1, finalPrice, line.discount || 0);
-
-        // Split designation into Marque and Nom
-        let marque = '';
-        let nom = rawNom;
-        // Basic heuristic: First word is often Brand if uppercase
-        if (nom.includes(' ') && nom.split(' ')[0] === nom.split(' ')[0].toUpperCase() && nom.split(' ')[0].length > 2) {
-            const parts = nom.split(/\s+/);
-            marque = parts[0];
-            nom = parts.slice(1).join(' ');
-        }
-
-        // Final fallback: if marque looks like a barcode and we don't have one, move it
-        if (!codeBarre && isBarcode(marque)) {
-            codeBarre = marque;
-            reference = marque; // Use it as reference too if missing
-            marque = '';
+        if (!codeBarre && isBarcode(line.raw)) {
+            codeBarre = line.raw.trim();
         }
 
         // Auto-detect category
-        const categorie = this.determineCategory(rawContent);
+        const categorie = this.determineCategory(line.raw || '');
 
         this.entryForm.patchValue({
-            reference: reference, // Supplier Ref
-            codeBarre: codeBarre, // Detected Barcode
+            reference: reference,
+            codeBarre: codeBarre,
             nom: nom,
             marque: marque,
             categorie: categorie,
@@ -650,56 +613,21 @@ export class StockEntryV2Component implements OnInit {
         this.detectedLines.forEach((line, index) => {
             try {
                 const prixAchat = line.computedPrice || (line.priceCandidates && line.priceCandidates[0]) || 0;
+
+                // MAPPING UPDATE FOR BULK ADD:
+                const codeBarre = line.code || '';
                 const reference = line.reference || '';
-                const rawContent = line.raw || '';
-
-                // Improved Barcode Logic (Sync with useDetectedLine)
-                let codeBarre = '';
-                const isBarcode = (str: string) => /^\d{8}$|^\d{12,14}$/.test(str?.trim());
-
-                if (isBarcode(rawContent)) {
-                    codeBarre = rawContent.trim();
-                } else if (isBarcode(reference)) {
-                    codeBarre = reference;
-                }
-
-                const rawNom = cleanDesignation(line.designation || rawContent, reference, line.qty || 1, prixAchat, line.discount || 0);
-
-                let marque = '';
-                let nom = rawNom;
-                if (nom.includes(' ')) {
-                    const parts = nom.split(/\s+/);
-                    marque = parts[0];
-                    nom = parts.slice(1).join(' ');
-                }
-
-                // Final fallback: if marque looks like a barcode and we don't have one, move it
-                let finalRef = reference;
-                let finalCodeBarre = codeBarre;
-                if (!finalCodeBarre && isBarcode(marque)) {
-                    finalCodeBarre = marque;
-                    if (!finalRef) finalRef = marque;
-                    marque = '';
-                }
-
-                // Last check: if we still have no codeBarre but first word of 'nom' is a long number
-                if (!finalCodeBarre) {
-                    const firstWord = nom.split(/\s+/)[0];
-                    if (isBarcode(firstWord)) {
-                        finalCodeBarre = firstWord;
-                        if (!finalRef) finalRef = firstWord;
-                        nom = nom.replace(firstWord, '').trim();
-                    }
-                }
+                const marque = line.brand || '';
+                const nom = line.designation || line.raw || ''; // Full designation as requested
 
                 // Auto-detect category
-                const categorie = this.determineCategory(rawContent);
+                const categorie = this.determineCategory(line.raw || '');
 
                 const product: StagedProduct = {
                     tempId: crypto.randomUUID(),
-                    reference: finalRef || 'SANS-REF',
-                    codeBarre: finalCodeBarre,
-                    nom: nom || 'Produit sans nom',
+                    reference: reference || 'SANS-REF',
+                    codeBarre: codeBarre,
+                    nom: nom,
                     marque: marque || 'Sans Marque',
                     categorie: categorie,
                     quantite: line.qty || 1,
@@ -712,6 +640,8 @@ export class StockEntryV2Component implements OnInit {
                 };
 
                 newProducts.push(product);
+
+
             } catch (err) {
                 console.error(`[OCR] Fatal error processing line ${index}:`, err, line);
             }

@@ -15,7 +15,7 @@ import { Entrepot } from '../../../../shared/interfaces/warehouse.interface';
 import { WarehousesService } from '../../../warehouses/services/warehouses.service';
 import { StagedProduct } from '../../pages/stock-entry-v2/stock-entry-v2.component';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
-import { switchMap, finalize } from 'rxjs/operators';
+import { switchMap, finalize, tap, shareReplay, catchError } from 'rxjs/operators';
 import { StockAlimentationService, BulkAlimentationPayload } from '../../services/stock-alimentation.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { FinanceService } from '../../../finance/services/finance.service';
@@ -389,8 +389,22 @@ export class StockAlimentationDialogComponent implements OnInit {
     });
 
     // 2. Fetch warehouses
+    // 2. Fetch warehouses - Robust handling
+    // 2. Fetch warehouses - Robust handling with Logging
     this.warehouses$ = this.store.select(UserCurrentCentreSelector).pipe(
-      switchMap(center => this.warehousesService.findAll(center?.id))
+      tap(center => console.log('DEBUG: StockAlimentation - Current Center detected:', center)),
+      switchMap(center => {
+        const centerId = center?.id;
+        console.log('DEBUG: StockAlimentation - Fetching warehouses for Center ID:', centerId || 'ALL');
+        return this.warehousesService.findAll(centerId).pipe(
+          tap(whs => console.log('DEBUG: StockAlimentation - Warehouses received:', whs)),
+          catchError(err => {
+            console.error('DEBUG: StockAlimentation - Error fetching warehouses:', err);
+            return of([]);
+          })
+        );
+      }),
+      shareReplay(1)
     );
   }
 
