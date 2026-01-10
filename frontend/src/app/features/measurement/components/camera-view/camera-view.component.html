@@ -5,7 +5,16 @@
             (mousemove)="onMouseMove($event)" (mouseup)="onMouseUp()" (mouseleave)="onMouseUp()">
         </canvas>
 
-        @if (!isReady) {
+        @if (cameraError) {
+        <div class="loading-overlay" style="background: rgba(0,0,0,0.85); color: #ff6b6b; z-index: 20;">
+            <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+            <p style="text-align:center; max-width: 80%;">{{ cameraError }}</p>
+            <button (click)="startCamera()"
+                style="margin-top:20px; padding: 10px 20px; background: white; color: black; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                Réessayer
+            </button>
+        </div>
+        } @else if (!isReady) {
         <div class="loading-overlay">
             <div class="spinner"></div>
             <p>Chargement du système de détection...</p>
@@ -70,6 +79,25 @@
             }
             } @else {
             <p class="no-data">Aucune mesure disponible</p>
+            }
+            @if (latestMeasurement?.edMm) {
+            <div class="measurement-item" style="border-top: 1px dashed #cbd5e1; margin-top: 8px; padding-top: 8px;">
+                <span class="label">Diamètre Utile (Calc):</span>
+                <span class="value">{{ latestMeasurement!.edMm.toFixed(1) }} mm</span>
+            </div>
+            }
+            @if (latestMeasurement?.standardDiameterMm) {
+            <div class="recommendation-banner-mini"
+                style="background: #f0f4ff; border: 1px solid #dbeafe; border-radius: 8px; padding: 10px; margin-top: 10px; font-size: 13px; color: #1e40af;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-weight: bold;">ⓘ</span>
+                    <div>
+                        Diamètre utile: <strong>{{ latestMeasurement!.edMm.toFixed(1) }} mm</strong>.
+                        Marge (+2mm): <strong>{{ (latestMeasurement!.edMm + 2).toFixed(1) }} mm</strong>.
+                        Commande: <strong>Ø {{ latestMeasurement!.standardDiameterMm }} mm</strong>
+                    </div>
+                </div>
+            </div>
             }
         </div>
     </div>

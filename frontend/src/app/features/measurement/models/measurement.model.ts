@@ -43,6 +43,7 @@ export interface Measurement {
     pupils?: Pupils;
     imageDataUrl?: string; // Base64 data of the captured frame
     timestamp?: number;
+    standardDiameterMm?: number; // [NEW] Recommended supplier diameter
 }
 
 export interface CalibrationData {

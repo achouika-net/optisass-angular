@@ -235,7 +235,8 @@ export class OcrService {
             const match = line.match(lineRegex);
 
             if (match) {
-                const ref = match[1];
+                // Raw captured fields
+                const rawCode = match[1];
                 const rawDesignation = match[2];
                 const qtyRaw = match[3].replace(',', '.');
                 const qty = parseFloat(qtyRaw) || 1;
@@ -248,10 +249,47 @@ export class OcrService {
                 const discount = parseFloat(discountRaw) || 0;
                 const netPrice = pu * (1 - (discount / 100));
 
+                // --- NEW LOGIC: Brand & Reference Extraction ---
+                // Expected format: "CH-HER 0298/G/S.807.55.HA"
+                // Brand: "CH-HER" (First word usually)
+                // Full Ref: "0298/G/S.807.55.HA"
+                // Short Ref: "0298/G/S.807" (Remove last 2 dot-segments: size and bridge/color suffix)
+
+                let brand = '';
+                let fullRef = '';
+                let shortRef = '';
+                let designation = rawDesignation.trim();
+
+                const parts = designation.split(/\s+/);
+
+                // Heuristic: If first part is uppercase and contains hyphen or is distinct, assume Brand
+                // Example: CH-HER
+                if (parts.length > 1) {
+                    brand = parts[0];
+                    fullRef = parts.slice(1).join(' '); // Remainder is reference
+                } else {
+                    fullRef = designation; // No separate brand detected
+                }
+
+                // Clean Reference Logic: Remove suffixes like ".55.HA"
+                // Look for patterns like .XXX.XX at the end
+                // Or simply take the first part if it looks like a model number "0298/G/S.807"
+                shortRef = fullRef;
+
+                // Pattern: End with .number.text or .number.number
+                // ex: .55.HA or .3025.58
+                const suffixRegex = /(\.[0-9]{2,}\.[A-Z0-9]+)$/i;
+                if (suffixRegex.test(shortRef)) {
+                    shortRef = shortRef.replace(suffixRegex, '');
+                }
+
                 result.lines.push({
                     raw: line,
-                    reference: ref,
-                    designation: rawDesignation.trim(),
+                    code: rawCode, // The Invoice Code (e.g. 1977...)
+                    // Legacy field mapping for compatibility if needed, but we prefer distinct fields now
+                    reference: shortRef, // Mapped to Short Ref per user request
+                    brand: brand,
+                    designation: designation, // Full designation
                     qty: qty,
                     priceCandidates: [pu],
                     discount: discount,

@@ -35,21 +35,31 @@ export class MediaPipeEngineService {
     }
 
     start(videoEl: HTMLVideoElement, onResult: (r: EngineResult) => void): void {
-        if (!this.faceMesh) {
-            throw new Error('MediaPipe engine not initialized. Call init() first.');
-        }
-
         this.onResultCallback = onResult;
+
+        // Manual control preferred: If camera utility usage is desired, uncomment below.
+        // For now, we allow the component to drive the loop using detectFrame.
+        /*
+        if (!this.faceMesh) throw new Error('MediaPipe engine not initialized.');
         this.camera = new Camera(videoEl, {
             onFrame: async () => {
-                if (this.faceMesh) {
-                    await this.faceMesh.send({ image: videoEl });
-                }
+                if (this.faceMesh) await this.faceMesh.send({ image: videoEl });
             },
             width: 1280,
             height: 720
         });
         this.camera.start();
+        */
+    }
+
+    /**
+     * Manual detection trigger
+     */
+    async detectFrame(videoEl: HTMLVideoElement, onResult?: (r: EngineResult) => void): Promise<void> {
+        if (!this.faceMesh) return;
+        if (onResult) this.onResultCallback = onResult;
+
+        await this.faceMesh.send({ image: videoEl });
     }
 
     stop(): void {

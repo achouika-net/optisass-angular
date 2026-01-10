@@ -55,14 +55,88 @@ export class GeometryService {
         const shiftLeft = (realLeftPupil.x - glassLeftCenterXpx) / pxPerMm;
 
         let frameHeightMM: number | undefined;
+        let diagonal: number | undefined;
+        let lensWidthMM: number | undefined;
+
         if (topGlassYpx !== undefined) {
             frameHeightMM = Math.abs(bottomGlassYpx - topGlassYpx) / pxPerMm;
+
+            // Calculate A (Lens Width)
+            // A = (Total Frame Width - Bridge) / 2 ... wait, we don't have bridge specifically here.
+            // But we have centerX and outerX.
+            // Lens Width L = |outerX_L - centerX_L| ... no, usually outer to inner edge.
+            // Let's use the detected frame geom width for one eye if possible.
+            // For now, let's estimate lens width from bridge center to outer edge, minus half-bridge if we knew it.
+            // Safer: Lens Width A = Detected Width of one lens.
+            // frameGeom.widthPx is total. Let's assume lensWidthPx is roughly (totalWidth - bridge)/2.
+            // If bridge is ~18mm (default in many places), we'll assume a standard bridge of 18mm for this estimate if not provided.
+            const estimatedBridgeMm = 18;
+            lensWidthMM = (frameWidthMM - estimatedBridgeMm) / 2;
+
+            // Box Diagonal = sqrt(A^2 + B^2)
+            diagonal = Math.sqrt(lensWidthMM * lensWidthMM + frameHeightMM * frameHeightMM);
         }
+
+        // Calculate Usable Diameters (Diametre Utile)
+        // For each eye, it's roughly 2 * max distance from pupil to any corner of the lens box
+        const dLeft = this.calculateUsableDiameter(realLeftPupil, frameGeom.rightPx, centerX, topGlassYpx || 0, bottomGlassYpx);
+        const dRight = this.calculateUsableDiameter(realRightPupil, frameGeom.leftPx, centerX, topGlassYpx || 0, bottomGlassYpx);
+
+        const usableDiameterLeft = dLeft / pxPerMm;
+        const usableDiameterRight = dRight / pxPerMm;
+
+        // Apply +2mm safety margin before rounding to standard supplier sizes
+        const standardDiameterLeft = this.getStandardDiameter(usableDiameterLeft + 2);
+        const standardDiameterRight = this.getStandardDiameter(usableDiameterRight + 2);
 
         // We return consistent referencing
         return {
             pd, pdLeft, pdRight, hpLeft, hpRight, shiftLeft, shiftRight, frameHeightMM,
+            diagonal, lensWidthMM,
+            usableDiameterLeft, usableDiameterRight,
+            standardDiameterLeft, standardDiameterRight,
             pxPerMm, pupils, frameGeom
         };
+    }
+
+    /**
+     * Calculates usable diameter (pixels) for a single lens
+     * Simply 2 * max distance from pupil to corners
+     * Lens Box defined by [outerX, innerX] x [topY, bottomY]
+     */
+    private calculateUsableDiameter(pupil: { x: number, y: number }, outerX: number, innerX: number, topY: number, bottomY: number): number {
+        const corners = [
+            { x: outerX, y: topY },
+            { x: innerX, y: topY },
+            { x: outerX, y: bottomY },
+            { x: innerX, y: bottomY }
+        ];
+
+        let maxDistSq = 0;
+        for (const c of corners) {
+            const dx = c.x - pupil.x;
+            const dy = c.y - pupil.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq > maxDistSq) maxDistSq = distSq;
+        }
+
+        return 2 * Math.sqrt(maxDistSq);
+    }
+
+    /**
+     * Map calculated diameter to nearest UPPER standard supplier diameter
+     * List: 55, 60, 65, 70, 75, 80, 85
+     */
+    private getStandardDiameter(calcDiameter: number): number {
+        const standards = [55, 60, 65, 70, 75, 80, 85];
+        // Find first standard >= calculated
+        // If calculated > 85, cap at 85 or return calculated? 
+        // User request implies selection from list. Let's return 85 or custom if huge.
+        // Assuming we always want one from list if possible.
+
+        for (const s of standards) {
+            if (s >= calcDiameter) return s;
+        }
+        return 85; // Max standard or fallback
     }
 }

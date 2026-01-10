@@ -20,6 +20,16 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
 
     @Output() measurementChange = new EventEmitter<Measurement>();
 
+    // Debug logging
+    debugLog: string[] = [];
+    private addDebugLog(msg: string): void {
+        const time = new Date().toLocaleTimeString();
+        this.debugLog.unshift(`[${time}] ${msg}`);
+        if (this.debugLog.length > 10) this.debugLog.pop();
+        this.cdr.markForCheck();
+        console.log(msg);
+    }
+
     // Frame data inputs for automatic width calculation
     @Input() caliber: number = 52; // Lens width in mm
     @Input() bridge: number = 18; // Bridge width in mm
@@ -81,6 +91,7 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
     ) { }
 
     async ngOnInit(): Promise<void> {
+        this.addDebugLog('ngOnInit started');
         // Calculate frame width automatically based on inputs
         let frameAdjustment = 0;
         if (this.mountingType.includes('Percé') || this.mountingType.includes('Nylor')) {
@@ -95,17 +106,71 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         if (savedCalibration && this.calibrationService.isCalibrationValid()) {
             this.pixelsPerMm = savedCalibration.pixelsPerMm;
             this.isCalibrated = true;
+            this.addDebugLog('Calibration loaded');
         }
 
         // Initialize MediaPipe engine
         try {
+            this.addDebugLog('Initializing MediaPipe...');
             await this.mpEngine.init();
             this.isReady = true;
+            this.addDebugLog('MediaPipe Ready');
             this.cdr.markForCheck();
         } catch (error) {
             console.error('Failed to initialize MediaPipe:', error);
+            this.addDebugLog('MediaPipe Init Error: ' + error);
+            this.cameraError = 'Erreur d\'initialisation du système de détection (MediaPipe). Vérifiez votre connexion internet.';
+            this.cdr.markForCheck();
         }
     }
+
+    // [Mouse Events omitted for brevity, they are unchanged]
+
+    async ngAfterViewInit(): Promise<void> {
+        console.log('CameraView ngAfterViewInit called');
+        this.addDebugLog('ngAfterViewInit called');
+
+        // Check straight away if we have an error from init
+        if (this.cameraError) return;
+
+        // Wait for MediaPipe to be ready if not already
+        if (!this.isReady) {
+            console.log('Waiting for MediaPipe to initialize...');
+            this.addDebugLog('Waiting for MediaPipe...');
+            for (let i = 0; i < 50; i++) {
+                if (this.isReady) break;
+                if (this.cameraError) return; // Stop if error occurred during wait
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+
+        if (this.isReady && this.videoElement) {
+            console.log('Starting camera...');
+            this.addDebugLog('Starting camera sequence...');
+            setTimeout(() => {
+                this.startCamera();
+            }, 500);
+        } else {
+            console.error('MediaPipe not ready or video element not found');
+            this.addDebugLog('FAIL: MP not ready or No Video Element');
+            if (!this.isReady) {
+                this.cameraError = 'Le système de détection ne répond pas (Timeout). Vérifiez votre connexion.';
+            } else {
+                this.cameraError = 'Erreur interne: Élément vidéo introuvable.';
+            }
+            this.cdr.markForCheck();
+        }
+    }
+
+    // Mouse/Touch events for dragging height lines (Moved down to preserve flow in file if needed, but here just replacing the init logic + afterViewInit)
+    // Actually, I need to be careful not to delete the onMouseDown/Move methods which are between ngOnInit and ngAfterViewInit in the original file.
+    // The previous tool call showed them between lines 110 and 278.
+    // I should only target ngOnInit and ngAfterViewInit individually or carefuly.
+    // Let's split this into two calls or target the specific blocks.
+
+    // Changing Strategy: Target ngAfterViewInit specifically.
+    // And ngOnInit separately.
+
 
     // Mouse/Touch events for dragging height lines
     onMouseDown(event: MouseEvent): void {
@@ -277,103 +342,128 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         this.isDraggingDiagP2 = false;
     }
 
-    async ngAfterViewInit(): Promise<void> {
-        console.log('CameraView ngAfterViewInit called');
+    // Duplicate ngAfterViewInit removed.
 
-        // Wait for MediaPipe to be ready if not already
-        if (!this.isReady) {
-            console.log('Waiting for MediaPipe to initialize...');
-            for (let i = 0; i < 50; i++) {
-                if (this.isReady) break;
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-        }
 
-        if (this.isReady && this.videoElement) {
-            console.log('Starting camera...');
-            setTimeout(() => {
-                this.startCamera();
-            }, 500);
-        } else {
-            console.error('MediaPipe not ready or video element not found');
-        }
-    }
-
-    ngOnDestroy(): void {
-        this.mpEngine.stop();
-    }
+    detectionFrameId: number | null = null;
+    cameraError: string | null = null; // To display in UI
 
     async startCamera(): Promise<void> {
-        console.log('startCamera called');
+        this.addDebugLog('startCamera() invoked');
+        this.cameraError = null;
 
         if (!this.videoElement) {
             console.error('Video element not found');
+            this.addDebugLog('Error: Video element missing');
+            this.cameraError = 'Erreur interne: Élément vidéo introuvable.';
+            this.cdr.markForCheck();
             return;
         }
 
         try {
+            this.addDebugLog('Requesting getUserMedia...');
             // Request camera permissions first
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: 'user', width: 1280, height: 720 },
                 audio: false
             });
 
-            console.log('Camera stream obtained:', stream);
+            this.addDebugLog('Stream obtained. Setting srcObject...');
 
             // Set video source
-            this.videoElement.nativeElement.srcObject = stream;
+            const video = this.videoElement.nativeElement;
+            video.srcObject = stream;
+            video.muted = true;
+            video.playsInline = true;
 
-            // Start MediaPipe detection
-            this.mpEngine.start(this.videoElement.nativeElement, (result) => {
-                // If captured, do NOT update landmarks/pupils from stream
-                if (this.isCaptured) return;
+            // Ensure video plays
+            this.addDebugLog('Calling video.play()...');
+            await video.play();
+            this.addDebugLog('Video playing. Starting loop...');
 
-                if (result.pupils) {
-                    // Apply smoothing
-                    const smoothedLeft = this.smootherLeft.next(result.pupils.left);
-                    const smoothedRight = this.smootherRight.next(result.pupils.right);
-
-                    result.pupils.left = smoothedLeft;
-                    result.pupils.right = smoothedRight;
-
-                    // Initialize height lines if not set (Default to 50px below pupils)
-                    if (this.frameBottomLeftY === 0) {
-                        this.frameBottomLeftY = result.pupils.left.y + 50;
-                    }
-                    if (this.frameBottomRightY === 0) {
-                        this.frameBottomRightY = result.pupils.right.y + 50;
-                    }
-
-                    // Initialize Red Frame Lines (Top/Bottom) - FAR AWAY from eyes
-                    if (this.frameTopY === 0) {
-                        this.frameTopY = Math.max(20, result.pupils.left.y - 150); // Much higher
-                    }
-                    if (this.frameBottomY === 0) {
-                        this.frameBottomY = Math.min(700, result.pupils.left.y + 150); // Much lower
-                    }
-
-                    // Store landmarks for calibration
-                    if (result.landmarks) {
-                        this.currentLandmarks = result.landmarks;
-                        this.calculateFaceWidth();
-                    }
-
-                    // Draw overlay
-                    this.drawOverlay(result.pupils);
-
-                    // Calculate measurement (always emit, even if empty/uncalibrated)
-                    const measurement = this.calculateMeasurement(result.pupils);
-                    this.latestMeasurement = measurement;
-                    this.measurementChange.emit(measurement);
-                    this.cdr.markForCheck();
-                }
-            });
-
-            console.log('MediaPipe engine started');
-        } catch (error) {
+            // Start detection loop manually
+            this.startDetectionLoop();
+        } catch (error: any) {
             console.error('Failed to start camera:', error);
-            alert('Impossible d\'accéder à la caméra. Vérifiez les permissions.');
+            this.addDebugLog('Camera Error: ' + error.name + ' - ' + error.message);
+            this.cameraError = 'Impossible d\'accéder à la caméra. Vérifiez les permissions et que la caméra n\'est pas utilisée ailleurs.';
+
+            if (error.name === 'NotAllowedError') {
+                this.cameraError = 'Accès à la caméra refusé. Veuillez autoriser l\'accès dans votre navigateur.';
+            } else if (error.name === 'NotFoundError') {
+                this.cameraError = 'Aucune caméra détectée.';
+            }
+            this.cdr.markForCheck();
         }
+    }
+
+    startDetectionLoop(): void {
+        // Safety: Prevent multiple loops
+        if (this.detectionFrameId) {
+            cancelAnimationFrame(this.detectionFrameId);
+            this.detectionFrameId = null;
+        }
+
+        let frames = 0;
+        const loop = async () => {
+            if (!this.videoElement || this.isCaptured) {
+                if (this.isCaptured) {
+                    this.detectionFrameId = null;
+                    return;
+                }
+                if (!this.videoElement) {
+                    this.detectionFrameId = requestAnimationFrame(loop);
+                    return;
+                }
+            }
+
+            const video = this.videoElement.nativeElement;
+
+            // Safety: ensure video is actually playing and has data
+            if (video.readyState >= 2 && !video.paused && !video.ended) {
+                try {
+                    await this.mpEngine.detectFrame(video, (result) => {
+                        if (frames % 60 === 0) this.addDebugLog('Detection active (ping)');
+                        frames++;
+
+                        // [Existing Processing Logic]
+                        if (result.pupils) {
+
+                            // Smooth
+                            const smoothedLeft = this.smootherLeft.next(result.pupils.left);
+                            const smoothedRight = this.smootherRight.next(result.pupils.right);
+                            result.pupils.left = smoothedLeft;
+                            result.pupils.right = smoothedRight;
+
+                            // Init Lines
+                            if (this.frameBottomLeftY === 0) this.frameBottomLeftY = result.pupils.left.y + 50;
+                            if (this.frameBottomRightY === 0) this.frameBottomRightY = result.pupils.right.y + 50;
+                            if (this.frameTopY === 0) this.frameTopY = Math.max(20, result.pupils.left.y - 150);
+                            if (this.frameBottomY === 0) this.frameBottomY = Math.min(700, result.pupils.left.y + 150);
+
+                            // Calibration Landmarks
+                            if (result.landmarks) {
+                                this.currentLandmarks = result.landmarks;
+                                this.calculateFaceWidth();
+                            }
+
+                            // Draw & Measure
+                            this.drawOverlay(result.pupils);
+                            const measurement = this.calculateMeasurement(result.pupils);
+                            this.latestMeasurement = measurement;
+                            this.measurementChange.emit(measurement);
+                            this.cdr.markForCheck();
+                        }
+                    });
+                } catch (err) {
+                    console.warn('Frame detection failed (transient):', err);
+                    // Do not crash loop
+                }
+            }
+
+            this.detectionFrameId = requestAnimationFrame(loop);
+        };
+        this.detectionFrameId = requestAnimationFrame(loop);
     }
 
     /**
@@ -432,6 +522,18 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         this.captureFrameRequest = requestAnimationFrame(loop);
     }
 
+    ngOnDestroy(): void {
+        this.mpEngine.stop();
+        if (this.detectionFrameId) {
+            cancelAnimationFrame(this.detectionFrameId);
+        }
+        // Stop stream tracks
+        if (this.videoElement && this.videoElement.nativeElement.srcObject) {
+            const stream = this.videoElement.nativeElement.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+        }
+    }
+
     /**
      * Retake / Resume live stream
      */
@@ -440,7 +542,8 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         this.capturedImage = null;
         this.capturedPupils = null;
         this.capturedLandmarks = [];
-        console.log('Retaking...');
+        console.log('Retaking - restarting loop...');
+        this.startDetectionLoop();
     }
 
     /**
@@ -592,6 +695,9 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         // Then we add the diagonal.
         edMm = frameBoxingWidth - (minPD * 2) + largestDiagonal;
 
+        // 5. Calculate Standard Supplier Diameter (Applying +2mm safety margin)
+        const standardDiameterMm = this.getStandardDiameter(edMm + 2);
+
         // Debug logging with type check
         console.log('[ED CALC]', {
             inputs: { caliber: this.caliber, bridge: this.bridge },
@@ -602,7 +708,8 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             minPD,
             largestDiagonal,
             diagonalMm,
-            edMm
+            edMm,
+            standardDiameterMm
         });
 
         return {
@@ -616,10 +723,19 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             edRightMm: edMm, // Same value for both eyes with new formula
             edLeftMm: edMm,
             diagonalMm,
+            standardDiameterMm,
             diagonalPoints: { p1: this.diagonalP1, p2: this.diagonalP2 },
             pupils,
             timestamp: Date.now()
         };
+    }
+
+    private getStandardDiameter(calcDiameter: number): number {
+        const standards = [55, 60, 65, 70, 75, 80, 85];
+        for (const s of standards) {
+            if (s >= calcDiameter) return s;
+        }
+        return 85;
     }
 
     private safePxToMm(px: number): number {

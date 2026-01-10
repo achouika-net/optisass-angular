@@ -36,6 +36,7 @@ import { forkJoin, timer, Subject } from 'rxjs';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
 
+
 interface PrescriptionFile {
     name: string;
     type: string;
@@ -3299,6 +3300,15 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         const val = this.ficheForm.get('montage.diametreEffectif')?.value;
         if (!val) return '';
 
+        // Local helper for standard rounding (mirroring GeometryService more explicitly if needed, but we injected it)
+        const getStd = (d: number) => {
+            const standards = [55, 60, 65, 70, 75, 80, 85];
+            for (const s of standards) {
+                if (s >= d) return s;
+            }
+            return 85;
+        };
+
         // Handle split values (OD/OG)
         if (typeof val === 'string' && val.includes('/')) {
             const parts = val.split('/');
@@ -3306,14 +3316,17 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             const og = parseFloat(parts[1]);
 
             if (!isNaN(od) && !isNaN(og)) {
-                return `Diamètre utile est ${val} mm. On Commande ${(od + 2).toFixed(1)}/${(og + 2).toFixed(1)} mm (+2mm)`;
+                const sOD = getStd(od + 2);
+                const sOG = getStd(og + 2);
+                return `Diamètre utile est ${val} mm. On ajoute 2 mm marge d'erreur ${(od + 2).toFixed(1)}/${(og + 2).toFixed(1)} mm (+2mm), on commande ${sOD}/${sOG} mm`;
             }
         }
 
         // Handle single value
         const num = parseFloat(val);
         if (!isNaN(num)) {
-            return `Diamètre utile est ${num.toFixed(1)} mm. On Commande ${(num + 2).toFixed(1)} mm (+2mm)`;
+            const std = getStd(num + 2);
+            return `Diamètre utile est ${num.toFixed(1)} mm. On ajoute 2 mm marge d'erreur ${(num + 2).toFixed(1)} mm (+2mm), on commande ${std} mm`;
         }
 
         return '';
