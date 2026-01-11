@@ -176,7 +176,10 @@ export class StockEntryV2Component implements OnInit {
 
     ngOnInit(): void {
         this.suppliers$ = this.financeService.getSuppliers().pipe(
-            tap((suppliers: any[]) => console.log('[StockEntryV2] Suppliers loaded:', suppliers?.length)),
+            tap((suppliers: any[]) => {
+                console.log('[StockEntryV2] Suppliers loaded:', suppliers?.length);
+                this.suppliersList = suppliers || [];
+            }),
             catchError((err: any) => {
                 console.error('[StockEntryV2] Error loading suppliers:', err);
                 this.snackBar.open('Erreur lors du chargement des fournisseurs', 'OK', { duration: 5000 });
@@ -409,6 +412,7 @@ export class StockEntryV2Component implements OnInit {
     detectedLines: any[] = [];
     showOcrData = false;
     ocrError: string | null = null;
+    suppliersList: any[] = []; // Local cache for OCR matching
 
     private isValidProductLine(line: any): boolean {
         const raw = (line.raw || '').trim();
@@ -485,6 +489,28 @@ export class StockEntryV2Component implements OnInit {
                 }
             }
 
+            // Patch Invoice Number
+            if (result.invoiceNumber) {
+                this.documentForm.patchValue({ numero: result.invoiceNumber });
+                console.log('[OCR] Invoice Number Patched:', result.invoiceNumber);
+            }
+
+            // Patch Supplier (Fuzzy Match or Create)
+            if (result.supplierName) {
+                const search = result.supplierName.toLowerCase();
+                const match = this.suppliersList.find(s =>
+                    s.nom.toLowerCase().includes(search) || search.includes(s.nom.toLowerCase())
+                );
+
+                if (match) {
+                    this.documentForm.patchValue({ fournisseurId: match.id });
+                    this.snackBar.open(`Fournisseur détecté : ${match.nom}`, 'OK', { duration: 3000 });
+                } else {
+                    console.warn('[OCR] Supplier name detected but not found in list. Creating...', result.supplierName);
+                    this.createAndSelectSupplier(result.supplierName);
+                }
+            }
+
             // Auto-open OCR panel if lines found
             if (this.detectedLines.length > 0) {
                 // Logic handled in template via *ngIf
@@ -497,6 +523,40 @@ export class StockEntryV2Component implements OnInit {
         } finally {
             this.ocrProcessing = false;
         }
+    }
+
+    createAndSelectSupplier(name: string) {
+        // Basic cleanup of name (remove headers triggers if captured)
+        // Also remove trailing punctuation often captured (e.g. ;)
+        // Filter out known sponsors that might appear on the same line (Context specific fix)
+        let cleanName = name.replace(/^(STE|SOCIETE)\s+/i, '')
+            .replace(/[;:,.]+$/, '')
+            .trim();
+
+        // Heuristic: If name contains "CHARMANT", "SEIKO", etc (sponsors), split and take first part
+        // Example: "DK DISTRIBUTION CHARMANT" -> "DK DISTRIBUTION"
+        const sponsors = ['CHARMANT', 'SEIKO', 'IKKS', 'ESPRIT', 'ELLE', 'MINAMOTO', 'FESTINA'];
+        const sponsorRegex = new RegExp(`\\s+(${sponsors.join('|')})[\\s\\S]*`, 'i');
+        cleanName = cleanName.replace(sponsorRegex, '').trim();
+
+        this.snackBar.open(`Création automatique du fournisseur : ${cleanName}...`, 'Patientez', { duration: 2000 });
+
+        // Create with just the name as requested, avoiding validation errors on empty email
+        this.financeService.createSupplier({ nom: cleanName }).subscribe({
+            next: (newSupplier: any) => {
+                console.log('[OCR] New supplier created:', newSupplier);
+                // 1. Add to local list so it's found next time
+                this.suppliersList.push(newSupplier);
+
+                // 2. Select it
+                this.documentForm.patchValue({ fournisseurId: newSupplier.id });
+                this.snackBar.open(`Fournisseur créé et sélectionné : ${newSupplier.nom}`, 'OK', { duration: 3000 });
+            },
+            error: (err) => {
+                console.error('[OCR] Failed to create supplier:', err);
+                this.snackBar.open(`Erreur lors de la création du fournisseur ${cleanName}`, 'Fermer');
+            }
+        });
     }
 
     // --- Camera Logic ---

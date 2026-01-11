@@ -181,10 +181,30 @@ export class OcrService {
         const totalMatch = cleanText.match(totalRegex);
         if (totalMatch) result.total = parseFloat(totalMatch[1].replace(/\s/g, ''));
 
-        // B. Extract Date with Context
-        // Look for common date formats near labels like "Date", "Le", "Emis"
-        const dateRegex = /(?:date|le|emis|du)[\s:]*(\d{2}[/-]\d{2}[/-]\d{4})/i;
-        const fallbackDateRegex = /(\d{2}[/-]\d{2}[/-]\d{4})/;
+        // B. Extract Headers (Invoice Num, Date, Supplier)
+        // 1. Invoice Number
+        // Relaxed regex to handle "Facture N°", "Facture No", "Facture N", and OCR noise like "N0"
+        const invoiceNumRegex = /(?:Facture|Ref|Fc)\s*(?:N°|No|N\.|N0|N|#)?\s*[:.]?\s*([A-Za-z0-9\-\/]+)/i;
+        // Fallback specifically for the "FA+Year..." pattern seen in the user's document
+        const faFallbackRegex = /(FA\d{6,}[A-Za-z0-9]*)/;
+
+        let invMatch = cleanText.match(invoiceNumRegex);
+        // If main regex fails or finds something too short (< 4 chars), try fallback
+        if (!invMatch || (invMatch && invMatch[1].length <= 3)) {
+            invMatch = cleanText.match(faFallbackRegex);
+        }
+
+        if (invMatch) {
+            // Filter out false positives (too short)
+            if (invMatch[1].length > 3) result.invoiceNumber = invMatch[1].trim();
+        }
+
+        // 2. Date
+        // Look for common date formats near labels like "Date", "Le", "Emis", or just standalone date top of page
+        // Supports DD/MM/YY and DD/MM/YYYY
+        const dateRegex = /(?:date|le|emis|du)[\s:]*(\d{2}[/-]\d{2}[/-]\d{2,4})/i;
+        // Fallback: Allow 2-digit year in standalone date too
+        const fallbackDateRegex = /(\d{2}[/-]\d{2}[/-]\d{2,4})/;
 
         let dateMatch = cleanText.match(dateRegex);
         if (!dateMatch) dateMatch = cleanText.match(fallbackDateRegex);
@@ -192,7 +212,11 @@ export class OcrService {
         if (dateMatch) {
             const parts = dateMatch[1].split(/[-/]/);
             if (parts.length === 3) {
-                const detectedDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                let year = parseInt(parts[2]);
+                // Handle 2-digit years (e.g. 25 -> 2025)
+                if (year < 100) year += 2000;
+
+                const detectedDate = new Date(`${year}-${parts[1]}-${parts[0]}`);
                 const now = new Date();
                 const oneYearFromNow = new Date();
                 oneYearFromNow.setFullYear(now.getFullYear() + 1);
@@ -205,6 +229,14 @@ export class OcrService {
                     console.warn(`[OCR] Ignored suspicious future date: ${dateMatch[1]}`);
                 }
             }
+        }
+
+        // 3. Supplier (Heuristic)
+        // Look for "DK DISTRIBUTION" or lines with "SARL", "DISTRIBUTION", "OPTICAL"
+        const supplierRegex = /^.*(?:DISTRIBUTION|SOCIETE|OPTICAL|VISION|LUNETTES|EYEWEAR).*$/im;
+        const supplierMatch = cleanText.match(supplierRegex);
+        if (supplierMatch) {
+            result.supplierName = supplierMatch[0].trim();
         }
 
         // C. Extract Product Lines (Specific Format)
@@ -236,8 +268,8 @@ export class OcrService {
 
             if (match) {
                 // Raw captured fields
-                const rawCode = match[1];
-                const rawDesignation = match[2];
+                const rawRef = match[1]; // Captured as first token (was code)
+                const rawDesc = match[2];
                 const qtyRaw = match[3].replace(',', '.');
                 const qty = parseFloat(qtyRaw) || 1;
 
@@ -249,47 +281,22 @@ export class OcrService {
                 const discount = parseFloat(discountRaw) || 0;
                 const netPrice = pu * (1 - (discount / 100));
 
-                // --- NEW LOGIC: Brand & Reference Extraction ---
-                // Expected format: "CH-HER 0298/G/S.807.55.HA"
-                // Brand: "CH-HER" (First word usually)
-                // Full Ref: "0298/G/S.807.55.HA"
-                // Short Ref: "0298/G/S.807" (Remove last 2 dot-segments: size and bridge/color suffix)
+                // Designation Logic: Full line string (Ref + Desc)
+                // User requested: "colonne designation on va affiche la ligne complet la marque la reference"
+                const fullDesignation = `${rawRef} ${rawDesc}`.trim();
 
-                let brand = '';
-                let fullRef = '';
-                let shortRef = '';
-                let designation = rawDesignation.trim();
-
-                const parts = designation.split(/\s+/);
-
-                // Heuristic: If first part is uppercase and contains hyphen or is distinct, assume Brand
-                // Example: CH-HER
-                if (parts.length > 1) {
-                    brand = parts[0];
-                    fullRef = parts.slice(1).join(' '); // Remainder is reference
-                } else {
-                    fullRef = designation; // No separate brand detected
-                }
-
-                // Clean Reference Logic: Remove suffixes like ".55.HA"
-                // Look for patterns like .XXX.XX at the end
-                // Or simply take the first part if it looks like a model number "0298/G/S.807"
-                shortRef = fullRef;
-
-                // Pattern: End with .number.text or .number.number
-                // ex: .55.HA or .3025.58
-                const suffixRegex = /(\.[0-9]{2,}\.[A-Z0-9]+)$/i;
-                if (suffixRegex.test(shortRef)) {
-                    shortRef = shortRef.replace(suffixRegex, '');
-                }
+                // Brand Extraction (Simple heuristic)
+                // If the description starts with an uppercase word?
+                const parts = rawDesc.split(/\s+/);
+                let brand = parts[0];
+                if (brand.length < 3) brand = ''; // Too short, likely noise
 
                 result.lines.push({
                     raw: line,
-                    code: rawCode, // The Invoice Code (e.g. 1977...)
-                    // Legacy field mapping for compatibility if needed, but we prefer distinct fields now
-                    reference: shortRef, // Mapped to Short Ref per user request
+                    code: '', // Explicitly empty as requested ("document has no code", use system code later)
+                    reference: rawRef, // The document reference (first token)
                     brand: brand,
-                    designation: designation, // Full designation
+                    designation: fullDesignation, // Full designation including ref/brand
                     qty: qty,
                     priceCandidates: [pu],
                     discount: discount,
