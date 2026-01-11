@@ -93,7 +93,7 @@
             <mat-card class="kpi-card border-l-4 border-purple-500">
                 <div class="metric-label">Contrôle Plafond Dépenses</div>
                 <div class="metric-value" [ngClass]="percentageUsed > 100 ? 'text-red-500' : 'text-purple-600'">
-                    {{ summary.totalExpenses | number:'1.2-2' }} DH
+                    {{ (summary.totalScheduled ?? summary.totalExpenses) | number:'1.2-2' }} DH
                 </div>
                 <div class="px-4">
                     <div class="flex justify-between text-xs font-medium mb-2">

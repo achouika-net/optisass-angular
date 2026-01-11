@@ -347,26 +347,18 @@ export class InvoiceFormDialogComponent implements OnInit {
                         this.supplierCtrl.setValue(s.nom, { emitEvent: false });
 
                         // AGGRESSIVE AUTO-APPLY
-                        // If all echeances are EN_ATTENTE (editable), we check if we should re-apply default conditions
-                        const allPending = this.echeances.controls.every(c => c.get('statut')?.value === 'EN_ATTENTE');
-                        const hasManualData = this.echeances.controls.some(c =>
-                            !!c.get('reference')?.value || (c.get('type')?.value !== 'CHEQUE' && c.get('type')?.value !== 'ESPECES')
-                        );
-
-                        if (allPending && !hasManualData && !this.isViewMode) {
-                            console.log('[InvoiceForm] All installments pending and no manual data. Re-evaluating conditions...');
-                            // Check if current echeances match the supplier's default? 
-                            // For now, let's just Apply to ensure consistency as user requested "Why isn't it applied?"
-                            // But we must be careful not to annoy users who manually customized.
-                            // Let's rely on the "Refresh" button primarily, but if the count is 1 and supplier says "60 jours" (which implies 2), we Auto-Fix.
+                        // Only auto-apply if we have no installments or just one default one
+                        // and we are NOT in view mode.
+                        if (this.echeances.length <= 1 && !this.isViewMode) {
                             const conditions = (s.convention?.echeancePaiement?.[0] || s.conditionsPaiement || '').toLowerCase();
 
-                            if (conditions.includes('60 jours') && this.echeances.length !== 2) {
-                                console.log('[InvoiceForm] Detected mismatch (1 vs 2 installments). Auto-Applying 60 jours logic.');
-                                this.applyPaymentConditions(s);
-                            } else if (conditions.includes('90 jours') && this.echeances.length !== 3) {
-                                console.log('[InvoiceForm] Detected mismatch (1 vs 3 installments). Auto-Applying 90 jours logic.');
-                                this.applyPaymentConditions(s);
+                            if (conditions) {
+                                console.log('[InvoiceForm] Checking for auto-apply on load...', conditions);
+                                if (conditions.includes('60 jours') && this.echeances.length !== 2) {
+                                    this.applyPaymentConditions(s);
+                                } else if (conditions.includes('90 jours') && this.echeances.length !== 3) {
+                                    this.applyPaymentConditions(s);
+                                }
                             }
                         }
                     }
@@ -417,11 +409,12 @@ export class InvoiceFormDialogComponent implements OnInit {
 
 
     onSupplierChange(id: string) {
-        console.log('[InvoiceForm] ========== onSupplierChange CALLED ==========');
-
+        console.log('[InvoiceForm] onSupplierChange', id);
         this.selectedSupplier = this.suppliers.find(s => s.id === id) || null;
 
-        if (this.selectedSupplier) {
+        // ONLY auto-apply if it's a NEW invoice (empty installments)
+        // If there are already installments, it means we loaded them from DB or user manually added them.
+        if (this.selectedSupplier && this.echeances.length === 0 && !this.isViewMode) {
             this.applyPaymentConditions(this.selectedSupplier);
         }
     }

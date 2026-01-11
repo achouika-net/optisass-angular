@@ -631,9 +631,13 @@ export class StockAlimentationDialogComponent implements OnInit {
         fileName = doc.file.name;
       }
 
+      // Normalize Date to UTC Midnight to avoid timezone shifts (e.g. 11/01 becoming 10/01 23:00)
+      const rawDate = doc.date;
+      const utcDate = new Date(Date.UTC(rawDate.getFullYear(), rawDate.getMonth(), rawDate.getDate()));
+
       const payload: BulkAlimentationPayload = {
         numeroFacture: doc.numero || `ENTREE_${Date.now()}`,
-        dateEmission: doc.date.toISOString(),
+        dateEmission: utcDate.toISOString(),
         type: doc.type,
         fournisseurId: doc.fournisseurId,
         centreId: doc.centreId,

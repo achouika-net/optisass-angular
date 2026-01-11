@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSupplierInvoiceDto } from './dto/create-supplier-invoice.dto';
 import { ProductsService } from '../products/products.service';
+import { normalizeToUTCNoon } from '../../shared/utils/date-utils';
 
 @Injectable()
 export class SupplierInvoicesService {
@@ -36,7 +37,7 @@ export class SupplierInvoicesService {
         const finalEcheances = (echeances && echeances.length > 0) ? echeances : [
             {
                 type: 'ESPECES',
-                dateEcheance: invoiceData.dateEcheance || new Date().toISOString(),
+                dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance || new Date()) as Date,
                 montant: invoiceData.montantTTC,
                 statut: 'EN_ATTENTE'
             }
@@ -45,10 +46,15 @@ export class SupplierInvoicesService {
         return this.prisma.factureFournisseur.create({
             data: {
                 ...invoiceData,
+                dateEmission: normalizeToUTCNoon(invoiceData.dateEmission) as Date,
+                dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance),
                 statut: status,
                 centreId: invoiceData.centreId, // Explicitly map it
                 echeances: {
-                    create: finalEcheances
+                    create: finalEcheances.map(e => ({
+                        ...e,
+                        dateEcheance: normalizeToUTCNoon(e.dateEcheance) as Date
+                    }))
                 }
             },
             include: {
@@ -94,8 +100,8 @@ export class SupplierInvoicesService {
         // Clean invoiceData to remove unwanted circular or extra relation objects
         const cleanedInvoiceData: any = {
             numeroFacture: invoiceData.numeroFacture,
-            dateEmission: invoiceData.dateEmission ? new Date(invoiceData.dateEmission) : undefined,
-            dateEcheance: invoiceData.dateEcheance ? new Date(invoiceData.dateEcheance) : undefined,
+            dateEmission: normalizeToUTCNoon(invoiceData.dateEmission),
+            dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance),
             montantHT: invoiceData.montantHT,
             montantTVA: invoiceData.montantTVA,
             montantTTC: invoiceData.montantTTC,
@@ -125,8 +131,8 @@ export class SupplierInvoicesService {
                     echeances: echeances ? {
                         create: echeances.map((e: any) => ({
                             type: e.type,
-                            dateEcheance: new Date(e.dateEcheance),
-                            dateEncaissement: e.dateEncaissement ? new Date(e.dateEncaissement) : undefined,
+                            dateEcheance: normalizeToUTCNoon(e.dateEcheance) as Date,
+                            dateEncaissement: normalizeToUTCNoon(e.dateEncaissement),
                             montant: e.montant,
                             statut: e.statut,
                             reference: e.reference || null,

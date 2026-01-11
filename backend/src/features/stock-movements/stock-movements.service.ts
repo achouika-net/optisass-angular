@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { BulkAlimentationDto } from './dto/bulk-alimentation.dto';
 import { ProductsService } from '../products/products.service';
+import { normalizeToUTCNoon } from '../../shared/utils/date-utils';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -69,8 +70,8 @@ export class StockMovementsService {
                     invoice = await tx.factureFournisseur.create({
                         data: {
                             numeroFacture: invoiceData.numeroFacture,
-                            dateEmission: new Date(invoiceData.dateEmission),
-                            dateEcheance: new Date(invoiceData.dateEcheance || invoiceData.dateEmission),
+                            dateEmission: normalizeToUTCNoon(invoiceData.dateEmission) as Date,
+                            dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance || invoiceData.dateEmission) as Date,
                             type: invoiceData.type,
                             statut: 'A_PAYER',
                             montantHT: totalHT,
@@ -83,7 +84,7 @@ export class StockMovementsService {
                                 create: [
                                     {
                                         type: 'CHEQUE',
-                                        dateEcheance: new Date(invoiceData.dateEcheance || invoiceData.dateEmission),
+                                        dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance || invoiceData.dateEmission) as Date,
                                         montant: totalTTC,
                                         statut: 'EN_ATTENTE'
                                     }

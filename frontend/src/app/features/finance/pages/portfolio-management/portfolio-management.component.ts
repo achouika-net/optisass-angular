@@ -178,6 +178,10 @@ import { FormsModule } from '@angular/forms';
                       <mat-icon>more_vert</mat-icon>
                     </button>
                     <mat-menu #menu="matMenu">
+                      <button mat-menu-item (click)="updateStatus(item, 'REMIS_EN_BANQUE')" *ngIf="item.statut === 'EN_ATTENTE' || item.statut === 'PORTEFEUILLE'">
+                        <mat-icon class="text-orange-600">account_balance</mat-icon>
+                        <span>Remettre en Banque</span>
+                      </button>
                       <button mat-menu-item (click)="updateStatus(item, 'ENCAISSE')" *ngIf="item.statut !== 'ENCAISSE'">
                         <mat-icon class="text-green-600">check_circle</mat-icon>
                         <span>Confirmer Encaissement</span>
@@ -444,7 +448,7 @@ export class PortfolioManagementComponent implements OnInit {
 
   updateStatus(item: any, newStatut: string) {
     const request = item.source === 'FACTURE_CLIENT'
-      ? this.financeService.validatePayment(item.id)
+      ? this.financeService.validatePayment(item.id, newStatut)
       : this.financeService.validateEcheance(item.id, newStatut);
 
     request.subscribe({
