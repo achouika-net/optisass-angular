@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+import { normalizeToUTCNoon } from '../../shared/utils/date-utils';
 
 @Injectable()
 export class ExpensesService {
@@ -17,7 +18,7 @@ export class ExpensesService {
                     data: {
                         type: data.modePaiement,
                         reference: reference,
-                        dateEcheance: new Date(dateEcheance),
+                        dateEcheance: normalizeToUTCNoon(dateEcheance) as Date,
                         montant: data.montant,
                         statut: 'EN_ATTENTE',
                         banque: banque,
@@ -109,7 +110,8 @@ export class ExpensesService {
                 data: {
                     ...data,
                     reference,
-                    dateEcheance: dateEcheance ? new Date(dateEcheance) : null,
+                    dateEcheance: normalizeToUTCNoon(dateEcheance),
+                    date: normalizeToUTCNoon(data.date) as Date,
                     echeanceId: finalEcheanceId,
                     fournisseurId: fournisseurId || null,
                     // If linked to echeance, we don't strictly need the direct link which is @unique

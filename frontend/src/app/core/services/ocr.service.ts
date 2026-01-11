@@ -200,23 +200,29 @@ export class OcrService {
         }
 
         // 2. Date
-        // Look for common date formats near labels like "Date", "Le", "Emis", or just standalone date top of page
-        // Supports DD/MM/YY and DD/MM/YYYY
-        const dateRegex = /(?:date|le|emis|du)[\s:]*(\d{2}[/-]\d{2}[/-]\d{2,4})/i;
-        // Fallback: Allow 2-digit year in standalone date too
-        const fallbackDateRegex = /(\d{2}[/-]\d{2}[/-]\d{2,4})/;
-
+        // Support DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY with optional spaces
+        const dateRegex = /(?:Date|Du|Le|Facture du)\s*:?\s*(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})\s*[\/\-\.]\s*(\d{2,4})/i;
         let dateMatch = cleanText.match(dateRegex);
-        if (!dateMatch) dateMatch = cleanText.match(fallbackDateRegex);
+
+        // Fallback: search for any date pattern like DD/MM/YYYY even without label
+        if (!dateMatch) {
+            const fallbackDateRegex = /(\b\d{1,2})\s*[\/\-\.]\s*(\d{1,2})\s*[\/\-\.]\s*(\d{2,4})\b/;
+            dateMatch = cleanText.match(fallbackDateRegex);
+        }
 
         if (dateMatch) {
-            const parts = dateMatch[1].split(/[-/]/);
-            if (parts.length === 3) {
-                let year = parseInt(parts[2]);
-                // Handle 2-digit years (e.g. 25 -> 2025)
-                if (year < 100) year += 2000;
+            const day = parseInt(dateMatch[1], 10);
+            const month = parseInt(dateMatch[2], 10);
+            let year = parseInt(dateMatch[3], 10);
 
-                const detectedDate = new Date(`${year}-${parts[1]}-${parts[0]}`);
+            // Handle 2-digit years (e.g. 25 -> 2025)
+            if (year < 100) {
+                year += 2000;
+            }
+
+            // Basic validation
+            if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 2000 && year <= 2100) {
+                const detectedDate = new Date(year, month - 1, day);
                 const now = new Date();
                 const oneYearFromNow = new Date();
                 oneYearFromNow.setFullYear(now.getFullYear() + 1);

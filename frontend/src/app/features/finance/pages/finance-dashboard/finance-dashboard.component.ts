@@ -293,7 +293,8 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
 
     get percentageUsed(): number {
         if (!this.summary || this.monthlyThreshold === 0) return 0;
-        return (this.summary.totalExpenses / this.monthlyThreshold) * 100;
+        const amountToCheck = this.summary.totalScheduled !== undefined ? this.summary.totalScheduled : this.summary.totalExpenses;
+        return (amountToCheck / this.monthlyThreshold) * 100;
     }
 
     get thresholdColor(): string {
