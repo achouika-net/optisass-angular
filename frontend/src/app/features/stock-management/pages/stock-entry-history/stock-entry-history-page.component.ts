@@ -12,6 +12,9 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatCardModule } from '@angular/material/card';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDividerModule } from '@angular/material/divider';
 import { animate, state, style, transition, trigger } from '@angular/animations';
 import { StockMovementsService } from '../../services/stock-movements.service';
 import { FinanceService } from '../../../finance/services/finance.service';
@@ -34,7 +37,10 @@ import { environment } from '../../../../../environments/environment';
         MatMenuModule,
         MatProgressSpinnerModule,
         ReactiveFormsModule,
-        MatSnackBarModule
+        MatSnackBarModule,
+        MatCardModule,
+        MatTooltipModule,
+        MatDividerModule
     ],
     templateUrl: './stock-entry-history-page.component.html',
     styleUrls: ['./stock-entry-history-page.component.scss'],
@@ -54,6 +60,12 @@ export class StockEntryHistoryPageComponent implements OnInit {
     filterForm: FormGroup;
     suppliers: any[] = [];
     loading = false;
+
+    stats = {
+        totalEntries: 0,
+        totalItems: 0,
+        totalValue: 0
+    };
 
     constructor(
         private stockService: StockMovementsService,
@@ -93,6 +105,7 @@ export class StockEntryHistoryPageComponent implements OnInit {
         this.stockService.getStockEntryHistory(apiFilters)
             .pipe(finalize(() => {
                 this.loading = false;
+                this.calculateStats();
                 this.cdr.markForCheck(); // Ensure UI updates
             }))
             .subscribe({
@@ -109,6 +122,15 @@ export class StockEntryHistoryPageComponent implements OnInit {
                     console.error('Error loading history', err);
                 }
             });
+    }
+
+    calculateStats() {
+        const data = this.dataSource.data;
+        this.stats = {
+            totalEntries: data.length,
+            totalItems: data.reduce((acc, curr) => acc + (curr.itemsCount || 0), 0),
+            totalValue: data.reduce((acc, curr) => acc + (curr.montantTTC || 0), 0)
+        };
     }
 
     resetFilters() {
