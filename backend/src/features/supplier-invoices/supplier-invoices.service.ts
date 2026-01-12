@@ -14,17 +14,8 @@ export class SupplierInvoicesService {
     async create(createDto: CreateSupplierInvoiceDto) {
         const { echeances, ...invoiceData } = createDto;
 
-        // Check if invoice already exists for this supplier
-        const existingInvoice = await this.prisma.factureFournisseur.findFirst({
-            where: {
-                fournisseurId: invoiceData.fournisseurId,
-                numeroFacture: invoiceData.numeroFacture
-            },
-            include: {
-                echeances: true,
-                fournisseur: true
-            }
-        });
+        // Robust duplicate check
+        const existingInvoice = await this.checkExistence(invoiceData.fournisseurId, invoiceData.numeroFacture);
 
         if (existingInvoice) {
             console.log(`[INVOICE] Update existing invoice ${existingInvoice.numeroFacture} for supplier ${invoiceData.fournisseurId}`);
@@ -90,6 +81,24 @@ export class SupplierInvoicesService {
                 echeances: true,
                 depenses: true,
                 client: true
+            }
+        });
+    }
+
+    async checkExistence(fournisseurId: string, numeroFacture: string) {
+        if (!fournisseurId || !numeroFacture) return null;
+        const trimmedNumero = numeroFacture.trim();
+        return this.prisma.factureFournisseur.findFirst({
+            where: {
+                fournisseurId: fournisseurId,
+                numeroFacture: {
+                    equals: trimmedNumero,
+                    mode: 'insensitive'
+                }
+            },
+            include: {
+                echeances: true,
+                fournisseur: true
             }
         });
     }

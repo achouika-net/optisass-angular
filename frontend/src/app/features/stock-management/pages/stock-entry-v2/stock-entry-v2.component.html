@@ -51,17 +51,35 @@
                                     </mat-select>
                                 </mat-form-field>
 
-                                <mat-form-field appearance="outline" class="w-48 compact-field">
-                                    <mat-label>N° Pièce</mat-label>
-                                    <input matInput formControlName="numero" placeholder="ex: FAC-2023-001"
-                                        class="text-center">
-                                </mat-form-field>
+                                <div class="relative">
+                                    <mat-form-field appearance="outline" class="w-48 compact-field"
+                                        [class.duplicate-warn]="duplicateInvoice">
+                                        <mat-label>N° Pièce</mat-label>
+                                        <input matInput formControlName="numero" placeholder="ex: FAC-2023-001"
+                                            class="text-center font-bold">
+                                        <mat-icon matSuffix *ngIf="duplicateInvoice"
+                                            class="text-red-500">warning</mat-icon>
+                                    </mat-form-field>
+                                    <div *ngIf="duplicateInvoice"
+                                        class="absolute top-12 left-0 w-max z-50 bg-red-600 text-white text-[9px] px-2 py-1 rounded shadow-lg animate-bounce border border-red-400">
+                                        DÉJÀ SAISI !
+                                    </div>
+                                </div>
 
                                 <mat-form-field appearance="outline" class="w-44 compact-field">
                                     <mat-label>Date d'émission *</mat-label>
                                     <input matInput [matDatepicker]="docPicker" formControlName="date">
                                     <mat-datepicker-toggle matIconSuffix [for]="docPicker"></mat-datepicker-toggle>
                                     <mat-datepicker #docPicker></mat-datepicker>
+                                </mat-form-field>
+
+                                <mat-form-field appearance="outline" class="w-56 compact-field font-bold">
+                                    <mat-label>Entrepôt par défaut</mat-label>
+                                    <mat-select formControlName="entrepotId">
+                                        <mat-option *ngFor="let w of entrepots$ | async" [value]="w.id">{{ w.nom
+                                            }}</mat-option>
+                                    </mat-select>
+                                    <mat-icon matPrefix class="scale-75 text-blue-600">warehouse</mat-icon>
                                 </mat-form-field>
 
                                 <input type="file" #fileInput hidden (change)="onFileSelected($event)"
@@ -324,8 +342,18 @@
                                 <mat-label>Marge (DH)</mat-label>
                                 <input matInput type="number" formControlName="margeFixe">
                             </mat-form-field>
+
+                            <!-- NEW: TVA Bulk Selector -->
+                            <mat-form-field appearance="outline" class="w-24 compact-field" subscriptSizing="dynamic">
+                                <mat-label>TVA</mat-label>
+                                <mat-select formControlName="tva" placeholder="TVA">
+                                    <mat-option [value]="null">---</mat-option>
+                                    <mat-option *ngFor="let rate of tvaOptions" [value]="rate">{{rate}}%</mat-option>
+                                </mat-select>
+                            </mat-form-field>
+
                             <button mat-raised-button color="primary" type="button" (click)="applyBatchPricing()"
-                                class="ml-auto">
+                                class="ml-auto !h-10 !px-6 !rounded-xl !bg-blue-600 !font-black !uppercase !tracking-widest">
                                 <mat-icon class="mr-1">done_all</mat-icon> Appliquer à tous
                             </button>
                         </form>
@@ -373,6 +401,16 @@
                                         <option *ngFor="let type of productTypes" [value]="type">
                                             {{ formatTypeLabel(type) }}
                                         </option>
+                                    </select>
+                                </td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="entrepotId">
+                                <th mat-header-cell *matHeaderCellDef> Entrepôt </th>
+                                <td mat-cell *matCellDef="let element">
+                                    <select [(ngModel)]="element.entrepotId" (change)="updateProduct(element)"
+                                        class="bg-transparent border-none text-xs focus:ring-1 focus:ring-blue-400 rounded cursor-pointer font-black text-blue-700">
+                                        <option *ngFor="let w of entrepots$ | async" [value]="w.id">{{w.nom}}</option>
                                     </select>
                                 </td>
                             </ng-container>
@@ -435,11 +473,20 @@
                             </ng-container>
 
                             <ng-container matColumnDef="actions">
-                                <th mat-header-cell *matHeaderCellDef class="w-16"> Actions </th>
+                                <th mat-header-cell *matHeaderCellDef class="w-28 text-center"> Actions </th>
                                 <td mat-cell *matCellDef="let element">
-                                    <button mat-icon-button color="warn" (click)="removeProduct(element.tempId)">
-                                        <mat-icon class="scale-90">delete</mat-icon>
-                                    </button>
+                                    <div class="flex items-center justify-center gap-2">
+                                        <button mat-mini-fab color="primary"
+                                            class="!w-9 !h-9 !bg-blue-50 !text-blue-600 hover:!bg-blue-600 hover:!text-white border border-blue-100 transition-all shadow-none"
+                                            (click)="splitProduct(element)" matTooltip="Scinder la ligne">
+                                            <mat-icon class="scale-90">call_split</mat-icon>
+                                        </button>
+                                        <button mat-mini-fab color="warn"
+                                            class="!w-9 !h-9 !bg-red-50 !text-red-500 hover:!bg-red-600 hover:!text-white border border-red-100 transition-all shadow-none"
+                                            (click)="removeProduct(element.tempId)" matTooltip="Supprimer">
+                                            <mat-icon class="scale-90">delete_outline</mat-icon>
+                                        </button>
+                                    </div>
                                 </td>
                             </ng-container>
 
@@ -458,9 +505,11 @@
                 <!-- STICKY ACTION BUTTON (Moved inside tab) -->
                 <div class="sticky bottom-0 bg-white p-4 border-t shadow-lg flex justify-end z-10 mt-6">
                     <button mat-raised-button color="accent" class="py-3 px-8 text-lg"
-                        [disabled]="stagedProducts.length === 0" (click)="openAlimentationDialog()">
-                        <mat-icon class="mr-2">archive</mat-icon>
-                        ALIMENTER LE STOCK
+                        [disabled]="stagedProducts.length === 0 || documentForm.invalid || duplicateInvoice || submitting"
+                        (click)="finalizeAlimentation()">
+                        <mat-icon class="mr-2" *ngIf="!submitting">archive</mat-icon>
+                        <mat-icon class="mr-2 animate-spin" *ngIf="submitting">sync</mat-icon>
+                        {{ submitting ? 'TRAITEMENT EN COURS...' : 'FINALISER L\'ALIMENTATION' }}
                     </button>
                 </div>
             </div>

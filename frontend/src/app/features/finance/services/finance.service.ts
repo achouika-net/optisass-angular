@@ -90,6 +90,13 @@ export class FinanceService {
         return this.http.delete<void>(`${this.apiUrl}/supplier-invoices/${id}`);
     }
 
+    checkInvoiceExistence(fournisseurId: string, numeroFacture: string): Observable<{ exists: boolean, invoice?: any }> {
+        let params = new HttpParams()
+            .set('fournisseurId', fournisseurId)
+            .set('numeroFacture', numeroFacture);
+        return this.http.get<{ exists: boolean, invoice?: any }>(`${this.apiUrl}/supplier-invoices/check-existence`, { params });
+    }
+
     // --- Treasury ---
     getTreasurySummary(year: number, month: number, centreId?: string): Observable<any> {
         let params = new HttpParams().set('year', year.toString()).set('month', month.toString());

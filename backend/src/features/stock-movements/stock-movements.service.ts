@@ -56,46 +56,51 @@ export class StockMovementsService {
                     return sum + ((Number(a.prixAchat) + tvaAmount) * Number(a.quantite));
                 }, 0);
 
-                // Check if invoice already exists for this supplier
+                // Check if invoice already exists for this supplier (Case-insensitive & Trimmed)
+                const trimmedNumero = invoiceData.numeroFacture.trim();
                 let invoice = await tx.factureFournisseur.findFirst({
                     where: {
                         fournisseurId: invoiceData.fournisseurId,
-                        numeroFacture: invoiceData.numeroFacture
+                        numeroFacture: {
+                            equals: trimmedNumero,
+                            mode: 'insensitive'
+                        }
                     },
                     include: { echeances: true }
                 });
 
-                if (!invoice) {
-                    // Create new invoice only if it doesn't exist
-                    invoice = await tx.factureFournisseur.create({
-                        data: {
-                            numeroFacture: invoiceData.numeroFacture,
-                            dateEmission: normalizeToUTCNoon(invoiceData.dateEmission) as Date,
-                            dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance || invoiceData.dateEmission) as Date,
-                            type: invoiceData.type,
-                            statut: 'A_PAYER',
-                            montantHT: totalHT,
-                            montantTVA: totalTTC - totalHT,
-                            montantTTC: totalTTC,
-                            fournisseurId: invoiceData.fournisseurId,
-                            centreId: invoiceData.centreId,
-                            pieceJointeUrl: pieceJointeUrl,
-                            echeances: {
-                                create: [
-                                    {
-                                        type: 'CHEQUE',
-                                        dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance || invoiceData.dateEmission) as Date,
-                                        montant: totalTTC,
-                                        statut: 'EN_ATTENTE'
-                                    }
-                                ]
-                            }
-                        },
-                        include: { echeances: true }
-                    });
-                } else {
-                    console.log(`[STOCK] Reusing existing invoice ${invoice.numeroFacture} for supplier ${invoiceData.fournisseurId}`);
+                if (invoice) {
+                    console.warn(`[STOCK] Duplicate alimentation attempt for invoice ${invoice.numeroFacture}`);
+                    throw new BadRequestException(`La facture ${invoice.numeroFacture} existe déjà. Vous ne pouvez pas alimenter le stock deux fois sur la même facture/BL pour éviter les doublons.`);
                 }
+
+                // If no invoice exists, we continue with creation
+                invoice = await tx.factureFournisseur.create({
+                    data: {
+                        numeroFacture: invoiceData.numeroFacture,
+                        dateEmission: normalizeToUTCNoon(invoiceData.dateEmission) as Date,
+                        dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance || invoiceData.dateEmission) as Date,
+                        type: invoiceData.type,
+                        statut: 'A_PAYER',
+                        montantHT: totalHT,
+                        montantTVA: totalTTC - totalHT,
+                        montantTTC: totalTTC,
+                        fournisseurId: invoiceData.fournisseurId,
+                        centreId: invoiceData.centreId,
+                        pieceJointeUrl: pieceJointeUrl,
+                        echeances: {
+                            create: [
+                                {
+                                    type: 'CHEQUE',
+                                    dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance || invoiceData.dateEmission) as Date,
+                                    montant: totalTTC,
+                                    statut: 'EN_ATTENTE'
+                                }
+                            ]
+                        }
+                    },
+                    include: { echeances: true }
+                });
 
                 for (const alloc of allocations) {
                     let targetProduct = await this.productsService.findLocalCounterpart({

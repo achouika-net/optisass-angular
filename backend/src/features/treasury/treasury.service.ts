@@ -107,7 +107,10 @@ export class TreasuryService {
                     statut: { not: 'ANNULE' },
                     ...(centreId ? { OR: [{ depense: { centreId } }, { factureFournisseur: { centreId } }] } : {})
                 },
-                include: { depense: { select: { categorie: true } }, factureFournisseur: { select: { type: true } } }
+                include: {
+                    depense: { select: { id: true, categorie: true, description: true } },
+                    factureFournisseur: { select: { id: true, type: true, numeroFacture: true } }
+                }
             }),
             this.prisma.financeConfig.findFirst(),
             // [NEW] Cash Incoming (Standard)
@@ -175,32 +178,53 @@ export class TreasuryService {
 
         const monthlyThreshold = config?.monthlyThreshold || 50000;
 
-        // [FIX] Single Source of Truth: Total Scheduled = Programmed Outflows (Non-Cash)
-        const totalScheduled = echeanceDetails.reduce((sum, e) => sum + Number(e.montant || 0), 0);
-        const totalDirectExpenses = (categoryStats as any[]).reduce((sum, c) => sum + (c._sum.montant || 0), 0);
-        const totalExpenses = totalDirectExpenses + totalScheduled;
+        // COMBINED DEDUPLICATED LOGIC
+        const combinedCategoriesMap = new Map<string, number>();
+        let totalDirectExpenses = 0;
+        let totalScheduled = 0;
+        let totalOutgoingPending = 0;
+        let totalExpensesCashed = expenses._sum?.montant || 0;
 
+        // 1. Process Direct Expenses (No installment)
+        (categoryStats as any[]).forEach(c => {
+            const amount = Number(c._sum.montant || 0);
+            totalDirectExpenses += amount;
+            combinedCategoriesMap.set(c.categorie, (combinedCategoriesMap.get(c.categorie) || 0) + amount);
+        });
+
+        // 2. Process Scheduled Payments (Installments)
+        echeanceDetails.forEach(e => {
+            const amount = Number(e.montant || 0);
+            totalScheduled += amount;
+
+            // Determine Category Label (Favor user-facing "FACTURE" for invoices)
+            let cat = e.depense?.categorie || (e.factureFournisseur ? 'FACTURE' : 'AUTRE');
+            combinedCategoriesMap.set(cat, (combinedCategoriesMap.get(cat) || 0) + amount);
+
+            // Audit Pending/Cashed
+            if (e.statut === 'EN_ATTENTE') {
+                totalOutgoingPending += amount;
+            } else if (e.statut === 'ENCAISSE') {
+                totalExpensesCashed += amount;
+            }
+        });
+
+        const totalExpenses = totalDirectExpenses + totalScheduled;
         const totalIncoming = incomingStandard - incomingAvoir;
         const totalIncomingCashed = incomingCashedStandard - incomingCashedAvoir;
-        const totalExpensesCashed = (expenses._sum?.montant || 0) + (echeancesCashed._sum?.montant || 0);
 
         const balance = totalIncoming - totalExpenses;
         const balanceReal = totalIncomingCashed - totalExpensesCashed;
 
-        const combinedCategoriesMap = new Map<string, number>();
-        (categoryStats as any[]).forEach(c => combinedCategoriesMap.set(c.categorie, (combinedCategoriesMap.get(c.categorie) || 0) + (c._sum.montant || 0)));
-        echeanceDetails.forEach(e => {
-            let cat = e.depense?.categorie || (e.factureFournisseur ? 'STOCK / ACHAT MARCHANDISE' : 'AUTRE');
-            combinedCategoriesMap.set(cat, (combinedCategoriesMap.get(cat) || 0) + Number(e.montant));
-        });
-
-        const categories = Array.from(combinedCategoriesMap.entries()).map(([name, value]) => ({ name, value }));
+        const categories = Array.from(combinedCategoriesMap.entries())
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
 
         return {
             month, year, totalExpenses, totalIncoming, totalExpensesCashed, totalIncomingCashed, balance, balanceReal,
             totalScheduled, // <--- EXPLICITLY FOR CEILING CARD
             totalIncomingPending: incomingPendingStandard - incomingPendingAvoir,
-            totalOutgoingPending: echeancesPending._sum?.montant || 0,
+            totalOutgoingPending,
             monthlyThreshold, categories,
             incomingCash: ((results[13] as any)._sum.montant || 0) - ((results[14] as any)._sum.montant || 0),
             incomingCard: ((results[15] as any)._sum.montant || 0) - ((results[16] as any)._sum.montant || 0)

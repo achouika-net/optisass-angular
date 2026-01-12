@@ -93,3 +93,17 @@ table.mat-mdc-table {
         display: none; // Hides the error/hint space completely for perfect vertical centering
     }
 }
+
+.duplicate-warn {
+
+    ::ng-deep .mdc-notched-outline__leading,
+    ::ng-deep .mdc-notched-outline__notch,
+    ::ng-deep .mdc-notched-outline__trailing {
+        border-color: #ef4444 !important; // Red-500
+        border-width: 2px !important;
+    }
+
+    ::ng-deep .mat-mdc-form-field-label {
+        color: #ef4444 !important;
+    }
+}
