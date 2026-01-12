@@ -9,6 +9,7 @@ import {
   IModel,
   IResource,
   ISubFamily,
+  ISupplier,
 } from '@app/models';
 import { ErrorService, ResourceService } from '@app/services';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
@@ -34,6 +35,8 @@ interface IResourceState {
   contactLensUsages: IResource[];
   accessoryCategories: IResource[];
   civilites: IResource[];
+  tvaRates: IResource[];
+  pricingModes: IResource[];
   brands: IBrand[];
   models: IModel[];
   manufacturers: IManufacturer[];
@@ -41,6 +44,7 @@ interface IResourceState {
   families: IFamily[];
   subFamilies: ISubFamily[];
   colors: IColor[];
+  suppliers: ISupplier[];
   loading: boolean;
   initialized: boolean;
 }
@@ -64,6 +68,8 @@ const initialState: IResourceState = {
   contactLensUsages: [],
   accessoryCategories: [],
   civilites: [],
+  tvaRates: [],
+  pricingModes: [],
   brands: [],
   models: [],
   manufacturers: [],
@@ -71,6 +77,7 @@ const initialState: IResourceState = {
   families: [],
   subFamilies: [],
   colors: [],
+  suppliers: [],
   loading: false,
   initialized: false,
 };
@@ -102,6 +109,7 @@ export const ResourceStore = signalStore(
               families: withErrorHandler(resourceService.getFamilies(), [], errorService),
               subFamilies: withErrorHandler(resourceService.getSubFamilies(), [], errorService),
               colors: withErrorHandler(resourceService.getColors(), [], errorService),
+              suppliers: withErrorHandler(resourceService.getSuppliers(), [], errorService),
             }),
           ),
           tap((resources) =>
@@ -116,6 +124,7 @@ export const ResourceStore = signalStore(
               families: resources.families,
               subFamilies: resources.subFamilies,
               colors: resources.colors,
+              suppliers: resources.suppliers,
               // State flags
               loading: false,
               initialized: true,

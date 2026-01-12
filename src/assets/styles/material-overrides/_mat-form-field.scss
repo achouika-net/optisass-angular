@@ -1,3 +1,17 @@
+@use '@angular/material' as mat;
+
+@include mat.form-field-overrides(
+  (
+    outlined-disabled-input-text-color: var(--mat-sys-on-surface-variant),
+    outlined-disabled-label-text-color: var(--mat-sys-on-surface-variant),
+    outlined-disabled-outline-color: var(--mat-sys-outline),
+    error-text-color: var(--mat-sys-error),
+    outlined-error-outline-color: var(--mat-sys-error),
+    outlined-error-focus-outline-color: var(--mat-sys-error),
+    outlined-error-hover-outline-color: var(--mat-sys-error),
+  )
+);
+
 .mat-mdc-form-field {
   width: 100%;
 
@@ -14,11 +28,26 @@
     color: var(--mat-sys-error);
   }
 
-  /* adjust height in case of error or hint */
   .mat-mdc-form-field-subscript-wrapper:has(mat-error, mat-hint) {
     min-height: 30px;
   }
+
   .mat-mdc-text-field-wrapper {
     flex: none !important;
   }
+
+  &.form-field-warning {
+    .mdc-notched-outline__leading,
+    .mdc-notched-outline__notch,
+    .mdc-notched-outline__trailing {
+      border-color: var(--color-warning) !important;
+    }
+  }
+
+  /* BACKUP - old disabled styling before M3 mixin
+  .mdc-text-field--outlined.mdc-text-field--disabled {
+    background-color: var(--mat-sys-surface);
+    border-radius: var(--mat-sys-corner-extra-small);
+  }
+  */
 }

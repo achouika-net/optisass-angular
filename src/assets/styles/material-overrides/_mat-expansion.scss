@@ -1,12 +1,31 @@
 @use '@angular/material' as mat;
 
-/*
 @include mat.expansion-overrides(
   (
-    // container-background-color: var(--mat-sys-surface),
+    header-text-color: var(--mat-sys-on-primary),
+    header-description-color: var(--mat-sys-on-primary),
+    container-background-color: var(--mat-sys-surface),
+    header-indicator-color: var(--mat-sys-on-primary),
+    header-hover-state-layer-color: transparent,
+    header-focus-state-layer-color: transparent,
   )
 );
-.mat-expansion-panel-content-wrapper {
-  //  background-color: var(--mat-sys-surface);
+
+.mat-expansion-panel {
+  .mat-expansion-panel-header {
+    background-color: var(--mat-sys-primary) !important;
+
+    mat-icon {
+      color: var(--mat-sys-on-primary);
+    }
+
+    &:hover {
+      background-color: color-mix(in srgb, var(--mat-sys-primary) 90%, black) !important;
+    }
+
+    &.mat-expanded {
+      background-color: var(--mat-sys-primary) !important;
+    }
+  }
+  /* Note: header background not available via M3 tokens, using CSS override */
 }
-*/
