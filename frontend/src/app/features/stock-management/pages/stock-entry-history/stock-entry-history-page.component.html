@@ -1,200 +1,352 @@
-<div class="page-container">
-    <div class="page-header">
-        <h2>Historique des Entrées de Stock</h2>
-        <div class="header-actions">
-            <button mat-icon-button (click)="loadHistory()" matTooltip="Actualiser">
-                <mat-icon>refresh</mat-icon>
+<div class="stock-history-container p-6 flex flex-col gap-6">
+
+    <!-- HEADER SECTION -->
+    <div class="page-header flex justify-between items-start">
+        <div class="header-left flex items-center gap-4">
+            <div class="header-icon bg-blue-600 text-white p-3 rounded-xl shadow-lg shadow-blue-200">
+                <mat-icon class="text-3xl h-8 w-8">history</mat-icon>
+            </div>
+            <div>
+                <h2 class="text-2xl font-black text-gray-800 m-0">Historique des Entrées</h2>
+                <span class="text-sm text-gray-500 font-medium">Consultez et gérez les réapprovisionnements
+                    passés</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <button mat-flat-button color="primary" class="py-2" (click)="loadHistory()">
+                <mat-icon class="mr-2">refresh</mat-icon> ACTUALISER
             </button>
         </div>
     </div>
 
-    <div class="filters-section" [formGroup]="filterForm">
+    <!-- STATISTICS CARDS -->
+    <div class="stats-row grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
+        <mat-card class="border-l-4 border-l-blue-500 shadow-sm overflow-hidden">
+            <mat-card-content class="flex items-center gap-4 py-4">
+                <div class="stat-icon bg-blue-50 text-blue-600 p-3 rounded-full">
+                    <mat-icon class="text-3xl h-8 w-8">description</mat-icon>
+                </div>
+                <div>
+                    <div class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Total Documents</div>
+                    <div class="text-2xl font-black text-gray-800">{{ stats.totalEntries }}</div>
+                </div>
+            </mat-card-content>
+        </mat-card>
 
-        <!-- Date Filter with Shortcuts -->
-        <div class="date-filter-group">
-            <button mat-icon-button [matMenuTriggerFor]="dateMenu" matTooltip="Périodes prédéfinies">
-                <mat-icon>calendar_today</mat-icon>
-            </button>
-            <mat-menu #dateMenu="matMenu">
-                <button mat-menu-item (click)="setPeriod('TODAY')">Aujourd'hui</button>
-                <button mat-menu-item (click)="setPeriod('YESTERDAY')">Hier</button>
-                <button mat-menu-item (click)="setPeriod('THIS_WEEK')">Cette semaine</button>
-                <button mat-menu-item (click)="setPeriod('THIS_MONTH')">Ce mois</button>
-                <button mat-menu-item (click)="setPeriod('LAST_MONTH')">Mois dernier</button>
-                <button mat-menu-item (click)="setPeriod('THIS_YEAR')">Cette année</button>
-            </mat-menu>
+        <mat-card class="border-l-4 border-l-green-500 shadow-sm overflow-hidden">
+            <mat-card-content class="flex items-center gap-4 py-4">
+                <div class="stat-icon bg-green-50 text-green-600 p-3 rounded-full">
+                    <mat-icon class="text-3xl h-8 w-8">shopping_basket</mat-icon>
+                </div>
+                <div>
+                    <div class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Articles Réceptionnés
+                    </div>
+                    <div class="text-2xl font-black text-gray-800">{{ stats.totalItems }}</div>
+                </div>
+            </mat-card-content>
+        </mat-card>
 
-            <mat-form-field appearance="outline" class="dense-field date-field">
-                <mat-label>Période</mat-label>
-                <mat-date-range-input [rangePicker]="picker">
-                    <input matStartDate formControlName="dateFrom" placeholder="Début">
-                    <input matEndDate formControlName="dateTo" placeholder="Fin">
-                </mat-date-range-input>
-                <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
-                <mat-date-range-picker #picker></mat-date-range-picker>
-            </mat-form-field>
-        </div>
-
-        <!-- Document Type Filter -->
-        <mat-form-field appearance="outline" class="dense-field">
-            <mat-label>Type Document</mat-label>
-            <mat-select formControlName="docType">
-                <mat-option [value]="null">Tous</mat-option>
-                <mat-option value="FACTURE">Facture</mat-option>
-                <mat-option value="BL">Bon de Livraison</mat-option>
-            </mat-select>
-        </mat-form-field>
-
-        <!-- Supplier Filter -->
-        <mat-form-field appearance="outline" class="dense-field">
-            <mat-label>Fournisseur</mat-label>
-            <mat-select formControlName="supplierId">
-                <mat-option [value]="null">Tous</mat-option>
-                <mat-option *ngFor="let s of suppliers" [value]="s.id">{{ s.nom }}</mat-option>
-            </mat-select>
-        </mat-form-field>
-
-        <button mat-flat-button color="primary" (click)="loadHistory()">
-            <mat-icon>search</mat-icon> Filtrer
-        </button>
-        <button mat-stroked-button (click)="resetFilters()">
-            Réinitialiser
-        </button>
+        <mat-card class="border-l-4 border-l-orange-500 shadow-sm overflow-hidden">
+            <mat-card-content class="flex items-center gap-4 py-4">
+                <div class="stat-icon bg-orange-50 text-orange-600 p-3 rounded-full">
+                    <mat-icon class="text-3xl h-8 w-8">payments</mat-icon>
+                </div>
+                <div>
+                    <div class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Valeur Totale (TTC)
+                    </div>
+                    <div class="text-2xl font-black text-gray-800">{{ stats.totalValue | number:'1.2-2' }} <small
+                            class="text-sm font-medium">DH</small></div>
+                </div>
+            </mat-card-content>
+        </mat-card>
     </div>
 
-    <div class="page-content">
-        <div class="loading-container" *ngIf="loading">
+    <!-- FILTERS CARD -->
+    <mat-card class="filters-card shadow-sm border border-gray-100 overflow-visible">
+        <mat-card-header class="pb-2">
+            <mat-card-title class="text-sm font-bold text-gray-600 flex items-center gap-2">
+                <mat-icon class="text-blue-500">filter_list</mat-icon> CRITÈRES DE RECHERCHE
+            </mat-card-title>
+        </mat-card-header>
+        <mat-card-content [formGroup]="filterForm" class="pt-2">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-center">
+
+                <div class="flex items-center gap-2">
+                    <button mat-icon-button [matMenuTriggerFor]="dateMenu" matTooltip="Raccourcis de période"
+                        class="bg-gray-100/50">
+                        <mat-icon class="text-blue-600">event</mat-icon>
+                    </button>
+                    <mat-menu #dateMenu="matMenu" class="modern-menu">
+                        <button mat-menu-item (click)="setPeriod('TODAY')"><mat-icon>today</mat-icon>
+                            Aujourd'hui</button>
+                        <button mat-menu-item (click)="setPeriod('YESTERDAY')"><mat-icon>history</mat-icon>
+                            Hier</button>
+                        <mat-divider></mat-divider>
+                        <button mat-menu-item (click)="setPeriod('THIS_WEEK')"><mat-icon>calendar_view_week</mat-icon>
+                            Cette semaine</button>
+                        <button mat-menu-item (click)="setPeriod('THIS_MONTH')"><mat-icon>calendar_month</mat-icon> Ce
+                            mois</button>
+                        <button mat-menu-item (click)="setPeriod('LAST_MONTH')"><mat-icon>event_busy</mat-icon> Mois
+                            dernier</button>
+                        <mat-divider></mat-divider>
+                        <button mat-menu-item (click)="setPeriod('THIS_YEAR')"><mat-icon>calendar_today</mat-icon> Cette
+                            année</button>
+                    </mat-menu>
+
+                    <mat-form-field appearance="outline" class="w-full compact-field">
+                        <mat-label>Période</mat-label>
+                        <mat-date-range-input [rangePicker]="picker">
+                            <input matStartDate formControlName="dateFrom" placeholder="Début">
+                            <input matEndDate formControlName="dateTo" placeholder="Fin">
+                        </mat-date-range-input>
+                        <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+                        <mat-date-range-picker #picker></mat-date-range-picker>
+                    </mat-form-field>
+                </div>
+
+                <mat-form-field appearance="outline" class="w-full compact-field">
+                    <mat-label>Type Document</mat-label>
+                    <mat-select formControlName="docType">
+                        <mat-option [value]="null">Tous les documents</mat-option>
+                        <mat-option value="FACTURE">Facture</mat-option>
+                        <mat-option value="BL">Bon de Livraison</mat-option>
+                    </mat-select>
+                    <mat-icon matPrefix class="scale-75 text-gray-400">description</mat-icon>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="w-full compact-field">
+                    <mat-label>Fournisseur</mat-label>
+                    <mat-select formControlName="supplierId">
+                        <mat-option [value]="null">Tous les fournisseurs</mat-option>
+                        <mat-option *ngFor="let s of suppliers" [value]="s.id">{{ s.nom }}</mat-option>
+                    </mat-select>
+                    <mat-icon matPrefix class="scale-75 text-gray-400">local_shipping</mat-icon>
+                </mat-form-field>
+
+                <div class="flex gap-2">
+                    <button mat-stroked-button (click)="resetFilters()" class="flex-1 py-1">
+                        <mat-icon>restart_alt</mat-icon> RÉINIT.
+                    </button>
+                    <button mat-raised-button color="primary" (click)="loadHistory()"
+                        class="flex-1 py-1 shadow-md shadow-blue-100">
+                        <mat-icon>search</mat-icon> FILTRER
+                    </button>
+                </div>
+            </div>
+        </mat-card-content>
+    </mat-card>
+
+    <!-- CONTENT TABLE SECTION -->
+    <div class="table-card bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[400px]">
+        <div class="loading-overlay flex flex-col items-center justify-center p-20 gap-4" *ngIf="loading">
             <mat-spinner diameter="40"></mat-spinner>
+            <span class="text-sm text-gray-400 font-medium">Chargement de l'historique...</span>
         </div>
 
-        <div class="table-container" *ngIf="!loading">
-            <table mat-table [dataSource]="dataSource" multiTemplateDataRows class="history-table">
+        <div class="empty-state flex flex-col items-center justify-center p-20 text-gray-300"
+            *ngIf="!loading && dataSource.data.length === 0">
+            <mat-icon class="text-6xl h-16 w-16 mb-4 opacity-50">history_toggle_off</mat-icon>
+            <p class="text-lg">Aucune entrée trouvée pour ces critères.</p>
+        </div>
+
+        <div class="table-responsive" *ngIf="!loading && dataSource.data.length > 0">
+            <table mat-table [dataSource]="dataSource" multiTemplateDataRows class="premium-table w-full">
 
                 <!-- Date Column -->
                 <ng-container matColumnDef="dateEmission">
-                    <th mat-header-cell *matHeaderCellDef> Date </th>
-                    <td mat-cell *matCellDef="let element"> {{element.dateEmission | date:'dd/MM/yyyy HH:mm'}} </td>
+                    <th mat-header-cell *matHeaderCellDef
+                        class="font-bold uppercase text-[11px] tracking-widest text-gray-500 py-4"> Date </th>
+                    <td mat-cell *matCellDef="let element" class="py-4">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-gray-800">{{element.dateEmission | date:'dd/MM/yyyy'}}</span>
+                            <span class="text-[10px] text-gray-400">{{element.dateEmission | date:'HH:mm'}}</span>
+                        </div>
+                    </td>
                 </ng-container>
 
                 <!-- Supplier Column -->
                 <ng-container matColumnDef="fournisseur">
-                    <th mat-header-cell *matHeaderCellDef> Fournisseur </th>
-                    <td mat-cell *matCellDef="let element"> {{element.fournisseur?.nom}} </td>
+                    <th mat-header-cell *matHeaderCellDef
+                        class="font-bold uppercase text-[11px] tracking-widest text-gray-500 py-4"> Fournisseur </th>
+                    <td mat-cell *matCellDef="let element" class="py-4 font-medium text-gray-700">
+                        <div class="flex items-center gap-2">
+                            <mat-icon class="text-gray-300 scale-75">business</mat-icon>
+                            {{element.fournisseur?.nom || 'Inconnu'}}
+                        </div>
+                    </td>
                 </ng-container>
 
                 <!-- Invoice Number Column -->
                 <ng-container matColumnDef="numeroFacture">
-                    <th mat-header-cell *matHeaderCellDef> N° Pièce </th>
-                    <td mat-cell *matCellDef="let element">
-                        <span class="font-medium">{{element.numeroFacture}}</span>
-                        <span class="text-xs text-gray-500 ml-1">({{element.type}})</span>
+                    <th mat-header-cell *matHeaderCellDef
+                        class="font-bold uppercase text-[11px] tracking-widest text-gray-500 py-4"> N° Pièce </th>
+                    <td mat-cell *matCellDef="let element" class="py-4 text-center">
+                        <span
+                            class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full font-mono text-xs font-bold border border-gray-200">
+                            {{element.numeroFacture}}
+                        </span>
+                        <div class="mt-1">
+                            <span class="text-[9px] uppercase font-black px-1.5 py-0.5 rounded"
+                                [class.bg-blue-50]="element.type === 'FACTURE'"
+                                [class.text-blue-600]="element.type === 'FACTURE'"
+                                [class.bg-orange-50]="element.type === 'BL'"
+                                [class.text-orange-600]="element.type === 'BL'">
+                                {{element.type}}
+                            </span>
+                        </div>
                     </td>
                 </ng-container>
 
                 <!-- Amount Column -->
                 <ng-container matColumnDef="montantTTC">
-                    <th mat-header-cell *matHeaderCellDef> Montant TTC </th>
-                    <td mat-cell *matCellDef="let element">
-                        {{element.montantTTC | number:'1.2-2'}} DH
+                    <th mat-header-cell *matHeaderCellDef
+                        class="font-bold uppercase text-[11px] tracking-widest text-gray-500 py-4 text-right"> Montant
+                        TTC </th>
+                    <td mat-cell *matCellDef="let element" class="py-4 text-right">
+                        <span class="font-black text-gray-800 text-base">{{element.montantTTC | number:'1.2-2'}}</span>
+                        <span class="text-[10px] text-gray-400 ml-1">DH</span>
                     </td>
                 </ng-container>
 
                 <!-- Items Count Column -->
                 <ng-container matColumnDef="itemsCount">
-                    <th mat-header-cell *matHeaderCellDef> Articles </th>
-                    <td mat-cell *matCellDef="let element">
-                        <span class="badge">{{element.itemsCount}}</span>
+                    <th mat-header-cell *matHeaderCellDef
+                        class="font-bold uppercase text-[11px] tracking-widest text-gray-500 py-4 text-center"> Articles
+                    </th>
+                    <td mat-cell *matCellDef="let element" class="py-4 text-center">
+                        <div
+                            class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-50 text-green-700 font-bold text-xs border border-green-100">
+                            {{element.itemsCount}}
+                        </div>
                     </td>
                 </ng-container>
 
                 <!-- Actions Column -->
                 <ng-container matColumnDef="actions">
                     <th mat-header-cell *matHeaderCellDef> </th>
-                    <td mat-cell *matCellDef="let element">
-                        <button mat-icon-button color="warn" matTooltip="Supprimer l'entrée"
+                    <td mat-cell *matCellDef="let element" class="text-right py-4 pr-2">
+                        <button mat-icon-button color="warn" matTooltip="Supprimer cette entrée"
+                            class="hover:bg-red-50 transition-colors"
                             (click)="deleteEntry(element); $event.stopPropagation()">
-                            <mat-icon>delete</mat-icon>
+                            <mat-icon>delete_outline</mat-icon>
                         </button>
                     </td>
                 </ng-container>
 
                 <!-- Expand Column -->
                 <ng-container matColumnDef="expand">
-                    <th mat-header-cell *matHeaderCellDef aria-label="row actions">&nbsp;</th>
+                    <th mat-header-cell *matHeaderCellDef>&nbsp;</th>
                     <td mat-cell *matCellDef="let element">
-                        <button mat-icon-button aria-label="expand row"
+                        <button mat-icon-button class="text-gray-400 hover:text-blue-600 transition-colors"
                             (click)="(expandedElement = expandedElement === element ? null : element); $event.stopPropagation()">
-                            <mat-icon *ngIf="expandedElement !== element">keyboard_arrow_down</mat-icon>
-                            <mat-icon *ngIf="expandedElement === element">keyboard_arrow_up</mat-icon>
+                            <mat-icon>{{expandedElement === element ? 'keyboard_arrow_up' :
+                                'keyboard_arrow_down'}}</mat-icon>
                         </button>
                     </td>
                 </ng-container>
 
-                <!-- Expanded Content Column - The detail row -->
+                <!-- Detail Row Content -->
                 <ng-container matColumnDef="expandedDetail">
-                    <td mat-cell *matCellDef="let element" [attr.colspan]="columnsToDisplay.length">
-                        <div class="element-detail"
+                    <td mat-cell *matCellDef="let element" [attr.colspan]="columnsToDisplay.length"
+                        class="p-0 border-none">
+                        <div class="element-detail overflow-hidden flex flex-col bg-slate-50/50"
                             [@detailExpand]="element == expandedElement ? 'expanded' : 'collapsed'">
 
-                            <div class="detail-container">
-                                <div class="detail-header">
-                                    <div class="detail-info">
-                                        <div class="info-item">
-                                            <span class="label">Date création:</span>
-                                            <span class="value">{{element.createdAt | date:'short'}}</span>
-                                        </div>
-                                        <div class="info-item" *ngIf="element.pieceJointeUrl">
-                                            <span class="label">Pièce jointe:</span>
-                                            <a [href]="getAttachmentUrl(element.pieceJointeUrl)" target="_blank"
-                                                class="link-download">
-                                                <mat-icon class="text-sm">visibility</mat-icon> Visualiser / Enregistrer
-                                            </a>
+                            <div class="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                                <!-- Info & Attachments -->
+                                <div class="lg:col-span-4 flex flex-col gap-4">
+                                    <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                        <h4
+                                            class="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 border-b pb-2">
+                                            Détails Document</h4>
+                                        <div class="flex flex-col gap-3">
+                                            <div class="flex justify-between text-sm">
+                                                <span class="text-gray-500">Créé le :</span>
+                                                <span class="font-medium text-gray-800">{{element.createdAt |
+                                                    date:'short'}}</span>
+                                            </div>
+                                            <mat-divider></mat-divider>
+                                            <div class="flex flex-col gap-2 pt-2" *ngIf="element.pieceJointeUrl">
+                                                <span class="text-xs text-gray-500">Document joint :</span>
+                                                <a [href]="getAttachmentUrl(element.pieceJointeUrl)" target="_blank"
+                                                    class="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg font-bold text-xs hover:bg-blue-100 transition-all no-underline">
+                                                    <mat-icon class="text-base">visibility</mat-icon> VISUALISER LE
+                                                    DOCUMENT
+                                                </a>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div class="warehouse-summary">
-                                        <h4>Répartition par entrepôt</h4>
-                                        <div class="summary-chips">
-                                            <span class="chip" *ngFor="let w of getWarehouseSummary(element)">
-                                                {{w.name}}: <strong>{{w.count}}</strong>
+                                    <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                        <h4
+                                            class="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 border-b pb-2">
+                                            Répartition Entrepôts</h4>
+                                        <div class="flex flex-wrap gap-2">
+                                            <span
+                                                class="px-2 py-1 bg-slate-100 text-slate-700 rounded font-bold text-[10px] border border-slate-200 uppercase"
+                                                *ngFor="let w of getWarehouseSummary(element)">
+                                                {{w.name}}: <span class="text-blue-600">{{w.count}}</span>
                                             </span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div class="products-list">
-                                    <h4>Liste des produits inclus</h4>
-                                    <table class="mini-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Référence</th>
-                                                <th>Désignation</th>
-                                                <th>Entrepôt</th>
-                                                <th>Qte</th>
-                                                <th>P.Achat</th>
-                                                <th>P.Vente</th>
+                                <!-- Product Table Detail -->
+                                <div
+                                    class="lg:col-span-8 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                                    <h4
+                                        class="text-xs font-black text-gray-400 uppercase tracking-widest p-4 bg-gray-50 border-b m-0">
+                                        Produits Réceptionnés</h4>
+                                    <table class="w-full text-sm border-collapse">
+                                        <thead class="bg-gray-50/50">
+                                            <tr class="text-gray-400 text-xs text-left">
+                                                <th class="p-3 border-b">Réf / Désignation</th>
+                                                <th class="p-3 border-b">Entrepôt</th>
+                                                <th class="p-3 border-b text-center">Quantité</th>
+                                                <th class="p-3 border-b text-right">P.Achat / P.Vente</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr *ngFor="let item of element.mouvementsStock">
-                                                <td>{{item.produit?.codeInterne}}</td>
-                                                <td>{{item.produit?.designation}}</td>
-                                                <td>{{item.entrepotDestination?.nom}}</td>
-                                                <td class="text-center font-bold">{{item.quantite}}</td>
-                                                <td class="text-right">{{item.prixAchatUnitaire | number:'1.2-2'}}</td>
-                                                <td class="text-right">{{item.prixVenteUnitaire | number:'1.2-2'}}</td>
+                                            <tr *ngFor="let item of element.mouvementsStock"
+                                                class="hover:bg-blue-50/20">
+                                                <td class="p-3 border-b">
+                                                    <div class="flex flex-col">
+                                                        <span
+                                                            class="font-bold text-gray-800">{{item.produit?.codeInterne}}</span>
+                                                        <span
+                                                            class="text-[11px] text-gray-400 truncate max-w-[250px]">{{item.produit?.designation}}</span>
+                                                    </div>
+                                                </td>
+                                                <td class="p-3 border-b text-xs text-gray-600">
+                                                    <span class="flex items-center gap-1">
+                                                        <mat-icon
+                                                            class="text-[14px] h-3.5 w-3.5 text-gray-300">location_on</mat-icon>
+                                                        {{item.entrepotDestination?.nom}}
+                                                    </span>
+                                                </td>
+                                                <td class="p-3 border-b text-center">
+                                                    <span class="font-black text-blue-600">+{{item.quantite}}</span>
+                                                </td>
+                                                <td class="p-3 border-b text-right tabular-nums">
+                                                    <div class="flex flex-col items-end">
+                                                        <span class="font-bold text-gray-700">{{item.prixAchatUnitaire |
+                                                            number:'1.2-2'}} DH</span>
+                                                        <span class="text-[10px] text-green-600 font-bold">Vente:
+                                                            {{item.prixVenteUnitaire | number:'1.2-2'}} DH</span>
+                                                    </div>
+                                                </td>
                                             </tr>
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
-
                         </div>
                     </td>
                 </ng-container>
 
-                <tr mat-header-row *matHeaderRowDef="columnsToDisplay; sticky: true"></tr>
-                <tr mat-row *matRowDef="let element; columns: columnsToDisplay;" class="element-row"
+                <tr mat-header-row *matHeaderRowDef="columnsToDisplay; sticky: true" class="bg-gray-50"></tr>
+                <tr mat-row *matRowDef="let element; columns: columnsToDisplay;"
+                    class="element-row cursor-pointer transition-all hover:bg-blue-50/30"
                     [class.expanded-row]="expandedElement === element"
                     (click)="expandedElement = expandedElement === element ? null : element">
                 </tr>
