@@ -188,33 +188,55 @@ export class StockMovementsService {
         }
     }
 
-    async getHistory(filters: { dateFrom?: string; dateTo?: string; supplierId?: string; docType?: string }) {
-        const whereClause: any = {};
+    async getHistory(filters: any) {
+        console.log('[STOCK-HISTORY] Filters received:', filters);
+        const andConditions: any[] = [];
+
+        // Center Filter
+        if (filters.centreId && filters.centreId !== 'null' && filters.centreId !== 'undefined') {
+            andConditions.push({
+                OR: [
+                    { centreId: filters.centreId },
+                    { centreId: null }
+                ]
+            });
+        }
 
         // Handle Document Type Filter
         if (filters.docType === 'BL') {
-            whereClause.type = 'BL';
+            andConditions.push({ type: 'BL' });
         } else if (filters.docType === 'FACTURE') {
-            whereClause.type = { in: ['ACHAT_STOCK', 'FACTURE'] };
+            andConditions.push({ type: { in: ['ACHAT_STOCK', 'FACTURE'] } });
         } else {
-            // Default: Show all relevant types
-            whereClause.type = { in: ['ACHAT_STOCK', 'FACTURE', 'BL'] };
+            // Default: Show all
+            andConditions.push({ type: { in: ['ACHAT_STOCK', 'FACTURE', 'BL', 'ENTREE_STOCK'] } });
         }
 
         if (filters.dateFrom || filters.dateTo) {
-            whereClause.dateEmission = {};
-            if (filters.dateFrom) whereClause.dateEmission.gte = new Date(filters.dateFrom);
-            if (filters.dateTo) whereClause.dateEmission.lte = new Date(filters.dateTo);
+            const dateClause: any = {};
+            if (filters.dateFrom && !isNaN(Date.parse(filters.dateFrom))) {
+                dateClause.gte = new Date(filters.dateFrom);
+            }
+            if (filters.dateTo && !isNaN(Date.parse(filters.dateTo))) {
+                dateClause.lte = new Date(filters.dateTo);
+            }
+            if (Object.keys(dateClause).length > 0) {
+                andConditions.push({ dateEmission: dateClause });
+            }
         }
 
-        if (filters.supplierId) {
-            whereClause.fournisseurId = filters.supplierId;
+        if (filters.supplierId && filters.supplierId !== 'null' && filters.supplierId !== 'undefined') {
+            andConditions.push({ fournisseurId: filters.supplierId });
         }
 
-        const results = await this.prisma.factureFournisseur.findMany({
+        const whereClause = andConditions.length > 0 ? { AND: andConditions } : {};
+
+        console.log('[STOCK-HISTORY] Query WhereClause:', JSON.stringify(whereClause, null, 2));
+
+        return this.prisma.factureFournisseur.findMany({
             where: whereClause,
             take: 50,
-            orderBy: { createdAt: 'desc' },
+            orderBy: { dateEmission: 'desc' },
             include: {
                 fournisseur: true,
                 mouvementsStock: {
@@ -225,7 +247,99 @@ export class StockMovementsService {
                 }
             }
         });
-        return results;
+    }
+
+    async getOutHistory(filters: { dateFrom?: string; dateTo?: string; search?: string; centreId?: string }) {
+        const whereClause: any = {
+            type: {
+                in: [
+                    'SORTIE', 'CASSE', 'AJUSTEMENT', 'RETOUR_FOURNISSEUR',
+                    'TRANSFERT_SORTIE', 'TRANSFERT_ENTREE', 'RECEPTION',
+                    'TRANSFERT_INIT', 'EXPEDITION', 'TRANSFERT_ANNULE'
+                ]
+            }
+        };
+
+        if (filters.centreId) {
+            whereClause.OR = [
+                { entrepotSource: { centreId: filters.centreId } },
+                { entrepotDestination: { centreId: filters.centreId } },
+                { entrepotSource: null, entrepotDestination: null } // Initial entries or legacy
+            ];
+        }
+
+        if (filters.dateFrom || filters.dateTo) {
+            whereClause.dateMovement = {};
+            if (filters.dateFrom) whereClause.dateMovement.gte = new Date(filters.dateFrom);
+            if (filters.dateTo) whereClause.dateMovement.lte = new Date(filters.dateTo);
+        }
+
+
+        if (filters.search) {
+            const searchOR = [
+                { motif: { contains: filters.search, mode: 'insensitive' } },
+                { produit: { designation: { contains: filters.search, mode: 'insensitive' } } },
+                { produit: { codeInterne: { contains: filters.search, mode: 'insensitive' } } }
+            ];
+            if (whereClause.OR) {
+                // Combine with center filter
+                whereClause.AND = [
+                    { OR: whereClause.OR },
+                    { OR: searchOR }
+                ];
+                delete whereClause.OR;
+            } else {
+                whereClause.OR = searchOR;
+            }
+        }
+
+        const movements = await this.prisma.mouvementStock.findMany({
+            where: whereClause,
+            take: 200,
+            orderBy: { dateMovement: 'desc' },
+            include: {
+                produit: true,
+                entrepotSource: {
+                    include: { centre: true }
+                },
+                entrepotDestination: {
+                    include: { centre: true }
+                },
+                facture: {
+                    include: { client: true }
+                }
+            }
+        });
+
+        // Grouping movements by motif and approximate time (same minute)
+        const groups: any[] = [];
+        const groupMap = new Map<string, any>();
+
+        movements.forEach(m => {
+            const date = new Date(m.dateMovement);
+            // Group by motif + YYYY-MM-DD HH:mm
+            const timeKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()} ${date.getHours()}:${date.getMinutes()}`;
+            const key = `${m.motif}_${timeKey}`;
+
+            if (!groupMap.has(key)) {
+                const group = {
+                    id: m.id, // Using first movement ID as group ID for simpler UI handling
+                    motif: m.motif,
+                    dateMovement: m.dateMovement,
+                    utilisateur: m.utilisateur,
+                    itemsCount: 0,
+                    mouvementsStock: []
+                };
+                groupMap.set(key, group);
+                groups.push(group);
+            }
+
+            const currentGroup = groupMap.get(key);
+            currentGroup.mouvementsStock.push(m);
+            currentGroup.itemsCount += 1;
+        });
+
+        return groups;
     }
 
     async removeEntryHistory(id: string) {
@@ -260,5 +374,16 @@ export class StockMovementsService {
                 where: { id }
             });
         });
+    }
+
+    async getDebugData() {
+        const count = await this.prisma.factureFournisseur.count();
+        const recent = await this.prisma.factureFournisseur.findMany({
+            take: 5,
+            orderBy: { createdAt: 'desc' },
+            select: { id: true, numeroFacture: true, centreId: true, type: true }
+        });
+        const centers = await this.prisma.centre.findMany({ select: { id: true, nom: true } });
+        return { count, recent, availableCenters: centers };
     }
 }

@@ -84,7 +84,7 @@ export const MENU: MenuItem[] = [
         route: 'stock/entry-v2',
       },
       {
-        label: 'Historique des Entrées',
+        label: 'Historique de mouvements',
         icon: 'history',
         type: 'subchild',
         route: 'stock/history',

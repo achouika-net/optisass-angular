@@ -21,9 +21,25 @@ export class StockMovementsController {
         @Query('dateFrom') dateFrom?: string,
         @Query('dateTo') dateTo?: string,
         @Query('supplierId') supplierId?: string,
-        @Query('docType') docType?: string
+        @Query('docType') docType?: string,
+        @Query('centreId') centreId?: string
     ) {
-        return this.service.getHistory({ dateFrom, dateTo, supplierId, docType });
+        return this.service.getHistory({ dateFrom, dateTo, supplierId, docType, centreId });
+    }
+
+    @Get('out-history')
+    getOutHistory(
+        @Query('dateFrom') dateFrom?: string,
+        @Query('dateTo') dateTo?: string,
+        @Query('search') search?: string,
+        @Query('centreId') centreId?: string
+    ) {
+        return this.service.getOutHistory({ dateFrom, dateTo, search, centreId });
+    }
+
+    @Get('debug-data')
+    debugData() {
+        return this.service.getDebugData();
     }
 
     @Delete('history/:id')

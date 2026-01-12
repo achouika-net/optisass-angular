@@ -12,14 +12,17 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTabsModule } from '@angular/material/tabs';
 import { MatCardModule } from '@angular/material/card';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
 import { animate, state, style, transition, trigger } from '@angular/animations';
-import { StockMovementsService } from '../../services/stock-movements.service';
-import { FinanceService } from '../../../finance/services/finance.service';
 import { finalize } from 'rxjs/operators';
 import { environment } from '../../../../../environments/environment';
+import { Store } from '@ngrx/store';
+import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
+import { StockMovementsService } from '../../services/stock-movements.service';
+import { FinanceService } from '../../../finance/services/finance.service';
 
 @Component({
     selector: 'app-stock-entry-history-page',
@@ -40,7 +43,8 @@ import { environment } from '../../../../../environments/environment';
         MatSnackBarModule,
         MatCardModule,
         MatTooltipModule,
-        MatDividerModule
+        MatDividerModule,
+        MatTabsModule
     ],
     templateUrl: './stock-entry-history-page.component.html',
     styleUrls: ['./stock-entry-history-page.component.scss'],
@@ -55,9 +59,14 @@ import { environment } from '../../../../../environments/environment';
 export class StockEntryHistoryPageComponent implements OnInit {
     dataSource = new MatTableDataSource<any>([]);
     columnsToDisplay = ['dateEmission', 'fournisseur', 'numeroFacture', 'montantTTC', 'itemsCount', 'actions', 'expand'];
+
+    outDataSource = new MatTableDataSource<any>([]);
+    outColumnsToDisplay = ['dateMovement', 'motif', 'utilisateur', 'itemsCount', 'expand'];
+
     expandedElement: any | null;
 
     filterForm: FormGroup;
+    outFilterForm: FormGroup;
     suppliers: any[] = [];
     loading = false;
 
@@ -67,12 +76,21 @@ export class StockEntryHistoryPageComponent implements OnInit {
         totalValue: 0
     };
 
+    outStats = {
+        totalSorties: 0,
+        totalItems: 0
+    };
+
+    activeTabIndex = 0;
+    currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
+
     constructor(
         private stockService: StockMovementsService,
         private financeService: FinanceService,
         private fb: FormBuilder,
         private cdr: ChangeDetectorRef,
-        private snackBar: MatSnackBar
+        private snackBar: MatSnackBar,
+        private store: Store
     ) {
         this.filterForm = this.fb.group({
             dateFrom: [null],
@@ -80,11 +98,30 @@ export class StockEntryHistoryPageComponent implements OnInit {
             supplierId: [null],
             docType: [null]
         });
+
+        this.outFilterForm = this.fb.group({
+            dateFrom: [null],
+            dateTo: [null],
+            search: ['']
+        });
     }
 
     ngOnInit() {
         this.loadSuppliers();
         this.loadHistory();
+        this.loadOutHistory();
+    }
+    /* ... slide ... */
+    onTabChange(event: any) {
+        this.activeTabIndex = event.index;
+        this.expandedElement = null; // Reset expanded when switching tabs
+        if (this.activeTabIndex === 0) this.loadHistory();
+        else this.loadOutHistory();
+    }
+
+    refresh() {
+        if (this.activeTabIndex === 0) this.loadHistory();
+        else this.loadOutHistory();
     }
 
     loadSuppliers() {
@@ -102,6 +139,9 @@ export class StockEntryHistoryPageComponent implements OnInit {
         if (filters.dateFrom) apiFilters.dateFrom = filters.dateFrom.toISOString();
         if (filters.dateTo) apiFilters.dateTo = filters.dateTo.toISOString();
 
+        const centre = this.currentCentre();
+        if (centre?.id) apiFilters.centreId = centre.id;
+
         this.stockService.getStockEntryHistory(apiFilters)
             .pipe(finalize(() => {
                 this.loading = false;
@@ -109,16 +149,16 @@ export class StockEntryHistoryPageComponent implements OnInit {
                 this.cdr.markForCheck(); // Ensure UI updates
             }))
             .subscribe({
-                next: (data) => {
+                next: (data: any[]) => {
                     // Enchant data with items count
-                    const enhancedData = data.map(item => ({
+                    const enhancedData = data.map((item: any) => ({
                         ...item,
                         itemsCount: item.mouvementsStock?.length || 0,
                         totalAllocated: item.mouvementsStock?.reduce((acc: number, m: any) => acc + m.quantite, 0) || 0
                     }));
                     this.dataSource.data = enhancedData;
                 },
-                error: (err) => {
+                error: (err: any) => {
                     console.error('Error loading history', err);
                 }
             });
@@ -138,6 +178,43 @@ export class StockEntryHistoryPageComponent implements OnInit {
         this.loadHistory();
     }
 
+    loadOutHistory() {
+        this.loading = true;
+        const filters = this.outFilterForm.value;
+        const apiFilters: any = { ...filters };
+        if (filters.dateFrom) apiFilters.dateFrom = filters.dateFrom.toISOString();
+        if (filters.dateTo) apiFilters.dateTo = filters.dateTo.toISOString();
+
+        const centre = this.currentCentre();
+        if (centre?.id) apiFilters.centreId = centre.id;
+
+        this.stockService.getStockOutHistory(apiFilters)
+            .pipe(finalize(() => {
+                this.loading = false;
+                this.calculateOutStats();
+                this.cdr.markForCheck();
+            }))
+            .subscribe({
+                next: (data: any[]) => {
+                    this.outDataSource.data = data;
+                },
+                error: (err: any) => console.error('Error loading out history', err)
+            });
+    }
+
+    calculateOutStats() {
+        const data = this.outDataSource.data;
+        this.outStats = {
+            totalSorties: data.length,
+            totalItems: data.reduce((acc, curr) => acc + (curr.itemsCount || 0), 0)
+        };
+    }
+
+    resetOutFilters() {
+        this.outFilterForm.reset();
+        this.loadOutHistory();
+    }
+
     setPeriod(period: string) {
         const now = new Date();
         let from = new Date();
@@ -146,34 +223,37 @@ export class StockEntryHistoryPageComponent implements OnInit {
         switch (period) {
             case 'TODAY':
                 from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+                to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
                 break;
             case 'YESTERDAY':
                 from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-                to = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59);
+                to = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
                 break;
             case 'THIS_WEEK':
-                const day = now.getDay() || 7; // Get current day number, converting Sun. to 7
-                if (day !== 1) from.setHours(-24 * (day - 1)); // Set to Monday
-                else from.setHours(0, 0, 0, 0); // Is Monday
-                to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+                const day = now.getDay() || 7; // Get current day number, 1 (Mon) to 7 (Sun)
+                from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (day - 1));
+                from.setHours(0, 0, 0, 0);
+                to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
                 break;
             case 'THIS_MONTH':
                 from = new Date(now.getFullYear(), now.getMonth(), 1);
-                to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+                to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
                 break;
             case 'LAST_MONTH':
                 from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+                to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
                 break;
             case 'THIS_YEAR':
                 from = new Date(now.getFullYear(), 0, 1);
-                to = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+                to = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
                 break;
         }
 
-        this.filterForm.patchValue({ dateFrom: from, dateTo: to });
-        this.loadHistory();
+        const currentForm = this.activeTabIndex === 0 ? this.filterForm : this.outFilterForm;
+        currentForm.patchValue({ dateFrom: from, dateTo: to });
+
+        if (this.activeTabIndex === 0) this.loadHistory();
+        else this.loadOutHistory();
     }
 
     getWarehouseSummary(element: any): any[] {
@@ -200,7 +280,7 @@ export class StockEntryHistoryPageComponent implements OnInit {
                     this.snackBar.open('Entrée supprimée avec succès (Stock et Dépenses mis à jour)', 'OK', { duration: 5000 });
                     this.loadHistory();
                 },
-                error: (err) => {
+                error: (err: any) => {
                     this.loading = false;
                     console.error('Erreur suppression:', err);
                     this.snackBar.open('Erreur lors de la suppression', 'Fermer', { duration: 5000 });
