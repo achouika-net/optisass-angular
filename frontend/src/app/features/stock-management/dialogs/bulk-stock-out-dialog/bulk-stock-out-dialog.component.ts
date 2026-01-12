@@ -29,82 +29,214 @@ import { forkJoin } from 'rxjs';
     MatTableModule
   ],
   template: `
-    <h2 mat-dialog-title class="text-red-600">
-      <mat-icon class="align-middle mr-2">remove_shopping_cart</mat-icon>
-      Sortie de stock groupée ({{ data.products.length }} produits)
-    </h2>
-    
-    <mat-dialog-content>
-      <!-- Global Reason Banner -->
-      <div class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-        <form [formGroup]="globalForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <mat-form-field appearance="outline" class="w-full">
-            <mat-label>Type de sortie</mat-label>
-            <mat-select formControlName="typeSortie">
-              <mat-option value="AJUSTEMENT">Ajustement d'inventaire</mat-option>
-              <mat-option value="CASSE">Casse / Produit défectueux</mat-option>
-              <mat-option value="RETOUR_FOURNISSEUR">Retour fournisseur</mat-option>
-              <mat-option value="AUTRE">Autre motif</mat-option>
-            </mat-select>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" class="w-full">
-            <mat-label>Motif / Justification</mat-label>
-            <input matInput formControlName="motif" placeholder="Ex: Inventaire annuel...">
-            <mat-error *ngIf="globalForm.get('motif')?.hasError('required')">Requis</mat-error>
-          </mat-form-field>
-        </form>
+    <div class="dialog-container">
+      <div class="dialog-header bg-gradient-to-br from-red-700 to-rose-500">
+        <div class="header-content">
+          <mat-icon class="header-icon">remove_shopping_cart</mat-icon>
+          <div>
+            <h2 class="dialog-title text-white m-0">Sortie de stock groupée</h2>
+            <p class="dialog-subtitle text-rose-100 m-0">{{ data.products.length }} produits sélectionnés pour retrait</p>
+          </div>
+        </div>
+        <button mat-icon-button (click)="onCancel()" class="text-white">
+          <mat-icon>close</mat-icon>
+        </button>
       </div>
-
-      <table mat-table [dataSource]="data.products" class="w-full">
-        <ng-container matColumnDef="designation">
-          <th mat-header-cell *matHeaderCellDef> Produit </th>
-          <td mat-cell *matCellDef="let p"> 
-            <div class="flex flex-col">
-                <span class="font-medium">{{ p.designation }}</span>
-                <span class="text-xs text-gray-500">{{ p.codeInterne }} | Stock: {{ p.quantiteActuelle }}</span>
-            </div>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="quantite">
-          <th mat-header-cell *matHeaderCellDef> Quantité à sortir </th>
-          <td mat-cell *matCellDef="let p; let i = index">
-            <mat-form-field appearance="outline" class="w-24 mt-2" [formGroup]="getQuantityGroup(i)">
-              <input matInput type="number" formControlName="quantite" (change)="validateQuantity(i, p)">
-              <mat-error *ngIf="getQuantityGroup(i).get('quantite')?.hasError('max')">
-                Max {{ p.quantiteActuelle }}
-              </mat-error>
+      
+      <mat-dialog-content class="custom-content">
+        <!-- Reason Selection -->
+        <div class="reason-card animate-in fade-in slide-in-from-top-4 duration-500">
+          <div class="card-header-accent border-l-4 border-l-red-500">
+            <mat-icon class="text-red-500">info_outline</mat-icon>
+            <span>Informations de sortie</span>
+          </div>
+          
+          <form [formGroup]="globalForm" class="grid grid-cols-1 md:grid-cols-2 gap-6 p-5">
+            <mat-form-field appearance="outline" class="w-full premium-field">
+              <mat-label>Type de sortie</mat-label>
+              <mat-select formControlName="typeSortie">
+                <mat-option value="AJUSTEMENT">
+                  <div class="flex items-center gap-2">
+                    <mat-icon class="scale-75 text-gray-400">inventory</mat-icon>
+                    <span>Ajustement d'inventaire</span>
+                  </div>
+                </mat-option>
+                <mat-option value="CASSE">
+                  <div class="flex items-center gap-2">
+                    <mat-icon class="scale-75 text-red-400">broken_image</mat-icon>
+                    <span>Casse / Produit défectueux</span>
+                  </div>
+                </mat-option>
+                <mat-option value="RETOUR_FOURNISSEUR">
+                  <div class="flex items-center gap-2">
+                    <mat-icon class="scale-75 text-blue-400">undo</mat-icon>
+                    <span>Retour fournisseur</span>
+                  </div>
+                </mat-option>
+                <mat-option value="AUTRE">
+                  <div class="flex items-center gap-2">
+                    <mat-icon class="scale-75 text-gray-400">help_outline</mat-icon>
+                    <span>Autre motif</span>
+                  </div>
+                </mat-option>
+              </mat-select>
+              <mat-error *ngIf="globalForm.get('typeSortie')?.hasError('required')">Requis</mat-error>
             </mat-form-field>
-          </td>
-        </ng-container>
 
-        <tr mat-header-row *matHeaderRowDef="['designation', 'quantite']"></tr>
-        <tr mat-row *matRowDef="let row; columns: ['designation', 'quantite'];"></tr>
-      </table>
+            <mat-form-field appearance="outline" class="w-full premium-field">
+              <mat-label>Motif / Justification</mat-label>
+              <input matInput formControlName="motif" placeholder="Ex: Inventaire annuel...">
+              <mat-icon matSuffix class="text-gray-400">edit_note</mat-icon>
+              <mat-error *ngIf="globalForm.get('motif')?.hasError('required')">Requis</mat-error>
+            </mat-form-field>
+          </form>
+        </div>
 
-    </mat-dialog-content>
+        <div class="table-container shadow-sm border rounded-xl overflow-hidden mt-6">
+          <table mat-table [dataSource]="data.products" class="w-full">
+            <ng-container matColumnDef="designation">
+              <th mat-header-cell *matHeaderCellDef class="bg-slate-800 text-white font-bold uppercase text-[11px] tracking-wider py-4"> Produit </th>
+              <td mat-cell *matCellDef="let p" class="py-3"> 
+                <div class="flex flex-col">
+                    <span class="font-bold text-slate-800">{{ p.designation }}</span>
+                    <div class="flex items-center gap-2 mt-1">
+                      <span class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded font-mono">{{ p.codeInterne }}</span>
+                      <span class="text-[10px] text-gray-500 italic">Position: {{ p.entrepot?.nom || 'Non spécifié' }} (Stock: {{ p.quantiteActuelle }})</span>
+                    </div>
+                </div>
+              </td>
+            </ng-container>
 
-    <mat-dialog-actions align="end" class="pb-6 pr-6 pt-2">
-      <button mat-button (click)="onCancel()" class="mr-2">Annuler</button>
-      <button mat-raised-button color="warn" 
-              [disabled]="globalForm.invalid || isQuantitiesInvalid() || loading" 
-              (click)="onConfirm()">
-        {{ loading ? 'Enregistrement...' : 'Confirmer la sortie groupée' }}
-      </button>
-    </mat-dialog-actions>
+            <ng-container matColumnDef="quantite">
+              <th mat-header-cell *matHeaderCellDef class="bg-slate-800 text-white font-bold uppercase text-[11px] tracking-wider text-center py-4"> Quantité à retirer </th>
+              <td mat-cell *matCellDef="let p; let i = index" class="text-center py-3">
+                <mat-form-field appearance="outline" class="w-32 compact-field" [formGroup]="getQuantityGroup(i)">
+                  <input matInput type="number" formControlName="quantite" (change)="validateQuantity(i, p)" class="text-center font-bold">
+                  <mat-error *ngIf="getQuantityGroup(i).get('quantite')?.hasError('max')" class="text-[10px]">
+                    Max {{ p.quantiteActuelle }}
+                  </mat-error>
+                </mat-form-field>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="['designation', 'quantite']"></tr>
+            <tr mat-row *matRowDef="let row; columns: ['designation', 'quantite'];" class="hover:bg-red-50/30 transition-colors"></tr>
+          </table>
+        </div>
+
+      </mat-dialog-content>
+
+      <mat-dialog-actions align="end" class="dialog-actions p-6 border-t bg-gray-50/50">
+        <button mat-button (click)="onCancel()" class="px-6 h-11 text-gray-600 font-medium hover:bg-gray-100 transition-all mr-2">
+          ANNULER
+        </button>
+        <button mat-raised-button color="warn" 
+                class="px-8 h-11 font-bold text-sm tracking-wide shadow-lg shadow-red-200"
+                [disabled]="globalForm.invalid || isQuantitiesInvalid() || loading" 
+                (click)="onConfirm()">
+          <mat-icon class="mr-2" *ngIf="!loading">remove_circle_outline</mat-icon>
+          <mat-icon class="mr-2 animate-spin" *ngIf="loading">sync</mat-icon>
+          {{ loading ? 'ENREGISTREMENT...' : 'CONFIRMER LA SORTIE' }}
+        </button>
+      </mat-dialog-actions>
+    </div>
   `,
   styles: [`
-    mat-dialog-content {
-      min-width: 800px;
-      overflow-x: hidden !important;
+    .dialog-container {
+      display: flex;
+      flex-direction: column;
+      max-height: 90vh;
+      overflow: hidden;
     }
-    .text-red-600 { color: #dc2626; }
-    .bg-gray-50 { background-color: #f9fafb; }
-    .border-gray-200 { border-color: #e5e7eb; }
-    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-    .mat-column-designation { width: 75%; padding-right: 32px; }
-    .mat-column-quantite { width: 25%; }
+    .dialog-header {
+      background: linear-gradient(135deg, #be123c 0%, #fb7185 100%);
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    }
+    .header-content {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .header-icon {
+      font-size: 2.5rem;
+      width: 2.5rem;
+      height: 2.5rem;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    .dialog-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+    }
+    .custom-content {
+      padding: 2rem !important;
+      min-width: 800px;
+      max-width: 1000px;
+    }
+    .reason-card {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+      overflow: hidden;
+    }
+    .card-header-accent {
+      background: #f8fafc;
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+    }
+    .premium-field {
+      ::ng-deep .mdc-text-field--outlined {
+        background-color: #ffffff;
+        transition: all 0.2s;
+      }
+      ::ng-deep .mdc-notched-outline__leading,
+      ::ng-deep .mdc-notched-outline__notch,
+      ::ng-deep .mdc-notched-outline__trailing {
+        border-color: #e2e8f0 !important;
+      }
+      &:hover ::ng-deep .mdc-notched-outline__leading,
+      &:hover ::ng-deep .mdc-notched-outline__notch,
+      &:hover ::ng-deep .mdc-notched-outline__trailing {
+        border-color: #f43f5e !important;
+      }
+    }
+    .table-container {
+      background: white;
+    }
+    ::ng-deep .compact-field {
+      .mdc-text-field--outlined {
+        height: 48px !important;
+      }
+      .mat-mdc-form-field-infix {
+        padding-top: 12px !important;
+        padding-bottom: 12px !important;
+      }
+      .mat-mdc-form-field-subscript-wrapper {
+        font-size: 9px;
+      }
+    }
+    .dialog-actions {
+      border-top: 1px solid #f1f5f9;
+    }
+    @media (max-width: 900px) {
+      .custom-content {
+        min-width: 100%;
+        padding: 1rem !important;
+      }
+    }
   `]
 })
 export class BulkStockOutDialogComponent implements OnInit {

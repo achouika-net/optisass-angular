@@ -32,88 +32,210 @@ import { forkJoin } from 'rxjs';
     MatTableModule
   ],
   template: `
-    <h2 mat-dialog-title class="text-primary">
-      <mat-icon class="align-middle mr-2">swap_horiz</mat-icon>
-      Transfert de stock groupé ({{ data.products.length }} produits)
-    </h2>
-    
-    <mat-dialog-content>
-      <!-- Destination Selection -->
-      <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <form [formGroup]="destinationForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <mat-form-field appearance="outline" class="w-full">
-            <mat-label>Centre de destination</mat-label>
-            <mat-select formControlName="targetCentreId" (selectionChange)="onCentreChange($event.value)">
-              <mat-option *ngFor="let c of centres" [value]="c.id">{{ c.nom }}</mat-option>
-            </mat-select>
-            <mat-error *ngIf="destinationForm.get('targetCentreId')?.hasError('required')">Requis</mat-error>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" class="w-full">
-            <mat-label>Entrepôt de destination</mat-label>
-            <mat-select formControlName="destinationEntrepotId">
-              <mat-option *ngFor="let e of targetWarehouses" [value]="e.id">{{ e.nom }} ({{ e.type }})</mat-option>
-            </mat-select>
-            <mat-error *ngIf="destinationForm.get('destinationEntrepotId')?.hasError('required')">Requis</mat-error>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" class="md:col-span-2 w-full">
-            <mat-label>Motif / Justification du transfert</mat-label>
-            <input matInput formControlName="motif" placeholder="Ex: Rééquilibrage de stock, Commande client...">
-            <mat-error *ngIf="destinationForm.get('motif')?.hasError('required')">Requis</mat-error>
-          </mat-form-field>
-        </form>
+    <div class="dialog-container">
+      <div class="dialog-header">
+        <div class="header-content">
+          <mat-icon class="header-icon">swap_horiz</mat-icon>
+          <div>
+            <h2 class="dialog-title text-white m-0">Transfert de stock groupé</h2>
+            <p class="dialog-subtitle text-blue-100 m-0">{{ data.products.length }} produits sélectionnés pour transfert</p>
+          </div>
+        </div>
+        <button mat-icon-button (click)="onCancel()" class="text-white">
+          <mat-icon>close</mat-icon>
+        </button>
       </div>
-
-      <table mat-table [dataSource]="data.products" class="w-full">
-        <ng-container matColumnDef="designation">
-          <th mat-header-cell *matHeaderCellDef> Produit </th>
-          <td mat-cell *matCellDef="let p"> 
-            <div class="flex flex-col">
-                <span class="font-medium">{{ p.designation }}</span>
-                <span class="text-xs text-gray-500">{{ p.codeInterne }} | Origine: {{ p.entrepot?.nom }} (Stock: {{ p.quantiteActuelle }})</span>
-            </div>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="quantite">
-          <th mat-header-cell *matHeaderCellDef> Quantité à transférer </th>
-          <td mat-cell *matCellDef="let p; let i = index">
-            <mat-form-field appearance="outline" class="w-24 mt-2" [formGroup]="getQuantityGroup(i)">
-              <input matInput type="number" formControlName="quantite" (change)="validateQuantity(i, p)">
-              <mat-error *ngIf="getQuantityGroup(i).get('quantite')?.hasError('max')">
-                Max {{ p.quantiteActuelle }}
-              </mat-error>
+      
+      <mat-dialog-content class="custom-content">
+        <!-- Destination Selection -->
+        <div class="destination-card animate-in fade-in slide-in-from-top-4 duration-500">
+          <div class="card-header-accent">
+            <mat-icon>location_on</mat-icon>
+            <span>Destination du transfert</span>
+          </div>
+          
+          <form [formGroup]="destinationForm" class="grid grid-cols-1 md:grid-cols-2 gap-6 p-5">
+            <mat-form-field appearance="outline" class="w-full premium-field">
+              <mat-label>Centre de destination</mat-label>
+              <mat-select formControlName="targetCentreId" (selectionChange)="onCentreChange($event.value)">
+                <mat-option *ngFor="let c of centres" [value]="c.id">
+                  <div class="flex items-center gap-2">
+                    <mat-icon class="scale-75 text-blue-500">business</mat-icon>
+                    <span>{{ c.nom }}</span>
+                  </div>
+                </mat-option>
+              </mat-select>
+              <mat-error *ngIf="destinationForm.get('targetCentreId')?.hasError('required')">Requis</mat-error>
             </mat-form-field>
-          </td>
-        </ng-container>
 
-        <tr mat-header-row *matHeaderRowDef="['designation', 'quantite']"></tr>
-        <tr mat-row *matRowDef="let row; columns: ['designation', 'quantite'];"></tr>
-      </table>
+            <mat-form-field appearance="outline" class="w-full premium-field">
+              <mat-label>Entrepôt de destination</mat-label>
+              <mat-select formControlName="destinationEntrepotId">
+                <mat-option *ngFor="let e of targetWarehouses" [value]="e.id">
+                  <div class="flex items-center gap-2">
+                    <mat-icon class="scale-75 text-orange-500">warehouse</mat-icon>
+                    <span>{{ e.nom }}</span>
+                    <span class="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 uppercase">{{ e.type }}</span>
+                  </div>
+                </mat-option>
+              </mat-select>
+              <mat-error *ngIf="destinationForm.get('destinationEntrepotId')?.hasError('required')">Requis</mat-error>
+            </mat-form-field>
 
-    </mat-dialog-content>
+            <mat-form-field appearance="outline" class="md:col-span-2 w-full premium-field">
+              <mat-label>Motif / Justification du transfert</mat-label>
+              <input matInput formControlName="motif" placeholder="Ex: Rééquilibrage de stock, Commande client...">
+              <mat-icon matSuffix class="text-gray-400">comment</mat-icon>
+              <mat-error *ngIf="destinationForm.get('motif')?.hasError('required')">Requis</mat-error>
+            </mat-form-field>
+          </form>
+        </div>
 
-    <mat-dialog-actions align="end" class="pb-6 pr-6 pt-2">
-      <button mat-button (click)="onCancel()" class="mr-2">Annuler</button>
-      <button mat-raised-button color="primary" 
-              [disabled]="destinationForm.invalid || isQuantitiesInvalid() || loading" 
-              (click)="onConfirm()">
-        {{ loading ? 'Transfert en cours...' : 'Confirmer le transfert groupé' }}
-      </button>
-    </mat-dialog-actions>
+        <div class="table-container shadow-sm border rounded-xl overflow-hidden mt-6">
+          <table mat-table [dataSource]="data.products" class="w-full">
+            <ng-container matColumnDef="designation">
+              <th mat-header-cell *matHeaderCellDef class="bg-slate-800 text-white font-bold uppercase text-[11px] tracking-wider py-4"> Produit </th>
+              <td mat-cell *matCellDef="let p" class="py-3"> 
+                <div class="flex flex-col">
+                    <span class="font-bold text-slate-800">{{ p.designation }}</span>
+                    <div class="flex items-center gap-2 mt-1">
+                      <span class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-mono">{{ p.codeInterne }}</span>
+                      <span class="text-[10px] text-gray-500 italic">Origine: {{ p.entrepot?.nom }} (Stock: {{ p.quantiteActuelle }})</span>
+                    </div>
+                </div>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="quantite">
+              <th mat-header-cell *matHeaderCellDef class="bg-slate-800 text-white font-bold uppercase text-[11px] tracking-wider text-center py-4"> Quantité à transférer </th>
+              <td mat-cell *matCellDef="let p; let i = index" class="text-center py-3">
+                <mat-form-field appearance="outline" class="w-32 compact-field" [formGroup]="getQuantityGroup(i)">
+                  <input matInput type="number" formControlName="quantite" (change)="validateQuantity(i, p)" class="text-center font-bold">
+                  <mat-error *ngIf="getQuantityGroup(i).get('quantite')?.hasError('max')" class="text-[10px]">
+                    Max {{ p.quantiteActuelle }}
+                  </mat-error>
+                </mat-form-field>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="['designation', 'quantite']"></tr>
+            <tr mat-row *matRowDef="let row; columns: ['designation', 'quantite'];" class="hover:bg-blue-50/30 transition-colors"></tr>
+          </table>
+        </div>
+
+      </mat-dialog-content>
+
+      <mat-dialog-actions align="end" class="dialog-actions p-6 border-t bg-gray-50/50">
+        <button mat-button (click)="onCancel()" class="px-6 h-11 text-gray-600 font-medium hover:bg-gray-100 transition-all mr-2">
+          ANNULER
+        </button>
+        <button mat-raised-button color="primary" 
+                class="px-8 h-11 font-bold text-sm tracking-wide shadow-lg shadow-blue-200"
+                [disabled]="destinationForm.invalid || isQuantitiesInvalid() || loading" 
+                (click)="onConfirm()">
+          <mat-icon class="mr-2" *ngIf="!loading">check_circle</mat-icon>
+          <mat-icon class="mr-2 animate-spin" *ngIf="loading">sync</mat-icon>
+          {{ loading ? 'TRANSFERT EN COURS...' : 'CONFIRMER LE TRANSFERT' }}
+        </button>
+      </mat-dialog-actions>
+    </div>
   `,
   styles: [`
-    mat-dialog-content {
-      min-width: 800px;
-      overflow-x: hidden !important;
+    .dialog-container {
+      display: flex;
+      flex-direction: column;
+      max-height: 90vh;
+      overflow: hidden;
     }
-    .text-primary { color: #3f51b5; }
-    .bg-blue-50 { background-color: #eff6ff; }
-    .border-blue-200 { border-color: #bfdbfe; }
-    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-    .mat-column-designation { width: 75%; padding-right: 32px; }
-    .mat-column-quantite { width: 25%; }
+    .dialog-header {
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    }
+    .header-content {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .header-icon {
+      font-size: 2.5rem;
+      width: 2.5rem;
+      height: 2.5rem;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    .dialog-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+    }
+    .custom-content {
+      padding: 2rem !important;
+      min-width: 800px;
+      max-width: 1000px;
+    }
+    .destination-card {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+      overflow: hidden;
+    }
+    .card-header-accent {
+      background: #f8fafc;
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+    }
+    .premium-field {
+      ::ng-deep .mdc-text-field--outlined {
+        background-color: #ffffff;
+        transition: all 0.2s;
+      }
+      ::ng-deep .mdc-notched-outline__leading,
+      ::ng-deep .mdc-notched-outline__notch,
+      ::ng-deep .mdc-notched-outline__trailing {
+        border-color: #e2e8f0 !important;
+      }
+      &:hover ::ng-deep .mdc-notched-outline__leading,
+      &:hover ::ng-deep .mdc-notched-outline__notch,
+      &:hover ::ng-deep .mdc-notched-outline__trailing {
+        border-color: #3b82f6 !important;
+      }
+    }
+    .table-container {
+      background: white;
+    }
+    ::ng-deep .compact-field {
+      .mdc-text-field--outlined {
+        height: 48px !important;
+      }
+      .mat-mdc-form-field-infix {
+        padding-top: 12px !important;
+        padding-bottom: 12px !important;
+      }
+      .mat-mdc-form-field-subscript-wrapper {
+        font-size: 9px;
+      }
+    }
+    .dialog-actions {
+      border-top: 1px solid #f1f5f9;
+    }
+    @media (max-width: 900px) {
+      .custom-content {
+        min-width: 100%;
+        padding: 1rem !important;
+      }
+    }
   `]
 })
 export class BulkStockTransferDialogComponent implements OnInit {
