@@ -6,6 +6,18 @@ import { CreateSupplierInvoiceDto } from './dto/create-supplier-invoice.dto';
 export class SupplierInvoicesController {
     constructor(private readonly service: SupplierInvoicesService) { }
 
+    @Get('check-existence')
+    async checkExistence(
+        @Query('fournisseurId') fournisseurId: string,
+        @Query('numeroFacture') numeroFacture: string
+    ) {
+        const invoice = await this.service.checkExistence(fournisseurId, numeroFacture);
+        return {
+            exists: !!invoice,
+            invoice
+        };
+    }
+
     @Post()
     create(@Body() createDto: CreateSupplierInvoiceDto) {
         return this.service.create(createDto);

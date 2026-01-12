@@ -23,6 +23,10 @@ import { Product, ProductType, ProductFilters, StockStats } from '../../../../sh
 import { Entrepot } from '../../../../shared/interfaces/warehouse.interface';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { StockAlimentationDialogComponent, AlimentationResult } from '../../components/stock-alimentation-dialog/stock-alimentation-dialog.component';
+import { StockAlimentationService, BulkAlimentationPayload } from '../../services/stock-alimentation.service';
+import { CeilingWarningDialogComponent } from '../../../finance/components/ceiling-warning-dialog/ceiling-warning-dialog.component';
+import { finalize } from 'rxjs';
+import { InvoiceFormDialogComponent } from '../../../finance/components/invoice-form-dialog/invoice-form-dialog.component';
 import { CameraCaptureDialogComponent } from '../../../../shared/components/camera-capture/camera-capture-dialog.component';
 import { OcrService } from '../../../../core/services/ocr.service';
 import { Store } from '@ngrx/store';
@@ -46,6 +50,7 @@ export interface StagedProduct {
     quantite: number;
     prixAchat: number;
     tva: number;
+    entrepotId?: string; // Target warehouse
 
     // Pricing Mode
     modePrix: 'FIXE' | 'COEFF';
@@ -98,7 +103,7 @@ export class StockEntryV2Component implements OnInit {
     // Staging Data
     stagedProducts: StagedProduct[] = [];
     productsSubject = new BehaviorSubject<StagedProduct[]>([]);
-    displayedColumns: string[] = ['codeBarre', 'reference', 'marque', 'nom', 'categorie', 'quantite', 'prixAchat', 'tva', 'modePrix', 'prixVente', 'actions'];
+    displayedColumns: string[] = ['codeBarre', 'reference', 'marque', 'nom', 'categorie', 'entrepotId', 'quantite', 'prixAchat', 'tva', 'modePrix', 'prixVente', 'actions'];
 
     // OCR State
     ocrProcessing = false;
@@ -129,6 +134,8 @@ export class StockEntryV2Component implements OnInit {
     entrepots$ = new BehaviorSubject<Entrepot[]>([]);
     stats$ = new BehaviorSubject<StockStats | null>(null);
     productTypes = Object.values(ProductType);
+    duplicateInvoice: any = null;
+    submitting = false;
 
     constructor(
         private fb: FormBuilder,
@@ -139,7 +146,8 @@ export class StockEntryV2Component implements OnInit {
         private snackBar: MatSnackBar,
         private dialog: MatDialog,
         private store: Store,
-        private route: ActivatedRoute
+        private route: ActivatedRoute,
+        private stockService: StockAlimentationService
     ) {
         this.entryForm = this.fb.group({
             reference: [''], // Not required if codeBarre present
@@ -157,18 +165,20 @@ export class StockEntryV2Component implements OnInit {
         });
 
         this.documentForm = this.fb.group({
-            type: ['FACTURE', Validators.required], // FACTURE or BL
+            type: ['FACTURE', Validators.required],
             fournisseurId: ['', Validators.required],
-            numero: [''],
+            numero: ['', Validators.required],
             date: [new Date(), Validators.required],
             file: [null],
-            centreId: [null]
+            centreId: [null],
+            entrepotId: ['', Validators.required] // Global Default
         });
 
         this.batchPricingForm = this.fb.group({
             modePrix: ['COEFF'],
             coefficient: [2.5],
-            margeFixe: [0]
+            margeFixe: [0],
+            tva: [null] // Optional bulk update
         });
 
         this.setupProductSearch();
@@ -239,6 +249,31 @@ export class StockEntryV2Component implements OnInit {
                 }
 
                 this.snackBar.open('Données de la facture pré-remplies', 'OK', { duration: 3000 });
+            }
+        });
+
+        this.setupDuplicateCheck();
+    }
+
+    setupDuplicateCheck() {
+        this.documentForm.valueChanges.pipe(
+            debounceTime(500),
+            distinctUntilChanged((prev, curr) =>
+                prev.fournisseurId === curr.fournisseurId && prev.numero === curr.numero
+            ),
+            switchMap(val => {
+                const trimmedNumero = (val.numero || '').trim();
+                if (val.fournisseurId && trimmedNumero && trimmedNumero.length > 2) {
+                    return this.financeService.checkInvoiceExistence(val.fournisseurId, trimmedNumero);
+                }
+                return of(null);
+            })
+        ).subscribe(res => {
+            if (res && res.exists) {
+                this.duplicateInvoice = res.invoice;
+                this.snackBar.open(`Attention: La facture ${this.duplicateInvoice.numeroFacture} existe déjà pour ce fournisseur.`, 'Compris', { duration: 10000 });
+            } else {
+                this.duplicateInvoice = null;
             }
         });
     }
@@ -325,11 +360,14 @@ export class StockEntryV2Component implements OnInit {
         // Backend fallback: if no reference, use codeBarre as reference
         const finalRef = val.reference?.trim() || val.codeBarre?.trim() || '';
 
+        const globalWh = this.documentForm.get('entrepotId')?.value;
+
         const product: StagedProduct = {
             tempId: crypto.randomUUID(),
-            id: this.foundProduct?.id, // Link if existing
+            id: this.foundProduct?.id,
             reference: finalRef,
             codeBarre: val.codeBarre,
+            entrepotId: globalWh,
             ...val
         };
 
@@ -368,6 +406,30 @@ export class StockEntryV2Component implements OnInit {
         this.productsSubject.next(this.stagedProducts);
     }
 
+    splitProduct(element: StagedProduct) {
+        if (element.quantite <= 1) {
+            this.snackBar.open('Quantité insuffisante pour scinder', 'OK', { duration: 2000 });
+            return;
+        }
+
+        // 1. Reduce original
+        element.quantite = element.quantite - 1;
+
+        // 2. Add clone with qty 1
+        const clone: StagedProduct = {
+            ...element,
+            tempId: crypto.randomUUID(),
+            quantite: 1
+        };
+
+        const index = this.stagedProducts.findIndex(p => p.tempId === element.tempId);
+        this.stagedProducts.splice(index + 1, 0, clone);
+        this.stagedProducts = [...this.stagedProducts];
+        this.productsSubject.next(this.stagedProducts);
+
+        this.snackBar.open('Article scindé', 'OK', { duration: 2000 });
+    }
+
     updateProduct(element: StagedProduct) {
         // Recalculate based on mode
         if (element.modePrix === 'COEFF' && element.coefficient) {
@@ -393,10 +455,15 @@ export class StockEntryV2Component implements OnInit {
                 product.margeFixe = batchValues.margeFixe;
                 product.prixVente = parseFloat((Number(product.prixAchat) + Number(batchValues.margeFixe)).toFixed(2));
             }
+
+            // Apply TVA if selected in bulk actions
+            if (batchValues.tva !== null && batchValues.tva !== undefined) {
+                product.tva = Number(batchValues.tva);
+            }
         });
 
         this.productsSubject.next(this.stagedProducts);
-        this.snackBar.open(`Tarification appliquée à ${this.stagedProducts.length} article(s)`, 'OK', { duration: 2000 });
+        this.snackBar.open(`Paramètres appliqués à ${this.stagedProducts.length} article(s)`, 'OK', { duration: 2000 });
     }
     // --- OCR Logic (Max Best Effort) ---
 
@@ -682,6 +749,7 @@ export class StockEntryV2Component implements OnInit {
 
                 // Auto-detect category
                 const categorie = this.determineCategory(line.raw || '');
+                const globalWh = this.documentForm.get('entrepotId')?.value;
 
                 const product: StagedProduct = {
                     tempId: crypto.randomUUID(),
@@ -690,6 +758,7 @@ export class StockEntryV2Component implements OnInit {
                     nom: nom,
                     marque: marque || 'Sans Marque',
                     categorie: categorie,
+                    entrepotId: globalWh,
                     quantite: line.qty || 1,
                     prixAchat: prixAchat,
                     tva: defaultTva,
@@ -806,10 +875,198 @@ export class StockEntryV2Component implements OnInit {
         });
     }
 
+    async finalizeAlimentation() {
+        if (this.submitting) return;
+
+        if (this.duplicateInvoice) {
+            this.snackBar.open('Opération impossible : Cette facture existe déjà pour ce fournisseur.', 'Compris', { duration: 5000 });
+            return;
+        }
+
+        if (this.documentForm.invalid || this.stagedProducts.length === 0) {
+            this.snackBar.open('Veuillez compléter les informations du document et ajouter des produits', 'OK', { duration: 3000 });
+            return;
+        }
+
+        const allAllocations: any[] = [];
+        const doc = this.documentForm.getRawValue();
+        const centreId = doc.centreId || this.currentCentre()?.id;
+
+        this.stagedProducts.forEach(p => {
+            allAllocations.push({
+                productId: p.id,
+                reference: p.reference,
+                nom: p.nom,
+                marque: p.marque,
+                categorie: p.categorie,
+                warehouseId: p.entrepotId,
+                quantite: Number(p.quantite),
+                prixAchat: Number(p.prixAchat),
+                prixVente: Number(p.prixVente),
+                tva: Number(p.tva)
+            });
+        });
+
+        // Validation: All lines must have a warehouse
+        if (allAllocations.some(a => !a.warehouseId)) {
+            this.snackBar.open('Veuillez sélectionner un entrepôt pour tous les articles', 'OK', { duration: 3000 });
+            return;
+        }
+
+        // Handle File Attachment
+        let base64File: string | undefined;
+        let fileName: string | undefined;
+        if (doc.file) {
+            base64File = await this.fileToBase64(doc.file);
+            fileName = doc.file.name;
+        }
+
+        const rawDate = doc.date;
+        const utcDate = new Date(Date.UTC(rawDate.getFullYear(), rawDate.getMonth(), rawDate.getDate()));
+        const trimmedNumero = (doc.numero || '').trim();
+
+        const payload: BulkAlimentationPayload = {
+            numeroFacture: trimmedNumero || `ENTREE_${Date.now()}`,
+            dateEmission: utcDate.toISOString(),
+            type: doc.type,
+            fournisseurId: doc.fournisseurId,
+            centreId: centreId,
+            base64File: base64File,
+            fileName: fileName,
+            allocations: allAllocations
+        };
+
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        const totalTTC = allAllocations.reduce((sum, a) => {
+            const tvaAmount = Number(a.prixAchat) * (Number(a.tva) / 100);
+            return sum + ((Number(a.prixAchat) + tvaAmount) * Number(a.quantite));
+        }, 0);
+
+        this.financeService.getSupplier(payload.fournisseurId).pipe(
+            switchMap(supplier => {
+                let monthlyPaymentAmount = 0;
+                if (rawDate.getMonth() === currentMonth && rawDate.getFullYear() === currentYear) {
+                    monthlyPaymentAmount = this.calculateFirstInstallment(supplier, totalTTC);
+                }
+
+                return this.financeService.getTreasurySummary(currentYear, currentMonth + 1, centreId).pipe(
+                    switchMap(summary => {
+                        const threshold = summary?.monthlyThreshold || 50000;
+                        const totalWithEntry = (summary?.totalExpenses || 0) + monthlyPaymentAmount;
+
+                        if (totalWithEntry > threshold && monthlyPaymentAmount > 0) {
+                            return this.financeService.getYearlyProjection(currentYear, centreId).pipe(
+                                switchMap(projection => {
+                                    const dialogRef = this.dialog.open(CeilingWarningDialogComponent, {
+                                        width: '600px',
+                                        disableClose: true,
+                                        data: {
+                                            amount: monthlyPaymentAmount,
+                                            currentDetails: {
+                                                totalExpenses: summary.totalExpenses,
+                                                monthlyThreshold: threshold,
+                                                balance: summary.balance
+                                            },
+                                            projection: projection,
+                                            currentMonth: currentMonth,
+                                            currentYear: currentYear
+                                        }
+                                    });
+                                    return dialogRef.afterClosed();
+                                })
+                            );
+                        }
+                        return of({ action: 'FORCE' });
+                    })
+                );
+            }),
+            finalize(() => this.ocrProcessing = false)
+        ).subscribe((result: any) => {
+            if (!result || result.action === 'CANCEL') return;
+
+            if (result.action === 'RESCHEDULE' && result.date) {
+                const targetDateStr = result.date.toISOString();
+                payload.dateEmission = targetDateStr;
+                payload.dateEcheance = targetDateStr;
+            }
+
+            this.saveEntry(payload);
+        });
+    }
+
+    private calculateFirstInstallment(supplier: any, totalTTC: number): number {
+        const echeanceArray = supplier.convention?.echeancePaiement || [];
+        const conditions = (echeanceArray[0] || supplier.conditionsPaiement2 || supplier.conditionsPaiement || '').toLowerCase();
+
+        if (conditions.includes('60 jours')) return totalTTC / 2;
+        if (conditions.includes('90 jours')) return totalTTC / 3;
+        if (conditions.includes('30 jours')) return 0;
+        if (conditions.match(/r[eé]partie?\s*sur\s*(\d+)\s*mois/)) {
+            const match = conditions.match(/r[eé]partie?\s*sur\s*(\d+)\s*mois/);
+            const months = parseInt(match![1], 10);
+            return totalTTC / months;
+        }
+        return totalTTC;
+    }
+
+    private saveEntry(payload: BulkAlimentationPayload) {
+        this.submitting = true;
+        this.stockService.bulkAlimentation(payload).pipe(
+            finalize(() => this.submitting = false)
+        ).subscribe({
+            next: (res: any) => {
+                this.snackBar.open('Stock alimenté avec succès !', 'OK', { duration: 3000 });
+
+                const completePayment = confirm('Stock alimenté. Souhaitez-vous maintenant compléter les modalités de paiement pour cette facture ?');
+                if (completePayment && res && res.id) {
+                    const invoiceDialog = this.dialog.open(InvoiceFormDialogComponent, {
+                        width: '1200px',
+                        maxWidth: '95vw',
+                        data: { invoice: res }
+                    });
+                    invoiceDialog.afterClosed().subscribe(() => this.resetAfterSave());
+                } else {
+                    this.resetAfterSave();
+                }
+            },
+            error: (err) => {
+                const msg = err.error?.message || 'Erreur lors de l\'enregistrement';
+                this.snackBar.open(msg, 'OK', { duration: 5000 });
+            }
+        });
+    }
+
+    private resetAfterSave() {
+        this.stagedProducts = [];
+        this.productsSubject.next([]);
+        this.documentForm.reset({ type: 'FACTURE', date: new Date(), centreId: this.currentCentre()?.id });
+        this.refreshStats();
+    }
+
+    private fileToBase64(file: File): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = error => reject(error);
+        });
+    }
+
     formatTypeLabel(type: string | undefined): string {
         if (!type) return '';
-        return type.split('_')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(' ');
+        switch (type) {
+            case 'MONTURE_OPTIQUE': return 'Optique';
+            case 'MONTURE_SOLAIRE': return 'Solaire';
+            case 'VERRE': return 'Verre';
+            case 'LENTILLE': return 'Lentille';
+            case 'ACCESSOIRE': return 'Accessoire';
+            default:
+                return type.split('_')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                    .join(' ');
+        }
     }
 }
