@@ -847,7 +847,8 @@ export class StockEntryV2Component implements OnInit {
         if (this.bulkSelection.isEmpty()) return;
 
         const dialogRef = this.dialog.open(BulkStockOutDialogComponent, {
-            width: '900px',
+            width: '1200px',
+            maxWidth: '95vw',
             data: { products: this.bulkSelection.selected }
         });
 
@@ -863,7 +864,8 @@ export class StockEntryV2Component implements OnInit {
         if (this.bulkSelection.isEmpty()) return;
 
         const dialogRef = this.dialog.open(BulkStockTransferDialogComponent, {
-            width: '900px',
+            width: '1200px',
+            maxWidth: '95vw',
             data: { products: this.bulkSelection.selected }
         });
 

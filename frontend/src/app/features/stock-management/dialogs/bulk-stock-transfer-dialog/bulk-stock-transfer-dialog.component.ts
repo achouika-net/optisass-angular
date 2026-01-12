@@ -172,9 +172,10 @@ import { forkJoin } from 'rxjs';
       letter-spacing: -0.025em;
     }
     .custom-content {
-      padding: 2rem !important;
-      min-width: 800px;
-      max-width: 1000px;
+      padding: 1.5rem !important;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden !important;
     }
     .destination-card {
       background: white;
