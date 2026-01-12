@@ -1,3 +1,17 @@
+@use '@angular/material' as mat;
+
+@include mat.select-overrides(
+  (
+    panel-background-color: var(--mat-sys-surface-container),
+  )
+);
+
+.mat-mdc-optgroup-label {
+  background-color: var(--mat-sys-surface-container-highest);
+}
+
+/* BACKUP - old optgroup styling before M3 optimization
 .mat-mdc-optgroup-label {
   backdrop-filter: brightness(90%);
 }
+*/

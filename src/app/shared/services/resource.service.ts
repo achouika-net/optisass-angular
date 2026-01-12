@@ -10,6 +10,7 @@ import {
   ResourceMap,
   ResourceType,
   ISubFamily,
+  ISupplier,
 } from '@app/models';
 import { Observable, of } from 'rxjs';
 import {
@@ -22,6 +23,7 @@ import {
   MOCK_MODELS,
   MOCK_RESOURCES,
   MOCK_SUB_FAMILIES,
+  MOCK_SUPPLIERS,
 } from './resource.service.mock';
 
 // TODO: Inject HttpClient and use API URLs when backend is ready
@@ -163,5 +165,19 @@ export class ResourceService {
     // TODO: Uncomment when backend is ready
     // return this.#http.get<IColor[]>(COLORS_API_URL);
     return of(MOCK_COLORS);
+  }
+
+  // ============================================
+  // Suppliers
+  // ============================================
+
+  /**
+   * Retrieves all suppliers.
+   * @returns {Observable<ISupplier[]>} Observable of suppliers array
+   */
+  getSuppliers(): Observable<ISupplier[]> {
+    // TODO: Uncomment when backend is ready
+    // return this.#http.get<ISupplier[]>(SUPPLIERS_API_URL);
+    return of(MOCK_SUPPLIERS);
   }
 }

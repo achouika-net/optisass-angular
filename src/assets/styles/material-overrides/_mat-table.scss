@@ -1,6 +1,17 @@
+@use '@angular/material' as mat;
+
+@include mat.table-overrides(
+  (
+    background-color: var(--mat-sys-surface),
+    header-headline-color: var(--mat-sys-on-primary),
+    row-item-label-text-color: var(--mat-sys-on-surface),
+    row-item-outline-color: var(--mat-sys-outline-variant),
+  )
+);
+
 .editable-table {
   .mat-mdc-cell {
-    padding: 0 10px; // Override default padding-x 16px of Angular Material.
+    padding: 0 10px;
 
     .mat-mdc-form-field {
       margin-top: 10px;
@@ -26,7 +37,7 @@
   }
 
   .mat-mdc-header-cell {
-    padding: 0 10px; // Override default padding-x 16px of Angular Material.
+    padding: 0 10px;
   }
 }
 
@@ -48,20 +59,22 @@
       color: var(--mat-sys-on-primary) !important;
     }
   }
+  /* Note: header background not available via M3 tokens, using CSS override */
 
   .mat-mdc-row {
     cursor: pointer;
-    /* For visual separation */
+
     &:nth-child(even) {
-      background-color: var(--white);
+      background-color: var(--mat-sys-surface);
     }
 
-    /* Add hover effect on rows */
+    /* BACKUP - old value: background-color: var(--white); */
+
     &:hover {
       background-color: var(--mat-sys-surface-container-highest) !important;
     }
 
-    /* Add focus table inside row */
+    /* Nested table inside row */
     .mat-mdc-header-row {
       background-color: var(--mat-sys-secondary) !important;
 
@@ -139,7 +152,8 @@ Overall Responsive table
     display: grid;
     padding: 0.5rem;
     text-align: left;
-    border-bottom: 1px solid #dee2e6 !important;
+    border-bottom: 1px solid var(--mat-sys-outline-variant) !important;
+    /* BACKUP - old value: border-bottom: 1px solid #dee2e6 !important; */
 
     &:has(.header-label) {
       grid-template-columns: 50% 50%;

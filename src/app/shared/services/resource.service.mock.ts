@@ -17,10 +17,11 @@ import {
 // ============================================
 
 const MOCK_PRODUCT_TYPES: IResource[] = [
-  { id: 'pt-1', code: 'monture', label: 'Monture', order: 1 },
-  { id: 'pt-2', code: 'verre', label: 'Verre', order: 2 },
-  { id: 'pt-3', code: 'lentille', label: 'Lentille', order: 3 },
-  { id: 'pt-4', code: 'accessoire', label: 'Accessoire', order: 4 },
+  { id: 'pt-1', code: 'optical_frame', label: 'stock.productTypes.optical_frame', order: 1 },
+  { id: 'pt-2', code: 'sun_frame', label: 'stock.productTypes.sun_frame', order: 2 },
+  { id: 'pt-3', code: 'lens', label: 'stock.productTypes.lens', order: 3 },
+  { id: 'pt-4', code: 'contact_lens', label: 'stock.productTypes.contact_lens', order: 4 },
+  { id: 'pt-5', code: 'accessory', label: 'stock.productTypes.accessory', order: 5 },
 ];
 
 const MOCK_PRODUCT_STATUSES: IResource[] = [
@@ -164,6 +165,20 @@ const MOCK_CIVILITES: IResource[] = [
   { id: 'civ-5', code: 'Pr', label: 'Professeur', order: 5 },
 ];
 
+const MOCK_TVA_RATES: IResource[] = [
+  { id: 'tva-1', code: '0', label: '0%', order: 1 },
+  { id: 'tva-2', code: '0.07', label: '7%', order: 2 },
+  { id: 'tva-3', code: '0.10', label: '10%', order: 3 },
+  { id: 'tva-4', code: '0.14', label: '14%', order: 4 },
+  { id: 'tva-5', code: '0.20', label: '20%', order: 5 },
+];
+
+const MOCK_PRICING_MODES: IResource[] = [
+  { id: 'pm-1', code: 'coefficient', label: 'stock.pricingModes.coefficient', order: 1 },
+  { id: 'pm-2', code: 'fixedAmount', label: 'stock.pricingModes.fixedAmount', order: 2 },
+  { id: 'pm-3', code: 'fixedPrice', label: 'stock.pricingModes.fixedPrice', order: 3 },
+];
+
 export const MOCK_RESOURCES: ResourceMap = {
   productTypes: MOCK_PRODUCT_TYPES,
   productStatuses: MOCK_PRODUCT_STATUSES,
@@ -183,6 +198,8 @@ export const MOCK_RESOURCES: ResourceMap = {
   contactLensUsages: MOCK_CONTACT_LENS_USAGES,
   accessoryCategories: MOCK_ACCESSORY_CATEGORIES,
   civilites: MOCK_CIVILITES,
+  tvaRates: MOCK_TVA_RATES,
+  pricingModes: MOCK_PRICING_MODES,
 };
 
 /**

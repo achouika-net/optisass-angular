@@ -31,6 +31,8 @@ export const RESOURCE_TYPES = [
   'contactLensUsages',
   'accessoryCategories',
   'civilites',
+  'tvaRates',
+  'pricingModes',
 ] as const;
 
 export type ResourceType = (typeof RESOURCE_TYPES)[number];

@@ -1,9 +1,28 @@
+@use '@angular/material' as mat;
+
+@include mat.tree-overrides(
+  (
+    node-text-color: var(--mat-sys-on-surface),
+  )
+);
+
 mat-tree-node {
   align-items: center;
   white-space: normal;
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: pointer;
+
+  &:hover {
+    background-color: var(--mat-sys-surface-container);
+  }
+
+  &.selected {
+    color: var(--mat-sys-primary);
+    background-color: var(--mat-sys-surface-container);
+  }
+
+  /* BACKUP - old hover/selected styling before M3 optimization
   &:hover {
     backdrop-filter: brightness(90%);
   }
@@ -11,4 +30,5 @@ mat-tree-node {
     color: var(--mat-sys-primary);
     backdrop-filter: brightness(90%);
   }
+  */
 }

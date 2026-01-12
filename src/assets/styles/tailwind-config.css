@@ -9,6 +9,7 @@
   --color-on-primary: var(--mat-sys-on-primary);
   --color-tertiary: var(--mat-sys-tertiary);
   --color-error: var(--mat-sys-error);
+  --color-warning: var(--warning);
   --color-success: var(--success);
   --color-bodycolor: var(--bodycolor);
   --font-sans: var(--bodyfont);
