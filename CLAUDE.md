@@ -1,6 +1,6 @@
 # OPTI-SAAS Frontend - Instructions IA
 
-> Document destiné UNIQUEMENT à Claude AI. Dernière mise à jour : 2026-01-04
+> Document destiné UNIQUEMENT à Claude AI. Dernière mise à jour : 2026-01-13
 
 ---
 
@@ -53,7 +53,7 @@ Permettre à Claude AI de :
 | -------------------- | --------------------------------------- | ------------------------------------------ |
 | Child Forms          | FieldTree + `[(input)]`                 | Accès sous-champs, propagation erreurs     |
 | Custom Form Control  | `FormValueControl<T>` + `model<T>()`    | Pattern Angular 19+ pour contrôles simples |
-| Signal Debounce      | `toObservable` + `toSignal`             | Pas de debounce natif dans Signals API     |
+| Signal Debounce      | `debounce(s, 300)` dans `form()`        | Debounce natif dans Signal Forms           |
 | Filtrage local       | `computed()` (pas `rxResource`)         | rxResource = HTTP, computed = en mémoire   |
 | Permissions          | APP_ROUTES source unique                | Évite duplication menu/routes              |
 | Mocking              | `*.mock.ts` séparé                      | Facilite suppression quand backend prêt    |
@@ -147,21 +147,22 @@ Composant avec PLUSIEURS champs liés (ex: address-fields avec street, city, pos
 
 ## 7. ERREURS RÉSOLUES
 
-| Erreur                            | Cause                         | Solution                          |
-| --------------------------------- | ----------------------------- | --------------------------------- |
-| `tapResponse` capture 401         | Empêche JWT interceptor       | `catchError` avec filtre 401      |
-| Computed wrapper sur store        | `withState` déjà proxy        | Accès direct `store.field()`      |
-| rxResource `request`/`loader`     | API deprecated                | `params`/`stream`                 |
-| `translate.instant()` breadcrumb  | Traductions pas chargées      | Pipe `\| translate`               |
-| `[field]` sur composant composite | Pas accès sous-champs         | `[(input)]` + FieldTree           |
-| `ValidationError` avec `any`      | Propriétés dynamiques         | `as unknown as { prop?: Type }`   |
-| Node v14 dans husky hooks         | nvm pas chargé                | `nvm use 22` dans hooks           |
-| `route.snapshot.data` hérite      | Données parents incluses      | `route.routeConfig?.data`         |
-| `route.children` doublons         | Parcours récursif             | `route.firstChild`                |
-| Double extraction data            | ExtractDataInterceptor existe | Pas de `.pipe(map(r => r.data))`  |
-| `appearance="outline"` répété     | Config globale existe         | `MAT_FORM_FIELD_DEFAULT_OPTIONS`  |
-| `APP_INITIALIZER` deprecated      | Angular 19+                   | `provideAppInitializer()`         |
-| Interfaces custom pour Angular    | Types Angular existent déjà   | `FormValueControl<T>` + `model()` |
+| Erreur                            | Cause                           | Solution                           |
+| --------------------------------- | ------------------------------- | ---------------------------------- |
+| `tapResponse` capture 401         | Empêche JWT interceptor         | `catchError` avec filtre 401       |
+| Computed wrapper sur store        | `withState` déjà proxy          | Accès direct `store.field()`       |
+| rxResource `request`/`loader`     | API deprecated                  | `params`/`stream`                  |
+| `translate.instant()` breadcrumb  | Traductions pas chargées        | Pipe `\| translate`                |
+| `[field]` sur composant composite | Pas accès sous-champs           | `[(input)]` + FieldTree            |
+| `ValidationError` avec `any`      | Propriétés dynamiques           | `as unknown as { prop?: Type }`    |
+| Node v14 dans husky hooks         | nvm pas chargé                  | `nvm use 22` dans hooks            |
+| `route.snapshot.data` hérite      | Données parents incluses        | `route.routeConfig?.data`          |
+| `route.children` doublons         | Parcours récursif               | `route.firstChild`                 |
+| Double extraction data            | ExtractDataInterceptor existe   | Pas de `.pipe(map(r => r.data))`   |
+| `appearance="outline"` répété     | Config globale existe           | `MAT_FORM_FIELD_DEFAULT_OPTIONS`   |
+| `APP_INITIALIZER` deprecated      | Angular 19+                     | `provideAppInitializer()`          |
+| Interfaces custom pour Angular    | Types Angular existent déjà     | `FormValueControl<T>` + `model()`  |
+| `displayFn` retourne vide         | Reçoit `string` au lieu d'objet | Gérer `typeof option === 'string'` |
 
 ---
 
@@ -231,20 +232,22 @@ src/app/
 | État simple                 | `signal<T>()`                           |
 | Valeur dérivée synchrone    | `computed(() => ...)`                   |
 | Valeur liée à une source    | `linkedSignal({ source, computation })` |
-| Debounce/throttle           | `toObservable` + pipe + `toSignal`      |
+| Debounce dans Signal Forms  | `debounce(s, 300)` dans `form()`        |
 | Appel HTTP                  | `rxResource({ params, stream })`        |
 | Filtrage local (en mémoire) | `computed()` (PAS rxResource)           |
 | Two-way binding             | `model<T>()` ou `model.required<T>()`   |
 
-### Signal Debounce (pattern officiel)
+### Signal Forms Debounce
 
-Pas de debounce natif dans l'API Signals. Utiliser le bridge RxJS :
+Signal Forms expose `debounce` comme validateur natif :
 
 ```typescript
-readonly #debouncedQuery = toSignal(
-  toObservable(this.searchQuery).pipe(debounceTime(200), distinctUntilChanged()),
-  { initialValue: '' }
-);
+import { debounce, form, required } from '@angular/forms/signals';
+
+readonly internalForm = form(this.#searchText, (s) => {
+  required(s, { when: () => this.required() });
+  debounce(s, 300);
+});
 ```
 
 ### rxResource vs computed
@@ -383,6 +386,48 @@ readonly filtered = computed(() => ...);
  */
 #filterByHierarchy(options: IOption[]): IOption[] { ... }
 ```
+
+---
+
+## 15. MÉTHODOLOGIE DE DÉBOGAGE
+
+### Checklist OBLIGATOIRE avant de proposer une solution
+
+1. **Identifier TOUS les flux de données**
+   - Flux principal (signal → computed → template)
+   - Callbacks et fonctions passées aux librairies (`displayWith`, `compareWith`, `trackBy`)
+   - Events handlers (`optionSelected`, `selectionChange`)
+
+2. **Vérifier les types à chaque frontière**
+   - Qu'est-ce que la librairie ENVOIE à ma fonction ?
+   - Qu'est-ce que ma fonction ATTEND comme type ?
+   - Exemple : `displayWith` de `mat-autocomplete` peut recevoir `string` OU `object` selon le contexte
+
+3. **Simuler les scénarios utilisateur étape par étape**
+   - Scénario 1 : Initialisation (composant charge avec valeur existante)
+   - Scénario 2 : Utilisateur tape dans l'input → que reçoit chaque fonction ?
+   - Scénario 3 : Utilisateur sélectionne une option
+   - Scénario 4 : Utilisateur efface et quitte le champ (blur)
+
+4. **Ne PAS présumer que le code existant est correct**
+   - Un bug peut être dans du code qui "marchait avant" mais pas avec la nouvelle architecture
+   - Analyser TOUT le code impliqué, pas seulement ce qui a été modifié
+
+### Questions à se poser systématiquement
+
+| Question                                            | Exemple                                        |
+| --------------------------------------------------- | ---------------------------------------------- |
+| Quel type de données circule ?                      | `string` vs `IAutocompleteOption`              |
+| Qui écrit dans ce signal ?                          | `[formField]` directive vs `effect` vs méthode |
+| Qui lit ce signal ?                                 | `computed`, template, callback                 |
+| La librairie externe appelle-t-elle mes fonctions ? | `displayWith`, `compareWith`                   |
+
+### Erreurs de diagnostic à éviter
+
+- ❌ Analyser uniquement le flux principal et ignorer les callbacks
+- ❌ Focaliser sur le code modifié et ignorer le code existant
+- ❌ Proposer des solutions sans avoir tracé tous les chemins de données
+- ❌ Présumer du type de données sans vérifier ce que la librairie envoie réellement
 
 ---
 
