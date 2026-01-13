@@ -17,7 +17,7 @@ interface IBaseProductRequest {
   fixedPrice: number | null;
   tvaRate: number;
 
-  // Prix d'achat : saisie uniquement en création
+  // Purchase price: input only on creation
   purchasePriceExclTax: number | null;
 
   photo: IProductPhoto | null;

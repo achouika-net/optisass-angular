@@ -143,14 +143,14 @@ export class ProductSearchFormComponent {
   }
 
   /**
-   * Affiche/masque les filtres avancés.
+   * Toggles advanced filters visibility.
    */
   toggleAdvancedFilters(): void {
     this.showAdvancedFilters.update((v) => !v);
   }
 
   /**
-   * Lance la recherche de produits avec les critères du formulaire.
+   * Searches products with current form criteria.
    */
   search(): void {
     this.#productStore.setSearchForm(this.#searchFormModel());
@@ -158,15 +158,15 @@ export class ProductSearchFormComponent {
   }
 
   /**
-   * Réinitialise le formulaire de recherche.
+   * Resets the search form to default values.
    */
   resetSearchForm(): void {
-    this.#searchFormModel.set(new ProductSearch());
+    this.#productStore.resetSearchForm();
   }
 
   /**
-   * Réinitialise les filtres spécifiques aux types de produit non sélectionnés.
-   * @param selectedTypes Types de produit sélectionnés
+   * Resets type-specific filters for unselected product types.
+   * @param selectedTypes Selected product types
    */
   #resetTypeSpecificFilters(selectedTypes: ProductType[]): void {
     const hasFrame = selectedTypes.includes('optical_frame') || selectedTypes.includes('sun_frame');

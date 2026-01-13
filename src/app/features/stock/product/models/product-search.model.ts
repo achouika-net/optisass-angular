@@ -47,9 +47,9 @@ export class ProductSearch implements IProductSearch {
 }
 
 /**
- * Transforme les filtres de recherche en structure imbriquée par type de produit.
- * @param search Les filtres de recherche à plat
- * @returns Objet avec les filtres regroupés par type de produit
+ * Transforms search filters into a nested structure by product type.
+ * @param search The flat search filters
+ * @returns Object with filters grouped by product type
  */
 export function toNestedProductSearch(search: IProductSearch): object {
   return {

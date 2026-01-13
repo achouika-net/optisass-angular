@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSort, MatSortHeader, Sort } from '@angular/material/sort';
 import { MatCard, MatCardContent } from '@angular/material/card';
@@ -28,8 +27,6 @@ import { ProductStore } from '../../../product.store';
 import { Product } from '@app/models';
 import { MatTooltip } from '@angular/material/tooltip';
 import { GetElementFromResourcePipe, WrapFnPipe } from '@app/pipes';
-import { WarehouseService } from '../../../../../settings/warehouse/services/warehouse.service';
-import { map } from 'rxjs';
 import { ResourceStore } from '@app/core/store';
 
 @Component({
@@ -66,7 +63,6 @@ import { ResourceStore } from '@app/core/store';
 export class ProductSearchTableComponent {
   readonly #productStore = inject(ProductStore);
   readonly #resourceStore = inject(ResourceStore);
-  readonly #warehouseService = inject(WarehouseService);
   readonly #dialog = inject(MatDialog);
   readonly #translate = inject(TranslateService);
   readonly route = inject(ActivatedRoute);
@@ -77,19 +73,11 @@ export class ProductSearchTableComponent {
   readonly brands = this.#resourceStore.brands;
   readonly productStatuses = this.#resourceStore.productStatuses;
 
-  readonly warehouses = rxResource({
-    stream: () =>
-      this.#warehouseService
-        .searchWarehouses({ name: null, type: null }, 1, 100, null)
-        .pipe(map((res) => res.data)),
-  }).value;
-
   readonly displayedColumns = signal([
     'internalCode',
     'designation',
     'productType',
     'brand',
-    'warehouse',
     'currentQuantity',
     'status',
     'action',

@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { inject, Injectable } from '@angular/core';
+import { computed, inject, Injectable } from '@angular/core';
 import { PageEvent } from '@angular/material/paginator';
 import { Sort } from '@angular/material/sort';
 import { Router } from '@angular/router';
@@ -22,6 +22,7 @@ import { ProductService } from './services/product.service';
 interface IProductState {
   products: PaginatedApiResponse<Product> | null;
   product: Product | null;
+  productLoading: boolean;
   searchForm: IProductSearch;
   sort: Sort;
   pageEvent: PageEvent;
@@ -30,6 +31,7 @@ interface IProductState {
 const initialState: IProductState = {
   products: null,
   product: null,
+  productLoading: false,
   searchForm: new ProductSearch(),
   sort: { active: 'designation', direction: 'asc' },
   pageEvent: {
@@ -47,6 +49,8 @@ export class ProductStore {
   readonly #errorService = inject(ErrorService);
   readonly #toastr = inject(ToastrService);
   readonly #translate = inject(TranslateService);
+
+  readonly isEditMode = computed(() => this.state.product()?.id != null);
 
   readonly #setWsError = (error: HttpErrorResponse, errorMessage: string) => {
     this.#errorService.getError(error, `stock.errors.${errorMessage}`, true);
@@ -68,8 +72,6 @@ export class ProductStore {
     }));
 
   resetSearchForm = () => patchState(this.state, { searchForm: new ProductSearch() });
-
-  resetProduct = () => patchState(this.state, { product: null });
 
   goToSearchPage = rxMethod<void>(
     pipe(tap(() => void this.#router.navigate(['/p/stock/products']))),
@@ -97,10 +99,12 @@ export class ProductStore {
 
   getProduct = rxMethod<string>(
     pipe(
+      tap(() => patchState(this.state, { productLoading: true, product: null })),
       switchMap((id: string) =>
         this.#productService.getById(id).pipe(
-          tap((product: Product) => patchState(this.state, { product })),
+          tap((product: Product) => patchState(this.state, { product, productLoading: false })),
           catchError((error: HttpErrorResponse) => {
+            patchState(this.state, { productLoading: false });
             this.goToSearchPage();
             return this.#setWsError(error, 'getProduct');
           }),

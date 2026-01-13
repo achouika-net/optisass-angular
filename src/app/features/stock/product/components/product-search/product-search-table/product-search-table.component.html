@@ -46,15 +46,6 @@
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="warehouse">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="warehouseId">
-            {{ 'stock.table.warehouse' | translate }}
-          </th>
-          <td mat-cell *matCellDef="let element">
-            {{ (warehouses() | getElementFromResource: element.warehouseId)?.name ?? '-' }}
-          </td>
-        </ng-container>
-
         <ng-container matColumnDef="currentQuantity">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>
             {{ 'stock.table.quantity' | translate }}
