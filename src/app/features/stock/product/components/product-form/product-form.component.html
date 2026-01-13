@@ -142,8 +142,8 @@
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'stock.form.suppliers' | translate }}</mat-label>
       <mat-select [field]="form.supplierIds" multiple>
-        @for (supplier of suppliers(); track supplier.id) {
-          <mat-option [value]="supplier.id">{{ supplier.name }}</mat-option>
+        @for (supplier of suppliers(); track supplier.code) {
+          <mat-option [value]="supplier.code">{{ supplier.name }}</mat-option>
         }
       </mat-select>
       @if (form.supplierIds().touched() && form.supplierIds().invalid()) {
@@ -355,7 +355,6 @@
       <app-resource-autocomplete
         [formField]="form.lensManufacturerId"
         [options]="manufacturers()"
-        labelKey="name"
         [placeholder]="'stock.form.lensManufacturer' | translate"
       />
 
@@ -423,7 +422,6 @@
       <app-resource-autocomplete
         [formField]="form.contactLensLaboratoryId"
         [options]="laboratories()"
-        labelKey="name"
         [placeholder]="'stock.form.contactLensLaboratory' | translate"
       />
 
