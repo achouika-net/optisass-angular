@@ -114,6 +114,8 @@ export interface SupplierInvoiceDTO {
     centreId?: string;
     pieceJointeUrl?: string;
     echeances?: Echeance[];
+    base64File?: string;
+    fileName?: string;
 }
 
 export interface FundingRequest {

@@ -149,4 +149,8 @@ export class ProductService {
         let params = new HttpParams().set('search', query);
         return this.http.get<Product[]>(this.apiUrl, { params });
     }
+
+    cleanupOutOfStock(): Observable<{ deletedCount: number, archivedCount: number }> {
+        return this.http.delete<{ deletedCount: number, archivedCount: number }>(`${this.apiUrl}/cleanup-rupture`);
+    }
 }

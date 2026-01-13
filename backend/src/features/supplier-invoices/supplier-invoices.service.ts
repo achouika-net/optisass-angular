@@ -3,6 +3,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSupplierInvoiceDto } from './dto/create-supplier-invoice.dto';
 import { ProductsService } from '../products/products.service';
 import { normalizeToUTCNoon } from '../../shared/utils/date-utils';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class SupplierInvoicesService {
@@ -12,7 +14,7 @@ export class SupplierInvoicesService {
     ) { }
 
     async create(createDto: CreateSupplierInvoiceDto) {
-        const { echeances, ...invoiceData } = createDto;
+        const { echeances, base64File, fileName, ...invoiceData } = createDto;
 
         // Robust duplicate check
         const existingInvoice = await this.checkExistence(invoiceData.fournisseurId, invoiceData.numeroFacture);
@@ -20,6 +22,21 @@ export class SupplierInvoicesService {
         if (existingInvoice) {
             console.log(`[INVOICE] Update existing invoice ${existingInvoice.numeroFacture} for supplier ${invoiceData.fournisseurId}`);
             return this.update(existingInvoice.id, createDto);
+        }
+
+        // Handle File Attachment
+        let pieceJointeUrl = invoiceData.pieceJointeUrl || '';
+        if (base64File && fileName) {
+            const uploadDir = path.join(process.cwd(), 'uploads', 'invoices');
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+            }
+            const fileExt = path.extname(fileName) || '.jpg';
+            const safeName = `inv_${Date.now()}${fileExt}`;
+            const filePath = path.join(uploadDir, safeName);
+            const buffer = Buffer.from(base64File.replace(/^data:.*?;base64,/, ''), 'base64');
+            fs.writeFileSync(filePath, buffer);
+            pieceJointeUrl = `/uploads/invoices/${safeName}`;
         }
 
         const status = this.calculateInvoiceStatus(invoiceData.montantTTC, echeances || []);
@@ -37,6 +54,7 @@ export class SupplierInvoicesService {
         return this.prisma.factureFournisseur.create({
             data: {
                 ...invoiceData,
+                pieceJointeUrl,
                 dateEmission: normalizeToUTCNoon(invoiceData.dateEmission) as Date,
                 dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance),
                 statut: status,
@@ -104,7 +122,7 @@ export class SupplierInvoicesService {
     }
 
     async update(id: string, updateDto: any) {
-        const { echeances, ...invoiceData } = updateDto;
+        const { echeances, base64File, fileName, ...invoiceData } = updateDto;
 
         // Clean invoiceData to remove unwanted circular or extra relation objects
         const cleanedInvoiceData: any = {
@@ -121,6 +139,73 @@ export class SupplierInvoicesService {
             centreId: invoiceData.centreId,
             clientId: invoiceData.clientId,
         };
+
+        // Handle File Attachment Update (Multi-file support)
+        const newAttachments = updateDto.newAttachments || [];
+        const existingAttachments = updateDto.existingAttachments || [];
+        const finalUrls: string[] = [];
+
+        // 1. Process Existing Attachments
+        if (Array.isArray(existingAttachments)) {
+            existingAttachments.forEach(url => {
+                // Clean URL if it comes with domain
+                let cleanUrl = url;
+                if (url.includes('/uploads/')) {
+                    const parts = url.split('/uploads/');
+                    cleanUrl = '/uploads/' + parts[parts.length - 1];
+                }
+                finalUrls.push(cleanUrl);
+            });
+        } else if (invoiceData.pieceJointeUrl) {
+            // Fallback for legacy single URL in pieceJointeUrl
+            finalUrls.push(invoiceData.pieceJointeUrl);
+        }
+
+        // 2. Process New Attachments (Array)
+        const uploadDir = path.join(process.cwd(), 'uploads', 'invoices');
+        if (newAttachments.length > 0 && !fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        for (const attachment of newAttachments) {
+            if (attachment.base64 && attachment.name) {
+                const fileExt = path.extname(attachment.name) || '.jpg';
+                const safeName = `inv_${Date.now()}_${Math.round(Math.random() * 1000)}${fileExt}`;
+                const filePath = path.join(uploadDir, safeName);
+
+                // Base64 cleanup
+                const matches = attachment.base64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                let fileData = attachment.base64;
+                if (matches && matches.length === 3) fileData = matches[2];
+                else fileData = attachment.base64.replace(/^data:.*?;base64,/, '');
+
+                fs.writeFileSync(filePath, Buffer.from(fileData, 'base64'));
+                finalUrls.push(`/uploads/invoices/${safeName}`);
+            }
+        }
+
+        // 3. Fallback: Legacy Single File (if newAttachments empty but base64File present)
+        if (newAttachments.length === 0 && base64File && fileName) {
+            if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+            const fileExt = path.extname(fileName) || '.jpg';
+            const safeName = `inv_update_${Date.now()}${fileExt}`;
+            const filePath = path.join(uploadDir, safeName);
+
+            const matches = base64File.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+            let fileData = base64File;
+            if (matches && matches.length === 3) fileData = matches[2];
+            else fileData = base64File.replace(/^data:.*?;base64,/, '');
+
+            fs.writeFileSync(filePath, Buffer.from(fileData, 'base64'));
+            finalUrls.push(`/uploads/invoices/${safeName}`);
+        }
+
+        // 4. Save combined URLs
+        if (finalUrls.length > 0) {
+            cleanedInvoiceData.pieceJointeUrl = finalUrls.join(';');
+        } else if (updateDto.pieceJointeUrl === null && existingAttachments.length === 0) {
+            cleanedInvoiceData.pieceJointeUrl = null;
+        }
 
         return this.prisma.$transaction(async (tx) => {
             if (echeances) {

@@ -199,21 +199,47 @@ export class OcrService {
             if (invMatch[1].length > 3) result.invoiceNumber = invMatch[1].trim();
         }
 
-        // 2. Date
-        // Support DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY with optional spaces
-        const dateRegex = /(?:Date|Du|Le|Facture du)\s*:?\s*(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})\s*[\/\-\.]\s*(\d{2,4})/i;
-        let dateMatch = cleanText.match(dateRegex);
+        // 2. Date - Multiple attempts with different patterns
+        console.log('[OCR] Starting date extraction...');
 
-        // Fallback: search for any date pattern like DD/MM/YYYY even without label
+        // Pattern 1: Standard labels (Date:, Le:, Du:, etc.)
+        const dateRegex1 = /(?:Date|Du|Le|Facture du)\s*:?\s*(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})\s*[\/\-\.]\s*(\d{2,4})/i;
+        // Pattern 2: City + "le," pattern (Rabat le, Casablanca le,)
+        const dateRegex2 = /(?:Rabat|Casablanca|Marrakech|Fes|Tanger|Agadir)?\s*le,?\s*(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})\s*[\/\-\.]\s*(\d{2,4})/i;
+        // Pattern 3: Just "le," followed by date (very permissive)
+        const dateRegex3 = /le[,\s]*(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})\s*[\/\-\.]\s*(\d{2,4})/i;
+        // Pattern 4: Any "Rabat" followed by date within reasonable distance
+        const dateRegex4 = /Rabat[\s\S]{0,20}(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})\s*[\/\-\.]\s*(\d{2,4})/i;
+        // Pattern 5: Fallback - any date pattern DD/MM/YYYY
+        const dateRegex5 = /(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})\s*[\/\-\.]\s*(\d{2,4})/;
+
+        let dateMatch = cleanText.match(dateRegex1);
+        let matchedPattern = dateMatch ? 'Pattern 1 (Date/Le/Du)' : null;
+
         if (!dateMatch) {
-            const fallbackDateRegex = /(\b\d{1,2})\s*[\/\-\.]\s*(\d{1,2})\s*[\/\-\.]\s*(\d{2,4})\b/;
-            dateMatch = cleanText.match(fallbackDateRegex);
+            dateMatch = cleanText.match(dateRegex2);
+            matchedPattern = dateMatch ? 'Pattern 2 (City + le)' : null;
+        }
+        if (!dateMatch) {
+            dateMatch = cleanText.match(dateRegex3);
+            matchedPattern = dateMatch ? 'Pattern 3 (le + date)' : null;
+        }
+        if (!dateMatch) {
+            dateMatch = cleanText.match(dateRegex4);
+            matchedPattern = dateMatch ? 'Pattern 4 (Rabat proximity)' : null;
+        }
+        if (!dateMatch) {
+            dateMatch = cleanText.match(dateRegex5);
+            matchedPattern = dateMatch ? 'Pattern 5 (Fallback any date)' : null;
         }
 
         if (dateMatch) {
+            console.log(`[OCR] Date pattern matched: ${matchedPattern}, captured: "${dateMatch[0]}"`);
             const day = parseInt(dateMatch[1], 10);
             const month = parseInt(dateMatch[2], 10);
             let year = parseInt(dateMatch[3], 10);
+
+            console.log(`[OCR] Parsed date components: day=${day}, month=${month}, year=${year}`);
 
             // Handle 2-digit years (e.g. 25 -> 2025)
             if (year < 100) {
@@ -227,14 +253,22 @@ export class OcrService {
                 const oneYearFromNow = new Date();
                 oneYearFromNow.setFullYear(now.getFullYear() + 1);
 
+                console.log(`[OCR] Date validation: detectedDate=${detectedDate.toISOString()}, now=${now.toISOString()}, oneYearFromNow=${oneYearFromNow.toISOString()}`);
+
                 // Validation: Avoid obvious future junk dates (e.g. > 1 year in the future)
                 if (!isNaN(detectedDate.getTime()) && detectedDate <= oneYearFromNow) {
                     result.date = detectedDate;
-                    console.log(`[OCR] Valid date detected: ${detectedDate.toLocaleDateString()}`);
+                    console.log(`✅ [OCR] Valid date detected: ${detectedDate.toLocaleDateString()} from ${matchedPattern}`);
                 } else {
-                    console.warn(`[OCR] Ignored suspicious future date: ${dateMatch[1]}`);
+                    console.warn(`❌ [OCR] Ignored suspicious future date: ${dateMatch[0]} (${detectedDate.toLocaleDateString()})`);
                 }
+            } else {
+                console.warn(`❌ [OCR] Date components out of range: day=${day}, month=${month}, year=${year}`);
             }
+        } else {
+            console.warn('❌ [OCR] No date pattern matched in text');
+            // Log first 500 chars to help debug
+            console.log('[OCR] Text sample for debugging:', cleanText.substring(0, 500));
         }
 
         // 3. Supplier (Heuristic)
@@ -259,7 +293,7 @@ export class OcrService {
             const noiseKeywords = [
                 'a reporter', 'net à payer', 'tva ', 't.v.a', 'montant h.t', 'total h.t',
                 'facture n', 'date :', 'tél :', 'fixe :', 'site :', 'email :', 'rib :', 'if :', 'rc :',
-                'arrêtée la présente', 'page ', 'somme ttc', 'dirhams'
+                'arrêtée la présente', 'page ', 'somme ttc', 'dirhams', 'modèle'
             ];
             if (noiseKeywords.some(k => lowerLine.includes(k))) return;
             if (/^total/i.test(lowerLine) && !lowerLine.includes('total 1')) return;
@@ -300,9 +334,9 @@ export class OcrService {
                 result.lines.push({
                     raw: line,
                     code: '', // Explicitly empty as requested ("document has no code", use system code later)
-                    reference: rawRef, // The document reference (first token)
+                    reference: rawRef, // The document reference/model (first token)
                     brand: brand,
-                    designation: fullDesignation, // Full designation including ref/brand
+                    designation: fullDesignation, // Full designation including ref/brand/model
                     qty: qty,
                     priceCandidates: [pu],
                     discount: discount,

@@ -155,6 +155,9 @@ export class ProductFormComponent implements OnInit {
         // Initial validator setup
         this.updateValidators(this.productType);
 
+        // Sync Reference and Model
+        this.setupRefModelSync();
+
         // Auto-generate codes for new products
         if (!this.isEditMode) {
             // Use setTimeout to ensure form is fully ready if needed, currently sync is fine
@@ -397,6 +400,27 @@ export class ProductFormComponent implements OnInit {
         }, { emitEvent: false });
     }
 
+    private setupRefModelSync(): void {
+        const refControl = this.productForm.get('referenceFournisseur');
+        const modelControl = this.productForm.get('modele');
+
+        if (refControl && modelControl) {
+            refControl.valueChanges.subscribe(val => {
+                const currentModel = modelControl.value;
+                if (!currentModel || currentModel === '' || currentModel === refControl.pristine) {
+                    modelControl.setValue(val, { emitEvent: false });
+                }
+            });
+
+            modelControl.valueChanges.subscribe(val => {
+                const currentRef = refControl.value;
+                if (!currentRef || currentRef === '' || currentRef === modelControl.pristine) {
+                    refControl.setValue(val, { emitEvent: false });
+                }
+            });
+        }
+    }
+
     generateBarcode(): void {
         // Generate a simple barcode (EAN-13 format)
         const prefix = '200';
@@ -460,6 +484,14 @@ export class ProductFormComponent implements OnInit {
                 };
 
                 this.productForm.patchValue(formValue);
+
+                // Sync Ref/Model if one is missing
+                if (product.referenceFournisseur && !product.modele) {
+                    this.productForm.patchValue({ modele: product.referenceFournisseur });
+                } else if (product.modele && !product.referenceFournisseur) {
+                    this.productForm.patchValue({ referenceFournisseur: product.modele });
+                }
+
                 this.calculatePrices();
             }
         });

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'; // Force Rebuild 6
+import { existsSync } from 'fs';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -61,7 +62,9 @@ import { join } from 'path';
     PersonnelModule,
     AuthModule,
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', '..', 'uploads'),
+      rootPath: existsSync('/app/uploads')
+        ? '/app/uploads'
+        : join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
     }),
   ],

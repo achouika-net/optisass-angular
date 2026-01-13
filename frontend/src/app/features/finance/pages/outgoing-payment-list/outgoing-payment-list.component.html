@@ -131,7 +131,16 @@
         </div>
     </div>
 
-    <mat-card>
+    <mat-card class="relative">
+        <!-- Loading Overlay -->
+        <div *ngIf="loading"
+            class="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-xl">
+            <div class="flex flex-col items-center gap-2">
+                <mat-progress-spinner mode="indeterminate" diameter="40" color="primary"></mat-progress-spinner>
+                <span class="text-sm font-medium text-gray-500">Chargement...</span>
+            </div>
+        </div>
+
         <div class="overflow-x-auto">
             <table mat-table [dataSource]="payments" class="mat-elevation-z0" [trackBy]="trackByPayment">
 

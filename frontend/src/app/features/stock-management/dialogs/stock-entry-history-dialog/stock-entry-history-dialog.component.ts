@@ -166,8 +166,10 @@ export class StockEntryHistoryDialogComponent implements OnInit {
 
     getAttachmentUrl(path: string): string {
         if (!path) return '';
-        if (path.startsWith('http')) return path;
-        return `${environment.apiUrl}${path}`;
+        // Handle multiple files (take first)
+        const firstPath = path.split(';')[0];
+        if (firstPath.startsWith('http')) return firstPath;
+        return `${environment.apiUrl}${firstPath}`;
     }
 
     close() {

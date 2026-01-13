@@ -19,6 +19,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
 
@@ -46,6 +47,7 @@ import { ExpenseFormDialogComponent } from '../../components/expense-form-dialog
         MatDatepickerModule,
         MatNativeDateModule,
         MatProgressBarModule,
+        MatProgressSpinnerModule,
         MatMenuModule,
         MatDividerModule,
         MatDialogModule,
@@ -140,21 +142,14 @@ export class OutgoingPaymentListComponent implements OnInit {
     ngOnInit(): void {
         this.loadSuppliers();
 
-        // One-time init: If center is already set, it will be handled by the effect or here.
-        // But the effect runs once on init anyway, so let's simplify.
         const center = this.currentCentre();
         if (center?.id) {
             this.filters.centreId = center.id;
         }
 
-        // Initialize filters but don't call loadPayments if center is already being handled by effect
-        this.applyPredefinedPeriod('TODAY', false); // New flag to skip load
-
-        // If center IS NOT set yet, we might need a first load with empty center? 
-        // No, center is required for most meaningful results.
-        if (!center?.id) {
-            this.loadPayments();
-        }
+        // Initialize filters and trigger the first load
+        this.applyPredefinedPeriod('TODAY', false);
+        this.loadPayments();
     }
 
     openInvoiceDialog() {
