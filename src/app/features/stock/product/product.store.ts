@@ -73,6 +73,8 @@ export class ProductStore {
 
   resetSearchForm = () => patchState(this.state, { searchForm: new ProductSearch() });
 
+  resetProduct = () => patchState(this.state, { product: null });
+
   goToSearchPage = rxMethod<void>(
     pipe(tap(() => void this.#router.navigate(['/p/stock/products']))),
   );

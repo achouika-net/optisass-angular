@@ -164,6 +164,7 @@
         [options]="brands()"
         [showAllOption]="false"
         [placeholder]="'stock.form.brand' | translate"
+        (selectionChange)="onBrandChange()"
       />
 
       <!-- Model/Reference -->
@@ -180,6 +181,7 @@
       [formField]="form.familyId"
       [options]="families()"
       [placeholder]="'stock.form.family' | translate"
+      (selectionChange)="onFamilyChange()"
     />
 
     <!-- Sub-family -->

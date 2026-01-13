@@ -5,6 +5,7 @@ import {
   effect,
   input,
   model,
+  output,
   signal,
   untracked,
   viewChild,
@@ -67,6 +68,9 @@ export class ResourceAutocompleteComponent implements FormValueControl<Autocompl
 
   /** Translate labels via translate pipe */
   readonly translateLabels = input<boolean>(false);
+
+  /** Emits when user selects an option */
+  readonly selectionChange = output<AutocompleteValue>();
 
   /** Internal signal for the form - stores string (typing) or object (selected) */
   readonly #formValue = signal<InternalFormValue>(null);
@@ -145,16 +149,19 @@ export class ResourceAutocompleteComponent implements FormValueControl<Autocompl
    */
   onOptionSelected(event: MatAutocompleteSelectedEvent): void {
     const selectedOption = event.option.value as IAutocompleteOption | null;
+    let newValue: AutocompleteValue = null;
 
     if (selectedOption === null) {
       this.value.set(null);
       this.internalForm().value.set(null);
     } else {
       const vKey = this.valueKey();
-      const newValue = selectedOption[vKey] as string | null;
-      this.value.set(newValue ?? null);
+      newValue = (selectedOption[vKey] as string) ?? null;
+      this.value.set(newValue);
       this.internalForm().value.set(selectedOption);
     }
+
+    this.selectionChange.emit(newValue);
     this.isFocused.set(false);
   }
 

@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  inject,
+  input,
+  OnDestroy,
+} from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ProductFormComponent } from '../product-form/product-form.component';
@@ -22,7 +29,7 @@ import { ProductStore } from '../../product.store';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export default class ProductViewComponent {
+export default class ProductViewComponent implements OnDestroy {
   readonly productStore = inject(ProductStore);
 
   readonly id = input.required<string>();
@@ -31,5 +38,9 @@ export default class ProductViewComponent {
     effect(() => {
       this.productStore.getProduct(this.id());
     });
+  }
+
+  ngOnDestroy(): void {
+    this.productStore.resetProduct();
   }
 }
