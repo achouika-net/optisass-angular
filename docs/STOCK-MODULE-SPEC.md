@@ -6,21 +6,21 @@
 
 ## État d'avancement
 
-| Info                     | Valeur                                                             |
-| ------------------------ | ------------------------------------------------------------------ |
-| **Étape courante**       | 3/7 - Ressources (ResourceService, ResourceStore, SupplierService) |
-| **Statut**               | En attente du "go"                                                 |
-| **Dernière mise à jour** | 2026-01-04                                                         |
+| Info                     | Valeur        |
+| ------------------------ | ------------- |
+| **Étape courante**       | 7/7 - Terminé |
+| **Statut**               | V1 Complète   |
+| **Dernière mise à jour** | 2026-01-13    |
 
 ### Plan de développement
 
 - [x] **Étape 1** : Structure, Routes & Intégration
 - [x] **Étape 2** : Models & Config
-- [ ] **Étape 3** : Ressources (ResourceService, ResourceStore, SupplierService)
-- [ ] **Étape 4** : Service & Store Produit
-- [ ] **Étape 5** : Page Recherche
-- [ ] **Étape 6** : Formulaire & Création
-- [ ] **Étape 7** : Consultation & Modification
+- [x] **Étape 3** : Ressources (ResourceService, ResourceStore, SupplierService)
+- [x] **Étape 4** : Service & Store Produit
+- [x] **Étape 5** : Page Recherche
+- [x] **Étape 6** : Formulaire & Création
+- [x] **Étape 7** : Consultation & Modification
 
 ---
 
@@ -60,6 +60,18 @@
 | 10  | Quantité initiale       | Saisie manuelle en création                                   |
 | 11  | Fournisseur principal   | Texte libre V1 (référence module futur)                       |
 | 12  | Famille/Sous-famille    | Implémenté avec UI, autocomplete, ajout libre                 |
+| 13  | API Recherche           | POST avec body imbriqué (monture/verre/lentille/accessoire)   |
+| 14  | Form location           | Formulaire dans composant enfant, valeur sauvée dans store    |
+| 15  | Nettoyage body          | `removeEmptyValues()` supprime objets vides avant envoi       |
+| 16  | Entrepôt                | Supprimé du produit, géré dans feature Stock/Alimentation     |
+| 17  | Quantité                | Calculé (somme globale depuis Stock), pas de saisie           |
+| 18  | Prix d'achat            | Saisie unique en création, puis calculé (moyenne pondérée)    |
+| 19  | Pricing mode            | 3 modes : coefficient, montant fixe ajouté, prix fixe         |
+| 20  | Alerte prix fixe        | Hint orange si prix < prix d'achat (informatif, non bloquant) |
+| 21  | Date péremption         | Reste sur fiche produit (caractéristique du type lentille)    |
+| 22  | Form UI create/edit     | Stepper (création) vs Accordion (édition) - même composant    |
+| 23  | Form model              | Flat `IProductForm` + transformers vers/depuis API types      |
+| 24  | Type change reset       | Reset champs type-spécifiques uniquement en mode création     |
 
 ---
 
@@ -134,27 +146,27 @@ shared/models/
 └── index.ts
 
 features/stock/
-├── models/
-│   ├── product-request.model.ts   # ProductCreateRequest, ProductUpdateRequest
-│   ├── product-search.model.ts    # ProductSearchRequest, ProductSearchResponse
-│   └── index.ts
-├── services/
-│   └── product.service.ts         # providedIn: 'root'
-├── mocks/
-│   └── product.mock.ts
-├── store/
-│   └── product.store.ts
-├── components/
-│   ├── product-search/
-│   ├── product-form/
-│   │   ├── base-product-fields/
-│   │   ├── frame-fields/
-│   │   ├── lens-fields/
-│   │   ├── contact-lens-fields/
-│   │   └── accessory-fields/
-│   ├── product-add/
-│   └── product-view/
-└── stock.routes.ts
+├── stock.routes.ts             # Routes parent du module stock
+└── product/
+    ├── models/
+    │   ├── product-form.model.ts      # IProductForm, toProductForm, toProductCreateRequest, toProductUpdateRequest
+    │   ├── product-request.model.ts   # ProductCreateRequest, ProductUpdateRequest (API types)
+    │   ├── product-search.model.ts    # IProductSearch, ProductSearch, toNestedProductSearch
+    │   └── index.ts
+    ├── services/
+    │   ├── product.service.ts         # providedIn: 'root'
+    │   └── product.service.mock.ts    # Mock data et fonctions
+    ├── components/
+    │   ├── product-search/
+    │   │   ├── product-search.component.ts
+    │   │   ├── product-search-form/   # Formulaire de recherche avec filtres
+    │   │   └── product-search-table/  # Tableau résultats avec pagination
+    │   ├── product-form/              # Formulaire création/édition (stepper ou accordion)
+    │   ├── product-add/               # Wrapper création (utilise product-form)
+    │   └── product-view/              # Wrapper édition (charge produit + utilise product-form)
+    ├── product.component.ts           # Composant parent (layout)
+    ├── product.store.ts               # Signal Store
+    └── product.routes.ts              # Routes du module product
 ```
 
 ---
@@ -164,6 +176,8 @@ features/stock/
 ### 5.1 Product (Response) - Discriminated Union
 
 ```typescript
+type PricingMode = 'coefficient' | 'fixedAmount' | 'fixedPrice';
+
 interface BaseProduct {
   id?: string;
   codeInterne?: string;
@@ -177,14 +191,21 @@ interface BaseProduct {
   familleId?: string;
   sousFamilleId?: string;
   fournisseurPrincipal?: string;
-  quantiteActuelle: number;
   seuilAlerte: number;
-  prixAchatHT: number;
-  coefficient: number;
-  tauxTVA: number;
+
+  // Pricing - Mode de calcul prix de vente
+  pricingMode: PricingMode; // 'coefficient' | 'fixedAmount' | 'fixedPrice'
+  coefficient: number | null; // Si mode = 'coefficient' (défaut: 2.5, min: 1)
+  fixedAmount: number | null; // Si mode = 'fixedAmount' (toujours positif)
+  fixedPrice: number | null; // Si mode = 'fixedPrice' (alerte si < prixAchat)
+  tauxTVA: number; // TVA (défaut: 0.20)
+
+  // Champs calculés (readonly après création)
+  prixAchatHT: number; // Saisie en création, puis moyenne pondérée
+  quantiteActuelle: number; // Calculé depuis Stock (somme globale)
+  statut?: string; // Calculé selon quantité (DISPONIBLE/RUPTURE)
+
   photo?: ProductPhoto;
-  entrepotId: string;
-  statut?: string;
   dateCreation?: Date;
   dateModification?: Date;
 }
@@ -272,13 +293,17 @@ interface BaseProductRequest {
   familleId?: string;
   sousFamilleId?: string;
   fournisseurPrincipal?: string;
-  quantiteActuelle: number;
   seuilAlerte: number;
-  prixAchatHT: number;
-  coefficient: number;
+
+  // Pricing
+  pricingMode: PricingMode;
+  coefficient?: number; // Si mode = 'coefficient'
+  fixedAmount?: number; // Si mode = 'fixedAmount'
+  fixedPrice?: number; // Si mode = 'fixedPrice'
   tauxTVA: number;
+  prixAchatHT?: number; // Saisie uniquement en création
+
   photo?: ProductPhoto;
-  entrepotId: string;
 }
 
 interface FrameCreateRequest extends BaseProductRequest {
@@ -353,38 +378,96 @@ type ProductCreateRequest =
 type ProductUpdateRequest = Partial<ProductCreateRequest> & { id: string };
 ```
 
-### 5.3 Search Request/Response
+### 5.3 Search Model
 
 ```typescript
-interface ProductSearchRequest {
-  page?: number;
-  limit?: number;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-  search?: string;
-  typeArticle?: string;
-  entrepotId?: string;
-  statut?: string;
-  marqueId?: string;
-  familleId?: string;
-  sousFamilleId?: string;
-  stockMin?: number;
-  stockMax?: number;
-  prixMin?: number;
-  prixMax?: number;
-  stockBas?: boolean;
-  rupture?: boolean;
-  peremptionProche?: boolean;
+// Modèle flat pour Signal Forms (form() ne gère pas les objets imbriqués)
+interface IProductSearch {
+  search: string | null;
+  productTypes: ProductType[];
+  status: ProductStatus | null;
+  brandId: string | null;
+  outOfStock: boolean | null;
+  familyId: string | null;
+  subFamilyId: string | null;
+  modelId: string | null;
+  supplierId: string | null;
+  lowStock: boolean | null;
+  // Filtres monture
+  frameShape: string | null;
+  frameMaterial: string | null;
+  frameColor: string | null;
+  frameGender: string | null;
+  // Filtres verre
+  lensIndex: string | null;
+  lensTreatment: string | null;
+  lensPhotochromic: boolean | null;
+  // Filtres lentille
+  contactLensUsage: string | null;
+  contactLensType: string | null;
+  // Filtres accessoire
+  accessoryCategory: string | null;
 }
 
-interface ProductSearchResponse {
-  data: Product[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
+// Transformation pour API POST (structure imbriquée)
+function toNestedProductSearch(search: IProductSearch): object {
+  return {
+    search: search.search,
+    productTypes: search.productTypes,
+    status: search.status,
+    brandId: search.brandId,
+    outOfStock: search.outOfStock,
+    familyId: search.familyId,
+    subFamilyId: search.subFamilyId,
+    modelId: search.modelId,
+    supplierId: search.supplierId,
+    lowStock: search.lowStock,
+    monture: {
+      frameShape: search.frameShape,
+      frameMaterial: search.frameMaterial,
+      frameColor: search.frameColor,
+      frameGender: search.frameGender,
+    },
+    verre: {
+      lensIndex: search.lensIndex,
+      lensTreatment: search.lensTreatment,
+      lensPhotochromic: search.lensPhotochromic,
+    },
+    lentille: {
+      contactLensUsage: search.contactLensUsage,
+      contactLensType: search.contactLensType,
+    },
+    accessoire: {
+      accessoryCategory: search.accessoryCategory,
+    },
   };
+}
+
+// Corps de la requête POST /search (après removeEmptyValues)
+interface SearchBody {
+  search?: string;
+  productTypes?: string[];
+  status?: string;
+  brandId?: string;
+  outOfStock?: boolean;
+  familyId?: string;
+  subFamilyId?: string;
+  modelId?: string;
+  supplierId?: string;
+  lowStock?: boolean;
+  monture?: {
+    frameShape?: string;
+    frameMaterial?: string;
+    frameColor?: string;
+    frameGender?: string;
+  };
+  verre?: { lensIndex?: string; lensTreatment?: string; lensPhotochromic?: boolean };
+  lentille?: { contactLensUsage?: string; contactLensType?: string };
+  accessoire?: { accessoryCategory?: string };
+  page: number;
+  pageSize: number;
+  sort?: string;
+  order?: 'asc' | 'desc';
 }
 ```
 
@@ -425,15 +508,32 @@ export const calculateStatut = (quantite: number): ProductStatus =>
 
 ### 7.1 Calculs de prix
 
-#### Prix de vente HT
+#### Modes de calcul du prix de vente
 
-```
-prixVenteHT = prixAchatHT × coefficient
+| Mode                    | Formule                                   | Validation              |
+| ----------------------- | ----------------------------------------- | ----------------------- |
+| **Coefficient**         | `prixVenteHT = prixAchatHT × coefficient` | coefficient >= 1        |
+| **Montant fixe ajouté** | `prixVenteHT = prixAchatHT + fixedAmount` | fixedAmount > 0         |
+| **Prix fixe**           | `prixVenteHT = fixedPrice`                | Alerte si < prixAchatHT |
+
+#### Prix de vente HT (selon le mode)
+
+```typescript
+function calculatePrixVenteHT(product: BaseProduct): number {
+  switch (product.pricingMode) {
+    case 'coefficient':
+      return product.prixAchatHT * (product.coefficient ?? 2.5);
+    case 'fixedAmount':
+      return product.prixAchatHT + (product.fixedAmount ?? 0);
+    case 'fixedPrice':
+      return product.fixedPrice ?? 0;
+  }
+}
 ```
 
-- Arrondi à 2 décimales : `Math.round(prixAchatHT * coefficient * 100) / 100`
-- Coefficient minimum : 1.0 (pas de vente à perte)
+- Arrondi à 2 décimales : `Math.round(result * 100) / 100`
 - Coefficient par défaut : 2.5
+- Coefficient minimum : 1.0 (pas de vente à perte en mode coefficient)
 
 #### Prix de vente TTC
 
@@ -443,6 +543,20 @@ prixVenteTTC = prixVenteHT × (1 + tauxTVA)
 
 - TVA par défaut : 20% (0.20)
 - Arrondi à 2 décimales : `Math.round(prixVenteHT * (1 + tauxTVA) * 100) / 100`
+
+#### Alerte prix fixe
+
+Si `pricingMode === 'fixedPrice'` et `fixedPrice < prixAchatHT` :
+
+- Afficher un hint orange : "Attention : Ce prix est inférieur au prix d'achat (X.XX DH). Vente à perte possible."
+- L'alerte est **informative** (non bloquante)
+
+#### Prix d'achat
+
+| Contexte         | Comportement                                             |
+| ---------------- | -------------------------------------------------------- |
+| **Création**     | Champ saisissable (obligatoire)                          |
+| **Modification** | Champ readonly (calculé = moyenne pondérée depuis Stock) |
 
 #### Prix moyen pondéré (pour V2 - mouvements stock)
 
@@ -544,15 +658,17 @@ Format : EAN-13 `200{9 chiffres aléatoires}{checksum}`
 
 #### Champs communs (tous types)
 
-| Champ            | Obligatoire | Min | Défaut |
-| ---------------- | ----------- | --- | ------ |
-| typeArticle      | ✅          | -   | -      |
-| entrepotId       | ✅          | -   | -      |
-| prixAchatHT      | ✅          | 0   | -      |
-| coefficient      | ✅          | 1   | 2.5    |
-| tauxTVA          | ✅          | 0   | 0.20   |
-| quantiteActuelle | ✅          | 0   | 0      |
-| seuilAlerte      | ✅          | 0   | 2      |
+| Champ       | Obligatoire  | Min | Défaut        | Notes                          |
+| ----------- | ------------ | --- | ------------- | ------------------------------ |
+| typeArticle | ✅           | -   | -             |                                |
+| designation | ✅           | -   | -             |                                |
+| prixAchatHT | ✅           | 0   | -             | Saisie uniquement en création  |
+| pricingMode | ✅           | -   | 'coefficient' |                                |
+| coefficient | Conditionnel | 1   | 2.5           | Si pricingMode = 'coefficient' |
+| fixedAmount | Conditionnel | 0   | -             | Si pricingMode = 'fixedAmount' |
+| fixedPrice  | Conditionnel | 0   | -             | Si pricingMode = 'fixedPrice'  |
+| tauxTVA     | ✅           | 0   | 0.20          |                                |
+| seuilAlerte | ✅           | 0   | 2             |                                |
 
 ### 7.7 Photos produits
 
@@ -868,7 +984,6 @@ Format : EAN-13 `200{9 chiffres aléatoires}{checksum}`
   'designation',
   'marque',
   'typeArticle',
-  'entrepot',
   'quantiteActuelle',
   'prixVenteTTC',
   'statut',
@@ -883,10 +998,9 @@ Format : EAN-13 `200{9 chiffres aléatoires}{checksum}`
 | designation      | Nom du produit                              |
 | marque           | Marque                                      |
 | typeArticle      | Type (Monture, Verre, Lentille, Accessoire) |
-| entrepot         | Entrepôt de stockage                        |
-| quantiteActuelle | Quantité en stock                           |
+| quantiteActuelle | Quantité en stock (calculé global)          |
 | prixVenteTTC     | Prix de vente TTC                           |
-| statut           | Statut du produit                           |
+| statut           | Statut du produit (calculé)                 |
 | actions          | Menu actions (voir, modifier, supprimer)    |
 
 ---
@@ -908,15 +1022,13 @@ Clés à ajouter dans `assets/i18n/fr.json` :
     "filters": {
       "type": "Type de produit",
       "status": "Statut",
-      "brand": "Marque",
-      "warehouse": "Entrepôt"
+      "brand": "Marque"
     },
     "columns": {
       "code": "Code",
       "designation": "Désignation",
       "brand": "Marque",
       "type": "Type",
-      "warehouse": "Entrepôt",
       "quantity": "Quantité",
       "price": "Prix TTC",
       "status": "Statut",
@@ -925,7 +1037,8 @@ Clés à ajouter dans `assets/i18n/fr.json` :
     "form": {
       "generalInfo": "Informations générales",
       "specificInfo": "Informations spécifiques",
-      "pricing": "Prix et stock",
+      "pricing": "Prix",
+      "stock": "Stock",
       "internalCode": "Code interne",
       "barcode": "Code-barres",
       "autoGenerated": "Généré automatiquement",
@@ -936,14 +1049,22 @@ Clés à ajouter dans `assets/i18n/fr.json` :
       "family": "Famille",
       "subFamily": "Sous-famille",
       "supplier": "Fournisseur principal",
-      "warehouse": "Entrepôt",
       "purchasePrice": "Prix d'achat HT",
+      "pricingMode": "Mode de calcul",
+      "pricingModes": {
+        "coefficient": "Coefficient",
+        "fixedAmount": "Montant fixe ajouté",
+        "fixedPrice": "Prix fixe"
+      },
       "coefficient": "Coefficient",
+      "fixedAmount": "Montant fixe (DH)",
+      "fixedPrice": "Prix fixe HT (DH)",
       "sellingPriceHT": "Prix de vente HT",
       "sellingPriceTTC": "Prix de vente TTC",
       "vat": "TVA",
-      "quantity": "Quantité",
-      "alertThreshold": "Seuil d'alerte"
+      "quantity": "Quantité totale",
+      "alertThreshold": "Seuil d'alerte",
+      "priceWarning": "Attention : Ce prix est inférieur au prix d'achat ({{price}} DH). Vente à perte possible."
     },
     "types": {
       "monture": "Monture",
@@ -1034,6 +1155,50 @@ Clés à ajouter dans `assets/i18n/fr.json` :
 - Création du fichier STOCK-MODULE-SPEC.md
 - Ajout des colonnes, filtres, styles, API, traductions
 - En attente du "go" pour démarrer l'Étape 1
+
+### Session 2026-01-05
+
+- Implémentation complète de la page recherche (Étape 5)
+- Formulaire de recherche avec filtres principaux et avancés par type de produit
+- Tableau avec pagination, tri, et actions (voir, modifier, supprimer)
+- Migration de `features/commercial/stock/` vers `features/stock/product/`
+- API recherche changée de GET vers POST avec body imbriqué
+- Pattern Signal Forms : modèle flat + transformation `toNestedProductSearch()`
+- Ajout du composant `ResourceAutocomplete` partagé
+- Décisions validées : #13 (POST nested), #14 (Form enfant), #15 (removeEmptyValues)
+
+### Session 2026-01-10
+
+- Clarification architecture Produit vs Stock/Alimentation
+- Suppression entrepôt de la fiche produit (sera géré dans feature Stock)
+- Quantité devient un champ calculé (somme globale depuis Stock)
+- Prix d'achat : saisie en création uniquement, puis calculé (moyenne pondérée)
+- Ajout de 3 modes de pricing : coefficient, montant fixe ajouté, prix fixe
+- Alerte informative (hint orange) si prix fixe < prix d'achat
+- Date péremption reste sur fiche produit (caractéristique lentille)
+- Décisions validées : #16 à #21
+- Prêt pour Étape 6 : Formulaire & Création
+
+### Session 2026-01-13
+
+- **Étape 6 & 7 complétées** : Formulaire création et modification
+- Implémentation `product-form` avec deux modes d'affichage :
+  - **Mode création** : Stepper 3 étapes (Identification → Caractéristiques → Prix)
+  - **Mode édition** : Accordion avec 3 panneaux extensibles
+- Création de `product-form.model.ts` avec :
+  - `IProductForm` : Interface formulaire (flat)
+  - `toProductForm()` : Product → IProductForm (pour édition)
+  - `toProductCreateRequest()` : IProductForm → ProductCreateRequest (discriminated union)
+  - `toProductUpdateRequest()` : IProductForm → ProductUpdateRequest
+  - `getTypeSpecificDefaults()` : Reset des champs spécifiques au type
+- Validations conditionnelles selon le type de produit et le mode de pricing
+- Correction bug : Reset des champs type-spécifiques uniquement en mode création
+- Alignement `resetSearchForm()` avec les autres modules (client, warehouse, user)
+- Suppression de `resetProduct()` non utilisé dans le store
+- Traduction de tous les commentaires en anglais
+- Remplacement `CommonModule` par `NgTemplateOutlet` (tree-shaking)
+- Fix ESLint : `<label>` → `<span>` pour les captions photo
+- **V1 du module Stock complète**
 
 ---
 

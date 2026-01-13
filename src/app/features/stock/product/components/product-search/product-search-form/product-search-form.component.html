@@ -22,7 +22,7 @@
 
         <!-- Statut -->
         <app-resource-autocomplete
-          [field]="searchForm.status"
+          [formField]="searchForm.status"
           [options]="productStatuses()"
           valueKey="code"
           [placeholder]="'stock.search.status' | translate"
@@ -30,7 +30,7 @@
 
         <!-- Marque -->
         <app-resource-autocomplete
-          [field]="searchForm.brandId"
+          [formField]="searchForm.brandId"
           [options]="brands()"
           [placeholder]="'stock.search.brand' | translate"
         />
@@ -85,22 +85,22 @@
         <h3 class="search-criteria-card-title">{{ 'stock.search.commonFilters' | translate }}</h3>
         <div class="form-grid">
           <app-resource-autocomplete
-            [field]="searchForm.familyId"
+            [formField]="searchForm.familyId"
             [options]="families()"
             [placeholder]="'stock.search.family' | translate"
           />
           <app-resource-autocomplete
-            [field]="searchForm.subFamilyId"
+            [formField]="searchForm.subFamilyId"
             [options]="filteredSubFamilies()"
             [placeholder]="'stock.search.subFamily' | translate"
           />
           <app-resource-autocomplete
-            [field]="searchForm.modelId"
+            [formField]="searchForm.modelId"
             [options]="filteredModels()"
             [placeholder]="'stock.search.model' | translate"
           />
           <app-resource-autocomplete
-            [field]="searchForm.supplierId"
+            [formField]="searchForm.supplierId"
             [options]="suppliers()"
             labelKey="name"
             [placeholder]="'stock.search.supplier' | translate"
@@ -124,24 +124,24 @@
           <h3 class="search-criteria-card-title">{{ 'stock.search.frameFilters' | translate }}</h3>
           <div class="flex flex-col gap-1">
             <app-resource-autocomplete
-              [field]="searchForm.frameShape"
+              [formField]="searchForm.frameShape"
               [options]="frameShapes()"
               valueKey="code"
               [placeholder]="'stock.search.frameShape' | translate"
             />
             <app-resource-autocomplete
-              [field]="searchForm.frameMaterial"
+              [formField]="searchForm.frameMaterial"
               [options]="frameMaterials()"
               valueKey="code"
               [placeholder]="'stock.search.frameMaterial' | translate"
             />
             <app-resource-autocomplete
-              [field]="searchForm.frameColor"
+              [formField]="searchForm.frameColor"
               [options]="colors()"
               [placeholder]="'stock.search.frameColor' | translate"
             />
             <app-resource-autocomplete
-              [field]="searchForm.frameGender"
+              [formField]="searchForm.frameGender"
               [options]="genders()"
               valueKey="code"
               [placeholder]="'stock.search.frameGender' | translate"
@@ -158,13 +158,13 @@
           <h3 class="search-criteria-card-title">{{ 'stock.search.lensFilters' | translate }}</h3>
           <div class="flex flex-col gap-1">
             <app-resource-autocomplete
-              [field]="searchForm.lensIndex"
+              [formField]="searchForm.lensIndex"
               [options]="lensIndices()"
               valueKey="code"
               [placeholder]="'stock.search.lensIndex' | translate"
             />
             <app-resource-autocomplete
-              [field]="searchForm.lensTreatment"
+              [formField]="searchForm.lensTreatment"
               [options]="lensTreatments()"
               valueKey="code"
               [placeholder]="'stock.search.lensTreatment' | translate"
@@ -191,13 +191,13 @@
           </h3>
           <div class="flex flex-col gap-1">
             <app-resource-autocomplete
-              [field]="searchForm.contactLensUsage"
+              [formField]="searchForm.contactLensUsage"
               [options]="contactLensUsages()"
               valueKey="code"
               [placeholder]="'stock.search.contactLensUsage' | translate"
             />
             <app-resource-autocomplete
-              [field]="searchForm.contactLensType"
+              [formField]="searchForm.contactLensType"
               [options]="contactLensTypes()"
               valueKey="code"
               [placeholder]="'stock.search.contactLensType' | translate"
@@ -216,7 +216,7 @@
           </h3>
           <div class="flex flex-col gap-1">
             <app-resource-autocomplete
-              [field]="searchForm.accessoryCategory"
+              [formField]="searchForm.accessoryCategory"
               [options]="accessoryCategories()"
               valueKey="code"
               [placeholder]="'stock.search.accessoryCategory' | translate"

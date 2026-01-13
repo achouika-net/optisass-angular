@@ -8,7 +8,7 @@ import {
   untracked,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { Field, form } from '@angular/forms/signals';
+import { Field, form, FormField } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -32,6 +32,7 @@ import { ProductStore } from '../../../product.store';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     Field,
+    FormField,
     TranslateModule,
     MatCardModule,
     MatFormFieldModule,

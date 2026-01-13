@@ -168,7 +168,7 @@
 
       <!-- Model/Reference -->
       <app-resource-autocomplete
-        [field]="form.modelId"
+        [formField]="form.modelId"
         [options]="filteredModels()"
         [showAllOption]="false"
         [placeholder]="'stock.form.modelReference' | translate"
@@ -177,21 +177,21 @@
 
     <!-- Family -->
     <app-resource-autocomplete
-      [field]="form.familyId"
+      [formField]="form.familyId"
       [options]="families()"
       [placeholder]="'stock.form.family' | translate"
     />
 
     <!-- Sub-family -->
     <app-resource-autocomplete
-      [field]="form.subFamilyId"
+      [formField]="form.subFamilyId"
       [options]="filteredSubFamilies()"
       [placeholder]="'stock.form.subFamily' | translate"
     />
 
     <!-- Color -->
     <app-resource-autocomplete
-      [field]="form.color"
+      [formField]="form.color"
       [options]="colors()"
       [placeholder]="'stock.form.color' | translate"
     />
@@ -214,14 +214,14 @@
   @if (showFrameFields()) {
     <div class="form-grid">
       <app-resource-autocomplete
-        [field]="form.frameGender"
+        [formField]="form.frameGender"
         [options]="genders()"
         valueKey="code"
         [placeholder]="'stock.form.frameGender' | translate"
       />
 
       <app-resource-autocomplete
-        [field]="form.frameShape"
+        [formField]="form.frameShape"
         [options]="frameShapes()"
         valueKey="code"
         [showAllOption]="false"
@@ -237,7 +237,7 @@
       />
 
       <app-resource-autocomplete
-        [field]="form.frameType"
+        [formField]="form.frameType"
         [options]="frameTypes()"
         valueKey="code"
         [showAllOption]="false"
@@ -245,7 +245,7 @@
       />
 
       <app-resource-autocomplete
-        [field]="form.frameHingeType"
+        [formField]="form.frameHingeType"
         [options]="hingeTypes()"
         valueKey="code"
         [placeholder]="'stock.form.frameHingeType' | translate"
@@ -270,14 +270,14 @@
       </mat-form-field>
 
       <app-resource-autocomplete
-        [field]="form.frameColor"
+        [formField]="form.frameColor"
         [options]="colors()"
         valueKey="code"
         [placeholder]="'stock.form.frameColor' | translate"
       />
 
       <app-resource-autocomplete
-        [field]="form.frameTempleColor"
+        [formField]="form.frameTempleColor"
         [options]="colors()"
         valueKey="code"
         [placeholder]="'stock.form.frameTempleColor' | translate"
@@ -304,7 +304,7 @@
   @if (showLensFields()) {
     <div class="form-grid">
       <app-resource-autocomplete
-        [field]="form.lensType"
+        [formField]="form.lensType"
         [options]="lensTypes()"
         valueKey="code"
         [showAllOption]="false"
@@ -312,7 +312,7 @@
       />
 
       <app-resource-autocomplete
-        [field]="form.lensMaterial"
+        [formField]="form.lensMaterial"
         [options]="lensMaterials()"
         valueKey="code"
         [showAllOption]="false"
@@ -320,7 +320,7 @@
       />
 
       <app-resource-autocomplete
-        [field]="form.lensRefractiveIndex"
+        [formField]="form.lensRefractiveIndex"
         [options]="lensIndices()"
         valueKey="code"
         [showAllOption]="false"
@@ -328,7 +328,7 @@
       />
 
       <app-resource-autocomplete
-        [field]="form.lensTint"
+        [formField]="form.lensTint"
         [options]="lensTints()"
         valueKey="code"
         [placeholder]="'stock.form.lensTint' | translate"
@@ -353,7 +353,7 @@
       </mat-form-field>
 
       <app-resource-autocomplete
-        [field]="form.lensManufacturerId"
+        [formField]="form.lensManufacturerId"
         [options]="manufacturers()"
         labelKey="name"
         [placeholder]="'stock.form.lensManufacturer' | translate"
@@ -405,7 +405,7 @@
   @if (showContactLensFields()) {
     <div class="form-grid">
       <app-resource-autocomplete
-        [field]="form.contactLensType"
+        [formField]="form.contactLensType"
         [options]="contactLensTypes()"
         valueKey="code"
         [showAllOption]="false"
@@ -413,7 +413,7 @@
       />
 
       <app-resource-autocomplete
-        [field]="form.contactLensUsage"
+        [formField]="form.contactLensUsage"
         [options]="contactLensUsages()"
         valueKey="code"
         [showAllOption]="false"
@@ -421,7 +421,7 @@
       />
 
       <app-resource-autocomplete
-        [field]="form.contactLensLaboratoryId"
+        [formField]="form.contactLensLaboratoryId"
         [options]="laboratories()"
         labelKey="name"
         [placeholder]="'stock.form.contactLensLaboratory' | translate"
@@ -495,7 +495,7 @@
   @if (showAccessoryFields()) {
     <div class="form-grid">
       <app-resource-autocomplete
-        [field]="form.accessoryCategory"
+        [formField]="form.accessoryCategory"
         [options]="accessoryCategories()"
         valueKey="code"
         [showAllOption]="false"
