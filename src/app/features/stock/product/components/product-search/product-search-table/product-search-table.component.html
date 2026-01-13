@@ -42,7 +42,7 @@
             {{ 'stock.table.brand' | translate }}
           </th>
           <td mat-cell *matCellDef="let element">
-            {{ (brands() | getElementFromResource: element.brandId)?.label ?? '-' }}
+            {{ (brands() | getElementFromResource: element.brandId : 'code')?.label ?? '-' }}
           </td>
         </ng-container>
 

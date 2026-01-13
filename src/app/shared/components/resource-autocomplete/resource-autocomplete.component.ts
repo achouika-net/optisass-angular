@@ -1,148 +1,221 @@
-import { ChangeDetectionStrategy, Component, computed, input, model, signal } from '@angular/core';
-import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { FormValueControl } from '@angular/forms/signals';
 import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  input,
+  model,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
+import {
+  debounce,
+  disabled,
+  form,
+  FormField,
+  FormValueControl,
+  required,
+} from '@angular/forms/signals';
+import {
+  MatAutocomplete,
   MatAutocompleteModule,
   MatAutocompleteSelectedEvent,
 } from '@angular/material/autocomplete';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { TranslateModule } from '@ngx-translate/core';
-import { debounceTime, distinctUntilChanged } from 'rxjs';
+import { FieldErrorComponent } from '../field-error/field-error.component';
 import { IAutocompleteOption } from './resource-autocomplete.model';
+
+type AutocompleteValue = string | null;
+type InternalFormValue = string | IAutocompleteOption | null;
 
 @Component({
   selector: 'app-resource-autocomplete',
   templateUrl: './resource-autocomplete.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatFormFieldModule, MatInputModule, MatAutocompleteModule, TranslateModule],
+  imports: [
+    FormField,
+    MatFormFieldModule,
+    MatInputModule,
+    MatAutocompleteModule,
+    TranslateModule,
+    FieldErrorComponent,
+  ],
 })
-export class ResourceAutocompleteComponent implements FormValueControl<string | number | null> {
-  readonly value = model<string | number | null>(null);
+export class ResourceAutocompleteComponent implements FormValueControl<AutocompleteValue> {
+  private readonly autocomplete = viewChild.required<MatAutocomplete>('auto');
+  readonly value = model<AutocompleteValue>(null);
+  readonly disabled = input<boolean>(false);
+  readonly required = input<boolean>(false);
 
-  /** Liste des options à afficher dans l'autocomplete */
+  /** Options list */
   readonly options = input.required<IAutocompleteOption[]>();
 
-  /** Clé pour la valeur stockée: 'id' (warehouses, brands) ou 'code' (productTypes, statuses) */
-  readonly valueKey = input<'id' | 'code'>('id');
+  /** Key for stored value: 'id' or 'code' */
+  readonly valueKey = input<'id' | 'code'>('code');
 
-  /** Clé pour l'affichage: 'label' ou 'name' */
+  /** Key for display: 'label' or 'name' */
   readonly labelKey = input<string>('label');
 
-  /** Placeholder du champ */
+  /** Field placeholder */
   readonly placeholder = input<string>('');
 
-  /** Afficher l'option "Tous" (value: null) en haut de la liste */
+  /** Show "All" option (value: null) at top */
   readonly showAllOption = input<boolean>(true);
 
-  /** Traduire les labels via le pipe translate */
+  /** Translate labels via translate pipe */
   readonly translateLabels = input<boolean>(false);
 
-  readonly searchQuery = signal<string>('');
+  /** Internal signal for the form - stores string (typing) or object (selected) */
+  readonly #formValue = signal<InternalFormValue>(null);
+
+  /** Signal Form for mat-form-field invalid state */
+  readonly internalForm = form(this.#formValue, (s) => {
+    required(s, { when: () => this.required() && this.value() === null });
+    disabled(s, this.disabled);
+    debounce(s, 300);
+  });
+
+  /** Whether input is focused */
   readonly isFocused = signal<boolean>(false);
 
-  readonly #debouncedQuery = toSignal(
-    toObservable(this.searchQuery).pipe(debounceTime(200), distinctUntilChanged()),
-    { initialValue: '' },
-  );
-
+  /** Filtered options based on search text when focused */
   readonly filteredOptions = computed(() => {
-    const query = this.#debouncedQuery().toLowerCase();
-    const options = this.options();
+    if (!this.isFocused()) return this.options();
+
+    const val = this.internalForm().value();
+
+    // If null or object selected, show all options
+    if (val === null || typeof val === 'object') {
+      return this.options();
+    }
+
+    // If string, filter
+    const query = val.toLowerCase();
+    if (!query) return this.options();
+
     const key = this.labelKey();
-
-    if (!query) return options;
-
-    return options.filter((opt) => {
+    return this.options().filter((opt) => {
       const label = this.#getOptionLabel(opt, key);
       return label.toLowerCase().includes(query);
     });
   });
 
-  readonly selectedOption = computed(() => {
-    const selectedValue = this.value();
-    if (selectedValue === null || selectedValue === undefined) return null;
+  constructor() {
+    // Sync parent value → internalForm (set object) when not focused and options are loaded
+    effect(() => {
+      const val = this.value();
+      const opts = this.options();
 
-    const vKey = this.valueKey();
-    return this.options().find((opt) => opt[vKey] === selectedValue) ?? null;
-  });
-
-  readonly displayValue = computed(() => {
-    const selected = this.selectedOption();
-    if (!selected) return '';
-    return this.#getOptionLabel(selected, this.labelKey());
-  });
-
-  readonly inputDisplayValue = computed(() => {
-    if (this.isFocused()) {
-      return this.searchQuery();
-    }
-    return this.displayValue();
-  });
-
-  /**
-   * Gère la saisie utilisateur dans le champ.
-   * @param event Événement de saisie
-   */
-  onInput(event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    this.searchQuery.set(value);
+      untracked(() => {
+        if (!this.isFocused() && opts.length > 0) {
+          if (val === null) {
+            this.internalForm().value.set(null);
+          } else {
+            const selected = opts.find((opt) => opt[this.valueKey()] === val) ?? null;
+            this.internalForm().value.set(selected);
+          }
+        }
+      });
+    });
   }
 
   /**
-   * Gère le focus sur le champ.
+   * Handles field focus.
    */
   onFocus(): void {
     this.isFocused.set(true);
-    this.searchQuery.set('');
   }
 
   /**
-   * Gère la sélection d'une option.
-   * @param event Événement de sélection autocomplete
+   * Handles autocomplete panel opened event.
+   */
+  onPanelOpened(): void {
+    const currentValue = this.value();
+    if (currentValue !== null) {
+      this.#selectMatchingOption(currentValue);
+    }
+  }
+
+  /**
+   * Handles option selection.
+   * @param event Autocomplete selection event
    */
   onOptionSelected(event: MatAutocompleteSelectedEvent): void {
     const selectedOption = event.option.value as IAutocompleteOption | null;
 
     if (selectedOption === null) {
       this.value.set(null);
+      this.internalForm().value.set(null);
     } else {
       const vKey = this.valueKey();
-      const newValue = selectedOption[vKey] as string | number | null;
+      const newValue = selectedOption[vKey] as string | null;
       this.value.set(newValue ?? null);
+      this.internalForm().value.set(selectedOption);
     }
-    this.searchQuery.set('');
     this.isFocused.set(false);
   }
 
   /**
-   * Gère la perte de focus du champ.
+   * Handles autocomplete panel closed event.
+   * Restores previous value if user typed without selecting.
    */
-  onBlur(): void {
-    setTimeout(() => {
-      this.searchQuery.set('');
-      this.isFocused.set(false);
-    }, 200);
+  onPanelClosed(): void {
+    const current = this.internalForm().value();
+
+    if (typeof current === 'string') {
+      const previousValue = this.value();
+      if (previousValue) {
+        const selected = this.options().find((opt) => opt[this.valueKey()] === previousValue);
+        this.internalForm().value.set(selected ?? null);
+      } else {
+        this.internalForm().value.set(null);
+      }
+    }
+
+    this.isFocused.set(false);
   }
 
   /**
-   * Fonction d'affichage pour l'autocomplete.
-   * @param option Option à afficher
-   * @returns Label de l'option
+   * Display function for autocomplete.
+   * @param option Option to display
+   * @returns Option label
    */
-  displayFn = (option: IAutocompleteOption | null): string => {
+  displayFn = (option: IAutocompleteOption | string | null): string => {
     if (!option) return '';
+    if (typeof option === 'string') return option;
     return this.#getOptionLabel(option, this.labelKey());
   };
 
   /**
-   * Récupère le label d'une option selon la clé configurée.
-   * @param option Option source
-   * @param key Clé du label ('label' ou 'name')
-   * @returns Label de l'option
+   * Gets option label based on configured key.
+   * @param option Source option
+   * @param key Label key ('label' or 'name')
+   * @returns Option label
    */
   #getOptionLabel(option: IAutocompleteOption, key: string): string {
     const value = key === 'label' ? option.label : key === 'name' ? option.name : option.label;
     return String(value ?? option.label ?? option.name ?? '');
+  }
+
+  /**
+   * Manually selects the matching option in the autocomplete panel.
+   * @param valueToMatch Value to match against options
+   */
+  #selectMatchingOption(valueToMatch: string): void {
+    const autocomplete = this.autocomplete();
+    if (!autocomplete?.options) return;
+
+    const vKey = this.valueKey();
+    autocomplete.options.forEach((opt) => {
+      const optValue = opt.value as IAutocompleteOption | null;
+      if (optValue && optValue[vKey] === valueToMatch) {
+        opt.select();
+      } else {
+        opt.deselect();
+      }
+    });
   }
 }

@@ -282,14 +282,14 @@ export const MOCK_BRANDS: IBrand[] = [
 ];
 
 export const MOCK_MODELS: IModel[] = [
-  { id: 'model-1', code: 'AVI', label: 'Aviator', brandId: 'brand-1', order: 1, active: true },
-  { id: 'model-2', code: 'WAY', label: 'Wayfarer', brandId: 'brand-1', order: 2, active: true },
-  { id: 'model-3', code: 'CLU', label: 'Clubmaster', brandId: 'brand-1', order: 3, active: true },
-  { id: 'model-4', code: 'HOL', label: 'Holbrook', brandId: 'brand-2', order: 1, active: true },
-  { id: 'model-5', code: 'FRO', label: 'Frogskins', brandId: 'brand-2', order: 2, active: true },
-  { id: 'model-6', code: 'GG0', label: 'GG0061S', brandId: 'brand-3', order: 1, active: true },
-  { id: 'model-7', code: 'PR0', label: 'PR 01OS', brandId: 'brand-4', order: 1, active: true },
-  { id: 'model-8', code: 'TF5', label: 'TF5178', brandId: 'brand-5', order: 1, active: true },
+  { id: 'model-1', code: 'AVI', label: 'Aviator', brandId: 'RAY', order: 1, active: true },
+  { id: 'model-2', code: 'WAY', label: 'Wayfarer', brandId: 'RAY', order: 2, active: true },
+  { id: 'model-3', code: 'CLU', label: 'Clubmaster', brandId: 'RAY', order: 3, active: true },
+  { id: 'model-4', code: 'HOL', label: 'Holbrook', brandId: 'OAK', order: 1, active: true },
+  { id: 'model-5', code: 'FRO', label: 'Frogskins', brandId: 'OAK', order: 2, active: true },
+  { id: 'model-6', code: 'GG0', label: 'GG0061S', brandId: 'GUC', order: 1, active: true },
+  { id: 'model-7', code: 'PR0', label: 'PR 01OS', brandId: 'PRA', order: 1, active: true },
+  { id: 'model-8', code: 'TF5', label: 'TF5178', brandId: 'TFO', order: 1, active: true },
 ];
 
 export const MOCK_MANUFACTURERS: IManufacturer[] = [
@@ -357,14 +357,14 @@ export const MOCK_FAMILIES: IFamily[] = [
 ];
 
 export const MOCK_SUB_FAMILIES: ISubFamily[] = [
-  { id: 'sfam-1', code: 'UNI', label: 'Unifocaux', familyId: 'fam-1', order: 1, active: true },
-  { id: 'sfam-2', code: 'PRO', label: 'Progressifs', familyId: 'fam-1', order: 2, active: true },
-  { id: 'sfam-3', code: 'POL', label: 'Polarisés', familyId: 'fam-2', order: 1, active: true },
-  { id: 'sfam-4', code: 'MIR', label: 'Miroirs', familyId: 'fam-2', order: 2, active: true },
-  { id: 'sfam-5', code: 'CYC', label: 'Cyclisme', familyId: 'fam-3', order: 1, active: true },
-  { id: 'sfam-6', code: 'SKI', label: 'Ski', familyId: 'fam-3', order: 2, active: true },
-  { id: 'sfam-7', code: 'BEB', label: 'Bébé', familyId: 'fam-4', order: 1, active: true },
-  { id: 'sfam-8', code: 'ADO', label: 'Adolescent', familyId: 'fam-4', order: 2, active: true },
+  { id: 'sfam-1', code: 'UNI', label: 'Unifocaux', familyId: 'OPT', order: 1, active: true },
+  { id: 'sfam-2', code: 'PRO', label: 'Progressifs', familyId: 'OPT', order: 2, active: true },
+  { id: 'sfam-3', code: 'POL', label: 'Polarisés', familyId: 'SOL', order: 1, active: true },
+  { id: 'sfam-4', code: 'MIR', label: 'Miroirs', familyId: 'SOL', order: 2, active: true },
+  { id: 'sfam-5', code: 'CYC', label: 'Cyclisme', familyId: 'SPO', order: 1, active: true },
+  { id: 'sfam-6', code: 'SKI', label: 'Ski', familyId: 'SPO', order: 2, active: true },
+  { id: 'sfam-7', code: 'BEB', label: 'Bébé', familyId: 'ENF', order: 1, active: true },
+  { id: 'sfam-8', code: 'ADO', label: 'Adolescent', familyId: 'ENF', order: 2, active: true },
 ];
 
 export const MOCK_COLORS: IColor[] = [

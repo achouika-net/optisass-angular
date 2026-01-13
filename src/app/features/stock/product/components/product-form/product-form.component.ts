@@ -214,6 +214,7 @@ export class ProductFormComponent {
     // Populates the form with product data in edit mode
     effect(() => {
       const productData = this.#product();
+      console.log('Product data changed:', productData);
       untracked(() => {
         if (productData) {
           this.#formModel.set(toProductForm(productData));

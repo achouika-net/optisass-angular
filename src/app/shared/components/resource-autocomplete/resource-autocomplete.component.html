@@ -3,15 +3,15 @@
   <input
     matInput
     type="text"
-    [value]="inputDisplayValue()"
-    (input)="onInput($event)"
+    [formField]="internalForm"
     (focus)="onFocus()"
-    (blur)="onBlur()"
     [matAutocomplete]="auto"
   />
   <mat-autocomplete
     #auto="matAutocomplete"
     [displayWith]="displayFn"
+    (opened)="onPanelOpened()"
+    (closed)="onPanelClosed()"
     (optionSelected)="onOptionSelected($event)"
   >
     @if (showAllOption()) {
@@ -29,4 +29,7 @@
       </mat-option>
     }
   </mat-autocomplete>
+  @if (internalForm().touched() && internalForm().invalid()) {
+    <mat-error app-field-error [errors]="internalForm().errors()" />
+  }
 </mat-form-field>
