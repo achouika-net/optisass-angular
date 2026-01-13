@@ -46,32 +46,33 @@
 
 ## 2. Décisions validées
 
-| #   | Sujet                   | Décision                                                      |
-| --- | ----------------------- | ------------------------------------------------------------- |
-| 1   | Alertes péremption      | 2 paliers globaux : Warning (30j), Critical (7j)              |
-| 2   | Architecture formulaire | FieldTree pattern (`*-fields`)                                |
-| 3   | Calculs prix            | Helpers sans stockage (calculé à la volée)                    |
-| 4   | Génération codes        | Backend (codeInterne, codeBarres)                             |
-| 5   | Photos                  | Hybride Base64/URL, 2MB max, JPG/PNG/WebP                     |
-| 6   | Entrepôt                | `AuthStore.currentTenant` + `WarehouseService` existant       |
-| 7   | Statut                  | Automatique selon quantité (DISPONIBLE/RUPTURE)               |
-| 8   | Valeurs défaut          | Configurables par produit (seuil=2, TVA=20%, coef=2.5, min=1) |
-| 9   | Mode consultation       | Même formulaire en mode readonly                              |
-| 10  | Quantité initiale       | Saisie manuelle en création                                   |
-| 11  | Fournisseur principal   | Texte libre V1 (référence module futur)                       |
-| 12  | Famille/Sous-famille    | Implémenté avec UI, autocomplete, ajout libre                 |
-| 13  | API Recherche           | POST avec body imbriqué (monture/verre/lentille/accessoire)   |
-| 14  | Form location           | Formulaire dans composant enfant, valeur sauvée dans store    |
-| 15  | Nettoyage body          | `removeEmptyValues()` supprime objets vides avant envoi       |
-| 16  | Entrepôt                | Supprimé du produit, géré dans feature Stock/Alimentation     |
-| 17  | Quantité                | Calculé (somme globale depuis Stock), pas de saisie           |
-| 18  | Prix d'achat            | Saisie unique en création, puis calculé (moyenne pondérée)    |
-| 19  | Pricing mode            | 3 modes : coefficient, montant fixe ajouté, prix fixe         |
-| 20  | Alerte prix fixe        | Hint orange si prix < prix d'achat (informatif, non bloquant) |
-| 21  | Date péremption         | Reste sur fiche produit (caractéristique du type lentille)    |
-| 22  | Form UI create/edit     | Stepper (création) vs Accordion (édition) - même composant    |
-| 23  | Form model              | Flat `IProductForm` + transformers vers/depuis API types      |
-| 24  | Type change reset       | Reset champs type-spécifiques uniquement en mode création     |
+| #   | Sujet                   | Décision                                                              |
+| --- | ----------------------- | --------------------------------------------------------------------- |
+| 1   | Alertes péremption      | 2 paliers globaux : Warning (30j), Critical (7j)                      |
+| 2   | Architecture formulaire | FieldTree pattern (`*-fields`)                                        |
+| 3   | Calculs prix            | Helpers sans stockage (calculé à la volée)                            |
+| 4   | Génération codes        | Backend (codeInterne, codeBarres)                                     |
+| 5   | Photos                  | Hybride Base64/URL, 2MB max, JPG/PNG/WebP                             |
+| 6   | Entrepôt                | `AuthStore.currentTenant` + `WarehouseService` existant               |
+| 7   | Statut                  | Automatique selon quantité (DISPONIBLE/RUPTURE)                       |
+| 8   | Valeurs défaut          | Configurables par produit (seuil=2, TVA=20%, coef=2.5, min=1)         |
+| 9   | Mode consultation       | Même formulaire en mode readonly                                      |
+| 10  | Quantité initiale       | Saisie manuelle en création                                           |
+| 11  | Fournisseur principal   | Texte libre V1 (référence module futur)                               |
+| 12  | Famille/Sous-famille    | Implémenté avec UI, autocomplete, ajout libre                         |
+| 13  | API Recherche           | POST avec body imbriqué (monture/verre/lentille/accessoire)           |
+| 14  | Form location           | Formulaire dans composant enfant, valeur sauvée dans store            |
+| 15  | Nettoyage body          | `removeEmptyValues()` supprime objets vides avant envoi               |
+| 16  | Entrepôt                | Supprimé du produit, géré dans feature Stock/Alimentation             |
+| 17  | Quantité                | Calculé (somme globale depuis Stock), pas de saisie                   |
+| 18  | Prix d'achat            | Saisie unique en création, puis calculé (moyenne pondérée)            |
+| 19  | Pricing mode            | 3 modes : coefficient, montant fixe ajouté, prix fixe                 |
+| 20  | Alerte prix fixe        | Hint orange si prix < prix d'achat (informatif, non bloquant)         |
+| 21  | Date péremption         | Reste sur fiche produit (caractéristique du type lentille)            |
+| 22  | Form UI create/edit     | Stepper (création) vs Accordion (édition) - même composant            |
+| 23  | Form model              | Flat `IProductForm` + transformers vers/depuis API types              |
+| 24  | Type change reset       | Reset champs type-spécifiques uniquement en mode création             |
+| 25  | Reset champs dépendants | `(selectionChange)` event au lieu d'effect pour éviter reset à l'init |
 
 ---
 
@@ -1194,11 +1195,22 @@ Clés à ajouter dans `assets/i18n/fr.json` :
 - Validations conditionnelles selon le type de produit et le mode de pricing
 - Correction bug : Reset des champs type-spécifiques uniquement en mode création
 - Alignement `resetSearchForm()` avec les autres modules (client, warehouse, user)
-- Suppression de `resetProduct()` non utilisé dans le store
 - Traduction de tous les commentaires en anglais
 - Remplacement `CommonModule` par `NgTemplateOutlet` (tree-shaking)
 - Fix ESLint : `<label>` → `<span>` pour les captions photo
 - **V1 du module Stock complète**
+
+### Session 2026-01-14
+
+- **Fix bug** : Données produit persistantes entre view et add
+  - Ajout `resetProduct()` dans ProductStore pour nettoyer l'état
+  - Implémentation `OnDestroy` dans ProductViewComponent pour reset à la sortie
+  - Ajout check `isCreateMode()` dans l'effect du formulaire
+- **Refactoring** : Remplacement des effects de reset par `(selectionChange)` events
+  - Ajout output `selectionChange` à `ResourceAutocompleteComponent`
+  - `onBrandChange()` : Reset modelId quand brand change (action utilisateur uniquement)
+  - `onFamilyChange()` : Reset subFamilyId quand family change (action utilisateur uniquement)
+- **Raison** : Les effects se déclenchent à l'initialisation, causant le reset des valeurs en mode édition
 
 ---
 
