@@ -1,25 +1,30 @@
-import { IProductPhoto, ProductType } from '@app/models';
+import { IProductPhoto, PricingMode, ProductType } from '@app/models';
 
 interface IBaseProductRequest {
-  designation: string;
+  designation: string | null;
   brandId: string | null;
   modelId: string | null;
   color: string | null;
-  supplierReference: string | null;
+  supplierIds: string[];
   familyId: string | null;
   subFamilyId: string | null;
-  mainSupplier: string | null;
-  currentQuantity: number;
   alertThreshold: number;
-  purchasePriceExclTax: number;
-  coefficient: number;
+
+  // Pricing
+  pricingMode: PricingMode;
+  coefficient: number | null;
+  fixedAmount: number | null;
+  fixedPrice: number | null;
   tvaRate: number;
+
+  // Prix d'achat : saisie uniquement en création
+  purchasePriceExclTax: number | null;
+
   photo: IProductPhoto | null;
-  warehouseId: string;
 }
 
 export interface IFrameCreateRequest extends IBaseProductRequest {
-  productType: 'monture';
+  productType: 'optical_frame' | 'sun_frame';
   category: string;
   shape: string;
   material: string;
@@ -36,7 +41,7 @@ export interface IFrameCreateRequest extends IBaseProductRequest {
 }
 
 export interface ILensCreateRequest extends IBaseProductRequest {
-  productType: 'verre';
+  productType: 'lens';
   lensType: string;
   material: string;
   refractiveIndex: string | null;
@@ -55,7 +60,7 @@ export interface ILensCreateRequest extends IBaseProductRequest {
 }
 
 export interface IContactLensCreateRequest extends IBaseProductRequest {
-  productType: 'lentille';
+  productType: 'contact_lens';
   contactLensType: string;
   usage: string;
   baseCurve: number;
@@ -76,7 +81,7 @@ export interface IContactLensCreateRequest extends IBaseProductRequest {
 }
 
 export interface IAccessoryCreateRequest extends IBaseProductRequest {
-  productType: 'accessoire';
+  productType: 'accessory';
   category: string;
   subCategory: string | null;
 }

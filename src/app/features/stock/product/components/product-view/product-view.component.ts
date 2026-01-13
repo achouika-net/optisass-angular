@@ -1,15 +1,35 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, input } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { ProductFormComponent } from '../product-form/product-form.component';
+import { ProductStore } from '../../product.store';
 
 @Component({
   selector: 'app-product-view',
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, MatProgressSpinnerModule, ProductFormComponent],
   template: `
-    <div class="flex flex-col gap-4">
-      <h2 class="text-xl font-semibold">{{ 'stock.viewProduct' | translate }}</h2>
-      <p class="text-gray-500">Vue détaillée en cours de développement...</p>
-    </div>
+    @if (productStore.state.productLoading()) {
+      <div class="flex justify-center py-8">
+        <mat-spinner diameter="40" />
+      </div>
+    } @else if (productStore.state.product()) {
+      <app-product-form />
+    } @else {
+      <div class="text-center py-8 text-gray-500">
+        {{ 'stock.productNotFound' | translate }}
+      </div>
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export default class ProductViewComponent {}
+export default class ProductViewComponent {
+  readonly productStore = inject(ProductStore);
+
+  readonly id = input.required<string>();
+
+  constructor() {
+    effect(() => {
+      this.productStore.getProduct(this.id());
+    });
+  }
+}

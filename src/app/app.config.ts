@@ -21,6 +21,8 @@ import { WithCredentialsInterceptor } from './core/interceptors/withCredentials.
 import { AuthStore, ResourceStore } from './core/store';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
+import { provideSignalFormsConfig } from '@angular/forms/signals';
+import { NG_STATUS_CLASSES } from '@angular/forms/signals/compat';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -58,6 +60,7 @@ export const appConfig: ApplicationConfig = {
       // Attendre les deux en parallèle
       return Promise.all([resourcesReady, sessionReady]).then((): void => undefined);
     }),
+    provideSignalFormsConfig({ classes: NG_STATUS_CLASSES }),
 
     // Router Configuration
     provideRouter(routes, withComponentInputBinding(), withViewTransitions()),

@@ -11,7 +11,6 @@ import { ProductCreateRequest, ProductUpdateRequest } from '../models';
 
 interface SearchBody {
   search?: string;
-  warehouseId?: string;
   productTypes?: string[];
   status?: string;
   brandId?: string;
@@ -21,23 +20,22 @@ interface SearchBody {
   modelId?: string;
   supplierId?: string;
   lowStock?: boolean;
-  expirationSoon?: boolean;
-  monture?: {
+  frame?: {
     frameShape?: string;
     frameMaterial?: string;
     frameColor?: string;
     frameGender?: string;
   };
-  verre?: {
+  lens?: {
     lensIndex?: string;
     lensTreatment?: string;
     lensPhotochromic?: boolean;
   };
-  lentille?: {
+  contact_lens?: {
     contactLensUsage?: string;
     contactLensType?: string;
   };
-  accessoire?: {
+  accessory?: {
     accessoryCategory?: string;
   };
   page?: number;
@@ -51,22 +49,23 @@ export const MOCK_FRAMES: IFrame[] = [
     id: '1',
     internalCode: 'MON0001',
     barcode: '2001234567890',
-    productType: 'monture',
+    productType: 'sun_frame',
     designation: 'Ray-Ban Aviator Classic',
     brandId: 'brand-1',
     modelId: '1',
     color: 'Or',
-    supplierReference: 'RB3025-001',
+    supplierIds: ['sup-1'],
     familyId: '1',
     subFamilyId: '1',
-    mainSupplier: 'Luxottica',
     currentQuantity: 5,
     alertThreshold: 2,
     purchasePriceExclTax: 85,
+    pricingMode: 'coefficient',
     coefficient: 2.5,
+    fixedAmount: null,
+    fixedPrice: null,
     tvaRate: 0.2,
     photo: null,
-    warehouseId: '1',
     status: 'DISPONIBLE',
     createdAt: new Date('2024-01-15'),
     updatedAt: null,
@@ -88,22 +87,23 @@ export const MOCK_FRAMES: IFrame[] = [
     id: '2',
     internalCode: 'MON0002',
     barcode: '2001234567891',
-    productType: 'monture',
+    productType: 'sun_frame',
     designation: 'Oakley Holbrook',
-    brandId: 'brand-2',
+    brandId: 'OAK',
     modelId: '2',
     color: 'Noir mat',
-    supplierReference: 'OO9102-01',
+    supplierIds: ['sup-1'],
     familyId: '2',
     subFamilyId: null,
-    mainSupplier: 'Luxottica',
     currentQuantity: 3,
     alertThreshold: 2,
     purchasePriceExclTax: 95,
+    pricingMode: 'coefficient',
     coefficient: 2.5,
+    fixedAmount: null,
+    fixedPrice: null,
     tvaRate: 0.2,
     photo: null,
-    warehouseId: '1',
     status: 'DISPONIBLE',
     createdAt: new Date('2024-02-10'),
     updatedAt: null,
@@ -125,22 +125,23 @@ export const MOCK_FRAMES: IFrame[] = [
     id: '3',
     internalCode: 'MON0003',
     barcode: '2001234567892',
-    productType: 'monture',
+    productType: 'optical_frame',
     designation: 'Gucci GG0061S',
     brandId: 'brand-3',
     modelId: null,
     color: 'Écaille',
-    supplierReference: 'GG0061S-003',
+    supplierIds: ['sup-2'],
     familyId: '1',
     subFamilyId: '2',
-    mainSupplier: 'Kering Eyewear',
     currentQuantity: 1,
     alertThreshold: 2,
     purchasePriceExclTax: 180,
+    pricingMode: 'coefficient',
     coefficient: 2.5,
+    fixedAmount: null,
+    fixedPrice: null,
     tvaRate: 0.2,
     photo: null,
-    warehouseId: '1',
     status: 'DISPONIBLE',
     createdAt: new Date('2024-03-05'),
     updatedAt: null,
@@ -165,22 +166,23 @@ export const MOCK_LENSES: ILens[] = [
     id: '4',
     internalCode: 'VER0001',
     barcode: '2002234567890',
-    productType: 'verre',
+    productType: 'lens',
     designation: 'Essilor Varilux Comfort',
     brandId: null,
     modelId: null,
     color: null,
-    supplierReference: 'VAR-COMFORT-167',
+    supplierIds: ['sup-1', 'sup-2'],
     familyId: null,
     subFamilyId: null,
-    mainSupplier: 'Essilor',
     currentQuantity: 10,
     alertThreshold: 5,
     purchasePriceExclTax: 120,
+    pricingMode: 'coefficient',
     coefficient: 2.0,
+    fixedAmount: null,
+    fixedPrice: null,
     tvaRate: 0.2,
     photo: null,
-    warehouseId: '1',
     status: 'DISPONIBLE',
     createdAt: new Date('2024-01-20'),
     updatedAt: null,
@@ -204,22 +206,23 @@ export const MOCK_LENSES: ILens[] = [
     id: '5',
     internalCode: 'VER0002',
     barcode: '2002234567891',
-    productType: 'verre',
+    productType: 'lens',
     designation: 'Zeiss Single Vision 1.6',
     brandId: null,
     modelId: null,
     color: null,
-    supplierReference: 'ZSV-160-AR',
+    supplierIds: ['sup-2'],
     familyId: null,
     subFamilyId: null,
-    mainSupplier: 'Zeiss',
     currentQuantity: 15,
     alertThreshold: 5,
     purchasePriceExclTax: 75,
+    pricingMode: 'coefficient',
     coefficient: 2.0,
+    fixedAmount: null,
+    fixedPrice: null,
     tvaRate: 0.2,
     photo: null,
-    warehouseId: '1',
     status: 'DISPONIBLE',
     createdAt: new Date('2024-02-15'),
     updatedAt: null,
@@ -246,22 +249,23 @@ export const MOCK_CONTACT_LENSES: IContactLens[] = [
     id: '6',
     internalCode: 'LEN0001',
     barcode: '2003234567890',
-    productType: 'lentille',
+    productType: 'contact_lens',
     designation: 'Acuvue Oasys 1-Day',
     brandId: null,
     modelId: null,
     color: null,
-    supplierReference: 'AO1D-90',
+    supplierIds: ['sup-3'],
     familyId: null,
     subFamilyId: null,
-    mainSupplier: 'Johnson & Johnson',
     currentQuantity: 20,
     alertThreshold: 10,
     purchasePriceExclTax: 35,
+    pricingMode: 'coefficient',
     coefficient: 1.8,
+    fixedAmount: null,
+    fixedPrice: null,
     tvaRate: 0.2,
     photo: null,
-    warehouseId: '1',
     status: 'DISPONIBLE',
     createdAt: new Date('2024-01-10'),
     updatedAt: null,
@@ -287,22 +291,23 @@ export const MOCK_CONTACT_LENSES: IContactLens[] = [
     id: '7',
     internalCode: 'LEN0002',
     barcode: '2003234567891',
-    productType: 'lentille',
+    productType: 'contact_lens',
     designation: 'Air Optix Aqua Multifocal',
     brandId: null,
     modelId: null,
     color: null,
-    supplierReference: 'AOAM-6',
+    supplierIds: ['sup-3'],
     familyId: null,
     subFamilyId: null,
-    mainSupplier: 'Alcon',
     currentQuantity: 8,
     alertThreshold: 5,
     purchasePriceExclTax: 28,
+    pricingMode: 'coefficient',
     coefficient: 1.8,
+    fixedAmount: null,
+    fixedPrice: null,
     tvaRate: 0.2,
     photo: null,
-    warehouseId: '1',
     status: 'DISPONIBLE',
     createdAt: new Date('2024-02-20'),
     updatedAt: null,
@@ -331,22 +336,23 @@ export const MOCK_ACCESSORIES: IAccessory[] = [
     id: '8',
     internalCode: 'ACC0001',
     barcode: '2004234567890',
-    productType: 'accessoire',
+    productType: 'accessory',
     designation: 'Étui rigide noir',
     brandId: null,
     modelId: null,
     color: 'Noir',
-    supplierReference: 'ETU-RIG-N',
+    supplierIds: ['sup-1'],
     familyId: null,
     subFamilyId: null,
-    mainSupplier: 'Fournitures Optiques',
     currentQuantity: 50,
     alertThreshold: 20,
     purchasePriceExclTax: 3.5,
+    pricingMode: 'coefficient',
     coefficient: 3.0,
+    fixedAmount: null,
+    fixedPrice: null,
     tvaRate: 0.2,
     photo: null,
-    warehouseId: '1',
     status: 'DISPONIBLE',
     createdAt: new Date('2024-01-05'),
     updatedAt: null,
@@ -357,22 +363,23 @@ export const MOCK_ACCESSORIES: IAccessory[] = [
     id: '9',
     internalCode: 'ACC0002',
     barcode: '2004234567891',
-    productType: 'accessoire',
+    productType: 'accessory',
     designation: 'Chiffon microfibre',
     brandId: null,
     modelId: null,
     color: null,
-    supplierReference: 'CHI-MIC-STD',
+    supplierIds: ['sup-1'],
     familyId: null,
     subFamilyId: null,
-    mainSupplier: 'Fournitures Optiques',
     currentQuantity: 100,
     alertThreshold: 30,
     purchasePriceExclTax: 0.5,
+    pricingMode: 'coefficient',
     coefficient: 4.0,
+    fixedAmount: null,
+    fixedPrice: null,
     tvaRate: 0.2,
     photo: null,
-    warehouseId: '1',
     status: 'DISPONIBLE',
     createdAt: new Date('2024-01-05'),
     updatedAt: null,
@@ -383,22 +390,23 @@ export const MOCK_ACCESSORIES: IAccessory[] = [
     id: '10',
     internalCode: 'ACC0003',
     barcode: '2004234567892',
-    productType: 'accessoire',
+    productType: 'accessory',
     designation: 'Spray nettoyant 30ml',
     brandId: null,
     modelId: null,
     color: null,
-    supplierReference: 'SPR-NET-30',
+    supplierIds: ['sup-1', 'sup-2'],
     familyId: null,
     subFamilyId: null,
-    mainSupplier: 'Fournitures Optiques',
     currentQuantity: 0,
     alertThreshold: 20,
     purchasePriceExclTax: 1.2,
+    pricingMode: 'coefficient',
     coefficient: 3.5,
+    fixedAmount: null,
+    fixedPrice: null,
     tvaRate: 0.2,
     photo: null,
-    warehouseId: '1',
     status: 'RUPTURE',
     createdAt: new Date('2024-01-05'),
     updatedAt: null,
@@ -420,10 +428,11 @@ let nextId = 11;
  */
 function generateInternalCode(productType: string): string {
   const prefixes: Record<string, string> = {
-    monture: 'MON',
-    verre: 'VER',
-    lentille: 'LEN',
-    accessoire: 'ACC',
+    optical_frame: 'MON',
+    sun_frame: 'MON',
+    lens: 'VER',
+    contact_lens: 'LEN',
+    accessory: 'ACC',
   };
   const prefix = prefixes[productType] || 'PRD';
   const number = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
@@ -458,7 +467,6 @@ export function mockSearchProducts(body: SearchBody): Observable<PaginatedApiRes
 
   const search = body.search;
   const productTypes = body.productTypes ?? [];
-  const warehouseId = body.warehouseId;
   const status = body.status;
   const brandId = body.brandId;
   const outOfStock = body.outOfStock;
@@ -467,16 +475,15 @@ export function mockSearchProducts(body: SearchBody): Observable<PaginatedApiRes
   const modelId = body.modelId;
   const supplierId = body.supplierId;
   const lowStock = body.lowStock;
-  const expirationSoon = body.expirationSoon;
-  const frameShape = body.monture?.frameShape;
-  const frameMaterial = body.monture?.frameMaterial;
-  const frameColor = body.monture?.frameColor;
-  const frameGender = body.monture?.frameGender;
-  const lensIndex = body.verre?.lensIndex;
-  const lensTreatment = body.verre?.lensTreatment;
-  const contactLensUsage = body.lentille?.contactLensUsage;
-  const contactLensType = body.lentille?.contactLensType;
-  const accessoryCategory = body.accessoire?.accessoryCategory;
+  const frameShape = body.frame?.frameShape;
+  const frameMaterial = body.frame?.frameMaterial;
+  const frameColor = body.frame?.frameColor;
+  const frameGender = body.frame?.frameGender;
+  const lensIndex = body.lens?.lensIndex;
+  const lensTreatment = body.lens?.lensTreatment;
+  const contactLensUsage = body.contact_lens?.contactLensUsage;
+  const contactLensType = body.contact_lens?.contactLensType;
+  const accessoryCategory = body.accessory?.accessoryCategory;
 
   let filtered = mockProducts.filter((p) => {
     if (search) {
@@ -490,7 +497,6 @@ export function mockSearchProducts(body: SearchBody): Observable<PaginatedApiRes
     }
 
     if (productTypes.length > 0 && !productTypes.includes(p.productType)) return false;
-    if (warehouseId && p.warehouseId !== warehouseId) return false;
     if (status && p.status !== status) return false;
     if (brandId && p.brandId !== brandId) return false;
     if (outOfStock === true && p.currentQuantity !== 0) return false;
@@ -499,50 +505,42 @@ export function mockSearchProducts(body: SearchBody): Observable<PaginatedApiRes
     if (familyId && p.familyId !== familyId) return false;
     if (subFamilyId && p.subFamilyId !== subFamilyId) return false;
     if (modelId && p.modelId !== modelId) return false;
-    if (supplierId && p.mainSupplier !== supplierId) return false;
+    if (supplierId && !p.supplierIds.includes(supplierId)) return false;
     if (lowStock === true && p.currentQuantity > p.alertThreshold) return false;
     if (lowStock === false && p.currentQuantity <= p.alertThreshold) return false;
-    if (expirationSoon === true) {
-      if (p.productType !== 'lentille') return false;
-      const expDate = (p as unknown as { expirationDate?: Date }).expirationDate;
-      if (!expDate) return false;
-      const daysUntilExpiration = Math.ceil(
-        (new Date(expDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-      );
-      if (daysUntilExpiration > 30) return false;
-    }
 
-    if (frameShape && p.productType === 'monture') {
+    const isFrame = p.productType === 'optical_frame' || p.productType === 'sun_frame';
+    if (frameShape && isFrame) {
       if ((p as unknown as { shape?: string }).shape !== frameShape) return false;
     }
-    if (frameMaterial && p.productType === 'monture') {
+    if (frameMaterial && isFrame) {
       if ((p as unknown as { material?: string }).material !== frameMaterial) return false;
     }
-    if (frameColor && p.productType === 'monture') {
+    if (frameColor && isFrame) {
       if ((p as unknown as { frameColor?: string }).frameColor !== frameColor) return false;
     }
-    if (frameGender && p.productType === 'monture') {
+    if (frameGender && isFrame) {
       if ((p as unknown as { gender?: string }).gender !== frameGender) return false;
     }
 
-    if (lensIndex && p.productType === 'verre') {
+    if (lensIndex && p.productType === 'lens') {
       if ((p as unknown as { refractiveIndex?: string }).refractiveIndex !== lensIndex)
         return false;
     }
-    if (lensTreatment && p.productType === 'verre') {
+    if (lensTreatment && p.productType === 'lens') {
       const treatments = (p as unknown as { treatments?: string[] }).treatments ?? [];
       if (!treatments.includes(lensTreatment)) return false;
     }
 
-    if (contactLensUsage && p.productType === 'lentille') {
+    if (contactLensUsage && p.productType === 'contact_lens') {
       if ((p as unknown as { usage?: string }).usage !== contactLensUsage) return false;
     }
-    if (contactLensType && p.productType === 'lentille') {
+    if (contactLensType && p.productType === 'contact_lens') {
       if ((p as unknown as { contactLensType?: string }).contactLensType !== contactLensType)
         return false;
     }
 
-    if (accessoryCategory && p.productType === 'accessoire') {
+    if (accessoryCategory && p.productType === 'accessory') {
       if ((p as unknown as { category?: string }).category !== accessoryCategory) return false;
     }
 
@@ -596,7 +594,8 @@ export function mockCreateProduct(request: ProductCreateRequest): Observable<Pro
     id: String(nextId++),
     internalCode: generateInternalCode(request.productType),
     barcode: generateBarcode(),
-    status: request.currentQuantity === 0 ? 'RUPTURE' : 'DISPONIBLE',
+    currentQuantity: 0,
+    status: 'DISPONIBLE' as const,
     createdAt: new Date(),
     updatedAt: null,
   } as Product;
