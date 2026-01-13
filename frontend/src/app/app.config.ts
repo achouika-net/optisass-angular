@@ -25,7 +25,20 @@ import { CustomRouterSerializer } from './core/store/router/custom-router-serial
 import { SettingsEffects } from './core/store/settings/settings.effects';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
-import { MAT_DATE_LOCALE } from '@angular/material/core';
+import { MAT_DATE_LOCALE, DateAdapter, MAT_DATE_FORMATS } from '@angular/material/core';
+import { FrenchDateAdapter } from './core/adapters/french-date-adapter';
+
+export const FRENCH_DATE_FORMATS = {
+  parse: {
+    dateInput: 'DD/MM/YYYY',
+  },
+  display: {
+    dateInput: 'input',
+    monthYearLabel: 'MMM YYYY',
+    dateA11yLabel: 'LL',
+    monthYearA11yLabel: 'MMMM YYYY',
+  },
+};
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -75,6 +88,8 @@ export const appConfig: ApplicationConfig = {
       useValue: { fontSet: 'material-symbols-outlined' },
     },
     { provide: LOCALE_ID, useValue: 'fr-FR' },
-    { provide: MAT_DATE_LOCALE, useValue: 'fr-FR' }
+    { provide: MAT_DATE_LOCALE, useValue: 'fr-FR' },
+    { provide: DateAdapter, useClass: FrenchDateAdapter },
+    { provide: MAT_DATE_FORMATS, useValue: FRENCH_DATE_FORMATS }
   ],
 };

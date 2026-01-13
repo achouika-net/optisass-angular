@@ -462,4 +462,34 @@ export class ProductListComponent implements OnInit {
             .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
             .join(' ');
     }
+
+    cleanupRupture(): void {
+        const productsInRupture = this.stats.produitsRupture;
+        if (productsInRupture === 0) {
+            this.snackBar.open('Aucun produit en rupture à nettoyer.', 'OK', { duration: 3000 });
+            return;
+        }
+
+        const confirmMsg = `Voulez-vous nettoyer les ${productsInRupture} produits en rupture de stock ?\n\n` +
+            `- Les produits sans historique seront SUPPRIMÉS définitivement.\n` +
+            `- Les produits avec historique seront marqués comme OBSOLÈTES (cachés).`;
+
+        if (confirm(confirmMsg)) {
+            this.loading = true;
+            this.productService.cleanupOutOfStock().subscribe({
+                next: (res) => {
+                    this.loading = false;
+                    const msg = `${res.deletedCount} produits supprimés, ${res.archivedCount} produits archivés.`;
+                    this.snackBar.open('Nettoyage terminé : ' + msg, 'Fermer', { duration: 5000 });
+                    this.loadProducts();
+                    this.loadStats();
+                },
+                error: (err) => {
+                    this.loading = false;
+                    console.error('Erreur nettoyage stock:', err);
+                    this.snackBar.open('Erreur lors du nettoyage du stock.', 'Fermer', { duration: 5000 });
+                }
+            });
+        }
+    }
 }

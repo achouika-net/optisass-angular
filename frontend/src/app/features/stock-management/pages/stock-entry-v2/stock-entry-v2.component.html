@@ -318,43 +318,86 @@
                     <!-- Batch Pricing Toolbar -->
                     <div *ngIf="stagedProducts.length > 0"
                         class="mb-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm">
-                        <form [formGroup]="batchPricingForm" class="flex items-center gap-6">
+                        <form [formGroup]="batchPricingForm" class="flex items-center gap-4 flex-wrap">
                             <div class="flex items-center gap-2">
                                 <mat-icon class="text-blue-600">auto_awesome</mat-icon>
                                 <span class="font-bold text-blue-900 text-sm uppercase tracking-wide">Actions
                                     Groupées</span>
                             </div>
-                            <mat-divider [vertical]="true" class="h-8"></mat-divider>
-                            <div class="flex items-center gap-4">
-                                <span class="text-sm font-semibold text-gray-700">Mode :</span>
-                                <mat-radio-group formControlName="modePrix" class="flex gap-3">
-                                    <mat-radio-button value="FIXE" class="text-sm">Marge Fixe (DH)</mat-radio-button>
-                                    <mat-radio-button value="COEFF" class="text-sm">Coefficient (x)</mat-radio-button>
-                                </mat-radio-group>
-                            </div>
-                            <mat-form-field *ngIf="batchPricingForm.get('modePrix')?.value === 'COEFF'"
-                                appearance="outline" class="w-32 compact-field" subscriptSizing="dynamic">
-                                <mat-label>Coefficient</mat-label>
-                                <input matInput type="number" formControlName="coefficient" step="0.1">
-                            </mat-form-field>
-                            <mat-form-field *ngIf="batchPricingForm.get('modePrix')?.value === 'FIXE'"
-                                appearance="outline" class="w-32 compact-field" subscriptSizing="dynamic">
-                                <mat-label>Marge (DH)</mat-label>
-                                <input matInput type="number" formControlName="margeFixe">
-                            </mat-form-field>
 
-                            <!-- NEW: TVA Bulk Selector -->
-                            <mat-form-field appearance="outline" class="w-24 compact-field" subscriptSizing="dynamic">
-                                <mat-label>TVA</mat-label>
-                                <mat-select formControlName="tva" placeholder="TVA">
-                                    <mat-option [value]="null">---</mat-option>
-                                    <mat-option *ngFor="let rate of tvaOptions" [value]="rate">{{rate}}%</mat-option>
-                                </mat-select>
-                            </mat-form-field>
+                            <mat-divider [vertical]="true" class="h-8 hidden lg:block"></mat-divider>
+
+                            <!-- Group 1: Classification & Logistique -->
+                            <div class="flex items-center gap-3 bg-white/40 p-1.5 rounded-lg border border-blue-100/50">
+                                <mat-form-field appearance="outline" class="w-52 compact-field"
+                                    subscriptSizing="dynamic">
+                                    <mat-label>Catégorie</mat-label>
+                                    <mat-select formControlName="categorie">
+                                        <mat-option [value]="null">---</mat-option>
+                                        <mat-option *ngFor="let type of productTypes" [value]="type">
+                                            {{ formatTypeLabel(type) }}
+                                        </mat-option>
+                                    </mat-select>
+                                </mat-form-field>
+
+                                <mat-form-field appearance="outline" class="w-60 compact-field"
+                                    subscriptSizing="dynamic">
+                                    <mat-label>Entrepôt</mat-label>
+                                    <mat-select formControlName="entrepotId">
+                                        <mat-option [value]="null">---</mat-option>
+                                        <mat-option *ngFor="let w of entrepots$ | async"
+                                            [value]="w.id">{{w.nom}}</mat-option>
+                                    </mat-select>
+                                    <mat-icon matPrefix class="scale-75 text-blue-600">warehouse</mat-icon>
+                                </mat-form-field>
+
+                                <mat-form-field appearance="outline" class="w-24 compact-field"
+                                    subscriptSizing="dynamic">
+                                    <mat-label>Qté</mat-label>
+                                    <input matInput type="number" formControlName="quantite" min="1">
+                                </mat-form-field>
+                            </div>
+
+                            <!-- Group 2: Tarification -->
+                            <div class="flex items-center gap-3 bg-white/40 p-1.5 rounded-lg border border-blue-100/50">
+                                <mat-radio-group formControlName="modePrix"
+                                    class="flex flex-col justify-center gap-0.5 min-h-[40px]">
+                                    <mat-radio-button value="FIXE" class="scale-90 !leading-none">
+                                        <span
+                                            class="text-[10px] font-bold uppercase tracking-tighter text-slate-500">Marge
+                                            Fixe</span>
+                                    </mat-radio-button>
+                                    <mat-radio-button value="COEFF" class="scale-90 !leading-none">
+                                        <span
+                                            class="text-[10px] font-bold uppercase tracking-tighter text-slate-500">Coef
+                                            (x)</span>
+                                    </mat-radio-button>
+                                </mat-radio-group>
+
+                                <mat-form-field *ngIf="batchPricingForm.get('modePrix')?.value === 'COEFF'"
+                                    appearance="outline" class="w-28 compact-field" subscriptSizing="dynamic">
+                                    <input matInput type="number" formControlName="coefficient" step="0.1"
+                                        placeholder="Coef">
+                                </mat-form-field>
+                                <mat-form-field *ngIf="batchPricingForm.get('modePrix')?.value === 'FIXE'"
+                                    appearance="outline" class="w-28 compact-field" subscriptSizing="dynamic">
+                                    <input matInput type="number" formControlName="margeFixe" placeholder="Marge">
+                                </mat-form-field>
+
+                                <mat-form-field appearance="outline" class="w-24 compact-field"
+                                    subscriptSizing="dynamic">
+                                    <mat-label>TVA</mat-label>
+                                    <mat-select formControlName="tva" placeholder="TVA">
+                                        <mat-option [value]="null">---</mat-option>
+                                        <mat-option *ngFor="let rate of tvaOptions"
+                                            [value]="rate">{{rate}}%</mat-option>
+                                    </mat-select>
+                                </mat-form-field>
+                            </div>
 
                             <button mat-raised-button color="primary" type="button" (click)="applyBatchPricing()"
                                 class="ml-auto !h-10 !px-6 !rounded-xl !bg-blue-600 !font-black !uppercase !tracking-widest">
-                                <mat-icon class="mr-1">done_all</mat-icon> Appliquer à tous
+                                <mat-icon class="mr-1">done_all</mat-icon> Appliquer
                             </button>
                         </form>
                     </div>

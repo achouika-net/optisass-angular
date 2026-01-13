@@ -69,4 +69,12 @@ export class CreateSupplierInvoiceDto {
     @ValidateNested({ each: true })
     @Type(() => CreateEcheanceDto)
     echeances?: CreateEcheanceDto[];
+
+    @IsOptional()
+    @IsString()
+    base64File?: string;
+
+    @IsOptional()
+    @IsString()
+    fileName?: string;
 }

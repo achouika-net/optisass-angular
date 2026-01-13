@@ -6,6 +6,10 @@
             Liste des produits
         </h1>
         <div class="flex gap-2">
+            <button mat-stroked-button color="warn" (click)="cleanupRupture()" *ngIf="stats.produitsRupture > 0">
+                <mat-icon>auto_delete</mat-icon>
+                Nettoyer les ruptures
+            </button>
             <button mat-stroked-button color="primary" (click)="exportXLS()">
                 <mat-icon>file_download</mat-icon>
                 Exporter

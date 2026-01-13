@@ -1122,4 +1122,41 @@ export class ProductsService {
             }
         });
     }
+
+    async cleanupOutOfStock(centreId: string) {
+        // Find all products in rupture for this center
+        const productsInRupture = await this.prisma.product.findMany({
+            where: {
+                quantiteActuelle: { lte: 0 },
+                entrepot: { centreId },
+                statut: { not: 'OBSOLETE' }
+            }
+        });
+
+        let deletedCount = 0;
+        let archivedCount = 0;
+
+        for (const product of productsInRupture) {
+            // Always try to delete first, but catch any constraint errors
+            try {
+                await this.prisma.product.delete({
+                    where: { id: product.id }
+                });
+                deletedCount++;
+            } catch (e) {
+                // Any error (foreign key, etc.) means we should archive instead
+                try {
+                    await this.prisma.product.update({
+                        where: { id: product.id },
+                        data: { statut: 'OBSOLETE' as any }
+                    });
+                    archivedCount++;
+                } catch (archiveError) {
+                    console.error(`Failed to archive product ${product.id}:`, archiveError);
+                }
+            }
+        }
+
+        return { deletedCount, archivedCount };
+    }
 }

@@ -85,8 +85,7 @@ export interface StagedProduct {
         MatSnackBarModule,
         MatTooltipModule,
         MatDialogModule,
-        MatDatepickerModule,
-        MatNativeDateModule
+        MatDatepickerModule
     ],
     templateUrl: './stock-entry-v2.component.html',
     styleUrls: ['./stock-entry-v2.component.scss']
@@ -178,7 +177,10 @@ export class StockEntryV2Component implements OnInit {
             modePrix: ['COEFF'],
             coefficient: [2.5],
             margeFixe: [0],
-            tva: [null] // Optional bulk update
+            tva: [null],
+            quantite: [null],
+            entrepotId: [null],
+            categorie: [null] // NEW
         });
 
         this.setupProductSearch();
@@ -459,6 +461,21 @@ export class StockEntryV2Component implements OnInit {
             // Apply TVA if selected in bulk actions
             if (batchValues.tva !== null && batchValues.tva !== undefined) {
                 product.tva = Number(batchValues.tva);
+            }
+
+            // Apply Quantity if specified
+            if (batchValues.quantite !== null && batchValues.quantite !== undefined && batchValues.quantite > 0) {
+                product.quantite = Number(batchValues.quantite);
+            }
+
+            // Apply Warehouse if selected
+            if (batchValues.entrepotId !== null && batchValues.entrepotId !== undefined) {
+                product.entrepotId = batchValues.entrepotId;
+            }
+
+            // Apply Category if selected
+            if (batchValues.categorie !== null && batchValues.categorie !== undefined) {
+                product.categorie = batchValues.categorie;
             }
         });
 

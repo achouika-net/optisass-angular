@@ -18,6 +18,22 @@ export class ProductsController {
         return this.productsService.getStockStats(centreId);
     }
 
+    @Get('transfers/history')
+    getTransferHistory(
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+        @Headers('Tenant') centreId?: string,
+        @Query('productId') productId?: string,
+        @Query('type') type?: string
+    ) {
+        return this.productsService.getTransferHistory({ startDate, endDate, centreId, productId, type });
+    }
+
+    @Delete('cleanup-rupture')
+    cleanupOutOfStock(@Headers('Tenant') centreId: string) {
+        return this.productsService.cleanupOutOfStock(centreId);
+    }
+
     @Get()
     findAll(
         @Query('entrepotId') entrepotId?: string,
@@ -101,15 +117,6 @@ export class ProductsController {
         );
     }
 
-    @Get('transfers/history')
-    getTransferHistory(
-        @Query('startDate') startDate?: string,
-        @Query('endDate') endDate?: string,
-        @Headers('Tenant') centreId?: string,
-        @Query('productId') productId?: string,
-        @Query('type') type?: string
-    ) {
-        return this.productsService.getTransferHistory({ startDate, endDate, centreId, productId, type });
-    }
+
 
 }

@@ -27,13 +27,14 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { CameraCaptureDialogComponent } from '../../../../shared/components/camera-capture/camera-capture-dialog.component';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { environment } from '../../../../../environments/environment';
 
 interface AttachmentFile {
     name: string;
     type: string;
     size: number;
     preview: string | SafeResourceUrl;
-    file: File;
+    file?: File;
     uploadDate: Date;
 }
 
@@ -184,6 +185,23 @@ export class InvoiceFormDialogComponent implements OnInit {
             this.supplierCtrl.setValue(data.invoice.fournisseur.nom);
             this.selectedSupplier = data.invoice.fournisseur;
         }
+
+        if (data?.invoice?.pieceJointeUrl) {
+            const urls = data.invoice.pieceJointeUrl.split(';');
+            this.attachmentFiles = urls.filter(u => !!u).map(url => {
+                const fullUrl = url.startsWith('/')
+                    ? `${environment.apiUrl}${url}`
+                    : url;
+
+                return {
+                    name: url.split('/').pop() || 'Pièce jointe',
+                    type: url.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
+                    size: 0,
+                    preview: fullUrl,
+                    uploadDate: new Date()
+                };
+            });
+        }
     }
 
     get isBLMode(): boolean {
@@ -249,6 +267,24 @@ export class InvoiceFormDialogComponent implements OnInit {
 
                 this.autoUpdateStatus();
                 if (invoice.montantTTC > 0) this.calculateFromTTC();
+
+                // Initialiser les pièces jointes si nécessaire
+                if (invoice.pieceJointeUrl) {
+                    const urls = invoice.pieceJointeUrl.split(';');
+                    this.attachmentFiles = urls.filter(u => !!u).map(url => {
+                        const fullUrl = url.startsWith('/')
+                            ? `${environment.apiUrl}${url}`
+                            : url;
+
+                        return {
+                            name: url.split('/').pop() || 'Pièce jointe',
+                            type: url.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
+                            size: 0,
+                            preview: fullUrl,
+                            uploadDate: new Date()
+                        };
+                    });
+                }
             });
         }
 
@@ -825,7 +861,7 @@ export class InvoiceFormDialogComponent implements OnInit {
         // If empty, proceed without supplier (though it is required in form, but handle cleanly)
         if (!supplierInput) {
             this.detailsGroup.patchValue({ fournisseurId: null }); // Will likely fail validation if required
-            this.saveInvoice();
+            this.prepareAndSaveInvoice();
             return;
         }
 
@@ -833,7 +869,7 @@ export class InvoiceFormDialogComponent implements OnInit {
         if (typeof supplierInput === 'object' && supplierInput && 'id' in supplierInput) {
             const s = supplierInput as Supplier;
             this.detailsGroup.patchValue({ fournisseurId: s.id });
-            this.saveInvoice();
+            this.prepareAndSaveInvoice();
             return;
         }
 
@@ -842,7 +878,7 @@ export class InvoiceFormDialogComponent implements OnInit {
         const existing = this.suppliers.find(s => s.nom.toLowerCase() === name.toLowerCase());
         if (existing) {
             this.detailsGroup.patchValue({ fournisseurId: existing.id });
-            this.saveInvoice();
+            this.prepareAndSaveInvoice();
             return;
         }
 
@@ -850,7 +886,7 @@ export class InvoiceFormDialogComponent implements OnInit {
         this.financeService.createSupplier({ nom: name }).subscribe({
             next: (newSupplier) => {
                 this.detailsGroup.patchValue({ fournisseurId: newSupplier.id });
-                this.saveInvoice();
+                this.prepareAndSaveInvoice();
             },
             error: (err) => {
                 console.error('Error creating supplier', err);
@@ -860,11 +896,11 @@ export class InvoiceFormDialogComponent implements OnInit {
         });
     }
 
-    private saveInvoice() {
+    private async prepareAndSaveInvoice() {
         const detailsData = this.detailsGroup.value;
         const paymentData = this.paymentGroup.value;
 
-        const invoiceData = {
+        const invoiceData: any = {
             ...detailsData,
             ...paymentData,
             fournisseurId: detailsData.fournisseurId || null,
@@ -876,6 +912,49 @@ export class InvoiceFormDialogComponent implements OnInit {
             montantTTC: Number(detailsData.montantTTC)
         };
 
+        // NEW: Handle Attachments (Multi-file)
+        const newAttachments: { base64: string, name: string }[] = [];
+        const existingAttachments: string[] = [];
+
+        if (this.attachmentFiles.length > 0) {
+            // Process async loop
+            const promises = this.attachmentFiles.map(async (file) => {
+                if (file.file) {
+                    // New file to upload
+                    try {
+                        const base64 = await this.fileToBase64(file.file);
+                        newAttachments.push({
+                            base64,
+                            name: file.name
+                        });
+                    } catch (err) {
+                        console.error('Error converting file to base64', err);
+                    }
+                } else if (file.preview) {
+                    // Existing file (extract relative path)
+                    const previewStr = String(file.preview);
+                    if (previewStr.includes('/uploads/')) {
+                        // We need the path starting from /uploads/
+                        const parts = previewStr.split('/uploads/');
+                        existingAttachments.push('/uploads/' + parts[parts.length - 1]);
+                    } else {
+                        existingAttachments.push(previewStr);
+                    }
+                }
+            });
+
+            await Promise.all(promises);
+        }
+
+        invoiceData.newAttachments = newAttachments;
+        invoiceData.existingAttachments = existingAttachments;
+        invoiceData.pieceJointeUrl = null;
+        invoiceData.base64File = null;
+
+        this.saveInvoice(invoiceData);
+    }
+
+    private saveInvoice(invoiceData: any) {
         delete invoiceData.tauxTVA;
 
         if (this.isEditMode) {
@@ -897,7 +976,6 @@ export class InvoiceFormDialogComponent implements OnInit {
             }
         } else {
             // Before creating invoice, check expense ceiling for current month
-            // Only count échéances (payment schedules) that fall within the current month
             const now = new Date();
             const currentMonth = now.getMonth();
             const currentYear = now.getFullYear();
@@ -908,17 +986,14 @@ export class InvoiceFormDialogComponent implements OnInit {
                 const echMonth = echeanceDate.getMonth();
                 const echYear = echeanceDate.getFullYear();
 
-                // Only count active (=not cancelled) installments that fall within the current month
                 if (echMonth === currentMonth && echYear === currentYear && ech.statut !== 'ANNULE') {
                     return sum + (Number(ech.montant) || 0);
                 }
                 return sum;
             }, 0);
 
-            // Get current centre for ceiling check
             const centreId = invoiceData.centreId || this.currentCentre()?.id;
 
-            // Check ceiling if there are payments this month
             if (monthlyPaymentAmount > 0 && centreId) {
                 this.financeService.getTreasurySummary(currentYear, currentMonth + 1, centreId).pipe(
                     switchMap(summary => {
@@ -957,34 +1032,17 @@ export class InvoiceFormDialogComponent implements OnInit {
 
                     if (result.action === 'RESCHEDULE' && result.date) {
                         const targetDateStr = result.date.toISOString();
-
-                        // Reschedule logic: Move ALL installments that fall in the current month 
-                        // to the target month to ensure we actually clear the ceiling breach.
-                        let movedAny = false;
                         (invoiceData.echeances || []).forEach((ech: any) => {
                             const d = new Date(ech.dateEcheance);
                             if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
                                 ech.dateEcheance = targetDateStr;
-                                movedAny = true;
                             }
                         });
-
-                        // Also update the main invoice-level dateEcheance if it was in the current month
-                        const mainDate = new Date(invoiceData.dateEcheance);
-                        if (mainDate.getMonth() === currentMonth && mainDate.getFullYear() === currentYear) {
-                            invoiceData.dateEcheance = targetDateStr;
-                        } else if (movedAny) {
-                            // If we moved installments but not the main date, 
-                            // we should still ensure the main date is at least as late as the latest installment
-                            invoiceData.dateEcheance = targetDateStr;
-                        }
+                        invoiceData.dateEcheance = targetDateStr;
                     }
-
-                    // Proceed with creation
                     this.createInvoiceAfterCeilingCheck(invoiceData);
                 });
             } else {
-                // No payments this month or no centre, proceed directly
                 this.createInvoiceAfterCeilingCheck(invoiceData);
             }
         }
@@ -1037,11 +1095,9 @@ export class InvoiceFormDialogComponent implements OnInit {
             message = JSON.stringify(err);
         }
 
-        // Translation for common database errors
         if (message.includes('Unique constraint')) {
             if (message.includes('numeroFacture')) return 'Ce numéro de BL existe déjà pour ce fournisseur.';
         }
-
         return message;
     }
 
@@ -1064,7 +1120,6 @@ export class InvoiceFormDialogComponent implements OnInit {
         }
     }
 
-    // File Upload Methods
     openFileUpload(): void {
         this.fileInput.nativeElement.click();
     }
@@ -1124,7 +1179,6 @@ export class InvoiceFormDialogComponent implements OnInit {
         return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
     }
 
-    // Camera Methods
     async openCamera(): Promise<void> {
         const dialogRef = this.dialog.open(CameraCaptureDialogComponent, {
             width: '800px',
@@ -1162,5 +1216,14 @@ export class InvoiceFormDialogComponent implements OnInit {
             u8arr[n] = bstr.charCodeAt(n);
         }
         return new File([u8arr], filename, { type: mime });
+    }
+
+    private fileToBase64(file: File): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = error => reject(error);
+        });
     }
 }
