@@ -211,27 +211,15 @@ export class ProductFormComponent {
   });
 
   constructor() {
-    // Populates the form with product data in edit mode
+    // Populates the form with product data in edit mode only
     effect(() => {
       const productData = this.#product();
-      console.log('Product data changed:', productData);
+      const isCreateMode = this.isCreateMode();
       untracked(() => {
-        if (productData) {
+        if (productData && !isCreateMode) {
           this.#formModel.set(toProductForm(productData));
         }
       });
-    });
-
-    // Resets model when brand changes
-    effect(() => {
-      this.form.brandId().value();
-      untracked(() => this.form.modelId().value.set(null));
-    });
-
-    // Resets sub-family when family changes
-    effect(() => {
-      this.form.familyId().value();
-      untracked(() => this.form.subFamilyId().value.set(null));
     });
 
     // Resets type-specific fields when product type changes (create mode only)
@@ -288,6 +276,20 @@ export class ProductFormComponent {
    */
   onCancel(): void {
     this.#productStore.goToSearchPage();
+  }
+
+  /**
+   * Resets model when brand changes.
+   */
+  onBrandChange(): void {
+    this.form.modelId().value.set(null);
+  }
+
+  /**
+   * Resets sub-family when family changes.
+   */
+  onFamilyChange(): void {
+    this.form.subFamilyId().value.set(null);
   }
 
   /**
