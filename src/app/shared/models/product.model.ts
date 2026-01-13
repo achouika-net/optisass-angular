@@ -3,7 +3,7 @@ export interface IProductPhoto {
   base64: string | null;
 }
 
-export type ProductType = 'monture' | 'verre' | 'lentille' | 'accessoire';
+export type ProductType = 'optical_frame' | 'sun_frame' | 'lens' | 'contact_lens' | 'accessory';
 
 export type ProductStatus =
   | 'DISPONIBLE'
@@ -12,6 +12,8 @@ export type ProductStatus =
   | 'EN_TRANSIT'
   | 'RUPTURE'
   | 'OBSOLETE';
+
+export type PricingMode = 'coefficient' | 'fixedAmount' | 'fixedPrice';
 
 interface IBaseProduct {
   id: string;
@@ -22,24 +24,30 @@ interface IBaseProduct {
   brandId: string | null;
   modelId: string | null;
   color: string | null;
-  supplierReference: string | null;
+  supplierIds: string[];
   familyId: string | null;
   subFamilyId: string | null;
-  mainSupplier: string | null;
-  currentQuantity: number;
   alertThreshold: number;
-  purchasePriceExclTax: number;
-  coefficient: number;
+
+  // Pricing - Mode de calcul prix de vente
+  pricingMode: PricingMode;
+  coefficient: number | null;
+  fixedAmount: number | null;
+  fixedPrice: number | null;
   tvaRate: number;
-  photo: IProductPhoto | null;
-  warehouseId: string;
+
+  // Champs calculés (readonly après création)
+  purchasePriceExclTax: number;
+  currentQuantity: number;
   status: ProductStatus;
+
+  photo: IProductPhoto | null;
   createdAt: Date;
   updatedAt: Date | null;
 }
 
 export interface IFrame extends IBaseProduct {
-  productType: 'monture';
+  productType: 'optical_frame' | 'sun_frame';
   category: string;
   gender: string | null;
   shape: string;
@@ -56,7 +64,7 @@ export interface IFrame extends IBaseProduct {
 }
 
 export interface ILens extends IBaseProduct {
-  productType: 'verre';
+  productType: 'lens';
   lensType: string;
   material: string;
   refractiveIndex: string | null;
@@ -75,7 +83,7 @@ export interface ILens extends IBaseProduct {
 }
 
 export interface IContactLens extends IBaseProduct {
-  productType: 'lentille';
+  productType: 'contact_lens';
   contactLensType: string;
   usage: string;
   laboratoryId: string | null;
@@ -96,7 +104,7 @@ export interface IContactLens extends IBaseProduct {
 }
 
 export interface IAccessory extends IBaseProduct {
-  productType: 'accessoire';
+  productType: 'accessory';
   category: string;
   subCategory: string | null;
 }

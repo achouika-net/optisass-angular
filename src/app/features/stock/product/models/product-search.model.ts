@@ -2,7 +2,6 @@ import { ProductStatus, ProductType } from '@app/models';
 
 export interface IProductSearch {
   search: string | null;
-  warehouseId: string | null;
   productTypes: ProductType[];
   status: ProductStatus | null;
   brandId: string | null;
@@ -12,7 +11,6 @@ export interface IProductSearch {
   modelId: string | null;
   supplierId: string | null;
   lowStock: boolean | null;
-  expirationSoon: boolean | null;
   frameShape: string | null;
   frameMaterial: string | null;
   frameColor: string | null;
@@ -27,7 +25,6 @@ export interface IProductSearch {
 
 export class ProductSearch implements IProductSearch {
   search: string | null = null;
-  warehouseId: string | null = null;
   productTypes: ProductType[] = [];
   status: ProductStatus | null = null;
   brandId: string | null = null;
@@ -37,7 +34,6 @@ export class ProductSearch implements IProductSearch {
   modelId: string | null = null;
   supplierId: string | null = null;
   lowStock: boolean | null = null;
-  expirationSoon: boolean | null = null;
   frameShape: string | null = null;
   frameMaterial: string | null = null;
   frameColor: string | null = null;
@@ -58,7 +54,6 @@ export class ProductSearch implements IProductSearch {
 export function toNestedProductSearch(search: IProductSearch): object {
   return {
     search: search.search,
-    warehouseId: search.warehouseId,
     productTypes: search.productTypes,
     status: search.status,
     brandId: search.brandId,
@@ -68,23 +63,22 @@ export function toNestedProductSearch(search: IProductSearch): object {
     modelId: search.modelId,
     supplierId: search.supplierId,
     lowStock: search.lowStock,
-    expirationSoon: search.expirationSoon,
-    monture: {
+    frame: {
       frameShape: search.frameShape,
       frameMaterial: search.frameMaterial,
       frameColor: search.frameColor,
       frameGender: search.frameGender,
     },
-    verre: {
+    lens: {
       lensIndex: search.lensIndex,
       lensTreatment: search.lensTreatment,
       lensPhotochromic: search.lensPhotochromic,
     },
-    lentille: {
+    contact_lens: {
       contactLensUsage: search.contactLensUsage,
       contactLensType: search.contactLensType,
     },
-    accessoire: {
+    accessory: {
       accessoryCategory: search.accessoryCategory,
     },
   };

@@ -23,10 +23,8 @@ import { FieldControlLabelDirective } from '@app/directives';
 import { ProductType } from '@app/models';
 import { SupplierService } from '@app/services';
 import { TranslateModule } from '@ngx-translate/core';
-import { map } from 'rxjs';
 import { IProductSearch, ProductSearch } from '../../../models';
 import { ProductStore } from '../../../product.store';
-import { WarehouseService } from '../../../../../settings/warehouse/services/warehouse.service';
 
 @Component({
   selector: 'app-product-search-form',
@@ -49,7 +47,6 @@ import { WarehouseService } from '../../../../../settings/warehouse/services/war
 export class ProductSearchFormComponent {
   readonly #productStore = inject(ProductStore);
   readonly #resourceStore = inject(ResourceStore);
-  readonly #warehouseService = inject(WarehouseService);
   readonly #supplierService = inject(SupplierService);
 
   readonly #searchFormModel = signal<IProductSearch>(new ProductSearch());
@@ -59,20 +56,8 @@ export class ProductSearchFormComponent {
   readonly showAdvancedFilters = signal(false);
   readonly booleanOptions = FILTER_ALL_YES_NO_OPTIONS;
 
-  readonly warehousesResource = rxResource({
-    stream: () =>
-      this.#warehouseService
-        .searchWarehouses({ name: null, type: null }, 1, 100, null)
-        .pipe(map((res) => res.data)),
-  });
-
   readonly suppliersResource = rxResource({
     stream: () => this.#supplierService.getActiveSuppliers(),
-  });
-
-  readonly activeWarehouses = computed(() => {
-    const warehouses = this.warehousesResource.value() ?? [];
-    return warehouses.filter((w) => w.active);
   });
 
   readonly suppliers = computed(() => this.suppliersResource.value() ?? []);
@@ -97,22 +82,22 @@ export class ProductSearchFormComponent {
 
   readonly showFrameFilters = computed(() => {
     const types = this.selectedProductTypes();
-    return types.length === 0 || types.includes('monture');
+    return types.length === 0 || types.includes('optical_frame') || types.includes('sun_frame');
   });
 
   readonly showLensFilters = computed(() => {
     const types = this.selectedProductTypes();
-    return types.length === 0 || types.includes('verre');
+    return types.length === 0 || types.includes('lens');
   });
 
   readonly showContactLensFilters = computed(() => {
     const types = this.selectedProductTypes();
-    return types.length === 0 || types.includes('lentille');
+    return types.length === 0 || types.includes('contact_lens');
   });
 
   readonly showAccessoryFilters = computed(() => {
     const types = this.selectedProductTypes();
-    return types.length === 0 || types.includes('accessoire');
+    return types.length === 0 || types.includes('accessory');
   });
 
   readonly filteredModels = computed(() => {
@@ -184,25 +169,27 @@ export class ProductSearchFormComponent {
    * @param selectedTypes Types de produit sélectionnés
    */
   #resetTypeSpecificFilters(selectedTypes: ProductType[]): void {
-    if (!selectedTypes.includes('monture')) {
+    const hasFrame = selectedTypes.includes('optical_frame') || selectedTypes.includes('sun_frame');
+
+    if (!hasFrame) {
       this.searchForm.frameShape().value.set(null);
       this.searchForm.frameMaterial().value.set(null);
       this.searchForm.frameColor().value.set(null);
       this.searchForm.frameGender().value.set(null);
     }
 
-    if (!selectedTypes.includes('verre')) {
+    if (!selectedTypes.includes('lens')) {
       this.searchForm.lensIndex().value.set(null);
       this.searchForm.lensTreatment().value.set(null);
       this.searchForm.lensPhotochromic().value.set(null);
     }
 
-    if (!selectedTypes.includes('lentille')) {
+    if (!selectedTypes.includes('contact_lens')) {
       this.searchForm.contactLensUsage().value.set(null);
       this.searchForm.contactLensType().value.set(null);
     }
 
-    if (!selectedTypes.includes('accessoire')) {
+    if (!selectedTypes.includes('accessory')) {
       this.searchForm.accessoryCategory().value.set(null);
     }
   }

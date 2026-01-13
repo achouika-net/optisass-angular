@@ -10,14 +10,6 @@
           <mat-icon matSuffix>search</mat-icon>
         </mat-form-field>
 
-        <!-- Entrepot -->
-        <app-resource-autocomplete
-          [field]="searchForm.warehouseId"
-          [options]="activeWarehouses()"
-          labelKey="name"
-          [placeholder]="'stock.search.warehouse' | translate"
-        />
-
         <!-- Type produit (multi-select) -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'stock.search.productType' | translate }}</mat-label>
@@ -116,14 +108,6 @@
           <mat-form-field appFieldControlLabel>
             <mat-label>{{ 'stock.search.lowStock' | translate }}</mat-label>
             <mat-select [field]="searchForm.lowStock">
-              @for (option of booleanOptions; track option.value) {
-                <mat-option [value]="option.value">{{ option.label | translate }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field appFieldControlLabel>
-            <mat-label>{{ 'stock.search.expirationSoon' | translate }}</mat-label>
-            <mat-select [field]="searchForm.expirationSoon">
               @for (option of booleanOptions; track option.value) {
                 <mat-option [value]="option.value">{{ option.label | translate }}</mat-option>
               }

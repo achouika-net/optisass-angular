@@ -20,11 +20,12 @@ Permettre à Claude AI de :
 1. **Relire CLAUDE.md** : Au début de chaque session continuée, relire ce fichier
 2. **MCP First** : Consulter MCP Angular/Material/NgRx AVANT de coder
 3. **Git** : Ne JAMAIS commit/push sans permission explicite
-4. **Build** : Toujours `npm run build` après modifications
-5. **Type Safety** : Pas de `any` - utiliser `as unknown as { prop?: Type }`
-6. **JSDoc** : Toutes les méthodes avec `@param` et `@returns`
-7. **Commentaires** : Pas de séparateurs (`// =====`), uniquement pour code complexe
-8. **Lire avant modifier** : Toujours lire un fichier avant de le modifier
+4. **Git Commit** : Ne PAS ajouter de signature Claude Code ou Co-Authored-By dans les messages de commit
+5. **Build** : Toujours `npm run build` après modifications
+6. **Type Safety** : Pas de `any` - utiliser `as unknown as { prop?: Type }`
+7. **JSDoc** : Toutes les méthodes avec `@param` et `@returns`
+8. **Commentaires** : Pas de séparateurs (`// =====`), uniquement pour code complexe
+9. **Lire avant modifier** : Toujours lire un fichier avant de le modifier
 
 ---
 
