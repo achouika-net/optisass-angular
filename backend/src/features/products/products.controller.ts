@@ -79,6 +79,16 @@ export class ProductsController {
         return this.productsService.initiateTransfer(id, body.targetProductId, body.quantite !== undefined ? Number(body.quantite) : undefined);
     }
 
+    @Post('bulk-ship')
+    bulkShip(@Body() body: { targetProductIds: string[] }) {
+        return this.productsService.bulkShip(body.targetProductIds);
+    }
+
+    @Post('bulk-receive')
+    bulkReceive(@Body() body: { targetProductIds: string[] }) {
+        return this.productsService.bulkReceive(body.targetProductIds);
+    }
+
     @Post(':id/ship')
     shipTransfer(@Param('id') id: string) {
         return this.productsService.shipTransfer(id);

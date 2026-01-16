@@ -24,6 +24,17 @@
             </ng-template>
 
             <div class="py-4">
+                <div *ngIf="selection.hasValue()"
+                    class="mb-4 flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <mat-icon class="text-blue-600">info</mat-icon>
+                    <span class="text-sm font-medium text-blue-800">{{ selection.selected.length }} transfert(s)
+                        sélectionné(s)</span>
+                    <button mat-flat-button color="primary" (click)="shipSelected()" class="ml-auto">
+                        <mat-icon>local_shipping</mat-icon>
+                        VALIDER SÉLECTION
+                    </button>
+                </div>
+
                 <div *ngIf="outgoingTransfers.length === 0"
                     class="flex flex-col items-center justify-center py-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 text-slate-400">
                     <mat-icon class="text-5xl mb-2 opacity-20">local_shipping</mat-icon>
@@ -32,6 +43,20 @@
 
                 <table mat-table [dataSource]="outgoingTransfers" *ngIf="outgoingTransfers.length > 0"
                     class="w-full border rounded-lg overflow-hidden shadow-sm">
+
+                    <ng-container matColumnDef="select">
+                        <th mat-header-cell *matHeaderCellDef>
+                            <mat-checkbox (change)="$event ? masterToggle() : null"
+                                [checked]="selection.hasValue() && isAllSelected()"
+                                [indeterminate]="selection.hasValue() && !isAllSelected()">
+                            </mat-checkbox>
+                        </th>
+                        <td mat-cell *matCellDef="let row">
+                            <mat-checkbox (click)="$event.stopPropagation()"
+                                (change)="$event ? selection.toggle(row) : null" [checked]="selection.isSelected(row)">
+                            </mat-checkbox>
+                        </td>
+                    </ng-container>
 
                     <ng-container matColumnDef="numero">
                         <th mat-header-cell *matHeaderCellDef> N° Transfert </th>
@@ -120,6 +145,17 @@
             </ng-template>
 
             <div class="py-4">
+                <div *ngIf="incomingSelection.hasValue()"
+                    class="mb-4 flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <mat-icon class="text-green-600">info</mat-icon>
+                    <span class="text-sm font-medium text-green-800">{{ incomingSelection.selected.length }}
+                        transfert(s) sélectionné(s)</span>
+                    <button mat-flat-button color="primary" (click)="receiveSelected()" class="ml-auto">
+                        <mat-icon>download_for_offline</mat-icon>
+                        CONFIRMER RÉCEPTION
+                    </button>
+                </div>
+
                 <div *ngIf="incomingTransfers.length === 0"
                     class="flex flex-col items-center justify-center py-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 text-slate-400">
                     <mat-icon class="text-5xl mb-2 opacity-20">download_for_offline</mat-icon>
@@ -128,6 +164,21 @@
 
                 <table mat-table [dataSource]="incomingTransfers" *ngIf="incomingTransfers.length > 0"
                     class="w-full border rounded-lg overflow-hidden shadow-sm">
+
+                    <ng-container matColumnDef="select">
+                        <th mat-header-cell *matHeaderCellDef>
+                            <mat-checkbox (change)="$event ? masterToggleIncoming() : null"
+                                [checked]="incomingSelection.hasValue() && isAllIncomingSelected()"
+                                [indeterminate]="incomingSelection.hasValue() && !isAllIncomingSelected()">
+                            </mat-checkbox>
+                        </th>
+                        <td mat-cell *matCellDef="let row">
+                            <mat-checkbox (click)="$event.stopPropagation()"
+                                (change)="$event ? incomingSelection.toggle(row) : null"
+                                [checked]="incomingSelection.isSelected(row)">
+                            </mat-checkbox>
+                        </td>
+                    </ng-container>
 
                     <ng-container matColumnDef="numero">
                         <th mat-header-cell *matHeaderCellDef> N° Transfert </th>

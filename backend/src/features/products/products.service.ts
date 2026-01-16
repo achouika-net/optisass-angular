@@ -524,6 +524,71 @@ export class ProductsService {
         });
     }
 
+    async bulkShip(targetProductIds: string[]) {
+        console.log('[BULK-SHIP] Received request with IDs:', targetProductIds);
+
+        if (!targetProductIds || targetProductIds.length === 0) {
+            throw new BadRequestException('Aucun produit sélectionné pour l\'expédition');
+        }
+
+        const results: string[] = [];
+        const errors: Array<{ id: string; error: string }> = [];
+
+        // Execute sequentially to avoid deadlocks or transaction issues, 
+        // essentially just iterating logic. A global transaction might be too heavy if list is large.
+        // But for consistency, we treat them individually.
+        for (const id of targetProductIds) {
+            try {
+                console.log(`[BULK-SHIP] Processing ID: ${id}`);
+                await this.shipTransfer(id);
+                results.push(id);
+                console.log(`[BULK-SHIP] ✅ Success for ID: ${id}`);
+            } catch (error: any) {
+                console.error(`[BULK-SHIP] ❌ Error shipping ${id}:`, error.message);
+                errors.push({ id, error: error.message });
+            }
+        }
+
+        console.log(`[BULK-SHIP] Complete. Success: ${results.length}, Failures: ${errors.length}`);
+
+        return {
+            successCount: results.length,
+            failureCount: errors.length,
+            errors
+        };
+    }
+
+    async bulkReceive(targetProductIds: string[]) {
+        console.log('[BULK-RECEIVE] Received request with IDs:', targetProductIds);
+
+        if (!targetProductIds || targetProductIds.length === 0) {
+            throw new BadRequestException('Aucun produit sélectionné pour la réception');
+        }
+
+        const results: string[] = [];
+        const errors: Array<{ id: string; error: string }> = [];
+
+        for (const id of targetProductIds) {
+            try {
+                console.log(`[BULK-RECEIVE] Processing ID: ${id}`);
+                await this.completeTransfer(id);
+                results.push(id);
+                console.log(`[BULK-RECEIVE] ✅ Success for ID: ${id}`);
+            } catch (error: any) {
+                console.error(`[BULK-RECEIVE] ❌ Error receiving ${id}:`, error.message);
+                errors.push({ id, error: error.message });
+            }
+        }
+
+        console.log(`[BULK-RECEIVE] Complete. Success: ${results.length}, Failures: ${errors.length}`);
+
+        return {
+            successCount: results.length,
+            failureCount: errors.length,
+            errors
+        };
+    }
+
     async cancelTransfer(targetProductId: string) {
         const targetProduct = await this.prisma.product.findUnique({ where: { id: targetProductId } });
         if (!targetProduct) throw new NotFoundException('Product not found');

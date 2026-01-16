@@ -1,5 +1,7 @@
 import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { SelectionModel } from '@angular/cdk/collections';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTableModule } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
@@ -24,6 +26,7 @@ import { take, Subject, takeUntil, forkJoin } from 'rxjs';
         CommonModule,
         MatTabsModule,
         MatTableModule,
+        MatCheckboxModule,
         MatIconModule,
         MatButtonModule,
         MatSnackBarModule,
@@ -67,8 +70,8 @@ export class TransferManagerComponent implements OnInit, OnDestroy {
         { value: 'TRANSFERT_ANNULE', label: 'Annulé' }
     ];
 
-    displayedColumns = ['numero', 'product', 'destination', 'quantity', 'date', 'status', 'actions'];
-    incomingColumns = ['numero', 'product', 'source', 'quantity', 'date', 'status', 'actions'];
+    displayedColumns = ['select', 'numero', 'product', 'destination', 'quantity', 'date', 'status', 'actions'];
+    incomingColumns = ['select', 'numero', 'product', 'source', 'quantity', 'date', 'status', 'actions'];
     historyColumns = ['date', 'numero', 'product', 'type', 'source', 'dest', 'qty', 'user'];
 
     ngOnInit(): void {
@@ -255,5 +258,105 @@ export class TransferManagerComponent implements OnInit, OnDestroy {
         if (!motif) return '-';
         const match = motif.match(/TRS-\d{4}-\d{4}/);
         return match ? match[0] : '-';
+    }
+
+    // --- Bulk Action Logic ---
+    selection = new SelectionModel<any>(true, []);
+
+    isAllSelected() {
+        const numSelected = this.selection.selected.length;
+        const numRows = this.outgoingTransfers.length;
+        return numSelected === numRows && numRows > 0;
+    }
+
+    masterToggle() {
+        this.isAllSelected() ?
+            this.selection.clear() :
+            this.outgoingTransfers.forEach(row => this.selection.select(row));
+    }
+
+    shipSelected() {
+        const selected = this.selection.selected;
+        if (selected.length === 0) return;
+
+        if (!confirm(`Confirmer l'expédition groupée de ${selected.length} transferts ?`)) return;
+
+        this.loading = true;
+        // Map selection to targetProductIds (which are needed by backend)
+        // In outgoingTransfers: row.targetProductId is present?
+        // Let's check how outgoingTransfers is mapped in loadTransfers:
+        // .flatMap(p => p.specificData.pendingOutgoing.map((t: any) => ({ ...t, sourceProduct: p })))
+        // t has targetProductId. Good.
+        const ids = selected.map(s => s.targetProductId);
+
+        console.log('[BULK-SHIP] Sending IDs to backend:', ids);
+        console.log('[BULK-SHIP] Selected items:', selected);
+
+        this.productService.bulkShip(ids).subscribe({
+            next: (res) => {
+                this.loading = false;
+                console.log('[BULK-SHIP] Response:', res);
+                this.snackBar.open(`${res.successCount} transferts expédiés avec succès`, 'OK', { duration: 3000 });
+                if (res.failureCount > 0) {
+                    console.warn('[BULK-SHIP] Some failures:', res.errors);
+                    this.snackBar.open(`Attention: ${res.failureCount} échecs. Voir console.`, 'Fermer', { duration: 5000 });
+                }
+                this.selection.clear();
+                this.loadTransfers();
+            },
+            error: (err) => {
+                this.loading = false;
+                console.error('[BULK-SHIP] HTTP Error:', err);
+                this.snackBar.open('Erreur lors de l\'expédition groupée', 'Fermer');
+            }
+        });
+    }
+
+    // --- Bulk Reception Logic ---
+    incomingSelection = new SelectionModel<any>(true, []);
+
+    isAllIncomingSelected() {
+        const numSelected = this.incomingSelection.selected.length;
+        const numRows = this.incomingTransfers.length;
+        return numSelected === numRows && numRows > 0;
+    }
+
+    masterToggleIncoming() {
+        this.isAllIncomingSelected() ?
+            this.incomingSelection.clear() :
+            this.incomingTransfers.forEach(row => this.incomingSelection.select(row));
+    }
+
+    receiveSelected() {
+        const selected = this.incomingSelection.selected;
+        if (selected.length === 0) return;
+
+        if (!confirm(`Confirmer la réception groupée de ${selected.length} transferts ?`)) return;
+
+        this.loading = true;
+        // For incoming transfers, we need the targetProduct.id (the product in this center)
+        const ids = selected.map(s => s.targetProduct?.id).filter(id => id);
+
+        console.log('[BULK-RECEIVE] Sending IDs to backend:', ids);
+        console.log('[BULK-RECEIVE] Selected items:', selected);
+
+        this.productService.bulkReceive(ids).subscribe({
+            next: (res) => {
+                this.loading = false;
+                console.log('[BULK-RECEIVE] Response:', res);
+                this.snackBar.open(`${res.successCount} transferts réceptionnés avec succès`, 'OK', { duration: 3000 });
+                if (res.failureCount > 0) {
+                    console.warn('[BULK-RECEIVE] Some failures:', res.errors);
+                    this.snackBar.open(`Attention: ${res.failureCount} échecs. Voir console.`, 'Fermer', { duration: 5000 });
+                }
+                this.incomingSelection.clear();
+                this.loadTransfers();
+            },
+            error: (err) => {
+                this.loading = false;
+                console.error('[BULK-RECEIVE] HTTP Error:', err);
+                this.snackBar.open('Erreur lors de la réception groupée', 'Fermer');
+            }
+        });
     }
 }

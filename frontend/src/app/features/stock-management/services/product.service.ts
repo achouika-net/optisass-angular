@@ -71,6 +71,14 @@ export class ProductService {
         return this.http.post<void>(`${this.apiUrl}/${id}/ship`, {});
     }
 
+    bulkShip(targetProductIds: string[]): Observable<any> {
+        return this.http.post<any>(`${this.apiUrl}/bulk-ship`, { targetProductIds });
+    }
+
+    bulkReceive(targetProductIds: string[]): Observable<any> {
+        return this.http.post<any>(`${this.apiUrl}/bulk-receive`, { targetProductIds });
+    }
+
     cancelTransfer(id: string): Observable<void> {
         return this.http.post<void>(`${this.apiUrl}/${id}/cancel`, {});
     }
