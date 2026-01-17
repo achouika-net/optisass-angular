@@ -170,7 +170,11 @@ export class OcrService {
   }
 
   /**
-   * Processes with timeout.
+   * Processes with timeout and proper cleanup.
+   * @param provider OCR provider to use
+   * @param image Image file to process
+   * @param options Processing options
+   * @returns OCR result
    */
   async #processWithTimeout(
     provider: IOcrEngine,
@@ -178,16 +182,23 @@ export class OcrService {
     options?: IOcrOptions,
   ): Promise<IOcrResult> {
     const timeout = options?.timeout ?? 30000;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    return Promise.race([
-      provider.process(image, options),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new OcrError(OcrErrorCode.TIMEOUT, 'OCR timeout', provider.name)),
-          timeout,
-        ),
-      ),
-    ]);
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(
+        () => reject(new OcrError(OcrErrorCode.TIMEOUT, 'OCR timeout', provider.name)),
+        timeout,
+      );
+    });
+
+    try {
+      const result = await Promise.race([provider.process(image, options), timeoutPromise]);
+      return result;
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }
   }
 
   /**
