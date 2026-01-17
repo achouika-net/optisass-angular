@@ -16,7 +16,9 @@
       "@app/validators": ["app/shared/validators/index.ts"],
       "@app/config": ["app/config/index.ts"],
       "@app/core/store": ["app/core/store/index.ts"],
-      "@app/core/services": ["app/core/services/index.ts"]
+      "@app/core/services": ["app/core/services/index.ts"],
+      "@app/core/ocr": ["app/core/ocr/index.ts"],
+      "@env/*": ["environments/*"]
     },
     "module": "ESNext",
     "outDir": "./dist/out-tsc",

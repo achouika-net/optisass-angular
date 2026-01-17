@@ -23,6 +23,8 @@ import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
 import { provideSignalFormsConfig } from '@angular/forms/signals';
 import { NG_STATUS_CLASSES } from '@angular/forms/signals/compat';
+import { provideOcr } from './core/ocr';
+import { environment } from '@env/environment';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -94,5 +96,8 @@ export const appConfig: ApplicationConfig = {
       provide: MAT_ICON_DEFAULT_OPTIONS,
       useValue: { fontSet: 'material-symbols-outlined' },
     },
+
+    // OCR Module Configuration
+    provideOcr(environment.ocr),
   ],
 };
