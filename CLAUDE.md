@@ -1,6 +1,6 @@
 # OPTI-SAAS Frontend - Instructions IA
 
-> Document destiné UNIQUEMENT à Claude AI. Dernière mise à jour : 2026-01-13
+> Document destiné UNIQUEMENT à Claude AI. Dernière mise à jour : 2026-01-18
 
 ---
 
@@ -44,6 +44,7 @@ Permettre à Claude AI de :
 | Validation errors        | `shared/components/field-error/field-error.component.ts`                     |
 | Service HTTP             | `features/authentication/services/auth.service.ts`                           |
 | Interceptors             | `core/interceptors/`                                                         |
+| **OCR Architecture**     | `docs/specs/ocr-architecture.spec.md` _(Quick Reference en haut du doc)_     |
 
 ---
 

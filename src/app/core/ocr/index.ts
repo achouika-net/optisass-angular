@@ -6,3 +6,5 @@ export * from './parser-registry';
 export * from './parser.providers';
 export * from './providers/tesseract.provider';
 export * from './providers/backend-ocr.provider';
+export * from './services';
+export * from './pipeline';

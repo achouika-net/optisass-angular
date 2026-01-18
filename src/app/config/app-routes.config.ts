@@ -16,6 +16,7 @@ export const APP_ROUTES = {
   'stock/products': [],
   'stock/products/add': [],
   'stock/products/:id': [],
+  'stock/alimentation': [],
   'commercial/client': ['CLIENTS_READ'],
   'commercial/code-promo': [],
   'commercial/promotions': [],

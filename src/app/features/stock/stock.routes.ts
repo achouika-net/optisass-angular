@@ -13,6 +13,12 @@ export default [
         loadChildren: () => import('./product/product.routes'),
         canActivateChild: [PermissionCanActivateChildGuard],
       },
+      {
+        path: 'alimentation',
+        data: { breadcrumb: 'nav.stock_alimentation' },
+        loadChildren: () =>
+          import('./alimentation/alimentation.routes').then((m) => m.ALIMENTATION_ROUTES),
+      },
     ],
   },
 ] satisfies TypedRoute[];
