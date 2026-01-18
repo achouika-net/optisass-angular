@@ -1,18 +1,21 @@
 import { inject } from '@angular/core';
 import {
+  IDataExtractor,
   IOcrBlock,
   IOcrResult,
   IParseResult,
   IValidationResult,
   OcrDocumentType,
+  detectLowConfidenceWarnings,
 } from '@optisaas/opti-saas-lib';
 import { OcrService } from './ocr.service';
 
 /**
  * Abstract class for document parsers.
  * Each feature implements its own parser.
+ * Implements IDataExtractor for pipeline compatibility.
  */
-export abstract class DocumentParser<T> {
+export abstract class DocumentParser<T> implements IDataExtractor<T> {
   protected readonly ocrService = inject(OcrService);
 
   /** Document type for provider selection */
@@ -44,11 +47,12 @@ export abstract class DocumentParser<T> {
 
   /**
    * Extracts business data from OCR text.
+   * Public to satisfy IDataExtractor interface (used by pipeline).
    * @param rawText Raw extracted text
    * @param blocks Text blocks with positions
    * @returns Structured data
    */
-  protected abstract extractData(rawText: string, blocks: IOcrBlock[]): T;
+  abstract extractData(rawText: string, blocks: IOcrBlock[]): T;
 
   /**
    * Validates extracted data.
@@ -63,14 +67,6 @@ export abstract class DocumentParser<T> {
    * @returns List of warnings
    */
   protected detectWarnings(ocrResult: IOcrResult): string[] {
-    const warnings: string[] = [];
-
-    ocrResult.blocks
-      .filter((block) => block.confidence < 0.8)
-      .forEach((block) => {
-        warnings.push(`Uncertain text: "${block.text.substring(0, 50)}..."`);
-      });
-
-    return warnings;
+    return detectLowConfidenceWarnings(ocrResult.blocks);
   }
 }

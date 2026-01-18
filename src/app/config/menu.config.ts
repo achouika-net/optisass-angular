@@ -35,6 +35,12 @@ export const MENU: MenuItem[] = [
         type: 'link',
         route: 'stock/products',
       },
+      {
+        label: 'nav.stockAlimentation',
+        icon: 'add_shopping_cart',
+        type: 'link',
+        route: 'stock/alimentation',
+      },
     ],
   },
   {

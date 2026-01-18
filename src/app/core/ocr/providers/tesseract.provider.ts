@@ -9,14 +9,27 @@ import {
   IOcrWord,
 } from '@optisaas/opti-saas-lib';
 
+/**
+ * Maximum number of workers to keep in the pool.
+ * Prevents memory issues with too many language workers.
+ */
+const MAX_POOL_SIZE = 3;
+
 @Injectable()
 export class TesseractProvider implements IOcrEngine, OnDestroy {
   readonly name = 'tesseract';
-
-  #worker: Worker | null = null;
-  #currentLanguage: string | null = null;
-
   readonly isAvailable = true;
+
+  /**
+   * Pool of workers indexed by language code.
+   * Reuses workers for the same language instead of recreating.
+   */
+  readonly #workerPool = new Map<string, Worker>();
+
+  /**
+   * Track language access order for LRU eviction.
+   */
+  readonly #accessOrder: string[] = [];
 
   /**
    * Processes an image with Tesseract.js.
@@ -29,7 +42,7 @@ export class TesseractProvider implements IOcrEngine, OnDestroy {
     const language = options?.language ?? 'fra';
 
     try {
-      const worker = await this.#getOrCreateWorker(language);
+      const worker = await this.#getWorker(language);
       const { data } = await worker.recognize(image);
 
       return {
@@ -47,14 +60,13 @@ export class TesseractProvider implements IOcrEngine, OnDestroy {
   }
 
   /**
-   * Releases the Tesseract worker.
+   * Releases all Tesseract workers.
    */
   async dispose(): Promise<void> {
-    if (this.#worker) {
-      await this.#worker.terminate();
-      this.#worker = null;
-      this.#currentLanguage = null;
-    }
+    const workers = Array.from(this.#workerPool.values());
+    await Promise.all(workers.map((worker) => worker.terminate()));
+    this.#workerPool.clear();
+    this.#accessOrder.length = 0;
   }
 
   ngOnDestroy(): void {
@@ -62,19 +74,52 @@ export class TesseractProvider implements IOcrEngine, OnDestroy {
   }
 
   /**
-   * Gets or creates a worker for the specified language.
+   * Gets a worker for the specified language from pool or creates a new one.
    */
-  async #getOrCreateWorker(language: string): Promise<Worker> {
-    if (this.#worker && this.#currentLanguage !== language) {
-      await this.dispose();
+  async #getWorker(language: string): Promise<Worker> {
+    let worker = this.#workerPool.get(language);
+
+    if (worker) {
+      this.#updateAccessOrder(language);
+      return worker;
     }
 
-    if (!this.#worker) {
-      this.#worker = await createWorker(language);
-      this.#currentLanguage = language;
+    if (this.#workerPool.size >= MAX_POOL_SIZE) {
+      await this.#evictLeastRecentlyUsed();
     }
 
-    return this.#worker;
+    worker = await createWorker(language);
+    this.#workerPool.set(language, worker);
+    this.#updateAccessOrder(language);
+
+    return worker;
+  }
+
+  /**
+   * Updates the access order for LRU tracking.
+   */
+  #updateAccessOrder(language: string): void {
+    const index = this.#accessOrder.indexOf(language);
+    if (index !== -1) {
+      this.#accessOrder.splice(index, 1);
+    }
+    this.#accessOrder.push(language);
+  }
+
+  /**
+   * Evicts the least recently used worker from the pool.
+   */
+  async #evictLeastRecentlyUsed(): Promise<void> {
+    if (this.#accessOrder.length === 0) return;
+
+    const lruLanguage = this.#accessOrder.shift();
+    if (lruLanguage) {
+      const worker = this.#workerPool.get(lruLanguage);
+      if (worker) {
+        await worker.terminate();
+        this.#workerPool.delete(lruLanguage);
+      }
+    }
   }
 
   /**
