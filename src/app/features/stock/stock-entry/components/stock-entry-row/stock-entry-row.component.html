@@ -1,0 +1,147 @@
+<div class="grid grid-cols-1 gap-3 p-4 bg-gray-50 border-t md:grid-cols-2 lg:grid-cols-3">
+  <!-- Type de produit -->
+  <mat-form-field appFieldControlLabel>
+    <mat-label>{{ 'stock.entry.productType' | translate }}</mat-label>
+    <mat-select [value]="row().productType" (selectionChange)="onProductTypeChange($event.value)">
+      @for (type of productTypes(); track type.code) {
+        <mat-option [value]="type.code">{{ type.label | translate }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <!-- Champs conditionnels selon type -->
+  @if (isLens()) {
+    <!-- Type de verre -->
+    <mat-form-field appFieldControlLabel>
+      <mat-label>{{ 'stock.entry.lensType' | translate }}</mat-label>
+      <mat-select [value]="row().lensType" (selectionChange)="onLensTypeChange($event.value)">
+        @for (type of lensTypes(); track type.code) {
+          <mat-option [value]="type.code">{{ type.label | translate }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <!-- Matériau -->
+    <mat-form-field appFieldControlLabel>
+      <mat-label>{{ 'stock.entry.lensMaterial' | translate }}</mat-label>
+      <mat-select
+        [value]="row().lensMaterial"
+        (selectionChange)="onLensMaterialChange($event.value)"
+      >
+        @for (mat of lensMaterials(); track mat.code) {
+          <mat-option [value]="mat.code">{{ mat.label | translate }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <!-- Indice de réfraction -->
+    <mat-form-field appFieldControlLabel>
+      <mat-label>{{ 'stock.entry.lensIndex' | translate }}</mat-label>
+      <mat-select
+        [value]="row().lensRefractiveIndex"
+        (selectionChange)="onLensRefractiveIndexChange($event.value)"
+      >
+        @for (index of lensIndices(); track index.code) {
+          <mat-option [value]="index.code">{{ index.label | translate }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  } @else if (row().productType) {
+    <!-- Marque -->
+    <mat-form-field appFieldControlLabel>
+      <mat-label>{{ 'stock.entry.brand' | translate }}</mat-label>
+      <mat-select [value]="row().brandId" (selectionChange)="onBrandChange($event.value)">
+        @for (brand of brands(); track brand.id) {
+          <mat-option [value]="brand.id">{{ brand.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <!-- Modèle (filtré par marque) -->
+    <mat-form-field appFieldControlLabel>
+      <mat-label>{{ 'stock.entry.model' | translate }}</mat-label>
+      <mat-select
+        [value]="row().modelId"
+        [disabled]="!row().brandId"
+        (selectionChange)="onModelChange($event.value)"
+      >
+        @for (model of filteredModels(); track model.id) {
+          <mat-option [value]="model.id">{{ model.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  }
+
+  <!-- Mode de tarification -->
+  <mat-form-field appFieldControlLabel>
+    <mat-label>{{ 'stock.entry.pricingMode' | translate }}</mat-label>
+    <mat-select [value]="row().pricingMode" (selectionChange)="onPricingModeChange($event.value)">
+      @for (mode of pricingModes(); track mode.code) {
+        <mat-option [value]="mode.code">{{ mode.label | translate }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <!-- Champ conditionnel selon mode de tarification -->
+  @if (showCoefficientField()) {
+    <mat-form-field appFieldControlLabel>
+      <mat-label>{{ 'stock.entry.coefficient' | translate }}</mat-label>
+      <input
+        matInput
+        type="number"
+        [value]="row().coefficient"
+        (change)="onCoefficientChange($event)"
+        min="1"
+        step="0.1"
+      />
+    </mat-form-field>
+  } @else if (showFixedAmountField()) {
+    <mat-form-field appFieldControlLabel>
+      <mat-label>{{ 'stock.entry.fixedAmount' | translate }}</mat-label>
+      <input
+        matInput
+        type="number"
+        [value]="row().fixedAmount"
+        (change)="onFixedAmountChange($event)"
+        min="0"
+        step="0.01"
+      />
+      <span matTextSuffix>MAD</span>
+    </mat-form-field>
+  } @else if (showFixedPriceField()) {
+    <mat-form-field appFieldControlLabel>
+      <mat-label>{{ 'stock.entry.fixedPrice' | translate }}</mat-label>
+      <input
+        matInput
+        type="number"
+        [value]="row().fixedPrice"
+        (change)="onFixedPriceChange($event)"
+        min="0"
+        step="0.01"
+      />
+      <span matTextSuffix>MAD</span>
+    </mat-form-field>
+  }
+
+  <!-- Taux TVA -->
+  <mat-form-field appFieldControlLabel>
+    <mat-label>{{ 'stock.entry.tvaRate' | translate }}</mat-label>
+    <mat-select [value]="row().tvaRate" (selectionChange)="onTvaRateChange($event.value)">
+      @for (rate of tvaRates(); track rate.code) {
+        <mat-option [value]="+rate.code">{{ rate.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <!-- Seuil d'alerte -->
+  <mat-form-field appFieldControlLabel>
+    <mat-label>{{ 'stock.entry.alertThreshold' | translate }}</mat-label>
+    <input
+      matInput
+      type="number"
+      [value]="row().alertThreshold"
+      (change)="onAlertThresholdChange($event)"
+      min="0"
+    />
+  </mat-form-field>
+</div>

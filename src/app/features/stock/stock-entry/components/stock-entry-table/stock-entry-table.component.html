@@ -1,0 +1,208 @@
+@if (products().length === 0) {
+  <div class="flex flex-col items-center justify-center py-12 text-gray-500">
+    <mat-icon class="text-6xl mb-4">inventory_2</mat-icon>
+    <p>{{ 'stock.entry.noProducts' | translate }}</p>
+  </div>
+} @else {
+  <table mat-table [dataSource]="products()" multiTemplateDataRows>
+    <!-- Checkbox Column -->
+    <ng-container matColumnDef="select">
+      <th mat-header-cell *matHeaderCellDef class="w-12">
+        <mat-checkbox
+          [checked]="isAllSelected()"
+          [indeterminate]="isSomeSelected()"
+          (change)="toggleAll($event.checked)"
+        />
+      </th>
+      <td mat-cell *matCellDef="let row">
+        <mat-checkbox [checked]="isSelected(row._rowId)" (change)="toggleRow(row._rowId)" />
+      </td>
+    </ng-container>
+
+    <!-- Expand Column -->
+    <ng-container matColumnDef="expand">
+      <th mat-header-cell *matHeaderCellDef class="w-12"></th>
+      <td mat-cell *matCellDef="let row">
+        @if (isNewProduct(row)) {
+          <button
+            mat-icon-button
+            (click)="$event.stopPropagation(); toggleExpand(row._rowId)"
+            [matTooltip]="
+              row._isExpanded
+                ? ('stock.entry.collapse' | translate)
+                : ('stock.entry.expand' | translate)
+            "
+          >
+            <mat-icon>{{ row._isExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+          </button>
+        }
+      </td>
+    </ng-container>
+
+    <!-- Designation Column -->
+    <ng-container matColumnDef="designation">
+      <th mat-header-cell *matHeaderCellDef>{{ 'stock.entry.designation' | translate }}</th>
+      <td mat-cell *matCellDef="let row">
+        <div class="flex items-center gap-2">
+          @if (isNewProduct(row)) {
+            <span class="px-2 py-0.5 text-xs bg-amber-100 text-amber-800 rounded">
+              {{ 'stock.entry.new' | translate }}
+            </span>
+          }
+          @if (row._ocrConfidence !== null) {
+            <span
+              class="px-1.5 py-0.5 text-xs rounded"
+              [class.bg-green-100]="row._ocrConfidence >= 0.8"
+              [class.text-green-800]="row._ocrConfidence >= 0.8"
+              [class.bg-amber-100]="row._ocrConfidence >= 0.5 && row._ocrConfidence < 0.8"
+              [class.text-amber-800]="row._ocrConfidence >= 0.5 && row._ocrConfidence < 0.8"
+              [class.bg-red-100]="row._ocrConfidence < 0.5"
+              [class.text-red-800]="row._ocrConfidence < 0.5"
+              [matTooltip]="
+                ('stock.entry.ocr.confidence' | translate) +
+                ': ' +
+                (row._ocrConfidence * 100 | number: '1.0-0') +
+                '%'
+              "
+            >
+              <mat-icon class="text-sm !w-4 !h-4 align-middle">{{
+                row._ocrConfidence >= 0.8
+                  ? 'verified'
+                  : row._ocrConfidence >= 0.5
+                    ? 'help'
+                    : 'error'
+              }}</mat-icon>
+            </span>
+          }
+          <span>{{ row.designation || '-' }}</span>
+        </div>
+      </td>
+    </ng-container>
+
+    <!-- Quantity Column -->
+    <ng-container matColumnDef="quantity">
+      <th mat-header-cell *matHeaderCellDef class="w-20">
+        {{ 'stock.entry.quantity' | translate }}
+      </th>
+      <td mat-cell *matCellDef="let row">
+        <input
+          type="number"
+          class="w-16 px-2 py-1 border rounded text-right"
+          [value]="getTotalQuantity(row)"
+          (change)="
+            onQuantityChange(row._rowId, row.warehouseAllocations[0]?.warehouseId ?? null, $event)
+          "
+          min="1"
+        />
+      </td>
+    </ng-container>
+
+    <!-- Warehouse Column -->
+    <ng-container matColumnDef="warehouse">
+      <th mat-header-cell *matHeaderCellDef class="w-36">
+        {{ 'stock.entry.warehouse' | translate }}
+      </th>
+      <td mat-cell *matCellDef="let row">
+        @if (row.warehouseAllocations.length > 1) {
+          <button mat-stroked-button class="text-sm" (click)="splitClick.emit(row._rowId)">
+            {{ 'stock.entry.split' | translate }} ({{ row.warehouseAllocations.length }})
+          </button>
+        } @else {
+          <mat-select
+            class="w-full"
+            [value]="+row.warehouseAllocations[0]?.warehouseId"
+            (selectionChange)="onWarehouseChange(row._rowId, $event.value)"
+          >
+            @for (warehouse of warehouses(); track warehouse.id) {
+              <mat-option [value]="warehouse.id">{{ warehouse.name }}</mat-option>
+            }
+          </mat-select>
+        }
+      </td>
+    </ng-container>
+
+    <!-- Price Column -->
+    <ng-container matColumnDef="price">
+      <th mat-header-cell *matHeaderCellDef class="w-28">
+        {{ 'stock.entry.priceHT' | translate }}
+      </th>
+      <td mat-cell *matCellDef="let row">
+        <div class="flex items-center gap-1">
+          <input
+            type="number"
+            class="w-20 px-2 py-1 border rounded text-right"
+            [value]="row.purchasePriceExclTax"
+            (change)="onPriceChange(row._rowId, $event)"
+            min="0"
+            step="0.01"
+          />
+          <span class="text-xs text-gray-500">MAD</span>
+        </div>
+      </td>
+    </ng-container>
+
+    <!-- Status Column -->
+    <ng-container matColumnDef="status">
+      <th mat-header-cell *matHeaderCellDef class="w-16">{{ 'stock.entry.status' | translate }}</th>
+      <td mat-cell *matCellDef="let row">
+        @if (isComplete(row)) {
+          <mat-icon class="text-green-600">check_circle</mat-icon>
+        } @else {
+          <mat-icon class="text-amber-500" [matTooltip]="'stock.entry.incomplete' | translate">
+            warning
+          </mat-icon>
+        }
+      </td>
+    </ng-container>
+
+    <!-- Actions Column -->
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef class="w-12"></th>
+      <td mat-cell *matCellDef="let row">
+        <button mat-icon-button [matMenuTriggerFor]="menu">
+          <mat-icon>more_vert</mat-icon>
+        </button>
+        <mat-menu #menu="matMenu">
+          <button mat-menu-item (click)="editClick.emit(row._rowId)">
+            <mat-icon>edit</mat-icon>
+            {{ 'commun.edit' | translate }}
+          </button>
+          <button mat-menu-item (click)="splitClick.emit(row._rowId)">
+            <mat-icon>call_split</mat-icon>
+            {{ 'stock.entry.splitQuantity' | translate }}
+          </button>
+          <mat-divider />
+          <button mat-menu-item class="text-red-600" (click)="deleteClick.emit(row._rowId)">
+            <mat-icon class="text-red-600">delete</mat-icon>
+            {{ 'commun.delete' | translate }}
+          </button>
+        </mat-menu>
+      </td>
+    </ng-container>
+
+    <!-- Expanded Detail Row -->
+    <ng-container matColumnDef="expandedDetail">
+      <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns.length">
+        <div
+          class="overflow-hidden"
+          [@detailExpand]="row._isExpanded && isNewProduct(row) ? 'expanded' : 'collapsed'"
+        >
+          @if (row._isExpanded && isNewProduct(row)) {
+            <app-stock-entry-row [row]="row" (rowChange)="onRowFormChange(row._rowId, $event)" />
+          }
+        </div>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr
+      mat-row
+      *matRowDef="let row; columns: displayedColumns"
+      [class.bg-blue-50]="isSelected(row._rowId)"
+      [class.bg-amber-50]="!isComplete(row) && !isSelected(row._rowId)"
+      [class.cursor-pointer]="isNewProduct(row)"
+      (click)="isNewProduct(row) ? toggleExpand(row._rowId) : null"
+    ></tr>
+    <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="detail-row"></tr>
+  </table>
+}

@@ -14,10 +14,10 @@ export default [
         canActivateChild: [PermissionCanActivateChildGuard],
       },
       {
-        path: 'alimentation',
-        data: { breadcrumb: 'nav.stock_alimentation' },
+        path: 'entry',
+        data: { breadcrumb: 'nav.stockEntry' },
         loadChildren: () =>
-          import('./alimentation/alimentation.routes').then((m) => m.ALIMENTATION_ROUTES),
+          import('./stock-entry/stock-entry.routes').then((m) => m.STOCK_ENTRY_ROUTES),
       },
     ],
   },

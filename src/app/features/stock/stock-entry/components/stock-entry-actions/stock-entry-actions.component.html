@@ -1,0 +1,32 @@
+<div class="flex flex-wrap items-center gap-4">
+  <span class="font-medium">
+    {{ 'stock.entry.selectedCount' | translate: { count: selectedCount() } }}
+  </span>
+
+  <mat-form-field appFieldControlLabel class="w-48">
+    <mat-label>{{ 'stock.entry.warehouse' | translate }}</mat-label>
+    <mat-select #warehouseSelect>
+      @for (warehouse of warehouses(); track warehouse.id) {
+        <mat-option [value]="warehouse.id">{{ warehouse.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appFieldControlLabel class="w-32">
+    <mat-label>{{ 'stock.entry.tvaRate' | translate }}</mat-label>
+    <mat-select #tvaSelect>
+      @for (rate of tvaRates(); track rate.code) {
+        <mat-option [value]="+rate.code">{{ rate.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <button
+    mat-raised-button
+    color="primary"
+    (click)="onApply(warehouseSelect.value, tvaSelect.value)"
+    [disabled]="!warehouseSelect.value && !tvaSelect.value"
+  >
+    {{ 'stock.entry.apply' | translate }}
+  </button>
+</div>

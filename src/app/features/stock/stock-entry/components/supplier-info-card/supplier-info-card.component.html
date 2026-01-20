@@ -1,0 +1,74 @@
+<mat-card>
+  <mat-card-content>
+    <div class="flex items-center gap-2 mb-4">
+      <mat-icon class="text-primary">business</mat-icon>
+      <h3 class="text-lg font-medium">{{ 'stock.entry.supplierInfo.title' | translate }}</h3>
+      @if (disabled()) {
+        <span class="ml-auto text-sm text-on-surface-variant">
+          {{ 'stock.entry.supplierInfo.readonly' | translate }}
+        </span>
+      }
+    </div>
+
+    <div class="form-grid">
+      <!-- Name -->
+      <mat-form-field appFieldControlLabel class="col-span-full">
+        <mat-label>{{ 'stock.entry.supplierInfo.name' | translate }}</mat-label>
+        <input matInput [formField]="form.name" (blur)="onFieldBlur('name')" />
+        <mat-icon matPrefix>store</mat-icon>
+      </mat-form-field>
+
+      <!-- Address Fields -->
+      <app-address-fields
+        class="col-span-full contents"
+        [(address)]="form.address"
+        [inheritParentLayout]="true"
+      />
+
+      <!-- Phone -->
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.entry.supplierInfo.phone' | translate }}</mat-label>
+        <input matInput type="tel" [formField]="form.phone" (blur)="onFieldBlur('phone')" />
+        <mat-icon matPrefix>phone</mat-icon>
+      </mat-form-field>
+
+      <!-- Email -->
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.entry.supplierInfo.email' | translate }}</mat-label>
+        <input matInput type="email" [formField]="form.email" (blur)="onFieldBlur('email')" />
+        <mat-icon matPrefix>email</mat-icon>
+      </mat-form-field>
+
+      <!-- Identifiers Section -->
+      <div class="col-span-full mt-4">
+        <p class="text-sm font-medium text-on-surface-variant mb-2">
+          {{ 'stock.entry.supplierInfo.identifiersSection' | translate }}
+        </p>
+      </div>
+
+      <!-- ICE -->
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.entry.supplierInfo.ice' | translate }}</mat-label>
+        <input matInput [formField]="form.ice" (blur)="onFieldBlur('ice')" />
+      </mat-form-field>
+
+      <!-- Tax ID -->
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.entry.supplierInfo.taxId' | translate }}</mat-label>
+        <input matInput [formField]="form.taxId" (blur)="onFieldBlur('taxId')" />
+      </mat-form-field>
+
+      <!-- Trade Register -->
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.entry.supplierInfo.tradeRegister' | translate }}</mat-label>
+        <input matInput [formField]="form.tradeRegister" (blur)="onFieldBlur('tradeRegister')" />
+      </mat-form-field>
+
+      <!-- SIRET -->
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.entry.supplierInfo.siret' | translate }}</mat-label>
+        <input matInput [formField]="form.siret" (blur)="onFieldBlur('siret')" />
+      </mat-form-field>
+    </div>
+  </mat-card-content>
+</mat-card>

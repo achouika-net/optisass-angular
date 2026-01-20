@@ -1,0 +1,96 @@
+<mat-form-field class="w-full">
+  <mat-label>{{ placeholder() | translate }}</mat-label>
+  <input
+    matInput
+    type="text"
+    [formField]="internalForm"
+    (focus)="onFocus()"
+    [matAutocomplete]="auto"
+  />
+  @if (isLoading()) {
+    <mat-spinner matSuffix diameter="20" />
+  } @else if (value()) {
+    <ng-container matSuffix>
+      <button
+        mat-icon-button
+        type="button"
+        (click)="clearSelection($event)"
+        [attr.aria-label]="'commun.clear' | translate"
+      >
+        <mat-icon>close</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        type="button"
+        (click)="onOpenSearchPopup($event)"
+        [attr.aria-label]="'stock.productAutocomplete.advancedSearch' | translate"
+      >
+        <mat-icon>search</mat-icon>
+      </button>
+    </ng-container>
+  } @else {
+    <button
+      matSuffix
+      mat-icon-button
+      type="button"
+      (click)="onOpenSearchPopup($event)"
+      [attr.aria-label]="'stock.productAutocomplete.advancedSearch' | translate"
+    >
+      <mat-icon>search</mat-icon>
+    </button>
+  }
+  <mat-autocomplete
+    #auto="matAutocomplete"
+    [displayWith]="displayFn"
+    (opened)="onPanelOpened()"
+    (closed)="onPanelClosed()"
+    (optionSelected)="onOptionSelected($event)"
+  >
+    @for (product of filteredProducts(); track product.id) {
+      <mat-option [value]="product" class="product-option">
+        <div class="flex flex-col py-1">
+          <span class="font-medium">{{ product.designation }}</span>
+          <div class="flex items-center gap-2 text-sm text-on-surface-variant">
+            <span>{{ getSuppliersDisplay(product) }}</span>
+            @if (getSuppliersOverflowCount(product) > 0) {
+              <span
+                class="bg-surface-variant text-on-surface-variant px-1.5 py-0.5 rounded-full text-xs"
+              >
+                +{{ getSuppliersOverflowCount(product) }}
+              </span>
+            }
+            @if (showStockTotal()) {
+              <span class="mx-1">•</span>
+              <span
+                [class.text-error]="product.totalQuantity === 0"
+                [class.text-warning]="
+                  product.totalQuantity > 0 && product.totalQuantity <= product.alertThreshold
+                "
+              >
+                {{ 'stock.productAutocomplete.stock' | translate }}: {{ product.totalQuantity }}
+              </span>
+            }
+          </div>
+          @if (showStockByWarehouse() && product.stockByWarehouse.length > 0) {
+            <div class="flex flex-wrap gap-1 mt-1 text-xs text-on-surface-variant">
+              @for (stock of product.stockByWarehouse; track stock.warehouseId) {
+                <span class="bg-surface-variant px-1.5 py-0.5 rounded">
+                  {{ stock.warehouseName }}: {{ stock.quantity }}
+                </span>
+              }
+            </div>
+          }
+        </div>
+      </mat-option>
+    } @empty {
+      @if (!isLoading() && isFocused()) {
+        <mat-option disabled>
+          {{ 'stock.productAutocomplete.noResults' | translate }}
+        </mat-option>
+      }
+    }
+  </mat-autocomplete>
+  @if (internalForm().touched() && internalForm().invalid()) {
+    <mat-error app-field-error [errors]="internalForm().errors()" />
+  }
+</mat-form-field>

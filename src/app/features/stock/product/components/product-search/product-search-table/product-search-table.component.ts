@@ -78,7 +78,7 @@ export class ProductSearchTableComponent {
     'designation',
     'productType',
     'brand',
-    'currentQuantity',
+    'totalQuantity',
     'status',
     'action',
   ]).asReadonly();
@@ -148,12 +148,12 @@ export class ProductSearchTableComponent {
    * @returns true si quantité <= seuil d'alerte et > 0
    */
   isLowStock = (product: Product): boolean =>
-    product.currentQuantity <= product.alertThreshold && product.currentQuantity > 0;
+    product.totalQuantity <= product.alertThreshold && product.totalQuantity > 0;
 
   /**
    * Vérifie si le produit est en rupture de stock.
    * @param product Produit à vérifier
    * @returns true si quantité === 0
    */
-  isOutOfStock = (product: Product): boolean => product.currentQuantity === 0;
+  isOutOfStock = (product: Product): boolean => product.totalQuantity === 0;
 }

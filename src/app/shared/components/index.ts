@@ -1,5 +1,6 @@
 export * from './actions-buttons/actions-buttons.component';
 export * from './address-fields/address-fields.component';
+export * from './camera-capture-dialog/camera-capture-dialog.component';
 export * from './confirmation-popup/confirmation-popup.component';
 export * from './date-time-range-form/date-time-range-form.component';
 export * from './field-error/field-error.component';
@@ -9,3 +10,4 @@ export * from './photo-upload/photo-upload.component';
 export * from './statistic-card/statistic-card.component';
 export * from './status-illustration/status-illustration.component';
 export * from './resource-autocomplete/resource-autocomplete.component';
+export * from './product-autocomplete/product-autocomplete.component';

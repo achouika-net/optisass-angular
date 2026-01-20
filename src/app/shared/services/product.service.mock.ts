@@ -5,9 +5,10 @@ import {
   ILens,
   PaginatedApiResponse,
   Product,
+  ProductCreateRequest,
+  ProductUpdateRequest,
 } from '@app/models';
 import { delay, Observable, of } from 'rxjs';
-import { ProductCreateRequest, ProductUpdateRequest } from '../models';
 
 interface SearchBody {
   search?: string;
@@ -55,9 +56,14 @@ export const MOCK_FRAMES: IFrame[] = [
     modelId: 'AVI',
     color: 'Or',
     supplierIds: ['LUX'],
+    suppliers: [{ id: 'LUX', name: 'Luxottica' }],
     familyId: 'SOL',
     subFamilyId: 'POL',
-    currentQuantity: 5,
+    totalQuantity: 5,
+    stockByWarehouse: [
+      { warehouseId: '1', warehouseName: 'Entrepôt Principal', quantity: 3 },
+      { warehouseId: '2', warehouseName: 'Entrepôt Secondaire', quantity: 2 },
+    ],
     alertThreshold: 2,
     purchasePriceExclTax: 85,
     pricingMode: 'coefficient',
@@ -93,9 +99,11 @@ export const MOCK_FRAMES: IFrame[] = [
     modelId: 'HOL',
     color: 'Noir mat',
     supplierIds: ['LUX'],
+    suppliers: [{ id: 'LUX', name: 'Luxottica' }],
     familyId: 'SOL',
     subFamilyId: null,
-    currentQuantity: 3,
+    totalQuantity: 3,
+    stockByWarehouse: [{ warehouseId: '1', warehouseName: 'Entrepôt Principal', quantity: 3 }],
     alertThreshold: 2,
     purchasePriceExclTax: 95,
     pricingMode: 'coefficient',
@@ -131,9 +139,11 @@ export const MOCK_FRAMES: IFrame[] = [
     modelId: 'GG0',
     color: 'Écaille',
     supplierIds: ['SAF'],
+    suppliers: [{ id: 'SAF', name: 'Safilo' }],
     familyId: 'OPT',
     subFamilyId: 'PRO',
-    currentQuantity: 1,
+    totalQuantity: 1,
+    stockByWarehouse: [{ warehouseId: '1', warehouseName: 'Entrepôt Principal', quantity: 1 }],
     alertThreshold: 2,
     purchasePriceExclTax: 180,
     pricingMode: 'coefficient',
@@ -172,9 +182,17 @@ export const MOCK_LENSES: ILens[] = [
     modelId: null,
     color: null,
     supplierIds: ['LUX', 'SAF'],
+    suppliers: [
+      { id: 'LUX', name: 'Luxottica' },
+      { id: 'SAF', name: 'Safilo' },
+    ],
     familyId: null,
     subFamilyId: null,
-    currentQuantity: 10,
+    totalQuantity: 10,
+    stockByWarehouse: [
+      { warehouseId: '1', warehouseName: 'Entrepôt Principal', quantity: 7 },
+      { warehouseId: '2', warehouseName: 'Entrepôt Secondaire', quantity: 3 },
+    ],
     alertThreshold: 5,
     purchasePriceExclTax: 120,
     pricingMode: 'coefficient',
@@ -212,9 +230,11 @@ export const MOCK_LENSES: ILens[] = [
     modelId: null,
     color: null,
     supplierIds: ['SAF'],
+    suppliers: [{ id: 'SAF', name: 'Safilo' }],
     familyId: null,
     subFamilyId: null,
-    currentQuantity: 15,
+    totalQuantity: 15,
+    stockByWarehouse: [{ warehouseId: '1', warehouseName: 'Entrepôt Principal', quantity: 15 }],
     alertThreshold: 5,
     purchasePriceExclTax: 75,
     pricingMode: 'coefficient',
@@ -255,9 +275,11 @@ export const MOCK_CONTACT_LENSES: IContactLens[] = [
     modelId: null,
     color: null,
     supplierIds: ['MAR'],
+    suppliers: [{ id: 'MAR', name: 'Marchon' }],
     familyId: null,
     subFamilyId: null,
-    currentQuantity: 20,
+    totalQuantity: 20,
+    stockByWarehouse: [{ warehouseId: '1', warehouseName: 'Entrepôt Principal', quantity: 20 }],
     alertThreshold: 10,
     purchasePriceExclTax: 35,
     pricingMode: 'coefficient',
@@ -297,9 +319,11 @@ export const MOCK_CONTACT_LENSES: IContactLens[] = [
     modelId: null,
     color: null,
     supplierIds: ['MAR'],
+    suppliers: [{ id: 'MAR', name: 'Marchon' }],
     familyId: null,
     subFamilyId: null,
-    currentQuantity: 8,
+    totalQuantity: 8,
+    stockByWarehouse: [{ warehouseId: '1', warehouseName: 'Entrepôt Principal', quantity: 8 }],
     alertThreshold: 5,
     purchasePriceExclTax: 28,
     pricingMode: 'coefficient',
@@ -342,9 +366,11 @@ export const MOCK_ACCESSORIES: IAccessory[] = [
     modelId: null,
     color: 'Noir',
     supplierIds: ['LUX'],
+    suppliers: [{ id: 'LUX', name: 'Luxottica' }],
     familyId: null,
     subFamilyId: null,
-    currentQuantity: 50,
+    totalQuantity: 50,
+    stockByWarehouse: [{ warehouseId: '1', warehouseName: 'Entrepôt Principal', quantity: 50 }],
     alertThreshold: 20,
     purchasePriceExclTax: 3.5,
     pricingMode: 'coefficient',
@@ -369,9 +395,11 @@ export const MOCK_ACCESSORIES: IAccessory[] = [
     modelId: null,
     color: null,
     supplierIds: ['LUX'],
+    suppliers: [{ id: 'LUX', name: 'Luxottica' }],
     familyId: null,
     subFamilyId: null,
-    currentQuantity: 100,
+    totalQuantity: 100,
+    stockByWarehouse: [{ warehouseId: '1', warehouseName: 'Entrepôt Principal', quantity: 100 }],
     alertThreshold: 30,
     purchasePriceExclTax: 0.5,
     pricingMode: 'coefficient',
@@ -396,9 +424,14 @@ export const MOCK_ACCESSORIES: IAccessory[] = [
     modelId: null,
     color: null,
     supplierIds: ['LUX', 'SAF'],
+    suppliers: [
+      { id: 'LUX', name: 'Luxottica' },
+      { id: 'SAF', name: 'Safilo' },
+    ],
     familyId: null,
     subFamilyId: null,
-    currentQuantity: 0,
+    totalQuantity: 0,
+    stockByWarehouse: [],
     alertThreshold: 20,
     purchasePriceExclTax: 1.2,
     pricingMode: 'coefficient',
@@ -499,15 +532,15 @@ export function mockSearchProducts(body: SearchBody): Observable<PaginatedApiRes
     if (productTypes.length > 0 && !productTypes.includes(p.productType)) return false;
     if (status && p.status !== status) return false;
     if (brandId && p.brandId !== brandId) return false;
-    if (outOfStock === true && p.currentQuantity !== 0) return false;
-    if (outOfStock === false && p.currentQuantity === 0) return false;
+    if (outOfStock === true && p.totalQuantity !== 0) return false;
+    if (outOfStock === false && p.totalQuantity === 0) return false;
 
     if (familyId && p.familyId !== familyId) return false;
     if (subFamilyId && p.subFamilyId !== subFamilyId) return false;
     if (modelId && p.modelId !== modelId) return false;
     if (supplierId && !p.supplierIds.includes(supplierId)) return false;
-    if (lowStock === true && p.currentQuantity > p.alertThreshold) return false;
-    if (lowStock === false && p.currentQuantity <= p.alertThreshold) return false;
+    if (lowStock === true && p.totalQuantity > p.alertThreshold) return false;
+    if (lowStock === false && p.totalQuantity <= p.alertThreshold) return false;
 
     const isFrame = p.productType === 'optical_frame' || p.productType === 'sun_frame';
     if (frameShape && isFrame) {
@@ -594,7 +627,9 @@ export function mockCreateProduct(request: ProductCreateRequest): Observable<Pro
     id: String(nextId++),
     internalCode: generateInternalCode(request.productType),
     barcode: generateBarcode(),
-    currentQuantity: 0,
+    suppliers: request.supplierIds.map((id) => ({ id, name: `Fournisseur ${id}` })),
+    totalQuantity: 0,
+    stockByWarehouse: [],
     status: 'DISPONIBLE' as const,
     createdAt: new Date(),
     updatedAt: null,
@@ -630,4 +665,16 @@ export function mockDeleteProduct(id: string): Observable<void> {
     mockProducts.splice(index, 1);
   }
   return of(void 0).pipe(delay(200));
+}
+
+/**
+ * Recherche un produit par désignation exacte.
+ * @param designation La désignation à rechercher
+ * @returns Observable du produit trouvé ou null
+ */
+export function mockSearchProductByDesignation(designation: string): Observable<Product | null> {
+  const product = mockProducts.find(
+    (p) => p.designation.toLowerCase() === designation.toLowerCase(),
+  );
+  return of(product ?? null).pipe(delay(100));
 }

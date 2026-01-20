@@ -1,0 +1,89 @@
+<h2 mat-dialog-title>{{ 'stock.entry.split.title' | translate }}</h2>
+
+<mat-dialog-content>
+  <div class="mb-4">
+    @if (designation) {
+      <p class="text-sm text-gray-600 mb-2">{{ designation }}</p>
+    }
+    <p class="font-medium">
+      {{ 'stock.entry.split.totalQuantity' | translate }}: {{ totalQuantity }}
+    </p>
+  </div>
+
+  <div class="space-y-3">
+    @for (allocation of allocations(); track allocation.id) {
+      <div class="flex items-center gap-3">
+        <mat-form-field appFieldControlLabel class="flex-1">
+          <mat-label>{{ 'stock.entry.warehouse' | translate }}</mat-label>
+          <mat-select
+            [value]="allocation.warehouseId"
+            (selectionChange)="onWarehouseChange(allocation.id, $event.value)"
+          >
+            @for (warehouse of warehouses; track warehouse.id) {
+              <mat-option [value]="'' + warehouse.id">{{ warehouse.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appFieldControlLabel class="w-28">
+          <mat-label>{{ 'stock.entry.split.quantity' | translate }}</mat-label>
+          <input
+            matInput
+            type="number"
+            min="1"
+            [max]="totalQuantity"
+            [value]="allocation.quantity"
+            (input)="onQuantityChange(allocation.id, $event)"
+          />
+        </mat-form-field>
+
+        <button
+          mat-icon-button
+          type="button"
+          color="warn"
+          (click)="removeRow(allocation.id)"
+          [disabled]="allocations().length <= 1"
+        >
+          <mat-icon>delete</mat-icon>
+        </button>
+      </div>
+    }
+  </div>
+
+  <div class="mt-4 flex items-center gap-4">
+    <button mat-stroked-button type="button" (click)="addRow()">
+      <mat-icon>add</mat-icon>
+      {{ 'stock.entry.split.addRow' | translate }}
+    </button>
+
+    <button mat-stroked-button type="button" (click)="distributeEvenly()">
+      <mat-icon>balance</mat-icon>
+      {{ 'stock.entry.split.distribute' | translate }}
+    </button>
+  </div>
+
+  <div
+    class="mt-4 p-3 rounded-lg"
+    [class]="remainingQuantity() === 0 ? 'bg-green-50' : 'bg-amber-50'"
+  >
+    <p class="text-sm" [class]="remainingQuantity() === 0 ? 'text-green-700' : 'text-amber-700'">
+      {{ 'stock.entry.split.remaining' | translate }}:
+      <span class="font-medium">{{ remainingQuantity() }}</span>
+    </p>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">
+    {{ 'commun.cancel' | translate }}
+  </button>
+  <button
+    mat-raised-button
+    color="primary"
+    type="button"
+    (click)="confirm()"
+    [disabled]="!isValid()"
+  >
+    {{ 'commun.confirm' | translate }}
+  </button>
+</mat-dialog-actions>

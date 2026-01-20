@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { IWarehouse } from '../../features/settings/warehouse/models/warehouse.model';
 import {
   IBrand,
   IColor,
@@ -24,6 +25,7 @@ import {
   MOCK_RESOURCES,
   MOCK_SUB_FAMILIES,
   MOCK_SUPPLIERS,
+  MOCK_WAREHOUSES,
 } from './resource.service.mock';
 
 // TODO: Inject HttpClient and use API URLs when backend is ready
@@ -179,5 +181,19 @@ export class ResourceService {
     // TODO: Uncomment when backend is ready
     // return this.#http.get<ISupplier[]>(SUPPLIERS_API_URL);
     return of(MOCK_SUPPLIERS);
+  }
+
+  // ============================================
+  // Warehouses
+  // ============================================
+
+  /**
+   * Retrieves all warehouses.
+   * @returns {Observable<IWarehouse[]>} Observable of warehouses array
+   */
+  getWarehouses(): Observable<IWarehouse[]> {
+    // TODO: Uncomment when backend is ready
+    // return this.#http.get<IWarehouse[]>(WAREHOUSES_API_URL);
+    return of(MOCK_WAREHOUSES);
   }
 }

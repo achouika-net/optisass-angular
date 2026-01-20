@@ -1,8 +1,10 @@
 import { Injectable } from '@angular/core';
 import { SUPPLIERS_API_URL } from '@app/config';
 import { PaginatedApiResponse, ISupplier, ISupplierSearchRequest } from '@app/models';
-import { Observable, of } from 'rxjs';
+import { delay, Observable, of } from 'rxjs';
 import { MOCK_SUPPLIERS } from './resource.service.mock';
+
+let nextSupplierId = 100;
 
 // TODO: Inject HttpClient when backend is ready
 
@@ -10,7 +12,7 @@ import { MOCK_SUPPLIERS } from './resource.service.mock';
 export class SupplierService {
   /**
    * Retrieves all active suppliers.
-   * @returns {Observable<ISupplier[]>} Observable of active suppliers array
+   * @returns Observable of active suppliers array
    */
   getActiveSuppliers(): Observable<ISupplier[]> {
     // TODO: Uncomment when backend is ready
@@ -20,8 +22,8 @@ export class SupplierService {
 
   /**
    * Searches suppliers with pagination.
-   * @param {ISupplierSearchRequest} request - The search request
-   * @returns {Observable<PaginatedApiResponse<ISupplier>>} Observable of paginated suppliers
+   * @param request The search request
+   * @returns Observable of paginated suppliers
    */
   search(request: ISupplierSearchRequest): Observable<PaginatedApiResponse<ISupplier>> {
     // TODO: Uncomment when backend is ready
@@ -49,13 +51,32 @@ export class SupplierService {
 
   /**
    * Retrieves a supplier by ID.
-   * @param {string} id - The supplier ID
-   * @returns {Observable<ISupplier>} Observable of the supplier
+   * @param id The supplier ID
+   * @returns Observable of the supplier
    */
   getById(id: string): Observable<ISupplier> {
     // TODO: Uncomment when backend is ready
     // return this.#http.get<ISupplier>(`${SUPPLIERS_API_URL}/${id}`);
     const supplier = MOCK_SUPPLIERS.find((s) => s.id === id);
     return of(supplier!);
+  }
+
+  /**
+   * Creates a new supplier.
+   * If supplier.id is null, backend creates a new supplier.
+   * @param supplier The supplier data
+   * @returns Observable of the created supplier with assigned ID
+   */
+  create(supplier: ISupplier): Observable<ISupplier> {
+    // TODO: Replace mock with HTTP call when backend is ready
+    // return this.#http.post<ISupplier>(SUPPLIERS_API_URL, supplier);
+    const newSupplier: ISupplier = {
+      ...supplier,
+      id: String(nextSupplierId++),
+      code: `SUP${String(nextSupplierId).padStart(4, '0')}`,
+      createdAt: new Date(),
+      updatedAt: null,
+    };
+    return of(newSupplier).pipe(delay(200));
   }
 }

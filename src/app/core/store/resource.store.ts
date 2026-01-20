@@ -1,4 +1,5 @@
 import { inject } from '@angular/core';
+import { IWarehouse } from '../../features/settings/warehouse/models/warehouse.model';
 import { withErrorHandler } from '@app/helpers';
 import {
   IBrand,
@@ -45,6 +46,7 @@ interface IResourceState {
   subFamilies: ISubFamily[];
   colors: IColor[];
   suppliers: ISupplier[];
+  warehouses: IWarehouse[];
   loading: boolean;
   initialized: boolean;
 }
@@ -78,6 +80,7 @@ const initialState: IResourceState = {
   subFamilies: [],
   colors: [],
   suppliers: [],
+  warehouses: [],
   loading: false,
   initialized: false,
 };
@@ -110,6 +113,7 @@ export const ResourceStore = signalStore(
               subFamilies: withErrorHandler(resourceService.getSubFamilies(), [], errorService),
               colors: withErrorHandler(resourceService.getColors(), [], errorService),
               suppliers: withErrorHandler(resourceService.getSuppliers(), [], errorService),
+              warehouses: withErrorHandler(resourceService.getWarehouses(), [], errorService),
             }),
           ),
           tap((resources) =>
@@ -125,6 +129,7 @@ export const ResourceStore = signalStore(
               subFamilies: resources.subFamilies,
               colors: resources.colors,
               suppliers: resources.suppliers,
+              warehouses: resources.warehouses,
               // State flags
               loading: false,
               initialized: true,

@@ -1,20 +1,22 @@
 import { Injectable } from '@angular/core';
 import { Sort } from '@angular/material/sort';
 import { removeEmptyValues } from '@app/helpers';
-import { PaginatedApiResponse, Product } from '@app/models';
-import { Observable } from 'rxjs';
 import {
   IProductSearch,
+  PaginatedApiResponse,
+  Product,
   ProductCreateRequest,
   ProductUpdateRequest,
   toNestedProductSearch,
-} from '../models';
+} from '@app/models';
+import { Observable } from 'rxjs';
 import {
   mockSearchProducts,
   mockGetProduct,
   mockCreateProduct,
   mockUpdateProduct,
   mockDeleteProduct,
+  mockSearchProductByDesignation,
 } from './product.service.mock';
 
 @Injectable({ providedIn: 'root' })
@@ -83,5 +85,15 @@ export class ProductService {
   delete(id: string): Observable<void> {
     // TODO: Replace mock with HTTP call when backend is ready
     return mockDeleteProduct(id);
+  }
+
+  /**
+   * Searches for a product by exact designation match.
+   * @param designation The product designation to search
+   * @returns Observable of the matched product or null
+   */
+  searchByDesignation(designation: string): Observable<Product | null> {
+    // TODO: Replace mock with HTTP call when backend is ready
+    return mockSearchProductByDesignation(designation);
   }
 }

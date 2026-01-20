@@ -18,9 +18,11 @@ import { ExtractDataInterceptor } from './core/interceptors/extract-data.interce
 import { JwtInterceptor } from './core/interceptors/jwt.interceptor';
 import { TenantInterceptor } from './core/interceptors/tenant.interceptor';
 import { WithCredentialsInterceptor } from './core/interceptors/withCredentials.interceptor';
+import { DeviceCapabilitiesService } from './core/services';
 import { AuthStore, ResourceStore } from './core/store';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { MAT_ICON_DEFAULT_OPTIONS } from '@angular/material/icon';
+import { provideNativeDateAdapter } from '@angular/material/core';
 import { provideSignalFormsConfig } from '@angular/forms/signals';
 import { NG_STATUS_CLASSES } from '@angular/forms/signals/compat';
 import { provideOcr } from './core/ocr';
@@ -35,9 +37,13 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(() => {
       const authStore = inject(AuthStore);
       const resourceStore = inject(ResourceStore);
+      const deviceCapabilities = inject(DeviceCapabilitiesService);
 
       // Lancer le chargement des resources
       resourceStore.loadAllResources();
+
+      // Initialiser la détection des capacités de l'appareil (non-bloquant)
+      void deviceCapabilities.initialize();
 
       // Attendre que les resources soient initialisées
       const resourcesReady = firstValueFrom(
@@ -96,6 +102,9 @@ export const appConfig: ApplicationConfig = {
       provide: MAT_ICON_DEFAULT_OPTIONS,
       useValue: { fontSet: 'material-symbols-outlined' },
     },
+
+    // Date Adapter Configuration (pour MatDatepicker)
+    provideNativeDateAdapter(),
 
     // OCR Module Configuration
     provideOcr(environment.ocr),
