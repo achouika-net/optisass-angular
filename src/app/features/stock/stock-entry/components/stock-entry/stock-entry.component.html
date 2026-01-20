@@ -1,0 +1,117 @@
+<!-- Actions Buttons (responsive: card on desktop, FAB on mobile) -->
+<app-actions-buttons [actionButtons]="actionButtons()" (action)="onAction($event)" />
+
+<!-- Card 1: Informations Document -->
+<mat-card>
+  <mat-card-content>
+    <app-stock-entry-form
+      [suppliers]="suppliers()"
+      [selectedSupplierId]="store.supplier()?.id ?? null"
+      [documentNumber]="store.documentNumber()"
+      [documentDate]="store.documentDate()"
+      [documentType]="store.documentType()"
+      (supplierChange)="store.setSupplier($event)"
+      (documentNumberChange)="store.setDocumentNumber($event)"
+      (documentDateChange)="store.setDocumentDate($event)"
+      (documentTypeChange)="store.setDocumentType($event)"
+      (newSupplierClick)="openNewSupplierDialog()"
+    />
+  </mat-card-content>
+</mat-card>
+
+<!-- Card 1b: Informations Fournisseur (visible si fournisseur sélectionné ou OCR) -->
+@if (showSupplierInfoCard()) {
+  <app-supplier-info-card
+    class="mt-4 block"
+    [supplier]="store.supplier()"
+    (supplierChange)="store.setSupplier($event)"
+  />
+}
+
+<!-- Card 2: Actions Groupées (visible si sélection) -->
+@if (store.selectedCount() > 0) {
+  <mat-card class="mt-4">
+    <mat-card-content>
+      <app-stock-entry-actions
+        [selectedCount]="store.selectedCount()"
+        [warehouses]="warehouses()"
+        (warehouseChange)="onBulkWarehouseChange($event)"
+        (tvaChange)="store.applyBulkTva($event)"
+      />
+    </mat-card-content>
+  </mat-card>
+}
+
+<!-- Card 3: Tableau Produits -->
+<mat-card class="mt-4">
+  <mat-card-content>
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-medium">{{ 'stock.entry.productsTable' | translate }}</h3>
+      <span class="text-sm text-on-surface-variant">
+        {{ 'stock.entry.productCount' | translate: { count: store.totalProducts() } }}
+      </span>
+    </div>
+
+    <app-stock-entry-table
+      [products]="store.products()"
+      [selectedRowIds]="store.selectedRowIds()"
+      [warehouses]="warehouses()"
+      (selectionChange)="store.toggleSelection($event)"
+      (selectAllChange)="store.selectAll($event)"
+      (productChange)="onProductChange($event)"
+      (expandChange)="store.toggleExpand($event)"
+      (editClick)="openProductEditDialog($event)"
+      (splitClick)="openSplitDialog($event)"
+      (deleteClick)="store.removeProduct($event)"
+    />
+
+    <!-- Validation Errors -->
+    @if (store.totalProducts() > 0 && !store.isFormValid()) {
+      <div class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+        <div class="flex items-start gap-3">
+          <mat-icon class="text-amber-600">warning</mat-icon>
+          <div class="flex-1">
+            <p class="font-medium text-amber-800">
+              {{ 'stock.entry.validation.title' | translate }}
+            </p>
+            <ul class="mt-2 text-sm text-amber-700 list-disc list-inside">
+              @if (!store.supplier().name) {
+                <li>{{ 'stock.entry.validation.supplierRequired' | translate }}</li>
+              }
+              @if (!store.documentNumber()) {
+                <li>{{ 'stock.entry.validation.documentNumberRequired' | translate }}</li>
+              }
+              @if (store.incompleteProducts().length > 0) {
+                <li>
+                  {{
+                    'stock.entry.validation.incompleteProducts'
+                      | translate: { count: store.incompleteProducts().length }
+                  }}
+                </li>
+              }
+            </ul>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Actions -->
+    <div class="flex justify-center gap-4 mt-6">
+      <button matButton type="button" (click)="onCancel()">
+        {{ 'commun.cancel' | translate }}
+      </button>
+      <button
+        matButton="filled"
+        class="tertiary"
+        type="button"
+        [disabled]="!store.isFormValid() || store.isSubmitting()"
+        (click)="onSubmit()"
+      >
+        @if (store.isSubmitting()) {
+          <mat-spinner diameter="20" />
+        }
+        {{ 'stock.entry.validate' | translate }}
+      </button>
+    </div>
+  </mat-card-content>
+</mat-card>

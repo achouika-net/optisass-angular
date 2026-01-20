@@ -4,20 +4,20 @@ import { PageEvent } from '@angular/material/paginator';
 import { Sort } from '@angular/material/sort';
 import { Router } from '@angular/router';
 import { DEFAULT_PAGE_SIZE } from '@app/config';
-import { PaginatedApiResponse, Product } from '@app/models';
-import { ErrorService } from '@app/services';
+import {
+  IProductSearch,
+  PaginatedApiResponse,
+  Product,
+  ProductCreateRequest,
+  ProductSearch,
+  ProductUpdateRequest,
+} from '@app/models';
+import { ErrorService, ProductService } from '@app/services';
 import { patchState, signalState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
 import { ToastrService } from 'ngx-toastr';
 import { catchError, of, pipe, switchMap, tap } from 'rxjs';
-import {
-  IProductSearch,
-  ProductCreateRequest,
-  ProductSearch,
-  ProductUpdateRequest,
-} from './models';
-import { ProductService } from './services/product.service';
 
 interface IProductState {
   products: PaginatedApiResponse<Product> | null;

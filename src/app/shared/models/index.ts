@@ -1,4 +1,5 @@
 export * from './actions-button.model';
+export * from './device-capabilities.model';
 export * from './address.model';
 export * from './breadcrumb.model';
 export * from './civilite.model';
@@ -34,3 +35,6 @@ export * from './color.model';
 export * from './supplier.model';
 export * from './stock-settings.model';
 export * from './product.model';
+export * from './product-search.model';
+export * from './product-request.model';
+export * from './product-form.model';

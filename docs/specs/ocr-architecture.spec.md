@@ -122,6 +122,7 @@ Image → Pipeline → Provider (Tesseract) → Texte brut
 14. [Optimisations](#14-optimisations)
 15. [Tests](#15-tests)
 16. [Évolutions futures](#16-évolutions-futures)
+17. [Avancement de l'implémentation](#17-avancement-de-limplémentation)
 
 ---
 
@@ -1587,6 +1588,70 @@ export class AiInvoiceParser implements IPipelineParser<ISupplierInvoice> {
 
 ---
 
+## 17. Avancement de l'implémentation
+
+> Dernière mise à jour : 2026-01-19
+
+### 17.1 Core OCR (`core/ocr/`)
+
+| Composant              | Fichier                                 | Statut  |
+| ---------------------- | --------------------------------------- | ------- |
+| Pipeline orchestrateur | `pipeline/ocr-pipeline.ts`              | ✅      |
+| Pipeline factory       | `pipeline/pipeline.factory.ts`          | ✅      |
+| Pipeline config token  | `pipeline/pipeline.config.token.ts`     | ✅      |
+| Pipeline providers     | `pipeline/pipeline.providers.ts`        | ✅      |
+| Tesseract provider     | `providers/tesseract.provider.ts`       | ✅      |
+| Backend OCR provider   | `providers/backend-ocr.provider.ts`     | ✅      |
+| Document parser base   | `document-parser.ts`                    | ✅      |
+| Parser registry        | `parser-registry.ts`                    | ✅      |
+| Parser providers       | `parser.providers.ts`                   | ✅      |
+| OCR service            | `ocr.service.ts`                        | ✅      |
+| OCR config             | `ocr.config.ts`                         | ✅      |
+| Locale service         | `services/locale.service.ts`            | ✅      |
+| AI Invoice parser      | `pipeline/parsers/ai-invoice.parser.ts` | 🔄 Stub |
+
+### 17.2 Stock Entry Feature (`features/stock/stock-entry/`)
+
+| Composant                   | Fichier                                           | Statut |
+| --------------------------- | ------------------------------------------------- | ------ |
+| Page principale             | `components/stock-entry/stock-entry.component.ts` | ✅     |
+| Formulaire en-tête          | `components/stock-entry-form/`                    | ✅     |
+| Tableau produits            | `components/stock-entry-table/`                   | ✅     |
+| Ligne produit               | `components/stock-entry-row/`                     | ✅     |
+| Actions groupées            | `components/stock-entry-actions/`                 | ✅     |
+| Dialog OCR upload           | `components/ocr-upload-dialog/`                   | ✅     |
+| Dialog recherche produit    | `components/product-search-dialog/`               | ✅     |
+| Dialog répartition quantité | `components/split-quantity-dialog/`               | ✅     |
+| Dialog conflit bulk action  | `components/bulk-action-conflict-dialog/`         | ✅     |
+| Dialog création fournisseur | `components/supplier-quick-create-dialog/`        | ✅     |
+| Parser facture fournisseur  | `parsers/supplier-invoice.parser.ts`              | ✅     |
+| Store                       | `stock-entry.store.ts`                            | ✅     |
+| Service                     | `services/stock-entry.service.ts`                 | ✅     |
+| Models                      | `models/stock-entry.model.ts`                     | ✅     |
+| Form models                 | `models/stock-entry-form.model.ts`                | ✅     |
+| Routes                      | `stock-entry.routes.ts`                           | ✅     |
+
+### 17.3 Extractors (`opti_saas_lib/`)
+
+| Extractor           | Statut | Description                    |
+| ------------------- | ------ | ------------------------------ |
+| DateExtractor       | ⏳     | Extraction dates multi-format  |
+| AmountExtractor     | ⏳     | Extraction montants et devises |
+| IdentifierExtractor | ⏳     | ICE, IF, RC, CNSS...           |
+| ContactExtractor    | ⏳     | Téléphone, email, adresse      |
+| LineItemExtractor   | ⏳     | Lignes de facture              |
+
+### 17.4 Légende
+
+| Symbole | Signification             |
+| ------- | ------------------------- |
+| ✅      | Implémenté et fonctionnel |
+| 🔄      | En cours / Stub           |
+| ⏳      | Planifié (non implémenté) |
+| ❌      | Bloqué / Problème         |
+
+---
+
 ## Historique des modifications
 
 | Version | Date       | Auteur | Description                                                                                       |
@@ -1594,3 +1659,4 @@ export class AiInvoiceParser implements IPipelineParser<ISupplierInvoice> {
 | 1.0     | 2026-01-14 | Claude | Version initiale                                                                                  |
 | 1.1     | 2026-01-14 | Claude | Ajout BackendOcrProvider et architecture backend NestJS                                           |
 | 2.0     | 2026-01-18 | Claude | Refonte complète: Pipeline pattern, Extractors, Patterns, Locales, Worker Pool LRU, optimisations |
+| 2.1     | 2026-01-19 | Claude | Ajout section 17 Avancement, fix clé i18n dupliquée `stock.entry.supplier`                        |

@@ -3,6 +3,17 @@ export interface IProductPhoto {
   base64: string | null;
 }
 
+export interface IProductSupplier {
+  id: string;
+  name: string;
+}
+
+export interface IProductStockByWarehouse {
+  warehouseId: string;
+  warehouseName: string;
+  quantity: number;
+}
+
 export type ProductType = 'optical_frame' | 'sun_frame' | 'lens' | 'contact_lens' | 'accessory';
 
 export type ProductStatus =
@@ -25,6 +36,7 @@ interface IBaseProduct {
   modelId: string | null;
   color: string | null;
   supplierIds: string[];
+  suppliers: IProductSupplier[];
   familyId: string | null;
   subFamilyId: string | null;
   alertThreshold: number;
@@ -38,7 +50,8 @@ interface IBaseProduct {
 
   // Champs calculés (readonly après création)
   purchasePriceExclTax: number;
-  currentQuantity: number;
+  totalQuantity: number;
+  stockByWarehouse: IProductStockByWarehouse[];
   status: ProductStatus;
 
   photo: IProductPhoto | null;

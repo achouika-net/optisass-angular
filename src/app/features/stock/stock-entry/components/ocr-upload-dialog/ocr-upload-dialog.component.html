@@ -1,0 +1,70 @@
+<h2 mat-dialog-title>{{ 'stock.entry.ocr.dialogTitle' | translate }}</h2>
+
+<mat-dialog-content class="min-w-[400px]">
+  @if (isProcessing()) {
+    <div class="flex flex-col items-center justify-center py-12 px-6 min-h-[200px]">
+      <mat-spinner diameter="48"></mat-spinner>
+      <p class="mt-4 text-on-surface-variant">{{ 'stock.entry.ocr.processing' | translate }}</p>
+    </div>
+  } @else if (!selectedFile()) {
+    <div
+      class="flex flex-col items-center justify-center py-12 px-6 min-h-[200px] border-2 border-dashed border-outline-variant rounded-lg bg-surface-container-lowest cursor-pointer transition-colors hover:border-primary hover:bg-surface-container-low"
+      (drop)="onFileDrop($event)"
+      (dragover)="onDragOver($event)"
+    >
+      <mat-icon class="!text-5xl !w-12 !h-12 text-primary mb-4">cloud_upload</mat-icon>
+      <p class="mb-2 text-on-surface">{{ 'stock.entry.ocr.dropZoneText' | translate }}</p>
+      <p class="text-xs text-on-surface-variant mb-4">
+        {{ 'stock.entry.ocr.supportedFormats' | translate }}
+      </p>
+      <input
+        type="file"
+        #fileInput
+        (change)="onFileSelected($event)"
+        accept="image/jpeg,image/png,image/webp,application/pdf"
+        hidden
+      />
+      <button mat-stroked-button color="primary" (click)="fileInput.click()">
+        <mat-icon>folder_open</mat-icon>
+        {{ 'stock.entry.ocr.selectFile' | translate }}
+      </button>
+    </div>
+  } @else {
+    <div class="relative flex items-center justify-center p-4 min-h-[200px]">
+      @if (previewUrl()) {
+        <img
+          [src]="previewUrl()"
+          alt="Preview"
+          class="max-w-full max-h-[300px] rounded-lg shadow-md"
+        />
+      } @else {
+        <div class="flex flex-col items-center gap-2">
+          <mat-icon class="!text-6xl !w-16 !h-16 text-error">picture_as_pdf</mat-icon>
+          <span class="text-sm text-on-surface-variant">{{ selectedFile()?.name }}</span>
+        </div>
+      }
+      <button mat-icon-button color="warn" class="!absolute top-2 right-2" (click)="removeFile()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()" [disabled]="isProcessing()">
+    {{ 'commun.cancel' | translate }}
+  </button>
+  <button
+    mat-flat-button
+    color="primary"
+    (click)="processFile()"
+    [disabled]="!selectedFile() || isProcessing()"
+  >
+    @if (isProcessing()) {
+      <mat-spinner diameter="20"></mat-spinner>
+    } @else {
+      <mat-icon>document_scanner</mat-icon>
+    }
+    {{ 'stock.entry.ocr.scan' | translate }}
+  </button>
+</mat-dialog-actions>

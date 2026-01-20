@@ -46,7 +46,7 @@
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="currentQuantity">
+        <ng-container matColumnDef="totalQuantity">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>
             {{ 'stock.table.quantity' | translate }}
           </th>
@@ -55,7 +55,7 @@
               [class.text-error]="isOutOfStock | wrapFn: element"
               [class.text-warning]="isLowStock | wrapFn: element"
             >
-              {{ element.currentQuantity }}
+              {{ element.totalQuantity }}
             </span>
             @if (isOutOfStock | wrapFn: element) {
               <mat-icon

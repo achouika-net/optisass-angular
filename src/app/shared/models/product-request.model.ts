@@ -1,4 +1,4 @@
-import { IProductPhoto, PricingMode, ProductType } from '@app/models';
+import { IProductPhoto, PricingMode, ProductType } from './product.model';
 
 interface IBaseProductRequest {
   designation: string | null;

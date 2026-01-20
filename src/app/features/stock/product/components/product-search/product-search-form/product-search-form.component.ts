@@ -20,10 +20,9 @@ import { FILTER_ALL_YES_NO_OPTIONS } from '@app/config';
 import { ResourceStore } from '@app/core/store';
 import { ResourceAutocompleteComponent } from '@app/components';
 import { FieldControlLabelDirective } from '@app/directives';
-import { ProductType } from '@app/models';
+import { IProductSearch, ProductSearch, ProductType } from '@app/models';
 import { SupplierService } from '@app/services';
 import { TranslateModule } from '@ngx-translate/core';
-import { IProductSearch, ProductSearch } from '../../../models';
 import { ProductStore } from '../../../product.store';
 
 @Component({

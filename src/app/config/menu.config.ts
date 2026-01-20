@@ -36,10 +36,10 @@ export const MENU: MenuItem[] = [
         route: 'stock/products',
       },
       {
-        label: 'nav.stockAlimentation',
-        icon: 'add_shopping_cart',
+        label: 'nav.stockEntry',
+        icon: 'inventory_2',
         type: 'link',
-        route: 'stock/alimentation',
+        route: 'stock/entry',
       },
     ],
   },
