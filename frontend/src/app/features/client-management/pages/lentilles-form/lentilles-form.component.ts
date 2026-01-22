@@ -951,37 +951,61 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
 
         try {
             // Import OCR functions dynamically
-            const { extractTextFromImage, parsePrescriptionText } = await import('../../utils/ocr-extractor');
+            const { extractTextFromImage } = await import('../../utils/ocr-extractor');
+            const { parsePrescription } = await import('../../utils/prescription-parser');
 
             const text = await extractTextFromImage(file.file);
             console.log('Texte extrait (OCR):', text);
 
-            const parsed = parsePrescriptionText(text);
+            const parsed = parsePrescription(text);
             console.log('Données parsées (OCR):', parsed);
 
-            // Update Form
-            this.ficheForm.patchValue({
-                ordonnance: {
-                    od: parsed.od,
-                    og: parsed.og
+            // Update Form - Ordonnance Section
+            const ordGroup: any = {
+                od: {
+                    sphere: parsed.OD.sph !== 0 ? (parsed.OD.sph > 0 ? '+' : '') + parsed.OD.sph.toFixed(2) : '',
+                    cylindre: parsed.OD.cyl !== 0 ? (parsed.OD.cyl > 0 ? '+' : '') + parsed.OD.cyl.toFixed(2) : '',
+                    axe: parsed.OD.axis ? parsed.OD.axis + '°' : '',
+                    addition: parsed.OD.add !== undefined ? (parsed.OD.add > 0 ? '+' : '') + parsed.OD.add.toFixed(2) : ''
                 },
-                lentilles: {
-                    od: {
-                        sphere: parsed.od?.sphere,
-                        cylindre: parsed.od?.cylinder,
-                        axe: parsed.od?.axis,
-                        addition: parsed.od?.addition,
-                        rayon: parsed.od?.rayon,
-                        diametre: parsed.od?.diametre
-                    },
-                    og: {
-                        sphere: parsed.og?.sphere,
-                        cylindre: parsed.og?.cylinder,
-                        axe: parsed.og?.axis,
-                        addition: parsed.og?.addition,
-                        rayon: parsed.og?.rayon,
-                        diametre: parsed.og?.diametre
+                og: {
+                    sphere: parsed.OG.sph !== 0 ? (parsed.OG.sph > 0 ? '+' : '') + parsed.OG.sph.toFixed(2) : '',
+                    cylindre: parsed.OG.cyl !== 0 ? (parsed.OG.cyl > 0 ? '+' : '') + parsed.OG.cyl.toFixed(2) : '',
+                    axe: parsed.OG.axis ? parsed.OG.axis + '°' : '',
+                    addition: parsed.OG.add !== undefined ? (parsed.OG.add > 0 ? '+' : '') + parsed.OG.add.toFixed(2) : ''
+                }
+            };
+
+            // Handle Metadata (Date, Prescripteur)
+            if (parsed.date) {
+                const parts = parsed.date.split('/');
+                if (parts.length === 3) {
+                    const dateObj = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+                    if (!isNaN(dateObj.getTime())) {
+                        ordGroup.datePrescription = dateObj;
                     }
+                }
+            }
+            if (parsed.prescripteur) {
+                ordGroup.prescripteur = parsed.prescripteur;
+            }
+
+            // Patch Ordonnance group
+            this.ficheForm.get('ordonnance')?.patchValue(ordGroup);
+
+            // Also patch Lentilles section (Mapping corresponding spheres/cyls)
+            this.ficheForm.get('lentilles')?.patchValue({
+                od: {
+                    sphere: ordGroup.od.sphere,
+                    cylindre: ordGroup.od.cylindre,
+                    axe: ordGroup.od.axe,
+                    addition: ordGroup.od.addition
+                },
+                og: {
+                    sphere: ordGroup.og.sphere,
+                    cylindre: ordGroup.og.cylindre,
+                    axe: ordGroup.og.axe,
+                    addition: ordGroup.og.addition
                 }
             });
 

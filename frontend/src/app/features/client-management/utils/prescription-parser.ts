@@ -2,6 +2,8 @@ export interface ParsedPrescription {
     OD: { sph: number; cyl: number; axis?: number; add?: number; prism?: number; base?: string };
     OG: { sph: number; cyl: number; axis?: number; add?: number; prism?: number; base?: string };
     EP: { val: number; od?: number; og?: number };
+    date?: string;  // Date de prescription (format DD/MM/YYYY)
+    prescripteur?: string;  // Nom du prescripteur
 }
 
 export function parsePrescription(text: string): ParsedPrescription {
@@ -16,121 +18,129 @@ export function parsePrescription(text: string): ParsedPrescription {
         return parseFloat(val.replace(/\s+/g, '').replace(',', '.'));
     };
 
-    // 1. Clean up text for easier regex
-    // Normalize newlines to spaces to find "ADD" even if far, 
-    // BUT we need to distinguish OD line from OG line. 
-    // Usually OD and OG are on separate lines. 
-    // Let's keep working with the full text but stricter regexes for lines.
+    // 1. Clean up and Normalize
+    // Standardize labels and shorthand
+    const normalized = text.toUpperCase()
+        .replace(/\bOEIL[:\s]+DR(?:OIT)?\b/gi, 'OD')
+        .replace(/\bOEIL[:\s]+GA(?:UCHE)?\b/gi, 'OG')
+        .replace(/\bVISION[:\s]+DE[:\s]+LOIN\b/gi, 'VDL')
+        .replace(/\bVISION[:\s]+DE[:\s]+PRES\b/gi, 'VDP')
+        .replace(/\s+/g, ' ');
 
-    // Regex components
-    const num = '([+-]?\\s*\\d+(?:[.,]\\d+)?)'; // Captures number, allows space " + 2.00"
-    const sep = '[\\s]*'; // Flexible whitespace
+    // 2. Fragment selection (Split by OD/OG to isolate data)
+    // Use word boundaries \b to avoid matching "ORDONNANCE"
+    const findSegment = (eye: string) => {
+        const regex = new RegExp(`\\b${eye}\\b`, 'i');
+        const match = normalized.match(regex);
+        if (!match || match.index === undefined) return '';
 
-    // AXE: 1. Degree symbol (90°), 2. @ symbol (@90), 3. Plain number (0-180)
-    // We capture plain number cautiously (must be integer-ish).
-    const axePattern = `(?:(\\d+)\\s*°|@\\s*(\\d+)|\\s+(\\d+)(?=\\s*(?:ADD|Prisme|Base|$)))`;
+        const start = match.index + match[0].length;
+        const rest = normalized.substring(start);
 
-    // ADD: "ADD", "ADD:", "ADD/", "ADD=" possibly with spaces
-    // Regex: ADD followed by optional separator [: / =], then number
-    const addPattern = `(?:ADD(?:\\s*[:/=\\s]\\s*|\\s+)${num})`;
-
-    // PRISM: "Prisme", "Prism", followed by optional sep, then number
-    const prismPattern = `(?:(?:Prisme|Prism)(?:\\s*[:/=\\s]\\s*|\\s+)${num})`;
-
-    // BASE: "Base" followed by string/number
-    const basePattern = `(?:Base(?:\\s*[:/=\\s]\\s*|\\s+)([a-zA-Z0-9]+))`;
-
-    // Positional Line Regex: SPH -> (CYL) -> AXE
-    // Groups:
-    // 1: SPH (Mandatory-ish)
-    // 2: CYL (Parens)
-    // 3: CYL (No Parens)
-    // 4: AXE (deg)
-    // 5: AXE (@)
-    // 6: AXE (plain)
-    // 7: ADD value
-    // 8: PRISM value
-    // 9: BASE value
-
-    const mkRegex = (eye: string) => new RegExp(
-        `${eye}[:\\s]*` +
-        `${num}` + // 1. SPH
-        `(?:` +
-        `${sep}\\(\\s*${num}\\s*\\)` + // 2. CYL (Parens)
-        `|` +
-        `${sep}${num}` + // 3. CYL (Plain)
-        `)?` +
-        `${sep}` +
-        `(?:` +
-        `${axePattern}` + // 4, 5, 6. AXE
-        `)?` +
-        `(?:` +
-        `.*${addPattern}` + // 7. ADD (Greedy match until ADD allows it to be far)
-        `)?` +
-        `(?:` +
-        `.*${prismPattern}` + // 8. PRISM
-        `)?` +
-        `(?:` +
-        `.*${basePattern}` + // 9. BASE
-        `)?`,
-        'i'
-    );
-
-    const regexOD = mkRegex('OD');
-    const regexOG = mkRegex('OG');
-
-    // Standalone ADD Line Regex (if not found in line)
-    // Matches "ADD +2.00" on a line by itself or generally in text if not bound to OD/OG
-    const regexGlobalADD = new RegExp(`ADD(?:\\s*[:/=\\s]\\s*|\\s+)${num}`, 'i');
-
-    const odMatch = text.match(regexOD);
-    const ogMatch = text.match(regexOG);
-
-    // EP Parser
-    const regexEP = /(?:EP|PD|Ecart|E\.P|P\.D)[:\s]*(\d+(?:[.,]\d+)?)(?:\s*\/\s*(\d+(?:[.,]\d+)?))?/i;
-    const epMatch = text.match(regexEP);
-
-    // Logic to unify ADD: 
-    // 1. Use specific eye ADD if found.
-    // 2. If not, use global ADD found elsewhere.
-    const globalAddMatch = text.match(regexGlobalADD);
-    const globalAdd = globalAddMatch ? parseOptNum(globalAddMatch[1]) : undefined;
-
-    const extractValues = (match: RegExpMatchArray | null) => {
-        if (!match) return { sph: 0, cyl: 0 };
-
-        // SPH is Group 1
-        const sph = parseNum(match[1]);
-
-        // CYL is Group 2 (parens) OR Group 3 (plain)
-        const cyl = parseNum(match[2] || match[3]);
-
-        // AXE is Group 4 (deg) OR Group 5 (@) OR Group 6 (plain)
-        // Note: For plain axe, we need to be careful it didn't capture a float. regex says \d+ so it's int.
-        const axeVal = match[4] || match[5] || match[6];
-        const axis = axeVal ? parseInt(axeVal) : undefined;
-
-        // ADD is Group 7
-        // Use local ADD if present, else global ADD
-        const localAdd = parseOptNum(match[7]);
-        const add = localAdd !== undefined ? localAdd : globalAdd;
-
-        // PRISM is Group 8
-        const prism = parseOptNum(match[8]);
-
-        // BASE is Group 9
-        const base = match[9];
-
-        return { sph, cyl, axis, add, prism, base };
+        // Find next identifier to close the segment (OD, OG, or ADD)
+        // Use a simpler regex without word boundaries for ADD
+        const nextEye = rest.match(/\b(OD|OG)\b|\sADD\s/i);
+        return nextEye ? rest.substring(0, nextEye.index) : rest.substring(0, 150);
     };
 
-    return {
-        OD: extractValues(odMatch),
-        OG: extractValues(ogMatch),
-        EP: {
-            val: parseNum(epMatch?.[1]),
-            od: parseOptNum(epMatch?.[1]),
-            og: parseOptNum(epMatch?.[2])
+    const odText = findSegment('OD');
+    const ogText = findSegment('OG');
+
+    // 3. Extraction Helper (Keyword or Position-based)
+    const extractFromSegment = (seg: string) => {
+        if (!seg) return { sph: 0, cyl: 0 };
+
+        // Match decimals or integers with optional signs
+        const numbers = seg.match(/[+-]?\s*\d+[.,]?\d*/g);
+        if (!numbers || numbers.length === 0) return { sph: 0, cyl: 0 };
+
+        // Pre-filter/Clean numbers: remove spaces, fix comma
+        const cleanNumbers = numbers
+            .map(v => v.replace(/\s/g, '').replace(',', '.'))
+            .filter(v => v.length > 0 && v !== '+' && v !== '-');
+
+        if (cleanNumbers.length === 0) return { sph: 0, cyl: 0 };
+
+        // SANITY CHECKS: 
+        // 1. A sphere/cyl > 30 is likely a misread ID or date (e.g. 75010)
+        // 2. We take the first 3 logical values (Sph, Cyl, Axe)
+        const vals: number[] = [];
+        for (const s of cleanNumbers) {
+            const n = parseFloat(s);
+            if (isNaN(n)) continue;
+            // Filter out clearly corrupted data (very high numbers)
+            if (Math.abs(n) > 30 && Math.abs(n) <= 180) {
+                // Potential Axis? Let's keep it if it looks like one
+                vals.push(n);
+            } else if (Math.abs(n) <= 30) {
+                vals.push(n);
+            } else {
+                console.warn(`[OCR] Filtered out aberrant value: ${n}`);
+            }
         }
+
+        const sph = vals[0] || 0;
+        let cyl = 0;
+        let axis = undefined;
+
+        if (vals.length > 1) {
+            // If the second value is very high, it might be an axis directly
+            if (Math.abs(vals[1]) > 30 && Math.abs(vals[1]) <= 180) {
+                axis = Math.round(vals[1]);
+            } else {
+                cyl = vals[1];
+            }
+        }
+
+        if (vals.length > 2 && axis === undefined) {
+            const v2 = Math.round(vals[2]);
+            if (v2 >= 0 && v2 <= 180) axis = v2;
+        }
+
+        // Addition lookup (ADD keyword is robust)
+        const addMatch = seg.match(/ADD[\s:]*([+-]?\d+[.,]?\d*)/);
+        const add = addMatch ? parseOptNum(addMatch[1]) : undefined;
+
+        return { sph, cyl, axis, add };
+    };
+
+    // EP Parser (Standalone)
+    const regexEP = /(?:EP|PD|Ecart|E\.P|P\.D)[:\s]*(\d+(?:[.,]\d+)?)(?:\s*\/\s*(\d+(?:[.,]\d+)?))?/i;
+    const epMatch = normalized.match(regexEP);
+
+    // Global Addition lookup if not found in eye segments
+    const regexGlobalADD = /ADD[\s:]*([+-]?\d+[.,]?\d*)/i;
+    const globalAddMatch = normalized.match(regexGlobalADD);
+    const globalAdd = globalAddMatch ? parseOptNum(globalAddMatch[1]) : undefined;
+
+    const odRes = extractFromSegment(odText);
+    const ogRes = extractFromSegment(ogText);
+
+    // Extract date (format: DD.MM.YYYY or DD/MM/YYYY)
+    const dateRegex = /(?:LE\s+)?(\d{1,2})[./](\d{1,2})[./](\d{4})/i;
+    const dateMatch = text.match(dateRegex);
+    let prescriptionDate: string | undefined;
+    if (dateMatch) {
+        const day = dateMatch[1].padStart(2, '0');
+        const month = dateMatch[2].padStart(2, '0');
+        const year = dateMatch[3];
+        prescriptionDate = `${day}/${month}/${year}`;
+    }
+
+    // Extract prescriber (look for "Ophtalmologue" or doctor name before the date)
+    const prescripteurRegex = /(?:VOTRE\s+)?(\w+(?:\s+\w+)?)\s+(?=\d+\s+RUE|LE\s+\d)/i;
+    const prescripteurMatch = text.match(prescripteurRegex);
+    const prescripteur = prescripteurMatch ? prescripteurMatch[1].trim() : undefined;
+
+    return {
+        OD: { ...odRes, add: odRes.add || globalAdd },
+        OG: { ...ogRes, add: ogRes.add || globalAdd },
+        EP: {
+            val: epMatch ? (epMatch[2] ? parseFloat(epMatch[1].replace(',', '.')) + parseFloat(epMatch[2].replace(',', '.')) : parseNum(epMatch[1])) : 0,
+            od: epMatch ? parseOptNum(epMatch[1]) : undefined,
+            og: epMatch ? parseOptNum(epMatch[2]) : undefined
+        },
+        date: prescriptionDate,
+        prescripteur: prescripteur
     };
 }
