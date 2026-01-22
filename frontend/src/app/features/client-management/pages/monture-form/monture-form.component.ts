@@ -1643,6 +1643,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
             // Build summary for user approval
             let summary = 'Données détectées :\n\n';
+            if (parsed.prescripteur) summary += `Prescripteur: ${parsed.prescripteur}\n`;
+            if (parsed.date) summary += `Date: ${parsed.date}\n\n`;
+
             if (hasOD) summary += `OD: ${parsed.OD.sph > 0 ? '+' : ''}${parsed.OD.sph} (${parsed.OD.cyl > 0 ? '+' : ''}${parsed.OD.cyl}) ${parsed.OD.axis ? '@' + parsed.OD.axis + '°' : ''} ${parsed.OD.add ? 'Add ' + parsed.OD.add : ''} \n`;
             if (hasOG) summary += `OG: ${parsed.OG.sph > 0 ? '+' : ''}${parsed.OG.sph} (${parsed.OG.cyl > 0 ? '+' : ''}${parsed.OG.cyl}) ${parsed.OG.axis ? '@' + parsed.OG.axis + '°' : ''} ${parsed.OG.add ? 'Add ' + parsed.OG.add : ''} \n`;
             if (hasEP) summary += `EP: ${parsed.EP.val} mm\n`;
@@ -1656,6 +1659,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 if (parsed.EP) {
                     this.setCorrectionEP(parsed.EP);
                 }
+                // Inject metadata (Date, Prescriber)
+                this.setPrescriptionMeta(parsed);
                 alert('Données importées avec succès !');
                 this.cdr.markForCheck();
             }
@@ -1707,6 +1712,26 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             const half = data.val / 2;
             ordonnanceGroup.get('od.ep')?.setValue(half);
             ordonnanceGroup.get('og.ep')?.setValue(half);
+        }
+    }
+
+    private setPrescriptionMeta(data: any): void {
+        const ordonnanceGroup = this.ficheForm.get('ordonnance');
+        if (!ordonnanceGroup) return;
+
+        if (data.date) {
+            // Convert DD/MM/YYYY to Date object for the datepicker
+            const parts = data.date.split('/');
+            if (parts.length === 3) {
+                const dateObj = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+                if (!isNaN(dateObj.getTime())) {
+                    ordonnanceGroup.get('datePrescription')?.setValue(dateObj);
+                }
+            }
+        }
+
+        if (data.prescripteur) {
+            ordonnanceGroup.get('prescripteur')?.setValue(data.prescripteur);
         }
     }
 
