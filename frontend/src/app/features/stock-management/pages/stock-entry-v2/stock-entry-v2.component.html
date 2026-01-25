@@ -91,6 +91,18 @@
                                     <mat-icon>attach_file</mat-icon> Joindre Document
                                 </button>
 
+                                <!-- OCR Mode Toggle -->
+                                <div class="ocr-mode-selector flex flex-col items-center gap-1 mx-2">
+                                    <mat-slide-toggle color="primary" [(ngModel)]="useIntelligentOcr"
+                                        [ngModelOptions]="{standalone: true}">
+                                        <span class="text-[10px] font-bold uppercase"
+                                            [class.text-purple-600]="useIntelligentOcr">
+                                            {{ useIntelligentOcr ? 'IA (n8n)' : 'Local' }}
+                                        </span>
+                                    </mat-slide-toggle>
+                                    <span class="text-[9px] text-gray-500 italic">OCR Intégral</span>
+                                </div>
+
                                 <!-- Camera Button -->
                                 <button mat-flat-button color="accent" (click)="openCamera()"
                                     *ngIf="!documentForm.get('file')?.value">
@@ -477,6 +489,18 @@
                                 <td mat-cell *matCellDef="let element">
                                     <input [(ngModel)]="element.nom" (input)="updateProduct(element)"
                                         class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5">
+                                </td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="nomClient">
+                                <th mat-header-cell *matHeaderCellDef> Client (BL) </th>
+                                <td mat-cell *matCellDef="let element">
+                                    <div *ngIf="element.nomClient"
+                                        class="flex items-center gap-1 text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded border border-orange-200 uppercase font-black">
+                                        <mat-icon class="text-[12px] h-3 w-3">person</mat-icon>
+                                        {{element.nomClient}}
+                                    </div>
+                                    <span *ngIf="!element.nomClient" class="text-gray-300 text-[10px] italic">N/A</span>
                                 </td>
                             </ng-container>
 

@@ -107,3 +107,16 @@ table.mat-mdc-table {
         color: #ef4444 !important;
     }
 }
+
+// OCR Mode Selector
+.ocr-mode-selector {
+    min-width: 80px;
+
+    ::ng-deep .mat-mdc-slide-toggle-label {
+        margin-bottom: 0px !important;
+    }
+
+    ::ng-deep .mdc-switch:enabled:checked .mdc-switch__track {
+        background-color: #9333ea !important; // Purple-600 for AI
+    }
+}

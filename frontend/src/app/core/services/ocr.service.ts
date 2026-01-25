@@ -1,21 +1,39 @@
 import { Injectable } from '@angular/core';
 import { createWorker } from 'tesseract.js';
 import * as pdfjsLib from 'pdfjs-dist';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable({
     providedIn: 'root'
 })
 export class OcrService {
 
-    constructor() {
+    constructor(private http: HttpClient) {
         // Configure PDF.js worker
         // vital: Ensure version matches the installed package (5.4.530).
         (pdfjsLib as any).GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@5.4.530/build/pdf.worker.min.mjs`;
     }
 
-    async recognizeText(input: File | string): Promise<any> {
+    async recognizeText(input: File | string, forceLocal: boolean = false): Promise<any> {
+        // TENTATIVE AVEC N8N SI CONFIGURÉ ET NON FORCÉ LOCAL
+        if (!forceLocal && input instanceof File && environment.n8nWebhookUrl && !environment.n8nWebhookUrl.includes('REPLACE_WITH')) {
+            try {
+                console.log('🚀 OCR: Attempting intelligent extraction via n8n...');
+                console.log('🔗 OCR: Webhook URL:', environment.n8nWebhookUrl);
+                const n8nResponse = await this.recognizeWithN8n(input);
+                console.log('✅ OCR: n8n response received');
+                return n8nResponse;
+            } catch (err: any) {
+                console.warn('⚠️ OCR: n8n failed, falling back to local Tesseract', err);
+                // Fallback direct vers la logique locale ci-dessous
+            }
+        }
+
         try {
             let imageUrls: string[] = [];
+            // ... (reste de la logique locale existante)
 
             // 1. Determine Input Type and Convert to Image URLs
             if (input instanceof File) {
@@ -372,7 +390,29 @@ export class OcrService {
             !l.designation.toLowerCase().includes('montant')
         );
 
-        console.log(`🔍 OCR Extracted ${result.lines.length} lines.`);
         return result;
+    }
+
+    /**
+     * Appelle le workflow n8n pour une extraction intelligente par IA
+     */
+    async recognizeWithN8n(file: File): Promise<any> {
+        const formData = new FormData();
+        formData.append('data', file); // Use 'data' instead of 'file' to match n8n default
+
+        // Native fetch bypasses Angular interceptors and provides clearer CORS errors
+        const response = await fetch(environment.n8nWebhookUrl, {
+            method: 'POST',
+            body: formData,
+            mode: 'cors',
+            credentials: 'omit' // Vital: specific fix for your CORS error
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Serveur (n8n): ${response.status} ${errorText}`);
+        }
+
+        return await response.json();
     }
 }
