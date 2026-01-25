@@ -39,6 +39,7 @@ import { WarehousesService } from '../../../warehouses/services/warehouses.servi
 import { SelectionModel } from '@angular/cdk/collections';
 import { BulkStockOutDialogComponent } from '../../dialogs/bulk-stock-out-dialog/bulk-stock-out-dialog.component';
 import { BulkStockTransferDialogComponent } from '../../dialogs/bulk-stock-transfer-dialog/bulk-stock-transfer-dialog.component';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
 export interface StagedProduct {
     id?: string; // If existing product found
@@ -59,10 +60,12 @@ export interface StagedProduct {
     margeFixe?: number;
     prixVente: number;
 
-    // Existing Data Helper
     existingStock?: number;
     existingPrixAchat?: number;
     suggestedWAP?: number;
+
+    // IA Detection
+    nomClient?: string; // If detected in BL
 }
 
 @Component({
@@ -87,7 +90,8 @@ export interface StagedProduct {
         MatTooltipModule,
         MatDialogModule,
         MatDatepickerModule,
-        MatMenuModule
+        MatMenuModule,
+        MatSlideToggleModule
     ],
     templateUrl: './stock-entry-v2.component.html',
     styleUrls: ['./stock-entry-v2.component.scss']
@@ -104,11 +108,17 @@ export class StockEntryV2Component implements OnInit {
     // Staging Data
     stagedProducts: StagedProduct[] = [];
     productsSubject = new BehaviorSubject<StagedProduct[]>([]);
-    displayedColumns: string[] = ['codeBarre', 'reference', 'marque', 'nom', 'categorie', 'entrepotId', 'quantite', 'prixAchat', 'tva', 'modePrix', 'prixVente', 'actions'];
+    displayedColumns: string[] = ['codeBarre', 'reference', 'marque', 'nom', 'nomClient', 'categorie', 'entrepotId', 'quantite', 'prixAchat', 'tva', 'modePrix', 'prixVente', 'actions'];
 
     // OCR State
     ocrProcessing = false;
+    ocrError: string | null = null;
     analyzedText = '';
+    useIntelligentOcr = true; // Par défaut, on utilise n8n
+    isIntelligentOcr = false; // Flag to skip manual mapping UI
+    showOcrData = false;
+    detectedLines: any[] = [];
+    suppliersList: any[] = []; // Local cache for OCR matching
 
     // New OCR Logic Properties
     splitLines: any[] = [];
@@ -515,10 +525,6 @@ export class StockEntryV2Component implements OnInit {
         }
     }
 
-    detectedLines: any[] = [];
-    showOcrData = false;
-    ocrError: string | null = null;
-    suppliersList: any[] = []; // Local cache for OCR matching
 
     // --- Legacy OCR Helpers (Removed) ---
 
@@ -532,30 +538,53 @@ export class StockEntryV2Component implements OnInit {
         this.splitLines = [];
 
         try {
-            const result = await this.ocrService.recognizeText(file);
+            const result = await this.ocrService.recognizeText(file, !this.useIntelligentOcr);
 
             if (result.error) {
                 this.ocrError = result.error;
+                // Show specific snackbar for n8n errors to help user
+                if (result.error.includes('n8n')) {
+                    this.snackBar.open(`⚠️ ${result.error}`, 'Vérifier n8n', { duration: 10000 });
+                }
                 return;
             }
 
             this.analyzedText = result.text || '';
+            console.log('📦 OCR: Final result data candidate:', result);
 
-            // Auto-fill header fields
-            if (result.invoiceNumber) this.documentForm.patchValue({ numero: result.invoiceNumber });
-            if (result.invoiceDate) this.documentForm.patchValue({ date: new Date(result.invoiceDate) });
+            // Handle n8n array response wrapper
+            const data = Array.isArray(result) ? result[0] : result;
 
-            if (result.supplierName) {
+            // Auto-fill header fields (Universal support)
+            const invNum = data.invoiceNumber || data.facture?.numero;
+            const invDate = data.invoiceDate || data.facture?.date;
+            const supplier = data.supplierName || data.fournisseur?.nom;
+
+            if (invNum) this.documentForm.patchValue({ numero: invNum });
+            if (invDate) this.documentForm.patchValue({ date: new Date(invDate) });
+
+            if (supplier) {
                 const found = (this.suppliersList || []).find(s =>
-                    s.nom.toLowerCase().includes(result.supplierName.toLowerCase())
+                    s.nom.toLowerCase().includes(supplier.toLowerCase())
                 );
                 if (found) {
                     this.documentForm.patchValue({ fournisseurId: found.id });
-                    this.snackBar.open(`Fournisseur détecté : ${found.nom}`, 'OK', { duration: 3000 });
                 }
             }
 
-            // Extract lines and split into columns with GRANULAR logic
+            // NEW: Handle Intelligent (n8n) Results
+            if (data.articles && data.articles.length > 0) {
+                console.log('✨ OCR: Intelligent (n8n) data detected. Processing articles...');
+                this.isIntelligentOcr = true;
+                this.addIntelligentArticles(data.articles);
+                this.showOcrData = false;
+                this.snackBar.open(`✅ ${data.articles.length} articles extraits par l'IA !`, 'OK', { duration: 5000 });
+                return;
+            }
+
+            this.isIntelligentOcr = false;
+
+            // Extract lines and split into columns with GRANULAR logic (Legacy/Fallback)
             if (result.lines && result.lines.length > 0) {
                 this.splitLines = result.lines.map((line: any) => {
                     const rawText = line.raw || line.description || '';
@@ -794,7 +823,61 @@ export class StockEntryV2Component implements OnInit {
         });
     }
 
-    // --- Camera Logic ---
+    // --- CAMERA / IA BRIDGE ---
+
+    addIntelligentArticles(articles: any[]) {
+        const newProducts: StagedProduct[] = [];
+        const globalWh = this.documentForm.get('entrepotId')?.value;
+        const defaultTva = this.entryForm.get('tva')?.value || 20;
+
+        articles.forEach(art => {
+            // Build designation: "Marque Ref Couleur Calibre/Pont"
+            let des = `${art.marque || ''} ${art.reference || ''}`.trim();
+            if (art.couleur) des += ` ${art.couleur}`;
+
+            // Format size: "54[]17" or "54-17"
+            if (art.calibre || art.pont) {
+                des += ` ${art.calibre || '??'}[]${art.pont || '??'}`;
+            }
+
+            if (!des) des = 'SANS DESIGNATION';
+
+            const pu = art.prix_unitaire || 0;
+            const remise = art.remise || 0;
+            const finalCost = pu * (1 - (remise / 100));
+
+            const product: StagedProduct = {
+                tempId: crypto.randomUUID(),
+                reference: art.reference || 'SANS-REF',
+                marque: art.marque || 'Sans Marque',
+                nom: des,
+                categorie: art.categorie || this.determineCategory(des),
+                nomClient: art.nom_client,
+                entrepotId: globalWh,
+                quantite: art.quantite || 1,
+                prixAchat: parseFloat(finalCost.toFixed(2)),
+                tva: defaultTva,
+                modePrix: 'COEFF',
+                coefficient: 2.5,
+                prixVente: parseFloat((finalCost * 2.5).toFixed(2))
+            };
+
+            newProducts.push(product);
+        });
+
+        this.stagedProducts = [...this.stagedProducts, ...newProducts];
+        this.productsSubject.next(this.stagedProducts);
+    }
+
+    private determineCategory(text: string): string {
+        const lower = text.toLowerCase();
+        if (lower.includes('lent') || lower.includes('lens')) return 'LENTILLE';
+        if (lower.includes('sol')) return 'MONTURE_SOLAIRE';
+        if (lower.includes('verre')) return 'VERRE';
+        if (lower.includes('optique')) return 'MONTURE_OPTIQUE';
+        return 'MONTURE_OPTIQUE'; // Default for most optical invoices
+    }
+
     openCamera() {
         const dialogRef = this.dialog.open(CameraCaptureDialogComponent, {
             width: '800px',
@@ -834,15 +917,6 @@ export class StockEntryV2Component implements OnInit {
         }
     }
 
-    private determineCategory(text: string): string {
-        const lower = text.toLowerCase();
-        if (lower.includes('solaire')) return 'MONTURE_SOLAIRE';
-        if (lower.includes('verre')) return 'VERRE';
-        if (lower.includes('optique')) return 'MONTURE_OPTIQUE';
-        if (lower.includes('lentille')) return 'LENTILLE';
-        // Default fallback changed to ACCESSOIRE per user request
-        return 'ACCESSOIRE';
-    }
 
 
 
