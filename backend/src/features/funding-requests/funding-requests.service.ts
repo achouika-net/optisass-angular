@@ -29,6 +29,16 @@ export class FundingRequestsService {
         });
     }
 
+    async countPending(centreId?: string): Promise<number> {
+        return (this.prisma as any).demandeAlimentation.count({
+            where: {
+                statut: 'EN_ATTENTE',
+                ...(centreId ? { journeeCaisse: { centreId } } : {}),
+            }
+        });
+    }
+
+
     async approve(id: string, validatorId: string) {
         return this.prisma.$transaction(async (tx) => {
             // 1. Get the request

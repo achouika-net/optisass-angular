@@ -658,7 +658,17 @@ export class ProductsService {
 
         const sourceProductId = sd.pendingIncoming.sourceProductId;
         const quantiteRecue = sd.pendingIncoming.quantite || 1;
-        const { pendingIncoming: _, ...cleanedSd } = sd;
+
+        // Don't just delete pendingIncoming, transform it into a history record
+        const { pendingIncoming, ...restSd } = sd;
+        const lastTransferReception = {
+            date: new Date().toISOString(),
+            sourceCentreId: pendingIncoming.sourceCentreId,
+            sourceCentreName: pendingIncoming.sourceCentreName,
+            numeroTransfert: pendingIncoming.numeroTransfert,
+            sourceProductId: pendingIncoming.sourceProductId
+        };
+        const updatedSd = { ...restSd, lastTransferReception };
 
         return this.prisma.$transaction(async (tx) => {
             // Increment local stock
@@ -667,7 +677,7 @@ export class ProductsService {
                 data: {
                     quantiteActuelle: { increment: quantiteRecue },
                     statut: 'DISPONIBLE', // Reset to available upon reception
-                    specificData: cleanedSd
+                    specificData: updatedSd
                 }
             });
 

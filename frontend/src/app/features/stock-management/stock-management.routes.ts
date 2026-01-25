@@ -23,6 +23,10 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/stock-entry-v2/stock-entry-v2.component').then(m => m.StockEntryV2Component)
     },
     {
+        path: 'ocr-import',
+        loadComponent: () => import('./pages/ocr-invoice-import/ocr-invoice-import.component').then(m => m.OcrInvoiceImportComponent)
+    },
+    {
         path: 'history',
         loadComponent: () => import('./pages/stock-entry-history/stock-entry-history-page.component').then(m => m.StockEntryHistoryPageComponent)
     },

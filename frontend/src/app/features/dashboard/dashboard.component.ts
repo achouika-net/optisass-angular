@@ -103,11 +103,37 @@ export class MainDashboardComponent implements OnInit, AfterViewInit, OnDestroy 
             this.charts.push(this.createRevenueChart(data.revenue));
         }
         if (this.distributionChartRef) {
-            this.charts.push(this.createDistributionChart(data.products));
+            // Normalize product types before chart creation
+            const normalizedProducts = this.normalizeProductData(data.products);
+            this.charts.push(this.createDistributionChart(normalizedProducts));
         }
         if (this.paymentChartRef) {
             this.charts.push(this.createPaymentChart(data.payments));
         }
+    }
+
+    private normalizeProductData(data: any[]): any[] {
+        if (!data) return [];
+
+        const aggregated: { [key: string]: number } = {};
+
+        data.forEach(item => {
+            let type = item.type;
+
+            if (['monture', 'Monture', 'MONTURE_OPTIQUE'].includes(type)) {
+                type = 'Monture';
+            }
+
+            if (!aggregated[type]) {
+                aggregated[type] = 0;
+            }
+            aggregated[type] += item.value;
+        });
+
+        return Object.keys(aggregated).map(key => ({
+            type: key,
+            value: aggregated[key]
+        }));
     }
 
     private createRevenueChart(data: any[]): Chart {

@@ -86,7 +86,11 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit {
                 console.log('✅ [Stats] Data loaded successfully:', data);
                 this.summary = data.summary;
                 this.createRevenueChart(data.revenue);
-                this.createProductChart(data.products);
+
+                // Normalisation des types de produits (Monture, monture, MONTURE_OPTIQUE -> Monture)
+                const normalizedProducts = this.normalizeProductData(data.products);
+                this.createProductChart(normalizedProducts);
+
                 this.createConversionChart(data.conversion);
                 this.createStockChart(data.stock);
                 this.createClientsChart(data.clients);
@@ -99,6 +103,32 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit {
                 this.loading = false;
             }
         });
+    }
+
+    private normalizeProductData(data: any[]): any[] {
+        if (!data) return [];
+
+        const aggregated: { [key: string]: number } = {};
+
+        data.forEach(item => {
+            let type = item.type;
+
+            // Normalisation spécifique demandée
+            if (['monture', 'Monture', 'MONTURE_OPTIQUE'].includes(type)) {
+                type = 'Monture';
+            }
+            // On garde les autres types tels quels (ex: MONTURE_SOLAIRE, ACCESSOIRE)
+
+            if (!aggregated[type]) {
+                aggregated[type] = 0;
+            }
+            aggregated[type] += item.value;
+        });
+
+        return Object.keys(aggregated).map(key => ({
+            type: key,
+            value: aggregated[key]
+        }));
     }
 
     private createRevenueChart(data: any[]): void {

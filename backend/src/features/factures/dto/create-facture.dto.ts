@@ -6,6 +6,7 @@ export enum FactureType {
     DEVIS = 'DEVIS',
     AVOIR = 'AVOIR',
     BL = 'BL',
+    BON_COMM = 'BON_COMM',
     PROFORMA = 'PROFORMA'
 }
 

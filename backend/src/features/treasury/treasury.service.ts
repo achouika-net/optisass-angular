@@ -154,15 +154,19 @@ export class TreasuryService {
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value);
 
+        const alerts = await this.getPendingAlerts(centreId);
+
         return {
             month, year, totalExpenses, totalIncoming, totalExpensesCashed, totalIncomingCashed, balance, balanceReal,
             totalScheduled,
             totalIncomingPending: incomingPendingStandard - incomingPendingAvoir,
             totalOutgoingPending,
             monthlyThreshold, categories,
-            incomingCash, incomingCard
+            incomingCash, incomingCard,
+            alerts
         };
     }
+
 
     async getConfig() {
         let config = await this.prisma.financeConfig.findFirst();
@@ -455,4 +459,65 @@ export class TreasuryService {
             data
         });
     }
+
+    async getPendingAlerts(centreId?: string) {
+        const now = new Date();
+        const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        const next48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+
+        const [clientAlerts, supplierAlerts] = await Promise.all([
+            // 1. Client Checks (24h before dateVersement)
+            this.prisma.paiement.findMany({
+                where: {
+                    mode: 'CHEQUE',
+                    statut: 'EN_ATTENTE',
+                    dateVersement: { lte: next24h },
+                    facture: centreId ? { centreId } : {}
+                },
+                include: {
+                    facture: {
+                        include: { client: { select: { nom: true, prenom: true } } }
+                    }
+                }
+            }),
+            // 2. Supplier Checks (48h before dateEcheance)
+            this.prisma.echeancePaiement.findMany({
+                where: {
+                    type: { in: ['CHEQUE', 'LCN'] },
+                    statut: 'EN_ATTENTE',
+                    dateEcheance: { lte: next48h },
+                    ...(centreId ? {
+                        OR: [
+                            { depense: { centreId } },
+                            { factureFournisseur: { centreId } }
+                        ]
+                    } : {})
+                },
+                include: {
+                    factureFournisseur: { include: { fournisseur: { select: { nom: true } } } },
+                    depense: { include: { fournisseur: { select: { nom: true } } } }
+                }
+            })
+        ]);
+
+        return {
+            client: clientAlerts.map(p => ({
+                id: p.id,
+                client: `${p.facture.client?.nom || ''} ${p.facture.client?.prenom || ''}`.trim(),
+                montant: p.montant,
+                date: p.dateVersement,
+                reference: p.reference,
+                numeroFacture: p.facture.numero
+            })),
+            supplier: supplierAlerts.map(e => ({
+                id: e.id,
+                fournisseur: e.factureFournisseur?.fournisseur?.nom || e.depense?.fournisseur?.nom || 'N/A',
+                montant: e.montant,
+                date: e.dateEcheance,
+                reference: e.reference,
+                source: e.factureFournisseur ? 'FACTURE' : 'DEPENSE'
+            }))
+        };
+    }
 }
+

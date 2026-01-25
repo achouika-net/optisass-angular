@@ -75,4 +75,10 @@ export class TreasuryController {
     validateEcheance(@Param('id') id: string, @Body('statut') statut: string) {
         return this.treasuryService.updateEcheanceStatus(id, statut || 'ENCAISSE');
     }
+
+    @Get('pending-alerts')
+    getPendingAlerts(@Query('centreId') centreId?: string) {
+        return this.treasuryService.getPendingAlerts(centreId);
+    }
 }
+

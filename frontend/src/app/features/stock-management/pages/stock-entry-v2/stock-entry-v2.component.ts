@@ -22,6 +22,7 @@ import { catchError, debounceTime, distinctUntilChanged, shareReplay, switchMap,
 import { Product, ProductType, ProductFilters, StockStats } from '../../../../shared/interfaces/product.interface';
 import { Entrepot } from '../../../../shared/interfaces/warehouse.interface';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatMenuModule } from '@angular/material/menu';
 import { StockAlimentationDialogComponent, AlimentationResult } from '../../components/stock-alimentation-dialog/stock-alimentation-dialog.component';
 import { StockAlimentationService, BulkAlimentationPayload } from '../../services/stock-alimentation.service';
 import { CeilingWarningDialogComponent } from '../../../finance/components/ceiling-warning-dialog/ceiling-warning-dialog.component';
@@ -85,7 +86,8 @@ export interface StagedProduct {
         MatSnackBarModule,
         MatTooltipModule,
         MatDialogModule,
-        MatDatepickerModule
+        MatDatepickerModule,
+        MatMenuModule
     ],
     templateUrl: './stock-entry-v2.component.html',
     styleUrls: ['./stock-entry-v2.component.scss']
@@ -107,6 +109,26 @@ export class StockEntryV2Component implements OnInit {
     // OCR State
     ocrProcessing = false;
     analyzedText = '';
+
+    // New OCR Logic Properties
+    splitLines: any[] = [];
+    maxColumns = 0;
+    columnMappings: { [key: number]: string } = {};
+    detectedLeft: any[] = []; // Compat
+
+    // Add missing properties for new OCR
+    columnTypes = [
+        { value: 'code', label: 'Code' },
+        { value: 'marque', label: 'Marque' },
+        { value: 'reference', label: 'Référence/Modèle' },
+        { value: 'designation', label: 'Désignation' },
+        { value: 'categorie', label: 'Catégorie' },
+        { value: 'quantity', label: 'Quantité' },
+        { value: 'prixUnitaire', label: 'Prix Unitaire' },
+        { value: 'remise', label: 'Remise (%)' },
+        { value: 'prixRemise', label: 'Prix Remisé' },
+        { value: 'ignore', label: '-- Ignorer --' }
+    ];
 
     // Search State
     foundProduct: any = null;
@@ -498,115 +520,244 @@ export class StockEntryV2Component implements OnInit {
     ocrError: string | null = null;
     suppliersList: any[] = []; // Local cache for OCR matching
 
-    private isValidProductLine(line: any): boolean {
-        const raw = (line.raw || '').trim();
-        const text = (line.designation || line.raw || '').toLowerCase();
+    // --- Legacy OCR Helpers (Removed) ---
 
-        // 1. Force Allow if starts with a long numeric sequence (Barcode/Ref)
-        // Optician invoices often start with EAN-13 or internal codes.
-        const startsWithCode = /^\d{8,14}/.test(raw);
-        if (startsWithCode) return true;
-
-        // 2. Exclude headers/metadata/footers
-        const keywordsToExclude = [
-            'bl n°', 'bon de livraison', 'facture n°', 'date', 'page',
-            'total ht', 'total ttc', 'montant tva', 'arrête la présente',
-            'net à payer', 'téléphone', 'ice', 'siège', 'capital', 'r.c',
-            'total à reporter', 'à reporter', 'montant ht', 'net a payer', 'total net',
-            'service - sérieux - satisfaction'
-        ];
-
-        if (keywordsToExclude.some(k => text.includes(k))) {
-            console.warn('[OCR] Filtering out metadata line:', line.raw);
-            return false;
-        }
-
-        // 3. Contextual noise (Logo/Company info) - Only if not a product line
-        if (text.includes('contrast') || text.includes('lens')) {
-            if (text.includes('galerie') || text.includes('casablanca') || text.includes('maroc')) {
-                return false;
-            }
-        }
-
-        // 4. Short Junk Filter
-        if (text.length < 5 && !line.reference && !line.qty) {
-            console.warn('[OCR] Filtering out short junk line:', line.raw);
-            return false;
-        }
-
-        return true;
-    }
+    // --- OCR Logic (Granular Split & Cleanup) ---
+    // User Request: Migrate granular logic from ocr-invoice-import to here
 
     async processOCR(file: File) {
         this.ocrProcessing = true;
-        this.detectedLines = [];
-        this.analyzedText = '';
         this.ocrError = null;
+        this.detectedLines = [];
+        this.splitLines = [];
 
         try {
-            // Pass file directly; service handles PDF/Image logic
             const result = await this.ocrService.recognizeText(file);
 
             if (result.error) {
                 this.ocrError = result.error;
+                return;
             }
 
-            this.analyzedText = result.rawText;
-            this.detectedLines = (result.lines || []).filter((line: any) => this.isValidProductLine(line));
-            this.showOcrData = true;
+            this.analyzedText = result.text || '';
 
-            if (!result.error) {
-                this.snackBar.open('Analyse terminée. Vérifiez les données détectées.', 'OK', { duration: 3000 });
-            }
+            // Auto-fill header fields
+            if (result.invoiceNumber) this.documentForm.patchValue({ numero: result.invoiceNumber });
+            if (result.invoiceDate) this.documentForm.patchValue({ date: new Date(result.invoiceDate) });
 
-            if (result.date) {
-                const detected = new Date(result.date);
-                const current = new Date();
-                const isDifferentMonth = detected.getMonth() !== current.getMonth() || detected.getFullYear() !== current.getFullYear();
-
-                this.documentForm.patchValue({ date: result.date });
-
-                if (isDifferentMonth) {
-                    this.snackBar.open(`⚠️ Date détectée: ${detected.toLocaleDateString()}. Vérifiez si elle est correcte !`, 'COMPRIS', { duration: 8000 });
-                } else {
-                    this.snackBar.open(`Date document mise à jour: ${detected.toLocaleDateString()}`, 'OK', { duration: 3000 });
-                }
-            }
-
-            // Patch Invoice Number
-            if (result.invoiceNumber) {
-                this.documentForm.patchValue({ numero: result.invoiceNumber });
-                console.log('[OCR] Invoice Number Patched:', result.invoiceNumber);
-            }
-
-            // Patch Supplier (Fuzzy Match or Create)
             if (result.supplierName) {
-                const search = result.supplierName.toLowerCase();
-                const match = this.suppliersList.find(s =>
-                    s.nom.toLowerCase().includes(search) || search.includes(s.nom.toLowerCase())
+                const found = (this.suppliersList || []).find(s =>
+                    s.nom.toLowerCase().includes(result.supplierName.toLowerCase())
                 );
-
-                if (match) {
-                    this.documentForm.patchValue({ fournisseurId: match.id });
-                    this.snackBar.open(`Fournisseur détecté : ${match.nom}`, 'OK', { duration: 3000 });
-                } else {
-                    console.warn('[OCR] Supplier name detected but not found in list. Creating...', result.supplierName);
-                    this.createAndSelectSupplier(result.supplierName);
+                if (found) {
+                    this.documentForm.patchValue({ fournisseurId: found.id });
+                    this.snackBar.open(`Fournisseur détecté : ${found.nom}`, 'OK', { duration: 3000 });
                 }
             }
 
-            // Auto-open OCR panel if lines found
-            if (this.detectedLines.length > 0) {
-                // Logic handled in template via *ngIf
+            // Extract lines and split into columns with GRANULAR logic
+            if (result.lines && result.lines.length > 0) {
+                this.splitLines = result.lines.map((line: any) => {
+                    const rawText = line.raw || line.description || '';
+                    let columns: string[] = [];
+
+                    // Default: Simple Space Splitting Strategy
+                    columns = rawText.trim().split(/\s+/).filter((c: string) => c.trim());
+
+                    // CLEANUP: Remove common OCR noise artifacts from EACH column
+                    // Removes: ] ) } | from start and end
+                    columns = columns.map(c => c.replace(/^[\]\)}|]+|[\]\)}|]+$/g, ''));
+
+                    // Fallback
+                    if (columns.length === 0) columns = [rawText];
+
+                    return {
+                        columns: columns,
+                        originalLine: line,
+                        raw: rawText
+                    };
+                });
+
+                // Calculate max columns
+                this.maxColumns = Math.max(...this.splitLines.map(l => l.columns.length));
+                this.initializeDefaultMappings();
+                this.showOcrData = true;
             }
 
+            this.snackBar.open(`✅ Analyse terminée : ${this.splitLines.length} ligne(s) brute(s) détectée(s)`, 'OK', {
+                duration: 3000
+            });
 
-        } catch (err) {
+        } catch (err: any) {
             console.error('OCR Failed', err);
-            this.snackBar.open('Erreur lors de l\'analyse du document', 'Fermer');
+            this.ocrError = err.message || 'Erreur lors de l\'analyse OCR';
+            this.snackBar.open('❌ Erreur OCR : ' + this.ocrError, 'Fermer');
         } finally {
             this.ocrProcessing = false;
         }
+    }
+
+    initializeDefaultMappings() {
+        this.columnMappings = {};
+        if (this.maxColumns >= 5) {
+            this.columnMappings[0] = 'code';
+            this.columnMappings[1] = 'marque';
+            this.columnMappings[2] = 'reference';
+            this.columnMappings[this.maxColumns - 1] = 'prixUnitaire';
+            this.columnMappings[this.maxColumns - 2] = 'remise';
+        } else {
+            this.columnMappings[0] = 'code';
+            this.columnMappings[1] = 'designation';
+            if (this.maxColumns > 2) {
+                this.columnMappings[this.maxColumns - 1] = 'prixUnitaire';
+            }
+        }
+    }
+
+    reSplit(strategy: 'spaces' | 'smart' | 'tabs') {
+        if (!this.splitLines || this.splitLines.length === 0) return;
+
+        console.log('Re-splitting with strategy:', strategy);
+        this.splitLines = this.splitLines.map(line => {
+            const rawText = line.raw;
+            let columns: string[] = [];
+
+            if (strategy === 'spaces') {
+                columns = rawText.trim().split(/[\s\u00A0]+/).filter((c: string) => c.trim().length > 0);
+            }
+            else if (strategy === 'tabs') {
+                columns = rawText.split('\t').map((c: string) => c.trim()).filter((c: string) => c);
+            }
+            else { // Smart (basic fallback)
+                columns = rawText.split(/\s{3,}/).map((c: string) => c.trim()).filter((c: string) => c);
+            }
+
+            // CLEANUP noise
+            columns = columns.map(c => c.replace(/^[\]\)}|]+|[\]\)}|]+$/g, ''));
+            if (columns.length === 0) columns = [rawText];
+
+            return { ...line, columns: columns };
+        });
+
+        this.maxColumns = Math.max(...this.splitLines.map(l => l.columns.length));
+        this.initializeDefaultMappings();
+        this.snackBar.open(`Redécoupage effectué : ${strategy}`, 'OK', { duration: 2000 });
+    }
+
+    getColumnArray(): number[] {
+        return Array.from({ length: this.maxColumns }, (_, i) => i);
+    }
+
+    removeLine(index: number) {
+        this.splitLines.splice(index, 1);
+    }
+
+    trackByIndex(index: number, obj: any): any {
+        return index;
+    }
+
+    // --- NEW BRIDGE: Apply Mapping -> Basket ---
+    applyMappingsToBasket() {
+        const newProducts: StagedProduct[] = [];
+        const globalWh = this.documentForm.get('entrepotId')?.value;
+        const defaultTva = this.entryForm.get('tva')?.value || 20;
+
+        let addedCount = 0;
+
+        this.splitLines.forEach(splitLine => {
+            const mapped: any = {
+                designation: '',
+                quantity: 1,
+                price: 0,
+                code: '',
+                reference: '',
+                marque: '',
+                remise: 0
+            };
+
+            // 1. Extract values based on mapping
+            splitLine.columns.forEach((col: string, index: number) => {
+                const mapping = this.columnMappings[index];
+                if (!mapping || mapping === 'ignore') return;
+
+                switch (mapping) {
+                    case 'code': mapped.code = col; break;
+                    case 'marque': mapped.marque = col; break;
+                    case 'reference': mapped.reference = col; break;
+                    case 'designation': mapped.designation = (mapped.designation ? mapped.designation + ' ' : '') + col; break;
+                    case 'quantity':
+                        mapped.quantity = parseFloat(col.replace(/[^\d.,]/g, '').replace(',', '.')) || 1;
+                        break;
+                    case 'prixUnitaire':
+                        mapped.price = parseFloat(col.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+                        break;
+                    case 'remise':
+                        // Allow % for discount
+                        mapped.remise = parseFloat(col.replace(/[^\d.,%]/g, '').replace(',', '.')) || 0;
+                        break;
+                    case 'prixRemise':
+                        mapped.prixRemise = parseFloat(col.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+                        break;
+                }
+            });
+
+            // 2. Strict Designation Construction (User Request)
+            const parts: string[] = [];
+            if (mapped.marque && mapped.marque.trim()) parts.push(mapped.marque.trim());
+            if (mapped.reference && mapped.reference.trim()) parts.push(mapped.reference.trim());
+
+            if (parts.length > 0) {
+                mapped.designation = parts.join(' ');
+            } else {
+                // Only fallback if no structural info at all
+                if (!mapped.designation) mapped.designation = splitLine.raw;
+            }
+
+            // 3. Create Staged Product
+            // Auto-detect category
+            const categorie = this.determineCategory(mapped.designation || '');
+
+            // Calculate final cost if discount exists
+            let finalCost = mapped.price;
+            if (mapped.remise > 0) {
+                // heuristic: if remise > 1, assume percent ? Usually in invoices it is percent.
+                // If it is small (0.x), maybe it is coef? Let's assume % for now as per label.
+                finalCost = finalCost * (1 - (mapped.remise / 100));
+            }
+
+            const product: StagedProduct = {
+                tempId: crypto.randomUUID(),
+                reference: mapped.reference || 'SANS-REF',
+                codeBarre: mapped.code,
+                nom: mapped.designation,
+                marque: mapped.marque || 'Sans Marque',
+                categorie: categorie,
+                entrepotId: globalWh,
+                quantite: mapped.quantity,
+                prixAchat: parseFloat(finalCost.toFixed(2)),
+                tva: defaultTva,
+                modePrix: 'COEFF',
+                coefficient: 2.5,
+                margeFixe: 0,
+                prixVente: parseFloat((finalCost * 2.5).toFixed(2))
+            };
+
+            newProducts.push(product);
+            addedCount++;
+        });
+
+        // Add to basket
+        this.stagedProducts = [...this.stagedProducts, ...newProducts];
+        this.productsSubject.next(this.stagedProducts);
+
+        // Close OCR panel or clear it?
+        // Let's keep it visible or hide it? User might want to re-scan.
+        // Let's clear splitLines to indicate "Done"
+        this.detectedLines = []; // Clear old compat
+        this.splitLines = [];
+        this.showOcrData = false;
+
+        this.snackBar.open(`${addedCount} articles ajoutés au panier !`, 'OK', { duration: 3000 });
     }
 
     createAndSelectSupplier(name: string) {
@@ -693,114 +844,8 @@ export class StockEntryV2Component implements OnInit {
         return 'ACCESSOIRE';
     }
 
-    useDetectedLine(line: any) {
-        // Use structured fields if available, otherwise fallback to raw logic
-        const finalPrice = line.computedPrice || (line.priceCandidates && line.priceCandidates[0]) || 0;
-        // MAPPING UPDATE:
-        // User requested:
-        // 1. Code detected in invoice -> Code Barre (UI: "Code")
-        // 2. Ref detected (shortened) -> Reference (UI: "Reference")
-        // 3. Brand -> Marque
-        // 4. Designation -> Nom (Full)
-
-        let codeBarre = line.code || '';
-        let reference = line.reference || '';
-        let marque = line.brand || '';
-        let nom = line.designation || line.raw || '';
-
-        // Fallback: If no code detected, check if we can infer it
-        const isBarcode = (str: string) => /^\d{8}$|^\d{12,14}$/.test(str?.trim());
-
-        if (!codeBarre && isBarcode(line.raw)) {
-            codeBarre = line.raw.trim();
-        }
-
-        // Auto-detect category
-        const categorie = this.determineCategory(line.raw || '');
-
-        this.entryForm.patchValue({
-            reference: reference,
-            codeBarre: codeBarre,
-            nom: nom,
-            marque: marque,
-            categorie: categorie,
-            quantite: line.qty || 1,
-            prixAchat: finalPrice,
-            tva: 20
-        });
-
-        // Trigger price verification
-        this.entryForm.markAsDirty();
-    }
 
 
-    addAllDetectedLines() {
-        const newProducts: StagedProduct[] = [];
-
-        // Create a cleaner function to remove detected values from name
-        const cleanDesignation = (text: string, ref: string, qty: number, price: number, disc: number) => {
-            let t = text;
-            if (ref) t = t.replace(ref, '').trim();
-            const valuesToStrip = [qty.toString(), price.toFixed(2), disc.toFixed(2), disc.toString()];
-            valuesToStrip.forEach(v => {
-                if (v && v !== '0') {
-                    const escaped = v.replace(/\./g, '\\.');
-                    t = t.replace(new RegExp('\\s+' + escaped + '(%|f|DH|MAD)?', 'gi'), '');
-                }
-            });
-            return t.trim();
-        };
-
-        const defaultTva = this.entryForm.get('tva')?.value || 20;
-
-        console.log(`[OCR] Bulk adding ${this.detectedLines.length} lines.`, this.detectedLines);
-        this.detectedLines.forEach((line, index) => {
-            try {
-                const prixAchat = line.computedPrice || (line.priceCandidates && line.priceCandidates[0]) || 0;
-
-                // MAPPING UPDATE FOR BULK ADD:
-                const codeBarre = line.code || '';
-                const reference = line.reference || '';
-                const marque = line.brand || '';
-                const nom = line.designation || line.raw || ''; // Full designation as requested
-
-                // Auto-detect category
-                const categorie = this.determineCategory(line.raw || '');
-                const globalWh = this.documentForm.get('entrepotId')?.value;
-
-                const product: StagedProduct = {
-                    tempId: crypto.randomUUID(),
-                    reference: reference || 'SANS-REF',
-                    codeBarre: codeBarre,
-                    nom: nom,
-                    marque: marque || 'Sans Marque',
-                    categorie: categorie,
-                    entrepotId: globalWh,
-                    quantite: line.qty || 1,
-                    prixAchat: prixAchat,
-                    tva: defaultTva,
-                    modePrix: 'COEFF',
-                    coefficient: 2.5,
-                    margeFixe: 0,
-                    prixVente: parseFloat((prixAchat * 2.5).toFixed(2))
-                };
-
-                newProducts.push(product);
-
-
-            } catch (err) {
-                console.error(`[OCR] Fatal error processing line ${index}:`, err, line);
-            }
-        });
-
-        this.stagedProducts = [...this.stagedProducts, ...newProducts];
-        this.productsSubject.next(this.stagedProducts);
-        this.snackBar.open(`${newProducts.length} articles ajoutés au panier`, 'OK', { duration: 3000 });
-
-        // Clear results after successful bulk addition
-        this.detectedLines = [];
-        this.showOcrData = false;
-    }
 
     // --- BULK OPERATIONS LOGIC ---
 
@@ -1087,5 +1132,12 @@ export class StockEntryV2Component implements OnInit {
                     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
                     .join(' ');
         }
+    }
+
+    parseInputPrice(value: any): number {
+        if (!value) return 0;
+        // Replace comma with dot and remove spaces
+        const cleaned = value.toString().replace(/\s/g, '').replace(',', '.');
+        return parseFloat(cleaned) || 0;
     }
 }

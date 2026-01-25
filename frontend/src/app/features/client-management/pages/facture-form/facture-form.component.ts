@@ -18,8 +18,10 @@ import { MatDialog } from '@angular/material/dialog';
 import { FactureService } from '../../services/facture.service';
 import { PaiementService } from '../../services/paiement.service';
 import { PaymentDialogComponent, Payment } from '../../dialogs/payment-dialog/payment-dialog.component';
+import { StockConflictDialogComponent } from '../../dialogs/stock-conflict-dialog/stock-conflict-dialog.component';
 import { LoyaltyService } from '../../services/loyalty.service';
 import { ClientManagementService } from '../../services/client.service';
+import { ProductService } from '../../../stock-management/services/product.service';
 import { numberToFrench } from '../../../../utils/number-to-text';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector, UserSelector } from '../../../../core/store/auth/auth.selectors';
@@ -57,6 +59,8 @@ export class FactureFormComponent implements OnInit {
     @Input() isReadonly = false;
     @Output() onSaved = new EventEmitter<any>();
     @Output() onCancelled = new EventEmitter<void>();
+    @Output() paymentAdded = new EventEmitter<void>();
+
 
     form: FormGroup;
     id: string | null = null;
@@ -89,6 +93,7 @@ export class FactureFormComponent implements OnInit {
         private paiementService: PaiementService,
         private loyaltyService: LoyaltyService,
         private clientService: ClientManagementService,
+        private productService: ProductService,
         private snackBar: MatSnackBar,
         private dialog: MatDialog,
         private store: Store
@@ -219,10 +224,18 @@ export class FactureFormComponent implements OnInit {
             const clientId = params['clientId'];
             const type = params['type'];
             const sourceFactureId = params['sourceFactureId'];
+            const ficheId = params['ficheId'];
+            const returnTo = params['returnTo'];
+
+            // Store returnTo for later use
+            if (returnTo) {
+                (this as any).returnToUrl = returnTo;
+            }
 
             const patchData: any = {};
             if (clientId) patchData.clientId = clientId;
             if (type) patchData.type = type;
+            if (ficheId) patchData.ficheId = ficheId;
 
             if (Object.keys(patchData).length > 0) {
                 this.form.patchValue(patchData);
@@ -326,7 +339,8 @@ export class FactureFormComponent implements OnInit {
     loadFacture(id: string) {
         this.factureService.findOne(id).subscribe({
             next: (facture) => {
-                console.log('📄 Loaded facture:', facture);
+                console.log('📄 [FactureForm] Loaded facture:', facture.numero, '| ID:', facture.id);
+                this.id = facture.id; // CRITICAL FIX: Update internal ID to stop showing 'Nouveau Document'
                 console.log('📋 Nomenclature:', facture.proprietes?.nomenclature);
 
                 this.form.patchValue({
@@ -444,13 +458,14 @@ export class FactureFormComponent implements OnInit {
 
                 // IMPORTANT: Update form with returned data (Official Number, New Status, etc.)
                 // This handles the Draft -> Valid ID swap seamlessly
-                if (facture.numero !== this.form.get('numero')?.value) {
+                if (facture.numero !== this.form.get('numero')?.value || facture.type !== this.form.get('type')?.value) {
                     this.form.patchValue({
                         numero: facture.numero,
                         statut: facture.statut,
-                        // Update other fields if backend normalized them
+                        type: facture.type
                     }, { emitEvent: false });
                 }
+
 
                 if (showNotification) {
                     this.snackBar.open('Document enregistré avec succès', 'Fermer', { duration: 3000 });
@@ -460,11 +475,19 @@ export class FactureFormComponent implements OnInit {
                 } else if (!this.id || this.id === 'new') { // This condition will now be false for 'this.id'
                     // logic adjusted below
                 }
+
                 // Navigation logic for standalone mode
-                if (!this.embedded && this.id !== this.route.snapshot.paramMap.get('id')) {
-                    this.router.navigate(['/p/clients/factures', this.id], { replaceUrl: true });
+                if (!this.embedded) {
+                    // Check if we should return to a specific URL (e.g., medical file)
+                    const returnToUrl = (this as any).returnToUrl;
+                    if (returnToUrl) {
+                        this.router.navigateByUrl(returnToUrl);
+                    } else if (this.id !== this.route.snapshot.paramMap.get('id')) {
+                        this.router.navigate(['/p/clients/factures', this.id], { replaceUrl: true });
+                    }
                 }
                 return facture;
+
             }),
             catchError(err => {
                 if (err.status === 409) {
@@ -515,24 +538,33 @@ export class FactureFormComponent implements OnInit {
         }
 
         const currentStatut = this.form.get('statut')?.value;
+        const currentType = this.form.get('type')?.value;
         if (currentStatut === 'BROUILLON') {
             this.snackBar.open('La facture doit être validée ou au moins au stade de Devis avant paiement', 'Fermer', { duration: 3000 });
             return;
         }
 
-        const dialogRef = this.dialog.open(PaymentDialogComponent, {
-            maxWidth: '90vw',
-            data: {
-                resteAPayer: this.resteAPayer,
-                client: this.client
-            }
-        });
+        const proceed = () => {
+            const dialogRef = this.dialog.open(PaymentDialogComponent, {
+                maxWidth: '90vw',
+                data: {
+                    resteAPayer: this.resteAPayer,
+                    client: this.client
+                }
+            });
 
-        dialogRef.afterClosed().subscribe((payment: Payment) => {
-            if (payment) {
-                this.createPayment(payment);
-            }
-        });
+            dialogRef.afterClosed().subscribe((payment: Payment) => {
+                if (payment) {
+                    this.createPayment(payment);
+                }
+            });
+        };
+
+        if (currentType === 'DEVIS') {
+            this.checkStockAndProceed(proceed);
+        } else {
+            proceed();
+        }
     }
 
     createPayment(payment: Payment) {
@@ -549,7 +581,9 @@ export class FactureFormComponent implements OnInit {
                 this.snackBar.open('Paiement enregistré', 'Fermer', { duration: 3000 });
                 // Reload facture to get updated status and remaining amount
                 this.loadFacture(this.id!);
+                this.paymentAdded.emit();
             },
+
             error: (err) => {
                 console.error('Error creating payment:', err);
                 this.snackBar.open('Erreur lors de l\'enregistrement du paiement', 'Fermer', { duration: 3000 });
@@ -621,8 +655,156 @@ export class FactureFormComponent implements OnInit {
     get canExchange(): boolean {
         const type = this.form.get('type')?.value;
         const statut = this.form.get('statut')?.value;
-        return type === 'FACTURE' && (statut === 'VALIDE' || statut === 'PAYEE' || statut === 'PARTIEL');
+        // [MODIFIED] Only validated invoices/BC can be exchanged
+        const isOfficial = (type === 'FACTURE' || type === 'BON_COMM' || type === 'BL') && (statut === 'VALIDE' || statut === 'PAYEE' || statut === 'PARTIEL');
+        return isOfficial && this.id !== 'new';
     }
+
+    async transformToBC() {
+        if (!confirm('Voulez-vous transformer ce devis en BON DE COMMANDE ?')) return;
+        this.checkStockAndProceed(() => {
+            this.form.patchValue({
+                type: 'BON_COMM',
+                statut: 'VENTE_EN_INSTANCE'
+            });
+
+            this.saveAsObservable().subscribe({
+                next: (res) => {
+                    if (res) {
+                        this.snackBar.open('Document transformé en BON DE COMMANDE', 'OK', { duration: 3000 });
+                    }
+                },
+                error: (err) => {
+                    console.error('Error transforming to BC:', err);
+                    this.snackBar.open('Erreur: ' + (err.error?.message || 'Erreur serveur'), 'Fermer', { duration: 5000 });
+                }
+            });
+        });
+    }
+
+    private checkStockAndProceed(proceedCallback: () => void) {
+        if (!this.id || this.id === 'new') {
+            proceedCallback();
+            return;
+        }
+
+        this.factureService.checkAvailability(this.id).subscribe({
+            next: (check) => {
+                if (check.hasConflicts) {
+                    const dialogRef = this.dialog.open(StockConflictDialogComponent, {
+                        width: '900px',
+                        data: { conflicts: check.conflicts }
+                    });
+
+                    dialogRef.afterClosed().subscribe(result => {
+                        if (!result) return;
+
+                        if (result.action === 'TRANSFER_REQUEST') {
+                            // Handle transfer request
+                            this.initiateTransfer(result.productId, result.sourceCentreId, result.targetCentreId);
+                        } else if (result.action === 'REPLACE') {
+                            this.snackBar.open('Veuillez modifier le document pour remplacer le produit.', 'OK', { duration: 5000 });
+                        } else if (result.action === 'CANCEL_SALE') {
+                            this.onCancelled.emit();
+                        }
+                    });
+                } else {
+                    proceedCallback();
+                }
+            },
+            error: (err) => {
+                console.error('Error checking stock availability:', err);
+                this.snackBar.open('Erreur lors de la vérification du stock. Opération annulée.', 'Fermer', { duration: 5000 });
+            }
+        });
+    }
+
+    private initiateTransfer(productId: string, sourceCentreId: string, targetCentreId: string) {
+        // Find the specific products for source and target
+        this.productService.findAll({ global: true }).subscribe(allProducts => {
+            const sourceProduct = allProducts.find(p => p.id === productId || (p.entrepot?.centreId === sourceCentreId && (p.designation === this.lignes.getRawValue().find((l: any) => l.productId === productId)?.description)));
+            const targetProduct = allProducts.find(p => p.entrepot?.centreId === targetCentreId && (p.designation === sourceProduct?.designation));
+
+            if (sourceProduct && targetProduct) {
+                this.productService.initiateTransfer(sourceProduct.id, targetProduct.id, 1).subscribe({
+                    next: () => {
+                        this.snackBar.open(`Demande de transfert envoyée pour ${sourceProduct.designation}`, 'OK', { duration: 5000 });
+                        this.dialog.closeAll(); // Close the conflict dialog
+                    },
+                    error: (err) => {
+                        console.error('Error initiating transfer:', err);
+                        this.snackBar.open('Erreur lors de la demande de transfert', 'Fermer', { duration: 5000 });
+                    }
+                });
+            } else {
+                this.snackBar.open('Impossible de localiser les produits pour le transfert.', 'Fermer', { duration: 5000 });
+            }
+        });
+    }
+
+
+    async transformToFacture() {
+        if (!confirm('Voulez-vous transformer ce document en FACTURE officielle ?')) return;
+
+        this.checkStockAndProceed(() => {
+            this.form.patchValue({
+                type: 'FACTURE',
+                statut: 'VALIDE'
+            });
+
+            this.saveAsObservable(true, { forceFiscal: true }).subscribe({
+                next: (res) => {
+                    if (res) {
+                        this.snackBar.open('Document transformé en FACTURE (Numérotation officielle)', 'OK', { duration: 3000 });
+                    }
+                },
+                error: (err) => {
+                    console.error('Error transforming to Facture:', err);
+                    this.snackBar.open('Erreur: ' + (err.error?.message || 'Erreur serveur'), 'Fermer', { duration: 5000 });
+                }
+            });
+        });
+    }
+
+
+    async validateSale() {
+        if (!confirm('Voulez-vous VALIDER cette vente ? Le stock sera réservé.')) return;
+
+        this.checkStockAndProceed(() => {
+            const isCurrentlyDevis = this.form.get('type')?.value === 'DEVIS';
+
+            if (isCurrentlyDevis) {
+                // Upgrade to BC
+                this.form.patchValue({
+                    statut: 'VENTE_EN_INSTANCE',
+                    type: 'BON_COMM'
+                });
+            } else {
+                // Already a BC or other, just ensure it's in instance mode if not already validated
+                const currentStatut = this.form.get('statut')?.value;
+                if (!['VALIDE', 'PAYEE', 'PARTIEL'].includes(currentStatut)) {
+                    this.form.patchValue({ statut: 'VENTE_EN_INSTANCE' });
+                }
+            }
+
+            this.saveAsObservable(true, { forceStockDecrement: true }).subscribe({
+                next: (res) => {
+                    if (res) {
+                        const message = isCurrentlyDevis ? 'Vente passée en BON DE COMMANDE (Stock réservé)' : 'Vente mise à jour (Stock réservé)';
+                        this.snackBar.open(message, 'OK', { duration: 3000 });
+                    }
+                },
+                error: (err) => {
+                    console.error('Error validating sale:', err);
+                    this.snackBar.open('Erreur lors de la validation: ' + (err.error?.message || 'Erreur serveur'), 'Fermer', { duration: 5000 });
+                }
+            });
+        });
+    }
+
+
+
+
 
     openExchangeDialog() {
         if (!this.id) return;

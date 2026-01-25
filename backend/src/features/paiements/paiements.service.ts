@@ -1,11 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePaiementDto } from './dto/create-paiement.dto';
 import { UpdatePaiementDto } from './dto/update-paiement.dto';
+import { StockAvailabilityService } from '../factures/stock-availability.service';
 
 @Injectable()
 export class PaiementsService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private stockAvailabilityService: StockAvailabilityService
+    ) { }
 
     async create(createPaiementDto: CreatePaiementDto, userId?: string) {
         const { factureId, montant } = createPaiementDto;
@@ -25,6 +29,18 @@ export class PaiementsService {
             throw new BadRequestException(
                 `Le montant du paiement (${montant}) dépasse le reste à payer (${facture.resteAPayer})`
             );
+        }
+
+        // 2.5 STOCK GUARD: If DEVIS, verify stock before allowing payment (which triggers BC transition)
+        if (facture.type === 'DEVIS') {
+            const stockCheck = await this.stockAvailabilityService.checkAvailability(factureId);
+            if (stockCheck.hasConflicts) {
+                console.error(`❌ [PAIEMENT GUARD] Bloqué car stock insuffisant pour le devis ${facture.numero}`);
+                throw new ConflictException({
+                    message: 'Impossible d\'ajouter un paiement : certains produits sont en rupture de stock. Veuillez résoudre les conflits avant de transformer ce devis en bon de commande.',
+                    conflicts: stockCheck.conflicts
+                });
+            }
         }
 
         // 3. Déterminer le statut par défaut si non fourni
@@ -60,18 +76,63 @@ export class PaiementsService {
 
         // 5. Mettre à jour le reste à payer et le statut de la facture
         const nouveauReste = facture.resteAPayer - montant;
-        const nouveauStatut = nouveauReste === 0 ? 'PAYEE' : 'PARTIEL';
+        const nouveauStatut = nouveauReste <= 0 ? (facture.totalTTC > 0 ? 'PAYEE' : 'VALIDE') : 'PARTIEL';
+
+        const updateData: any = {
+            resteAPayer: nouveauReste,
+            statut: nouveauStatut
+        };
+
+        // [FIX] Standardize transition DEVIS -> BON_COMM
+        if (facture.type === 'DEVIS') {
+            console.log(`📌 [TRANSITION] Devis ${facture.numero} receiving payment. Upgrading to BON_COMM.`);
+            updateData.type = 'BON_COMM';
+            updateData.numero = await this.generateNextNumber('BON_COMM');
+
+            // For BC, we use VENTE_EN_INSTANCE as the base status if not fully paid
+            if (nouveauReste > 0) {
+                updateData.statut = 'PARTIEL'; // Or VENTE_EN_INSTANCE? Backend mapping usually uses PARTIEL for paid.
+                // Actually, let's stick to status derived above but ensure type is BON_COMM
+            }
+        }
+
 
         await this.prisma.facture.update({
             where: { id: factureId },
-            data: {
-                resteAPayer: nouveauReste,
-                statut: nouveauStatut
-            }
+            data: updateData
         });
 
         return paiement;
     }
+
+    private async generateNextNumber(type: 'BON_COMM'): Promise<string> {
+        const year = new Date().getFullYear();
+        const prefix = 'BC';
+
+        // Find last document starting with this prefix for current year
+        const lastDoc = await this.prisma.facture.findFirst({
+            where: {
+                numero: {
+                    startsWith: `${prefix}-${year}`
+                }
+            },
+            orderBy: {
+                numero: 'desc'
+            }
+        });
+
+        let sequence = 1;
+        if (lastDoc) {
+            const parts = lastDoc.numero.split('-');
+            if (parts.length === 3) {
+                const lastSeq = parseInt(parts[2]);
+                if (!isNaN(lastSeq)) sequence = lastSeq + 1;
+            }
+        }
+
+        return `${prefix}-${year}-${sequence.toString().padStart(3, '0')}`;
+    }
+
 
     async handleCaisseIntegration(tx: any, paiement: any, facture: any, userId?: string) {
         const isRefund = paiement.montant < 0;

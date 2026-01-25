@@ -10,6 +10,12 @@ export class FundingRequestsController {
         return this.fundingRequestsService.findAll(centreId);
     }
 
+    @Get('count-pending')
+    countPending(@Query('centreId') centreId?: string) {
+        return this.fundingRequestsService.countPending(centreId);
+    }
+
+
     @Post(':id/approve')
     approve(
         @Param('id') id: string,

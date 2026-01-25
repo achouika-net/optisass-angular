@@ -114,6 +114,53 @@
             </mat-card>
         </div>
 
+        <!-- Alerts Section -->
+        <div class="alert-card"
+            *ngIf="summary?.alerts && (summary.alerts.client?.length || summary.alerts.supplier?.length)">
+            <div class="flex items-center gap-2 mb-4">
+                <mat-icon class="text-red-500">warning</mat-icon>
+                <h2 class="text-lg font-bold text-red-700 m-0">Alertes de Trésorerie (Chèques/LCN à encaisser)</h2>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Client Alerts -->
+                <div *ngIf="summary.alerts.client?.length">
+                    <h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-1">
+                        <mat-icon class="text-xs">person</mat-icon> Encaissables Clients (24h)
+                    </h3>
+                    <div class="alert-item" *ngFor="let alert of summary.alerts.client">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-sm text-gray-800">{{ alert.client }}</span>
+                            <span class="text-xs text-gray-500">Réf: {{ alert.numeroFacture }} - {{ alert.reference
+                                }}</span>
+                        </div>
+                        <div class="flex flex-col items-end">
+                            <span class="font-bold text-red-600">{{ alert.montant | number:'1.2-2' }} DH</span>
+                            <span class="alert-tag tag-24h">{{ alert.date | date:'dd/MM' }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Supplier Alerts -->
+                <div *ngIf="summary.alerts.supplier?.length">
+                    <h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-1">
+                        <mat-icon class="text-xs">store</mat-icon> À Débiter Fournisseurs (48h)
+                    </h3>
+                    <div class="alert-item" *ngFor="let alert of summary.alerts.supplier">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-sm text-gray-800">{{ alert.fournisseur }}</span>
+                            <span class="text-xs text-gray-500">{{ alert.reference }} ({{ alert.source }})</span>
+                        </div>
+                        <div class="flex flex-col items-end">
+                            <span class="font-bold text-orange-600">{{ alert.montant | number:'1.2-2' }} DH</span>
+                            <span class="alert-tag tag-48h">{{ alert.date | date:'dd/MM' }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
         <div class="charts-grid">
             <!-- Dépenses par Catégorie -->
             <mat-card class="chart-card">

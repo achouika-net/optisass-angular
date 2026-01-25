@@ -159,4 +159,17 @@ export class FinanceService {
     rejectFundingRequest(id: string, validatorId: string, remarque?: string): Observable<any> {
         return this.http.post(`${this.apiUrl}/funding-requests/${id}/reject`, { validatorId, remarque });
     }
+
+    getFundingRequestsCount(centreId?: string): Observable<number> {
+        let params = new HttpParams();
+        if (centreId) params = params.set('centreId', centreId);
+        return this.http.get<number>(`${this.apiUrl}/funding-requests/count-pending`, { params });
+    }
+
+    getPendingTreasuryAlerts(centreId?: string): Observable<any> {
+        let params = new HttpParams();
+        if (centreId) params = params.set('centreId', centreId);
+        return this.http.get<any>(`${this.apiUrl}/treasury/pending-alerts`, { params });
+    }
 }
+

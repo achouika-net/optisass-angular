@@ -5,11 +5,39 @@
         <div class="header">
             <div class="title-section">
                 <h2 *ngIf="!id || id === 'new'">Nouveau Document</h2>
-                <h2 *ngIf="id && id !== 'new'">{{form.get('type')?.value}} {{form.get('numero')?.value}}</h2>
+                <h2 *ngIf="id && id !== 'new'">
+                    <span *ngIf="form.get('type')?.value === 'BON_COMM'">BON DE COMMANDE</span>
+                    <span *ngIf="form.get('type')?.value === 'FACTURE'">FACTURE</span>
+                    <span *ngIf="form.get('type')?.value === 'DEVIS'">DEVIS</span>
+                    <span *ngIf="form.get('type')?.value === 'AVOIR'">AVOIR</span>
+                    <span *ngIf="form.get('type')?.value === 'BL'">BON DE LIVRAISON</span>
+                    {{form.get('numero')?.value}}
+                </h2>
+
             </div>
             <div class="actions">
                 <button type="button" mat-stroked-button color="warn" routerLink="/p/clients"
                     *ngIf="!embedded && !isViewMode">Annuler</button>
+
+                <!-- Transition Actions -->
+                <!-- [HIDDEN] Manual "Passer en BC" removed in favor of automatic payment-triggered transition -->
+                <!-- <button type="button" mat-raised-button color="accent" (click)="transformToBC()"
+                    *ngIf="isViewMode && form.get('type')?.value === 'DEVIS' && form.get('statut')?.value === 'BROUILLON'" class="btn-transition no-print">
+                    <mat-icon>receipt</mat-icon> Passer en BC
+                </button> -->
+
+                <button type="button" mat-raised-button color="warn" (click)="transformToFacture()"
+                    *ngIf="isViewMode && (form.get('type')?.value === 'DEVIS' || form.get('type')?.value === 'BON_COMM') && form.get('type')?.value !== 'FACTURE'"
+                    class="btn-transition no-print">
+                    <mat-icon>check_circle</mat-icon> Transformer en Facture
+                </button>
+
+                <!-- "Valider la vente" is only for upgrading a DEVIS to a BC -->
+                <button type="button" mat-raised-button color="primary" (click)="validateSale()"
+                    *ngIf="isViewMode && form.get('type')?.value === 'DEVIS'" class="btn-transition no-print">
+                    <mat-icon>check</mat-icon> Valider la vente
+                </button>
+
 
                 <!-- Exchange Action -->
                 <button type="button" mat-raised-button color="accent" (click)="openExchangeDialog()"
@@ -50,10 +78,12 @@
             <div class="document-summary">
                 <div class="doc-title">
                     <h1 *ngIf="form.get('type')?.value === 'FACTURE'">FACTURE</h1>
+                    <h1 *ngIf="form.get('type')?.value === 'BON_COMM'">BON DE COMMANDE</h1>
                     <h1 *ngIf="form.get('type')?.value === 'DEVIS'">DEVIS</h1>
                     <h1 *ngIf="form.get('type')?.value === 'AVOIR'">AVOIR</h1>
                     <h1 *ngIf="form.get('type')?.value === 'BL'">BON DE LIVRAISON</h1>
                 </div>
+
                 <div class="doc-details">
                     <div class="detail-row">
                         <span class="label">Numéro:</span>
@@ -85,10 +115,13 @@
                     <mat-label>Type de Document</mat-label>
                     <mat-select formControlName="type">
                         <mat-option value="FACTURE">Facture</mat-option>
+                        <mat-option value="BON_COMM">Bon de commande</mat-option>
                         <mat-option value="DEVIS">Devis</mat-option>
                         <mat-option value="AVOIR">Avoir</mat-option>
                         <mat-option value="BL">Bon de Livraison</mat-option>
+                        <mat-option value="PROFORMA">Proforma</mat-option>
                     </mat-select>
+
                 </mat-form-field>
 
                 <!-- Statut -->
@@ -96,9 +129,12 @@
                     <mat-label>Statut</mat-label>
                     <mat-select formControlName="statut">
                         <mat-option value="BROUILLON">Brouillon</mat-option>
+                        <mat-option value="VENTE_EN_INSTANCE">Vente en instance</mat-option>
                         <mat-option value="VALIDE">Validé</mat-option>
                         <mat-option value="PAYEE">Payée</mat-option>
+                        <mat-option value="PARTIEL">Partiel</mat-option>
                         <mat-option value="ANNULEE">Annulée</mat-option>
+
                     </mat-select>
                 </mat-form-field>
 
@@ -115,25 +151,9 @@
                     <mat-datepicker-toggle matIconSuffix [for]="picker" [disabled]="isViewMode"></mat-datepicker-toggle>
                     <mat-datepicker #picker></mat-datepicker>
                 </mat-form-field>
-
-                <!-- Vendeur (Automated Display) -->
-                <div
-                    class="p-3 mt-4 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-between shadow-sm">
-                    <div class="flex items-center gap-3">
-                        <div
-                            class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-200">
-                            <mat-icon>person</mat-icon>
-                        </div>
-                        <div>
-                            <div class="text-[10px] font-black uppercase tracking-widest text-blue-400">Vendeur /
-                                Opticien</div>
-                            <div class="text-sm font-black text-blue-900 leading-tight">
-                                {{ (currentUser$ | async)?.fullName || 'Chargement...' }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
+
+
 
             <mat-divider style="margin: 20px 0"></mat-divider>
 

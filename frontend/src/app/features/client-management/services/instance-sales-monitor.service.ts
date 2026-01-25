@@ -3,7 +3,9 @@ import { BehaviorSubject, Observable, interval, of, forkJoin } from 'rxjs';
 import { startWith, switchMap, tap, map, catchError, take } from 'rxjs/operators';
 import { FactureService } from './facture.service';
 import { ProductService } from '../../stock-management/services/product.service';
+import { FinanceService } from '../../finance/services/finance.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
+
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../core/store/auth/auth.selectors';
@@ -12,6 +14,7 @@ export interface InstanceSale {
     facture: any;
     status: 'IN_TRANSIT' | 'READY' | 'CANCELLED' | 'UNKNOWN';
     products?: any[];
+    wasTransferred?: boolean;
 }
 
 @Injectable({
@@ -22,6 +25,9 @@ export class InstanceSalesMonitorService {
     private readyToValidateCount$ = new BehaviorSubject<number>(0);
     private pendingShipmentCount$ = new BehaviorSubject<number>(0);
     private waitingReceptionCount$ = new BehaviorSubject<number>(0);
+    private fundingRequestCount$ = new BehaviorSubject<number>(0);
+    private portfolioCount$ = new BehaviorSubject<number>(0);
+
 
     private notifiedSales = new Set<string>();
     private notifiedShipments = new Set<string>();
@@ -30,10 +36,12 @@ export class InstanceSalesMonitorService {
     constructor(
         private factureService: FactureService,
         private productService: ProductService,
+        private financeService: FinanceService,
         private snackBar: MatSnackBar,
         private router: Router,
         private store: Store
     ) { }
+
 
     startPolling(): void {
         if (this.isPolling) return;
@@ -46,8 +54,10 @@ export class InstanceSalesMonitorService {
             startWith(0),
             switchMap(() => forkJoin({
                 sales: this.checkInstanceSales(),
-                transfers: this.checkPendingTransfers()
+                transfers: this.checkPendingTransfers(),
+                finance: this.checkFinanceAlerts()
             }))
+
         ).subscribe({
             next: (data) => console.log('✅ Monitor Cycle Complete:', data),
             error: (err) => console.error('❌ Monitor Cycle Error:', err)
@@ -94,6 +104,31 @@ export class InstanceSalesMonitorService {
         );
     }
 
+    private checkFinanceAlerts(): Observable<any> {
+        console.log('🔍 Checking Finance Alerts (Funding/Portfolio)...');
+        return this.store.select(UserCurrentCentreSelector).pipe(
+            take(1),
+            switchMap((center: any) => {
+                const centreId = center?.id;
+                return forkJoin({
+                    funding: this.financeService.getFundingRequestsCount(centreId),
+                    portfolio: this.financeService.getPendingTreasuryAlerts(centreId)
+                }).pipe(
+                    tap(({ funding, portfolio }) => {
+                        this.fundingRequestCount$.next(funding);
+                        const portCount = (portfolio.client?.length || 0) + (portfolio.supplier?.length || 0);
+                        this.portfolioCount$.next(portCount);
+                    }),
+                    catchError(err => {
+                        console.error('❌ Error checking finance alerts:', err);
+                        return of({ funding: 0, portfolio: { client: [], supplier: [] } });
+                    })
+                );
+            })
+        );
+    }
+
+
     private showShipmentNotifications(shipments: any[]): void {
         shipments.forEach(p => {
             const transferId = `${p.id}_ship`;
@@ -112,13 +147,16 @@ export class InstanceSalesMonitorService {
     }
 
     private checkInstanceSales(): Observable<InstanceSale[]> {
-        console.log('🔍 Checking instance sales status...');
-        return this.factureService.findAll({ statut: 'VENTE_EN_INSTANCE' }).pipe(
+        console.log('🔍 Checking instance sales status (All BON_COMM documents)...');
+        return this.factureService.findAll({ type: 'BON_COMM' }).pipe(
             switchMap(factures => {
-                if (factures.length === 0) return of([]);
-                const checks = factures.map(f => this.checkSaleStatus(f));
+                // Filter out cancelled ones just in case
+                const activeFactures = factures.filter(f => f.statut !== 'ANNULEE');
+                if (activeFactures.length === 0) return of([]);
+                const checks = activeFactures.map(f => this.checkSaleStatus(f));
                 return forkJoin(checks);
             }),
+
             tap(sales => {
                 this.instanceSales$.next(sales);
                 const readyCount = sales.filter(s => s.status === 'READY').length;
@@ -174,6 +212,11 @@ export class InstanceSalesMonitorService {
                             (p.entrepot?.centreId === center.id && (p.quantiteActuelle > 0 || p.statut === 'DISPONIBLE'))
                         );
 
+                        // Check if any product has the 'lastTransferReception' tag in its specificData
+                        // This indicates it was received via an inter-center transfer
+                        const wasTransferred = validProducts.some(p => p.specificData?.lastTransferReception);
+
+
                         const someInTransit = validProducts.some(p =>
                             p.statut === 'EN_TRANSIT' ||
                             p.specificData?.pendingIncoming?.status === 'SHIPPED' ||
@@ -192,7 +235,7 @@ export class InstanceSalesMonitorService {
                         else if (cancelled) status = 'CANCELLED';
                         else status = 'UNKNOWN';
 
-                        return ({ facture, status, products: validProducts }) as InstanceSale;
+                        return ({ facture, status, products: validProducts, wasTransferred }) as InstanceSale;
                     })
                 );
             })
@@ -200,7 +243,8 @@ export class InstanceSalesMonitorService {
     }
 
     private showNotificationIfReady(sales: InstanceSale[]): void {
-        const newlyReady = sales.filter(s => s.status === 'READY' && !this.notifiedSales.has(s.facture.id));
+        // Only notify if status is READY AND it was a resulting transfer (wasTransferred = true)
+        const newlyReady = sales.filter(s => s.status === 'READY' && s.wasTransferred && !this.notifiedSales.has(s.facture.id));
         newlyReady.forEach(sale => {
             const snackBarRef = this.snackBar.open(
                 `✅ Produit reçu ! Vente ${sale.facture.numero} prête à valider.`,
@@ -220,9 +264,14 @@ export class InstanceSalesMonitorService {
     refreshNow(): void {
         forkJoin({
             sales: this.checkInstanceSales(),
-            transfers: this.checkPendingTransfers()
+            transfers: this.checkPendingTransfers(),
+            finance: this.checkFinanceAlerts()
         }).subscribe();
     }
+
+    getFundingRequestCount(): Observable<number> { return this.fundingRequestCount$.asObservable(); }
+    getPortfolioCount(): Observable<number> { return this.portfolioCount$.asObservable(); }
+
 
     clearNotification(saleId: string): void { this.notifiedSales.delete(saleId); }
 }

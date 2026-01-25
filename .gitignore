@@ -1,0 +1,46 @@
+# Node.js
+node_modules/
+dist/
+build/
+.next/
+out/
+.npm
+.eslintcache
+
+# Angular
+.angular/
+.sass-cache/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# OS
+.DS_Store
+Thumbs.db
+.history/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project specific
+backend/uploads/
+backend/dist/
+frontend/dist/
+temp_*.html
+remote_branches.txt
+backend/uploads/invoices/*.png
+backend/uploads/invoices/*.jpg
+backend/uploads/invoices/*.jpeg

@@ -219,8 +219,10 @@
                                                 <mat-divider></mat-divider>
                                                 <button mat-menu-item (click)="validateInvoice(invoice)">
                                                     <mat-icon style="color: #10b981 !important;">check_circle</mat-icon>
-                                                    <span>Valider (Passer Commande)</span>
+                                                    <span>Passer Facture (BC → Fact)</span>
                                                 </button>
+
+
                                                 <button mat-menu-item (click)="createAvoir(invoice)">
                                                     <mat-icon
                                                         class="premium-menu-icon-delete">assignment_return</mat-icon>
@@ -336,9 +338,10 @@
                                                 <mat-divider></mat-divider>
                                                 <button mat-menu-item (click)="validateInvoice(invoice)"
                                                     *ngIf="invoice.totalTTC > 0">
-                                                    <mat-icon style="color: #10b981 !important;">check_circle</mat-icon>
-                                                    <span>Valider (Passer Commande)</span>
+                                                    <mat-icon style="color: #6366f1 !important;">receipt</mat-icon>
+                                                    <span>Passer Commande (Devis -> BC)</span>
                                                 </button>
+
                                                 <button mat-menu-item (click)="declareAsGift(invoice)"
                                                     *ngIf="invoice.totalTTC > 0">
                                                     <mat-icon

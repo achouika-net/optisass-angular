@@ -34,7 +34,8 @@ import { InvoiceFormDialogComponent } from '../../../finance/components/invoice-
 import { Product, ProductStatus } from '../../../../shared/interfaces/product.interface';
 import { forkJoin, timer, Subject } from 'rxjs';
 import { Store } from '@ngrx/store';
-import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
+import { UserCurrentCentreSelector, UserSelector } from '../../../../core/store/auth/auth.selectors';
+
 
 
 interface PrescriptionFile {
@@ -81,6 +82,20 @@ interface PrescriptionFile {
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MontureFormComponent implements OnInit, OnDestroy {
+    currentUser$: Observable<any> = this.store.select(UserSelector).pipe(
+        map(user => {
+            if (!user) return null;
+            return {
+                ...user,
+                displayName: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.last_name || user.email
+
+            };
+        }),
+        tap(user => console.log('👤 [MontureForm] Connected User for badge:', user))
+    );
+
+
+
     @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
     @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
     @ViewChild('canvasElement') canvasElement!: ElementRef<HTMLCanvasElement>;
@@ -557,18 +572,33 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
 
     loadLinkedFacture(): void {
-        if (!this.clientId || !this.ficheId) return;
+        if (!this.ficheId || this.ficheId === 'new') {
+            console.log('⏩ [MontureForm] Skipping loadLinkedFacture: ficheId is', this.ficheId);
+            this.linkedFactureSubject.next(null);
+            return;
+        }
 
-        // Find invoice linked to this fiche
-        this.factureService.findAll({ clientId: this.clientId }).subscribe(factures => {
-            const found = factures.find(f => f.ficheId === this.ficheId);
-            if (found) {
-                console.log('🔗 Linked Facture found:', found.numero, '| Status:', found.statut);
-                this.linkedFactureSubject.next(found);
-            } else {
+        console.log('🔍 [MontureForm] Searching for linked facture for ficheId:', this.ficheId);
+
+        // Find invoice linked to this fiche directly using ficheId filter
+        this.factureService.findAll({ ficheId: this.ficheId }).subscribe({
+            next: (factures) => {
+                // Should only be one due to unique constraint, but find just in case
+                const found = factures.find(f => f.ficheId === this.ficheId);
+                if (found) {
+                    console.log('🔗 [MontureForm] Linked Facture found:', found.numero, '| ID:', found.id, '| Status:', found.statut);
+                    this.linkedFactureSubject.next(found);
+                } else {
+                    console.log('❓ [MontureForm] No linked facture found for ficheId:', this.ficheId, '| Candidates:', factures.length);
+                    this.linkedFactureSubject.next(null);
+                }
+            },
+            error: (err) => {
+                console.error('❌ [MontureForm] Error loading linked facture:', err);
                 this.linkedFactureSubject.next(null);
             }
         });
+
 
         // Make reception check reactive to invoice status changes
         this.linkedFacture$.pipe(
@@ -1442,12 +1472,30 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     }
 
     goBack(): void {
+        // [RESTORED] Exit Advice Logic
+        const currentFacture = this.linkedFactureSubject.value;
+        const invoiceLines = this.getInvoiceLines();
+        const productsWithStock = invoiceLines.filter(l => l.productId && l.entrepotId);
+
+        // If we are in BC mode, offer to finalize. 
+        if (currentFacture && (currentFacture.statut === 'BON_DE_COMMANDE' || currentFacture.statut === 'VENTE_EN_INSTANCE') && currentFacture.type !== 'FACTURE') {
+            const warehouses = [...new Set(productsWithStock.map(p => p.entrepotNom || p.entrepotType))].join(' / ');
+            const message = `ℹ️ Votre document est actuellement un BON DE COMMANDE.\nProvenance : ${warehouses || 'Locale'}.\n\nSouhaitez-vous générer la FACTURE officielle maintenant ?\n(Annuler = Quitter et facturer plus tard)`;
+
+            if (confirm(message)) {
+                this.createFacture();
+                return;
+            }
+        }
+
         if (this.clientId) {
             this.router.navigate(['/p/clients', this.clientId]);
         } else {
             this.router.navigate(['/p/clients']);
         }
     }
+
+
 
     // File Handling
     openFileUpload(): void {
@@ -2150,6 +2198,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             totalTTC: total,
             totalHT: totalHT,
             totalTVA: tva,
+            ficheId: this.ficheId, // CRITICAL: Link to Fiche
             proprietes: {
                 nomenclature: this.nomenclatureString || ''
             }
@@ -2165,10 +2214,75 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     }
 
     createFacture(): void {
-        this.router.navigate(['/p/clients/factures/new'], {
-            queryParams: { clientId: this.clientId }
+        if (!this.ficheId || this.ficheId === 'new') {
+            this.snackBar.open('Veuillez d\'abord enregistrer la fiche médicale', 'Fermer', { duration: 3000 });
+            return;
+        }
+
+        // Check if there's already a facture linked to this fiche
+        this.factureService.findAll({ ficheId: this.ficheId }).pipe(
+            map((factures: Facture[]) => factures.find((f: Facture) => f.ficheId === this.ficheId)),
+            take(1)
+        ).subscribe({
+            next: (existingFacture: Facture | undefined) => {
+                if (existingFacture) {
+                    // Facture exists - navigate to it and transform to FACTURE if it's a BC
+                    console.log('Found existing facture:', existingFacture.numero, 'Type:', existingFacture.type);
+
+                    if (existingFacture.type === 'BON_COMM') {
+                        // Transform BC to FACTURE
+                        this.factureService.update(existingFacture.id, {
+                            type: 'FACTURE',
+                            statut: 'VALIDE',
+                            proprietes: {
+                                ...existingFacture.proprietes,
+                                forceFiscal: true
+                            }
+                        }).subscribe({
+                            next: (updatedFacture: Facture) => {
+                                this.snackBar.open('Bon de Commande transformé en Facture', 'OK', { duration: 3000 });
+                                // Navigate to the updated facture (which now has a new ID from fiscal flow)
+                                this.router.navigate(['/p/clients/factures', updatedFacture.id], {
+                                    queryParams: { returnTo: `/p/clients/fiches/${this.ficheId}` }
+                                });
+                            },
+                            error: (err: any) => {
+                                console.error('Error transforming BC to Facture:', err);
+                                this.snackBar.open('Erreur lors de la transformation: ' + (err.error?.message || 'Erreur serveur'), 'Fermer', { duration: 5000 });
+                            }
+                        });
+                    } else {
+                        // Just navigate to existing facture
+                        this.router.navigate(['/p/clients/factures', existingFacture.id], {
+                            queryParams: { returnTo: `/p/clients/fiches/${this.ficheId}` }
+                        });
+                    }
+                } else {
+                    // No facture exists - create new one
+                    console.log('🆕 [MontureForm] No linked facture. Navigating to new with ficheId:', this.ficheId);
+                    this.router.navigate(['/p/clients/factures/new'], {
+                        queryParams: {
+                            clientId: this.clientId,
+                            ficheId: this.ficheId, // Correctly linked
+                            returnTo: `/p/clients/fiches/${this.ficheId}`
+                        }
+                    });
+                }
+            },
+            error: (err: any) => {
+                console.error('Error checking for existing facture:', err);
+                // Fallback to creating new facture
+                this.router.navigate(['/p/clients/factures/new'], {
+                    queryParams: {
+                        clientId: this.clientId,
+                        ficheId: this.ficheId,
+                        returnTo: `/p/clients/fiches/${this.ficheId}`
+                    }
+                });
+            }
         });
     }
+
 
     createSupplierInvoice(): void {
         const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
@@ -2531,30 +2645,40 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             // [NEW] Reinforced Financial Status Logic (Devis vs Vente en Instance)
             // If there is a payment, it's an Instance. If not, it's a Devis.
             // [RESTORED & FIXED] Logic to ensure DEVIS/INSTANCE is created so payments can attach.
-            // Guard added: ONLY force status if we are in a "weak" state (null, BROUILLON).
             // Do NOT overwrite 'VENTE_EN_INSTANCE' or 'VALIDE' if already set.
             const currentStatus = this.linkedFactureSubject.value?.statut;
             const isWeakStatus = !currentStatus || currentStatus === 'BROUILLON';
 
             if (isWeakStatus) {
                 if (hasPayment) {
-                    userForcedType = 'DEVIS';
+                    // [FIX] Standardize to BON_COMM
+                    userForcedType = 'BON_COMM';
                     userForcedStatut = 'VENTE_EN_INSTANCE';
-                    this.snackBar.open('Transfert en cours + Acompte : Création Vente en Instance.', 'OK', { duration: 4000 });
+                    this.snackBar.open('Acpte détecté : Vente passée en "Bon de Commande".', 'OK', { duration: 4000 });
                 } else {
                     userForcedType = 'DEVIS';
                     userForcedStatut = 'BROUILLON';
-                    // this.snackBar.open('Transfert en cours : Création Devis (Pas d’acompte).', 'OK', { duration: 3000 });
                 }
             } else {
+                // [FIX] Never downgrade a BON_COMM or FACTURE back to DEVIS
                 console.log('🛡️ [SYNC] Preserving existing status:', currentStatus);
+                userForcedStatut = currentStatus as string;
+                userForcedType = this.linkedFactureSubject.value?.type as string;
             }
 
-            userForcedStockDecrement = false;
+            userForcedStockDecrement = false; // Stock handled by backend status change
+
 
             if (this.factureComponent) {
-                this.factureComponent.form.patchValue({ type: userForcedType, statut: userForcedStatut });
+                this.factureComponent.form.patchValue({ type: userForcedType || 'DEVIS', statut: userForcedStatut || 'BROUILLON' });
             }
+        } else if (hasPayment && !hasExistingOfficialInvoice) {
+            // [FIX] Standardize to BON_COMM
+            console.log('💰 Payment detected in general flow -> Upgrading to BON_COMM');
+            userForcedType = 'BON_COMM';
+            userForcedStatut = 'VENTE_EN_INSTANCE';
+            userForcedStockDecrement = false;
+
         } else if (needsDecision) {
             const warehouses = [...new Set(productsWithStock.map(p => p.entrepotNom || p.entrepotType))].join(' / ');
             const message = `Vente effectuée depuis l'entrepôt : ${warehouses}.\n\nSouhaitez-vous VALIDER la vente ou la LAISSER EN INSTANCE ?`;
@@ -2570,13 +2694,15 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 }
             } else {
                 // Instance (No Stock Decrement yet)
-                userForcedType = 'DEVIS';
+                // [FIX] Standardize to BON_COMM
+                userForcedType = 'BON_COMM';
                 userForcedStatut = 'VENTE_EN_INSTANCE';
-                userForcedStockDecrement = false; // Changed from true
+                userForcedStockDecrement = false;
                 if (this.factureComponent) {
-                    this.factureComponent.form.patchValue({ type: 'DEVIS', statut: 'VENTE_EN_INSTANCE' });
+                    this.factureComponent.form.patchValue({ type: 'BON_COMM', statut: 'VENTE_EN_INSTANCE' });
                 }
             }
+
         }
 
         operation.pipe(
@@ -2917,12 +3043,12 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             return;
         }
 
-        // 1. Detect if we have any valid products with stock
+        // [RESTORED] Check for ANY valid line with total > 0 (even if no specific ProductId/EntrepotId yet)
         const invoiceLines = this.getInvoiceLines();
-        const productsWithStock = invoiceLines.filter(l => l.productId && l.entrepotId);
+        const hasLines = invoiceLines.length > 0;
 
-        if (productsWithStock.length === 0) {
-            console.log('ℹ️ No products with stock detected. No special alert needed.');
+        if (!hasLines) {
+            console.log('ℹ️ No invoice lines detected. No status upgrade needed.');
             return;
         }
 
@@ -2931,48 +3057,37 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             const factures = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId || '' }));
             const currentFacture = factures.find(f => f.ficheId === this.ficheId);
 
-            if (currentFacture && (currentFacture.statut === 'VALIDE' || currentFacture.type === 'FACTURE')) {
-                console.log('✅ Invoice already validated. Skipping validation prompt.');
+            if (currentFacture && (currentFacture.statut === 'VALIDE' || currentFacture.type === 'FACTURE' || currentFacture.statut === 'BON_DE_COMMANDE')) {
+                console.log('✅ Invoice already validated or BC. Skipping upgrade.');
                 return;
+            }
+
+            // [NEW] Silent Upgrade to BON_COMM + VENTE_EN_INSTANCE
+            console.log('💪 Upgrading to BON_COMM due to payment.');
+            if (currentFacture) {
+                await firstValueFrom(this.factureService.update(currentFacture.id, {
+                    statut: 'VENTE_EN_INSTANCE',
+                    type: 'BON_COMM'
+                }));
+                this.snackBar.open('Documentation mise à jour : Bon de Commande', 'OK', { duration: 3000 });
+
+
+
+                // Reload to refresh UI state (linked factures, status badges)
+                this.loadLinkedFacture();
+                this.loadFiche();
+
+                // [FIX] Force child component to reload to see new "BON_COMM" type/number immediately
+                if (this.factureComponent && currentFacture.id) {
+                    console.log('🔄 [UI-SYNC] Forcing FactureForm reload...');
+                    this.factureComponent.loadFacture(currentFacture.id);
+                }
             }
         } catch (e) {
             console.error('Error checking invoice status:', e);
         }
-
-        const warehouses = [...new Set(productsWithStock.map(p => p.entrepotNom || p.entrepotType))].join(' / ');
-        const message = `Vente effectuée depuis l'entrepôt : ${warehouses}.\n\nSouhaitez-vous VALIDER la vente ou la LAISSER EN INSTANCE ?`;
-
-        const choice = confirm(`${message}\n\nOK = Valider\nAnnuler = En Instance`);
-
-        if (choice) {
-            try {
-                this.loading = true;
-                const factures = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId || '' }));
-                const currentFacture = factures.find(f => f.ficheId === this.ficheId);
-                if (currentFacture) {
-                    await this.performSaleValidation(currentFacture);
-                } else {
-                    this.loading = false;
-                }
-            } catch (e) {
-                this.loading = false;
-            }
-        } else {
-            // ... (rest of instance logic)
-            try {
-                this.loading = true;
-                const factures = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId || '' }));
-                const currentFacture = factures.find(f => f.ficheId === this.ficheId);
-                if (currentFacture) {
-                    this.setInstanceFicheFacture(currentFacture);
-                } else {
-                    this.loading = false;
-                }
-            } catch (e) {
-                this.loading = false;
-            }
-        }
     }
+
 
     private async performSaleValidation(staleFacture: any) {
         // [FIX] Double-check status LIVE to prevent stale UI blocking validation

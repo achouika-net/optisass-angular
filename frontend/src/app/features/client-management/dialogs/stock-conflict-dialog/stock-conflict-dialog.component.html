@@ -1,0 +1,68 @@
+<h2 mat-dialog-title class="text-danger flex items-center">
+    <mat-icon class="mr-2">warning</mat-icon>
+    Conflit de Stock Détecté
+</h2>
+
+<mat-dialog-content>
+    <p>Certains produits de ce document ne sont plus disponibles dans votre centre local. Veuillez choisir une action
+        pour continuer la transformation vers Bon de Commande.</p>
+
+    <table mat-table [dataSource]="data.conflicts" class="conflict-table mat-elevation-z1">
+        <!-- product Column -->
+        <ng-container matColumnDef="product">
+            <th mat-header-cell *matHeaderCellDef> Produit </th>
+            <td mat-cell *matCellDef="let conflict">
+                <div class="font-semibold">{{ conflict.designation }}</div>
+                <div class="text-xs text-gray-500">Demandé: {{ conflict.requestedQty }} | Dispo Local: {{
+                    conflict.localAvailableQty }}</div>
+            </td>
+        </ng-container>
+
+        <!-- status Column -->
+        <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef> Statut </th>
+            <td mat-cell *matCellDef="let conflict">
+                <mat-chip-listbox>
+                    <mat-chip class="badge-warning" disabled>Rupture de Stock</mat-chip>
+                </mat-chip-listbox>
+            </td>
+        </ng-container>
+
+        <!-- alternatives Column -->
+        <ng-container matColumnDef="alternatives">
+            <th mat-header-cell *matHeaderCellDef> Alternatives (Autres Centres) </th>
+            <td mat-cell *matCellDef="let conflict">
+                <div *ngIf="conflict.alternatives.length > 0">
+                    <div class="alternative-info" *ngFor="let alt of conflict.alternatives">
+                        <mat-icon
+                            style="font-size: 14px; vertical-align: middle; width: 14px; height: 14px;">location_city</mat-icon>
+                        {{ alt.centreNom }}: <strong>{{ alt.availableQty }}</strong> dispo
+                        <button mat-button color="primary" class="density-compact"
+                            (click)="onRequestTransfer(conflict, alt)">
+                            Demander Transfert
+                        </button>
+                    </div>
+                </div>
+                <div *ngIf="conflict.alternatives.length === 0" class="text-xs text-gray-400 italic">
+                    Rupture totale (aucun centre)
+                </div>
+            </td>
+        </ng-container>
+
+        <!-- actions Column -->
+        <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let conflict" class="action-cell">
+            </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close>Annuler</button>
+    <button mat-stroked-button color="primary" (click)="onReplace()">Remplacer le produit</button>
+    <button mat-flat-button color="warn" (click)="onCancelSale()">Annuler la vente</button>
+</mat-dialog-actions>

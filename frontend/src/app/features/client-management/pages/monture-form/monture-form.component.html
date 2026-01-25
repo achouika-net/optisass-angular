@@ -46,10 +46,7 @@
             </button>
 
             <!-- Always visible: Ajouter BL Verre -->
-            <button type="button" class="btn-secondary" (click)="createSupplierInvoice()"
-                style="border: 1px solid #673ab7; color: #673ab7;">
-                <mat-icon>add_shopping_cart</mat-icon> Ajouter BL
-            </button>
+
         </div>
     </div>
     <!-- Tabs Navigation -->
@@ -103,7 +100,21 @@
             </svg>
             Suivi Commande
         </button>
+
+        <!-- Vendeur Badge (Moved from FactureForm) -->
+        <div class="vendeur-badge-container" *ngIf="currentUser$ | async as user">
+            <div class="vendeur-badge">
+                <div class="avatar">
+                    <mat-icon>person</mat-icon>
+                </div>
+                <div class="info">
+                    <span class="label">Vendeur / Opticien</span>
+                    <span class="name">{{ user.fullName || 'Chargement...' }}</span>
+                </div>
+            </div>
+        </div>
     </div>
+
 
     <!-- [REMOVED] Instance Banners (Reserved, Transit, Received) removed as per user request. -->
     <!-- The specific validation logic via these banners was reported as problematic. -->
@@ -924,21 +935,16 @@
                     <p>Gérer les factures et devis du client</p>
                 </div>
             </div>
-            <div class="facturation-container" *ngIf="linkedFacture$ | async as linkedFacture; else newFactureTemplate">
-                <app-facture-form [factureId]="linkedFacture.id" [embedded]="true" (onSaved)="onInvoiceSaved($event)"
-                    [isReadonly]="!isEditMode">
+
+            <div class="facturation-container">
+                <app-facture-form [factureId]="(linkedFacture$ | async)?.id" [clientIdInput]="clientId"
+                    [ficheIdInput]="ficheId" [initialLines]="initialLines" [embedded]="true"
+                    (onSaved)="onInvoiceSaved($event)" (paymentAdded)="onPaymentAdded()"
+                    [nomenclature]="nomenclatureString" [isReadonly]="!isEditMode">
                 </app-facture-form>
             </div>
-            <ng-template #newFactureTemplate>
-                <div class="section-card-clean">
-                    <app-facture-form [factureId]="linkedFactureSubject.value?.id" [clientIdInput]="clientId"
-                        [ficheIdInput]="ficheId" [initialLines]="initialLines" [embedded]="true"
-                        (onSaved)="onInvoiceSaved($event)" [nomenclature]="nomenclatureString"
-                        [isReadonly]="!isEditMode">
-                    </app-facture-form>
-                </div>
-            </ng-template>
         </div>
+
 
         <!-- ONGLET 5: FICHE MONTAGE -->
         <div class="tab-content" [hidden]="activeTab !== 4">

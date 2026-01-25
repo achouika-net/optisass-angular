@@ -10,13 +10,14 @@ export interface LigneFacture {
     totalTTC: number;
 }
 
-export type FactureStatus = 'BROUILLON' | 'VALIDE' | 'PAYEE' | 'ANNULEE' | 'PARTIEL' | 'DEVIS_EN_COURS' | 'DEVIS_SANS_PAIEMENT' | 'VENTE_EN_INSTANCE' | 'ARCHIVE';
+export type FactureStatus = 'BROUILLON' | 'VALIDE' | 'PAYEE' | 'ANNULEE' | 'PARTIEL' | 'DEVIS_EN_COURS' | 'DEVIS_SANS_PAIEMENT' | 'VENTE_EN_INSTANCE' | 'ARCHIVE' | 'BON_DE_COMMANDE';
 
 export interface Facture {
     id: string;
     numero: string;
-    type: 'FACTURE' | 'DEVIS' | 'AVOIR' | 'BL';
+    type: 'FACTURE' | 'DEVIS' | 'AVOIR' | 'BL' | 'BON_COMM';
     dateEmission: Date;
+
     dateEcheance?: Date;
     statut: FactureStatus;
     clientId: string;
@@ -73,6 +74,10 @@ export class FactureService {
 
     exchangeInvoice(id: string, itemsToReturn: { lineIndex: number, quantiteRetour: number, reason: string }[]): Observable<any> {
         return this.http.post(`${this.apiUrl}/${id}/exchange`, { itemsToReturn });
+    }
+
+    checkAvailability(id: string): Observable<any> {
+        return this.http.get(`${this.apiUrl}/${id}/check-availability`);
     }
 }
 

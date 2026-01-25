@@ -14,6 +14,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { PaymentDialogComponent } from '../../client-management/dialogs/payment-dialog/payment-dialog.component';
 import { PaiementService } from '../../client-management/services/paiement.service';
 import { FactureService } from '../../client-management/services/facture.service';
+import { StockConflictDialogComponent } from '../../client-management/dialogs/stock-conflict-dialog/stock-conflict-dialog.component';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -408,25 +409,89 @@ export class SalesControlReportComponent implements OnInit {
     }
 
     validateInvoice(invoice: BrouillonInvoice): void {
+        this.checkStockAndProceed(invoice, () => {
+            this.loading = true; // Show loading immediately
+            this.salesControlService.validateInvoice(invoice.id).subscribe({
+                next: (newInvoice) => {
+                    this.snackBar.open(`Commande passée : ${newInvoice.numero}`, 'Fermer', {
+                        duration: 5000,
+                        panelClass: ['snackbar-success']
+                    });
 
-        this.loading = true; // Show loading immediately
-        this.salesControlService.validateInvoice(invoice.id).subscribe({
-            next: (newInvoice) => {
-                this.snackBar.open(`Facture validée : ${newInvoice.numero}`, 'Fermer', {
-                    duration: 5000,
-                    panelClass: ['snackbar-success']
-                });
-                this.loadData();
-                // Loading will be set to false by loadData -> refresh$ pipe, but we can safegaurd:
-                // this.loading = false; // logic in pipe handles it.
+                    this.loadData();
+                },
+                error: (err) => {
+                    console.error('Error validating invoice:', err);
+                    this.snackBar.open('Erreur lors de la validation', 'Fermer', { duration: 3000 });
+                    this.loading = false;
+                }
+            });
+        });
+    }
+
+    private checkStockAndProceed(invoice: BrouillonInvoice, proceedCallback: () => void) {
+        this.loading = true;
+        this.factureService.checkAvailability(invoice.id).subscribe({
+            next: (check) => {
+                this.loading = false;
+                if (check.hasConflicts) {
+                    const dialogRef = this.dialog.open(StockConflictDialogComponent, {
+                        width: '900px',
+                        data: { conflicts: check.conflicts }
+                    });
+
+                    dialogRef.afterClosed().subscribe(result => {
+                        if (!result) return;
+
+                        if (result.action === 'TRANSFER_REQUEST') {
+                            this.initiateTransfer(invoice, result.productId, result.sourceCentreId, result.targetCentreId);
+                        } else if (result.action === 'REPLACE') {
+                            // Navigate to edit for replacement
+                            this.router.navigate(['/p/clients/factures', invoice.id]);
+                        } else if (result.action === 'CANCEL_SALE') {
+                            // Archive/Cancel logic? For now, refresh
+                            this.loadData();
+                        }
+                    });
+                } else {
+                    proceedCallback();
+                }
             },
             error: (err) => {
-                console.error('Error validating invoice:', err);
-                this.snackBar.open('Erreur lors de la validation', 'Fermer', { duration: 3000 });
+                console.error('Error checking stock availability:', err);
                 this.loading = false;
+                this.snackBar.open('Erreur lors de la vérification du stock. Opération annulée.', 'Fermer', { duration: 5000 });
             }
         });
     }
+
+    private initiateTransfer(invoice: BrouillonInvoice, productId: string, sourceCentreId: string, targetCentreId: string) {
+        this.loading = true;
+        this.productService.findAll({ global: true }).subscribe(allProducts => {
+            const lines: any[] = invoice.lignes || [];
+            const sourceProduct = allProducts.find(p => p.id === productId || (p.entrepot?.centreId === sourceCentreId && (p.designation === lines.find((l: any) => l.productId === productId)?.description)));
+            const targetProduct = allProducts.find(p => p.entrepot?.centreId === targetCentreId && (p.designation === sourceProduct?.designation));
+
+            if (sourceProduct && targetProduct) {
+                this.productService.initiateTransfer(sourceProduct.id, targetProduct.id, 1).subscribe({
+                    next: () => {
+                        this.loading = false;
+                        this.snackBar.open(`Demande de transfert envoyée pour ${sourceProduct.designation}`, 'OK', { duration: 5000 });
+                        this.dialog.closeAll();
+                    },
+                    error: (err: any) => {
+                        this.loading = false;
+                        console.error('Error initiating transfer:', err);
+                        this.snackBar.open('Erreur lors de la demande de transfert', 'Fermer', { duration: 5000 });
+                    }
+                });
+            } else {
+                this.loading = false;
+                this.snackBar.open('Impossible de localiser les produits pour le transfert.', 'Fermer', { duration: 5000 });
+            }
+        });
+    }
+
 
     declareAsGift(invoice: BrouillonInvoice): void {
         if (!confirm("Etes-vous sûr de déclarer cette facture comme CADEAU ?")) return;
@@ -470,34 +535,43 @@ export class SalesControlReportComponent implements OnInit {
     }
 
     openPaymentDialog(invoice: BrouillonInvoice): void {
-        const dialogRef = this.dialog.open(PaymentDialogComponent, {
-            maxWidth: '95vw',
-            data: {
-                resteAPayer: invoice.resteAPayer,
-                client: invoice.client
-            }
-        });
+        const proceed = () => {
+            const dialogRef = this.dialog.open(PaymentDialogComponent, {
+                maxWidth: '95vw',
+                data: {
+                    resteAPayer: invoice.resteAPayer,
+                    client: invoice.client
+                }
+            });
 
-        dialogRef.afterClosed().subscribe(result => {
-            if (result) {
-                const dto = {
-                    factureId: invoice.id,
-                    ...result,
-                    date: result.date.toISOString()
-                };
+            dialogRef.afterClosed().subscribe(result => {
+                if (result) {
+                    const dto = {
+                        factureId: invoice.id,
+                        ...result,
+                        date: result.date.toISOString()
+                    };
 
-                this.paiementService.create(dto).subscribe({
-                    next: () => {
-                        this.snackBar.open('Paiement enregistré avec succès', 'OK', { duration: 3000 });
-                        this.loadData();
-                    },
-                    error: (err) => {
-                        console.error('Error saving payment:', err);
-                        this.snackBar.open('Erreur lors de l\'enregistrement du paiement', 'OK', { duration: 3000 });
-                    }
-                });
-            }
-        });
+                    this.paiementService.create(dto).subscribe({
+                        next: () => {
+                            this.snackBar.open('Paiement enregistré avec succès', 'OK', { duration: 3000 });
+                            this.loadData();
+                        },
+                        error: (err) => {
+                            console.error('Error saving payment:', err);
+                            const msg = err.error?.message || 'Erreur lors de l\'enregistrement du paiement';
+                            this.snackBar.open(msg, 'OK', { duration: 5000 });
+                        }
+                    });
+                }
+            });
+        };
+
+        if (invoice.type === 'DEVIS') {
+            this.checkStockAndProceed(invoice, proceed);
+        } else {
+            proceed();
+        }
     }
 
     viewFiche(invoice: BrouillonInvoice): void {

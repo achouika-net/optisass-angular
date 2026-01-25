@@ -143,6 +143,21 @@
               {{ readyCount$ | async }}
             </span>
 
+            <!-- Badge for Funding Requests (Purple) -->
+            <span *ngIf="child.label === 'Demandes d\'alimentation' && (fundingCount$ | async) > 0"
+              class="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-purple-500 text-[10px] font-bold text-white shadow-sm"
+              matTooltip="Demandes d'alimentation en attente">
+              {{ fundingCount$ | async }}
+            </span>
+
+            <!-- Badge for Portfolio (Indigo) -->
+            <span *ngIf="child.label === 'Portefeuille' && (portfolioCount$ | async) > 0"
+              class="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-bold text-white shadow-sm"
+              matTooltip="Encaissements/Décaissements à valider">
+              {{ portfolioCount$ | async }}
+            </span>
+
+
             <mat-icon class="icon-favorite" [class.active]="isFavorite(child.label)"
               [class.inactive]="!isFavorite(child.label)" (click)="handleFavorite(favorisItems(), child, $event)">
               star

@@ -1,0 +1,210 @@
+<div class="ocr-import-container p-6">
+    <div class="header mb-6">
+        <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
+            <mat-icon class="text-blue-600">document_scanner</mat-icon>
+            Import OCR Facture
+        </h2>
+        <p class="text-gray-600 mt-2">Scannez une facture fournisseur pour extraction automatique des données</p>
+    </div>
+
+    <!-- Single Column Layout -->
+    <div class="w-full">
+        <mat-card>
+            <mat-card-header>
+                <mat-card-title>Import OCR Facture</mat-card-title>
+            </mat-card-header>
+            <mat-card-content class="pt-4">
+                <!-- Compact Upload Section -->
+                <div class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div class="flex items-center gap-4">
+                        <input #fileInput type="file" hidden accept="image/*,application/pdf"
+                            (change)="onFileSelected($event)">
+
+                        <button mat-raised-button color="primary" (click)="fileInput.click()" *ngIf="!selectedFile">
+                            <mat-icon>cloud_upload</mat-icon>
+                            Sélectionner une facture
+                        </button>
+
+                        <div *ngIf="selectedFile" class="flex items-center gap-3 flex-1">
+                            <mat-icon class="text-blue-600">description</mat-icon>
+                            <span class="font-medium text-gray-700 flex-1">{{ selectedFile.name }}</span>
+
+                            <button mat-icon-button color="primary" (click)="viewDocument()"
+                                matTooltip="Visualiser le document">
+                                <mat-icon>visibility</mat-icon>
+                            </button>
+
+                            <button mat-icon-button color="warn" (click)="clearDocument()" matTooltip="Supprimer">
+                                <mat-icon>close</mat-icon>
+                            </button>
+                        </div>
+
+                        <span *ngIf="ocrProcessing" class="text-sm text-blue-600 animate-pulse flex items-center gap-2">
+                            <mat-spinner diameter="20"></mat-spinner>
+                            Analyse OCR en cours...
+                        </span>
+                    </div>
+
+                    <!-- OCR Error -->
+                    <div *ngIf="ocrError"
+                        class="mt-3 p-3 bg-red-50 border border-red-200 rounded flex items-start gap-2">
+                        <mat-icon class="text-red-600 text-sm">error</mat-icon>
+                        <div class="text-sm text-red-700">
+                            <p class="font-bold">Erreur d'analyse</p>
+                            <p>{{ ocrError }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Fields -->
+                <form [formGroup]="documentForm" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <mat-form-field appearance="outline">
+                        <mat-label>Fournisseur</mat-label>
+                        <mat-select formControlName="fournisseurId">
+                            <mat-option *ngFor="let s of suppliers$ | async" [value]="s.id">
+                                {{ s.nom }}
+                            </mat-option>
+                        </mat-select>
+                        <mat-icon matPrefix>local_shipping</mat-icon>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                        <mat-label>Type de document *</mat-label>
+                        <mat-select formControlName="type">
+                            <mat-option value="FACTURE">Facture</mat-option>
+                            <mat-option value="BL">Bon de Livraison</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                        <mat-label>Numéro de facture *</mat-label>
+                        <input matInput formControlName="numero" placeholder="ex: FAC-2024-001">
+                        <mat-icon matPrefix>tag</mat-icon>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                        <mat-label>Date d'émission *</mat-label>
+                        <input matInput [matDatepicker]="picker" formControlName="date">
+                        <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+                        <mat-datepicker #picker></mat-datepicker>
+                    </mat-form-field>
+                </form>
+
+                <!-- Column Mapping Interface -->
+                <div *ngIf="splitLines.length > 0" class="mt-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                            <mat-icon class="text-green-600">check_circle</mat-icon>
+                            Lignes détectées ({{ splitLines.length }})
+                        </h3>
+                        <div class="flex gap-2">
+                            <button mat-stroked-button color="primary" [matMenuTriggerFor]="splitMenu" class="!text-sm">
+                                <mat-icon>content_cut</mat-icon>
+                                Mode de découpage
+                            </button>
+                            <mat-menu #splitMenu="matMenu">
+                                <button mat-menu-item (click)="reSplit('spaces')">
+                                    <mat-icon>space_bar</mat-icon>
+                                    <span>Par espaces (Granulaire)</span>
+                                </button>
+                                <button mat-menu-item (click)="reSplit('smart')">
+                                    <mat-icon>psychology</mat-icon>
+                                    <span>Intelligent (Auto)</span>
+                                </button>
+                                <button mat-menu-item (click)="reSplit('tabs')">
+                                    <mat-icon>keyboard_tab</mat-icon>
+                                    <span>Par tabulation</span>
+                                </button>
+                            </mat-menu>
+
+                            <button mat-raised-button color="primary" (click)="applyMappings()" class="!text-sm">
+                                <mat-icon>done_all</mat-icon>
+                                Appliquer le mapping
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Column Mapping Headers -->
+                    <div class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <p class="text-sm font-bold text-blue-900 mb-3">
+                            <mat-icon class="text-sm align-middle">settings</mat-icon>
+                            Configurez le mapping des colonnes :
+                        </p>
+                        <div class="grid gap-2"
+                            [style.grid-template-columns]="'repeat(' + maxColumns + ', minmax(120px, 1fr))'">
+                            <div *ngFor="let colIndex of getColumnArray()" class="flex flex-col">
+                                <span class="text-xs text-gray-600 font-medium mb-1">Col {{ colIndex + 1 }}</span>
+                                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="!text-xs">
+                                    <mat-select [(ngModel)]="columnMappings[colIndex]">
+                                        <mat-option *ngFor="let type of columnTypes" [value]="type.value">
+                                            {{ type.label }}
+                                        </mat-option>
+                                    </mat-select>
+                                </mat-form-field>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Data Preview Table -->
+                    <div class="border rounded-lg overflow-auto max-h-96">
+                        <table class="w-full text-sm border-collapse">
+                            <thead class="bg-gray-100 sticky top-0">
+                                <tr>
+                                    <th class="px-2 py-2 text-left text-xs font-bold text-gray-700 border-r"
+                                        *ngFor="let colIndex of getColumnArray()">
+                                        Col {{ colIndex + 1 }}
+                                    </th>
+                                    <th class="px-2 py-2 w-16"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let line of splitLines; let i = index" class="border-t hover:bg-gray-50">
+                                    <td *ngFor="let col of line.columns; let colIdx = index; trackBy: trackByIndex"
+                                        class="px-1 py-1 text-xs border-r p-0"
+                                        [class.bg-yellow-50]="columnMappings[colIdx] === 'code'"
+                                        [class.bg-blue-50]="columnMappings[colIdx] === 'designation'"
+                                        [class.bg-green-50]="columnMappings[colIdx] === 'prixUnitaire'">
+                                        <input type="text" [(ngModel)]="line.columns[colIdx]"
+                                            class="w-full h-full bg-transparent border-none outline-none px-2 py-1 text-xs hover:bg-white focus:bg-white transition-colors">
+                                    </td>
+                                    <!-- Fill empty cells if line has fewer columns than max -->
+                                    <td *ngFor="let _ of getColumnArray().slice(line.columns.length)"
+                                        class="px-2 py-2 text-xs border-r bg-gray-50">
+                                        -
+                                    </td>
+                                    <td class="px-2 py-2">
+                                        <button mat-icon-button color="warn" (click)="removeLine(i)" class="!w-8 !h-8">
+                                            <mat-icon class="!text-base">delete</mat-icon>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Raw Text Toggle -->
+                <details *ngIf="analyzedText" class="mt-4 text-xs text-gray-500 cursor-pointer">
+                    <summary class="hover:text-blue-600 mb-2">Voir le texte brut extrait</summary>
+                    <div
+                        class="bg-gray-50 p-3 rounded border border-gray-200 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
+                        {{ analyzedText }}
+                    </div>
+                </details>
+            </mat-card-content>
+        </mat-card>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="sticky bottom-0 bg-white p-4 border-t shadow-lg flex justify-end gap-3 mt-6">
+        <button mat-button (click)="clearDocument()" [disabled]="!selectedFile">
+            <mat-icon>refresh</mat-icon>
+            Réinitialiser
+        </button>
+        <button mat-raised-button color="primary" (click)="validateAndImport()"
+            [disabled]="documentForm.invalid || detectedLines.length === 0 || ocrProcessing">
+            <mat-icon>check_circle</mat-icon>
+            Valider et Importer ({{ detectedLines.length }} lignes)
+        </button>
+    </div>
+</div>

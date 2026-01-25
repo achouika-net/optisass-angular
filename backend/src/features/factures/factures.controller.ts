@@ -96,6 +96,11 @@ export class FacturesController {
         });
     }
 
+    @Get(':id/check-availability')
+    checkAvailability(@Param('id') id: string) {
+        return this.facturesService.checkStockAvailability(id);
+    }
+
     @Get(':id')
     findOne(@Param('id') id: string) {
         return this.facturesService.findOne(id);

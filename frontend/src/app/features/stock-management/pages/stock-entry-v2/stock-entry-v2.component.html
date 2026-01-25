@@ -126,66 +126,110 @@
                         </div>
 
                         <!-- OCR Results Display -->
+                        <!-- OCR Results Display (NEW EDITABLE UI) -->
                         <div *ngIf="showOcrData"
-                            class="border rounded-lg border-blue-200 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
-                            <div class="bg-blue-100 px-4 py-3 flex justify-between items-center">
-                                <span class="font-bold text-blue-900 flex items-center gap-2">
-                                    <mat-icon>manage_search</mat-icon> Données Détectées via OCR
-                                </span>
-                                <div class="flex items-center gap-2">
-                                    <button mat-flat-button color="primary" class="scale-90"
-                                        (click)="addAllDetectedLines()" *ngIf="detectedLines.length > 0">
-                                        <mat-icon>playlist_add</mat-icon> Tout Ajouter au Panier
-                                    </button>
-                                    <span
-                                        class="text-xs bg-white text-blue-800 px-2 py-1 rounded font-bold border border-blue-200">
-                                        {{ detectedLines.length }} Ligne(s) trouvée(s)
+                            class="border rounded-lg border-blue-200 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500 shadow-lg mb-6">
+
+                            <!-- Header & Toolbar -->
+                            <div
+                                class="bg-gradient-to-r from-blue-100 to-indigo-50 px-4 py-3 flex justify-between items-center border-b border-blue-200">
+                                <div class="flex items-center gap-3">
+                                    <span class="font-bold text-blue-900 flex items-center gap-2 text-lg">
+                                        <mat-icon>manage_search</mat-icon> Données OCR Détectées
                                     </span>
+                                    <span
+                                        class="text-xs bg-white text-blue-800 px-2 py-1 rounded-full font-bold border border-blue-200 shadow-sm">
+                                        {{ splitLines.length }} Ligne(s)
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center gap-2">
+                                    <!-- Split Mode Menu -->
+                                    <button mat-stroked-button [matMenuTriggerFor]="splitMenu"
+                                        class="!border-blue-300 !text-blue-700 bg-white">
+                                        <mat-icon>view_column</mat-icon> Mode de découpage
+                                    </button>
+                                    <mat-menu #splitMenu="matMenu">
+                                        <button mat-menu-item (click)="reSplit('spaces')">
+                                            <mat-icon>space_bar</mat-icon> Par espaces (Standard)
+                                        </button>
+                                        <button mat-menu-item (click)="reSplit('tabs')">
+                                            <mat-icon>keyboard_tab</mat-icon> Par tabulations
+                                        </button>
+                                        <button mat-menu-item (click)="reSplit('smart')">
+                                            <mat-icon>auto_fix_high</mat-icon> Intelligent (Smart)
+                                        </button>
+                                    </mat-menu>
+
+                                    <!-- Apply Button -->
+                                    <button mat-raised-button color="primary" (click)="applyMappingsToBasket()"
+                                        [disabled]="splitLines.length === 0">
+                                        <mat-icon>playlist_add</mat-icon> AJOUTER AU PANIER
+                                    </button>
                                 </div>
                             </div>
 
-                            <div class="p-4 bg-white flex flex-col gap-4">
-                                <!-- Detected Lines List -->
-                                <div *ngIf="detectedLines.length > 0">
-                                    <p class="text-sm text-gray-500 mb-2 italic">Cliquez sur une ligne pour pré-remplir
-                                        le formulaire produit :</p>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-2">
-                                        <button *ngFor="let line of detectedLines" (click)="useDetectedLine(line)"
-                                            class="text-left p-3 rounded border border-gray-100 hover:bg-blue-50 hover:border-blue-300 transition-all group flex flex-col gap-1 relative">
-                                            <span class="text-sm text-gray-800 font-medium line-clamp-2 pr-6">{{
-                                                line.raw }}</span>
-                                            <span *ngIf="line.priceCandidates?.length"
-                                                class="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded w-fit">
-                                                Prix estimé : {{ line.priceCandidates[0] }} DH
-                                            </span>
-                                            <mat-icon
-                                                class="absolute right-2 top-3 text-gray-300 group-hover:text-blue-500 scale-75">ads_click</mat-icon>
-                                        </button>
-                                    </div>
-                                </div>
+                            <div class="p-0 bg-white overflow-x-auto">
+                                <table class="w-full text-sm text-left">
+                                    <!-- Mapping Header -->
+                                    <thead
+                                        class="bg-gray-50 text-gray-700 font-medium uppercase text-xs sticky top-0 z-10">
+                                        <tr>
+                                            <th *ngFor="let i of getColumnArray()"
+                                                class="px-2 py-3 border-b min-w-[120px]">
+                                                <div class="flex flex-col gap-1">
+                                                    <span class="text-gray-400 text-[10px]">Col {{ i + 1 }}</span>
+                                                    <select
+                                                        class="w-full text-xs p-1 rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                                                        [(ngModel)]="columnMappings[i]">
+                                                        <option *ngFor="let type of columnTypes" [value]="type.value">
+                                                            {{ type.label }}
+                                                        </option>
+                                                    </select>
+                                                </div>
+                                            </th>
+                                            <th class="px-2 py-3 border-b w-12 text-center">Action</th>
+                                        </tr>
+                                    </thead>
 
-                                <div *ngIf="ocrError"
-                                    class="m-4 p-4 bg-red-50 border border-red-100 rounded text-red-700 text-sm flex items-center gap-3">
-                                    <mat-icon>error</mat-icon>
-                                    <div>
-                                        <p class="font-bold">Erreur d'analyse</p>
-                                        <p>{{ ocrError }}</p>
-                                    </div>
-                                </div>
+                                    <!-- Editable Body -->
+                                    <tbody class="divide-y divide-gray-100">
+                                        <tr *ngFor="let line of splitLines; let i = index; trackBy: trackByIndex"
+                                            class="hover:bg-blue-50/50 transition-colors group">
 
-                                <div *ngIf="detectedLines.length === 0 && !ocrError && analyzedText"
-                                    class="text-center py-4 text-gray-400">
-                                    Aucune ligne structurée détectée. Vérifiez le texte brut ci-dessous.
-                                </div>
+                                            <td *ngFor="let col of line.columns; let colIdx = index; trackBy: trackByIndex"
+                                                class="px-1 py-1 border-r border-gray-100 relative"
+                                                [class.bg-yellow-50]="columnMappings[colIdx] === 'code'"
+                                                [class.bg-blue-50]="columnMappings[colIdx] === 'designation'"
+                                                [class.bg-green-50]="columnMappings[colIdx] === 'prixUnitaire'"
+                                                [class.bg-purple-50]="columnMappings[colIdx] === 'remise'">
 
-                                <!-- Raw Text Toggle -->
-                                <details class="text-xs text-gray-500 cursor-pointer">
-                                    <summary class="hover:text-blue-600 mb-2">Voir le texte brut complet</summary>
-                                    <div
-                                        class="bg-gray-50 p-3 rounded border border-gray-200 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
-                                        {{ analyzedText }}
-                                    </div>
-                                </details>
+                                                <input type="text" [(ngModel)]="line.columns[colIdx]"
+                                                    class="w-full h-full bg-transparent border-none outline-none px-2 py-2 text-xs text-gray-700 font-medium focus:bg-white focus:ring-1 focus:ring-inset focus:ring-blue-400 transition-all rounded-sm placeholder-transparent"
+                                                    placeholder="-">
+                                            </td>
+
+                                            <!-- Fill empty cells if line has fewer columns -->
+                                            <td *ngFor="let _ of getColumnArray().slice(line.columns.length)"
+                                                class="bg-gray-50/30 border-r border-gray-100"></td>
+
+                                            <td class="px-2 py-1 text-center">
+                                                <button mat-icon-button color="warn" (click)="removeLine(i)"
+                                                    class="!w-6 !h-6 text-gray-400 hover:text-red-600 transition-colors"
+                                                    matTooltip="Supprimer la ligne">
+                                                    <mat-icon class="!text-sm">close</mat-icon>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <!-- Empty State within Table -->
+                                <div *ngIf="splitLines.length === 0"
+                                    class="p-8 text-center text-gray-400 flex flex-col items-center">
+                                    <mat-icon class="text-4xl mb-2 text-gray-300">find_in_page</mat-icon>
+                                    <p>Scanner un document pour voir les résultats ici.</p>
+                                </div>
                             </div>
                         </div>
 
@@ -469,9 +513,9 @@
                             <ng-container matColumnDef="prixAchat">
                                 <th mat-header-cell *matHeaderCellDef class="text-right"> P.Achat (Est.) </th>
                                 <td mat-cell *matCellDef="let element" class="text-right">
-                                    <input type="number" [(ngModel)]="element.prixAchat"
-                                        (input)="updateProduct(element)"
-                                        class="w-24 bg-transparent border-none text-right focus:ring-1 focus:ring-blue-400 rounded text-gray-500">
+                                    <input type="text" [ngModel]="element.prixAchat | number:'1.2-2'"
+                                        (change)="element.prixAchat = parseInputPrice($event.target.value); updateProduct(element)"
+                                        class="w-24 bg-transparent border-none text-right focus:ring-1 focus:ring-blue-400 rounded text-gray-500 font-medium">
                                 </td>
                             </ng-container>
 
@@ -509,8 +553,8 @@
                             <ng-container matColumnDef="prixVente">
                                 <th mat-header-cell *matHeaderCellDef class="text-right"> P.Vente </th>
                                 <td mat-cell *matCellDef="let element" class="text-right font-bold text-green-700">
-                                    <input type="number" [(ngModel)]="element.prixVente"
-                                        (input)="updateProduct(element)"
+                                    <input type="text" [ngModel]="element.prixVente | number:'1.2-2'"
+                                        (change)="element.prixVente = parseInputPrice($event.target.value); updateProduct(element)"
                                         class="w-24 bg-transparent border-none text-right focus:ring-1 focus:ring-green-400 rounded text-green-700 font-bold">
                                 </td>
                             </ng-container>

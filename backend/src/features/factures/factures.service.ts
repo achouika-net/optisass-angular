@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException, InternalServerError
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 import { PaiementsService } from '../paiements/paiements.service';
+import { StockAvailabilityService } from './stock-availability.service';
 import { Prisma } from '@prisma/client';
 import { CreateFactureDto } from './dto/create-facture.dto';
 import { UpdateFactureDto } from './dto/update-facture.dto';
@@ -17,6 +18,7 @@ export class FacturesService implements OnModuleInit {
         private paiementsService: PaiementsService,
         private productsService: ProductsService,
         private commissionService: CommissionService,
+        private stockAvailabilityService: StockAvailabilityService,
     ) { }
 
     async onModuleInit() {
@@ -124,10 +126,15 @@ export class FacturesService implements OnModuleInit {
 
         console.log('✅ Facture created with proprietes:', facture.proprietes);
 
-        const shouldDecrement = facture.statut === 'VALIDE' ||
+        const isOfficial = facture.type === 'FACTURE' || facture.type === 'BON_COMM' || facture.type === 'BL';
+        const isInstance = facture.statut === 'VENTE_EN_INSTANCE' || facture.statut === 'BON_DE_COMMANDE';
+        const isValidated = facture.statut === 'VALIDE' || facture.statut === 'PAYEE' || facture.statut === 'PARTIEL';
+
+        const shouldDecrement = (isOfficial && (isInstance || isValidated)) ||
             (facture.proprietes as any)?.forceStockDecrement === true;
 
         if (shouldDecrement) {
+
             await this.decrementStockForInvoice(this.prisma, facture, userId);
             await this.loyaltyService.awardPointsForPurchase(facture.id);
 
@@ -152,10 +159,15 @@ export class FacturesService implements OnModuleInit {
         const prisma = tx || this.prisma;
 
         // Find last document starting with this prefix for current year
+        // We search for both "PFX-YEAR-" and "PFX -YEAR-" formats to be safe
         const lastDoc = await prisma.facture.findFirst({
             where: {
                 numero: {
-                    startsWith: `${prefix} -${year} `
+                    contains: `${prefix}`
+                },
+                createdAt: {
+                    gte: new Date(`${year}-01-01`),
+                    lte: new Date(`${year}-12-31`)
                 }
             },
             orderBy: {
@@ -165,14 +177,19 @@ export class FacturesService implements OnModuleInit {
 
         let sequence = 1;
         if (lastDoc) {
+            // Robust extraction of the last part
             const parts = lastDoc.numero.split('-');
-            if (parts.length === 3) {
-                sequence = parseInt(parts[2]) + 1;
+            const lastPart = parts[parts.length - 1].trim();
+            const lastSeq = parseInt(lastPart);
+            if (!isNaN(lastSeq)) {
+                sequence = lastSeq + 1;
             }
         }
 
-        return `${prefix} -${year} -${sequence.toString().padStart(3, '0')} `;
+        // Standard format: PREFIX-YEAR-SEQUENCE (Zero-padded to 3)
+        return `${prefix}-${year}-${sequence.toString().padStart(3, '0')}`;
     }
+
 
     // Helper: Decrement Stock for Valid Invoice (Principal Warehouses)
     private async decrementStockForInvoice(tx: any, invoice: any, userId?: string) {
@@ -283,6 +300,14 @@ export class FacturesService implements OnModuleInit {
                 const stockChange = fullInvoice.type === 'AVOIR' ? { increment: qte } : { decrement: qte };
                 const moveType = fullInvoice.type === 'AVOIR' ? 'ENTREE_RETOUR' : 'SORTIE_VENTE';
 
+                // [STRICT CHECK] Prevent negative stock for sales
+                if (fullInvoice.type !== 'AVOIR' && product.quantiteActuelle < qte) {
+                    const msg = `Stock insuffisant pour "${product.designation}" (Réf: ${line.reference || 'N/A'}). Disponible: ${product.quantiteActuelle}, Requis: ${qte}`;
+                    console.error(`❌[STOCK] ${msg}`);
+                    throw new BadRequestException(msg);
+                }
+
+
                 await tx.product.update({
                     where: { id: product.id },
                     data: { quantiteActuelle: stockChange }
@@ -326,7 +351,7 @@ export class FacturesService implements OnModuleInit {
 
 
     async verifyProductsAreReceived(lignes: any[], type?: string) {
-        if (type === 'AVOIR' || type === 'AVOIR_FOURNISSEUR') return;
+        if (type === 'AVOIR' || type === 'AVOIR_FOURNISSEUR' || type === 'BON_COMM') return;
         if (!Array.isArray(lignes)) return;
 
         for (const line of lignes) {
@@ -356,6 +381,10 @@ export class FacturesService implements OnModuleInit {
         }
     }
 
+    async checkStockAvailability(id: string) {
+        return this.stockAvailabilityService.checkAvailability(id);
+    }
+
     async findAll(params: {
         skip?: number;
         take?: number;
@@ -364,7 +393,7 @@ export class FacturesService implements OnModuleInit {
         orderBy?: Prisma.FactureOrderByWithRelationInput;
     }) {
         const { skip, take = 50, cursor, where, orderBy } = params;
-        return this.prisma.facture.findMany({
+        const factures = await this.prisma.facture.findMany({
             skip,
             take,
             cursor,
@@ -376,6 +405,30 @@ export class FacturesService implements OnModuleInit {
                 paiements: true
             }
         });
+
+        // [AUTO-REPAIR] Transition DEVIS with payments to BON_COMM
+        // This fixes legacy Devis that missed the real-time transition trigger
+        const needsRepair = factures.filter(f => f.type === 'DEVIS' && (f.paiements?.length > 0 || f.statut === 'PARTIEL' || f.statut === 'PAYEE'));
+
+        if (needsRepair.length > 0) {
+            console.log(`🔧 [AUTO-REPAIR] Found ${needsRepair.length} paid Devis to transition to BC.`);
+            for (const f of needsRepair) {
+                const newNumero = await this.generateNextNumber('BON_COMM');
+                await this.prisma.facture.update({
+                    where: { id: f.id },
+                    data: {
+                        type: 'BON_COMM',
+                        statut: 'VENTE_EN_INSTANCE',
+                        numero: newNumero
+                    }
+                });
+                f.type = 'BON_COMM';
+                f.statut = 'VENTE_EN_INSTANCE';
+                f.numero = newNumero;
+            }
+        }
+
+        return factures;
     }
 
 
@@ -482,44 +535,91 @@ export class FacturesService implements OnModuleInit {
         where: Prisma.FactureWhereUniqueInput;
         data: UpdateFactureDto;
     }, userId?: string) {
-        const { where, data } = params;
-        console.log('🔄 FacturesService.update called with:', {
-            id: where.id,
-            statut: data.statut,
-            proprietes: data.proprietes,
-            forceStockDecrement: (data.proprietes as any)?.forceStockDecrement
-        });
+        return this.prisma.$transaction(async (tx) => {
+            const { where, data } = params;
 
-        // Check if we are validating a BROUILLON (BROUILLON → VALIDE)
-        if (data.statut === 'VALIDE') {
-            const currentFacture = await this.prisma.facture.findUnique({
-                where,
-                include: { paiements: true, client: true }
-            });
+            if (data.statut === 'VALIDE' || data.type === 'BON_COMM' || data.statut === 'VENTE_EN_INSTANCE' || data.statut === 'PAYEE' || data.statut === 'PARTIEL') {
 
-            // [FIX] STRENGTHENED FISCAL TRIGGER
-            // CRITICAL: Only trigger fiscal flow if this is the FIRST validation OR if amount changed
-            const isBecomingValid = (data.statut === 'VALIDE');
+                const currentFacture = await tx.facture.findUnique({
+                    where,
+                    include: { paiements: true, client: true }
+                });
 
-            // First validation = Any document (BROUILLON, DEVIS, VENTE_EN_INSTANCE) that validates without an official number
-            const isFirstValidation = !currentFacture?.numero?.startsWith('FAC');
 
-            // Amount changed = totalTTC differs by more than 0.1 MAD
-            const amountChanged = data.totalTTC !== undefined && Math.abs((data.totalTTC || 0) - (currentFacture?.totalTTC || 0)) > 0.1;
 
-            // Only trigger if: (First validation) OR (Amount changed)
-            // This prevents fiscal flow on DEVIS/VENTE_EN_INSTANCE re-validations
-            const shouldTriggerFiscalFlow = isBecomingValid && (isFirstValidation || amountChanged);
 
-            console.log(`🧐 [FISCAL FLOW CHECK] BecomingValid=${isBecomingValid}, FirstValidation=${isFirstValidation}, AmountChanged=${amountChanged} (Current: ${currentFacture?.totalTTC}, New: ${data.totalTTC})`);
+                // [FIX] Robust Devis Check: Match any document that IS a devis/draft
+                // EXCLUDE: Established BCs and Factures to prevent redundant transition logic
+                const num = (currentFacture?.numero || '').trim().toUpperCase();
+                const isCurrentlyDevis = currentFacture &&
+                    currentFacture.type !== 'BON_COMM' &&
+                    currentFacture.type !== 'FACTURE' &&
+                    (
+                        currentFacture.type === 'DEVIS' ||
+                        currentFacture.statut === 'BROUILLON' ||
+                        num.startsWith('DEV') ||
+                        num.startsWith('BRO') ||
+                        num.includes('DEVIS')
+                    );
 
-            if (currentFacture && shouldTriggerFiscalFlow) {
-                await this.verifyProductsAreReceived(currentFacture.lignes as any[], 'FACTURE');
+                // [NEW] Transition DEVIS/BROUILLON -> Real Document (Number Regeneration)
+                // This covers "Passer Commande" or "Valider la vente"
+                if (isCurrentlyDevis && (data.type === 'BON_COMM' || data.type === 'FACTURE' || data.type === 'BL')) {
+                    const stockCheck = await this.checkStockAvailability(currentFacture.id);
+                    if (stockCheck.hasConflicts) {
+                        console.error(`❌ [STOCK GUARD] Blocked transition for ${currentFacture.numero}: products missing.`, stockCheck.conflicts);
+                        throw new ConflictException({
+                            message: 'Impossible de transformer : certains produits sont en rupture de stock.',
+                            conflicts: stockCheck.conflicts
+                        });
+                    }
 
-                console.log(`🚀[FISCAL FLOW] STARTING conversion for ${currentFacture.numero}`);
+                    console.log(`📌 [TRANSITION] Document ${currentFacture.numero} becoming ${data.type}. Regenerating number.`);
 
-                return this.prisma.$transaction(async (tx) => {
-                    const newNumero = await this.generateNextNumber('FACTURE', tx); // Generate new number early
+                    // Ensure the target type is set correctly (in case it wasn't explicitly provided but transition triggered)
+                    const targetType = data.type;
+                    data.numero = await this.generateNextNumber(targetType, tx);
+
+                    // [FIX] If transitioning to BON_COMM, force the status to VENTE_EN_INSTANCE to prevent premature "VALIDE" (Facture) status
+                    if (data.type === 'BON_COMM') {
+                        data.statut = 'VENTE_EN_INSTANCE';
+                    }
+                }
+
+
+
+
+                // [FIX] STRENGTHENED FISCAL TRIGGER
+                // CRITICAL: Only trigger fiscal flow if this is the FIRST validation OR if amount changed
+                // IMPORTANT: Allow BC→FACTURE transition by checking TARGET type, not current type
+                const isBecomingValid = (data.statut === 'VALIDE');
+
+                // Only block fiscal flow if the TARGET is BON_COMM (not if the current is BC)
+                // This allows BC→FACTURE transitions to work properly
+                const isTargetingBC = (data.type === 'BON_COMM' || (data.numero && data.numero.startsWith('BC')));
+
+                // First validation = Any document (BROUILLON, DEVIS, VENTE_EN_INSTANCE) that validates without an official number
+                const isFirstValidation = !currentFacture?.numero?.startsWith('FAC');
+
+                // Amount changed = totalTTC differs by more than 0.1 MAD
+                const amountChanged = data.totalTTC !== undefined && Math.abs((data.totalTTC || 0) - (currentFacture?.totalTTC || 0)) > 0.1;
+
+                // Trigger fiscal flow if:
+                // 1. Status is becoming VALIDE
+                // 2. Target is NOT BON_COMM (allows BC→FACTURE)
+                // 3. Either first validation OR amount changed OR forceFiscal flag
+                const forceFiscal = (data.proprietes as any)?.forceFiscal === true;
+                const shouldTriggerFiscalFlow = isBecomingValid && !isTargetingBC && (isFirstValidation || amountChanged || forceFiscal);
+
+                console.log(`🧐 [FISCAL FLOW CHECK] BecomingValid=${isBecomingValid}, isTargetingBC=${isTargetingBC}, FirstValidation=${isFirstValidation}, AmountChanged=${amountChanged}, ForceFiscal=${forceFiscal}, CurrentType=${currentFacture?.type}, TargetType=${data.type}`);
+
+
+                if (currentFacture && shouldTriggerFiscalFlow) {
+                    await this.verifyProductsAreReceived(currentFacture.lignes as any[], 'FACTURE');
+                    console.log(`🚀[FISCAL FLOW] STARTING conversion for ${currentFacture.numero}`);
+
+                    const targetType = data.type || currentFacture.type;
+                    const newNumero = await this.generateNextNumber(targetType, tx); // Generate new number early
                     const isOfficial = currentFacture.numero.trim().startsWith('FAC');
 
                     if (isOfficial) {
@@ -577,7 +677,7 @@ export class FacturesService implements OnModuleInit {
                     // For now, I'll allow `this.generateNextNumber` (non-tx) but it might miss the AVOIR increment if run strictly parallel?
                     // But here we generate FACTURE number. Avoir is AVOIR type. Distinct sequences. Safe.
 
-                    const officialNumber = await this.generateNextNumber('FACTURE', tx); // Validating a DEVIS creates a FACTURE
+                    const officialNumber = await this.generateNextNumber(targetType, tx); // Validating a DEVIS creates the target type
                     const { client, paiements, fiche, ...existingFlat } = currentFacture as any;
                     const { client: dClient, paiements: dPai, fiche: dFiche, ...incomingData } = data as any;
 
@@ -612,7 +712,7 @@ export class FacturesService implements OnModuleInit {
                         dateEmission: new Date(),
                         createdAt: new Date(),
                         updatedAt: new Date(),
-                        type: 'FACTURE',
+                        type: data.type || 'FACTURE',
                         clientId: currentFacture.clientId,
                         centreId: currentFacture.centreId,
                         lignes: newLinesInput as any
@@ -731,93 +831,101 @@ export class FacturesService implements OnModuleInit {
                     }
 
                     return finalInvoice; // Return the NEW invoice so frontend redirects/updates
-                });
-            }
-        }
-
-        // FIX: Sanitize input for update as well
-        const { client, paiements, fiche, ...cleanData } = data as any;
-
-        // [NEW] Balance Cleanup: If cancelling, force resteAPayer to 0
-        if (cleanData.statut === 'ANNULEE') {
-            cleanData.resteAPayer = 0;
-        }
-
-        // Guard: Verify products if status changes to VALIDE outside fiscal flow
-        let currentRecord: any = null;
-        if (cleanData.statut === 'VALIDE' || cleanData.proprietes) {
-            currentRecord = await this.prisma.facture.findUnique({ where });
-
-            // Merge properties if both exist
-            if (currentRecord && cleanData.proprietes) {
-                const existingProps = currentRecord.proprietes as any || {};
-                const newProps = cleanData.proprietes as any || {};
-
-                cleanData.proprietes = {
-                    ...existingProps,
-                    ...newProps,
-                    // [FIX] IDEMPOTENCY LATCH: 
-                    // Verify we never lose the 'stockDecremented' flag if it was already true in DB.
-                    // This prevents the frontend from accidentally resetting it via a partial update.
-                    stockDecremented: existingProps.stockDecremented || newProps.stockDecremented
-                };
-            }
-        }
-
-        if (cleanData.statut === 'VALIDE' && currentRecord) {
-            await this.verifyProductsAreReceived(currentRecord.lignes as any[], cleanData.type || currentRecord.type);
-        }
-
-        // [DEBUG] Log data before update to diagnose P2002 error
-        console.log('📝 [UPDATE DEBUG] Final Data passed to Prisma:', JSON.stringify(cleanData, null, 2));
-        console.log('📝 [UPDATE DEBUG] Where clause:', JSON.stringify(where, null, 2));
-
-        const updatedFacture = await this.prisma.facture.update({
-            data: cleanData,
-            where,
-        });
-
-        // [NEW] Logic: Stock Decrement on Validation, Instance, or Archive
-        // Decrement if:
-        // 1. Status is VALIDE (direct validation or validation after instance/transfer reception)
-        // 2. Status is VENTE_EN_INSTANCE (allows negative stock for reserved transfers)
-        // 3. Status is ARCHIVE/ANNULEE with forceStockDecrement flag
-        if (updatedFacture.statut === 'VALIDE' ||
-            (updatedFacture.proprietes as any)?.forceStockDecrement === true) {
-            console.log('📦 Post-Update Stock Trigger (Validation, Instance, or Archive)');
-            await this.decrementStockForInvoice(this.prisma, updatedFacture, userId);
-
-            // [NEW] Commission Trigger
-            if ((updatedFacture as any).vendeurId) {
-                try {
-                    await this.commissionService.calculateForInvoice(updatedFacture.id);
-                } catch (e) {
-                    console.error('⚠️ [COMMISSION] Failed to calculate commissions:', e);
                 }
             }
 
-            await this.loyaltyService.awardPointsForPurchase(updatedFacture.id);
+            // FIX: Sanitize input for update as well
+            const { client, paiements, fiche, ...cleanData } = data as any;
 
-            // Deduct points if used
-            const pointsUtilises = (updatedFacture.proprietes as any)?.pointsUtilises;
-            if (pointsUtilises > 0) {
-                await this.loyaltyService.spendPoints(
-                    updatedFacture.clientId,
-                    pointsUtilises,
-                    `Utilisation de points sur facture ${updatedFacture.numero} `,
-                    updatedFacture.id
-                );
+            // [NEW] Balance Cleanup: If cancelling, force resteAPayer to 0
+            if (cleanData.statut === 'ANNULEE') {
+                cleanData.resteAPayer = 0;
             }
-        }
 
-        // [NEW] Logic: Stock Restoration for Cancelled Transfers
-        // If sale is cancelled and restoreStock flag is set, increment stock to restore from -1 to 0
-        if (updatedFacture.statut === 'ANNULEE' && (updatedFacture.proprietes as any)?.restoreStock === true) {
-            console.log('🔄 Restoring stock for cancelled transfer sale');
-            await this.restoreStockForCancelledInvoice(this.prisma, updatedFacture);
-        }
+            // Guard: Verify products if status changes to VALIDE outside fiscal flow
+            let currentRecord: any = null;
+            if (cleanData.statut === 'VALIDE' || cleanData.proprietes) {
+                currentRecord = await this.prisma.facture.findUnique({ where });
 
-        return updatedFacture;
+                // Merge properties if both exist
+                if (currentRecord && cleanData.proprietes) {
+                    const existingProps = currentRecord.proprietes as any || {};
+                    const newProps = cleanData.proprietes as any || {};
+
+                    cleanData.proprietes = {
+                        ...existingProps,
+                        ...newProps,
+                        // [FIX] IDEMPOTENCY LATCH: 
+                        // Verify we never lose the 'stockDecremented' flag if it was already true in DB.
+                        // This prevents the frontend from accidentally resetting it via a partial update.
+                        stockDecremented: existingProps.stockDecremented || newProps.stockDecremented
+                    };
+                }
+            }
+
+            if (cleanData.statut === 'VALIDE' && currentRecord) {
+                await this.verifyProductsAreReceived(currentRecord.lignes as any[], cleanData.type || currentRecord.type);
+            }
+
+            // [DEBUG] Log data before update to diagnose P2002 error
+            console.log('📝 [UPDATE DEBUG] Final Data passed to Prisma:', JSON.stringify(cleanData, null, 2));
+            console.log('📝 [UPDATE DEBUG] Where clause:', JSON.stringify(where, null, 2));
+
+            // [FIX] Check if facture exists before attempting update
+            const existingFacture = await this.prisma.facture.findUnique({ where });
+            if (!existingFacture) {
+                throw new NotFoundException(`Facture with ID ${where.id} not found. It may have been deleted.`);
+            }
+
+            const updatedFacture = await this.prisma.facture.update({
+                data: cleanData,
+                where,
+            });
+
+            // [NEW] Logic: Stock Decrement on Validation, Instance, or Archive
+            // Decrement if:
+            // 1. Status is VALIDE (direct validation or validation after instance/transfer reception)
+            // 2. Status is VENTE_EN_INSTANCE (allows negative stock for reserved transfers)
+            // 3. Status is ARCHIVE/ANNULEE with forceStockDecrement flag
+            if (updatedFacture.statut === 'VALIDE' ||
+                updatedFacture.statut === 'VENTE_EN_INSTANCE' ||
+                updatedFacture.statut === 'BON_DE_COMMANDE' ||
+                (updatedFacture.proprietes as any)?.forceStockDecrement === true) {
+                console.log('📦 Post-Update Stock Trigger (Validation, Instance, BC, or Archive)');
+                await this.decrementStockForInvoice(this.prisma, updatedFacture, userId);
+
+                // [NEW] Commission Trigger
+                if ((updatedFacture as any).vendeurId) {
+                    try {
+                        await this.commissionService.calculateForInvoice(updatedFacture.id);
+                    } catch (e) {
+                        console.error('⚠️ [COMMISSION] Failed to calculate commissions:', e);
+                    }
+                }
+
+                await this.loyaltyService.awardPointsForPurchase(updatedFacture.id);
+
+                // Deduct points if used
+                const pointsUtilises = (updatedFacture.proprietes as any)?.pointsUtilises;
+                if (pointsUtilises > 0) {
+                    await this.loyaltyService.spendPoints(
+                        updatedFacture.clientId,
+                        pointsUtilises,
+                        `Utilisation de points sur facture ${updatedFacture.numero} `,
+                        updatedFacture.id
+                    );
+                }
+            }
+
+            // [NEW] Logic: Stock Restoration for Cancelled Transfers
+            // If sale is cancelled and restoreStock flag is set, increment stock to restore from -1 to 0
+            if (updatedFacture.statut === 'ANNULEE' && (updatedFacture.proprietes as any)?.restoreStock === true) {
+                console.log('🔄 Restoring stock for cancelled transfer sale');
+                await this.restoreStockForCancelledInvoice(tx, updatedFacture);
+            }
+
+            return updatedFacture;
+        });
     }
 
     async remove(where: Prisma.FactureWhereUniqueInput) {
@@ -920,6 +1028,7 @@ export class FacturesService implements OnModuleInit {
             case 'DEVIS': return 'DEV';
             case 'AVOIR': return 'AVR';
             case 'BL': return 'BL';
+            case 'BON_COMM': return 'BC';
             default: return 'DOC';
         }
     }

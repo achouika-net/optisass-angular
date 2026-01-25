@@ -54,7 +54,33 @@ Chart.register(...registerables);
     ::ng-deep .dense-form-field .mat-mdc-form-field-flex { height: 44px !important; }
     ::ng-deep .dense-form-field .mat-mdc-text-field-wrapper { height: 44px !important; padding: 0 16px !important; border-radius: 12px !important; }
     ::ng-deep .dense-form-field .mat-mdc-form-field-infix { padding-top: 10px !important; padding-bottom: 10px !important; min-height: unset !important; }
+    
+    .alert-card {
+        background: #fff5f5;
+        border: 1px solid #feb2b2;
+        border-radius: 20px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+    .alert-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+    }
+    .alert-item:last-child { border-bottom: none; }
+    .alert-tag {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 4px;
+        text-transform: uppercase;
+    }
+    .tag-24h { background: #fee2e2; color: #9b1c1c; }
+    .tag-48h { background: #ffedd5; color: #9a3412; }
   `]
+
 })
 export class FinanceDashboardComponent implements OnInit, AfterViewInit {
     @ViewChild('healthChart') healthChartRef!: ElementRef;
@@ -310,4 +336,14 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         if (p > 80) return '#ff9800';  // Accent/Orange
         return '#3f51b5';             // Primary/Blue
     }
+
+    isNear(date: string | Date, hours: number): boolean {
+        if (!date) return false;
+        const d = new Date(date);
+        const now = new Date();
+        const diff = d.getTime() - now.getTime();
+        // Alert if date is between now and X hours in the future
+        return diff > 0 && diff <= hours * 60 * 60 * 1000;
+    }
 }
+
