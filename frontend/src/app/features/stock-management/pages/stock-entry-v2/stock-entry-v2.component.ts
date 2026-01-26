@@ -869,10 +869,23 @@ export class StockEntryV2Component implements OnInit {
             const remise = art.remise || 0;
             const finalCost = pu * (1 - (remise / 100));
 
+            // Intelligent Brand Recovery (Brand vs Prefix)
+            let finalMarque = art.marque || 'Sans Marque';
+            const rawDes = (art.designation_brute || '').toUpperCase();
+
+            // If the extracted brand is suspiciously short (prefix-like) or generic
+            if (finalMarque.length <= 3) {
+                const brandsInDes = ['IRIS', 'RAINBOW', 'VOGUE', 'RAY-BAN', 'GUCCI', 'PRADA', 'OAKLEY', 'CARVEN', 'POLICE'];
+                const found = brandsInDes.find(b => rawDes.includes(b));
+                if (found) {
+                    finalMarque = found;
+                }
+            }
+
             const product: StagedProduct = {
                 tempId: crypto.randomUUID(),
                 reference: art.reference || 'SANS-REF',
-                marque: art.marque || 'Sans Marque',
+                marque: finalMarque,
                 nom: des,
                 categorie: this.mapAiCategory(art.categorie, des),
                 nomClient: art.nom_client,
