@@ -118,7 +118,7 @@ export class StockEntryV2Component implements OnInit {
     // Staging Data
     stagedProducts: StagedProduct[] = [];
     productsSubject = new BehaviorSubject<StagedProduct[]>([]);
-    displayedColumns: string[] = ['codeBarre', 'reference', 'marque', 'couleur', 'calibre', 'pont', 'nom', 'categorie', 'entrepotId', 'quantite', 'prixAchat', 'tva', 'prixVente', 'actions'];
+    displayedColumns: string[] = ['codeBarre', 'reference', 'marque', 'couleur', 'calibre', 'pont', 'materiau', 'forme', 'genre', 'nom', 'categorie', 'entrepotId', 'quantite', 'prixAchat', 'tva', 'prixVente', 'actions'];
 
     // OCR State
     ocrProcessing = false;
@@ -1089,7 +1089,10 @@ export class StockEntryV2Component implements OnInit {
                 quantite: Number(p.quantite),
                 prixAchat: Number(p.prixAchat),
                 prixVente: Number(p.prixVente),
-                tva: Number(p.tva)
+                tva: Number(p.tva),
+                materiau: p.materiau,
+                forme: p.forme,
+                genre: p.genre
             });
         });
 

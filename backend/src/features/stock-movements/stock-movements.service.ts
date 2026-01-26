@@ -129,7 +129,12 @@ export class StockMovementsService {
                                 seuilAlerte: template?.seuilAlerte || 2,
                                 statut: 'DISPONIBLE',
                                 entrepotId: alloc.warehouseId,
-                                specificData: (template?.specificData as any) || {},
+                                specificData: {
+                                    ...(template?.specificData as any || {}),
+                                    materiau: alloc.materiau,
+                                    forme: alloc.forme,
+                                    genre: alloc.genre
+                                },
                                 utilisateurCreation: 'system'
                             },
                             include: { entrepot: true }
@@ -158,7 +163,13 @@ export class StockMovementsService {
                                 prixVenteHT: Number(alloc.prixVente),
                                 prixVenteTTC: Number(alloc.prixVente) * (1 + Number(alloc.tva) / 100),
                                 marque: targetProduct.marque || alloc.marque,
-                                typeArticle: targetProduct.typeArticle || alloc.categorie
+                                typeArticle: targetProduct.typeArticle || alloc.categorie,
+                                specificData: {
+                                    ...(targetProduct.specificData as any || {}),
+                                    materiau: (targetProduct.specificData as any)?.materiau || alloc.materiau,
+                                    forme: (targetProduct.specificData as any)?.forme || alloc.forme,
+                                    genre: (targetProduct.specificData as any)?.genre || alloc.genre
+                                }
                             }
                         });
 

@@ -33,6 +33,18 @@ class AllocationDto {
 
     @IsNumber()
     tva: number;
+
+    @IsOptional()
+    @IsString()
+    materiau?: string;
+
+    @IsOptional()
+    @IsString()
+    forme?: string;
+
+    @IsOptional()
+    @IsString()
+    genre?: string;
 }
 
 export class BulkAlimentationDto {
