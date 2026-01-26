@@ -542,15 +542,17 @@ export class StockEntryV2Component implements OnInit {
 
             if (result.error) {
                 this.ocrError = result.error;
-                // Show specific snackbar for n8n errors to help user
-                if (result.error.includes('n8n')) {
-                    this.snackBar.open(`⚠️ ${result.error}`, 'Vérifier n8n', { duration: 10000 });
-                }
+                this.ocrProcessing = false;
+                this.snackBar.open(`⚠️ ${result.error}`, 'Utiliser OCR Local', { duration: 10000 })
+                    .onAction().subscribe(() => {
+                        this.useIntelligentOcr = false;
+                        this.processOCR(file);
+                    });
                 return;
             }
 
             this.analyzedText = result.text || '';
-            console.log('📦 OCR: Final result data candidate:', result);
+            console.log(`📦 OCR: Data received from ${result.source || 'LOCAL (Tesseract)'}`, result);
 
             // Handle n8n array response wrapper
             const data = Array.isArray(result) ? result[0] : result;
