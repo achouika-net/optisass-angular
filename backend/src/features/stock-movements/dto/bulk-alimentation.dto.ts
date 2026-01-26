@@ -12,6 +12,10 @@ class AllocationDto {
     @IsString()
     nom: string;
 
+    @IsOptional()
+    @IsString()
+    codeBarre?: string;
+
     @IsString()
     categorie: string;
 

@@ -156,8 +156,8 @@ export class ProductDetailComponent implements OnInit {
 
     getFrameData(): any | undefined {
         if (!this.product) return undefined;
-        const type = this.product.typeArticle?.toUpperCase();
-        if (type === 'MONTURE' || type === 'MONTURE_OPTIQUE' || type === 'MONTURE_SOLAIRE') {
+        const type = (this.product.typeArticle || '').toUpperCase();
+        if (type.includes('MONTURE') || type === 'SOLAIRE' || type === 'OPTIQUE') {
             // Fusionner specificData dans l'objet pour le template
             const spec = this.product.specificData || {};
             return {
