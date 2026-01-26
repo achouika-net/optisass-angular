@@ -484,62 +484,57 @@
                                 </td>
                             </ng-container>
 
-                            <ng-container matColumnDef="couleur">
-                                <th mat-header-cell *matHeaderCellDef> Couleur </th>
-                                <td mat-cell *matCellDef="let element">
-                                    <input [(ngModel)]="element.couleur" (input)="updateProduct(element)"
-                                        class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs">
-                                </td>
-                            </ng-container>
-
-                            <ng-container matColumnDef="calibre">
-                                <th mat-header-cell *matHeaderCellDef> Calibre </th>
-                                <td mat-cell *matCellDef="let element">
-                                    <input [(ngModel)]="element.calibre" (input)="updateProduct(element)"
-                                        class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs text-center">
-                                </td>
-                            </ng-container>
-
-                            <ng-container matColumnDef="pont">
-                                <th mat-header-cell *matHeaderCellDef> Pont </th>
-                                <td mat-cell *matCellDef="let element">
-                                    <input [(ngModel)]="element.pont" (input)="updateProduct(element)"
-                                        class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs text-center">
-                                </td>
-                            </ng-container>
-
-                            <!-- Intelligent Factory Data (Consultation) -->
-                            <ng-container matColumnDef="materiau">
-                                <th mat-header-cell *matHeaderCellDef> Mat. </th>
-                                <td mat-cell *matCellDef="let element">
-                                    <span class="text-[9px] text-gray-400 uppercase font-bold">{{element.materiau ||
-                                        '-'}}</span>
-                                </td>
-                            </ng-container>
-
-                            <ng-container matColumnDef="forme">
-                                <th mat-header-cell *matHeaderCellDef> Forme </th>
-                                <td mat-cell *matCellDef="let element">
-                                    <span class="text-[9px] text-gray-400 uppercase font-bold">{{element.forme ||
-                                        '-'}}</span>
-                                </td>
-                            </ng-container>
-
-                            <ng-container matColumnDef="genre">
-                                <th mat-header-cell *matHeaderCellDef> Genre </th>
-                                <td mat-cell *matCellDef="let element">
-                                    <span class="text-[9px] text-gray-400 uppercase font-bold">{{element.genre ||
-                                        '-'}}</span>
-                                </td>
-                            </ng-container>
-
-
-
                             <ng-container matColumnDef="nom">
-                                <th mat-header-cell *matHeaderCellDef> Désignation </th>
+                                <th mat-header-cell *matHeaderCellDef> Désignation & Caractéristiques </th>
                                 <td mat-cell *matCellDef="let element">
-                                    <input [(ngModel)]="element.nom" (input)="updateProduct(element)"
-                                        class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5">
+                                    <div class="flex flex-col py-2">
+                                        <!-- Main Row: Designation -->
+                                        <input [(ngModel)]="element.nom" (input)="updateProduct(element)"
+                                            class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 font-medium text-gray-800"
+                                            placeholder="Désignation du produit">
+
+                                        <!-- Sub-Row: Smart Characteristics -->
+                                        <div class="flex flex-wrap items-center gap-2 mt-1 px-1">
+                                            <!-- Color Badge -->
+                                            <div *ngIf="element.couleur"
+                                                class="flex items-center gap-1 bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-bold border border-slate-200">
+                                                <mat-icon class="text-[12px] h-3 w-3">palette</mat-icon>
+                                                {{element.couleur}}
+                                            </div>
+
+                                            <!-- Size Badge (Calibre/Pont) -->
+                                            <div *ngIf="element.calibre || element.pont"
+                                                class="flex items-center gap-1 bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-blue-100">
+                                                <mat-icon class="text-[12px] h-3 w-3">straighten</mat-icon>
+                                                {{element.calibre || '??'}} [] {{element.pont || '??'}}
+                                            </div>
+
+                                            <!-- Material Badge -->
+                                            <div *ngIf="element.materiau"
+                                                class="flex items-center gap-1 bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-orange-100 uppercase">
+                                                <mat-icon class="text-[12px] h-3 w-3">category</mat-icon>
+                                                {{element.materiau}}
+                                            </div>
+
+                                            <!-- Shape/Gender Badge -->
+                                            <div *ngIf="element.forme || element.genre"
+                                                class="flex items-center gap-1 bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-purple-100 uppercase">
+                                                <mat-icon class="text-[12px] h-3 w-3">auto_awesome</mat-icon>
+                                                {{element.forme}} {{element.genre ? '('+element.genre+')' : ''}}
+                                            </div>
+
+                                            <!-- Manual Inputs for Quick Edit -->
+                                            <div
+                                                class="ml-auto flex items-center gap-1 opacity-0 hover:opacity-100 transition-opacity">
+                                                <input [(ngModel)]="element.couleur" placeholder="Coul."
+                                                    class="w-10 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400">
+                                                <input [(ngModel)]="element.calibre" placeholder="Cal."
+                                                    class="w-8 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 text-center">
+                                                <input [(ngModel)]="element.pont" placeholder="Pont"
+                                                    class="w-8 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 text-center">
+                                            </div>
+                                        </div>
+                                    </div>
                                 </td>
                             </ng-container>
 

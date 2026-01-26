@@ -118,7 +118,7 @@ export class StockEntryV2Component implements OnInit {
     // Staging Data
     stagedProducts: StagedProduct[] = [];
     productsSubject = new BehaviorSubject<StagedProduct[]>([]);
-    displayedColumns: string[] = ['codeBarre', 'reference', 'marque', 'couleur', 'calibre', 'pont', 'materiau', 'forme', 'genre', 'nom', 'categorie', 'entrepotId', 'quantite', 'prixAchat', 'tva', 'prixVente', 'actions'];
+    displayedColumns: string[] = ['codeBarre', 'reference', 'marque', 'nom', 'categorie', 'entrepotId', 'quantite', 'prixAchat', 'tva', 'prixVente', 'actions'];
 
     // OCR State
     ocrProcessing = false;
