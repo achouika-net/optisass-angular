@@ -574,13 +574,27 @@ export class StockEntryV2Component implements OnInit {
                 }
             }
 
-            // NEW: Handle Intelligent (n8n) Results
-            if (data.articles && data.articles.length > 0) {
-                console.log('✨ OCR: Intelligent (n8n) data detected. Processing articles...');
+            // NEW: Ultra-flexible article detection (Search for any array of articles)
+            const findArticles = (obj: any): any[] | null => {
+                if (!obj || typeof obj !== 'object') return null;
+                if (Array.isArray(obj.articles)) return obj.articles;
+                if (Array.isArray(obj.items)) return obj.items;
+                if (Array.isArray(obj.produits)) return obj.produits;
+
+                for (const key in obj) {
+                    const result = findArticles(obj[key]);
+                    if (result) return result;
+                }
+                return null;
+            };
+
+            const items = findArticles(data);
+            if (items && items.length > 0) {
+                console.log(`✨ OCR: ${items.length} articles detected via Intelligent search. Processing...`);
                 this.isIntelligentOcr = true;
-                this.addIntelligentArticles(data.articles);
+                this.addIntelligentArticles(items);
                 this.showOcrData = false;
-                this.snackBar.open(`✅ ${data.articles.length} articles extraits par l'IA !`, 'OK', { duration: 5000 });
+                this.snackBar.open(`✅ ${items.length} articles extraits par l'IA !`, 'OK', { duration: 5000 });
                 return;
             }
 
