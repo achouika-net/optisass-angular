@@ -23,11 +23,14 @@ export class OcrService {
                 console.log('🚀 OCR: Attempting intelligent extraction via n8n...');
                 console.log('🔗 OCR: Webhook URL:', environment.n8nWebhookUrl);
                 const n8nResponse = await this.recognizeWithN8n(input);
-                console.log('✅ OCR: n8n response received');
-                return n8nResponse;
+                console.log('✅ OCR: Result from n8n (Intelligent):', n8nResponse);
+                return { ...n8nResponse, source: 'n8n' };
             } catch (err: any) {
-                console.warn('⚠️ OCR: n8n failed, falling back to local Tesseract', err);
-                // Fallback direct vers la logique locale ci-dessous
+                console.warn('⚠️ OCR: n8n failed', err);
+                return {
+                    error: `n8n (500): ${err.message || 'Erreur interne'}. Vérifiez vos credentials OpenAI dans n8n local.`,
+                    source: 'n8n_failed'
+                };
             }
         }
 
@@ -398,7 +401,7 @@ export class OcrService {
      */
     async recognizeWithN8n(file: File): Promise<any> {
         const formData = new FormData();
-        formData.append('data', file); // Use 'data' instead of 'file' to match n8n default
+        formData.append('file', file); // Back to 'file' standard for easier n8n configuration
 
         // Native fetch bypasses Angular interceptors and provides clearer CORS errors
         const response = await fetch(environment.n8nWebhookUrl, {
