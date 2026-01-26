@@ -21,8 +21,15 @@ export class OcrService {
         if (!forceLocal && input instanceof File && environment.n8nWebhookUrl && !environment.n8nWebhookUrl.includes('REPLACE_WITH')) {
             try {
                 console.log('🚀 OCR: Attempting intelligent extraction via n8n...');
-                console.log('🔗 OCR: Webhook URL:', environment.n8nWebhookUrl);
-                const n8nResponse = await this.recognizeWithN8n(input);
+
+                // OPTIMISATION : Compression d'image avant envoi pour réduire la latence
+                let fileToSend = input;
+                if (input.type.startsWith('image/')) {
+                    console.log('📉 OCR: Optimizing image size for AI...');
+                    fileToSend = await this.compressImage(input);
+                }
+
+                const n8nResponse = await this.recognizeWithN8n(fileToSend);
                 console.log('✅ OCR: Raw result from n8n:', n8nResponse);
 
                 // Fonction pour extraire le JSON d'une structure complexe ou d'une string
@@ -446,5 +453,51 @@ export class OcrService {
         }
 
         return await response.json();
+    }
+
+    /**
+     * Compresse une image pour réduire la latence de transfert et de traitement IA
+     */
+    private async compressImage(file: File): Promise<File> {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event: any) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 1600; // Résolution optimale pour GPT-4o Vision
+                    const MAX_HEIGHT = 1600;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+                        } else {
+                            resolve(file); // Fallback
+                        }
+                    }, 'image/jpeg', 0.85); // 85% de qualité est suffisant pour l'IA
+                };
+            };
+        });
     }
 }
