@@ -526,13 +526,33 @@
 
                                             <!-- Manual Inputs for Quick Edit -->
                                             <div
-                                                class="ml-auto flex items-center gap-1 opacity-0 hover:opacity-100 transition-opacity">
-                                                <input [(ngModel)]="element.couleur" placeholder="Coul."
+                                                class="ml-auto flex items-center gap-2 opacity-0 hover:opacity-100 transition-opacity whitespace-nowrap bg-white/80 backdrop-blur-sm p-1 rounded-sm shadow-sm border border-gray-100">
+                                                <input [(ngModel)]="element.couleur" (input)="updateProduct(element)"
+                                                    placeholder="Coul."
                                                     class="w-10 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400">
-                                                <input [(ngModel)]="element.calibre" placeholder="Cal."
-                                                    class="w-8 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 text-center">
-                                                <input [(ngModel)]="element.pont" placeholder="Pont"
-                                                    class="w-8 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 text-center">
+                                                <input [(ngModel)]="element.calibre" (input)="updateProduct(element)"
+                                                    placeholder="Cal."
+                                                    class="w-6 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 text-center">
+                                                <input [(ngModel)]="element.pont" (input)="updateProduct(element)"
+                                                    placeholder="Pt"
+                                                    class="w-6 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 text-center">
+
+                                                <div class="h-3 w-[1px] bg-gray-300 mx-1"></div>
+
+                                                <input [(ngModel)]="element.materiau" (input)="updateProduct(element)"
+                                                    placeholder="Matériau"
+                                                    class="w-14 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 capitalize">
+                                                <input [(ngModel)]="element.forme" (input)="updateProduct(element)"
+                                                    placeholder="Forme"
+                                                    class="w-14 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 capitalize">
+                                                <select [(ngModel)]="element.genre" (change)="updateProduct(element)"
+                                                    class="text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 outline-none">
+                                                    <option [value]="undefined">Genre?</option>
+                                                    <option value="HOMME">H</option>
+                                                    <option value="FEMME">F</option>
+                                                    <option value="MIXTE">M</option>
+                                                    <option value="ENFANT">E</option>
+                                                </select>
                                             </div>
                                         </div>
                                     </div>
