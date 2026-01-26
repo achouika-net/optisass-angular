@@ -23,10 +23,37 @@ export class OcrService {
                 console.log('🚀 OCR: Attempting intelligent extraction via n8n...');
                 console.log('🔗 OCR: Webhook URL:', environment.n8nWebhookUrl);
                 const n8nResponse = await this.recognizeWithN8n(input);
-                console.log('✅ OCR: Result from n8n (Intelligent):', n8nResponse);
-                // Si n8n renvoie un tableau (standard), on prend le premier élément
-                const data = Array.isArray(n8nResponse) ? n8nResponse[0] : n8nResponse;
-                return { ...data, source: 'n8n' };
+                console.log('✅ OCR: Raw result from n8n:', n8nResponse);
+
+                // Fonction pour extraire le JSON d'une structure complexe ou d'une string
+                const extractJson = (obj: any): any => {
+                    if (!obj) return null;
+                    // Si c'est déjà un objet avec des articles, on le prend
+                    if (obj.articles || obj.items) return obj;
+
+                    // Si c'est une string, on cherche du JSON dedans
+                    if (typeof obj === 'string') {
+                        try {
+                            const match = obj.match(/\{[\s\S]*\}/);
+                            if (match) return JSON.parse(match[0]);
+                        } catch (e) { return null; }
+                    }
+
+                    // Récursion pour fouiller dans les tableaux/objets (ex: output[0].content[0].text)
+                    if (Array.isArray(obj)) return extractJson(obj[0]);
+                    if (typeof obj === 'object') {
+                        for (const key in obj) {
+                            const found = extractJson(obj[key]);
+                            if (found) return found;
+                        }
+                    }
+                    return null;
+                };
+
+                const data = extractJson(n8nResponse);
+                console.log('✨ OCR: Parsed Intelligent Data:', data);
+
+                return { ...(data || {}), source: 'n8n' };
             } catch (err: any) {
                 console.warn('⚠️ OCR: n8n failed', err);
                 return {
