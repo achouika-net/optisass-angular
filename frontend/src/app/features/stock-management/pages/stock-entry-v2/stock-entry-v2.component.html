@@ -508,6 +508,29 @@
                                 </td>
                             </ng-container>
 
+                            <ng-container matColumnDef="materiau">
+                                <th mat-header-cell *matHeaderCellDef> Matériau </th>
+                                <td mat-cell *matCellDef="let element">
+                                    <span class="text-[10px] text-gray-400 capitalize">{{element.materiau ||
+                                        '-'}}</span>
+                                </td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="forme">
+                                <th mat-header-cell *matHeaderCellDef> Forme </th>
+                                <td mat-cell *matCellDef="let element">
+                                    <span class="text-[10px] text-gray-400 capitalize">{{element.forme || '-'}}</span>
+                                </td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="genre">
+                                <th mat-header-cell *matHeaderCellDef> Genre </th>
+                                <td mat-cell *matCellDef="let element">
+                                    <span class="text-[10px] text-gray-400 capitalize">{{element.genre || '-'}}</span>
+                                </td>
+                            </ng-container>
+
+
                             <ng-container matColumnDef="nom">
                                 <th mat-header-cell *matHeaderCellDef> Désignation </th>
                                 <td mat-cell *matCellDef="let element">
