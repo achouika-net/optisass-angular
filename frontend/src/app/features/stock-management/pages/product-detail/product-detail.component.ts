@@ -154,8 +154,24 @@ export class ProductDetailComponent implements OnInit {
         this.router.navigate(['/p/stock']);
     }
 
-    getFrameData(): Frame | undefined {
-        return this.product?.typeArticle === 'monture' ? this.product as Frame : undefined;
+    getFrameData(): any | undefined {
+        if (!this.product) return undefined;
+        const type = this.product.typeArticle?.toUpperCase();
+        if (type === 'MONTURE' || type === 'MONTURE_OPTIQUE' || type === 'MONTURE_SOLAIRE') {
+            // Fusionner specificData dans l'objet pour le template
+            const spec = this.product.specificData || {};
+            return {
+                ...this.product,
+                categorie: this.product.categorie || (type === 'MONTURE_SOLAIRE' ? 'solaire' : 'optique'),
+                genre: spec.genre || (this.product as any).genre,
+                forme: spec.forme || (this.product as any).forme,
+                matiere: spec.materiau || spec.matiere || (this.product as any).matiere || (this.product as any).materiau,
+                calibre: spec.calibre || (this.product as any).calibre,
+                pont: spec.pont || (this.product as any).pont,
+                branche: spec.branche || (this.product as any).branche
+            };
+        }
+        return undefined;
     }
 
     formatPrice(price: number | undefined | null): string {

@@ -45,6 +45,18 @@ class AllocationDto {
     @IsOptional()
     @IsString()
     genre?: string;
+
+    @IsOptional()
+    @IsString()
+    couleur?: string;
+
+    @IsOptional()
+    @IsString()
+    calibre?: string;
+
+    @IsOptional()
+    @IsString()
+    pont?: string;
 }
 
 export class BulkAlimentationDto {

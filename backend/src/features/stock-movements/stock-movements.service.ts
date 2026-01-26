@@ -120,8 +120,9 @@ export class StockMovementsService {
                                 designation: alloc.nom,
                                 marque: alloc.marque,
                                 codeInterne: alloc.reference,
-                                codeBarres: alloc.reference,
+                                codeBarres: alloc.reference.split('/')[0], // Tentative de nettoyage si c'est un long mix
                                 typeArticle: template?.typeArticle || alloc.categorie || 'AUTRE',
+                                couleur: alloc.couleur,
                                 prixAchatHT: Number(alloc.prixAchat),
                                 prixVenteHT: Number(alloc.prixVente),
                                 prixVenteTTC: Number(alloc.prixVente) * (1 + Number(alloc.tva) / 100),
@@ -133,7 +134,9 @@ export class StockMovementsService {
                                     ...(template?.specificData as any || {}),
                                     materiau: alloc.materiau,
                                     forme: alloc.forme,
-                                    genre: alloc.genre
+                                    genre: alloc.genre,
+                                    calibre: alloc.calibre,
+                                    pont: alloc.pont
                                 },
                                 utilisateurCreation: 'system'
                             },
@@ -164,11 +167,14 @@ export class StockMovementsService {
                                 prixVenteTTC: Number(alloc.prixVente) * (1 + Number(alloc.tva) / 100),
                                 marque: targetProduct.marque || alloc.marque,
                                 typeArticle: targetProduct.typeArticle || alloc.categorie,
+                                couleur: targetProduct.couleur || alloc.couleur,
                                 specificData: {
                                     ...(targetProduct.specificData as any || {}),
                                     materiau: (targetProduct.specificData as any)?.materiau || alloc.materiau,
                                     forme: (targetProduct.specificData as any)?.forme || alloc.forme,
-                                    genre: (targetProduct.specificData as any)?.genre || alloc.genre
+                                    genre: (targetProduct.specificData as any)?.genre || alloc.genre,
+                                    calibre: (targetProduct.specificData as any)?.calibre || alloc.calibre,
+                                    pont: (targetProduct.specificData as any)?.pont || alloc.pont
                                 }
                             }
                         });

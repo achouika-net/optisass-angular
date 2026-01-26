@@ -23,9 +23,12 @@ export interface BulkAlimentationPayload {
         prixAchat: number;
         prixVente: number;
         tva: number;
+        couleur?: string;
         materiau?: string;
         forme?: string;
         genre?: string;
+        calibre?: string;
+        pont?: string;
     }[];
 }
 
