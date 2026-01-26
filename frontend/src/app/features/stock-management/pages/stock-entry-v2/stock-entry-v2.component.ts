@@ -881,7 +881,7 @@ export class StockEntryV2Component implements OnInit {
                 reference: art.reference || 'SANS-REF',
                 marque: art.marque || 'Sans Marque',
                 nom: des,
-                categorie: art.categorie || this.determineCategory(des),
+                categorie: this.mapAiCategory(art.categorie, des),
                 nomClient: art.nom_client,
                 entrepotId: globalWh,
                 quantite: art.quantite || 1,
@@ -905,13 +905,25 @@ export class StockEntryV2Component implements OnInit {
         this.productsSubject.next(this.stagedProducts);
     }
 
+    private mapAiCategory(aiCategory: string | undefined, designation: string): string {
+        if (!aiCategory) return this.determineCategory(designation);
+
+        const cat = aiCategory.toUpperCase();
+        if (cat.includes('SOLAIRE') || cat.includes('SUN')) return 'MONTURE_SOLAIRE';
+        if (cat.includes('OPTIQUE') || cat.includes('FRAME')) return 'MONTURE_OPTIQUE';
+        if (cat.includes('LENT')) return 'LENTILLE';
+        if (cat.includes('VERRE')) return 'VERRE';
+
+        return this.determineCategory(designation);
+    }
+
     private determineCategory(text: string): string {
         const lower = text.toLowerCase();
         if (lower.includes('lent') || lower.includes('lens')) return 'LENTILLE';
-        if (lower.includes('sol')) return 'MONTURE_SOLAIRE';
+        if (lower.includes('sol') || lower.includes('sun') || lower.includes('solaire')) return 'MONTURE_SOLAIRE';
         if (lower.includes('verre')) return 'VERRE';
-        if (lower.includes('optique')) return 'MONTURE_OPTIQUE';
-        return 'MONTURE_OPTIQUE'; // Default for most optical invoices
+        if (lower.includes('optique') || lower.includes('frame')) return 'MONTURE_OPTIQUE';
+        return 'MONTURE_OPTIQUE'; // Default
     }
 
     openCamera() {
