@@ -24,7 +24,9 @@ export class OcrService {
                 console.log('🔗 OCR: Webhook URL:', environment.n8nWebhookUrl);
                 const n8nResponse = await this.recognizeWithN8n(input);
                 console.log('✅ OCR: Result from n8n (Intelligent):', n8nResponse);
-                return { ...n8nResponse, source: 'n8n' };
+                // Si n8n renvoie un tableau (standard), on prend le premier élément
+                const data = Array.isArray(n8nResponse) ? n8nResponse[0] : n8nResponse;
+                return { ...data, source: 'n8n' };
             } catch (err: any) {
                 console.warn('⚠️ OCR: n8n failed', err);
                 return {
@@ -401,7 +403,7 @@ export class OcrService {
      */
     async recognizeWithN8n(file: File): Promise<any> {
         const formData = new FormData();
-        formData.append('file', file); // Back to 'file' standard for easier n8n configuration
+        formData.append('file', file); // Use 'file' to match n8n default property name
 
         // Native fetch bypasses Angular interceptors and provides clearer CORS errors
         const response = await fetch(environment.n8nWebhookUrl, {
