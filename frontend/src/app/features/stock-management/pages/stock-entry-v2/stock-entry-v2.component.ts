@@ -209,10 +209,10 @@ export class StockEntryV2Component implements OnInit {
             type: ['FACTURE', Validators.required],
             fournisseurId: ['', Validators.required],
             numero: ['', Validators.required],
-            date: [new Date(), Validators.required],
+            date: [new Date()],
             file: [null],
             centreId: [null],
-            entrepotId: ['', Validators.required] // Global Default
+            entrepotId: [''] // Facultatif
         });
 
         this.batchPricingForm = this.fb.group({
@@ -1096,11 +1096,8 @@ export class StockEntryV2Component implements OnInit {
             });
         });
 
-        // Validation: All lines must have a warehouse
-        if (allAllocations.some(a => !a.warehouseId)) {
-            this.snackBar.open('Veuillez sélectionner un entrepôt pour tous les articles', 'OK', { duration: 3000 });
-            return;
-        }
+        // Note: Warehouse and Date are now optional according to user request.
+        // If date is null, we can default to now or leave as null if backend allows.
 
         // Handle File Attachment
         let base64File: string | undefined;
@@ -1110,7 +1107,7 @@ export class StockEntryV2Component implements OnInit {
             fileName = doc.file.name;
         }
 
-        const rawDate = doc.date;
+        const rawDate = doc.date || new Date();
         const utcDate = new Date(Date.UTC(rawDate.getFullYear(), rawDate.getMonth(), rawDate.getDate()));
         const trimmedNumero = (doc.numero || '').trim();
 

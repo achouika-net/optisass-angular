@@ -67,15 +67,16 @@
                                 </div>
 
                                 <mat-form-field appearance="outline" class="w-44 compact-field">
-                                    <mat-label>Date d'émission *</mat-label>
+                                    <mat-label>Date d'émission</mat-label>
                                     <input matInput [matDatepicker]="docPicker" formControlName="date">
                                     <mat-datepicker-toggle matIconSuffix [for]="docPicker"></mat-datepicker-toggle>
                                     <mat-datepicker #docPicker></mat-datepicker>
                                 </mat-form-field>
 
                                 <mat-form-field appearance="outline" class="w-56 compact-field font-bold">
-                                    <mat-label>Entrepôt par défaut</mat-label>
+                                    <mat-label>Entrepôt (Facultatif)</mat-label>
                                     <mat-select formControlName="entrepotId">
+                                        <mat-option [value]="''">Aucun (Stock central)</mat-option>
                                         <mat-option *ngFor="let w of entrepots$ | async" [value]="w.id">{{ w.nom
                                             }}</mat-option>
                                     </mat-select>
