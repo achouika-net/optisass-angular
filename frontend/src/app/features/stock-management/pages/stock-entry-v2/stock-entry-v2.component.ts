@@ -857,20 +857,13 @@ export class StockEntryV2Component implements OnInit {
         const defaultTva = this.entryForm.get('tva')?.value || 20;
 
         articles.forEach(art => {
-            // Build designation: "Marque Ref Couleur Calibre/Pont"
-            // Use 'designation_brute' as a fallback if the AI provided the full string
-            let des = art.designation_brute || `${art.marque || ''} ${art.reference || ''}`.trim();
+            // Clean designation: "Marque + Reference"
+            // AI might send the full line in designation_brute, we prefer to reconstruct a clean one
+            let des = `${art.marque || ''} ${art.reference || ''}`.trim();
 
-            // If we built it from marque/ref, add the extra details if they aren't already in it
-            if (!art.designation_brute) {
-                if (art.couleur && !des.includes(art.couleur)) des += ` ${art.couleur}`;
-                if ((art.calibre || art.pont)) {
-                    const size = `${art.calibre || '??'}[]${art.pont || '??'}`;
-                    if (!des.includes(size)) des += ` (${size})`;
-                }
+            if (!des || des.length < 3) {
+                des = art.designation_brute || 'SANS DESIGNATION';
             }
-
-            if (!des) des = 'SANS DESIGNATION';
 
             const pu = art.prix_unitaire || 0;
             const remise = art.remise || 0;
@@ -1092,7 +1085,10 @@ export class StockEntryV2Component implements OnInit {
                 tva: Number(p.tva),
                 materiau: p.materiau,
                 forme: p.forme,
-                genre: p.genre
+                genre: p.genre,
+                couleur: p.couleur,
+                calibre: p.calibre,
+                pont: p.pont
             });
         });
 
