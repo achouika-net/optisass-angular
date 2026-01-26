@@ -1075,7 +1075,8 @@ export class StockEntryV2Component implements OnInit {
             allAllocations.push({
                 productId: p.id,
                 reference: p.reference,
-                nom: p.nom,
+                codeBarre: p.codeBarre, // Nouveau: Passer le code barre propre
+                nom: p.nom.split(']')[0].split('1040')[0].trim(), // Nettoyage agressif des résidus OCR
                 marque: p.marque,
                 categorie: p.categorie,
                 warehouseId: p.entrepotId,

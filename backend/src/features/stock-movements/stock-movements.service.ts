@@ -119,8 +119,8 @@ export class StockMovementsService {
                             data: {
                                 designation: alloc.nom,
                                 marque: alloc.marque,
-                                codeInterne: alloc.reference,
-                                codeBarres: alloc.reference.split('/')[0], // Tentative de nettoyage si c'est un long mix
+                                codeInterne: alloc.reference.trim(),
+                                codeBarres: (alloc.codeBarre || '').trim(), // Utiliser le code barre du frontend ou vide
                                 typeArticle: template?.typeArticle || alloc.categorie || 'AUTRE',
                                 couleur: alloc.couleur,
                                 prixAchatHT: Number(alloc.prixAchat),
