@@ -60,6 +60,11 @@ export interface StagedProduct {
     margeFixe?: number;
     prixVente: number;
 
+    // Optical Details (OCR)
+    couleur?: string;
+    calibre?: string;
+    pont?: string;
+
     existingStock?: number;
     existingPrixAchat?: number;
     suggestedWAP?: number;
@@ -108,7 +113,7 @@ export class StockEntryV2Component implements OnInit {
     // Staging Data
     stagedProducts: StagedProduct[] = [];
     productsSubject = new BehaviorSubject<StagedProduct[]>([]);
-    displayedColumns: string[] = ['codeBarre', 'reference', 'marque', 'nom', 'nomClient', 'categorie', 'entrepotId', 'quantite', 'prixAchat', 'tva', 'modePrix', 'prixVente', 'actions'];
+    displayedColumns: string[] = ['codeBarre', 'reference', 'marque', 'couleur', 'calibre', 'pont', 'nom', 'nomClient', 'categorie', 'entrepotId', 'quantite', 'prixAchat', 'tva', 'modePrix', 'prixVente', 'actions'];
 
     // OCR State
     ocrProcessing = false;
@@ -848,12 +853,16 @@ export class StockEntryV2Component implements OnInit {
 
         articles.forEach(art => {
             // Build designation: "Marque Ref Couleur Calibre/Pont"
-            let des = `${art.marque || ''} ${art.reference || ''}`.trim();
-            if (art.couleur) des += ` ${art.couleur}`;
+            // Use 'designation_brute' as a fallback if the AI provided the full string
+            let des = art.designation_brute || `${art.marque || ''} ${art.reference || ''}`.trim();
 
-            // Format size: "54[]17" or "54-17"
-            if (art.calibre || art.pont) {
-                des += ` ${art.calibre || '??'}[]${art.pont || '??'}`;
+            // If we built it from marque/ref, add the extra details if they aren't already in it
+            if (!art.designation_brute) {
+                if (art.couleur && !des.includes(art.couleur)) des += ` ${art.couleur}`;
+                if ((art.calibre || art.pont)) {
+                    const size = `${art.calibre || '??'}[]${art.pont || '??'}`;
+                    if (!des.includes(size)) des += ` (${size})`;
+                }
             }
 
             if (!des) des = 'SANS DESIGNATION';
@@ -875,7 +884,10 @@ export class StockEntryV2Component implements OnInit {
                 tva: defaultTva,
                 modePrix: 'COEFF',
                 coefficient: 2.5,
-                prixVente: parseFloat((finalCost * 2.5).toFixed(2))
+                prixVente: parseFloat((finalCost * 2.5).toFixed(2)),
+                couleur: art.couleur,
+                calibre: art.calibre?.toString(),
+                pont: art.pont?.toString()
             };
 
             newProducts.push(product);
