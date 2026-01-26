@@ -367,19 +367,20 @@ export class ProductsService {
         codeBarres?: string;
         centreId: string;
         entrepotId?: string;
-    }) {
+    }, tx?: any) {
         const { designation, codeInterne, codeBarres, centreId, entrepotId } = params;
+        const client = tx || this.prisma;
 
         // Try direct reference match first (most reliable)
         if (codeInterne || codeBarres) {
-            const byRef = await this.prisma.product.findFirst({
+            const byRef = await client.product.findFirst({
                 where: {
                     entrepot: { centreId },
                     entrepotId: entrepotId || undefined,
                     OR: [
                         codeInterne ? { codeInterne } : {},
                         codeBarres ? { codeBarres } : {}
-                    ].filter(q => Object.keys(q).length > 0)
+                    ].filter((q: any) => Object.keys(q).length > 0)
                 },
                 orderBy: [
                     { quantiteActuelle: 'desc' }, // Prefer those with stock
@@ -391,7 +392,7 @@ export class ProductsService {
         }
 
         // Fallback to designation (less reliable but better than nothing)
-        return this.prisma.product.findFirst({
+        return client.product.findFirst({
             where: {
                 entrepot: { centreId },
                 entrepotId: entrepotId || undefined,

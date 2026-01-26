@@ -108,7 +108,7 @@ export class StockMovementsService {
                         codeInterne: alloc.reference,
                         centreId: invoiceData.centreId || '',
                         entrepotId: alloc.warehouseId
-                    });
+                    }, tx);
 
                     if (!targetProduct) {
                         const template = await tx.product.findFirst({
@@ -193,7 +193,14 @@ export class StockMovementsService {
         } catch (error) {
             console.error('[processBulkAlimentation ERROR]', error);
             if (error.code === 'P2002') {
-                throw new BadRequestException('Ce numéro de facture existe déjà pour ce fournisseur.');
+                const target = error.meta?.target || [];
+                if (target.includes('numeroFacture')) {
+                    throw new BadRequestException('Ce numéro de facture existe déjà pour ce fournisseur.');
+                }
+                if (target.includes('codeInterne') || target.includes('codeBarres')) {
+                    throw new BadRequestException('Un des produits (référence) existe déjà dans cet entrepôt mais avec des caractéristiques différentes qui empêchent sa détection.');
+                }
+                throw new BadRequestException('Erreur de doublon : une des données saisies (Facture ou Produit) existe déjà.');
             }
             throw new BadRequestException(`Erreur lors de l'enregistrement : ${error.message}`);
         }
