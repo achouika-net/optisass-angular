@@ -518,17 +518,6 @@
                                 </td>
                             </ng-container>
 
-                            <ng-container matColumnDef="nomClient">
-                                <th mat-header-cell *matHeaderCellDef> Client (BL) </th>
-                                <td mat-cell *matCellDef="let element">
-                                    <div *ngIf="element.nomClient"
-                                        class="flex items-center gap-1 text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded border border-orange-200 uppercase font-black">
-                                        <mat-icon class="text-[12px] h-3 w-3">person</mat-icon>
-                                        {{element.nomClient}}
-                                    </div>
-                                    <span *ngIf="!element.nomClient" class="text-gray-300 text-[10px] italic">N/A</span>
-                                </td>
-                            </ng-container>
 
                             <ng-container matColumnDef="categorie">
                                 <th mat-header-cell *matHeaderCellDef> Catégorie </th>
