@@ -567,20 +567,30 @@ export class StockEntryV2Component implements OnInit {
             // Handle n8n array response wrapper
             const data = Array.isArray(result) ? result[0] : result;
 
-            // Auto-fill header fields (Universal support)
-            const invNum = data.invoiceNumber || data.facture?.numero;
-            const invDate = data.invoiceDate || data.facture?.date;
-            const supplier = data.supplierName || data.fournisseur?.nom;
+            // Auto-fill header fields (Universal support - old and new field names)
+            const invNum = data.numero_facture || data.invoiceNumber || data.facture?.numero;
+            const invDate = data.date_facture || data.invoiceDate || data.facture?.date;
+            const supplier = data.fournisseur || data.supplierName || data.fournisseur?.nom;
 
-            if (invNum) this.documentForm.patchValue({ numero: invNum });
-            if (invDate) this.documentForm.patchValue({ date: new Date(invDate) });
+            if (invNum) {
+                this.documentForm.patchValue({ numero: invNum });
+                console.log('📋 OCR: Numéro facture détecté:', invNum);
+            }
+            if (invDate) {
+                this.documentForm.patchValue({ date: new Date(invDate) });
+                console.log('📋 OCR: Date facture détectée:', invDate);
+            }
 
             if (supplier) {
+                console.log('📋 OCR: Fournisseur détecté:', supplier);
                 const found = (this.suppliersList || []).find(s =>
                     s.nom.toLowerCase().includes(supplier.toLowerCase())
                 );
                 if (found) {
                     this.documentForm.patchValue({ fournisseurId: found.id });
+                    console.log('✅ OCR: Fournisseur trouvé et sélectionné:', found.nom);
+                } else {
+                    console.warn('⚠️ OCR: Fournisseur non trouvé dans la liste:', supplier);
                 }
             }
 
@@ -859,7 +869,15 @@ export class StockEntryV2Component implements OnInit {
         articles.forEach(art => {
             // Clean designation: "Marque + Reference"
             // AI might send the full line in designation_brute, we prefer to reconstruct a clean one
-            let des = `${art.marque || ''} ${art.reference || ''}`.trim();
+            const rawRef = (art.reference || '').trim();
+            const rawBrand = (art.marque || '').trim();
+
+            let des = rawRef;
+            if (rawBrand && !rawRef.toUpperCase().startsWith(rawBrand.toUpperCase())) {
+                des = `${rawBrand} ${rawRef}`;
+            }
+
+            des = des.trim();
 
             if (!des || des.length < 3) {
                 des = art.designation_brute || 'SANS DESIGNATION';
@@ -885,6 +903,7 @@ export class StockEntryV2Component implements OnInit {
             const product: StagedProduct = {
                 tempId: crypto.randomUUID(),
                 reference: art.reference || 'SANS-REF',
+                codeBarre: art.code || art.code_barre || '', // Mapping du code (EAN/Interne)
                 marque: finalMarque,
                 nom: des,
                 categorie: this.mapAiCategory(art.categorie, des),

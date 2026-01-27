@@ -32,35 +32,172 @@ export class OcrService {
                 const n8nResponse = await this.recognizeWithN8n(fileToSend);
                 console.log('✅ OCR: Raw result from n8n:', n8nResponse);
 
-                // Fonction pour extraire le JSON d'une structure complexe ou d'une string
-                const extractJson = (obj: any): any => {
-                    if (!obj) return null;
-                    // Si c'est déjà un objet avec des articles, on le prend
-                    if (obj.articles || obj.items) return obj;
+                // Fonction de parsing ultra-robuste (Brace Counting)
+                // Scanne la string pour trouver TOUS les objets JSON valides {...}
+                const extractValidJsonObjects = (text: string): any[] => {
+                    const results: any[] = [];
+                    let depth = 0;
+                    let startIndex = -1;
+                    let inString = false;
+                    let escape = false;
 
-                    // Si c'est une string, on cherche du JSON dedans
-                    if (typeof obj === 'string') {
-                        try {
-                            const match = obj.match(/\{[\s\S]*\}/);
-                            if (match) return JSON.parse(match[0]);
-                        } catch (e) { return null; }
-                    }
+                    for (let i = 0; i < text.length; i++) {
+                        const char = text[i];
 
-                    // Récursion pour fouiller dans les tableaux/objets (ex: output[0].content[0].text)
-                    if (Array.isArray(obj)) return extractJson(obj[0]);
-                    if (typeof obj === 'object') {
-                        for (const key in obj) {
-                            const found = extractJson(obj[key]);
-                            if (found) return found;
+                        if (char === '"' && !escape) {
+                            inString = !inString;
+                        }
+                        if (!escape && char === '\\') {
+                            escape = true;
+                        } else {
+                            escape = false;
+                        }
+
+                        if (!inString) {
+                            if (char === '{') {
+                                if (depth === 0) startIndex = i;
+                                depth++;
+                            } else if (char === '}') {
+                                depth--;
+                                if (depth === 0 && startIndex !== -1) {
+                                    // Potentiel objet fini
+                                    let jsonStr = text.substring(startIndex, i + 1);
+                                    try {
+                                        // Tentative 1: Parsing direct
+                                        const parsed = JSON.parse(jsonStr);
+                                        if (parsed && typeof parsed === 'object') {
+                                            results.push(parsed);
+                                        }
+                                    } catch (e) {
+                                        // Tentative 2: Sanitize (Newlines non échappées causent souvent des erreurs)
+                                        try {
+                                            const sanitized = jsonStr.replace(/\n/g, "\\n").replace(/\r/g, "");
+                                            const parsed = JSON.parse(sanitized);
+                                            if (parsed && typeof parsed === 'object') {
+                                                results.push(parsed);
+                                            }
+                                        } catch (e2) {
+                                            console.warn('⚠️ OCR: Failed to parse object:', jsonStr);
+                                        }
+                                    }
+                                    startIndex = -1;
+                                }
+                            }
                         }
                     }
-                    return null;
+                    return results;
                 };
 
-                const data = extractJson(n8nResponse);
-                console.log('✨ OCR: Parsed Intelligent Data:', data);
+                // 1. Parsing Robuste V3 (Hybrid: Brace Counting + Regex Extraction)
+                const extractHybrid = (text: string): any[] => {
+                    const uniqueItems = new Map<string, any>();
 
-                return { ...(data || {}), source: 'n8n' };
+                    const addIfValid = (item: any) => {
+                        if (item && typeof item === 'object' && (item.reference || item.marque || item.designation_brute || item.code)) {
+                            // Utiliser un index unique pour éviter de supprimer des doublons légitimes
+                            const uniqueKey = `${uniqueItems.size}`; // Simple compteur
+                            uniqueItems.set(uniqueKey, item);
+                        }
+                    };
+
+                    // A. Brace Counting (Good for structured nested JSON)
+                    // ... (Code from previous step kept conceptually, but simplified call)
+                    const braceItems = extractValidJsonObjects(text);
+                    braceItems.forEach(addIfValid);
+
+                    // B. Regex "Flat" Scanning (Good for broken syntax/quotes but flat objects)
+                    // Matches { ... "reference" ... } non-nested
+                    try {
+                        const objectRegex = /\{[^{}]*"(reference|marque|code)"[^{}]*\}/g;
+                        let match;
+                        while ((match = objectRegex.exec(text)) !== null) {
+                            try {
+                                // Try normal parse
+                                addIfValid(JSON.parse(match[0]));
+                            } catch (e) {
+                                // Try sanitize parse
+                                try {
+                                    const sanitized = match[0].replace(/\n/g, "\\n").replace(/\r/g, "");
+                                    addIfValid(JSON.parse(sanitized));
+                                } catch (e2) { }
+                            }
+                        }
+                    } catch (e) { console.warn('Regex scan failed', e); }
+
+                    return Array.from(uniqueItems.values());
+                };
+
+                // Helper pour Brace Counting (Moved out or reused)
+                // ... (We need to keep the extractValidJsonObjects function defined above) ...
+
+                let data: any = null;
+
+                if (typeof n8nResponse === 'string') {
+                    const allItems = extractHybrid(n8nResponse);
+                    if (allItems.length > 0) {
+                        data = { articles: allItems };
+                        console.log(`✨ OCR: Extracted ${allItems.length} unique items via Hybrid Parser V3.`);
+                    }
+                }
+
+                // 4. Fallback: Extraction standard recursive (Dernier recours)
+                if (!data) {
+                    const extractJsonRecursive = (obj: any): any => {
+                        if (!obj) return null;
+                        if (obj.articles || obj.items) return obj;
+
+                        // Si c'est un tableau de données direct
+                        if (Array.isArray(obj)) {
+                            const firstItem = obj[0];
+                            if (firstItem && typeof firstItem === 'object' && (firstItem.reference || firstItem.marque)) {
+                                return { articles: obj }; // Wrap it
+                            }
+                            return extractJsonRecursive(obj[0]);
+                        }
+
+                        if (typeof obj === 'string') {
+                            try {
+                                const parsed = JSON.parse(obj);
+                                return extractJsonRecursive(parsed);
+                            } catch (e) {
+                                // Si c'est une string JSON qui contient un objet
+                                const match = obj.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+                                if (match) {
+                                    try { return extractJsonRecursive(JSON.parse(match[0])); } catch (e) { }
+                                }
+                            }
+                        }
+
+                        if (typeof obj === 'object') {
+                            for (const key in obj) {
+                                const found = extractJsonRecursive(obj[key]);
+                                if (found) return found;
+                            }
+                        }
+                        return null;
+                    };
+                    data = extractJsonRecursive(n8nResponse);
+                }
+
+                // No action needed here, just ensuring clean flow
+                // data is already populated by step 1 (multi) or step 2 (recursive fallback)
+
+                // Si le résultat est un tableau (liste d'articles directe), on l'enveloppe
+                if (Array.isArray(data)) {
+                    data = { articles: data };
+                }
+
+                // Extraction des métadonnées de facture (si présentes)
+                const metadata: any = {};
+                if (data && typeof data === 'object') {
+                    if (data.fournisseur) metadata.fournisseur = data.fournisseur;
+                    if (data.numero_facture) metadata.numero_facture = data.numero_facture;
+                    if (data.date_facture) metadata.date_facture = data.date_facture;
+                }
+
+                console.log('📋 OCR: Invoice metadata:', metadata);
+
+                return { ...(data || {}), ...metadata, source: 'n8n' };
             } catch (err: any) {
                 console.warn('⚠️ OCR: n8n failed', err);
                 return {
@@ -467,7 +604,7 @@ export class OcrService {
                 img.src = event.target.result;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 1600; // Résolution optimale pour GPT-4o Vision
+                    const MAX_WIDTH = 1600; // Restored to High Res for better accuracy
                     const MAX_HEIGHT = 1600;
                     let width = img.width;
                     let height = img.height;
@@ -491,11 +628,13 @@ export class OcrService {
 
                     canvas.toBlob((blob) => {
                         if (blob) {
-                            resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+                            const newFile = new File([blob], file.name, { type: 'image/jpeg' });
+                            console.log(`📉 OCR: High Quality Image prepared: ${(newFile.size / 1024).toFixed(2)} KB`);
+                            resolve(newFile);
                         } else {
                             resolve(file); // Fallback
                         }
-                    }, 'image/jpeg', 0.85); // 85% de qualité est suffisant pour l'IA
+                    }, 'image/jpeg', 0.85); // Restored to 85% for better text clarity
                 };
             };
         });
