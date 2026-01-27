@@ -507,7 +507,10 @@
                                             <div *ngIf="element.calibre || element.pont"
                                                 class="flex items-center gap-1 bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-blue-100">
                                                 <mat-icon class="text-[12px] h-3 w-3">straighten</mat-icon>
-                                                {{element.calibre || '??'}} [] {{element.pont || '??'}}
+                                                <span *ngIf="element.calibre">{{element.calibre}}</span>
+                                                <span *ngIf="element.calibre && element.pont"
+                                                    class="ops-sep text-blue-300">□</span>
+                                                <span *ngIf="element.pont">{{element.pont}}</span>
                                             </div>
 
                                             <!-- Material Badge -->
