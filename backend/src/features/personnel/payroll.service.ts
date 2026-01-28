@@ -45,6 +45,8 @@ export class PayrollService {
         const primes = 0;
         const deductions = attendanceStats.absencesCount * (employee.salaireBase / 30);
 
+        const advances = await this.getTotalAdvances(employeeId, mois, annee);
+
         const config = await this.getOrCreateConfig(annee);
         const calc = this.calculatePayrollInternal(employee, {
             salaireBase: employee.salaireBase,
@@ -52,7 +54,7 @@ export class PayrollService {
             heuresSup: overtime,
             primes: primes,
             retenues: deductions,
-            avances: 0
+            avances: advances
         }, config);
 
         if (existing) {
@@ -79,42 +81,56 @@ export class PayrollService {
     private async getOrCreateConfig(annee: number) {
         let config = await this.prisma.payrollConfig.findUnique({ where: { annee } });
         if (!config) {
-            // Seed default international/Moroccan config if missing
-            const is2025OrMore = annee >= 2025;
-
-            config = await this.prisma.payrollConfig.create({
-                data: {
-                    annee,
-                    socialSecurityRate_S: 4.48,
-                    socialSecurityRate_P: 8.98, // Capped
-                    familyAllowanceRate_P: 6.40, // Uncapped
-                    trainingRate_P: 1.60, // Uncapped
-                    socialSecurityCap: 6000,
-                    healthInsuranceRate_S: 2.26,
-                    healthInsuranceRate_P: 4.11, // Uncapped
-                    profExpensesRate: 20,
-                    profExpensesCap: 2500,
-                    familyDeduction: 30,
-                    familyDeductionCap: 180,
-                    incomeTaxBrackets: is2025OrMore ? [
-                        // New 2025 Brackets (Morocco LF 2025)
-                        { min: 0, max: 3333.33, rate: 0, deduction: 0 },
-                        { min: 3333.34, max: 5000, rate: 10, deduction: 333.33 },
-                        { min: 5000.01, max: 6666.67, rate: 20, deduction: 833.33 },
-                        { min: 6666.68, max: 8333.33, rate: 30, deduction: 1500 },
-                        { min: 8333.34, max: 15000, rate: 34, deduction: 1833.33 },
-                        { min: 15000.01, max: null, rate: 37, deduction: 2283.33 }
-                    ] : [
-                        // Pre-2025 Brackets
-                        { min: 0, max: 2500, rate: 0, deduction: 0 },
-                        { min: 2501, max: 4166.67, rate: 10, deduction: 250 },
-                        { min: 4166.68, max: 5000, rate: 20, deduction: 666.67 },
-                        { min: 5000.01, max: 6666.67, rate: 30, deduction: 1166.67 },
-                        { min: 6666.68, max: 15000, rate: 34, deduction: 1433.33 },
-                        { min: 15000.01, max: null, rate: 38, deduction: 2033.33 }
-                    ] as any
-                }
+            // "Automatic" Fiscal Update: Clone the latest known year's rules
+            const latestConfig = await this.prisma.payrollConfig.findFirst({
+                orderBy: { annee: 'desc' }
             });
+
+            if (latestConfig) {
+                const { id, createdAt, updatedAt, annee: oldAnnee, ...configData } = latestConfig;
+                config = await this.prisma.payrollConfig.create({
+                    data: { ...configData, annee } as any
+                });
+            } else {
+                // First time setup - Seed LF 2025/2026 Defaults
+                const is2025OrMore = annee >= 2025;
+                config = await this.prisma.payrollConfig.create({
+                    data: {
+                        annee,
+                        socialSecurityRate_S: 4.48,
+                        socialSecurityRate_P: 8.98,
+                        familyAllowanceRate_P: 6.40,
+                        trainingRate_P: 1.60,
+                        socialSecurityCap: 6000,
+                        healthInsuranceRate_S: 2.26,
+                        healthInsuranceRate_P: 4.11,
+                        profExpensesRate: 20,
+                        profExpensesCap: 2500,
+                        profExpensesThreshold: is2025OrMore ? 78000 : null,
+                        profExpensesRateLow: is2025OrMore ? 35 : null,
+                        profExpensesRateHigh: is2025OrMore ? 25 : null,
+                        profExpensesCapLow: is2025OrMore ? 30000 : null,
+                        profExpensesCapHigh: is2025OrMore ? 35000 : null,
+                        familyDeduction: is2025OrMore ? 41.67 : 30,
+                        familyDeductionCap: is2025OrMore ? 250 : 180,
+                        incomeTaxBrackets: is2025OrMore ? [
+                            { min: 0, max: 3333.33, rate: 0, deduction: 0 },
+                            { min: 3333.34, max: 5000, rate: 10, deduction: 333.33 },
+                            { min: 5000.01, max: 6666.67, rate: 20, deduction: 833.33 },
+                            { min: 6666.68, max: 8333.33, rate: 30, deduction: 1500 },
+                            { min: 8333.34, max: 15000, rate: 34, deduction: 1833.33 },
+                            { min: 15000.01, max: null, rate: 37, deduction: 2283.33 }
+                        ] : [
+                            { min: 0, max: 2500, rate: 0, deduction: 0 },
+                            { min: 2501, max: 4166.67, rate: 10, deduction: 250 },
+                            { min: 4166.68, max: 5000, rate: 20, deduction: 666.67 },
+                            { min: 5000.01, max: 6666.67, rate: 30, deduction: 1166.67 },
+                            { min: 6666.68, max: 15000, rate: 34, deduction: 1433.33 },
+                            { min: 15000.01, max: null, rate: 38, deduction: 2033.33 }
+                        ] as any
+                    } as any
+                });
+            }
         }
         return config;
     }
@@ -142,11 +158,28 @@ export class PayrollService {
 
         // 🟠 ÉTAPE 3 : FRAIS PROFESSIONNELS
         // Ils sont déduits après les cotisations sociales pour obtenir la base imposable
+        let professionalExpenses = 0;
         const taxableBaseForProfExpenses = grossSalary - socialSecurityDeduction - healthInsuranceDeduction;
-        const professionalExpenses = Math.min(
-            (taxableBaseForProfExpenses * config.profExpensesRate) / 100,
-            config.profExpensesCap
-        );
+
+        if (config.profExpensesThreshold && config.profExpensesRateLow !== null) {
+            // New LF 2025+ Dynamic Logic (Progressive based on SBI)
+            const annualSBI = taxableBaseForProfExpenses * 12;
+            const isLowIncome = annualSBI <= config.profExpensesThreshold;
+
+            const rate = isLowIncome ? config.profExpensesRateLow : config.profExpensesRateHigh;
+            const annualCap = isLowIncome ? config.profExpensesCapLow : config.profExpensesCapHigh;
+
+            professionalExpenses = Math.min(
+                (taxableBaseForProfExpenses * (rate || 0)) / 100,
+                (annualCap || 0) / 12
+            );
+        } else {
+            // Legacy Fixed Logic (Fixed rate/cap)
+            professionalExpenses = Math.min(
+                (taxableBaseForProfExpenses * config.profExpensesRate) / 100,
+                config.profExpensesCap
+            );
+        }
 
         // 🟡 ÉTAPE 4 : SALAIRE NET IMPOSABLE (SNI)
         // SNI = Brut - CNSS - AMO - Frais Pro
@@ -179,7 +212,9 @@ export class PayrollService {
         const employerCharges = employerSS + employerAF + employerTFP + employerHealth;
 
         // 🏁 ÉTAPE 7 : NET À PAYER FINAL
-        const netAPayer = Math.max(0, taxableNet - incomeTaxDeduction - advances);
+        // Le Net à Payer est le Brut moins toutes les retenues RÉELLES (Sociale, Fiscale, Avances, Absences)
+        // Les Frais Professionnels ne sont PAS déduits du salaire, c'est juste un abattement fiscal.
+        const netAPayer = Math.max(0, grossSalary - socialSecurityDeduction - healthInsuranceDeduction - incomeTaxDeduction - advances - inputs.retenues);
 
         return {
             salaireBase: inputs.salaireBase,
@@ -347,6 +382,123 @@ export class PayrollService {
             where: { id },
             data: updates
         });
+    }
+
+    async recordAdvance(employeeId: string, amount: number, mode: string, centreId: string, userId: string) {
+        const employee = await this.prisma.employee.findUnique({ where: { id: employeeId } });
+        if (!employee) throw new NotFoundException('Employé non trouvé');
+
+        return this.expensesService.create({
+            date: new Date().toISOString(),
+            montant: amount,
+            categorie: 'AVANCE_SALAIRE',
+            description: `Avance sur salaire - ${employee.nom} ${employee.prenom}`,
+            modePaiement: mode,
+            statut: 'VALIDEE',
+            centreId: centreId,
+            creePar: userId,
+            employeeId: employeeId
+        } as any);
+    }
+
+    async getTotalAdvances(employeeId: string, mois: string, annee: number): Promise<number> {
+        const m = parseInt(mois);
+        const startDate = new Date(Date.UTC(annee, m - 1, 1));
+        const endDate = new Date(Date.UTC(annee, m, 0, 23, 59, 59));
+
+        const advances = await this.prisma.depense.findMany({
+            where: {
+                employeeId,
+                categorie: 'AVANCE_SALAIRE',
+                date: {
+                    gte: startDate,
+                    lte: endDate
+                },
+                statut: { in: ['VALIDEE', 'PAYEE', 'EN_ATTENTE_ALIMENTATION'] }
+            },
+            select: { montant: true }
+        });
+
+        return advances.reduce((sum, a) => sum + a.montant, 0);
+    }
+
+    async getEmployeeAdvances(employeeId: string) {
+        return this.prisma.depense.findMany({
+            where: {
+                employeeId,
+                categorie: 'AVANCE_SALAIRE'
+            },
+            orderBy: {
+                date: 'desc'
+            }
+        });
+    }
+
+    async getDashboardStats(mois: string, annee: number, centreId?: string) {
+        const payrolls = await this.prisma.payroll.findMany({
+            where: {
+                mois,
+                annee,
+                employee: centreId ? { centres: { some: { centreId } } } : {}
+            },
+            include: { employee: true }
+        });
+
+        const totalNet = payrolls.reduce((sum, p) => sum + p.netAPayer, 0);
+        const totalCommissions = payrolls.reduce((sum, p) => sum + p.commissions, 0);
+        const totalEmployerCharges = payrolls.reduce((sum, p) => sum + (p.employerCharges || 0), 0);
+        const employeeCount = await this.prisma.employee.count({
+            where: {
+                statut: 'ACTIF',
+                centres: centreId ? { some: { centreId } } : {}
+            }
+        });
+
+        // History of last 6 months
+        const history: any[] = [];
+        for (let i = 5; i >= 0; i--) {
+            const date = new Date(annee, parseInt(mois) - 1 - i, 1);
+            const hMois = (date.getMonth() + 1).toString().padStart(2, '0');
+            const hAnnee = date.getFullYear();
+
+            const hPayrolls = await this.prisma.payroll.findMany({
+                where: {
+                    mois: hMois,
+                    annee: hAnnee,
+                    employee: centreId ? { centres: { some: { centreId } } } : {}
+                },
+                select: { netAPayer: true, employerCharges: true }
+            });
+
+            history.push({
+                label: `${hMois}/${hAnnee}`,
+                netMass: hPayrolls.reduce((sum, p) => sum + p.netAPayer, 0),
+                totalMass: hPayrolls.reduce((sum, p) => sum + p.netAPayer + (p.employerCharges || 0), 0)
+            });
+        }
+
+        // Job distribution
+        const employees = await this.prisma.employee.findMany({
+            where: {
+                statut: 'ACTIF',
+                centres: centreId ? { some: { centreId } } : {}
+            },
+            select: { poste: true }
+        });
+
+        const posteDistribution: Record<string, number> = {};
+        employees.forEach(e => {
+            posteDistribution[e.poste] = (posteDistribution[e.poste] || 0) + 1;
+        });
+
+        return {
+            totalNet,
+            totalCommissions,
+            totalEmployerCharges,
+            employeeCount,
+            history,
+            posteDistribution: Object.entries(posteDistribution).map(([name, value]) => ({ name, value }))
+        };
     }
 
     async remove(id: string) {

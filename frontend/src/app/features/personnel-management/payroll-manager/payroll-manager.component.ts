@@ -12,8 +12,10 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatMenuModule } from '@angular/material/menu';
 import { RouterModule } from '@angular/router';
 import { EditPayrollDialogComponent } from './edit-payroll-dialog/edit-payroll-dialog.component';
+import { RecordAdvanceDialogComponent } from './record-advance-dialog/record-advance-dialog.component';
 import { PaymentModeDialogComponent } from './payment-mode-dialog/payment-mode-dialog.component';
 import { CommissionDetailsDialogComponent } from './commission-details-dialog/commission-details-dialog.component';
+import { AdvanceHistoryDialogComponent } from './advance-history-dialog/advance-history-dialog.component';
 import { MatDatepicker, MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule, DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE } from '@angular/material/core';
 import { MatInputModule } from '@angular/material/input';
@@ -60,7 +62,9 @@ import { environment } from '../../../../environments/environment';
         ReactiveFormsModule,
         MatInputModule,
         MatFormFieldModule,
-        RouterModule
+        RecordAdvanceDialogComponent,
+        RouterModule,
+        MatSnackBarModule,
     ],
     providers: [
         { provide: MAT_DATE_FORMATS, useValue: MY_FORMATS },
@@ -233,10 +237,55 @@ export class PayrollManagerComponent implements OnInit {
         });
     }
 
+    openAdvanceDialog(): void {
+        const dialogRef = this.dialog.open(RecordAdvanceDialogComponent, {
+            width: '500px',
+            data: { employees: this.employees } // We'll need to update the dialog to select employee
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result && result.employeeId) {
+                this.store.select(UserIdSelector).pipe(take(1)).subscribe(userId => {
+                    const centreId = this.employees.find(e => e.id === result.employeeId)?.centres?.[0]?.centreId;
+                    if (!centreId) {
+                        this.snackBar.open('Impossible : Cet employé n\'a pas de centre affecté', 'Fermer', { duration: 3000 });
+                        return;
+                    }
+
+                    this.personnelService.recordAdvance(result.employeeId, {
+                        amount: result.amount,
+                        mode: result.mode,
+                        centreId: centreId,
+                        userId: userId || 'system'
+                    }).subscribe({
+                        next: () => {
+                            this.snackBar.open('Avance enregistrée avec succès', 'OK', { duration: 3000 });
+                            this.loadPayrolls(); // Refresh to see updated advance totals
+                        },
+                        error: (err) => {
+                            console.error('Error recording advance', err);
+                            this.snackBar.open('Erreur : ' + (err.error?.message || 'Impossible d\'enregistrer l\'avance'), 'OK', { duration: 3000 });
+                        }
+                    });
+                });
+            }
+        });
+    }
+
     viewCommissionDetails(p: Payroll): void {
         this.dialog.open(CommissionDetailsDialogComponent, {
             width: '700px',
             data: p
+        });
+    }
+
+    viewAdvanceHistory(p: Payroll): void {
+        this.dialog.open(AdvanceHistoryDialogComponent, {
+            width: '700px',
+            data: {
+                employeeId: p.employeeId,
+                employeeName: `${p.employee?.nom} ${p.employee?.prenom}`
+            }
         });
     }
 

@@ -152,4 +152,26 @@ export class PersonnelController {
         const relativeUrl = await this.payrollService.getGeneratedPdf(id);
         return { url: relativeUrl };
     }
+
+    @Post('employees/:id/advance')
+    recordAdvance(
+        @Param('id') id: string,
+        @Body() body: { amount: number, mode: string, centreId: string, userId: string }
+    ) {
+        return this.payrollService.recordAdvance(id, body.amount, body.mode, body.centreId, body.userId);
+    }
+
+    @Get('employees/:id/advances')
+    getEmployeeAdvances(@Param('id') id: string) {
+        return this.payrollService.getEmployeeAdvances(id);
+    }
+
+    @Get('dashboard/stats')
+    getDashboardStats(
+        @Query('mois') mois: string,
+        @Query('annee') annee: string,
+        @Query('centreId') centreId?: string
+    ) {
+        return this.payrollService.getDashboardStats(mois, parseInt(annee), centreId);
+    }
 }

@@ -68,6 +68,7 @@ export class UserFormComponent implements OnInit {
     civilites = Object.values(Civilite);
     userRoles = Object.values(UserRole);
     userStatuses = Object.values(UserStatus);
+    hidePassword = true;
 
     // Real centers from service
     private centersService = inject(CentersService);
@@ -120,6 +121,7 @@ export class UserFormComponent implements OnInit {
             photoUrl: [''],
 
             statut: [UserStatus.ACTIF, Validators.required],
+            password: [''],
             centreRoles: this.fb.array([])
         });
     }
@@ -247,7 +249,7 @@ export class UserFormComponent implements OnInit {
                 // NOTE: User Interface needs employeeId field if we want to bind it.
 
                 this.userForm.patchValue({
-                    // employeeId: user.employeeId, // Needs to be added to User interface if we want to load it
+                    employeeId: user.employee?.id || '',
                     nom: user.nom,
                     prenom: user.prenom,
                     civilite: user.civilite,
@@ -257,6 +259,10 @@ export class UserFormComponent implements OnInit {
                     matricule: user.matricule,
                     statut: user.statut
                 });
+
+                if (user.employee) {
+                    this.selectedEmployee = user.employee as any;
+                }
 
                 // Set photo preview if exists - No longer used as we use selectedEmployee
                 // if (user.photoUrl) {

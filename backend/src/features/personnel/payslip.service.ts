@@ -144,8 +144,8 @@ export class PayslipService {
 
         // Net à payer big and bold
         doc.fontSize(16).font('Helvetica-Bold').text('NET À PAYER', 50, doc.y);
-        // Fix formatting to avoid locale-specific symbols that PDFKit font might not support
-        const formattedNet = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(payroll.netAPayer).replace(/\u00a0/g, ' ');
+        // Fix formatting to avoid locale-specific symbols that might render incorrectly (like slashes or special spaces)
+        const formattedNet = (payroll.netAPayer || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
         doc.text(`${formattedNet} MAD`, 350, doc.y, { width: 200, align: 'right' });
 
         // Footer

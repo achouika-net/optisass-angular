@@ -58,6 +58,7 @@ export class OcrInvoiceImportComponent implements OnInit {
         { value: 'marque', label: 'Marque' },
         { value: 'reference', label: 'Référence/Modèle' },
         { value: 'designation', label: 'Désignation' },
+        { value: 'categorie', label: 'Catégorie' },
         { value: 'quantity', label: 'Quantité' },
         { value: 'prixUnitaire', label: 'Prix Unitaire' },
         { value: 'remise', label: 'Remise (%)' },
@@ -340,6 +341,7 @@ export class OcrInvoiceImportComponent implements OnInit {
             const mapped: any = {
                 raw: splitLine.raw,
                 designation: '',
+                categorie: '',
                 quantity: 1,
                 price: 0
             };
@@ -354,6 +356,9 @@ export class OcrInvoiceImportComponent implements OnInit {
                         break;
                     case 'marque':
                         mapped.marque = col;
+                        break;
+                    case 'categorie':
+                        mapped.categorie = col;
                         break;
                     case 'reference':
                         mapped.reference = col;

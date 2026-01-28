@@ -376,9 +376,11 @@ model Depense {
   fournisseurId        String?
   creeParId            String?
   valideParId          String?
+  employeeId           String?
   demandeAlimentation  DemandeAlimentation?
   centre               Centre               @relation(fields: [centreId], references: [id])
   creeParUser          User?                @relation("CreePar", fields: [creeParId], references: [id])
+  employee             Employee?            @relation(fields: [employeeId], references: [id])
   echeance             EcheancePaiement?    @relation(fields: [echeanceId], references: [id])
   factureFournisseur   FactureFournisseur?  @relation(fields: [factureFournisseurId], references: [id], onDelete: Cascade)
   fournisseur          Fournisseur?         @relation(fields: [fournisseurId], references: [id])
@@ -583,6 +585,7 @@ model Employee {
   centres       EmployeeCentre[]
   facturesVente Facture[]        @relation("VendeurFactures")
   payrolls      Payroll[]
+  depenses      Depense[]
 }
 
 model EmployeeCentre {
@@ -659,20 +662,30 @@ model Payroll {
 }
 
 model PayrollConfig {
-  id                String   @id @default(uuid())
-  annee             Int      @unique
-  socialSecurityRate_S Float    @default(4.48)
-  socialSecurityRate_P Float    @default(8.98) // Only the capped part
-  familyAllowanceRate_P Float   @default(6.40) // Uncapped
-  trainingRate_P      Float    @default(1.60) // Uncapped (TFP)
-  socialSecurityCap   Float    @default(6000)
+  id                    String   @id @default(uuid())
+  annee                 Int      @unique
+  socialSecurityRate_S  Float    @default(4.48)
+  socialSecurityRate_P  Float    @default(8.98) // Only the capped part
+  familyAllowanceRate_P Float    @default(6.40) // Uncapped
+  trainingRate_P        Float    @default(1.60) // Uncapped (TFP)
+  socialSecurityCap     Float    @default(6000)
   healthInsuranceRate_S Float    @default(2.26)
   healthInsuranceRate_P Float    @default(4.11)
-  profExpensesRate    Float    @default(20)
-  profExpensesCap     Float    @default(2500)
-  incomeTaxBrackets   Json     // Array of { min, max, rate, deduction }
-  familyDeduction     Float    @default(30)
-  familyDeductionCap  Float    @default(180)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  
+  // Dynamic Professional Expenses (LF 2025+)
+  profExpensesRate      Float    @default(20)
+  profExpensesCap       Float    @default(2500)
+  profExpensesThreshold Float?   @default(78000) // Annual SBI threshold
+  profExpensesRateLow   Float?   @default(35)    // Rate if annual SBI <= threshold
+  profExpensesRateHigh  Float?   @default(25)    // Rate if annual SBI > threshold
+  profExpensesCapLow    Float?   @default(30000) // Annual cap if SBI <= threshold
+  profExpensesCapHigh   Float?   @default(35000) // Annual cap if SBI > threshold
+  
+  incomeTaxBrackets     Json     // Array of { min, max, rate, deduction }
+  
+  familyDeduction       Float    @default(30)
+  familyDeductionCap    Float    @default(180)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }

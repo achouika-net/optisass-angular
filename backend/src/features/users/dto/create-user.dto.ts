@@ -59,6 +59,10 @@ export class CreateUserDto {
     @IsOptional()
     statut?: string;
 
+    @IsString()
+    @IsOptional()
+    password?: string;
+
     @IsArray()
     @IsOptional()
     @ValidateNested({ each: true })

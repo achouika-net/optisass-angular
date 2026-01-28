@@ -79,8 +79,18 @@ export class FacturesService implements OnModuleInit {
             await this.verifyProductsAreReceived(data.lignes, data.type);
         }
 
-        // Handle vendeurId if passed
-        const vendeurId = data.vendeurId || (data.proprietes as any)?.vendeurId;
+        // Handle vendeurId if passed, otherwise try to resolve from userId
+        let vendeurId = data.vendeurId || (data.proprietes as any)?.vendeurId;
+        if (!vendeurId && userId) {
+            const user = await this.prisma.user.findUnique({
+                where: { id: userId },
+                include: { employee: true }
+            });
+            if (user?.employee) {
+                console.log(`👤 [FacturesService] Auto-resolved vendeurId ${user.employee.id} from userId ${userId}`);
+                vendeurId = user.employee.id;
+            }
+        }
 
         let facture;
         try {
@@ -134,9 +144,17 @@ export class FacturesService implements OnModuleInit {
             (facture.proprietes as any)?.forceStockDecrement === true;
 
         if (shouldDecrement) {
-
             await this.decrementStockForInvoice(this.prisma, facture, userId);
             await this.loyaltyService.awardPointsForPurchase(facture.id);
+
+            // [NEW] Commission Trigger
+            if ((facture as any).vendeurId) {
+                try {
+                    await this.commissionService.calculateForInvoice(facture.id);
+                } catch (e) {
+                    console.error('⚠️ [COMMISSION] Failed to calculate commissions during creation:', e);
+                }
+            }
 
             // Deduct points if used
             const pointsUtilises = (facture.proprietes as any)?.pointsUtilises;

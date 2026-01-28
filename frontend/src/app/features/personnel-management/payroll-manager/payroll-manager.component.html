@@ -9,6 +9,10 @@
             <p class="text-gray-500">Gérez les bulletins de paie et les règlements mensuels.</p>
         </div>
         <div class="flex gap-2">
+            <button mat-stroked-button color="primary" (click)="openAdvanceDialog()" class="rounded-lg py-6 px-6">
+                <mat-icon>add_circle_outline</mat-icon>
+                Nouvelle Avance
+            </button>
             <button mat-stroked-button color="primary" routerLink="/p/personnel/settings" class="rounded-lg py-6 px-6">
                 <mat-icon>settings</mat-icon>
                 Paramètres Paie
@@ -122,6 +126,10 @@
                                 <button mat-menu-item (click)="viewCommissionDetails(element)">
                                     <mat-icon class="text-green-600">list_alt</mat-icon>
                                     <span>Détails commissions</span>
+                                </button>
+                                <button mat-menu-item (click)="viewAdvanceHistory(element)">
+                                    <mat-icon class="text-orange-600">history</mat-icon>
+                                    <span>Historique des avances</span>
                                 </button>
                                 <button mat-menu-item *ngIf="element.pdfUrl" (click)="downloadPdf(element)">
                                     <mat-icon class="text-red-600">picture_as_pdf</mat-icon>

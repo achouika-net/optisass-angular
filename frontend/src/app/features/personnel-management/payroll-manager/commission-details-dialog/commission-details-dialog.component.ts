@@ -1,9 +1,10 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatDialogModule, MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { finalize } from 'rxjs/operators';
 import { PersonnelService } from '../../services/personnel.service';
 import { Payroll } from '../../../../shared/interfaces/employee.interface';
 
@@ -27,13 +28,17 @@ export class CommissionDetailsDialogComponent implements OnInit {
 
     constructor(
         private personnelService: PersonnelService,
+        private cd: ChangeDetectorRef,
         public dialogRef: MatDialogRef<CommissionDetailsDialogComponent>,
         @Inject(MAT_DIALOG_DATA) public data: Payroll
     ) { }
 
     ngOnInit(): void {
         console.log('CommissionDetailsDialogComponent: ngOnInit', this.data);
-        this.loadDetails();
+        // Use setTimeout to ensure the dialog is fully opened and Zone is stable
+        setTimeout(() => {
+            this.loadDetails();
+        }, 100);
     }
 
     loadDetails(): void {
@@ -55,17 +60,22 @@ export class CommissionDetailsDialogComponent implements OnInit {
             return;
         }
 
+        this.isLoading = true;
+        this.cd.detectChanges();
+
         this.personnelService.getEmployeeCommissions(employeeId, mois, annee)
+            .pipe(finalize(() => {
+                this.isLoading = false;
+                this.cd.detectChanges();
+            }))
             .subscribe({
                 next: (items) => {
                     console.log(`CommissionDetailsDialogComponent: Received ${items?.length} items`);
                     this.commissions = items || [];
                     this.calculateSummary();
-                    this.isLoading = false;
                 },
                 error: (err) => {
                     console.error('CommissionDetailsDialogComponent: Error loading details', err);
-                    this.isLoading = false;
                 }
             });
     }

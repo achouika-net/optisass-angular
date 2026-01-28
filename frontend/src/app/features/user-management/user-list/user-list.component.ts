@@ -44,7 +44,7 @@ import { User, UserFilters, UserStatus, UserRole } from '../../../shared/interfa
     styleUrls: ['./user-list.component.scss']
 })
 export class UserListComponent implements OnInit {
-    displayedColumns: string[] = ['nom', 'prenom', 'email', 'matricule', 'role', 'statut', 'actions'];
+    displayedColumns: string[] = ['nom', 'prenom', 'email', 'matricule', 'personnel', 'role', 'statut', 'actions'];
     dataSource: MatTableDataSource<User>;
 
     @ViewChild(MatPaginator) paginator!: MatPaginator;

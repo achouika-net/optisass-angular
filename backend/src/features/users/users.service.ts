@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import * as bcrypt from 'bcryptjs';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -35,9 +36,14 @@ export class UsersService {
                 }
             }
 
+            // Hash password if provided, otherwise use default
+            const password = userData.password || 'password123';
+            const hashedPassword = await bcrypt.hash(password, 10);
+
             const user = await tx.user.create({
                 data: {
                     ...userData,
+                    password: hashedPassword,
                     centreRoles: {
                         create: centreRoles || [],
                     },
@@ -87,6 +93,11 @@ export class UsersService {
 
         // Use a transaction to ensure roles are updated correctly
         return this.prisma.$transaction(async (tx) => {
+            // Hash password if provided
+            if (userData.password) {
+                userData.password = await bcrypt.hash(userData.password, 10);
+            }
+
             // Update basic user data
             const updatedUser = await tx.user.update({
                 where: { id },
