@@ -4,11 +4,14 @@ import { CreatePaiementDto } from './dto/create-paiement.dto';
 import { UpdatePaiementDto } from './dto/update-paiement.dto';
 import { StockAvailabilityService } from '../factures/stock-availability.service';
 
+import { CommissionService } from '../personnel/commission.service';
+
 @Injectable()
 export class PaiementsService {
     constructor(
         private prisma: PrismaService,
-        private stockAvailabilityService: StockAvailabilityService
+        private stockAvailabilityService: StockAvailabilityService,
+        private commissionService: CommissionService
     ) { }
 
     async create(createPaiementDto: CreatePaiementDto, userId?: string) {
@@ -97,10 +100,19 @@ export class PaiementsService {
         }
 
 
-        await this.prisma.facture.update({
+        const updatedFacture = await this.prisma.facture.update({
             where: { id: factureId },
             data: updateData
         });
+
+        // [NEW] Commission Trigger
+        if (updatedFacture.vendeurId && (updatedFacture.statut === 'VALIDE' || updatedFacture.statut === 'PARTIEL' || updatedFacture.statut === 'PAYEE' || updatedFacture.statut === 'BON_DE_COMMANDE')) {
+            try {
+                await this.commissionService.calculateForInvoice(updatedFacture.id);
+            } catch (e) {
+                console.error('⚠️ [COMMISSION] Failed to calculate commissions after payment:', e);
+            }
+        }
 
         return paiement;
     }

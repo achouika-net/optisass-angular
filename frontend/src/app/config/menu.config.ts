@@ -252,36 +252,6 @@ export const MENU: MenuItem[] = [
         type: 'subchild',
         route: 'settings/marketing',
       },
-      {
-        label: 'Agenda contrôleur',
-        icon: 'supervisor_account',
-        type: 'link',
-        route: 'settings/controllers',
-      },
-      {
-        label: 'Congés et jours Fériés',
-        icon: 'calendar_month',
-        type: 'link',
-        route: 'settings/holiday',
-      },
-      {
-        label: 'Champs supplémentaires',
-        icon: 'settings',
-        type: 'subchild',
-        route: 'settings/fields',
-      },
-      {
-        label: 'Liste noire',
-        icon: 'do_not_touch',
-        type: 'subchild',
-        route: 'settings/black-list',
-      },
-      {
-        label: 'Configuration agenda',
-        icon: 'settings',
-        type: 'subchild',
-        route: 'settings/configuration-agenda',
-      },
     ],
   },
   {

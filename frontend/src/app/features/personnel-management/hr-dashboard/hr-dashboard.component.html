@@ -1,4 +1,4 @@
-<div class="flex flex-col space-y-6">
+<div class="flex flex-col space-y-6" *ngIf="!isLoading && stats">
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
@@ -8,6 +8,10 @@
             </h1>
             <p class="text-gray-500">Aperçu de la performance et de la masse salariale.</p>
         </div>
+        <button mat-stroked-button color="primary" (click)="loadStats()" class="rounded-lg">
+            <mat-icon>refresh</mat-icon>
+            Actualiser
+        </button>
     </div>
 
     <!-- KPIs -->
@@ -16,77 +20,77 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-blue-100 text-sm font-medium uppercase tracking-wider">Effectif Total</p>
-                    <h3 class="text-3xl font-bold mt-1">{{totalEmployees}}</h3>
+                    <h3 class="text-3xl font-bold mt-1">{{stats.employeeCount}}</h3>
                 </div>
                 <div class="bg-white/20 p-3 rounded-lg">
                     <mat-icon class="text-white scale-125">people</mat-icon>
                 </div>
             </div>
-            <p class="text-xs text-blue-100 mt-4">{{activeEmployees}} employés actifs actuellement.</p>
+            <p class="text-xs text-blue-100 mt-4">Employés actifs actuellement.</p>
         </mat-card>
 
-        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-white">
+        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-white border border-gray-100">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-gray-500 text-sm font-medium uppercase tracking-wider">Masse Salariale (Mois)</p>
-                    <h3 class="text-3xl font-bold text-[#1e3a8a] mt-1">{{monthlySalaryMass | number:'1.2-2'}}</h3>
+                    <p class="text-gray-500 text-sm font-medium uppercase tracking-wider">Masse Salariale (Net)</p>
+                    <h3 class="text-3xl font-bold text-[#1e3a8a] mt-1">{{stats.totalNet | number:'1.0-0'}} <small
+                            class="text-lg font-normal">DH</small></h3>
                 </div>
                 <div class="bg-blue-50 p-3 rounded-lg">
                     <mat-icon class="text-[#1e3a8a] scale-125">payments</mat-icon>
                 </div>
             </div>
-            <p class="text-xs text-gray-400 mt-4">Somme des nets à payer pour le mois en cours.</p>
+            <p class="text-xs text-gray-400 mt-4">Somme des nets à payer ce mois.</p>
         </mat-card>
 
-        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-white">
+        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-white border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm font-medium uppercase tracking-wider">Cotisation Patronale</p>
+                    <h3 class="text-3xl font-bold text-orange-600 mt-1">{{stats.totalEmployerCharges | number:'1.0-0'}}
+                        <small class="text-lg font-normal">DH</small></h3>
+                </div>
+                <div class="bg-orange-50 p-3 rounded-lg">
+                    <mat-icon class="text-orange-600 scale-125">account_balance</mat-icon>
+                </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-4 font-medium text-orange-600">Charges sociales employeur.</p>
+        </mat-card>
+
+        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-white border border-gray-100">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-500 text-sm font-medium uppercase tracking-wider">Commissions (Mois)</p>
-                    <h3 class="text-3xl font-bold text-green-600 mt-1">{{totalCommissions | number:'1.2-2'}}</h3>
+                    <h3 class="text-3xl font-bold text-green-600 mt-1">{{stats.totalCommissions | number:'1.0-0'}}
+                        <small class="text-lg font-normal">DH</small></h3>
                 </div>
                 <div class="bg-green-50 p-3 rounded-lg">
                     <mat-icon class="text-green-600 scale-125">trending_up</mat-icon>
                 </div>
             </div>
-            <p class="text-xs text-gray-400 mt-4 font-medium text-green-600">Calculées sur les ventes encaissées.</p>
-        </mat-card>
-
-        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-white">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-sm font-medium uppercase tracking-wider">Performance RH</p>
-                    <h3 class="text-3xl font-bold text-orange-600 mt-1">92%</h3>
-                </div>
-                <div class="bg-orange-50 p-3 rounded-lg">
-                    <mat-icon class="text-orange-600 scale-125">stars</mat-icon>
-                </div>
-            </div>
-            <p class="text-xs text-gray-400 mt-4 italic">Taux de présence et objectifs atteints.</p>
+            <p class="text-xs text-gray-400 mt-4 font-medium text-green-600">Bonus basés sur la performance.</p>
         </mat-card>
     </div>
 
-    <!-- Charts Placeholder -->
+    <!-- Charts -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-white">
+        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-white border border-gray-100">
             <h2 class="text-lg font-bold text-[#1e3a8a] mb-6">Évolution Masse Salariale</h2>
-            <div
-                class="h-64 flex items-center justify-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                <p class="text-gray-400 flex flex-col items-center gap-2">
-                    <mat-icon class="scale-150">bar_chart</mat-icon>
-                    Visualisation graphique en attente de données historiques...
-                </p>
+            <div class="h-64 relative">
+                <canvas #massChart></canvas>
             </div>
         </mat-card>
 
-        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-white">
+        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-white border border-gray-100">
             <h2 class="text-lg font-bold text-[#1e3a8a] mb-6">Répartition par Poste</h2>
-            <div
-                class="h-64 flex items-center justify-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                <p class="text-gray-400 flex flex-col items-center gap-2">
-                    <mat-icon class="scale-150">pie_chart</mat-icon>
-                    Calcul de la répartition en cours...
-                </p>
+            <div class="h-64 relative">
+                <canvas #posteChart></canvas>
             </div>
         </mat-card>
     </div>
+</div>
+
+<div *ngIf="isLoading" class="flex flex-col items-center justify-center p-24 gap-4">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p class="text-gray-500 font-medium">Analyse des données RH en cours...</p>
 </div>

@@ -120,4 +120,18 @@ export class PersonnelService {
     updatePayrollConfig(id: string, config: any): Observable<any> {
         return this.http.put<any>(`${this.apiUrl}/payroll-config/${id}`, config);
     }
+
+    recordAdvance(employeeId: string, data: { amount: number, mode: string, centreId: string, userId: string }): Observable<any> {
+        return this.http.post<any>(`${this.apiUrl}/employees/${employeeId}/advance`, data);
+    }
+
+    getEmployeeAdvances(employeeId: string): Observable<any[]> {
+        return this.http.get<any[]>(`${this.apiUrl}/employees/${employeeId}/advances`);
+    }
+
+    getDashboardStats(mois: string, annee: number, centreId?: string): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/dashboard/stats`, {
+            params: { mois, annee, centreId: centreId || '' }
+        });
+    }
 }

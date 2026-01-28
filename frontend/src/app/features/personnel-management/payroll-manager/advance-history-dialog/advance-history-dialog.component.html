@@ -1,0 +1,70 @@
+<div class="flex items-center justify-between p-4 border-b bg-gray-50/50">
+    <h2 class="text-xl font-bold text-[#1e3a8a] flex items-center gap-2 m-0">
+        <mat-icon class="text-orange-500">history</mat-icon>
+        Historique des Avances - {{data.employeeName}}
+    </h2>
+    <button mat-icon-button mat-dialog-close>
+        <mat-icon>close</mat-icon>
+    </button>
+</div>
+
+<mat-dialog-content class="!p-0">
+    <div class="min-h-[300px] flex flex-col">
+        <div *ngIf="isLoading" class="flex flex-col items-center justify-center p-12 gap-4">
+            <mat-spinner diameter="40"></mat-spinner>
+            <p class="text-gray-400 font-medium">Récupération de l'historique...</p>
+        </div>
+
+        <div *ngIf="!isLoading && advances.length === 0"
+            class="flex flex-col items-center justify-center p-12 text-gray-400">
+            <mat-icon class="text-6xl mb-4 opacity-20">payments</mat-icon>
+            <p class="text-lg">Aucune avance enregistrée pour cet employé.</p>
+        </div>
+
+        <div class="overflow-auto max-h-[60vh]" *ngIf="!isLoading && advances.length > 0">
+            <table mat-table [dataSource]="advances" class="w-full">
+                <ng-container matColumnDef="date">
+                    <th mat-header-cell *matHeaderCellDef class="bg-white sticky top-0 font-bold text-gray-600"> Date
+                    </th>
+                    <td mat-cell *matCellDef="let element" class="py-4"> {{element.date | date:'dd/MM/yyyy'}} </td>
+                </ng-container>
+
+                <ng-container matColumnDef="montant">
+                    <th mat-header-cell *matHeaderCellDef
+                        class="bg-white sticky top-0 text-right font-bold text-gray-600"> Montant </th>
+                    <td mat-cell *matCellDef="let element" class="text-right py-4 font-bold text-red-600">
+                        {{element.montant | number:'1.2-2'}} DH
+                    </td>
+                </ng-container>
+
+                <ng-container matColumnDef="modePaiement">
+                    <th mat-header-cell *matHeaderCellDef
+                        class="bg-white sticky top-0 text-center font-bold text-gray-600"> Mode </th>
+                    <td mat-cell *matCellDef="let element" class="text-center py-4">
+                        <span
+                            class="text-xs px-3 py-1 bg-blue-50 text-blue-700 rounded-full font-semibold uppercase tracking-wider">
+                            {{element.modePaiement}}
+                        </span>
+                    </td>
+                </ng-container>
+
+                <ng-container matColumnDef="description">
+                    <th mat-header-cell *matHeaderCellDef class="bg-white sticky top-0 pl-6 font-bold text-gray-600">
+                        Description </th>
+                    <td mat-cell *matCellDef="let element" class="pl-6 py-4 text-sm text-gray-500 italic">
+                        {{element.description}}
+                    </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns;"
+                    class="hover:bg-blue-50/30 transition-colors">
+                </tr>
+            </table>
+        </div>
+    </div>
+</mat-dialog-content>
+
+<div mat-dialog-actions align="end" class="p-4 border-t bg-gray-50/50">
+    <button mat-stroked-button color="primary" mat-dialog-close class="rounded-lg px-8">Fermer</button>
+</div>

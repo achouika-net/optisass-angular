@@ -1,0 +1,40 @@
+<h2 mat-dialog-title class="text-[#1e3a8a] font-bold">Verser une Avance sur Salaire</h2>
+<div mat-dialog-content>
+    <p class="mb-4 text-gray-600">
+        Enregistrez une avance pour un employé.
+        <br>
+        <small class="text-orange-600 italic">Cette opération créera une dépense et impactera la caisse si payé en
+            espèces.</small>
+    </p>
+
+    <form [formGroup]="form" class="flex flex-col gap-4 py-2">
+        <mat-form-field appearance="outline">
+            <mat-label>Employé</mat-label>
+            <mat-select formControlName="employeeId">
+                <mat-option *ngFor="let emp of data.employees" [value]="emp.id">
+                    {{emp.nom}} {{emp.prenom}} ({{emp.poste}})
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+            <mat-label>Montant de l'avance</mat-label>
+            <input matInput type="number" formControlName="amount">
+            <span matSuffix class="px-2">DH</span>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+            <mat-label>Mode de paiement</mat-label>
+            <mat-select formControlName="mode">
+                <mat-option value="ESPECES">Espèces (Caisse)</mat-option>
+                <mat-option value="VIREMENT">Virement Bancaire</mat-option>
+                <mat-option value="CHEQUE">Chèque</mat-option>
+            </mat-select>
+        </mat-form-field>
+    </form>
+</div>
+<div mat-dialog-actions align="end">
+    <button mat-button (click)="onCancel()">Annuler</button>
+    <button mat-flat-button color="primary" [disabled]="form.invalid" (click)="onSubmit()">Confirmer le
+        versement</button>
+</div>

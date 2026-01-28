@@ -87,8 +87,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             if (!user) return null;
             return {
                 ...user,
-                displayName: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.last_name || user.email
-
+                displayName: user.employee ? `${user.employee.nom} ${user.employee.prenom}` : (user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.last_name || user.email),
+                fullName: user.employee ? `${user.employee.nom} ${user.employee.prenom}` : (user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.last_name || user.email)
             };
         }),
         tap(user => console.log('👤 [MontureForm] Connected User for badge:', user))

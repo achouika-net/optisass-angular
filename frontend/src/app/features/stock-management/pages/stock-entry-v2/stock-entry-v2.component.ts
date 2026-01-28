@@ -737,7 +737,8 @@ export class StockEntryV2Component implements OnInit {
                 code: '',
                 reference: '',
                 marque: '',
-                remise: 0
+                remise: 0,
+                categorie: ''
             };
 
             // 1. Extract values based on mapping
@@ -748,6 +749,7 @@ export class StockEntryV2Component implements OnInit {
                 switch (mapping) {
                     case 'code': mapped.code = col; break;
                     case 'marque': mapped.marque = col; break;
+                    case 'categorie': mapped.categorie = col; break;
                     case 'reference': mapped.reference = col; break;
                     case 'designation': mapped.designation = (mapped.designation ? mapped.designation + ' ' : '') + col; break;
                     case 'quantity':
@@ -779,8 +781,8 @@ export class StockEntryV2Component implements OnInit {
             }
 
             // 3. Create Staged Product
-            // Auto-detect category
-            const categorie = this.determineCategory(mapped.designation || '');
+            // Auto-detect category or use mapped category
+            const categorie = this.resolveCategory(mapped.categorie, mapped.designation || '');
 
             // Calculate final cost if discount exists
             let finalCost = mapped.price;
@@ -906,7 +908,7 @@ export class StockEntryV2Component implements OnInit {
                 codeBarre: art.code || art.code_barre || '', // Mapping du code (EAN/Interne)
                 marque: finalMarque,
                 nom: des,
-                categorie: this.mapAiCategory(art.categorie, des),
+                categorie: this.resolveCategory(art.categorie, des),
                 nomClient: art.nom_client,
                 entrepotId: globalWh,
                 quantite: art.quantite || 1,
@@ -930,14 +932,15 @@ export class StockEntryV2Component implements OnInit {
         this.productsSubject.next(this.stagedProducts);
     }
 
-    private mapAiCategory(aiCategory: string | undefined, designation: string): string {
-        if (!aiCategory) return this.determineCategory(designation);
+    private resolveCategory(inputCategory: string | undefined, designation: string): string {
+        if (!inputCategory) return this.determineCategory(designation);
 
-        const cat = aiCategory.toUpperCase();
+        const cat = inputCategory.toUpperCase();
         if (cat.includes('SOLAIRE') || cat.includes('SUN')) return 'MONTURE_SOLAIRE';
-        if (cat.includes('OPTIQUE') || cat.includes('FRAME')) return 'MONTURE_OPTIQUE';
-        if (cat.includes('LENT')) return 'LENTILLE';
-        if (cat.includes('VERRE')) return 'VERRE';
+        if (cat.includes('OPTIQUE') || cat.includes('FRAME') || cat.includes('VUE') || cat.includes('LUNETTE') || cat.includes('MONTURE')) return 'MONTURE_OPTIQUE';
+        if (cat.includes('LENT') || cat.includes('LENS')) return 'LENTILLE';
+        if (cat.includes('VERRE') || cat.includes('GLASS')) return 'VERRE';
+        if (cat.includes('ACCESSOIRE')) return 'ACCESSOIRE';
 
         return this.determineCategory(designation);
     }
