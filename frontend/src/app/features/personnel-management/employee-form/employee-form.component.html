@@ -131,6 +131,37 @@
                             <mat-option *ngFor="let s of statuts" [value]="s">{{s}}</mat-option>
                         </mat-select>
                     </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                        <mat-label>Enfants à charge</mat-label>
+                        <input matInput type="number" formControlName="childrenCount">
+                        <mat-icon matSuffix>child_care</mat-icon>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                        <mat-label>Situation Familiale</mat-label>
+                        <mat-select formControlName="familyStatus">
+                            <mat-option value="CELIBATAIRE">Célibataire</mat-option>
+                            <mat-option value="MARIE">Marié(e)</mat-option>
+                            <mat-option value="DIVORCE">Divorcé(e)</mat-option>
+                            <mat-option value="VEUF">Veuf(ve)</mat-option>
+                        </mat-select>
+                        <mat-icon matSuffix>people</mat-icon>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                        <mat-label>Mode de Paiement</mat-label>
+                        <mat-select formControlName="paymentMode">
+                            <mat-option value="VIREMENT">Virement Bancaire</mat-option>
+                            <mat-option value="ESPECES">Espèces</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+
+                    <div class="flex items-center gap-4 px-2 py-2">
+                        <mat-checkbox formControlName="socialSecurityAffiliation" color="primary">
+                            Affilié à la Sécurité Sociale
+                        </mat-checkbox>
+                    </div>
                 </div>
             </mat-card>
         </div>

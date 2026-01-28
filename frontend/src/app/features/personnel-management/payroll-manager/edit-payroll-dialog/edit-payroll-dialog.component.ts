@@ -32,7 +32,9 @@ export class EditPayrollDialogComponent {
             salaireBase: [data.salaireBase, [Validators.required, Validators.min(0)]],
             commissions: [data.commissions, [Validators.required, Validators.min(0)]],
             heuresSup: [data.heuresSup, [Validators.min(0)]],
-            retenues: [data.retenues, [Validators.min(0)]]
+            primes: [data.primes || 0, [Validators.min(0)]],
+            retenues: [data.retenues, [Validators.min(0)]],
+            avances: [data.avances || 0, [Validators.min(0)]]
         });
     }
 

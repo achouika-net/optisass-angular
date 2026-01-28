@@ -1,0 +1,65 @@
+<h2 mat-dialog-title class="text-[#1e3a8a] font-bold">Détails des Commissions</h2>
+<mat-dialog-content>
+    <div class="py-4" style="min-width: 500px; min-height: 200px;">
+        <div *ngIf="isLoading" class="flex flex-col items-center justify-center p-8 gap-4">
+            <mat-spinner diameter="40"></mat-spinner>
+            <p class="text-gray-400 text-sm">Chargement des données...</p>
+            <button mat-button color="warn" class="mt-4" (click)="loadDetails()" *ngIf="isLoading">Réessayer</button>
+        </div>
+
+        <div *ngIf="!isLoading && commissions.length === 0" class="text-center p-8 text-gray-400">
+            Aucune commission détaillée trouvée pour cette période.
+        </div>
+
+        <table mat-table [dataSource]="commissions" class="w-full" *ngIf="!isLoading && commissions.length > 0">
+            <ng-container matColumnDef="date">
+                <th mat-header-cell *matHeaderCellDef> Date </th>
+                <td mat-cell *matCellDef="let element"> {{element.facture?.dateEmission | date:'dd/MM/yyyy HH:mm'}}
+                </td>
+            </ng-container>
+
+            <ng-container matColumnDef="facture">
+                <th mat-header-cell *matHeaderCellDef> N° Vente </th>
+                <td mat-cell *matCellDef="let element"> {{element.facture?.numero}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="type">
+                <th mat-header-cell *matHeaderCellDef> Type </th>
+                <td mat-cell *matCellDef="let element">
+                    <span class="text-xs px-2 py-0.5 bg-gray-100 rounded-full text-gray-600">
+                        {{element.type}}
+                    </span>
+                </td>
+            </ng-container>
+
+            <ng-container matColumnDef="montant">
+                <th mat-header-cell *matHeaderCellDef class="text-right pr-4"> Montant </th>
+                <td mat-cell *matCellDef="let element" class="text-right pr-4 font-bold text-green-600">
+                    {{element.montant | number:'1.2-2'}} DH
+                </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="hover:bg-gray-50 transition-colors">
+            </tr>
+        </table>
+
+        <!-- Summary Recap -->
+        <div *ngIf="!isLoading && summary.length > 0" class="mt-8 border-t pt-4">
+            <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Récapitulatif par Type</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div *ngFor="let item of summary"
+                    class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold text-[#1e3a8a]">{{item.type}}</span>
+                        <span class="text-[10px] text-gray-400">{{item.count}} vente(s)</span>
+                    </div>
+                    <span class="font-bold text-green-600">{{item.total | number:'1.2-2'}} DH</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close>Fermer</button>
+</mat-dialog-actions>

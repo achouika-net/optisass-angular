@@ -81,11 +81,15 @@ export class PersonnelService {
                 });
             }
 
-            return tx.employee.update({
+            const updated = await tx.employee.update({
                 where: { id },
                 data: {
                     ...data,
                     dateEmbauche: data.dateEmbauche ? new Date(data.dateEmbauche) : undefined,
+                    photoUrl: data.photoUrl,
+                    childrenCount: data.childrenCount !== undefined ? Number(data.childrenCount) : undefined,
+                    paymentMode: data.paymentMode,
+                    socialSecurityAffiliation: data.socialSecurityAffiliation,
                 },
                 include: {
                     centres: {
@@ -93,6 +97,11 @@ export class PersonnelService {
                     }
                 }
             });
+            console.log('Successfully updated employee in DB:', updated.id, {
+                childrenCount: updated.childrenCount,
+                paymentMode: updated.paymentMode
+            });
+            return updated;
         });
     }
 

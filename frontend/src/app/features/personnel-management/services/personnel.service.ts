@@ -65,10 +65,10 @@ export class PersonnelService {
         return this.http.delete(`${this.apiUrl}/commission-rules/${id}`);
     }
 
-    getEmployeeCommissions(employeeId: string, mois: string): Observable<any[]> {
-        return this.http.get<any[]>(`${this.apiUrl}/commissions/${employeeId}`, {
-            params: { mois }
-        });
+    getEmployeeCommissions(employeeId: string, mois: string, annee?: number): Observable<any[]> {
+        const params: any = { mois };
+        if (annee) params.annee = annee.toString();
+        return this.http.get<any[]>(`${this.apiUrl}/commissions/${employeeId}`, { params });
     }
 
     // --- Payroll ---
@@ -98,5 +98,26 @@ export class PersonnelService {
 
     deletePayroll(id: string): Observable<any> {
         return this.http.delete(`${this.apiUrl}/payroll/${id}`);
+    }
+
+    getPayrollPdf(id: string): Observable<{ url: string }> {
+        return this.http.get<{ url: string }>(`${this.apiUrl}/payroll/${id}/pdf`);
+    }
+
+    // --- Payroll Config ---
+    getPayrollConfigs(): Observable<any[]> {
+        return this.http.get<any[]>(`${this.apiUrl}/payroll-config`);
+    }
+
+    getPayrollConfig(annee: number): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/payroll-config/${annee}`);
+    }
+
+    createPayrollConfig(config: any): Observable<any> {
+        return this.http.post<any>(`${this.apiUrl}/payroll-config`, config);
+    }
+
+    updatePayrollConfig(id: string, config: any): Observable<any> {
+        return this.http.put<any>(`${this.apiUrl}/payroll-config/${id}`, config);
     }
 }

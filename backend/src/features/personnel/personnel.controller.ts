@@ -41,6 +41,7 @@ export class PersonnelController {
 
     @Patch('employees/:id')
     updateEmployee(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto) {
+        console.log('PATCH /personnel/employees/' + id, updateEmployeeDto);
         return this.personnelService.update(id, updateEmployeeDto);
     }
 
@@ -89,8 +90,9 @@ export class PersonnelController {
     getEmployeeCommissions(
         @Param('employeeId') employeeId: string,
         @Query('mois') mois: string,
+        @Query('annee') annee?: string,
     ) {
-        return this.commissionService.getEmployeeCommissions(employeeId, mois);
+        return this.commissionService.getEmployeeCommissions(employeeId, mois, annee ? parseInt(annee) : undefined);
     }
 
     // --- Payroll ---
@@ -143,5 +145,11 @@ export class PersonnelController {
     @Delete('payroll/:id')
     deletePayroll(@Param('id') id: string) {
         return this.payrollService.remove(id);
+    }
+
+    @Get('payroll/:id/pdf')
+    async getPayrollPdf(@Param('id') id: string) {
+        const relativeUrl = await this.payrollService.getGeneratedPdf(id);
+        return { url: relativeUrl };
     }
 }

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsDateString, IsArray, IsUUID } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsDateString, IsArray, IsUUID, IsBoolean } from 'class-validator';
 
 export class CreateEmployeeDto {
     @IsOptional()
@@ -56,4 +56,20 @@ export class CreateEmployeeDto {
     @IsOptional()
     @IsUUID()
     userId?: string;
+
+    @IsOptional()
+    @IsNumber()
+    childrenCount?: number;
+
+    @IsOptional()
+    @IsString()
+    familyStatus?: string; // CELIBATAIRE, MARIE
+
+    @IsOptional()
+    @IsString()
+    paymentMode?: string;
+
+    @IsOptional()
+    @IsBoolean()
+    socialSecurityAffiliation?: boolean;
 }

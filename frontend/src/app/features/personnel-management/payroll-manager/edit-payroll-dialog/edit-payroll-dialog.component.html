@@ -15,14 +15,26 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline">
-            <mat-label>Heures Supplémentaires / Primes</mat-label>
+            <mat-label>Heures Supplémentaires</mat-label>
             <input matInput type="number" formControlName="heuresSup">
+            <span matSuffix class="px-2">DH</span>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+            <mat-label>Primes & Indemnités</mat-label>
+            <input matInput type="number" formControlName="primes">
             <span matSuffix class="px-2">DH</span>
         </mat-form-field>
 
         <mat-form-field appearance="outline">
             <mat-label>Retenues / Absences</mat-label>
             <input matInput type="number" formControlName="retenues">
+            <span matSuffix class="px-2">DH</span>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+            <mat-label>Avances sur salaire (Acomptes)</mat-label>
+            <input matInput type="number" formControlName="avances">
             <span matSuffix class="px-2">DH</span>
         </mat-form-field>
 

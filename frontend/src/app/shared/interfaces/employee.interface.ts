@@ -13,7 +13,11 @@ export interface Employee {
     salaireBase: number;
     statut: string; // ACTIF, SUSPENDU, SORTI
     userId?: string;
-    photoUrl?: string; // New field
+    photoUrl?: string;
+    childrenCount?: number;
+    familyStatus?: string; // CELIBATAIRE, MARIE, DIVORCE, VEUF
+    paymentMode?: string;
+    socialSecurityAffiliation?: boolean;
     centres?: any[];
 }
 
@@ -34,9 +38,17 @@ export interface Payroll {
     mois: string;
     annee: number;
     salaireBase: number;
+    primes: number;
     commissions: number;
     heuresSup: number;
     retenues: number;
+    avances?: number;
+    grossSalary: number;
+    socialSecurityDeduction: number;
+    healthInsuranceDeduction: number;
+    incomeTaxDeduction: number;
+    professionalExpenses: number;
+    employerCharges: number;
     netAPayer: number;
     statut: string; // BROUILLON, VALIDE, PAYE
     pdfUrl?: string;

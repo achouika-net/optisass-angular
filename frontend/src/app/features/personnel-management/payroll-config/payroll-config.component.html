@@ -1,0 +1,113 @@
+<div class="flex flex-col space-y-6 max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-[#1e3a8a] flex items-center gap-2">
+                <mat-icon>settings</mat-icon> Configuration Paie Internationale
+            </h1>
+            <p class="text-gray-500">Définissez les taux, plafonds et tranches d'imposition par année.</p>
+        </div>
+        <div class="flex items-center gap-4">
+            <mat-form-field appearance="outline" class="w-32 mb-[-1.25em]">
+                <mat-label>Année</mat-label>
+                <input matInput type="number" [(ngModel)]="currentAnnee" (change)="loadConfig(currentAnnee)">
+            </mat-form-field>
+
+            <button *ngIf="isReadOnly" mat-stroked-button (click)="unlockForm()" color="primary"
+                class="rounded-lg py-6 px-4">
+                <mat-icon>edit</mat-icon> Modifier
+            </button>
+
+            <button *ngIf="!isReadOnly" mat-stroked-button (click)="autoFillWithAI()" color="accent"
+                class="rounded-lg py-6 px-4">
+                <mat-icon>psychology</mat-icon> Importer via IA
+            </button>
+
+            <button *ngIf="!isReadOnly" mat-flat-button color="primary" (click)="saveConfig()"
+                class="rounded-lg py-6 px-8" [disabled]="isLoading || configForm.invalid">
+                <mat-icon>save</mat-icon> Enregistrer
+            </button>
+        </div>
+    </div>
+
+    <form [formGroup]="configForm" class="space-y-6">
+        <!-- Social Security & Health -->
+        <mat-card class="rounded-xl border-none shadow-sm p-6">
+            <h2 class="text-lg font-semibold mb-6 text-[#1e3a8a] flex items-center gap-2 border-b pb-2">
+                <mat-icon>security</mat-icon> Sécurité Sociale & Santé
+            </h2>
+            <div class="config-grid">
+                <mat-form-field appearance="outline">
+                    <mat-label>Taux Salarié S.S. (%)</mat-label>
+                    <input matInput type="number" formControlName="socialSecurityRate_S">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                    <mat-label>CNSS Patronale (%) - Plafonnée</mat-label>
+                    <input matInput type="number" formControlName="socialSecurityRate_P">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                    <mat-label>Plafond CNSS (Base max)</mat-label>
+                    <input matInput type="number" formControlName="socialSecurityCap">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                    <mat-label>Alloc. Familiales (%) - Non Plafonnée</mat-label>
+                    <input matInput type="number" formControlName="familyAllowanceRate_P">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                    <mat-label>TFP (%) - Non Plafonnée</mat-label>
+                    <input matInput type="number" formControlName="trainingRate_P">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                    <mat-label>Taux Salarié Santé (%)</mat-label>
+                    <input matInput type="number" formControlName="healthInsuranceRate_S">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                    <mat-label>AMO Patronale (%) - Non Plafonnée</mat-label>
+                    <input matInput type="number" formControlName="healthInsuranceRate_P">
+                </mat-form-field>
+            </div>
+        </mat-card>
+
+        <!-- Fiscal & Prof Expenses -->
+        <mat-card class="rounded-xl border-none shadow-sm p-6">
+            <h2 class="text-lg font-semibold mb-6 text-[#1e3a8a] flex items-center gap-2 border-b pb-2">
+                <mat-icon>account_balance</mat-icon> Fiscalité & Frais Professionnels
+            </h2>
+            <div class="config-grid">
+                <mat-form-field appearance="outline">
+                    <mat-label>Taux Frais Prof. (%)</mat-label>
+                    <input matInput type="number" formControlName="profExpensesRate">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                    <mat-label>Plafond Frais Prof.</mat-label>
+                    <input matInput type="number" formControlName="profExpensesCap">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                    <mat-label>Déduction par personne à charge</mat-label>
+                    <input matInput type="number" formControlName="familyDeduction">
+                </mat-form-field>
+            </div>
+        </mat-card>
+
+        <!-- Income Tax Brackets (Simple Implementation for now) -->
+        <mat-card class="rounded-xl border-none shadow-sm p-6">
+            <h2 class="text-lg font-semibold mb-4 text-[#1e3a8a] flex items-center gap-2">
+                <mat-icon>table_chart</mat-icon> Tranches d'Impôt sur le Revenu
+            </h2>
+            <div class="p-4 bg-blue-50 text-blue-800 rounded-lg mb-4 text-sm">
+                <mat-icon class="scale-75 translate-y-1">info</mat-icon>
+                Les tranches sont gérées via le moteur de calcul international. Contactez l'administrateur pour modifier
+                la structure JSON directe des tranches si nécessaire.
+            </div>
+            <!-- Future: JSON Editor or Dynamic Table -->
+        </mat-card>
+    </form>
+</div>

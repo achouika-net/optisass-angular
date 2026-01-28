@@ -10,8 +10,10 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatMenuModule } from '@angular/material/menu';
+import { RouterModule } from '@angular/router';
 import { EditPayrollDialogComponent } from './edit-payroll-dialog/edit-payroll-dialog.component';
 import { PaymentModeDialogComponent } from './payment-mode-dialog/payment-mode-dialog.component';
+import { CommissionDetailsDialogComponent } from './commission-details-dialog/commission-details-dialog.component';
 import { MatDatepicker, MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule, DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE } from '@angular/material/core';
 import { MatInputModule } from '@angular/material/input';
@@ -57,7 +59,8 @@ import { environment } from '../../../../environments/environment';
         MatNativeDateModule,
         ReactiveFormsModule,
         MatInputModule,
-        MatFormFieldModule
+        MatFormFieldModule,
+        RouterModule
     ],
     providers: [
         { provide: MAT_DATE_FORMATS, useValue: MY_FORMATS },
@@ -68,7 +71,7 @@ import { environment } from '../../../../environments/environment';
 export class PayrollManagerComponent implements OnInit {
     payrolls: Payroll[] = [];
     employees: Employee[] = [];
-    displayedColumns: string[] = ['employee', 'mois', 'salaireBase', 'commissions', 'netAPayer', 'statut', 'actions'];
+    displayedColumns: string[] = ['employee', 'mois', 'grossSalary', 'commissions', 'totalDeductions', 'netAPayer', 'statut', 'actions'];
 
     dateCtrl = new FormControl(new Date());
     isLoading = false;
@@ -193,9 +196,22 @@ export class PayrollManagerComponent implements OnInit {
     }
 
     downloadPdf(p: Payroll): void {
-        if (!p.pdfUrl) return;
-        const url = `${environment.apiUrl}${p.pdfUrl}`;
-        window.open(url, '_blank');
+        this.isLoading = true;
+        this.personnelService.getPayrollPdf(p.id!).subscribe({
+            next: (data: any) => {
+                this.isLoading = false;
+                if (data && data.url) {
+                    // Add a cache-buster timestamp to be absolutely sure
+                    const url = `${environment.apiUrl}${data.url}?t=${new Date().getTime()}`;
+                    window.open(url, '_blank');
+                }
+            },
+            error: (err) => {
+                this.isLoading = false;
+                this.snackBar.open('Erreur lors de la génération du PDF', 'OK', { duration: 3000 });
+                console.error(err);
+            }
+        });
     }
 
     openEditDialog(p: Payroll): void {
@@ -214,6 +230,13 @@ export class PayrollManagerComponent implements OnInit {
                     error: (err) => console.error('Error updating payroll', err)
                 });
             }
+        });
+    }
+
+    viewCommissionDetails(p: Payroll): void {
+        this.dialog.open(CommissionDetailsDialogComponent, {
+            width: '700px',
+            data: p
         });
     }
 
@@ -236,5 +259,18 @@ export class PayrollManagerComponent implements OnInit {
             case 'PAYE': return 'status-paid';
             default: return '';
         }
+    }
+
+    getTotalDeductions(p: Payroll): number {
+        return (p.socialSecurityDeduction || 0) +
+            (p.healthInsuranceDeduction || 0) +
+            (p.incomeTaxDeduction || 0) +
+            (p.retenues || 0) +
+            (p.avances || 0);
+    }
+
+    getGrossSalary(p: Payroll): number {
+        if (p.grossSalary && p.grossSalary > 0) return p.grossSalary;
+        return (p.salaireBase || 0) + (p.commissions || 0) + (p.heuresSup || 0) + (p.primes || 0);
     }
 }

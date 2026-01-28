@@ -34,5 +34,9 @@ export const personnelManagementRoutes: Routes = [
     {
         path: 'commissions',
         component: CommissionConfigComponent
+    },
+    {
+        path: 'settings',
+        loadComponent: () => import('./payroll-config/payroll-config.component').then(m => m.PayrollConfigComponent)
     }
 ];

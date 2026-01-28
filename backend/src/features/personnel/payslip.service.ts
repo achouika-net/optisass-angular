@@ -13,82 +13,145 @@ export class PayslipService {
         }
     }
 
-    async generate(employee: any, payroll: any, commissions: any[]) {
-        const doc = new PDFDocument({ margin: 50 });
+    async generate(employee: any, payroll: any, commissions: any[], config?: any) {
+        const doc = new PDFDocument({ margin: 50, size: 'A4' });
         const fileName = `payslip-${employee.id}-${payroll.mois}-${payroll.annee}.pdf`;
         const filePath = path.join(this.uploadDir, fileName);
         const stream = fs.createWriteStream(filePath);
 
         doc.pipe(stream);
 
-        // Header
-        doc.fontSize(20).text('BULLETIN DE PAIE', { align: 'center' });
-        doc.moveDown();
-        doc.fontSize(10).text(`Période : ${payroll.mois}/${payroll.annee}`, { align: 'right' });
-        doc.moveDown();
-
-        // Employee Info
-        doc.fontSize(12).text(`Employé : ${employee.nom} ${employee.prenom}`);
-        doc.text(`Matricule : ${employee.matricule || 'N/A'}`);
-        doc.text(`Poste : ${employee.poste}`);
-        doc.text(`Type de contrat : ${employee.contrat}`);
-        doc.moveDown();
-
-        // Horizontal Line
-        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-        doc.moveDown();
-
-        // Details Table
-        const startY = doc.y;
-        doc.text('Désignation', 50, startY);
-        doc.text('Montant (MAD)', 450, startY, { align: 'right' });
+        // Header - Professional look
+        doc.fontSize(22).font('Helvetica-Bold').text('BULLETIN DE PAIE', { align: 'center' });
         doc.moveDown(0.5);
-        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+        doc.fontSize(10).font('Helvetica').text(`Période : ${payroll.mois}/${payroll.annee}`, { align: 'right' });
         doc.moveDown();
 
-        doc.text('Salaire de Base', 50, doc.y);
-        doc.text(`${payroll.salaireBase.toFixed(2)}`, 450, doc.y, { align: 'right' });
+        // Employee Info Box
+        const infoY = doc.y;
+        doc.fontSize(10).font('Helvetica-Bold').text('INFORMATIONS EMPLOYÉ', 50, infoY);
+        doc.font('Helvetica');
+        doc.text(`Nom : ${employee.nom.toUpperCase()} ${employee.prenom}`, 50, infoY + 15);
+        doc.text(`Matricule : ${employee.matricule || 'N/A'}`, 50, infoY + 30);
+        doc.text(`Poste : ${employee.poste}`, 50, infoY + 45);
+        doc.text(`CIN : ${employee.cin || 'N/A'}`, 50, infoY + 60);
+
+        doc.text(`Date Embauche : ${new Date(employee.dateEmbauche).toLocaleDateString()}`, 300, infoY + 15);
+        doc.text(`Type contrat : ${employee.contrat}`, 300, infoY + 30);
+        doc.text(`Mode Paiement : ${employee.paymentMode || 'VIREMENT'}`, 300, infoY + 45);
+        doc.moveDown(3);
+
+        // Grid Headers
+        const gridY = doc.y;
+        doc.rect(50, gridY - 5, 500, 20).fill('#f3f4f6');
+        doc.fillColor('#000').font('Helvetica-Bold').fontSize(10);
+        doc.text('DÉSIGNATION', 60, gridY);
+        doc.text('GAINS', 350, gridY, { width: 80, align: 'right' });
+        doc.text('RETENUES', 460, gridY, { width: 80, align: 'right' });
+        doc.moveDown(1.5);
+
+        doc.font('Helvetica').fontSize(10);
+
+        // 1. Salaire de Base
+        let currentY = doc.y;
+        doc.text('Salaire de Base', 60, currentY);
+        doc.text(`${payroll.salaireBase.toFixed(2)}`, 350, currentY, { width: 80, align: 'right' });
         doc.moveDown();
 
+        // 2. Indemnités & Primes
+        if (payroll.primes > 0) {
+            currentY = doc.y;
+            doc.text('Primes & Indemnités', 60, currentY);
+            doc.text(`${payroll.primes.toFixed(2)}`, 350, currentY, { width: 80, align: 'right' });
+            doc.moveDown();
+        }
+
+        // 3. Commissions (Total Only)
         if (payroll.commissions > 0) {
-            doc.text('Commissions Ventes', 50, doc.y);
-            doc.text(`${payroll.commissions.toFixed(2)}`, 450, doc.y, { align: 'right' });
+            currentY = doc.y;
+            doc.text('Commissions sur Ventes (Total)', 60, currentY);
+            doc.text(`${payroll.commissions.toFixed(2)}`, 350, currentY, { width: 80, align: 'right' });
             doc.moveDown();
-
-            // Sub-details for commissions
-            doc.fontSize(8);
-            for (const c of commissions) {
-                const currentY = doc.y;
-                doc.text(`- ${c.type} (FAC: ${c.facture?.numero || 'N/A'})`, 70, currentY);
-                doc.text(`${c.montant.toFixed(2)}`, 450, currentY, { align: 'right' });
-                doc.moveDown();
-            }
-            doc.fontSize(12);
         }
 
+        // 4. Heures Supplémentaires
         if (payroll.heuresSup > 0) {
-            doc.text('Heures Supplémentaires', 50, doc.y);
-            doc.text(`${payroll.heuresSup.toFixed(2)}`, 450, doc.y, { align: 'right' });
+            currentY = doc.y;
+            doc.text('Heures Supplémentaires', 60, currentY);
+            doc.text(`${payroll.heuresSup.toFixed(2)}`, 350, currentY, { width: 80, align: 'right' });
             doc.moveDown();
         }
 
+        // 5. Total Brut
+        doc.moveDown(0.5);
+        doc.font('Helvetica-Bold');
+        currentY = doc.y;
+        doc.rect(50, currentY - 5, 500, 20).fill('#f9fafb');
+        doc.fillColor('#000').text('SALAIRE BRUT GLOBAL', 60, currentY);
+        doc.text(`${payroll.grossSalary.toFixed(2)}`, 350, currentY, { width: 80, align: 'right' });
+        doc.font('Helvetica').moveDown(1.5);
+
+        // 6. Retenues Sociales
+        if (payroll.socialSecurityDeduction > 0) {
+            currentY = doc.y;
+            const rate = config ? ` (${config.socialSecurityRate_S}%)` : '';
+            doc.text(`CNSS (Sécurité Sociale)${rate}`, 60, currentY);
+            doc.text(`${payroll.socialSecurityDeduction.toFixed(2)}`, 460, currentY, { width: 80, align: 'right' });
+            doc.moveDown();
+        }
+
+        if (payroll.healthInsuranceDeduction > 0) {
+            currentY = doc.y;
+            const rate = config ? ` (${config.healthInsuranceRate_S}%)` : '';
+            doc.text(`AMO (Assurance Maladie)${rate}`, 60, currentY);
+            doc.text(`${payroll.healthInsuranceDeduction.toFixed(2)}`, 460, currentY, { width: 80, align: 'right' });
+            doc.moveDown();
+        }
+
+        // 7. Impôt sur le Revenu (IR)
+        if (payroll.incomeTaxDeduction > 0) {
+            currentY = doc.y;
+            doc.text('IR (Impôt sur le Revenu)', 60, currentY);
+            doc.text(`${payroll.incomeTaxDeduction.toFixed(2)}`, 460, currentY, { width: 80, align: 'right' });
+            doc.moveDown();
+        }
+
+        // 8. Avances
+        if (payroll.avances > 0) {
+            currentY = doc.y;
+            doc.text('Avances sur salaire (Acomptes)', 60, currentY);
+            doc.text(`${payroll.avances.toFixed(2)}`, 460, currentY, { width: 80, align: 'right' });
+            doc.moveDown();
+        }
+
+        // 9. Autres retenues (Abscences, etc.)
         if (payroll.retenues > 0) {
-            doc.text('Retenues (Absences/Avances)', 50, doc.y);
-            doc.text(`-${payroll.retenues.toFixed(2)}`, 450, doc.y, { align: 'right' });
+            currentY = doc.y;
+            doc.text('Autres retenues (Absences, etc.)', 60, currentY);
+            doc.text(`${payroll.retenues.toFixed(2)}`, 460, currentY, { width: 80, align: 'right' });
             doc.moveDown();
         }
 
+        // Calculations detail (Net Imposable) - Professional touch
         doc.moveDown();
-        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-        doc.moveDown();
+        doc.fontSize(8).fillColor('#666');
+        doc.text(`Base de calcul Net Imposable : ${(payroll.taxableNet || 0).toFixed(2)} MAD`, 50, doc.y);
+        doc.fillColor('#000').fontSize(10);
 
-        // Total
-        doc.fontSize(14).text('NET À PAYER', 50, doc.y);
-        doc.text(`${payroll.netAPayer.toFixed(2)} MAD`, 450, doc.y, { align: 'right' });
+        doc.moveDown(2);
+        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+        doc.moveDown(0.5);
+
+        // Net à payer big and bold
+        doc.fontSize(16).font('Helvetica-Bold').text('NET À PAYER', 50, doc.y);
+        // Fix formatting to avoid locale-specific symbols that PDFKit font might not support
+        const formattedNet = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(payroll.netAPayer).replace(/\u00a0/g, ' ');
+        doc.text(`${formattedNet} MAD`, 350, doc.y, { width: 200, align: 'right' });
 
         // Footer
-        doc.fontSize(10).text('Fait à ...................., le ' + new Date().toLocaleDateString(), 50, 700);
-        doc.text('Signature de l\'employeur', 400, 700);
+        doc.fontSize(9).font('Helvetica').text('Fait à ...................., le ' + new Date().toLocaleDateString('fr-FR'), 50, 720);
+        doc.text('Signature de l\'employeur', 400, 720);
+        doc.text('Signature de l\'employé (précedée de lu et approuvé)', 50, 750);
 
         doc.end();
 

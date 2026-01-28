@@ -573,6 +573,10 @@ model Employee {
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   photoUrl      String?
+  childrenCount Int              @default(0)
+  familyStatus  String           @default("CELIBATAIRE") // CELIBATAIRE, MARIE
+  paymentMode   String           @default("VIREMENT") // VIREMENT, ESPECES
+  socialSecurityAffiliation Boolean @default(true)
   attendance    Attendance[]
   commissions   Commission[]
   user          User?            @relation(fields: [userId], references: [id])
@@ -624,20 +628,51 @@ model Commission {
 }
 
 model Payroll {
-  id          String   @id @default(uuid())
-  employeeId  String
-  mois        String
-  annee       Int
-  salaireBase Float
-  commissions Float    @default(0)
-  heuresSup   Float    @default(0)
-  retenues    Float    @default(0)
-  netAPayer   Float
-  statut      String   @default("BROUILLON")
-  pdfUrl      String?
-  expenseId   String?  @unique
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  expense     Depense? @relation(fields: [expenseId], references: [id])
+  id                String   @id @default(uuid())
+  employeeId        String
+  mois              String
+  annee             Int
+  salaireBase       Float
+  primes            Float    @default(0)
+  commissions       Float    @default(0)
+  heuresSup         Float    @default(0)
+  retenues          Float    @default(0) // Misc. deductions
+  avances           Float    @default(0) // Advances on salary
+  
+  // Detailed components (International Standards)
+  grossSalary       Float    @default(0)
+  socialSecurityDeduction Float @default(0)
+  healthInsuranceDeduction Float @default(0)
+  incomeTaxDeduction Float    @default(0)
+  professionalExpenses Float  @default(0)
+  taxableNet         Float    @default(0)
+  employerCharges   Float    @default(0)
+  
+  netAPayer         Float
+  statut            String   @default("BROUILLON")
+  pdfUrl            String?
+  expenseId         String?  @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  expense           Depense? @relation(fields: [expenseId], references: [id])
+}
+
+model PayrollConfig {
+  id                String   @id @default(uuid())
+  annee             Int      @unique
+  socialSecurityRate_S Float    @default(4.48)
+  socialSecurityRate_P Float    @default(8.98) // Only the capped part
+  familyAllowanceRate_P Float   @default(6.40) // Uncapped
+  trainingRate_P      Float    @default(1.60) // Uncapped (TFP)
+  socialSecurityCap   Float    @default(6000)
+  healthInsuranceRate_S Float    @default(2.26)
+  healthInsuranceRate_P Float    @default(4.11)
+  profExpensesRate    Float    @default(20)
+  profExpensesCap     Float    @default(2500)
+  incomeTaxBrackets   Json     // Array of { min, max, rate, deduction }
+  familyDeduction     Float    @default(30)
+  familyDeductionCap  Float    @default(180)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }

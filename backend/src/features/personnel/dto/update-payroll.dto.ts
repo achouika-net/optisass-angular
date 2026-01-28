@@ -15,7 +15,43 @@ export class UpdatePayrollDto {
 
     @IsOptional()
     @IsNumber()
+    primes?: number;
+
+    @IsOptional()
+    @IsNumber()
     retenues?: number;
+
+    @IsOptional()
+    @IsNumber()
+    avances?: number;
+
+    @IsOptional()
+    @IsNumber()
+    grossSalary?: number;
+
+    @IsOptional()
+    @IsNumber()
+    socialSecurityDeduction?: number;
+
+    @IsOptional()
+    @IsNumber()
+    healthInsuranceDeduction?: number;
+
+    @IsOptional()
+    @IsNumber()
+    incomeTaxDeduction?: number;
+
+    @IsOptional()
+    @IsNumber()
+    professionalExpenses?: number;
+
+    @IsOptional()
+    @IsNumber()
+    employerCharges?: number;
+
+    @IsOptional()
+    @IsNumber()
+    netAPayer?: number;
 
     @IsOptional()
     @IsString()

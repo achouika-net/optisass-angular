@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { PersonnelService } from './personnel.service';
 import { PersonnelController } from './personnel.controller';
+import { PayrollConfigController } from './payroll-config.controller';
+import { PersonnelService } from './personnel.service';
 import { AttendanceService } from './attendance.service';
 import { CommissionService } from './commission.service';
 import { PayrollService } from './payroll.service';
@@ -10,7 +11,7 @@ import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
     imports: [PrismaModule, ExpensesModule],
-    controllers: [PersonnelController],
+    controllers: [PersonnelController, PayrollConfigController],
     providers: [
         PersonnelService,
         AttendanceService,

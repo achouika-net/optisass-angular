@@ -83,7 +83,11 @@ export class EmployeeFormComponent implements OnInit {
             salaireBase: [0, [Validators.required, Validators.min(0)]],
             statut: ['ACTIF', Validators.required],
             centreIds: [[], Validators.required],
-            photoUrl: ['']
+            photoUrl: [''],
+            childrenCount: [0, [Validators.min(0)]],
+            familyStatus: ['CELIBATAIRE', Validators.required],
+            socialSecurityAffiliation: [true],
+            paymentMode: ['VIREMENT']
         });
     }
 
@@ -103,7 +107,11 @@ export class EmployeeFormComponent implements OnInit {
                 ...employee,
                 dateEmbauche: employee.dateEmbauche ? new Date(employee.dateEmbauche) : null,
                 centreIds: employee.centres?.map((c: any) => c.centreId) || [],
-                photoUrl: employee.photoUrl
+                photoUrl: employee.photoUrl,
+                childrenCount: employee.childrenCount,
+                familyStatus: employee.familyStatus || 'CELIBATAIRE',
+                socialSecurityAffiliation: employee.socialSecurityAffiliation,
+                paymentMode: employee.paymentMode
             });
             if (employee.photoUrl) {
                 this.photoPreview = employee.photoUrl;
@@ -123,6 +131,7 @@ export class EmployeeFormComponent implements OnInit {
         const data = {
             ...formValue,
             salaireBase: parseFloat(formValue.salaireBase) || 0,
+            childrenCount: parseInt(formValue.childrenCount) || 0,
             dateEmbauche: formValue.dateEmbauche ? new Date(formValue.dateEmbauche).toISOString() : new Date().toISOString()
         };
 
