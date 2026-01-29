@@ -1,0 +1,593 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { ExportSageDto } from './dto/export-sage.dto';
+
+// Use require for pdfkit to avoid constructor issues in mixed ESM/CJS environments
+const PDFDocument = require('pdfkit');
+
+@Injectable()
+export class AccountingService {
+    private readonly logger = new Logger(AccountingService.name);
+
+    constructor(private prisma: PrismaService) { }
+
+    // Default Mapping (Plan Comptable Marocain)
+    private readonly CONFIG = {
+        RECEIVABLE_ACCOUNT: '3421', // Clients
+        SALES_REVENUE_ACCOUNT: '7111', // Ventes
+        SALES_TAX_ACCOUNT: '4455', // TVA Collectée
+        CASH_ACCOUNT: '5161', // Caisse
+        PAYABLE_ACCOUNT: '4411', // Fournisseurs
+        EXPENSE_ACCOUNT: '6111', // Achats
+        INPUT_TAX_ACCOUNT: '3455', // TVA Déductible
+    };
+
+    private formatDateDDMMYY(date: Date | string): string {
+        try {
+            const d = new Date(date);
+            if (isNaN(d.getTime())) return '010126';
+            const day = d.getDate().toString().padStart(2, '0');
+            const month = (d.getMonth() + 1).toString().padStart(2, '0');
+            const year = d.getFullYear().toString().slice(-2);
+            return `${day}${month}${year}`;
+        } catch (e) {
+            return '010126';
+        }
+    }
+
+    private formatDateDisplay(date: Date | string): string {
+        try {
+            const d = new Date(date);
+            if (isNaN(d.getTime())) return 'N/A';
+            const day = d.getDate().toString().padStart(2, '0');
+            const month = (d.getMonth() + 1).toString().padStart(2, '0');
+            const year = d.getFullYear();
+            return `${day}/${month}/${year}`;
+        } catch (e) {
+            return 'N/A';
+        }
+    }
+
+    /**
+     * Generates a Sage-compatible CSV export
+     */
+    async generateSageExport(dto: ExportSageDto) {
+        this.logger.log(`Starting Sage Export: ${JSON.stringify(dto)}`);
+        const { startDate, endDate, centreId } = dto;
+
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+            this.logger.error(`Invalid date range: ${startDate} to ${endDate}`);
+            throw new Error(`Invalid date range: ${startDate} to ${endDate}`);
+        }
+
+        const cid =
+            centreId && centreId !== 'ALL' && centreId !== '' ? centreId : undefined;
+
+        // 1. Fetch Invoices (Sales)
+        const invoices = await this.prisma.facture.findMany({
+            where: {
+                dateEmission: { gte: start, lte: end },
+                statut: { in: ['VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE'] },
+                centreId: cid,
+            },
+            include: { client: true },
+        });
+
+        // 2. Fetch Payments (Treasury)
+        const payments = await this.prisma.paiement.findMany({
+            where: {
+                date: { gte: start, lte: end },
+                statut: 'ENCAISSE',
+                facture: cid ? { centreId: cid } : undefined,
+            },
+            include: { facture: { include: { client: true } } },
+        });
+
+        // 3. Fetch Expenses (Purchases)
+        const expenses = await this.prisma.depense.findMany({
+            where: {
+                date: { gte: start, lte: end },
+                statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
+                centreId: cid,
+            },
+            include: { fournisseur: true },
+        });
+
+        const lines: string[] = [];
+        lines.push('JOURNAL;DATE;COMPTE;REFERENCE;LIBELLE;DEBIT;CREDIT');
+
+        // Process Invoices
+        for (const inv of invoices) {
+            const dateStr = this.formatDateDDMMYY(inv.dateEmission);
+            const ref = inv.numero || inv.id.substring(0, 8);
+            const label = `Facture ${ref} - ${inv.client?.nom || 'Client'}`;
+            const ttc = inv.totalTTC || 0;
+            const ht = inv.totalHT || 0;
+            const tva = inv.totalTVA || 0;
+
+            lines.push(
+                `VT;${dateStr};${this.CONFIG.RECEIVABLE_ACCOUNT};${ref};${label};${ttc.toFixed(2)};0.00`,
+            );
+            lines.push(
+                `VT;${dateStr};${this.CONFIG.SALES_REVENUE_ACCOUNT};${ref};${label};0.00;${ht.toFixed(2)}`,
+            );
+            if (tva > 0) {
+                lines.push(
+                    `VT;${dateStr};${this.CONFIG.SALES_TAX_ACCOUNT};${ref};${label};0.00;${tva.toFixed(2)}`,
+                );
+            }
+        }
+
+        // Process Payments
+        for (const p of payments) {
+            const dateStr = this.formatDateDDMMYY(p.date);
+            const ref = p.reference || 'PAY';
+            const label = `Paiement ${p.mode} - ${p.facture?.numero || ''}`;
+            const journal = p.mode === 'ESPECES' ? 'CA' : 'BQ';
+            const montant = p.montant || 0;
+
+            lines.push(
+                `${journal};${dateStr};${this.CONFIG.CASH_ACCOUNT};${ref};${label};${montant.toFixed(2)};0.00`,
+            );
+            lines.push(
+                `${journal};${dateStr};${this.CONFIG.RECEIVABLE_ACCOUNT};${ref};${label};0.00;${montant.toFixed(2)}`,
+            );
+        }
+
+        // Process Expenses
+        for (const exp of expenses) {
+            const dateStr = this.formatDateDDMMYY(exp.date);
+            const ref = exp.reference || 'EXP';
+            const label = `${exp.categorie || 'DEP'} - ${exp.fournisseur?.nom || exp.description || ''}`;
+            const montant = exp.montant || 0;
+
+            lines.push(
+                `AC;${dateStr};${this.CONFIG.PAYABLE_ACCOUNT};${ref};${label};0.00;${montant.toFixed(2)}`,
+            );
+            const ht = montant / 1.2;
+            const tva = montant - ht;
+            lines.push(
+                `AC;${dateStr};${this.CONFIG.EXPENSE_ACCOUNT};${ref};${label};${ht.toFixed(2)};0.00`,
+            );
+            lines.push(
+                `AC;${dateStr};${this.CONFIG.INPUT_TAX_ACCOUNT};${ref};${label};${tva.toFixed(2)};0.00`,
+            );
+        }
+
+        return lines.join('\r\n');
+    }
+
+    /**
+     * Generates a "Balance Comptable" (Account Balance) CSV
+     */
+    async generateBalance(dto: ExportSageDto) {
+        this.logger.log(`Starting Balance Export: ${JSON.stringify(dto)}`);
+        try {
+            const { startDate, endDate, centreId } = dto;
+            const start = new Date(startDate);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+
+            if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+                throw new Error('Dates de début ou de fin invalides');
+            }
+
+            const cid =
+                centreId && centreId !== 'ALL' && centreId !== ''
+                    ? centreId
+                    : undefined;
+
+            const [invoices, payments, expenses] = await Promise.all([
+                this.prisma.facture.findMany({
+                    where: {
+                        dateEmission: { gte: start, lte: end },
+                        statut: { in: ['VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE'] },
+                        centreId: cid,
+                    },
+                }),
+                this.prisma.paiement.findMany({
+                    where: {
+                        date: { gte: start, lte: end },
+                        statut: 'ENCAISSE',
+                        facture: cid ? { centreId: cid } : undefined,
+                    },
+                }),
+                this.prisma.depense.findMany({
+                    where: {
+                        date: { gte: start, lte: end },
+                        statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
+                        centreId: cid,
+                    },
+                }),
+            ]);
+
+            const balance: Record<
+                string,
+                { label: string; debit: number; credit: number }
+            > = {
+                [this.CONFIG.RECEIVABLE_ACCOUNT]: { label: 'Clients', debit: 0, credit: 0 },
+                [this.CONFIG.SALES_REVENUE_ACCOUNT]: {
+                    label: 'Ventes de marchandises',
+                    debit: 0,
+                    credit: 0,
+                },
+                [this.CONFIG.SALES_TAX_ACCOUNT]: {
+                    label: 'TVA Collectée',
+                    debit: 0,
+                    credit: 0,
+                },
+                [this.CONFIG.CASH_ACCOUNT]: {
+                    label: 'Caisse / Banque',
+                    debit: 0,
+                    credit: 0,
+                },
+                [this.CONFIG.PAYABLE_ACCOUNT]: {
+                    label: 'Fournisseurs',
+                    debit: 0,
+                    credit: 0,
+                },
+                [this.CONFIG.EXPENSE_ACCOUNT]: {
+                    label: 'Achats de matières et fournitures',
+                    debit: 0,
+                    credit: 0,
+                },
+                [this.CONFIG.INPUT_TAX_ACCOUNT]: {
+                    label: 'TVA Déductible',
+                    debit: 0,
+                    credit: 0,
+                },
+            };
+
+            // Invoices
+            for (const inv of invoices) {
+                balance[this.CONFIG.RECEIVABLE_ACCOUNT].debit += inv.totalTTC || 0;
+                balance[this.CONFIG.SALES_REVENUE_ACCOUNT].credit += inv.totalHT || 0;
+                balance[this.CONFIG.SALES_TAX_ACCOUNT].credit += inv.totalTVA || 0;
+            }
+
+            // Payments
+            for (const p of payments) {
+                balance[this.CONFIG.CASH_ACCOUNT].debit += p.montant || 0;
+                balance[this.CONFIG.RECEIVABLE_ACCOUNT].credit += p.montant || 0;
+            }
+
+            // Expenses
+            for (const exp of expenses) {
+                const m = exp.montant || 0;
+                const ht = m / 1.2;
+                const tva = m - ht;
+                balance[this.CONFIG.PAYABLE_ACCOUNT].credit += m;
+                balance[this.CONFIG.EXPENSE_ACCOUNT].debit += ht;
+                balance[this.CONFIG.INPUT_TAX_ACCOUNT].debit += tva;
+            }
+
+            const lines: string[] = ['COMPTE;LIBELLE;DEBIT;CREDIT;SOLDE'];
+            let totalDebit = 0,
+                totalCredit = 0;
+
+            for (const [code, data] of Object.entries(balance)) {
+                const solde = data.debit - data.credit;
+                lines.push(
+                    `${code};${data.label};${data.debit.toFixed(2)};${data.credit.toFixed(2)};${solde.toFixed(2)}`,
+                );
+                totalDebit += data.debit;
+                totalCredit += data.credit;
+            }
+
+            lines.push(`;;;;`);
+            lines.push(
+                `TOTAL;;${totalDebit.toFixed(2)};${totalCredit.toFixed(2)};${(totalDebit - totalCredit).toFixed(2)}`,
+            );
+
+            return lines.join('\r\n');
+        } catch (e) {
+            this.logger.error('Error generating balance:', e);
+            throw e;
+        }
+    }
+
+    /**
+     * Generates an internal "Journal des Opérations" PDF with professional layout
+     */
+    async generateJournalPdf(dto: ExportSageDto) {
+        this.logger.log(`Starting PDF Generation: ${JSON.stringify(dto)}`);
+        const { startDate, endDate, centreId } = dto;
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        const cid =
+            centreId && centreId !== 'ALL' && centreId !== '' ? centreId : undefined;
+
+        const [invoices, payments, expenses] = await Promise.all([
+            this.prisma.facture.findMany({
+                where: {
+                    dateEmission: { gte: start, lte: end },
+                    statut: { in: ['VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE'] },
+                    centreId: cid,
+                },
+                include: { client: true },
+                orderBy: { dateEmission: 'asc' },
+            }),
+            this.prisma.paiement.findMany({
+                where: {
+                    date: { gte: start, lte: end },
+                    statut: 'ENCAISSE',
+                    facture: cid ? { centreId: cid } : undefined,
+                },
+                include: { facture: { include: { client: true } } },
+                orderBy: { date: 'asc' },
+            }),
+            this.prisma.depense.findMany({
+                where: {
+                    date: { gte: start, lte: end },
+                    statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
+                    centreId: cid,
+                },
+                include: { fournisseur: true },
+                orderBy: { date: 'asc' },
+            }),
+        ]);
+
+        const doc = new PDFDocument({ margin: 40, size: 'A4', bufferPages: true });
+
+        // Helper for consistent table row with manual coordinate management
+        const drawRow = (
+            y: number,
+            cols: string[],
+            widths: number[],
+            options: { isHeader?: boolean; bgColor?: string } = {},
+        ) => {
+            const rowHeight = options.isHeader ? 22 : 18;
+            const startX = 40;
+
+            if (options.bgColor) {
+                doc.save().rect(startX, y, 515, rowHeight).fill(options.bgColor).restore();
+            }
+
+            doc
+                .fontSize(options.isHeader ? 9 : 8)
+                .font(options.isHeader ? 'Helvetica-Bold' : 'Helvetica')
+                .fillColor('#000');
+
+            let currentX = startX;
+            cols.forEach((text, i) => {
+                const align = i === cols.length - 1 ? 'right' : 'left';
+                const padding = 5;
+                // Use document-wide doc.text with baseline adjustment to ensure no vertical drift
+                doc.text(text || '', currentX + padding, y + (rowHeight - 8) / 2, {
+                    width: widths[i] - padding * 2,
+                    align: align,
+                    lineBreak: false,
+                });
+                currentX += widths[i];
+            });
+            return rowHeight;
+        };
+
+        const drawTableSection = (
+            title: string,
+            color: string,
+            headers: string[],
+            colWidths: number[],
+            data: string[][],
+            headerBg: string,
+            rowBgFunc: (i: number) => string | undefined,
+        ) => {
+            // Check if title fits, otherwise start on new page
+            if (doc.y + 100 > 750) doc.addPage();
+
+            doc.moveDown(1.5).fontSize(14).font('Helvetica-Bold').fillColor(color).text(title);
+            doc.moveDown(0.5);
+
+            let currentY = doc.y;
+
+            // Draw Header
+            currentY += drawRow(currentY, headers, colWidths, {
+                isHeader: true,
+                bgColor: headerBg,
+            });
+
+            data.forEach((row, i) => {
+                // Atomic row check: if currentY + rowHeight exceeds margin, add page and redraw header
+                if (currentY + 20 > 750) {
+                    doc.addPage();
+                    currentY = 40;
+                    currentY += drawRow(currentY, headers, colWidths, {
+                        isHeader: true,
+                        bgColor: headerBg,
+                    });
+                }
+                currentY += drawRow(currentY, row, colWidths, {
+                    bgColor: rowBgFunc(i),
+                });
+            });
+
+            doc.y = currentY; // Manually update doc.y for next section
+        };
+
+        try {
+            // Header
+            doc
+                .fontSize(20)
+                .font('Helvetica-Bold')
+                .fillColor('#1e3a8a')
+                .text('JOURNAL DES OPÉRATIONS', { align: 'center' });
+            doc
+                .fontSize(10)
+                .font('Helvetica')
+                .fillColor('#666')
+                .text(
+                    `Période : ${this.formatDateDisplay(start)} au ${this.formatDateDisplay(end)}`,
+                    { align: 'center' },
+                );
+            if (cid) doc.fontSize(9).text(`Centre : ${cid}`, { align: 'center' });
+
+            const colWidths = [70, 100, 250, 95];
+            const headers = [
+                'Date',
+                'Référence / Mode',
+                'Libellé / Client / Motif',
+                'Montant',
+            ];
+
+            // 1. Ventes
+            const salesData = invoices.map((inv) => [
+                this.formatDateDisplay(inv.dateEmission),
+                inv.numero || inv.id.substring(0, 8),
+                inv.client?.nom || 'Client Divers',
+                `${(inv.totalTTC || 0).toFixed(2)} DH`,
+            ]);
+            drawTableSection(
+                '1. VENTES',
+                '#1e3a8a',
+                headers,
+                colWidths,
+                salesData,
+                '#f3f4f6',
+                (i) => (i % 2 === 1 ? '#f9fafb' : undefined),
+            );
+
+            let totalSales = invoices.reduce(
+                (sum, inv) => sum + (inv.totalTTC || 0),
+                0,
+            );
+            doc
+                .moveDown(1)
+                .font('Helvetica-Bold')
+                .fontSize(10)
+                .fillColor('#1e3a8a')
+                .text(`TOTAL VENTES : ${totalSales.toFixed(2)} DH`, { align: 'right' });
+
+            // 2. Encaissements
+            const paymentsData = payments.map((p) => [
+                this.formatDateDisplay(p.date),
+                p.mode || '-',
+                `Règlement ${p.facture?.numero || 'S/N'} - ${p.facture?.client?.nom || ''}`,
+                `${(p.montant || 0).toFixed(2)} DH`,
+            ]);
+            drawTableSection(
+                '2. ENCAISSEMENTS',
+                '#10b981',
+                headers,
+                colWidths,
+                paymentsData,
+                '#ecfdf5',
+                (i) => (i % 2 === 1 ? '#f0fdf4' : undefined),
+            );
+
+            let totalPayments = payments.reduce((sum, p) => sum + (p.montant || 0), 0);
+            doc
+                .moveDown(1)
+                .font('Helvetica-Bold')
+                .fontSize(10)
+                .fillColor('#10b981')
+                .text(`TOTAL ENCAISSEMENTS : ${totalPayments.toFixed(2)} DH`, {
+                    align: 'right',
+                });
+
+            // 3. Dépenses
+            const expensesData = expenses.map((exp) => [
+                this.formatDateDisplay(exp.date),
+                exp.categorie || 'Dépense',
+                `${exp.fournisseur?.nom || ''} ${exp.description || ''}`.trim() || '-',
+                `${(exp.montant || 0).toFixed(2)} DH`,
+            ]);
+            drawTableSection(
+                '3. DÉPENSES',
+                '#ef4444',
+                headers,
+                colWidths,
+                expensesData,
+                '#fef2f2',
+                (i) => (i % 2 === 1 ? '#fff1f2' : undefined),
+            );
+
+            let totalExpenses = expenses.reduce(
+                (sum, exp) => sum + (exp.montant || 0),
+                0,
+            );
+            doc
+                .moveDown(1)
+                .font('Helvetica-Bold')
+                .fontSize(10)
+                .fillColor('#ef4444')
+                .text(`TOTAL DÉPENSES : ${totalExpenses.toFixed(2)} DH`, {
+                    align: 'right',
+                });
+
+            // Final Recap
+            if (doc.y + 150 > 750) doc.addPage();
+            doc
+                .moveDown(2)
+                .fontSize(14)
+                .font('Helvetica-Bold')
+                .fillColor('#444')
+                .text('RECAPITULATIF GLOBAL', { underline: true });
+            doc.moveDown(1);
+            const rY = doc.y;
+            doc.fontSize(10).font('Helvetica').fillColor('#000');
+            doc.text(`Total Chiffre d'Affaires :`, 40, rY);
+            doc.font('Helvetica-Bold').text(`${totalSales.toFixed(2)} DH`, 480, rY, {
+                align: 'right',
+            });
+            doc.font('Helvetica').text(`Total Encaissements :`, 40, rY + 20);
+            doc
+                .font('Helvetica-Bold')
+                .text(`${totalPayments.toFixed(2)} DH`, 480, rY + 20, {
+                    align: 'right',
+                });
+            doc.font('Helvetica').text(`Total Dépenses :`, 40, rY + 40);
+            doc
+                .font('Helvetica-Bold')
+                .text(`${totalExpenses.toFixed(2)} DH`, 480, rY + 40, {
+                    align: 'right',
+                });
+
+            const bal = totalPayments - totalExpenses;
+            doc.moveDown(2);
+            const finalY = doc.y;
+            doc
+                .save()
+                .rect(40, finalY - 10, 515, 35)
+                .fill(bal >= 0 ? '#f0fdf4' : '#fef2f2')
+                .restore();
+            doc
+                .fontSize(14)
+                .fillColor(bal >= 0 ? '#10b981' : '#ef4444')
+                .font('Helvetica-Bold')
+                .text(`SOLDE FINAL : ${bal.toFixed(2)} DH`, 40, finalY + 8, {
+                    align: 'center',
+                });
+
+            // Footer
+            const range = doc.bufferedPageRange();
+            for (let i = range.start; i < range.start + range.count; i++) {
+                doc.switchToPage(i);
+                doc
+                    .fontSize(8)
+                    .fillColor('#aaa')
+                    .text(
+                        `Page ${i + 1} / ${range.count} - Généré le ${new Date().toLocaleDateString('fr-FR')}`,
+                        40,
+                        800,
+                        { align: 'center' },
+                    );
+            }
+
+            doc.end();
+            return doc;
+        } catch (e) {
+            this.logger.error('Error PDF:', e);
+            throw new Error(`PDF Error: ${e.message}`);
+        }
+    }
+}

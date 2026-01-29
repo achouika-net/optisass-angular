@@ -53,7 +53,6 @@ import { environment } from '../../../../environments/environment';
         MatIconModule,
         MatSelectModule,
         MatSnackBarModule,
-        MatSnackBarModule,
         MatDialogModule,
         MatMenuModule,
         MatProgressSpinnerModule,
@@ -62,9 +61,7 @@ import { environment } from '../../../../environments/environment';
         ReactiveFormsModule,
         MatInputModule,
         MatFormFieldModule,
-        RecordAdvanceDialogComponent,
         RouterModule,
-        MatSnackBarModule,
     ],
     providers: [
         { provide: MAT_DATE_FORMATS, useValue: MY_FORMATS },

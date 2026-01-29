@@ -52,6 +52,12 @@ export const MENU: MenuItem[] = [
         route: 'finance/sales-control',
       },
       {
+        label: 'Comptabilité',
+        icon: 'account_balance',
+        type: 'subchild',
+        route: 'finance/accounting',
+      },
+      {
         label: 'Portefeuille',
         icon: 'wallet',
         type: 'subchild',

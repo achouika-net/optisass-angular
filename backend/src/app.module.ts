@@ -32,6 +32,7 @@ import { PersonnelModule } from './features/personnel/personnel.module';
 import { AuthModule } from './features/auth/auth.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { AccountingModule } from './features/accounting/accounting.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { join } from 'path';
     MarketingModule,
     PersonnelModule,
     AuthModule,
+    AccountingModule,
     ServeStaticModule.forRoot({
       rootPath: existsSync('/app/uploads')
         ? '/app/uploads'

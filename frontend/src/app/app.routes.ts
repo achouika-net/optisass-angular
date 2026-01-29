@@ -91,6 +91,10 @@ export const routes: Routes = [
         path: 'personnel',
         loadChildren: () => import('./features/personnel-management/personnel-management.routes').then(m => m.personnelManagementRoutes),
       },
+      {
+        path: 'finance/accounting',
+        loadComponent: () => import('./features/accounting/accounting-dashboard/accounting-dashboard.component').then(m => m.AccountingDashboardComponent),
+      },
     ],
   },
   {

@@ -1,0 +1,111 @@
+<div class="flex flex-col space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-[#1e3a8a] flex items-center gap-2">
+                <mat-icon class="text-orange-500">account_balance</mat-icon>
+                Comptabilité & Export Sage
+            </h1>
+            <p class="text-gray-500">Générez des écritures comptables compatibles avec les standards internationaux et
+                Sage.</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Export Configuration -->
+        <mat-card class="rounded-xl border-none shadow-sm p-6 bg-white col-span-1 border border-gray-100">
+            <h2 class="text-lg font-bold text-[#1e3a8a] mb-6 flex items-center gap-2">
+                <mat-icon>settings</mat-icon>
+                Paramètres d'Export
+            </h2>
+
+            <form [formGroup]="exportForm" class="flex flex-col gap-4">
+                <mat-form-field appearance="outline">
+                    <mat-label>Date de début</mat-label>
+                    <input matInput [matDatepicker]="startPicker" formControlName="startDate">
+                    <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
+                    <mat-datepicker #startPicker></mat-datepicker>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                    <mat-label>Date de fin</mat-label>
+                    <input matInput [matDatepicker]="endPicker" formControlName="endDate">
+                    <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
+                    <mat-datepicker #endPicker></mat-datepicker>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                    <mat-label>Centre (Optionnel)</mat-label>
+                    <mat-select formControlName="centreId">
+                        <mat-option value="">Tous les centres</mat-option>
+                        <mat-option *ngFor="let c of allCentres()" [value]="getCentreId(c)">
+                            {{getCentreNom(c)}}
+                        </mat-option>
+                    </mat-select>
+                </mat-form-field>
+
+                <button mat-flat-button color="primary" class="rounded-lg py-6 mt-4" (click)="onExport()"
+                    [disabled]="isLoading()">
+                    <mat-icon *ngIf="!isLoading()">download</mat-icon>
+                    <mat-spinner diameter="20" *ngIf="isLoading()" class="mr-2"></mat-spinner>
+                    {{ isLoading() ? 'Génération...' : 'Exporter pour Sage (.csv)' }}
+                </button>
+
+                <div class="grid grid-cols-2 gap-4 mt-2">
+                    <button mat-stroked-button color="primary" class="rounded-lg py-4" (click)="onExportPdf()"
+                        [disabled]="isLoading()">
+                        <mat-icon>picture_as_pdf</mat-icon>
+                        Journal PDF
+                    </button>
+                    <button mat-stroked-button color="primary" class="rounded-lg py-4" (click)="onExportExcel()"
+                        [disabled]="isLoading()">
+                        <mat-icon>table_view</mat-icon>
+                        Balance
+                    </button>
+                </div>
+            </form>
+        </mat-card>
+
+        <!-- Information / Documentation Section -->
+        <div class="col-span-1 lg:col-span-2 space-y-6">
+            <mat-card class="rounded-xl border-none shadow-sm p-6 bg-blue-50/50 border border-blue-100">
+                <h2 class="text-lg font-bold text-[#1e3a8a] mb-4 flex items-center gap-2">
+                    <mat-icon class="text-blue-600">info</mat-icon>
+                    À propos de l'export Sage
+                </h2>
+                <p class="text-gray-600 mb-4 leading-relaxed">
+                    Ce module génère un fichier d'écritures comptables structuré selon le format <strong>Sage
+                        PNM/CSV</strong>.
+                    Il inclut automatiquement :
+                </p>
+                <ul class="space-y-3 text-gray-600">
+                    <li class="flex items-center gap-2">
+                        <mat-icon class="text-green-500 text-sm">check_circle</mat-icon>
+                        <strong>Journal des Ventes (VT)</strong> : Invoices validées et payées.
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <mat-icon class="text-green-500 text-sm">check_circle</mat-icon>
+                        <strong>Journal de Trésorerie (BQ/CA)</strong> : Règlements clients par banque ou caisse.
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <mat-icon class="text-green-500 text-sm">check_circle</mat-icon>
+                        <strong>Journal des Achats (AC)</strong> : Dépenses et factures fournisseurs validées.
+                    </li>
+                </ul>
+            </mat-card>
+
+            <mat-card class="rounded-xl border-none shadow-sm p-6 bg-orange-50/50 border border-orange-100">
+                <h2 class="text-lg font-bold text-orange-800 mb-4 flex items-center gap-2">
+                    <mat-icon class="text-orange-600">warning</mat-icon>
+                    Standard International Adaptatif
+                </h2>
+                <p class="text-gray-700 text-sm italic">
+                    Le Plan Comptable utilisé est basé sur les standards internationaux (ex: 1100 pour Clients, 4100
+                    pour Ventes).
+                    Si vous avez besoin d'ajuster ces codes pour un standard national spécifique, veuillez contacter
+                    l'administrateur.
+                </p>
+            </mat-card>
+        </div>
+    </div>
+</div>
