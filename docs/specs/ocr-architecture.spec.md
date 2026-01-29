@@ -1,8 +1,8 @@
 # Spécification Technique - Architecture OCR
 
-> **Version:** 2.1
-> **Date:** 2026-01-18
-> **Statut:** Validé
+> **Version:** 2.4
+> **Date:** 2026-01-22
+> **Statut:** ✅ Implémenté
 > **Module:** Core OCR + opti_saas_lib
 
 ---
@@ -13,18 +13,22 @@
 
 ### Fichiers clés
 
-| Besoin                  | Fichier                                                          |
-| ----------------------- | ---------------------------------------------------------------- |
-| Parser exemple          | `features/stock/alimentation/parsers/supplier-invoice.parser.ts` |
-| Classe abstraite Parser | `core/ocr/document-parser.ts`                                    |
-| Enregistrement parsers  | `core/ocr/parser.providers.ts`                                   |
-| Provider OCR            | `core/ocr/providers/tesseract.provider.ts`                       |
-| Service langue          | `core/ocr/services/locale.service.ts`                            |
-| Pipeline orchestrateur  | `core/ocr/pipeline/ocr-pipeline.ts`                              |
-| Factory pipelines       | `core/ocr/pipeline/pipeline.factory.ts`                          |
-| Extractors (lib)        | `opti_saas_lib/src/shared/ocr/extractors/`                       |
-| Patterns (lib)          | `opti_saas_lib/src/shared/ocr/patterns/`                         |
-| Locales (lib)           | `opti_saas_lib/src/shared/ocr/locales/`                          |
+| Besoin                  | Fichier                                                           |
+| ----------------------- | ----------------------------------------------------------------- |
+| Parser exemple          | `features/stock/stock-entry/parsers/supplier-invoice.parser.ts`   |
+| Classe abstraite Parser | `core/ocr/document-parser.ts`                                     |
+| Enregistrement parsers  | `core/ocr/parser.providers.ts`                                    |
+| Provider OCR            | `core/ocr/providers/tesseract.provider.ts`                        |
+| Service langue          | `core/ocr/services/locale.service.ts`                             |
+| Pipeline orchestrateur  | `core/ocr/pipeline/ocr-pipeline.ts`                               |
+| Factory pipelines       | `core/ocr/pipeline/pipeline.factory.ts`                           |
+| Extractors (lib)        | `opti_saas_lib/src/shared/ocr/extractors/`                        |
+| Detection zones (lib)   | `opti_saas_lib/src/shared/ocr/detection/`                         |
+| Patterns (lib)          | `opti_saas_lib/src/shared/ocr/patterns/`                          |
+| Locales (lib)           | `opti_saas_lib/src/shared/ocr/locales/`                           |
+| Templates fournisseurs  | `opti_saas_lib/src/shared/ocr/templates/`                         |
+| Product parsing (lib)   | `opti_saas_lib/src/shared/product-matching/designation.parser.ts` |
+| Mapping OCR → Business  | `features/stock/stock-entry/components/stock-entry.component.ts`  |
 
 ### Checklist nouveau Parser
 
@@ -100,7 +104,26 @@ const result = await pipeline.process(imageFile);
 Image → Pipeline → Provider (Tesseract) → Texte brut
                          ↓
                     Parser → Locale + Extractors + Patterns → Données structurées
+                         ↓
+                    Mapping → ISupplierInvoice → IOcrSupplierData → ISupplier (business)
 ```
+
+### Mapping OCR → Business Object
+
+| OCR (IInvoiceSupplier) | Frontend (IOcrSupplierData) | Business (ISupplier) |
+| ---------------------- | --------------------------- | -------------------- |
+| `name`                 | `name`                      | `name`               |
+| `ice`                  | `ice`                       | `ice`                |
+| `fiscalId`             | `fiscalId`                  | `taxId`              |
+| `tradeRegister`        | `tradeRegister`             | `tradeRegister`      |
+| `cnss`                 | `cnss`                      | -                    |
+| `patente`              | `patente`                   | `businessLicense`    |
+| `address`              | `address`                   | `address.street`     |
+| `addressDetails`       | `addressDetails`            | `address.*`          |
+| `phone`                | `phone`                     | `phone`              |
+| `email`                | `email`                     | `email`              |
+| `bank`                 | `bank`                      | `bank`               |
+| `rib`                  | `rib`                       | `bankAccountNumber`  |
 
 ---
 
@@ -313,7 +336,13 @@ frontend/src/app/features/stock/alimentation/
 opti_saas_lib/src/shared/ocr/
 ├── index.ts                           # Exports publics
 ├── ocr.models.ts                      # IOcrBlock, IOcrResult, OcrDocumentType
+├── supplier-invoice.models.ts         # ISupplierInvoice, IInvoiceSupplier, IInvoiceClient
 ├── document-parser.interfaces.ts      # IDataExtractor<T>, IParseResult<T>
+│
+├── detection/
+│   ├── index.ts
+│   ├── zone-detector.ts               # ZoneDetector (header/body/footer)
+│   └── entity-zone-detector.ts        # EntityZoneDetector (vendor/customer)
 │
 ├── extractors/
 │   ├── index.ts
@@ -322,13 +351,22 @@ opti_saas_lib/src/shared/ocr/
 │   ├── amount.extractor.ts            # AmountExtractor
 │   ├── identifier.extractor.ts        # IdentifierExtractor (ICE, IF, RC)
 │   ├── contact.extractor.ts           # ContactExtractor
+│   ├── customer.extractor.ts          # CustomerExtractor (client facture)
+│   ├── loose-contact.extractor.ts     # LooseContactExtractor (fallback)
 │   └── line-item.extractor.ts         # LineItemExtractor
 │
 ├── patterns/
 │   ├── index.ts
 │   ├── numeric.patterns.ts            # NUMERIC_PATTERNS (dates, montants)
 │   ├── moroccan.patterns.ts           # MOROCCAN_PATTERNS (ICE, IF, RC)
+│   ├── city-lookup.ts                 # CityLookup (détection villes)
 │   └── pattern.helpers.ts             # parseDate(), isValidICE()
+│
+├── templates/
+│   └── supplier-templates.ts          # Templates par fournisseur connu
+│
+├── validation/
+│   └── totals.validator.ts            # TotalsValidator (cohérence montants)
 │
 ├── locales/
 │   ├── index.ts
@@ -909,6 +947,93 @@ export class AmountExtractor extends BaseExtractor<number> {
   calculateVAT(totalHT: number, totalTTC: number): number {
     return totalTTC - totalHT;
   }
+}
+```
+
+### 8.6 EntityZoneDetector (Détection Fournisseur/Client)
+
+**Fichier:** `opti_saas_lib/src/shared/ocr/detection/entity-zone-detector.ts`
+
+Détecte et sépare les blocs FOURNISSEUR (vendor) et CLIENT (customer) dans les factures.
+
+**Stratégies de détection (par ordre de confiance):**
+
+1. **Labels explicites** (confiance 0.90-0.95):
+   - Client: "Facturé à:", "Bill to:", "Client:", "Destinataire:"
+   - Fournisseur: "Émetteur:", "Vendor:", "De la part de:"
+
+2. **Analyse positionnelle** (confiance 0.65-0.85):
+   - Gauche du header = généralement fournisseur
+   - Droite du header = généralement client
+   - Identifiants légaux (ICE, IF) = fournisseur
+
+3. **Footer** (confiance basée sur champs trouvés):
+   - Informations légales du fournisseur (ICE, IF, RC, CNSS, Patente)
+   - Coordonnées bancaires (RIB, Banque)
+
+```typescript
+export class EntityZoneDetector {
+  static readonly CUSTOMER_LABELS: RegExp[] = [
+    /^(?:factur[ée]\s*[àa]|client|destinataire|acheteur)\s*[:：]/im,
+    /^(?:bill(?:ed)?\s*to|ship(?:ped)?\s*to|customer|buyer)\s*[:：]/im,
+  ];
+
+  static readonly VENDOR_LABELS: RegExp[] = [
+    /^(?:fournisseur|émetteur|vendeur|notre\s*société)\s*[:：]/im,
+    /^(?:from|vendor|supplier|seller)\s*[:：]/im,
+  ];
+
+  static readonly FOOTER_VENDOR_PATTERNS = {
+    ice: /ice\s*[:：]?\s*(\d{15})/i,
+    fiscalId: /i\.?f\.?\s*[:：]?\s*(\d{7,8})/i,
+    bank: /(?:banque|bank)\s*[:：]?\s*([A-Za-zÀ-ü\s]+?)(?=\s*[-–|]|\n|$)/i,
+    rib: /(?:rib|iban)\s*[:：]?\s*([\d\s]{20,35})/i,
+    // ... autres patterns
+  };
+
+  detectEntityBlocks(text: string): IEntityBlocks;
+  extractVendorFromFooter(footerText: string): IVendorFooterInfo;
+  extractCustomerCode(text: string): string | null;
+}
+```
+
+### 8.7 CustomerExtractor
+
+**Fichier:** `opti_saas_lib/src/shared/ocr/extractors/customer.extractor.ts`
+
+Extrait les informations client/destinataire des factures.
+
+**Stratégies d'extraction:**
+
+1. Bloc labellé détecté par `EntityZoneDetector`
+2. Section client labellée directement dans le texte
+3. Uniquement code client si minimal
+
+```typescript
+export class CustomerExtractor extends BaseExtractor<IInvoiceClient> {
+  extractCustomer(
+    text: string,
+    locale: IOcrLocale,
+    vendorName?: string, // Évite confusion avec le fournisseur
+  ): ICustomerExtractionResult;
+}
+```
+
+### 8.8 LooseContactExtractor (Fallback)
+
+**Fichier:** `opti_saas_lib/src/shared/ocr/extractors/loose-contact.extractor.ts`
+
+Extracteur de secours utilisant les patterns d'optisass-angular quand les méthodes strictes échouent.
+
+**Mots-clés fournisseurs détectés:**
+
+- Industrie optique: LUXOTTICA, ESSILOR, SAFILO, HOYA, ZEISS, BBGR, RODENSTOCK
+- Générique: DISTRIBUTION, SOCIETE, OPTICAL, OPTIQUE, VISION
+
+```typescript
+export class LooseContactExtractor {
+  extractSupplier(text: string, locale: IOcrLocale): ILooseContactResult;
+  extractFullSupplier(text: string, locale: IOcrLocale): Partial<IInvoiceSupplier>;
 }
 ```
 

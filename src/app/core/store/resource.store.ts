@@ -20,6 +20,7 @@ import { forkJoin, pipe, switchMap, tap } from 'rxjs';
 interface IResourceState {
   productTypes: IResource[];
   productStatuses: IResource[];
+  frameSubTypes: IResource[];
   frameCategories: IResource[];
   genders: IResource[];
   frameShapes: IResource[];
@@ -34,6 +35,10 @@ interface IResourceState {
   lensIndices: IResource[];
   contactLensTypes: IResource[];
   contactLensUsages: IResource[];
+  clipOnTypes: IResource[];
+  safetyStandards: IResource[];
+  safetyRatings: IResource[];
+  protectionTypes: IResource[];
   accessoryCategories: IResource[];
   civilites: IResource[];
   tvaRates: IResource[];
@@ -54,6 +59,7 @@ interface IResourceState {
 const initialState: IResourceState = {
   productTypes: [],
   productStatuses: [],
+  frameSubTypes: [],
   frameCategories: [],
   genders: [],
   frameShapes: [],
@@ -68,6 +74,10 @@ const initialState: IResourceState = {
   lensIndices: [],
   contactLensTypes: [],
   contactLensUsages: [],
+  clipOnTypes: [],
+  safetyStandards: [],
+  safetyRatings: [],
+  protectionTypes: [],
   accessoryCategories: [],
   civilites: [],
   tvaRates: [],

@@ -7,10 +7,10 @@ import { ActivatedRoute } from '@angular/router';
 import { FieldErrorComponent } from '@app/components';
 import { EMAIL_PATTERN } from '@app/config';
 import { FieldControlLabelDirective } from '@app/directives';
+import { ILoginRequest, LOGIN_REQUEST_INITIAL_VALUE } from '@app/models';
 import { AuthStore } from '@app/core/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { AuthService } from '../../services/auth.service';
-import { LOGIN_FORM_INITIAL_VALUE, LoginFormModel } from './models/login-form.model';
 
 @Component({
   selector: 'app-login',
@@ -33,7 +33,7 @@ export class LoginComponent implements OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
 
-  protected readonly loginModel = signal<LoginFormModel>(LOGIN_FORM_INITIAL_VALUE);
+  protected readonly loginModel = signal<ILoginRequest>(LOGIN_REQUEST_INITIAL_VALUE);
 
   protected readonly loginForm = form(this.loginModel, (fieldPath) => {
     required(fieldPath.email);

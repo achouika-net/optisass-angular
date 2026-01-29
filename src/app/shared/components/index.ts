@@ -2,7 +2,6 @@ export * from './actions-buttons/actions-buttons.component';
 export * from './address-fields/address-fields.component';
 export * from './camera-capture-dialog/camera-capture-dialog.component';
 export * from './confirmation-popup/confirmation-popup.component';
-export * from './date-time-range-form/date-time-range-form.component';
 export * from './field-error/field-error.component';
 export * from './form-control-error/form-control-error.component';
 export * from './no-data-search/no-data-search.component';

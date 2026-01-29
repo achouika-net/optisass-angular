@@ -275,6 +275,13 @@
       "lensType": "Lens type",
       "lensMaterial": "Material",
       "lensIndex": "Refractive index",
+      "complete": "Complete",
+      "newProduct": "New product",
+      "nextProduct": "Next product",
+      "totalHT": "Total excl. tax",
+      "tabSupplier": "Supplier",
+      "tabProducts": "Products",
+      "splitAcross": "Split across {{ count }} warehouses",
       "dialog": {
         "searchTitle": "Search for a product",
         "searchLabel": "Designation or code",
@@ -289,7 +296,10 @@
         "title": "Please fix the following errors",
         "supplierRequired": "Select a supplier",
         "documentNumberRequired": "Enter document number",
-        "incompleteProducts": "{{count}} incomplete product(s) - click to complete"
+        "incompleteProducts": "{{count}} incomplete product(s) - click to complete",
+        "warehouseRequired": "Warehouse required",
+        "priceRequired": "Price required",
+        "productTypeRequired": "Product type required"
       },
       "split": {
         "title": "Split quantity",
@@ -351,7 +361,11 @@
         "ice": "ICE",
         "taxId": "Tax ID (IF)",
         "tradeRegister": "Trade Register (RC)",
-        "siret": "SIRET"
+        "siret": "SIRET",
+        "businessLicense": "Business License",
+        "bankSection": "Bank information",
+        "bank": "Bank",
+        "bankAccountNumber": "Bank Account Number (RIB)"
       },
       "supplierDiff": {
         "title": "Differences detected",
@@ -361,6 +375,27 @@
         "ocr": "OCR",
         "acceptAll": "Accept all",
         "ignoreAll": "Ignore all"
+      },
+      "matching": {
+        "result": "Match result",
+        "suggestions": "Suggestions",
+        "method": {
+          "barcode": "Barcode",
+          "supplierCode": "Supplier code",
+          "manufacturerRef": "Manufacturer reference",
+          "fuzzyDesignation": "Text analysis",
+          "manual": "Manual selection"
+        },
+        "confidence": {
+          "high": "High confidence",
+          "medium": "Medium confidence",
+          "low": "Low confidence",
+          "none": "No match"
+        },
+        "actions": {
+          "clear": "Unlink product",
+          "retry": "Retry matching"
+        }
       }
     },
     "products": "Products",
@@ -398,7 +433,10 @@
       "contactLensUsage": "Duration",
       "contactLensType": "Type",
       "accessoryFilters": "Accessories",
-      "accessoryCategory": "Category"
+      "accessoryCategory": "Category",
+      "clipOnFilters": "Clip-on / Over-glasses",
+      "clipOnType": "Clip type",
+      "frameSubType": "Frame sub-type"
     },
     "productAutocomplete": {
       "placeholder": "Search for a product",
@@ -418,11 +456,18 @@
       "outOfStock": "Out of stock"
     },
     "productTypes": {
-      "optical_frame": "Optical Frame",
-      "sun_frame": "Sunglasses Frame",
+      "frame": "Frame",
       "lens": "Lens",
       "contact_lens": "Contact Lens",
+      "clip_on": "Clip-on / Over-glasses",
       "accessory": "Accessory"
+    },
+    "frameSubTypes": {
+      "optical": "Optical",
+      "sun": "Sunglasses",
+      "safety": "Safety / Protection",
+      "sport": "Sport",
+      "reading": "Reading"
     },
     "statuses": {
       "DISPONIBLE": "Available",
@@ -467,6 +512,7 @@
       "frameTemple": "Temple (L)",
       "frameColor": "Frame color",
       "frameTempleColor": "Temple color",
+      "frameFinish": "Finish",
       "frameFrontPhoto": "Front photo",
       "frameSidePhoto": "Side photo",
       "lensType": "Lens type",
@@ -498,7 +544,28 @@
       "contactLensAxis": "Axis",
       "contactLensAddition": "Addition",
       "accessoryCategory": "Category",
-      "accessorySubCategory": "Sub-category"
+      "accessorySubCategory": "Sub-category",
+      "manufacturerRef": "Manufacturer reference",
+      "frameSubType": "Frame sub-type",
+      "safetySection": "Safety characteristics",
+      "safetySafetyStandard": "Safety standard",
+      "safetySafetyRating": "Protection rating",
+      "safetyProtectionType": "Protection type",
+      "safetyLensIncluded": "Lens included",
+      "safetyPrescriptionCapable": "Prescription capable",
+      "clipOnSection": "Clip-on characteristics",
+      "clipOnClipType": "Clip type",
+      "clipOnPolarized": "Polarized",
+      "clipOnMirrorCoating": "Mirror coating",
+      "clipOnTint": "Tint",
+      "clipOnCompatibleFrameSize": "Compatible size",
+      "supplierCodesPanel": "Supplier codes",
+      "supplierCode": "Code",
+      "supplierCodeSupplier": "Supplier",
+      "supplierCodeLastPrice": "Last price",
+      "supplierCodeLastDate": "Last date",
+      "addSupplierCode": "Add code",
+      "noSupplierCodes": "No supplier code"
     },
     "pricingModes": {
       "coefficient": "Coefficient",
@@ -540,6 +607,46 @@
     "accessory": {
       "category": "Category",
       "subCategory": "Sub-category"
+    },
+    "clipOn": {
+      "clipType": "Clip type",
+      "polarized": "Polarized",
+      "mirrorCoating": "Mirror coating",
+      "tint": "Tint",
+      "compatibleSize": "Compatible size"
+    },
+    "clipOnTypes": {
+      "clip": "Standard clip",
+      "magnetic": "Magnetic",
+      "flip_up": "Flip-up",
+      "fit_over": "Fit-over"
+    },
+    "safety": {
+      "standard": "Standard",
+      "rating": "Rating",
+      "protectionType": "Protection type",
+      "lensIncluded": "Lens included",
+      "prescriptionCapable": "Prescription capable"
+    },
+    "safetyStandards": {
+      "EN166": "EN 166 (Europe)",
+      "ANSI_Z87": "ANSI Z87.1 (USA)",
+      "CSA_Z94": "CSA Z94.3 (Canada)",
+      "AS_NZS_1337": "AS/NZS 1337 (Australia/NZ)"
+    },
+    "safetyRatings": {
+      "F": "F - Low energy impact",
+      "B": "B - Medium energy impact",
+      "A": "A - High energy impact",
+      "S": "S - Increased robustness"
+    },
+    "protectionTypes": {
+      "impact": "Impact",
+      "chemical": "Chemical",
+      "dust": "Dust",
+      "laser": "Laser",
+      "welding": "Welding",
+      "uv": "UV"
     },
     "messages": {
       "createSuccess": "Product created successfully",
