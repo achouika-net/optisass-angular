@@ -41,8 +41,13 @@ export class AiInvoiceParser implements IPipelineParser<ISupplierInvoice> {
         ice: null,
         fiscalId: null,
         tradeRegister: null,
+        cnss: null,
+        patente: null,
         address: null,
         phone: null,
+        email: null,
+        bank: null,
+        rib: null,
       },
       lines: [],
       totals: {

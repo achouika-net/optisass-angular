@@ -275,6 +275,13 @@
       "lensType": "Type de verre",
       "lensMaterial": "Matériau",
       "lensIndex": "Indice de réfraction",
+      "complete": "Complet",
+      "newProduct": "Nouveau produit",
+      "nextProduct": "Produit suivant",
+      "totalHT": "Total HT",
+      "tabSupplier": "Fournisseur",
+      "tabProducts": "Produits",
+      "splitAcross": "Réparti sur {{ count }} entrepôts",
       "dialog": {
         "searchTitle": "Rechercher un produit",
         "searchLabel": "Désignation ou code",
@@ -289,7 +296,10 @@
         "title": "Veuillez corriger les erreurs suivantes",
         "supplierRequired": "Sélectionnez un fournisseur",
         "documentNumberRequired": "Saisissez le numéro de document",
-        "incompleteProducts": "{{count}} produit(s) incomplet(s) - cliquez pour compléter"
+        "incompleteProducts": "{{count}} produit(s) incomplet(s) - cliquez pour compléter",
+        "warehouseRequired": "Entrepôt requis",
+        "priceRequired": "Prix requis",
+        "productTypeRequired": "Type de produit requis"
       },
       "split": {
         "title": "Répartir la quantité",
@@ -351,7 +361,11 @@
         "ice": "ICE",
         "taxId": "Identifiant Fiscal (IF)",
         "tradeRegister": "Registre Commerce (RC)",
-        "siret": "SIRET"
+        "siret": "SIRET",
+        "businessLicense": "Patente",
+        "bankSection": "Informations bancaires",
+        "bank": "Banque",
+        "bankAccountNumber": "RIB"
       },
       "supplierDiff": {
         "title": "Différences détectées",
@@ -361,6 +375,27 @@
         "ocr": "OCR",
         "acceptAll": "Tout accepter",
         "ignoreAll": "Tout ignorer"
+      },
+      "matching": {
+        "result": "Résultat du matching",
+        "suggestions": "Suggestions",
+        "method": {
+          "barcode": "Code-barres",
+          "supplierCode": "Code fournisseur",
+          "manufacturerRef": "Référence fabricant",
+          "fuzzyDesignation": "Analyse texte",
+          "manual": "Sélection manuelle"
+        },
+        "confidence": {
+          "high": "Haute confiance",
+          "medium": "Confiance moyenne",
+          "low": "Faible confiance",
+          "none": "Aucun match"
+        },
+        "actions": {
+          "clear": "Dissocier le produit",
+          "retry": "Relancer le matching"
+        }
       }
     },
     "products": "Produits",
@@ -398,7 +433,10 @@
       "contactLensUsage": "Durée",
       "contactLensType": "Type",
       "accessoryFilters": "Accessoires",
-      "accessoryCategory": "Catégorie"
+      "accessoryCategory": "Catégorie",
+      "clipOnFilters": "Clip-on / Sur-lunettes",
+      "clipOnType": "Type de clip",
+      "frameSubType": "Sous-type monture"
     },
     "productAutocomplete": {
       "placeholder": "Rechercher un produit",
@@ -418,11 +456,18 @@
       "outOfStock": "Rupture de stock"
     },
     "productTypes": {
-      "optical_frame": "Monture Optique",
-      "sun_frame": "Monture Solaire",
+      "frame": "Monture",
       "lens": "Verre",
       "contact_lens": "Lentille",
+      "clip_on": "Clip-on / Sur-lunettes",
       "accessory": "Accessoire"
+    },
+    "frameSubTypes": {
+      "optical": "Optique",
+      "sun": "Solaire",
+      "safety": "Protection / Sécurité",
+      "sport": "Sport",
+      "reading": "Lecture"
     },
     "statuses": {
       "DISPONIBLE": "Disponible",
@@ -467,6 +512,7 @@
       "frameTemple": "Branche (L)",
       "frameColor": "Couleur monture",
       "frameTempleColor": "Couleur branches",
+      "frameFinish": "Finition",
       "frameFrontPhoto": "Photo face",
       "frameSidePhoto": "Photo profil",
       "lensType": "Type de verre",
@@ -498,7 +544,28 @@
       "contactLensAxis": "Axe",
       "contactLensAddition": "Addition",
       "accessoryCategory": "Catégorie",
-      "accessorySubCategory": "Sous-catégorie"
+      "accessorySubCategory": "Sous-catégorie",
+      "manufacturerRef": "Référence fabricant",
+      "frameSubType": "Sous-type de monture",
+      "safetySection": "Caractéristiques sécurité",
+      "safetySafetyStandard": "Norme de sécurité",
+      "safetySafetyRating": "Classe de protection",
+      "safetyProtectionType": "Type de protection",
+      "safetyLensIncluded": "Verre inclus",
+      "safetyPrescriptionCapable": "Compatible correction",
+      "clipOnSection": "Caractéristiques clip-on",
+      "clipOnClipType": "Type de clip",
+      "clipOnPolarized": "Polarisé",
+      "clipOnMirrorCoating": "Revêtement miroir",
+      "clipOnTint": "Teinte",
+      "clipOnCompatibleFrameSize": "Taille compatible",
+      "supplierCodesPanel": "Codes fournisseurs",
+      "supplierCode": "Code",
+      "supplierCodeSupplier": "Fournisseur",
+      "supplierCodeLastPrice": "Dernier prix",
+      "supplierCodeLastDate": "Dernière date",
+      "addSupplierCode": "Ajouter un code",
+      "noSupplierCodes": "Aucun code fournisseur"
     },
     "pricingModes": {
       "coefficient": "Coefficient",
@@ -540,6 +607,46 @@
     "accessory": {
       "category": "Catégorie",
       "subCategory": "Sous-catégorie"
+    },
+    "clipOn": {
+      "clipType": "Type de clip",
+      "polarized": "Polarisé",
+      "mirrorCoating": "Revêtement miroir",
+      "tint": "Teinte",
+      "compatibleSize": "Taille compatible"
+    },
+    "clipOnTypes": {
+      "clip": "Clip standard",
+      "magnetic": "Magnétique",
+      "flip_up": "Relevable (flip-up)",
+      "fit_over": "Sur-lunettes (fit-over)"
+    },
+    "safety": {
+      "standard": "Norme",
+      "rating": "Classe",
+      "protectionType": "Type de protection",
+      "lensIncluded": "Verre inclus",
+      "prescriptionCapable": "Compatible correction"
+    },
+    "safetyStandards": {
+      "EN166": "EN 166 (Europe)",
+      "ANSI_Z87": "ANSI Z87.1 (USA)",
+      "CSA_Z94": "CSA Z94.3 (Canada)",
+      "AS_NZS_1337": "AS/NZS 1337 (Australie/NZ)"
+    },
+    "safetyRatings": {
+      "F": "F - Impact faible énergie",
+      "B": "B - Impact moyenne énergie",
+      "A": "A - Impact haute énergie",
+      "S": "S - Résistance mécanique accrue"
+    },
+    "protectionTypes": {
+      "impact": "Impact",
+      "chemical": "Chimique",
+      "dust": "Poussière",
+      "laser": "Laser",
+      "welding": "Soudure",
+      "uv": "UV"
     },
     "messages": {
       "createSuccess": "Produit créé avec succès",

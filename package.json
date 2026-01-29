@@ -51,7 +51,7 @@
     "@ngrx/signals": "^21.0.1",
     "@ngx-translate/core": "^17.0.0",
     "@ngx-translate/http-loader": "^17.0.0",
-    "@optisaas/opti-saas-lib": "file:../opti_saas_lib",
+    "@optisaas/opti-saas-lib": "0.1.7",
     "crypto-ts": "^1.0.2",
     "date-fns": "^4.1.0",
     "ngx-toastr": "^19.1.0",

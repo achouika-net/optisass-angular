@@ -1,6 +1,6 @@
 # OPTI-SAAS Frontend - Instructions IA
 
-> Document destiné UNIQUEMENT à Claude AI. Dernière mise à jour : 2026-01-19 (stock-entry refactoring)
+> Document destiné UNIQUEMENT à Claude AI. Dernière mise à jour : 2026-01-20 (FieldTree pattern child components)
 
 ---
 
@@ -176,7 +176,8 @@ Permettre à Claude AI de :
 | ------------------------ | ---------------------------------------------------------------------------- |
 | **Formulaire complet**   | `features/stock/product/components/product-form/` ⭐                         |
 | **Form model + helpers** | `features/stock/product/models/product-form.model.ts` ⭐                     |
-| Signal Forms + FieldTree | `shared/components/address-fields/address-fields.component.ts`               |
+| FieldTree two-way        | `shared/components/address-fields/address-fields.component.ts`               |
+| **FieldTree input**      | `features/stock/stock-entry/components/stock-entry-form/` ⭐                 |
 | FormValueControl simple  | `shared/components/resource-autocomplete/resource-autocomplete.component.ts` |
 | Product autocomplete     | `shared/components/product-autocomplete/product-autocomplete.component.ts`   |
 | Feature CRUD complète    | `features/settings/warehouse/`                                               |
@@ -197,7 +198,7 @@ Permettre à Claude AI de :
 
 | Décision             | Choix                                              | Raison                                                          |
 | -------------------- | -------------------------------------------------- | --------------------------------------------------------------- |
-| Child Forms          | FieldTree + `[(input)]`                            | Accès sous-champs, propagation erreurs                          |
+| Child Forms          | FieldTree + `input()` ou `model()`                 | `input()` pour read/write direct, `model()` pour two-way        |
 | Custom Form Control  | `FormValueControl<T>` + `model<T>()`               | Pattern Angular 19+ pour contrôles simples                      |
 | Signal Debounce      | `debounce(s, 300)` dans `form()`                   | Debounce natif dans Signal Forms                                |
 | Filtrage local       | `computed()` (pas `rxResource`)                    | rxResource = HTTP, computed = en mémoire                        |
@@ -227,16 +228,41 @@ Composant avec UN seul champ (ex: autocomplete, upload, toggle custom).
 - [ ] Parent utilise `[field]="form.myField"` (directive Field gère le binding)
 - [ ] Référence : `resource-autocomplete.component.ts`
 
-### Composant Composite (FieldTree)
+### Composant Composite (FieldTree) - Two-way binding
 
-Composant avec PLUSIEURS champs liés (ex: address-fields avec street, city, postcode).
+Composant avec PLUSIEURS champs liés et binding bidirectionnel (ex: address-fields).
 
 - [ ] `readonly myFields = model.required<FieldTree<T>>()`
-- [ ] Importer `Field` directive
+- [ ] Importer `FormField` directive (pas `Field`)
 - [ ] Computed pour sous-champs : `computed(() => this.myFields().street)`
 - [ ] Parent : `[(myFields)]="form.address"` (two-way binding)
 - [ ] Model parent : initialiser avec objet complet (pas null)
 - [ ] Référence : `address-fields.component.ts`
+
+### Composant Enfant (FieldTree input) - Read/Write direct
+
+Composant enfant recevant des champs pour édition inline (ex: stock-entry-form, stock-entry-row).
+
+- [ ] `readonly myField = input.required<FieldTree<T>>()`
+- [ ] Type `FieldTree<T>` (PAS `Field<T>` qui est une directive)
+- [ ] Importer `FormField` directive pour `[formField]`
+- [ ] Accès valeur : `myField()().value()` (double invocation)
+- [ ] Modifier valeur : `myField()().value.set(newValue)`
+- [ ] Erreurs dans template : `myField()().errors()`
+- [ ] Parent : `[myField]="entryForm.myField"` (one-way binding)
+- [ ] Référence : `stock-entry-form.component.ts`, `stock-entry-row.component.ts`
+
+```typescript
+// Child component
+readonly documentNumberField = input.required<FieldTree<string>>();
+readonly documentType = computed(() => this.documentTypeField()().value());
+
+// Template
+<input matInput [formField]="documentNumberField()" />
+@if (documentNumberField()().touched() && documentNumberField()().invalid()) {
+  <mat-error app-field-error [errors]="documentNumberField()().errors()" fieldname="documentNumber" />
+}
+```
 
 ### Feature CRUD
 
@@ -324,36 +350,38 @@ export class MyStore {
 
 ## 7. ERREURS RÉSOLUES
 
-| Erreur                             | Cause                             | Solution                                       |
-| ---------------------------------- | --------------------------------- | ---------------------------------------------- |
-| `tapResponse` capture 401          | Empêche JWT interceptor           | `catchError` avec filtre 401                   |
-| Computed wrapper sur store         | `withState` déjà proxy            | Accès direct `store.field()`                   |
-| rxResource `request`/`loader`      | API deprecated                    | `params`/`stream`                              |
-| `translate.instant()` breadcrumb   | Traductions pas chargées          | Pipe `\| translate`                            |
-| `[field]` sur composant composite  | Pas accès sous-champs             | `[(input)]` + FieldTree                        |
-| `ValidationError` avec `any`       | Propriétés dynamiques             | `as unknown as { prop?: Type }`                |
-| Node v14 dans husky hooks          | nvm pas chargé                    | `nvm use 22` dans hooks                        |
-| `route.snapshot.data` hérite       | Données parents incluses          | `route.routeConfig?.data`                      |
-| `route.children` doublons          | Parcours récursif                 | `route.firstChild`                             |
-| Double extraction data             | ExtractDataInterceptor existe     | Pas de `.pipe(map(r => r.data))`               |
-| `appearance="outline"` répété      | Config globale existe             | `MAT_FORM_FIELD_DEFAULT_OPTIONS`               |
-| `APP_INITIALIZER` deprecated       | Angular 19+                       | `provideAppInitializer()`                      |
-| Interfaces custom pour Angular     | Types Angular existent déjà       | `FormValueControl<T>` + `model()`              |
-| `displayFn` retourne vide          | Reçoit `string` au lieu d'objet   | Gérer `typeof option === 'string'`             |
-| `provideNativeDateAdapter` répété  | Provider dans composant           | Déjà global dans `app.config.ts`               |
-| Multiples `form()` séparés         | Pattern incorrect                 | Un seul `form()` + un `signal()`               |
-| `.scss` par composant              | Styles spécifiques créés          | Classes globales `form-grid`, etc.             |
-| `TVA_RATES` hardcodé               | Constante dans composant          | `ResourceStore.tvaRates`                       |
-| Données partagées dupliquées       | Constantes locales                | Toujours via `ResourceStore`                   |
-| Layout incorrect proposé           | Pas analysé composants existants  | Analyser 2-3 composants similaires             |
-| `mat-card-header` utilisé          | Titre dans la card                | Breadcrumb gère le titre                       |
-| 1 seule card pour blocs distincts  | Pattern non respecté              | N cards pour N blocs logiques                  |
-| `[object Object]` dans placeholder | Clé JSON dupliquée (string+objet) | Renommer pour éviter conflit                   |
-| `translate` pipe retourne objet    | Clé i18n pointe vers objet JSON   | Vérifier structure JSON, pas de clé dupliquée  |
-| Services dupliqués créés           | Service existant pas identifié    | Déplacer le service existant, ne pas dupliquer |
-| `??` et `\|\|` mélangés            | Opérateurs sans parenthèses       | `(a ?? b) \|\| c` avec parenthèses explicites  |
-| `signalStore` trop lourd           | Feature simple avec boilerplate   | `signalState` + classe `@Injectable()`         |
-| `store.state.field()`              | Pattern signalStore utilisé       | `store.field()` (exposer signaux directement)  |
+| Erreur                             | Cause                                  | Solution                                           |
+| ---------------------------------- | -------------------------------------- | -------------------------------------------------- |
+| `tapResponse` capture 401          | Empêche JWT interceptor                | `catchError` avec filtre 401                       |
+| Computed wrapper sur store         | `withState` déjà proxy                 | Accès direct `store.field()`                       |
+| rxResource `request`/`loader`      | API deprecated                         | `params`/`stream`                                  |
+| `translate.instant()` breadcrumb   | Traductions pas chargées               | Pipe `\| translate`                                |
+| `[field]` sur composant composite  | Pas accès sous-champs                  | `[(input)]` + FieldTree                            |
+| `ValidationError` avec `any`       | Propriétés dynamiques                  | `as unknown as { prop?: Type }`                    |
+| Node v14 dans husky hooks          | nvm pas chargé                         | `nvm use 22` dans hooks                            |
+| `route.snapshot.data` hérite       | Données parents incluses               | `route.routeConfig?.data`                          |
+| `route.children` doublons          | Parcours récursif                      | `route.firstChild`                                 |
+| Double extraction data             | ExtractDataInterceptor existe          | Pas de `.pipe(map(r => r.data))`                   |
+| `appearance="outline"` répété      | Config globale existe                  | `MAT_FORM_FIELD_DEFAULT_OPTIONS`                   |
+| `APP_INITIALIZER` deprecated       | Angular 19+                            | `provideAppInitializer()`                          |
+| Interfaces custom pour Angular     | Types Angular existent déjà            | `FormValueControl<T>` + `model()`                  |
+| `displayFn` retourne vide          | Reçoit `string` au lieu d'objet        | Gérer `typeof option === 'string'`                 |
+| `provideNativeDateAdapter` répété  | Provider dans composant                | Déjà global dans `app.config.ts`                   |
+| Multiples `form()` séparés         | Pattern incorrect                      | Un seul `form()` + un `signal()`                   |
+| `.scss` par composant              | Styles spécifiques créés               | Classes globales `form-grid`, etc.                 |
+| `TVA_RATES` hardcodé               | Constante dans composant               | `ResourceStore.tvaRates`                           |
+| Données partagées dupliquées       | Constantes locales                     | Toujours via `ResourceStore`                       |
+| Layout incorrect proposé           | Pas analysé composants existants       | Analyser 2-3 composants similaires                 |
+| `mat-card-header` utilisé          | Titre dans la card                     | Breadcrumb gère le titre                           |
+| 1 seule card pour blocs distincts  | Pattern non respecté                   | N cards pour N blocs logiques                      |
+| `[object Object]` dans placeholder | Clé JSON dupliquée (string+objet)      | Renommer pour éviter conflit                       |
+| `translate` pipe retourne objet    | Clé i18n pointe vers objet JSON        | Vérifier structure JSON, pas de clé dupliquée      |
+| Services dupliqués créés           | Service existant pas identifié         | Déplacer le service existant, ne pas dupliquer     |
+| `??` et `\|\|` mélangés            | Opérateurs sans parenthèses            | `(a ?? b) \|\| c` avec parenthèses explicites      |
+| `signalStore` trop lourd           | Feature simple avec boilerplate        | `signalState` + classe `@Injectable()`             |
+| `store.state.field()`              | Pattern signalStore utilisé            | `store.field()` (exposer signaux directement)      |
+| `Field<T>` comme type              | `Field` est une directive, pas un type | Utiliser `FieldTree<T>` pour typer les champs      |
+| `input/output` sur child form      | Communication manuelle                 | Passer `FieldTree` directement au composant enfant |
 
 ---
 
@@ -463,13 +491,20 @@ Field() → FieldState (value, touched, invalid, errors)
 ### Accès aux valeurs
 
 ```typescript
-// Depuis FieldTree
-form.name; // Field (signal)
+// Depuis FieldTree dans composant parent
+form.name; // FieldTree<string> (sous-arbre)
 form.name(); // FieldState
 form.name().value(); // Valeur actuelle
 form.name().value.set(x); // Modifier valeur
 form.name().touched(); // boolean
 form.name().invalid(); // boolean
+
+// Depuis FieldTree passé en input (composant enfant)
+readonly myField = input.required<FieldTree<string>>();
+myField(); // FieldTree<string>
+myField()(); // FieldState (double invocation !)
+myField()().value(); // Valeur actuelle
+myField()().value.set(x); // Modifier valeur
 ```
 
 ### NE PAS faire
@@ -477,7 +512,9 @@ form.name().invalid(); // boolean
 - ❌ `linkedSignal` pour debounce (synchrone uniquement)
 - ❌ `rxResource` pour filtrage local
 - ❌ Créer interfaces custom (`FieldLike`, `FieldAccessor`)
-- ❌ Double appel dans template `form()().value()`
+- ❌ Utiliser `Field<T>` comme type (`Field` est une directive)
+- ❌ Double appel dans template parent `form()().value()` (inutile)
+- ✅ Double appel dans template enfant `myField()().value()` (nécessaire car input signal)
 
 ---
 
