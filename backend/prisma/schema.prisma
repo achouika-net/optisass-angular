@@ -53,6 +53,7 @@ model Client {
 
 model Fiche {
   id                   String    @id @default(uuid())
+  numero               Int       @default(autoincrement())
   dateCreation         DateTime  @default(now())
   statut               String
   type                 String

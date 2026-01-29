@@ -346,7 +346,7 @@ export class OutgoingPaymentListComponent implements OnInit {
     viewDetail(payment: any, viewMode: boolean = false) {
         if (payment.source === 'FACTURE_CLIENT') {
             // Navigate to Client Invoice page
-            this.router.navigate(['/p/clients/factures', payment.factureId], { queryParams: { mode: 'view' } });
+            this.router.navigate(['/p/clients/factures', payment.id], { queryParams: { mode: 'view' } });
             return;
         }
 

@@ -104,16 +104,36 @@ export const MENU: MenuItem[] = [
     ]
   },
   {
-    label: 'Commercial',
+    label: 'Gestion Clients',
     icon: 'people',
     type: 'sub',
     route: 'commercial',
     children: [
       {
-        label: 'Gestion Clients',
+        label: 'Dossiers Clients',
         icon: 'edit_note',
         type: 'subchild',
         route: 'clients',
+      },
+      {
+        label: 'Promotions',
+        icon: 'loyalty',
+        type: 'subchild',
+        route: 'commercial/promotions',
+      },
+    ],
+  },
+  {
+    label: 'Gestion Fournisseurs',
+    icon: 'local_shipping',
+    type: 'sub',
+    route: 'suppliers',
+    children: [
+      {
+        label: 'Liste des Fournisseurs',
+        icon: 'local_shipping',
+        type: 'subchild',
+        route: 'finance/suppliers',
       },
       {
         label: 'Gestion Dépenses',
@@ -122,23 +142,10 @@ export const MENU: MenuItem[] = [
         route: 'finance/payments',
       },
       {
-        label: 'Gestion Fournisseurs',
-        icon: 'local_shipping',
-        type: 'subchild',
-        route: 'finance/suppliers',
-      },
-      {
         label: 'Gestion BL',
         icon: 'description',
         type: 'subchild',
         route: 'finance/invoices',
-      },
-
-      {
-        label: 'Promotions',
-        icon: 'loyalty',
-        type: 'subchild',
-        route: 'commercial/promotions',
       },
     ],
   },
