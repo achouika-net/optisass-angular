@@ -152,7 +152,7 @@
                                 <ng-container matColumnDef="dateLivraison">
                                     <th mat-header-cell *matHeaderCellDef>Ref Fiche</th>
                                     <td mat-cell *matCellDef="let fiche">
-                                        {{ fiche.id?.substring(0, 12) }}
+                                        <span class="font-bold text-blue-800">#{{ fiche.numero || '---' }}</span>
                                     </td>
                                 </ng-container>
 

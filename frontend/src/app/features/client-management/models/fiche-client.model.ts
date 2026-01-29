@@ -73,6 +73,7 @@ export interface PrescriptionLentille extends PrescriptionOeil {
 
 export interface FicheClientBase {
     id: string;
+    numero?: number;
     clientId: string;
     type: TypeFiche;
     dateCreation: Date;
