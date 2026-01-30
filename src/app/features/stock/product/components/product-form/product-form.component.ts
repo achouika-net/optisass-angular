@@ -8,7 +8,7 @@ import {
   untracked,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { Field, form, FormField, max, min, required } from '@angular/forms/signals';
+import { Field, form, FormField, max, required } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -18,6 +18,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatStepperModule } from '@angular/material/stepper';
+import { MatTableModule } from '@angular/material/table';
 import { StepperSelectionEvent } from '@angular/cdk/stepper';
 import {
   FieldErrorComponent,
@@ -25,18 +26,19 @@ import {
   ResourceAutocompleteComponent,
 } from '@app/components';
 import { FieldControlLabelDirective } from '@app/directives';
-import { PricingMode, ProductType } from '@app/models';
+import { FrameSubType, PricingMode, ProductType, resetTypeSpecificFields } from '@app/models';
+import { createProductSchemaHelpers, productSchema } from '@app/validators';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ResourceStore } from '@app/core/store';
 import { ToastrService } from 'ngx-toastr';
 import {
   getDefaultProductForm,
-  getTypeSpecificDefaults,
   IProductForm,
+  ISupplierProductCodeForm,
   toProductCreateRequest,
   toProductForm,
   toProductUpdateRequest,
-} from '../../models';
+} from '@app/models';
 import { ProductStore } from '../../product.store';
 
 @Component({
@@ -57,6 +59,7 @@ import { ProductStore } from '../../product.store';
     MatIconModule,
     MatTooltipModule,
     MatStepperModule,
+    MatTableModule,
     FieldControlLabelDirective,
     FieldErrorComponent,
     PhotoUploadComponent,
@@ -74,47 +77,14 @@ export class ProductFormComponent {
   readonly #formModel = signal<IProductForm>(getDefaultProductForm());
 
   readonly form = form(this.#formModel, (fieldPath) => {
-    interface FieldContext {
-      valueOf: (path: typeof fieldPath.productType) => ProductType | null;
-    }
-    interface PricingContext {
-      valueOf: (path: typeof fieldPath.pricingMode) => PricingMode | null;
-    }
-    const isLens = (ctx: FieldContext) => ctx.valueOf(fieldPath.productType) === 'lens';
-    const isNotLens = (ctx: FieldContext) => {
-      const type = ctx.valueOf(fieldPath.productType);
-      return type !== null && type !== 'lens';
-    };
-    const isCoefficient = (ctx: PricingContext) =>
-      ctx.valueOf(fieldPath.pricingMode) === 'coefficient';
-    const isFixedAmount = (ctx: PricingContext) =>
-      ctx.valueOf(fieldPath.pricingMode) === 'fixedAmount';
-    const isFixedPrice = (ctx: PricingContext) =>
-      ctx.valueOf(fieldPath.pricingMode) === 'fixedPrice';
-    // Common required fields for all product types
-    required(fieldPath.productType);
+    // Use shared product schema
+    const helpers = createProductSchemaHelpers(fieldPath);
+    productSchema(fieldPath, helpers);
+
+    // Product-form specific validators
     required(fieldPath.supplierIds);
     required(fieldPath.purchasePriceExclTax);
-    required(fieldPath.pricingMode);
-    required(fieldPath.tvaRate);
-    min(fieldPath.tvaRate, 0);
     max(fieldPath.tvaRate, 1);
-    required(fieldPath.alertThreshold);
-    min(fieldPath.alertThreshold, 0);
-    // Conditional pricing fields based on mode
-    required(fieldPath.coefficient, { when: isCoefficient });
-    min(fieldPath.coefficient, 0);
-    required(fieldPath.fixedAmount, { when: isFixedAmount });
-    min(fieldPath.fixedAmount, 0);
-    required(fieldPath.fixedPrice, { when: isFixedPrice });
-    min(fieldPath.fixedPrice, 0);
-    // Required fields for all except lenses (frames + accessories + contact lenses)
-    required(fieldPath.brandId, { when: isNotLens });
-    required(fieldPath.modelId, { when: isNotLens });
-    // Required fields for lenses only
-    required(fieldPath.lensType, { when: isLens });
-    required(fieldPath.lensMaterial, { when: isLens });
-    required(fieldPath.lensRefractiveIndex, { when: isLens });
   });
 
   readonly productTypes = this.#resourceStore.productTypes;
@@ -136,7 +106,12 @@ export class ProductFormComponent {
   readonly lensIndices = this.#resourceStore.lensIndices;
   readonly contactLensTypes = this.#resourceStore.contactLensTypes;
   readonly contactLensUsages = this.#resourceStore.contactLensUsages;
+  readonly clipOnTypes = this.#resourceStore.clipOnTypes;
+  readonly safetyStandards = this.#resourceStore.safetyStandards;
+  readonly safetyRatings = this.#resourceStore.safetyRatings;
+  readonly protectionTypes = this.#resourceStore.protectionTypes;
   readonly accessoryCategories = this.#resourceStore.accessoryCategories;
+  readonly frameSubTypes = this.#resourceStore.frameSubTypes;
   readonly manufacturers = this.#resourceStore.manufacturers;
   readonly laboratories = this.#resourceStore.laboratories;
   readonly suppliers = this.#resourceStore.suppliers;
@@ -146,6 +121,9 @@ export class ProductFormComponent {
   readonly selectedProductType = computed(
     () => this.form.productType().value() as ProductType | null,
   );
+  readonly selectedFrameSubType = computed(
+    () => this.form.frameSubType().value() as FrameSubType | null,
+  );
   readonly selectedPricingMode = computed(() => this.form.pricingMode().value() as PricingMode);
 
   readonly isEditMode = this.#productStore.isEditMode;
@@ -153,10 +131,14 @@ export class ProductFormComponent {
 
   readonly showFrameFields = computed(() => {
     const type = this.selectedProductType();
-    return type === 'optical_frame' || type === 'sun_frame';
+    return type === 'frame';
+  });
+  readonly showSafetyFields = computed(() => {
+    return this.showFrameFields() && this.selectedFrameSubType() === 'safety';
   });
   readonly showLensFields = computed(() => this.selectedProductType() === 'lens');
   readonly showContactLensFields = computed(() => this.selectedProductType() === 'contact_lens');
+  readonly showClipOnFields = computed(() => this.selectedProductType() === 'clip_on');
   readonly showAccessoryFields = computed(() => this.selectedProductType() === 'accessory');
 
   readonly showBrandModelDesignation = computed(() => this.selectedProductType() !== 'lens');
@@ -177,6 +159,15 @@ export class ProductFormComponent {
     if (!familyId) return [];
     return this.subFamilies().filter((sf) => sf.familyId === familyId);
   });
+
+  readonly supplierCodes = computed(() => this.#formModel().supplierCodes);
+  readonly supplierCodesColumns: string[] = [
+    'supplier',
+    'code',
+    'lastPrice',
+    'lastDate',
+    'actions',
+  ];
 
   readonly fixedPriceWarning = computed(() => {
     const fixedPrice = Number(this.form.fixedPrice().value());
@@ -200,12 +191,22 @@ export class ProductFormComponent {
     const productType = this.selectedProductType();
     if (!productType) return false;
 
+    if (this.showFrameFields()) {
+      return !this.form.frameSubType().invalid();
+    }
     if (this.showLensFields()) {
+      return !this.form.lensType().invalid();
+    }
+    if (this.showContactLensFields()) {
       return (
-        !this.form.lensType().invalid() &&
-        !this.form.lensMaterial().invalid() &&
-        !this.form.lensRefractiveIndex().invalid()
+        !this.form.contactLensType().invalid() && !this.form.contactLensLaboratoryId().invalid()
       );
+    }
+    if (this.showClipOnFields()) {
+      return !this.form.clipOnClipType().invalid();
+    }
+    if (this.showAccessoryFields()) {
+      return !this.form.accessoryCategory().invalid();
     }
     return true;
   });
@@ -296,9 +297,61 @@ export class ProductFormComponent {
    * Resets type-specific fields to their defaults.
    */
   #resetTypeSpecificFields(): void {
+    this.#formModel.update((current) => resetTypeSpecificFields(current));
+  }
+
+  /**
+   * Adds a new empty supplier code to the list.
+   */
+  addSupplierCode(): void {
+    const newCode: ISupplierProductCodeForm = {
+      supplierId: null,
+      code: '',
+    };
     this.#formModel.update((current) => ({
       ...current,
-      ...getTypeSpecificDefaults(),
+      supplierCodes: [...current.supplierCodes, newCode],
     }));
+  }
+
+  /**
+   * Removes a supplier code at the given index.
+   * @param index The index of the supplier code to remove
+   */
+  removeSupplierCode(index: number): void {
+    this.#formModel.update((current) => ({
+      ...current,
+      supplierCodes: current.supplierCodes.filter((_, i) => i !== index),
+    }));
+  }
+
+  /**
+   * Updates a supplier code at the given index.
+   * @param index The index of the supplier code to update
+   * @param field The field to update
+   * @param value The new value
+   */
+  updateSupplierCode(
+    index: number,
+    field: keyof ISupplierProductCodeForm,
+    value: string | null,
+  ): void {
+    this.#formModel.update((current) => ({
+      ...current,
+      supplierCodes: current.supplierCodes.map((sc, i) =>
+        i === index ? { ...sc, [field]: value } : sc,
+      ),
+    }));
+  }
+
+  /**
+   * Gets the supplier name for a given supplier ID.
+   * @param supplierId The supplier ID
+   * @returns The supplier name or empty string
+   */
+  getSupplierName(supplierId: string | null): string {
+    if (!supplierId) return '';
+    const supplier = this.suppliers().find((s) => s.code === supplierId);
+    return supplier?.name ?? '';
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { IOcrBlock, ISupplierInvoice } from '@optisaas/opti-saas-lib';
+import { IOcrBlock, ISupplierInvoice } from '@app/models';
 import { IPipelineParser } from '../ocr-pipeline';
 
 /**

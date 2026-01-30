@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { IOcrEngine, IOcrResult, IOcrOptions } from '@optisaas/opti-saas-lib';
+import { IOcrEngine, IOcrResult, IOcrOptions } from '@app/models';
 import { OCR_CONFIG } from '../ocr.config';
 
 @Injectable()

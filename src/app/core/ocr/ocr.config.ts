@@ -1,5 +1,5 @@
 import { InjectionToken } from '@angular/core';
-import { IOcrConfig } from '@optisaas/opti-saas-lib';
+import { IOcrConfig } from '@app/models';
 
 /**
  * Injection token for OCR configuration.

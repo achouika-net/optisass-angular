@@ -1,5 +1,5 @@
 import { Route } from '@angular/router';
-import { ResourceAuthorizations } from '@optisaas/opti-saas-lib';
+import { ResourceAuthorizations } from '@app/models';
 
 /**
  * Type pour les données de route (route.data)

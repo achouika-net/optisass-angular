@@ -1,4 +1,4 @@
-import { ResourceAuthorizations } from '@optisaas/opti-saas-lib';
+import { ResourceAuthorizations } from '@app/models';
 
 /**
  * Configuration centralisée de toutes les routes de l'application.

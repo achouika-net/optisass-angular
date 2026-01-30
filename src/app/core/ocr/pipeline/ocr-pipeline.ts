@@ -7,7 +7,7 @@ import {
   OcrProviderType,
   ParserStrategyType,
   detectLowConfidenceWarnings,
-} from '@optisaas/opti-saas-lib';
+} from '@app/models';
 import { OcrService } from '../ocr.service';
 
 /**

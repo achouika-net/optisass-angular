@@ -1,4 +1,5 @@
-import { ILinks, IMeta, Links, Meta } from '@app/models';
+import { ILinks, Links } from './links.model';
+import { IMeta, Meta } from './meta.model';
 export interface IPaginatedApiResponse<T> {
   data: T[];
   links: ILinks;

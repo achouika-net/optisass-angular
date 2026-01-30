@@ -1,5 +1,5 @@
 import { InjectionToken } from '@angular/core';
-import { IPipelineConfig } from '@optisaas/opti-saas-lib';
+import { IPipelineConfig } from '@app/models';
 
 /**
  * Default pipeline configuration.

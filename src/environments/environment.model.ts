@@ -1,4 +1,4 @@
-import { IOcrConfig } from '@optisaas/opti-saas-lib';
+import { IOcrConfig } from '@app/models';
 
 /**
  * Environment configuration interface.

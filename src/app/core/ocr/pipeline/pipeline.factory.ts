@@ -5,7 +5,7 @@ import {
   IPipelineDocumentConfig,
   OcrDocumentType,
   ParserStrategyType,
-} from '@optisaas/opti-saas-lib';
+} from '@app/models';
 import { OcrService } from '../ocr.service';
 import { OcrLocaleService } from '../services/locale.service';
 import { ParserRegistry } from '../parser-registry';

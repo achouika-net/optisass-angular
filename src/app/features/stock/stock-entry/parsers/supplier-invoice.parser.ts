@@ -17,7 +17,7 @@ import {
   LooseContactExtractor,
   EntityZoneDetector,
   detectCurrency,
-} from '@optisaas/opti-saas-lib';
+} from '@app/models';
 import { DocumentParser, OcrLocaleService } from '@app/core/ocr';
 
 /**

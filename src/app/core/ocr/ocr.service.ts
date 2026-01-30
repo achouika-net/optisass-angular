@@ -1,11 +1,5 @@
 import { Injectable, inject, signal, Injector } from '@angular/core';
-import {
-  IOcrEngine,
-  IOcrResult,
-  IOcrOptions,
-  OcrErrorCode,
-  OcrDocumentType,
-} from '@optisaas/opti-saas-lib';
+import { IOcrEngine, IOcrResult, IOcrOptions, OcrErrorCode, OcrDocumentType } from '@app/models';
 import { OCR_CONFIG } from './ocr.config';
 import { TesseractProvider } from './providers/tesseract.provider';
 import { BackendOcrProvider } from './providers/backend-ocr.provider';

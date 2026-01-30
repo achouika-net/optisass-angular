@@ -2,7 +2,14 @@ import { computed, effect, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { tapResponse } from '@ngrx/operators';
-import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
+import {
+  patchState,
+  signalStore,
+  withComputed,
+  withHooks,
+  withMethods,
+  withState,
+} from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
 import { catchError, EMPTY, pipe, switchMap, tap } from 'rxjs';
@@ -20,11 +27,12 @@ import {
   isValidUser,
   JwtTokensState,
   MenuItem,
-  WsErrorState, ITenant,
+  WsErrorState,
+  ITenant,
+  ResourceAuthorizations,
 } from '@app/models';
 import { filterMenuByAuthorizations } from '@app/helpers';
 import { MENU } from '../../config/menu.config';
-import { ResourceAuthorizations } from '@optisaas/opti-saas-lib';
 import { AuthService } from '../../features/authentication/services/auth.service';
 import { RouteAuthService, StatePersistenceService } from '../services';
 import { refreshTokenSubject, cancelAllPendingRequests } from '../interceptors/jwt.interceptor';
@@ -61,7 +69,11 @@ export const AuthStore = signalStore(
 
   withComputed((store) => ({
     isAuthenticated: computed(
-      () => isValidUser(store.user()) && store.userAuthorizations().length > 0 && store.jwtTokens() !== null && !!store.jwtTokens()?.accessToken
+      () =>
+        isValidUser(store.user()) &&
+        store.userAuthorizations().length > 0 &&
+        store.jwtTokens() !== null &&
+        !!store.jwtTokens()?.accessToken,
     ),
     userTenants: computed(() => store.user()?.tenants ?? []),
 
@@ -70,7 +82,9 @@ export const AuthStore = signalStore(
      * Menu complet filtré selon les permissions utilisateur.
      * Recalculé automatiquement quand userAuthorizations change.
      */
-    filteredMenu: computed((): MenuItem[] => filterMenuByAuthorizations(MENU, store.userAuthorizations())),
+    filteredMenu: computed((): MenuItem[] =>
+      filterMenuByAuthorizations(MENU, store.userAuthorizations()),
+    ),
   })),
 
   withMethods(
@@ -80,7 +94,7 @@ export const AuthStore = signalStore(
       router = inject(Router),
       translate = inject(TranslateService),
       persistenceService = inject(StatePersistenceService),
-      routeAuthService = inject(RouteAuthService)
+      routeAuthService = inject(RouteAuthService),
     ) => {
       // Créer une référence aux méthodes pour pouvoir les appeler entre elles
       const methods = {
@@ -115,10 +129,10 @@ export const AuthStore = signalStore(
                     error: createWsErrorWithMessage(error, message),
                   });
                   return EMPTY;
-                })
-              )
-            )
-          )
+                }),
+              ),
+            ),
+          ),
         ),
 
         /**
@@ -165,7 +179,10 @@ export const AuthStore = signalStore(
                   }
 
                   patchState(store, {
-                    error: createWsErrorWithMessage(error, translate.instant('authentication.getCurrentUserError')),
+                    error: createWsErrorWithMessage(
+                      error,
+                      translate.instant('authentication.getCurrentUserError'),
+                    ),
                     jwtTokens: INITIAL_JWT_TOKENS,
                     user: INITIAL_CURRENT_USER,
                     isSessionRestoring: false,
@@ -173,10 +190,10 @@ export const AuthStore = signalStore(
 
                   methods.logout(true);
                   return EMPTY;
-                })
-              )
-            )
-          )
+                }),
+              ),
+            ),
+          ),
         ),
 
         /**
@@ -205,16 +222,19 @@ export const AuthStore = signalStore(
                   }
 
                   patchState(store, {
-                    error: createWsErrorWithMessage(error, translate.instant('authentication.getUserOptionsError')),
+                    error: createWsErrorWithMessage(
+                      error,
+                      translate.instant('authentication.getUserOptionsError'),
+                    ),
                     isSessionRestoring: false,
                   });
 
                   methods.logout(true);
                   return EMPTY;
-                })
-              )
-            )
-          )
+                }),
+              ),
+            ),
+          ),
         ),
 
         /**
@@ -253,10 +273,10 @@ export const AuthStore = signalStore(
                     cancelAllPendingRequests();
                     methods.logout(true);
                   },
-                })
-              )
-            )
-          )
+                }),
+              ),
+            ),
+          ),
         ),
 
         /**
@@ -309,10 +329,10 @@ export const AuthStore = signalStore(
                   routeAuthService.showTenantSwitchError();
 
                   return EMPTY;
-                })
+                }),
               );
-            })
-          )
+            }),
+          ),
         ),
 
         /**
@@ -324,7 +344,7 @@ export const AuthStore = signalStore(
       };
 
       return methods;
-    }
+    },
   ),
 
   withHooks({
@@ -346,5 +366,5 @@ export const AuthStore = signalStore(
         persistenceService.set('AUTH', state);
       });
     },
-  })
+  }),
 );

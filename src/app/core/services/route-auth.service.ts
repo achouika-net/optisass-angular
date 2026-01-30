@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { ToastrService } from 'ngx-toastr';
-import { ResourceAuthorizations } from '@optisaas/opti-saas-lib';
+import { ResourceAuthorizations } from '@app/models';
 import { calculateFallbackRoute } from '@app/helpers';
 
 /**

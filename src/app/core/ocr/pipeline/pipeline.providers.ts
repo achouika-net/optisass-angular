@@ -1,7 +1,7 @@
 import { EnvironmentProviders, makeEnvironmentProviders } from '@angular/core';
-import { IPipelineConfig } from '@optisaas/opti-saas-lib';
+import { IPipelineConfig } from '@app/models';
 import { PIPELINE_CONFIG, createPipelineConfig } from './pipeline.config.token';
-import { AiInvoiceParser } from './parsers/ai-invoice.parser';
+import { AiInvoiceParser } from './parsers';
 
 /**
  * Provides pipeline configuration and parsers.
