@@ -1,4 +1,10 @@
-import { IProductPhoto, PricingMode, ProductType } from './product.model';
+import {
+  FrameSubType,
+  IProductPhoto,
+  ISupplierProductCode,
+  PricingMode,
+  ProductType,
+} from '@optisaas/opti-saas-lib';
 
 interface IBaseProductRequest {
   designation: string | null;
@@ -9,6 +15,10 @@ interface IBaseProductRequest {
   familyId: string | null;
   subFamilyId: string | null;
   alertThreshold: number;
+
+  // Codes produits pour matching OCR
+  manufacturerRef: string | null;
+  supplierCodes: readonly ISupplierProductCode[];
 
   // Pricing
   pricingMode: PricingMode;
@@ -24,20 +34,26 @@ interface IBaseProductRequest {
 }
 
 export interface IFrameCreateRequest extends IBaseProductRequest {
-  productType: 'optical_frame' | 'sun_frame';
-  category: string;
-  shape: string;
-  material: string;
-  eyeSize: number;
-  bridge: number;
-  temple: number;
-  frameType: string;
+  productType: 'frame';
+  frameSubType: FrameSubType;
+  shape: string | null;
+  material: string | null;
+  eyeSize: number | null;
+  bridge: number | null;
+  temple: number | null;
+  frameType: string | null;
   gender: string | null;
   hingeType: string | null;
   frameColor: string | null;
   templeColor: string | null;
+  frameFinish: string | null;
   frontPhoto: IProductPhoto | null;
   sidePhoto: IProductPhoto | null;
+  safetyStandard: string | null;
+  safetyRating: string | null;
+  protectionType: string | null;
+  lensIncluded: boolean;
+  prescriptionCapable: boolean;
 }
 
 export interface ILensCreateRequest extends IBaseProductRequest {
@@ -62,7 +78,7 @@ export interface ILensCreateRequest extends IBaseProductRequest {
 export interface IContactLensCreateRequest extends IBaseProductRequest {
   productType: 'contact_lens';
   contactLensType: string;
-  usage: string;
+  usage: string | null;
   baseCurve: number;
   diameter: number;
   quantityPerBox: number;
@@ -80,6 +96,15 @@ export interface IContactLensCreateRequest extends IBaseProductRequest {
   unitQuantity: number | null;
 }
 
+export interface IClipOnCreateRequest extends IBaseProductRequest {
+  productType: 'clip_on';
+  clipType: string;
+  polarized: boolean;
+  mirrorCoating: boolean;
+  tint: string | null;
+  compatibleFrameSize: string | null;
+}
+
 export interface IAccessoryCreateRequest extends IBaseProductRequest {
   productType: 'accessory';
   category: string;
@@ -90,6 +115,7 @@ export type ProductCreateRequest =
   | IFrameCreateRequest
   | ILensCreateRequest
   | IContactLensCreateRequest
+  | IClipOnCreateRequest
   | IAccessoryCreateRequest;
 
 export type ProductUpdateRequest = Partial<ProductCreateRequest> & {

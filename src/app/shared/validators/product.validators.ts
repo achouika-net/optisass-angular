@@ -1,5 +1,22 @@
 import { min, required } from '@angular/forms/signals';
-import { FrameSubType, PricingMode, ProductType } from '@optisaas/opti-saas-lib';
+import { FrameSubType, PricingMode, ProductType } from '@app/models';
+
+/**
+ * Minimal context interface for validator conditional functions.
+ * Provides valueOf() method to read field values from SchemaPath.
+ *
+ * Note: We use a simplified interface here because Signal Forms' internal types
+ * (SchemaPath, FieldContext) use nominal typing with private symbols ([ɵɵTYPE])
+ * that cannot be easily reused in generic utility functions.
+ */
+interface IValidatorContext {
+  valueOf(path: unknown): unknown;
+}
+
+/**
+ * Type for conditional validator functions used in validators' `when` option.
+ */
+type ValidatorCondition = (ctx: IValidatorContext) => boolean;
 
 /**
  * Options for productSchema to customize validation behavior.
@@ -27,6 +44,9 @@ export interface IProductSchemaOptions {
  * - Clip-on: productType + clipOnClipType
  * - Accessory: productType + accessoryCategory
  *
+ * Note: fieldPath uses 'any' because Signal Forms' SchemaPath types use nominal
+ * typing with private symbols that cannot be expressed in generic constraints.
+ *
  * @param fieldPath - The fieldPath from form() callback
  * @param helpers - Context helper functions for conditional validation
  * @param options - Optional configuration for validation behavior
@@ -40,8 +60,8 @@ export interface IProductSchemaOptions {
  * });
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function productSchema(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fieldPath: any,
   helpers: IProductSchemaHelpers,
   options?: IProductSchemaOptions,
@@ -59,10 +79,8 @@ export function productSchema(
   const validateAlertThreshold = options?.validateAlertThreshold ?? false;
   const validatePricing = options?.validatePricing ?? false;
 
-  // Common required fields (only productType is truly required)
   required(fieldPath.productType);
 
-  // Optional pricing validation (for full product forms, not stock-entry)
   if (validatePricing) {
     required(fieldPath.pricingMode);
     required(fieldPath.tvaRate);
@@ -81,31 +99,24 @@ export function productSchema(
     min(fieldPath.alertThreshold, 0);
   }
 
-  // Frame fields (minimal: frameSubType + brandId + modelId)
   required(fieldPath.frameSubType, { when: isFrame });
   required(fieldPath.brandId, { when: isFrame });
   required(fieldPath.modelId, { when: isFrame });
 
-  // Optional frame field constraints (OCR fills, not required)
   min(fieldPath.frameEyeSize, 40);
   min(fieldPath.frameBridge, 12);
   min(fieldPath.frameTemple, 120);
 
-  // Lens fields (minimal: lensType only)
   required(fieldPath.lensType, { when: isLens });
 
-  // Contact lens fields (minimal: contactLensType + laboratoryId)
   required(fieldPath.contactLensType, { when: isContactLens });
   required(fieldPath.contactLensLaboratoryId, { when: isContactLens });
 
-  // Optional contact lens field constraints (OCR fills, not required)
   min(fieldPath.contactLensBaseCurve, 6);
   min(fieldPath.contactLensDiameter, 10);
 
-  // Clip-on fields (minimal: clipOnClipType only)
   required(fieldPath.clipOnClipType, { when: isClipOn });
 
-  // Accessory fields (minimal: accessoryCategory only)
   required(fieldPath.accessoryCategory, { when: isAccessory });
 }
 
@@ -113,63 +124,56 @@ export function productSchema(
  * Helper functions interface for productSchema.
  */
 export interface IProductSchemaHelpers {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly isFrame: (ctx: any) => boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly isLens: (ctx: any) => boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly isContactLens: (ctx: any) => boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly isClipOn: (ctx: any) => boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly isAccessory: (ctx: any) => boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly isSafetyFrame: (ctx: any) => boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly isCoefficient: (ctx: any) => boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly isFixedAmount: (ctx: any) => boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly isFixedPrice: (ctx: any) => boolean;
+  readonly isFrame: ValidatorCondition;
+  readonly isLens: ValidatorCondition;
+  readonly isContactLens: ValidatorCondition;
+  readonly isClipOn: ValidatorCondition;
+  readonly isAccessory: ValidatorCondition;
+  readonly isSafetyFrame: ValidatorCondition;
+  readonly isCoefficient: ValidatorCondition;
+  readonly isFixedAmount: ValidatorCondition;
+  readonly isFixedPrice: ValidatorCondition;
 }
 
 /**
  * Creates helper functions for productSchema based on fieldPath.
+ *
+ * Note: fieldPath uses 'any' because Signal Forms' SchemaPath types use nominal
+ * typing with private symbols that cannot be expressed in generic constraints.
+ *
  * @param fieldPath - The fieldPath from form() callback
  * @returns Helper functions for conditional validation
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createProductSchemaHelpers(fieldPath: any): IProductSchemaHelpers {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isFrame = (ctx: any) =>
+  const isFrame: ValidatorCondition = (ctx) =>
     (ctx.valueOf(fieldPath.productType) as ProductType | null) === 'frame';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isLens = (ctx: any) =>
+
+  const isLens: ValidatorCondition = (ctx) =>
     (ctx.valueOf(fieldPath.productType) as ProductType | null) === 'lens';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isContactLens = (ctx: any) =>
+
+  const isContactLens: ValidatorCondition = (ctx) =>
     (ctx.valueOf(fieldPath.productType) as ProductType | null) === 'contact_lens';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isClipOn = (ctx: any) =>
+
+  const isClipOn: ValidatorCondition = (ctx) =>
     (ctx.valueOf(fieldPath.productType) as ProductType | null) === 'clip_on';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isAccessory = (ctx: any) =>
+
+  const isAccessory: ValidatorCondition = (ctx) =>
     (ctx.valueOf(fieldPath.productType) as ProductType | null) === 'accessory';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isSafetyFrame = (ctx: any) => {
+
+  const isSafetyFrame: ValidatorCondition = (ctx) => {
     const type = ctx.valueOf(fieldPath.productType) as ProductType | null;
     const subType = ctx.valueOf(fieldPath.frameSubType) as FrameSubType | null;
     return type === 'frame' && subType === 'safety';
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isCoefficient = (ctx: any) =>
+  const isCoefficient: ValidatorCondition = (ctx) =>
     (ctx.valueOf(fieldPath.pricingMode) as PricingMode | null) === 'coefficient';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isFixedAmount = (ctx: any) =>
+
+  const isFixedAmount: ValidatorCondition = (ctx) =>
     (ctx.valueOf(fieldPath.pricingMode) as PricingMode | null) === 'fixedAmount';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isFixedPrice = (ctx: any) =>
+
+  const isFixedPrice: ValidatorCondition = (ctx) =>
     (ctx.valueOf(fieldPath.pricingMode) as PricingMode | null) === 'fixedPrice';
 
   return {
@@ -188,41 +192,50 @@ export function createProductSchemaHelpers(fieldPath: any): IProductSchemaHelper
 /**
  * Creates helper functions for productSchema in stock-entry context.
  * All conditions are wrapped with isNewProduct check.
+ *
+ * Note: rowPath uses 'any' because Signal Forms' SchemaPath types use nominal
+ * typing with private symbols that cannot be expressed in generic constraints.
+ *
  * @param rowPath - The row fieldPath from applyEach() callback
  * @returns Helper functions for conditional validation (new products only)
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createStockEntryProductSchemaHelpers(rowPath: any): IProductSchemaHelpers {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isNewProduct = (ctx: any) => ctx.valueOf(rowPath.id) === null;
+  const isNewProduct = (ctx: IValidatorContext): boolean => ctx.valueOf(rowPath.id) === null;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const getProductType = (ctx: any) => ctx.valueOf(rowPath.productType) as ProductType | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const getFrameSubType = (ctx: any) => ctx.valueOf(rowPath.frameSubType) as FrameSubType | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const getPricingMode = (ctx: any) => ctx.valueOf(rowPath.pricingMode) as PricingMode | null;
+  const getProductType = (ctx: IValidatorContext): ProductType | null =>
+    ctx.valueOf(rowPath.productType) as ProductType | null;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isFrame = (ctx: any) => isNewProduct(ctx) && getProductType(ctx) === 'frame';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isLens = (ctx: any) => isNewProduct(ctx) && getProductType(ctx) === 'lens';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isContactLens = (ctx: any) => isNewProduct(ctx) && getProductType(ctx) === 'contact_lens';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isClipOn = (ctx: any) => isNewProduct(ctx) && getProductType(ctx) === 'clip_on';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isAccessory = (ctx: any) => isNewProduct(ctx) && getProductType(ctx) === 'accessory';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isSafetyFrame = (ctx: any) =>
+  const getFrameSubType = (ctx: IValidatorContext): FrameSubType | null =>
+    ctx.valueOf(rowPath.frameSubType) as FrameSubType | null;
+
+  const getPricingMode = (ctx: IValidatorContext): PricingMode | null =>
+    ctx.valueOf(rowPath.pricingMode) as PricingMode | null;
+
+  const isFrame: ValidatorCondition = (ctx) => isNewProduct(ctx) && getProductType(ctx) === 'frame';
+
+  const isLens: ValidatorCondition = (ctx) => isNewProduct(ctx) && getProductType(ctx) === 'lens';
+
+  const isContactLens: ValidatorCondition = (ctx) =>
+    isNewProduct(ctx) && getProductType(ctx) === 'contact_lens';
+
+  const isClipOn: ValidatorCondition = (ctx) =>
+    isNewProduct(ctx) && getProductType(ctx) === 'clip_on';
+
+  const isAccessory: ValidatorCondition = (ctx) =>
+    isNewProduct(ctx) && getProductType(ctx) === 'accessory';
+
+  const isSafetyFrame: ValidatorCondition = (ctx) =>
     isNewProduct(ctx) && getProductType(ctx) === 'frame' && getFrameSubType(ctx) === 'safety';
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isCoefficient = (ctx: any) => isNewProduct(ctx) && getPricingMode(ctx) === 'coefficient';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isFixedAmount = (ctx: any) => isNewProduct(ctx) && getPricingMode(ctx) === 'fixedAmount';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isFixedPrice = (ctx: any) => isNewProduct(ctx) && getPricingMode(ctx) === 'fixedPrice';
+  const isCoefficient: ValidatorCondition = (ctx) =>
+    isNewProduct(ctx) && getPricingMode(ctx) === 'coefficient';
+
+  const isFixedAmount: ValidatorCondition = (ctx) =>
+    isNewProduct(ctx) && getPricingMode(ctx) === 'fixedAmount';
+
+  const isFixedPrice: ValidatorCondition = (ctx) =>
+    isNewProduct(ctx) && getPricingMode(ctx) === 'fixedPrice';
 
   return {
     isFrame,

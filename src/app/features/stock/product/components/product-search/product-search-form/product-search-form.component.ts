@@ -82,7 +82,7 @@ export class ProductSearchFormComponent {
 
   readonly showFrameFilters = computed(() => {
     const types = this.selectedProductTypes();
-    return types.length === 0 || types.includes('optical_frame') || types.includes('sun_frame');
+    return types.length === 0 || types.includes('frame');
   });
 
   readonly showLensFilters = computed(() => {
@@ -169,7 +169,7 @@ export class ProductSearchFormComponent {
    * @param selectedTypes Selected product types
    */
   #resetTypeSpecificFilters(selectedTypes: ProductType[]): void {
-    const hasFrame = selectedTypes.includes('optical_frame') || selectedTypes.includes('sun_frame');
+    const hasFrame = selectedTypes.includes('frame');
 
     if (!hasFrame) {
       this.searchForm.frameShape().value.set(null);

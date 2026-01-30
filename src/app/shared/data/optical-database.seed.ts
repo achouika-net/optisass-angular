@@ -95,7 +95,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'Italie',
     website: 'https://www.ray-ban.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 1,
   },
   {
@@ -106,7 +106,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'États-Unis',
     website: 'https://www.oakley.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 2,
   },
   {
@@ -117,7 +117,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'Italie',
     website: 'https://www.persol.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 3,
   },
   {
@@ -128,7 +128,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'Italie',
     website: 'https://www.vogue-eyewear.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 4,
   },
   {
@@ -139,7 +139,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'États-Unis',
     website: 'https://www.arnette.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 5,
   },
   {
@@ -150,7 +150,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'États-Unis',
     website: 'https://www.oliverpeoples.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 6,
   },
 
@@ -165,7 +165,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'Italie',
     website: 'https://www.prada.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 10,
   },
   {
@@ -176,7 +176,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'France',
     website: 'https://www.chanel.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 11,
   },
   {
@@ -187,7 +187,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'Italie',
     website: 'https://www.dolcegabbana.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 12,
   },
   {
@@ -198,7 +198,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'Italie',
     website: 'https://www.versace.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 13,
   },
   {
@@ -209,7 +209,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'Italie',
     website: 'https://www.miumiu.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 14,
   },
   {
@@ -220,7 +220,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'Italie',
     website: 'https://www.armani.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 15,
   },
   {
@@ -231,7 +231,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'Italie',
     website: 'https://www.armani.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 16,
   },
   {
@@ -242,7 +242,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'Royaume-Uni',
     website: 'https://www.burberry.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 17,
   },
   {
@@ -253,7 +253,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'États-Unis',
     website: 'https://www.coach.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 18,
   },
   {
@@ -264,7 +264,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'États-Unis',
     website: 'https://www.michaelkors.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 19,
   },
   {
@@ -275,7 +275,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'États-Unis',
     website: 'https://www.tiffany.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 20,
   },
   {
@@ -286,7 +286,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.ESSILORLUXOTTICA,
     country: 'États-Unis',
     website: 'https://www.ralphlauren.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 21,
   },
 
@@ -301,7 +301,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.SAFILO,
     country: 'Italie',
     website: 'https://www.carreraworld.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 30,
   },
   {
@@ -312,7 +312,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.SAFILO,
     country: 'États-Unis',
     website: 'https://www.polaroid.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 31,
   },
   {
@@ -323,7 +323,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.SAFILO,
     country: 'États-Unis',
     website: 'https://www.smithoptics.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 32,
   },
 
@@ -338,7 +338,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.SAFILO,
     country: 'France',
     website: 'https://www.dior.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 35,
   },
   {
@@ -349,7 +349,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.SAFILO,
     country: 'Italie',
     website: 'https://www.fendi.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 36,
   },
   {
@@ -360,7 +360,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.SAFILO,
     country: 'France',
     website: 'https://www.givenchy.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 37,
   },
   {
@@ -371,7 +371,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.SAFILO,
     country: 'Allemagne',
     website: 'https://www.hugoboss.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 38,
   },
   {
@@ -382,7 +382,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.SAFILO,
     country: 'États-Unis',
     website: 'https://www.marcjacobs.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 39,
   },
   {
@@ -393,7 +393,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.SAFILO,
     country: 'États-Unis',
     website: 'https://www.tommy.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 40,
   },
   {
@@ -404,7 +404,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.SAFILO,
     country: 'États-Unis',
     website: 'https://www.katespade.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 41,
   },
   {
@@ -415,7 +415,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.SAFILO,
     country: 'États-Unis',
     website: 'https://www.levi.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 42,
   },
 
@@ -430,7 +430,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.MARCOLIN,
     country: 'États-Unis',
     website: 'https://www.tomford.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 50,
   },
   {
@@ -441,7 +441,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.MARCOLIN,
     country: 'États-Unis',
     website: 'https://www.guess.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 51,
   },
   {
@@ -452,7 +452,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.MARCOLIN,
     country: 'France',
     website: 'https://www.moncler.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 52,
   },
   {
@@ -463,7 +463,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.MARCOLIN,
     country: 'Allemagne',
     website: 'https://www.ic-berlin.de',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 53,
   },
   {
@@ -474,7 +474,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.MARCOLIN,
     country: 'Allemagne',
     website: 'https://www.adidas.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 54,
   },
 
@@ -489,7 +489,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.KERING,
     country: 'Italie',
     website: 'https://www.gucci.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 60,
   },
   {
@@ -500,7 +500,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.KERING,
     country: 'France',
     website: 'https://www.ysl.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 61,
   },
   {
@@ -511,7 +511,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.KERING,
     country: 'Italie',
     website: 'https://www.bottegaveneta.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 62,
   },
   {
@@ -522,7 +522,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.KERING,
     country: 'France',
     website: 'https://www.balenciaga.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 63,
   },
   {
@@ -533,7 +533,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.KERING,
     country: 'Royaume-Uni',
     website: 'https://www.alexandermcqueen.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 64,
   },
   {
@@ -544,7 +544,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.KERING,
     country: 'Allemagne',
     website: 'https://www.puma.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 65,
   },
 
@@ -559,7 +559,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.DERIGO,
     country: 'Italie',
     website: 'https://www.police.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 70,
   },
   {
@@ -570,7 +570,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.DERIGO,
     country: 'Suisse',
     website: 'https://www.chopard.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 71,
   },
   {
@@ -581,7 +581,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.DERIGO,
     country: 'Italie',
     website: 'https://www.fila.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 72,
   },
 
@@ -596,7 +596,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.SILHOUETTE,
     country: 'Autriche',
     website: 'https://www.silhouette.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 80,
   },
 
@@ -611,7 +611,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.MARCHON,
     country: 'France',
     website: 'https://www.lacoste.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 90,
   },
   {
@@ -622,7 +622,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.MARCHON,
     country: 'États-Unis',
     website: 'https://www.calvinklein.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 91,
   },
   {
@@ -633,7 +633,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.MARCHON,
     country: 'États-Unis',
     website: 'https://www.nike.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 92,
   },
   {
@@ -644,7 +644,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: OPTICAL_GROUPS.MARCHON,
     country: 'États-Unis',
     website: 'https://www.dragonalliance.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 93,
   },
   {
@@ -655,7 +655,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: null,
     country: 'États-Unis',
     website: 'https://www.cat.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 94,
   },
   {
@@ -666,7 +666,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: null,
     country: 'Autriche',
     website: 'https://www.swarovski.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 95,
   },
 
@@ -681,7 +681,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: null,
     country: 'Venezuela',
     website: 'https://www.carolinaherrera.com',
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 100,
   },
   {
@@ -692,7 +692,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: null,
     country: 'Italie',
     website: null,
-    productLines: ['optical_frame', 'sun_frame'],
+    productLines: ['frame'],
     order: 101,
   },
   {
@@ -703,7 +703,7 @@ export const SEED_BRANDS: readonly ISeedBrand[] = [
     parentCompany: null,
     country: 'Espagne',
     website: 'https://www.nframesgroup.com',
-    productLines: ['optical_frame'],
+    productLines: ['frame'],
     order: 102,
   },
 ];

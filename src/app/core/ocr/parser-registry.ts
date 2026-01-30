@@ -1,5 +1,5 @@
 import { Injectable, InjectionToken, Type, Injector, inject } from '@angular/core';
-import { OcrDocumentType } from '@optisaas/opti-saas-lib';
+import { OcrDocumentType } from '@app/models';
 import { DocumentParser } from './document-parser';
 
 /**

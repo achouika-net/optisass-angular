@@ -12,7 +12,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ToastrService } from 'ngx-toastr';
-import { IParseResult, ISupplierInvoice } from '@optisaas/opti-saas-lib';
+import { IParseResult, ISupplierInvoice } from '@app/models';
 import { SupplierInvoiceParser } from '../../parsers/supplier-invoice.parser';
 import { IOcrUploadDialogData, IOcrUploadResult } from '../../models';
 

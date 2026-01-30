@@ -1,5 +1,5 @@
 import { EnvironmentProviders, makeEnvironmentProviders, Provider, Type } from '@angular/core';
-import { OcrDocumentType } from '@optisaas/opti-saas-lib';
+import { OcrDocumentType } from '@app/models';
 import { DocumentParser } from './document-parser';
 import { PARSER_CONFIG, IParserConfig, IParserRegistration } from './parser-registry';
 

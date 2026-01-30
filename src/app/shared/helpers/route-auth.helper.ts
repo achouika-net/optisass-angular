@@ -1,4 +1,4 @@
-import { ResourceAuthorizations } from '@optisaas/opti-saas-lib';
+import { ResourceAuthorizations } from '@app/models';
 import { APP_ROUTES, isValidAppRoute } from '@app/config';
 
 /**
@@ -16,7 +16,7 @@ import { APP_ROUTES, isValidAppRoute } from '@app/config';
  */
 export function isRouteAuthorized(
   route: string | undefined,
-  userAuthorizations: ResourceAuthorizations[]
+  userAuthorizations: ResourceAuthorizations[],
 ): boolean {
   // Pas de route = accessible à tous (ex: extLink)
   if (!route) return true;
@@ -145,7 +145,7 @@ export function getModuleDefaultRoute(appRoute: string): string {
  */
 export function calculateFallbackRoute(
   currentUrl: string,
-  userAuthorizations: ResourceAuthorizations[]
+  userAuthorizations: ResourceAuthorizations[],
 ): string | null {
   const appRoute = normalizeUrlToAppRoute(currentUrl);
 

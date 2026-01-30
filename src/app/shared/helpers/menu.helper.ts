@@ -1,5 +1,4 @@
-import { MenuItem } from '@app/models';
-import { ResourceAuthorizations } from '@optisaas/opti-saas-lib';
+import { MenuItem, ResourceAuthorizations } from '@app/models';
 import { isRouteAuthorized } from './route-auth.helper';
 
 /**
@@ -12,7 +11,7 @@ import { isRouteAuthorized } from './route-auth.helper';
  */
 export function filterMenuByAuthorizations(
   items: MenuItem[],
-  userAuthorizations: ResourceAuthorizations[]
+  userAuthorizations: ResourceAuthorizations[],
 ): MenuItem[] {
   return items
     .map((item) => {

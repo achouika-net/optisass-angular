@@ -1,5 +1,5 @@
 import { EnvironmentProviders, makeEnvironmentProviders } from '@angular/core';
-import { IOcrConfig } from '@optisaas/opti-saas-lib';
+import { IOcrConfig } from '@app/models';
 import { OCR_CONFIG, DEFAULT_OCR_CONFIG } from './ocr.config';
 import { TesseractProvider } from './providers/tesseract.provider';
 import { BackendOcrProvider } from './providers/backend-ocr.provider';

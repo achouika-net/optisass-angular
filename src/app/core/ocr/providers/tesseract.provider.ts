@@ -1,13 +1,6 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { createWorker, Worker, Block, Word } from 'tesseract.js';
-import {
-  IOcrEngine,
-  IOcrResult,
-  IOcrOptions,
-  IOcrBlock,
-  IOcrLine,
-  IOcrWord,
-} from '@optisaas/opti-saas-lib';
+import { IOcrEngine, IOcrResult, IOcrOptions, IOcrBlock, IOcrLine, IOcrWord } from '@app/models';
 
 /**
  * Maximum number of workers to keep in the pool.

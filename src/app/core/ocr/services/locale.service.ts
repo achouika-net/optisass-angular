@@ -1,6 +1,6 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { IOcrLocale, FR_LOCALE, EN_LOCALE } from '@optisaas/opti-saas-lib';
+import { IOcrLocale, FR_LOCALE, EN_LOCALE } from '@app/models';
 
 /**
  * Supported OCR locales.
