@@ -60,4 +60,22 @@ export class AccountingController {
             return res.status(500).json({ message: 'Erreur lors de la génération de la Balance', error: error.message });
         }
     }
+
+    @Get('export/bilan')
+    async exportBilan(@Query() dto: ExportSageDto, @Res() res: Response) {
+        try {
+            const doc = await this.accountingService.generateBilanComptable(dto);
+            const filename = `Bilan_Comptable_${dto.startDate}_${dto.endDate}.pdf`;
+
+            res.set({
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': `attachment; filename="${filename}"`,
+            });
+
+            doc.pipe(res);
+        } catch (error) {
+            console.error('Error in exportBilan:', error);
+            return res.status(500).json({ message: 'Erreur lors de la génération du Bilan', error: error.message });
+        }
+    }
 }

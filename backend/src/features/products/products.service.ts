@@ -367,8 +367,9 @@ export class ProductsService {
         codeBarres?: string;
         centreId: string;
         entrepotId?: string;
+        couleur?: string;
     }, tx?: any) {
-        const { designation, codeInterne, codeBarres, centreId, entrepotId } = params;
+        const { designation, codeInterne, codeBarres, centreId, entrepotId, couleur } = params;
         const client = tx || this.prisma;
 
         // Try direct reference match first (most reliable)
@@ -380,7 +381,9 @@ export class ProductsService {
                     OR: [
                         codeInterne ? { codeInterne } : {},
                         codeBarres ? { codeBarres } : {}
-                    ].filter((q: any) => Object.keys(q).length > 0)
+                    ].filter((q: any) => Object.keys(q).length > 0),
+                    // Check color if provided
+                    ...(couleur ? { couleur: { equals: couleur, mode: 'insensitive' } } : {})
                 },
                 orderBy: [
                     { quantiteActuelle: 'desc' }, // Prefer those with stock
@@ -396,7 +399,8 @@ export class ProductsService {
             where: {
                 entrepot: { centreId },
                 entrepotId: entrepotId || undefined,
-                designation: { equals: designation, mode: 'insensitive' }
+                designation: { equals: designation, mode: 'insensitive' },
+                ...(couleur ? { couleur: { equals: couleur, mode: 'insensitive' } } : {})
             },
             orderBy: [
                 { quantiteActuelle: 'desc' },

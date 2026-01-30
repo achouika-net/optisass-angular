@@ -106,4 +106,11 @@ export class StatsService {
         if (endDate) params = params.set('endDate', endDate);
         return this.http.get<StatsSummary>(`${this.apiUrl}/summary`, { params });
     }
+
+    getRealProfit(startDate?: string, endDate?: string): Observable<any> {
+        let params = new HttpParams();
+        if (startDate) params = params.set('startDate', startDate);
+        if (endDate) params = params.set('endDate', endDate);
+        return this.http.get<any>(`${this.apiUrl}/profit`, { params });
+    }
 }

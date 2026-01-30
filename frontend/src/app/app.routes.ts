@@ -68,6 +68,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/reports/advanced-stats/advanced-stats.component').then(m => m.AdvancedStatsComponent),
       },
       {
+        path: 'profit-report',
+        loadComponent: () => import('./features/reports/profit-report/profit-report.component').then(m => m.ProfitReportComponent),
+      },
+      {
         path: 'advanced-search',
         loadComponent: () => import('./features/advanced-search/advanced-search.component').then(m => m.AdvancedSearchComponent),
       },

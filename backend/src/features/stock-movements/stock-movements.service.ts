@@ -56,6 +56,19 @@ export class StockMovementsService {
                     return sum + ((Number(a.prixAchat) + tvaAmount) * Number(a.quantite));
                 }, 0);
 
+                // Try to infer centreId from allocations if missing
+                let effectiveCentreId = invoiceData.centreId;
+                if (!effectiveCentreId && allocations.length > 0) {
+                    const firstWarehouseId = allocations[0].warehouseId;
+                    const warehouse = await tx.entrepot.findUnique({
+                        where: { id: firstWarehouseId }
+                    });
+                    if (warehouse?.centreId) {
+                        effectiveCentreId = warehouse.centreId;
+                        console.log(`💡 [STOCK] Inferred Centre ID from warehouse: ${effectiveCentreId}`);
+                    }
+                }
+
                 // Check if invoice already exists for this supplier (Case-insensitive & Trimmed)
                 const trimmedNumero = invoiceData.numeroFacture.trim();
                 let invoice = await tx.factureFournisseur.findFirst({
@@ -86,7 +99,7 @@ export class StockMovementsService {
                         montantTVA: totalTTC - totalHT,
                         montantTTC: totalTTC,
                         fournisseurId: invoiceData.fournisseurId,
-                        centreId: invoiceData.centreId,
+                        centreId: effectiveCentreId,
                         pieceJointeUrl: pieceJointeUrl,
                         echeances: {
                             create: [
@@ -102,12 +115,91 @@ export class StockMovementsService {
                     include: { echeances: true }
                 });
 
+                // ═══════════════════════════════════════════════════════════════
+                // AUTOMATIC PAYMENT CREATION FOR CASH SUPPLIERS
+                // ═══════════════════════════════════════════════════════════════
+
+                // Fetch supplier payment conditions
+                const supplier = await tx.fournisseur.findUnique({
+                    where: { id: invoiceData.fournisseurId }
+                });
+
+                console.log(`🔍 [STOCK] Supplier: ${supplier?.nom}, ID: ${supplier?.id}`);
+
+                const paymentConditions = (
+                    (supplier?.convention as any)?.echeancePaiement?.[0]
+                    || supplier?.conditionsPaiement
+                    || ''
+                ).toLowerCase();
+
+                console.log(`💳 [STOCK] Payment conditions: "${paymentConditions}"`);
+
+                const isCashPayment = paymentConditions.includes('comptant')
+                    || paymentConditions.includes('espèces')
+                    || paymentConditions.includes('espece')
+                    || paymentConditions.includes('immédiat')
+                    || paymentConditions.includes('immediat')
+                    || paymentConditions === '';
+
+                console.log(`💰 [STOCK] Is cash payment: ${isCashPayment}`);
+
+                console.log(`💰 [STOCK] Is cash payment: ${isCashPayment}`);
+
+                if (isCashPayment) {
+                    if (!effectiveCentreId) {
+                        console.warn(`⚠️ [STOCK] Skipping automatic payment: Missing Centre ID for invoice ${invoiceData.numeroFacture} (and unable to infer from warehouse)`);
+                    } else {
+                        console.log(`🚀 [STOCK] Automatic payment creation for cash supplier: ${supplier?.nom} (Centre: ${effectiveCentreId})`);
+
+                        // Create automatic expense
+                        try {
+                            const createdPayment = await tx.depense.create({
+                                data: {
+                                    reference: `PAY-${invoiceData.numeroFacture}`,
+                                    montant: totalTTC,
+                                    date: normalizeToUTCNoon(invoiceData.dateEmission) as Date,
+                                    categorie: 'ACHAT_STOCK',
+                                    modePaiement: paymentConditions.includes('espèces') || paymentConditions.includes('espece') ? 'ESPECES' : 'CHEQUE',
+                                    fournisseurId: invoiceData.fournisseurId,
+                                    factureFournisseurId: invoice.id,
+                                    centreId: effectiveCentreId as string,
+                                    statut: 'VALIDEE',
+                                    description: `Paiement automatique - ${invoiceData.numeroFacture}`
+                                }
+                            });
+                            console.log(`✅ [STOCK] Payment created: ${createdPayment.id}, Amount: ${createdPayment.montant} DH`);
+
+                            // Update invoice status ONLY if payment succeeded
+                            await tx.factureFournisseur.update({
+                                where: { id: invoice.id },
+                                data: { statut: 'PAYEE' }
+                            });
+
+                            // Update installment status ONLY if payment succeeded
+                            if (invoice.echeances && invoice.echeances.length > 0) {
+                                await tx.echeancePaiement.update({
+                                    where: { id: invoice.echeances[0].id },
+                                    data: { statut: 'PAYEE' }
+                                });
+                            }
+
+                        } catch (paymentError) {
+                            console.error(`❌ [STOCK] ERROR creating payment:`, paymentError);
+                            // We do NOT re-throw here to prevent rolling back the stock movement
+                            // The user will just have to add payment manually
+                        }
+                    }
+                } else {
+                    console.log(`⏳ [STOCK] Deferred payment for ${supplier?.nom} - Conditions: ${paymentConditions}`);
+                }
+
                 for (const alloc of allocations) {
                     let targetProduct: any = await this.productsService.findLocalCounterpart({
                         designation: alloc.nom,
                         codeInterne: alloc.reference,
-                        centreId: invoiceData.centreId || '',
-                        entrepotId: alloc.warehouseId
+                        centreId: effectiveCentreId || '',
+                        entrepotId: alloc.warehouseId,
+                        couleur: alloc.couleur
                     }, tx);
 
                     // NOUVEAU: Si pas trouvé par findLocalCounterpart, chercher par code/référence seul
@@ -119,7 +211,9 @@ export class StockMovementsService {
                                     { codeInterne: alloc.reference.trim() },
                                     ...(alloc.codeBarre ? [{ codeBarres: alloc.codeBarre.trim() }] : [])
                                 ],
-                                entrepotId: alloc.warehouseId
+                                entrepotId: alloc.warehouseId,
+                                // IMPORTANT: Differentiate by color if provided
+                                ...(alloc.couleur ? { couleur: alloc.couleur } : {})
                             }
                         });
 
@@ -145,7 +239,7 @@ export class StockMovementsService {
                                 designation: alloc.nom,
                                 marque: alloc.marque,
                                 codeInterne: alloc.reference.trim(),
-                                codeBarres: (alloc.codeBarre || '').trim(),
+                                codeBarres: (alloc.codeBarre?.trim()) || alloc.reference.trim(),
                                 typeArticle: template?.typeArticle || alloc.categorie || 'AUTRE',
                                 couleur: alloc.couleur,
                                 prixAchatHT: Number(alloc.prixAchat),
@@ -223,16 +317,29 @@ export class StockMovementsService {
             });
         } catch (error) {
             console.error('[processBulkAlimentation ERROR]', error);
+
+            // EMERGENCY LOGGING
+            try {
+                const logPath = path.join(process.cwd(), 'last_error.log');
+                const logMessage = `[${new Date().toISOString()}] ERROR: ${error.message}\nSTACK: ${error.stack}\nCODE: ${error.code}\nMETA: ${JSON.stringify(error.meta)}\n`;
+                fs.appendFileSync(logPath, logMessage);
+            } catch (e) { }
+
+            if (error instanceof BadRequestException || error instanceof NotFoundException) {
+                throw error;
+            }
+
             if (error.code === 'P2002') {
                 const target = error.meta?.target || [];
                 if (target.includes('numeroFacture')) {
                     throw new BadRequestException('Ce numéro de facture existe déjà pour ce fournisseur.');
                 }
-                // Pour les doublons de produits, on log mais on ne bloque pas
-                console.warn('[STOCK] P2002 détecté pour produit - opération ignorée, les produits existants seront utilisés');
-                // Ne pas throw d'erreur, laisser l'opération continuer
-                return null; // Retourner null au lieu de throw
+                if (target.includes('codeInterne') || target.includes('codeBarres')) {
+                    throw new BadRequestException(`Un produit avec cette référence ou ce code-barres existe déjà dans cet entrepôt. Détails: ${JSON.stringify(target)}`);
+                }
+                throw new BadRequestException(`Erreur de contrainte unique (doublon) : ${target.join(', ')}`);
             }
+
             throw new BadRequestException(`Erreur lors de l'enregistrement : ${error.message}`);
         }
     }

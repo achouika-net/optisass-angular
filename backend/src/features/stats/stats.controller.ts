@@ -61,4 +61,13 @@ export class StatsController {
     ) {
         return this.statsService.getSummary(startDate, endDate, centreId);
     }
+
+    @Get('profit')
+    getRealProfit(
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+        @Headers('Tenant') centreId?: string
+    ) {
+        return this.statsService.getRealProfit(startDate, endDate, centreId);
+    }
 }

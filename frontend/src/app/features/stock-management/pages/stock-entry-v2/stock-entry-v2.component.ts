@@ -597,18 +597,36 @@ export class StockEntryV2Component implements OnInit {
             // NEW: Ultra-flexible article detection (Search for any array of articles)
             const findArticles = (obj: any): any[] | null => {
                 if (!obj || typeof obj !== 'object') return null;
+                // If it's already an array of articles, return it
+                if (Array.isArray(obj)) {
+                    const looksLikeArticles = obj.length > 0 && typeof obj[0] === 'object' && (obj[0].reference || obj[0].designation || obj[0].marque);
+                    return looksLikeArticles ? obj : null;
+                }
+
                 if (Array.isArray(obj.articles)) return obj.articles;
                 if (Array.isArray(obj.items)) return obj.items;
                 if (Array.isArray(obj.produits)) return obj.produits;
 
                 for (const key in obj) {
-                    const result = findArticles(obj[key]);
-                    if (result) return result;
+                    if (typeof obj[key] === 'object') {
+                        const result = findArticles(obj[key]);
+                        if (result) return result;
+                    }
                 }
                 return null;
             };
 
-            const items = findArticles(data);
+            const items = findArticles(result); // Use raw result for multi-depth search
+
+            // DEBUG AGRESSIF : Alerte si rien n'est trouvé
+            if (!items || items.length === 0) {
+                const rawJson = JSON.stringify(result).substring(0, 500);
+                console.warn('❌ OCR: Aucun article trouvé dans le JSON reçu:', result);
+                if (result.source === 'n8n') {
+                    window.alert(`🚨 DEBUG OCR: n8n a répondu mais aucun article trouvé. \n\nRéponse brute (début): ${rawJson}`);
+                }
+            }
+
             if (items && items.length > 0) {
                 console.log(`✨ OCR: ${items.length} articles detected via Intelligent search. Processing...`);
                 this.isIntelligentOcr = true;
@@ -869,6 +887,11 @@ export class StockEntryV2Component implements OnInit {
         const defaultTva = this.entryForm.get('tva')?.value || 20;
 
         articles.forEach(art => {
+            if (!art || typeof art !== 'object') {
+                console.warn('⚠️ OCR: Ignoring invalid/null item in list', art);
+                return;
+            }
+
             // Clean designation: "Marque + Reference"
             // AI might send the full line in designation_brute, we prefer to reconstruct a clean one
             const rawRef = (art.reference || '').trim();
@@ -885,9 +908,27 @@ export class StockEntryV2Component implements OnInit {
                 des = art.designation_brute || 'SANS DESIGNATION';
             }
 
-            const pu = art.prix_unitaire || 0;
-            const remise = art.remise || 0;
-            const finalCost = pu * (1 - (remise / 100));
+            let pu = art.prix_unitaire;
+            // Robust Parsing (Local Backup)
+            if (typeof pu === 'string') {
+                pu = parseFloat(pu.replace(/[^0-9,.-]/g, "").replace(",", ".")) || 0;
+            } else {
+                pu = Number(pu) || 0;
+            }
+
+            console.log(`💰 OCR DEBUG: Ref=${art.reference}, RawPrice=${art.prix_unitaire}, Parsed=${pu}`);
+
+            // Robust Remise Parsing
+            let discount = art.remise;
+            if (typeof discount === 'string') {
+                discount = parseFloat(discount.replace(/[^0-9,.-]/g, "").replace(",", ".")) || 0;
+            } else {
+                discount = Number(discount) || 0;
+            }
+
+            console.log(`📉 OCR DEBUG REMISE: Brut=${art.remise}, Nettoye=${discount}`);
+
+            const finalCost = pu * (1 - (discount / 100));
 
             // Intelligent Brand Recovery (Brand vs Prefix)
             let finalMarque = art.marque || 'Sans Marque';
@@ -996,6 +1037,44 @@ export class StockEntryV2Component implements OnInit {
 
 
 
+
+    // --- LIVE EDIT & RE-ANALYSIS ---
+
+    onDescriptionChange(element: StagedProduct) {
+        // Concatenate Ref + Designation for broader search
+        const textToScan = `${element.reference || ''} ${element.nom || ''}`;
+
+        console.log(`✨ Live Re-analysis for: ${textToScan}`);
+
+        // 1. RPM (Calibre / Pont) Regex - e.g. "54 18", "54-18", "54[]18"
+        // Avoid prices (e.g. .80) by checking bounds: Calibre (40-66), Pont (14-24)
+        const rpmRegex = /(?:^|\s|\.|-)(4[0-9]|5[0-9]|6[0-6])[\s\-\[\]xX\*\/]{1,3}(1[4-9]|2[0-4])(?:\s|$|\.)/;
+        const match = textToScan.match(rpmRegex);
+
+        if (match) {
+            // Apply only if missing or if user explicitly wants overwrite (here we fill if empty)
+            if (!element.calibre) {
+                element.calibre = match[1];
+                console.log(`   -> Recovered Calibre: ${match[1]}`);
+            }
+            if (!element.pont) {
+                element.pont = match[2];
+                console.log(`   -> Recovered Pont: ${match[2]}`);
+            }
+        }
+
+        // 2. Color Detection (Simple List)
+        if (!element.couleur) {
+            const colors = ['NOIR', 'BLACK', 'OR', 'GOLD', 'ARGENT', 'SILVER', 'ECAILLE', 'HAVANA', 'BLEU', 'BLUE', 'ROUGE', 'RED', 'ROSE', 'PINK', 'VERT', 'GREEN', 'GRIS', 'GREY', 'MARRON', 'BROWN', 'VIOLET', 'PURPLE', 'BEIGE', 'NUDE', 'BLANC', 'WHITE', 'TRANSPARENT', 'CRYSTAL'];
+            const foundColor = colors.find(c => textToScan.toUpperCase().includes(c));
+            if (foundColor) {
+                element.couleur = foundColor;
+                console.log(`   -> Recovered Color: ${foundColor}`);
+            }
+        }
+
+        this.updateProduct(element);
+    }
 
     // --- BULK OPERATIONS LOGIC ---
 

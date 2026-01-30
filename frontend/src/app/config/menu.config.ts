@@ -21,6 +21,13 @@ export const MENU: MenuItem[] = [
     // roles: [4, 3, 2],
   },
   {
+    label: 'Bénéfice Réel',
+    icon: 'trending_up',
+    type: 'link',
+    route: 'profit-report',
+    roles: [4, 3],
+  },
+  {
     label: 'Paiements en ligne',
     icon: 'credit_card',
     type: 'link',

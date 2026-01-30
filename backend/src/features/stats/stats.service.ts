@@ -335,4 +335,93 @@ export class StatsService {
             conversionRate: conversionMetrics.conversionToFacture
         };
     }
+    async getRealProfit(
+        startDate?: string,
+        endDate?: string,
+        centreId?: string
+    ) {
+        const start = startDate ? new Date(startDate) : new Date(new Date().setMonth(new Date().getMonth() - 1));
+        const end = endDate ? new Date(endDate) : new Date();
+
+        // 1. Revenue (Factures & Avoirs)
+        // We select invoices in the period
+        const factures = await this.prisma.facture.findMany({
+            where: {
+                dateEmission: { gte: start, lte: end },
+                statut: { in: ['VALIDE', 'PAYEE', 'PARTIEL'] },
+                ...(centreId ? { centreId } : {})
+            },
+            select: {
+                id: true,
+                type: true,
+                totalHT: true,
+                mouvementsStock: {
+                    select: {
+                        quantite: true,
+                        prixAchatUnitaire: true
+                    }
+                }
+            }
+        });
+
+        let revenue = 0;
+        let cogs = 0; // Cost of Goods Sold
+
+        factures.forEach(f => {
+            // Revenue is simply totalHT (Avoirs have negative HT)
+            revenue += (f.totalHT || 0);
+
+            // COGS Calculation
+            // For Sales (negative qty), we add to COGS (as positive cost)
+            // For Returns (positive qty), we subtract from COGS (recovery)
+            // MouvementStock: quantite is signed (- for sale, + for return)
+            // We want COGS to be a positive number representing cost
+            f.mouvementsStock.forEach(m => {
+                const cost = (m.quantite || 0) * (m.prixAchatUnitaire || 0);
+                // cost is negative for sales (-1 * 100 = -100).
+                // We subtract this negative cost to add to COGS?
+                // COGS = Cost of items sold.
+                // If I sold 1 item at cost 100. Mvt = -100.
+                // COGS should be 100.
+                // So COGS -= mvtValue.
+                cogs -= cost;
+            });
+        });
+
+        // 2. Expenses
+        const expenses = await this.prisma.depense.aggregate({
+            where: {
+                date: { gte: start, lte: end },
+                // Exclude linked expenses that might be COGS (purchases)?
+                // Usually "Purchase of Goods" is inventory asset, not expense P&L immediately.
+                // It becomes COGS when sold.
+                // However, overheads (Rent, Electricity) are expenses.
+                // We should filter expenses.
+                // Assuming 'ACHAT_STOCK' type expenses are capitalized into stock value (Asset),
+                // and thus NOT P&L expenses until sold.
+                // But generally, users might put "Achat" in Depense.
+                // Let's look at Depense categories or types.
+                // Schema has `categorie`.
+                // Ideally, we exclude "ACHAT_MARCHANDISE" if it feeds stock.
+                // But for now, let's assume simplified model: All Depenses are Operational Expenses (OPEX).
+                // Or user manually manages standard expenses.
+                ...(centreId ? { centreId } : {})
+            },
+            _sum: { montant: true }
+        });
+
+        const totalExpenses = expenses._sum.montant || 0;
+
+        return {
+            period: { start, end },
+            revenue,
+            cogs,
+            grossMargin: revenue - cogs,
+            expenses: totalExpenses,
+            netProfit: revenue - cogs - totalExpenses,
+            analysis: {
+                marginRate: revenue ? ((revenue - cogs) / revenue) * 100 : 0
+            }
+        };
+    }
 }

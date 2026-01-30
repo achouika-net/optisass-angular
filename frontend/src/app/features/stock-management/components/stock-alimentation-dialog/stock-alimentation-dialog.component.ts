@@ -749,23 +749,28 @@ export class StockAlimentationDialogComponent implements OnInit {
       next: (res: any) => {
         this.snackBar.open('Stock alimenté avec succès !', 'OK', { duration: 3000 });
 
-        // 3. Workflow Bridge: Prompt only if NOT skipped (i.e. not coming from Invoice flow)
-        if (!this.data.skipPaymentPrompt) {
-          const completePayment = confirm('Stock alimenté. Souhaitez-vous maintenant compléter les modalités de paiement (échéances, chèques, etc.) pour cette facture ?');
+        // 3. Workflow Bridge: Open payment dialog automatically for deferred payments
+        // (Skip if coming from Invoice flow OR if payment was created automatically by backend)
+        if (!this.data.skipPaymentPrompt && res && res.id && res.statut !== 'PAYEE') {
+          console.log('📋 [STOCK] Opening payment dialog for deferred payment...');
 
-          if (completePayment && res && res.id) {
-            // Open Invoice Form Dialog in edit mode
-            const invoiceDialog = this.dialog.open(InvoiceFormDialogComponent, {
-              width: '1200px',
-              maxWidth: '95vw',
-              data: { invoice: res }
-            });
+          // Open Invoice Form Dialog automatically (no confirm prompt)
+          const invoiceDialog = this.dialog.open(InvoiceFormDialogComponent, {
+            width: '1200px',
+            maxWidth: '95vw',
+            disableClose: true, // Prevent accidental closure
+            data: {
+              invoice: res,
+              autoFocusPayment: true // Flag to auto-focus payment tab
+            }
+          });
 
-            invoiceDialog.afterClosed().subscribe(() => {
-              this.dialogRef.close({ success: true, allocations: payload.allocations });
-            });
-            return;
-          }
+          invoiceDialog.afterClosed().subscribe(() => {
+            this.dialogRef.close({ success: true, allocations: payload.allocations });
+          });
+          return;
+        } else if (res && res.statut === 'PAYEE') {
+          console.log('✅ [STOCK] Payment automatically created by backend (cash supplier)');
         }
 
         this.dialogRef.close({ success: true, allocations: payload.allocations });

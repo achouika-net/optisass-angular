@@ -30,7 +30,7 @@ export class AccountingService {
             const month = (d.getMonth() + 1).toString().padStart(2, '0');
             const year = d.getFullYear().toString().slice(-2);
             return `${day}${month}${year}`;
-        } catch (e) {
+        } catch {
             return '010126';
         }
     }
@@ -38,266 +38,18 @@ export class AccountingService {
     private formatDateDisplay(date: Date | string): string {
         try {
             const d = new Date(date);
-            if (isNaN(d.getTime())) return 'N/A';
+            if (isNaN(d.getTime())) return '01/01/2026';
             const day = d.getDate().toString().padStart(2, '0');
             const month = (d.getMonth() + 1).toString().padStart(2, '0');
             const year = d.getFullYear();
             return `${day}/${month}/${year}`;
-        } catch (e) {
-            return 'N/A';
+        } catch {
+            return '01/01/2026';
         }
     }
 
-    /**
-     * Generates a Sage-compatible CSV export
-     */
-    async generateSageExport(dto: ExportSageDto) {
-        this.logger.log(`Starting Sage Export: ${JSON.stringify(dto)}`);
-        const { startDate, endDate, centreId } = dto;
-
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-
-        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-            this.logger.error(`Invalid date range: ${startDate} to ${endDate}`);
-            throw new Error(`Invalid date range: ${startDate} to ${endDate}`);
-        }
-
-        const cid =
-            centreId && centreId !== 'ALL' && centreId !== '' ? centreId : undefined;
-
-        // 1. Fetch Invoices (Sales)
-        const invoices = await this.prisma.facture.findMany({
-            where: {
-                dateEmission: { gte: start, lte: end },
-                statut: { in: ['VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE'] },
-                centreId: cid,
-            },
-            include: { client: true },
-        });
-
-        // 2. Fetch Payments (Treasury)
-        const payments = await this.prisma.paiement.findMany({
-            where: {
-                date: { gte: start, lte: end },
-                statut: 'ENCAISSE',
-                facture: cid ? { centreId: cid } : undefined,
-            },
-            include: { facture: { include: { client: true } } },
-        });
-
-        // 3. Fetch Expenses (Purchases)
-        const expenses = await this.prisma.depense.findMany({
-            where: {
-                date: { gte: start, lte: end },
-                statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
-                centreId: cid,
-            },
-            include: { fournisseur: true },
-        });
-
-        const lines: string[] = [];
-        lines.push('JOURNAL;DATE;COMPTE;REFERENCE;LIBELLE;DEBIT;CREDIT');
-
-        // Process Invoices
-        for (const inv of invoices) {
-            const dateStr = this.formatDateDDMMYY(inv.dateEmission);
-            const ref = inv.numero || inv.id.substring(0, 8);
-            const label = `Facture ${ref} - ${inv.client?.nom || 'Client'}`;
-            const ttc = inv.totalTTC || 0;
-            const ht = inv.totalHT || 0;
-            const tva = inv.totalTVA || 0;
-
-            lines.push(
-                `VT;${dateStr};${this.CONFIG.RECEIVABLE_ACCOUNT};${ref};${label};${ttc.toFixed(2)};0.00`,
-            );
-            lines.push(
-                `VT;${dateStr};${this.CONFIG.SALES_REVENUE_ACCOUNT};${ref};${label};0.00;${ht.toFixed(2)}`,
-            );
-            if (tva > 0) {
-                lines.push(
-                    `VT;${dateStr};${this.CONFIG.SALES_TAX_ACCOUNT};${ref};${label};0.00;${tva.toFixed(2)}`,
-                );
-            }
-        }
-
-        // Process Payments
-        for (const p of payments) {
-            const dateStr = this.formatDateDDMMYY(p.date);
-            const ref = p.reference || 'PAY';
-            const label = `Paiement ${p.mode} - ${p.facture?.numero || ''}`;
-            const journal = p.mode === 'ESPECES' ? 'CA' : 'BQ';
-            const montant = p.montant || 0;
-
-            lines.push(
-                `${journal};${dateStr};${this.CONFIG.CASH_ACCOUNT};${ref};${label};${montant.toFixed(2)};0.00`,
-            );
-            lines.push(
-                `${journal};${dateStr};${this.CONFIG.RECEIVABLE_ACCOUNT};${ref};${label};0.00;${montant.toFixed(2)}`,
-            );
-        }
-
-        // Process Expenses
-        for (const exp of expenses) {
-            const dateStr = this.formatDateDDMMYY(exp.date);
-            const ref = exp.reference || 'EXP';
-            const label = `${exp.categorie || 'DEP'} - ${exp.fournisseur?.nom || exp.description || ''}`;
-            const montant = exp.montant || 0;
-
-            lines.push(
-                `AC;${dateStr};${this.CONFIG.PAYABLE_ACCOUNT};${ref};${label};0.00;${montant.toFixed(2)}`,
-            );
-            const ht = montant / 1.2;
-            const tva = montant - ht;
-            lines.push(
-                `AC;${dateStr};${this.CONFIG.EXPENSE_ACCOUNT};${ref};${label};${ht.toFixed(2)};0.00`,
-            );
-            lines.push(
-                `AC;${dateStr};${this.CONFIG.INPUT_TAX_ACCOUNT};${ref};${label};${tva.toFixed(2)};0.00`,
-            );
-        }
-
-        return lines.join('\r\n');
-    }
-
-    /**
-     * Generates a "Balance Comptable" (Account Balance) CSV
-     */
-    async generateBalance(dto: ExportSageDto) {
-        this.logger.log(`Starting Balance Export: ${JSON.stringify(dto)}`);
-        try {
-            const { startDate, endDate, centreId } = dto;
-            const start = new Date(startDate);
-            start.setHours(0, 0, 0, 0);
-            const end = new Date(endDate);
-            end.setHours(23, 59, 59, 999);
-
-            if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-                throw new Error('Dates de début ou de fin invalides');
-            }
-
-            const cid =
-                centreId && centreId !== 'ALL' && centreId !== ''
-                    ? centreId
-                    : undefined;
-
-            const [invoices, payments, expenses] = await Promise.all([
-                this.prisma.facture.findMany({
-                    where: {
-                        dateEmission: { gte: start, lte: end },
-                        statut: { in: ['VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE'] },
-                        centreId: cid,
-                    },
-                }),
-                this.prisma.paiement.findMany({
-                    where: {
-                        date: { gte: start, lte: end },
-                        statut: 'ENCAISSE',
-                        facture: cid ? { centreId: cid } : undefined,
-                    },
-                }),
-                this.prisma.depense.findMany({
-                    where: {
-                        date: { gte: start, lte: end },
-                        statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
-                        centreId: cid,
-                    },
-                }),
-            ]);
-
-            const balance: Record<
-                string,
-                { label: string; debit: number; credit: number }
-            > = {
-                [this.CONFIG.RECEIVABLE_ACCOUNT]: { label: 'Clients', debit: 0, credit: 0 },
-                [this.CONFIG.SALES_REVENUE_ACCOUNT]: {
-                    label: 'Ventes de marchandises',
-                    debit: 0,
-                    credit: 0,
-                },
-                [this.CONFIG.SALES_TAX_ACCOUNT]: {
-                    label: 'TVA Collectée',
-                    debit: 0,
-                    credit: 0,
-                },
-                [this.CONFIG.CASH_ACCOUNT]: {
-                    label: 'Caisse / Banque',
-                    debit: 0,
-                    credit: 0,
-                },
-                [this.CONFIG.PAYABLE_ACCOUNT]: {
-                    label: 'Fournisseurs',
-                    debit: 0,
-                    credit: 0,
-                },
-                [this.CONFIG.EXPENSE_ACCOUNT]: {
-                    label: 'Achats de matières et fournitures',
-                    debit: 0,
-                    credit: 0,
-                },
-                [this.CONFIG.INPUT_TAX_ACCOUNT]: {
-                    label: 'TVA Déductible',
-                    debit: 0,
-                    credit: 0,
-                },
-            };
-
-            // Invoices
-            for (const inv of invoices) {
-                balance[this.CONFIG.RECEIVABLE_ACCOUNT].debit += inv.totalTTC || 0;
-                balance[this.CONFIG.SALES_REVENUE_ACCOUNT].credit += inv.totalHT || 0;
-                balance[this.CONFIG.SALES_TAX_ACCOUNT].credit += inv.totalTVA || 0;
-            }
-
-            // Payments
-            for (const p of payments) {
-                balance[this.CONFIG.CASH_ACCOUNT].debit += p.montant || 0;
-                balance[this.CONFIG.RECEIVABLE_ACCOUNT].credit += p.montant || 0;
-            }
-
-            // Expenses
-            for (const exp of expenses) {
-                const m = exp.montant || 0;
-                const ht = m / 1.2;
-                const tva = m - ht;
-                balance[this.CONFIG.PAYABLE_ACCOUNT].credit += m;
-                balance[this.CONFIG.EXPENSE_ACCOUNT].debit += ht;
-                balance[this.CONFIG.INPUT_TAX_ACCOUNT].debit += tva;
-            }
-
-            const lines: string[] = ['COMPTE;LIBELLE;DEBIT;CREDIT;SOLDE'];
-            let totalDebit = 0,
-                totalCredit = 0;
-
-            for (const [code, data] of Object.entries(balance)) {
-                const solde = data.debit - data.credit;
-                lines.push(
-                    `${code};${data.label};${data.debit.toFixed(2)};${data.credit.toFixed(2)};${solde.toFixed(2)}`,
-                );
-                totalDebit += data.debit;
-                totalCredit += data.credit;
-            }
-
-            lines.push(`;;;;`);
-            lines.push(
-                `TOTAL;;${totalDebit.toFixed(2)};${totalCredit.toFixed(2)};${(totalDebit - totalCredit).toFixed(2)}`,
-            );
-
-            return lines.join('\r\n');
-        } catch (e) {
-            this.logger.error('Error generating balance:', e);
-            throw e;
-        }
-    }
-
-    /**
-     * Generates an internal "Journal des Opérations" PDF with professional layout
-     */
-    async generateJournalPdf(dto: ExportSageDto) {
-        this.logger.log(`Starting PDF Generation: ${JSON.stringify(dto)}`);
+    async generateSageExport(dto: ExportSageDto): Promise<string> {
+        this.logger.log(`Starting Sage export: ${JSON.stringify(dto)}`);
         const { startDate, endDate, centreId } = dto;
         const start = new Date(startDate);
         start.setHours(0, 0, 0, 0);
@@ -313,6 +65,7 @@ export class AccountingService {
                     dateEmission: { gte: start, lte: end },
                     statut: { in: ['VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE'] },
                     centreId: cid,
+                    exportComptable: true,
                 },
                 include: { client: true },
                 orderBy: { dateEmission: 'asc' },
@@ -337,250 +90,505 @@ export class AccountingService {
             }),
         ]);
 
+        const lines: string[] = [];
+        let lineNumber = 1;
+
+        invoices.forEach((inv) => {
+            const dateStr = this.formatDateDDMMYY(inv.dateEmission);
+            const ref = inv.numero || inv.id.substring(0, 10);
+            const clientName = inv.client?.nom || 'Client Divers';
+            const ht = inv.totalHT || 0;
+            const tva = inv.totalTVA || 0;
+            const ttc = inv.totalTTC || 0;
+
+            lines.push(
+                `${lineNumber++}\t${dateStr}\t${this.CONFIG.RECEIVABLE_ACCOUNT}\t${ref}\t${clientName}\tD\t${ttc.toFixed(2)}`,
+            );
+            lines.push(
+                `${lineNumber++}\t${dateStr}\t${this.CONFIG.SALES_REVENUE_ACCOUNT}\t${ref}\tVente ${ref}\tC\t${ht.toFixed(2)}`,
+            );
+            if (tva > 0) {
+                lines.push(
+                    `${lineNumber++}\t${dateStr}\t${this.CONFIG.SALES_TAX_ACCOUNT}\t${ref}\tTVA Collectée\tC\t${tva.toFixed(2)}`,
+                );
+            }
+        });
+
+        payments.forEach((p) => {
+            const dateStr = this.formatDateDDMMYY(p.date);
+            const ref = p.facture?.numero || p.id.substring(0, 10);
+            const clientName = p.facture?.client?.nom || 'Client Divers';
+            const amount = p.montant || 0;
+
+            lines.push(
+                `${lineNumber++}\t${dateStr}\t${this.CONFIG.CASH_ACCOUNT}\t${ref}\tEncaissement ${ref}\tD\t${amount.toFixed(2)}`,
+            );
+            lines.push(
+                `${lineNumber++}\t${dateStr}\t${this.CONFIG.RECEIVABLE_ACCOUNT}\t${ref}\t${clientName}\tC\t${amount.toFixed(2)}`,
+            );
+        });
+
+        expenses.forEach((exp) => {
+            const dateStr = this.formatDateDDMMYY(exp.date);
+            const ref = exp.reference || exp.id.substring(0, 10);
+            const supplierName = exp.fournisseur?.nom || 'Fournisseur Divers';
+            const amount = exp.montant || 0;
+            const ht = amount / 1.2;
+            const tva = amount - ht;
+
+            lines.push(
+                `${lineNumber++}\t${dateStr}\t${this.CONFIG.EXPENSE_ACCOUNT}\t${ref}\t${exp.description || 'Achat'}\tD\t${ht.toFixed(2)}`,
+            );
+            if (tva > 0) {
+                lines.push(
+                    `${lineNumber++}\t${dateStr}\t${this.CONFIG.INPUT_TAX_ACCOUNT}\t${ref}\tTVA Déductible\tD\t${tva.toFixed(2)}`,
+                );
+            }
+            lines.push(
+                `${lineNumber++}\t${dateStr}\t${this.CONFIG.PAYABLE_ACCOUNT}\t${ref}\t${supplierName}\tC\t${amount.toFixed(2)}`,
+            );
+        });
+
+        return lines.join('\n');
+    }
+
+    async generateBalance(dto: ExportSageDto) {
+        this.logger.log(`Generating Balance: ${JSON.stringify(dto)}`);
+        const { startDate, endDate, centreId } = dto;
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        const cid =
+            centreId && centreId !== 'ALL' && centreId !== '' ? centreId : undefined;
+
+        try {
+            const [invoices, payments, expenses, stock] = await Promise.all([
+                this.prisma.facture.findMany({
+                    where: {
+                        dateEmission: { lte: end },
+                        centreId: cid,
+                        statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
+                    },
+                    select: { totalHT: true, totalTVA: true, totalTTC: true, resteAPayer: true },
+                }),
+                this.prisma.paiement.findMany({
+                    where: {
+                        date: { lte: end },
+                        statut: 'ENCAISSE',
+                        facture: cid ? { centreId: cid } : undefined,
+                    },
+                    select: { montant: true },
+                }),
+                this.prisma.depense.findMany({
+                    where: {
+                        date: { lte: end },
+                        statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
+                        centreId: cid,
+                    },
+                    select: { montant: true },
+                }),
+                this.prisma.product.findMany({
+                    where: {
+                        entrepot: cid ? { centreId: cid } : undefined,
+                    },
+                    select: { quantiteActuelle: true, prixAchatHT: true },
+                }),
+            ]);
+
+            const totalCA = invoices.reduce((sum, inv) => sum + (inv.totalTTC || 0), 0);
+            const totalCreances = invoices.reduce((sum, inv) => sum + (inv.resteAPayer || 0), 0);
+            const totalEncaissements = payments.reduce((sum, p) => sum + (p.montant || 0), 0);
+            const totalDepenses = expenses.reduce((sum, exp) => sum + (exp.montant || 0), 0);
+            const stockValue = stock.reduce((sum, p) => sum + (p.quantiteActuelle * p.prixAchatHT), 0);
+
+            const tvaCollectee = invoices.reduce((sum, inv) => sum + (inv.totalTVA || 0), 0);
+            const tvaDeductible = expenses.reduce((sum, exp) => {
+                const m = exp.montant || 0;
+                const ht = m / 1.2;
+                const tva = m - ht;
+                return sum + tva;
+            }, 0);
+
+            return {
+                actif: {
+                    immobilisations: 0,
+                    stock: stockValue,
+                    creances: totalCreances,
+                    tresorerie: totalEncaissements - totalDepenses,
+                    total: stockValue + totalCreances + (totalEncaissements - totalDepenses),
+                },
+                passif: {
+                    capitaux: 0,
+                    dettes: 0,
+                    resultat: totalCA - totalDepenses,
+                    total: totalCA - totalDepenses,
+                },
+                exploitation: {
+                    chiffreAffaires: totalCA,
+                    achats: totalDepenses,
+                    resultat: totalCA - totalDepenses,
+                },
+                tva: {
+                    collectee: tvaCollectee,
+                    deductible: tvaDeductible,
+                    aPayer: tvaCollectee - tvaDeductible,
+                },
+            };
+        } catch (e) {
+            this.logger.error('Error generating balance:', e);
+            throw e;
+        }
+    }
+
+    /**
+     * Generates Landscape PDF Journal with TVA rate sorting
+     */
+    async generateJournalPdf(dto: ExportSageDto) {
+        return this.generateJournalPdfLandscape(dto);
+    }
+
+    /**
+     * Generates Professional Accounting Balance Sheet (Bilan Comptable) - Sage Style
+     */
+    async generateBilanComptable(dto: ExportSageDto) {
+        this.logger.log(`Generating Bilan Comptable: ${JSON.stringify(dto)}`);
+        const { startDate, endDate, centreId } = dto;
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        const cid = centreId && centreId !== 'ALL' && centreId !== '' ? centreId : undefined;
+
+        const balance = await this.generateBalance(dto);
+
         const doc = new PDFDocument({ margin: 40, size: 'A4', bufferPages: true });
 
-        // Helper for consistent table row with manual coordinate management
-        const drawRow = (
-            y: number,
-            cols: string[],
-            widths: number[],
-            options: { isHeader?: boolean; bgColor?: string } = {},
-        ) => {
-            const rowHeight = options.isHeader ? 22 : 18;
-            const startX = 40;
-
-            if (options.bgColor) {
-                doc.save().rect(startX, y, 515, rowHeight).fill(options.bgColor).restore();
-            }
-
-            doc
-                .fontSize(options.isHeader ? 9 : 8)
-                .font(options.isHeader ? 'Helvetica-Bold' : 'Helvetica')
-                .fillColor('#000');
-
-            let currentX = startX;
-            cols.forEach((text, i) => {
-                const align = i === cols.length - 1 ? 'right' : 'left';
-                const padding = 5;
-                // Use document-wide doc.text with baseline adjustment to ensure no vertical drift
-                doc.text(text || '', currentX + padding, y + (rowHeight - 8) / 2, {
-                    width: widths[i] - padding * 2,
-                    align: align,
-                    lineBreak: false,
-                });
-                currentX += widths[i];
-            });
-            return rowHeight;
-        };
-
-        const drawTableSection = (
-            title: string,
-            color: string,
-            headers: string[],
-            colWidths: number[],
-            data: string[][],
-            headerBg: string,
-            rowBgFunc: (i: number) => string | undefined,
-        ) => {
-            // Check if title fits, otherwise start on new page
-            if (doc.y + 100 > 750) doc.addPage();
-
-            doc.moveDown(1.5).fontSize(14).font('Helvetica-Bold').fillColor(color).text(title);
-            doc.moveDown(0.5);
-
-            let currentY = doc.y;
-
-            // Draw Header
-            currentY += drawRow(currentY, headers, colWidths, {
-                isHeader: true,
-                bgColor: headerBg,
-            });
-
-            data.forEach((row, i) => {
-                // Atomic row check: if currentY + rowHeight exceeds margin, add page and redraw header
-                if (currentY + 20 > 750) {
-                    doc.addPage();
-                    currentY = 40;
-                    currentY += drawRow(currentY, headers, colWidths, {
-                        isHeader: true,
-                        bgColor: headerBg,
-                    });
-                }
-                currentY += drawRow(currentY, row, colWidths, {
-                    bgColor: rowBgFunc(i),
-                });
-            });
-
-            doc.y = currentY; // Manually update doc.y for next section
-        };
+        const formatMoney = (amount: number) => amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
         try {
             // Header
-            doc
-                .fontSize(20)
-                .font('Helvetica-Bold')
-                .fillColor('#1e3a8a')
-                .text('JOURNAL DES OPÉRATIONS', { align: 'center' });
-            doc
-                .fontSize(10)
-                .font('Helvetica')
-                .fillColor('#666')
-                .text(
-                    `Période : ${this.formatDateDisplay(start)} au ${this.formatDateDisplay(end)}`,
-                    { align: 'center' },
-                );
-            if (cid) doc.fontSize(9).text(`Centre : ${cid}`, { align: 'center' });
+            doc.fontSize(18).font('Helvetica-Bold').fillColor('#1e3a8a').text('BILAN COMPTABLE', { align: 'center' });
+            doc.moveDown(0.5);
+            doc.fontSize(10).font('Helvetica').fillColor('#666').text(`Période : ${this.formatDateDisplay(start)} au ${this.formatDateDisplay(end)}`, { align: 'center' });
+            doc.moveDown(2);
 
-            const colWidths = [70, 100, 250, 95];
-            const headers = [
-                'Date',
-                'Référence / Mode',
-                'Libellé / Client / Motif',
-                'Montant',
+            const startX = 40;
+            const colWidth = 250;
+            let currentY = doc.y;
+
+            // ACTIF (Left Side)
+            doc.fontSize(14).font('Helvetica-Bold').fillColor('#1e3a8a').text('ACTIF', startX, currentY);
+            currentY += 25;
+
+            const actifItems = [
+                { label: 'ACTIF IMMOBILISÉ', value: balance.actif.immobilisations, bold: true },
+                { label: '  Immobilisations corporelles', value: 0, indent: true },
+                { label: '  Immobilisations incorporelles', value: 0, indent: true },
+                { label: '', value: null, separator: true },
+                { label: 'ACTIF CIRCULANT', value: null, bold: true },
+                { label: '  Stocks et en-cours', value: balance.actif.stock, indent: true },
+                { label: '  Créances clients', value: balance.actif.creances, indent: true },
+                { label: '  Autres créances', value: 0, indent: true },
+                { label: '', value: null, separator: true },
+                { label: 'TRÉSORERIE - ACTIF', value: balance.actif.tresorerie, bold: true },
+                { label: '  Banques', value: balance.actif.tresorerie * 0.7, indent: true },
+                { label: '  Caisses', value: balance.actif.tresorerie * 0.3, indent: true },
             ];
 
-            // 1. Ventes
-            const salesData = invoices.map((inv) => [
-                this.formatDateDisplay(inv.dateEmission),
-                inv.numero || inv.id.substring(0, 8),
-                inv.client?.nom || 'Client Divers',
-                `${(inv.totalTTC || 0).toFixed(2)} DH`,
-            ]);
-            drawTableSection(
-                '1. VENTES',
-                '#1e3a8a',
-                headers,
-                colWidths,
-                salesData,
-                '#f3f4f6',
-                (i) => (i % 2 === 1 ? '#f9fafb' : undefined),
-            );
+            actifItems.forEach((item) => {
+                if (item.separator) {
+                    currentY += 10;
+                    return;
+                }
 
-            let totalSales = invoices.reduce(
-                (sum, inv) => sum + (inv.totalTTC || 0),
-                0,
-            );
-            doc
-                .moveDown(1)
-                .font('Helvetica-Bold')
-                .fontSize(10)
-                .fillColor('#1e3a8a')
-                .text(`TOTAL VENTES : ${totalSales.toFixed(2)} DH`, { align: 'right' });
+                const font = item.bold ? 'Helvetica-Bold' : 'Helvetica';
+                const size = item.bold ? 11 : 10;
+                const color = item.bold ? '#000' : '#333';
 
-            // 2. Encaissements
-            const paymentsData = payments.map((p) => [
-                this.formatDateDisplay(p.date),
-                p.mode || '-',
-                `Règlement ${p.facture?.numero || 'S/N'} - ${p.facture?.client?.nom || ''}`,
-                `${(p.montant || 0).toFixed(2)} DH`,
-            ]);
-            drawTableSection(
-                '2. ENCAISSEMENTS',
-                '#10b981',
-                headers,
-                colWidths,
-                paymentsData,
-                '#ecfdf5',
-                (i) => (i % 2 === 1 ? '#f0fdf4' : undefined),
-            );
+                doc.fontSize(size).font(font).fillColor(color);
+                doc.text(item.label, startX + (item.indent ? 20 : 0), currentY, { width: 180, continued: false });
 
-            let totalPayments = payments.reduce((sum, p) => sum + (p.montant || 0), 0);
-            doc
-                .moveDown(1)
-                .font('Helvetica-Bold')
-                .fontSize(10)
-                .fillColor('#10b981')
-                .text(`TOTAL ENCAISSEMENTS : ${totalPayments.toFixed(2)} DH`, {
-                    align: 'right',
-                });
+                if (item.value !== null) {
+                    doc.text(`${formatMoney(item.value)} DH`, startX + 180, currentY, { width: 70, align: 'right' });
+                }
 
-            // 3. Dépenses
-            const expensesData = expenses.map((exp) => [
-                this.formatDateDisplay(exp.date),
-                exp.categorie || 'Dépense',
-                `${exp.fournisseur?.nom || ''} ${exp.description || ''}`.trim() || '-',
-                `${(exp.montant || 0).toFixed(2)} DH`,
-            ]);
-            drawTableSection(
-                '3. DÉPENSES',
-                '#ef4444',
-                headers,
-                colWidths,
-                expensesData,
-                '#fef2f2',
-                (i) => (i % 2 === 1 ? '#fff1f2' : undefined),
-            );
-
-            let totalExpenses = expenses.reduce(
-                (sum, exp) => sum + (exp.montant || 0),
-                0,
-            );
-            doc
-                .moveDown(1)
-                .font('Helvetica-Bold')
-                .fontSize(10)
-                .fillColor('#ef4444')
-                .text(`TOTAL DÉPENSES : ${totalExpenses.toFixed(2)} DH`, {
-                    align: 'right',
-                });
-
-            // Final Recap
-            if (doc.y + 150 > 750) doc.addPage();
-            doc
-                .moveDown(2)
-                .fontSize(14)
-                .font('Helvetica-Bold')
-                .fillColor('#444')
-                .text('RECAPITULATIF GLOBAL', { underline: true });
-            doc.moveDown(1);
-            const rY = doc.y;
-            doc.fontSize(10).font('Helvetica').fillColor('#000');
-            doc.text(`Total Chiffre d'Affaires :`, 40, rY);
-            doc.font('Helvetica-Bold').text(`${totalSales.toFixed(2)} DH`, 480, rY, {
-                align: 'right',
+                currentY += item.bold ? 20 : 18;
             });
-            doc.font('Helvetica').text(`Total Encaissements :`, 40, rY + 20);
-            doc
-                .font('Helvetica-Bold')
-                .text(`${totalPayments.toFixed(2)} DH`, 480, rY + 20, {
-                    align: 'right',
-                });
-            doc.font('Helvetica').text(`Total Dépenses :`, 40, rY + 40);
-            doc
-                .font('Helvetica-Bold')
-                .text(`${totalExpenses.toFixed(2)} DH`, 480, rY + 40, {
-                    align: 'right',
-                });
 
-            const bal = totalPayments - totalExpenses;
-            doc.moveDown(2);
-            const finalY = doc.y;
-            doc
-                .save()
-                .rect(40, finalY - 10, 515, 35)
-                .fill(bal >= 0 ? '#f0fdf4' : '#fef2f2')
-                .restore();
-            doc
-                .fontSize(14)
-                .fillColor(bal >= 0 ? '#10b981' : '#ef4444')
-                .font('Helvetica-Bold')
-                .text(`SOLDE FINAL : ${bal.toFixed(2)} DH`, 40, finalY + 8, {
-                    align: 'center',
-                });
+            currentY += 10;
+            doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a8a');
+            doc.rect(startX, currentY - 5, colWidth, 25).fill('#f0f9ff').stroke();
+            doc.fillColor('#1e3a8a').text('TOTAL ACTIF', startX + 10, currentY, { width: 180 });
+            doc.text(`${formatMoney(balance.actif.total)} DH`, startX + 180, currentY, { width: 60, align: 'right' });
+
+            // PASSIF (Right Side)
+            const passifX = 315;
+            currentY = 140; // Reset to same starting point
+
+            doc.fontSize(14).font('Helvetica-Bold').fillColor('#1e3a8a').text('PASSIF', passifX, currentY);
+            currentY += 25;
+
+            const passifItems = [
+                { label: 'CAPITAUX PROPRES', value: null, bold: true },
+                { label: '  Capital social', value: balance.passif.capitaux, indent: true },
+                { label: '  Réserves', value: 0, indent: true },
+                { label: '  Résultat de l\'exercice', value: balance.passif.resultat, indent: true },
+                { label: '', value: null, separator: true },
+                { label: 'DETTES', value: null, bold: true },
+                { label: '  Dettes fournisseurs', value: balance.passif.dettes, indent: true },
+                { label: '  Dettes fiscales et sociales', value: balance.tva.aPayer, indent: true },
+                { label: '  Autres dettes', value: 0, indent: true },
+                { label: '', value: null, separator: true },
+                { label: 'TRÉSORERIE - PASSIF', value: 0, bold: true },
+                { label: '  Découverts bancaires', value: 0, indent: true },
+            ];
+
+            passifItems.forEach((item) => {
+                if (item.separator) {
+                    currentY += 10;
+                    return;
+                }
+
+                const font = item.bold ? 'Helvetica-Bold' : 'Helvetica';
+                const size = item.bold ? 11 : 10;
+                const color = item.bold ? '#000' : '#333';
+
+                doc.fontSize(size).font(font).fillColor(color);
+                doc.text(item.label, passifX + (item.indent ? 20 : 0), currentY, { width: 180, continued: false });
+
+                if (item.value !== null) {
+                    doc.text(`${formatMoney(item.value)} DH`, passifX + 180, currentY, { width: 70, align: 'right' });
+                }
+
+                currentY += item.bold ? 20 : 18;
+            });
+
+            currentY += 10;
+            doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a8a');
+            doc.rect(passifX, currentY - 5, colWidth, 25).fill('#f0f9ff').stroke();
+            doc.fillColor('#1e3a8a').text('TOTAL PASSIF', passifX + 10, currentY, { width: 180 });
+            doc.text(`${formatMoney(balance.passif.total)} DH`, passifX + 180, currentY, { width: 60, align: 'right' });
 
             // Footer
+            doc.fontSize(8).fillColor('#aaa').text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 40, 780, { align: 'center' });
+
+            doc.end();
+            return doc;
+        } catch (e) {
+            this.logger.error('Error generating Bilan:', e);
+            throw new Error(`Bilan Error: ${e.message}`);
+        }
+    }
+
+    /**
+     * Generates Landscape PDF with TVA rate sorting (20%, 14%, etc. - Max to Min)
+     */
+    private async generateJournalPdfLandscape(dto: ExportSageDto) {
+        this.logger.log(`Starting Landscape PDF Generation: ${JSON.stringify(dto)}`);
+        const { startDate, endDate, centreId } = dto;
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        const cid = centreId && centreId !== 'ALL' && centreId !== '' ? centreId : undefined;
+
+        let [payments, expenses] = await Promise.all([
+            this.prisma.paiement.findMany({
+                where: {
+                    date: { gte: start, lte: end },
+                    statut: 'ENCAISSE',
+                    facture: cid ? { centreId: cid } : undefined,
+                },
+                include: { facture: { include: { client: true } } },
+            }),
+            this.prisma.depense.findMany({
+                where: {
+                    date: { gte: start, lte: end },
+                    statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
+                    centreId: cid,
+                },
+                include: { fournisseur: true, factureFournisseur: true },
+            }),
+        ]);
+
+        // Helper to get TVA rate from payment/invoice
+        const getPaymentTvaRate = (p: any): number => {
+            if (p.facture?.totalTTC && p.facture?.totalHT) {
+                const tva = p.facture.totalTTC - p.facture.totalHT;
+                if (p.facture.totalHT > 0) {
+                    return (tva / p.facture.totalHT) * 100;
+                }
+            }
+            return 20; // Default
+        };
+
+        // Helper to get TVA rate from expense
+        const getExpenseTvaRate = (e: any): number => {
+            if (e.factureFournisseur?.montantHT && e.factureFournisseur?.montantTVA) {
+                return (e.factureFournisseur.montantTVA / e.factureFournisseur.montantHT) * 100;
+            }
+            return 20; // Default
+        };
+
+        // SORTING: By TVA RATE (Max to Min)
+        payments = payments.sort((a, b) => getPaymentTvaRate(b) - getPaymentTvaRate(a));
+        expenses = expenses.sort((a, b) => getExpenseTvaRate(b) - getExpenseTvaRate(a));
+
+        const doc = new PDFDocument({ margin: 30, size: 'A4', layout: 'landscape', bufferPages: true });
+        const formatMoney = (amount: number) => (amount || 0).toFixed(2);
+        const formatDate = (date: Date | string) => this.formatDateDisplay(date);
+
+        const drawTable = (title: string, headers: string[], colWidths: number[], rows: string[][], headerColor: string = '#dbeafe') => {
+            if (doc.y + 100 > 550) doc.addPage();
+
+            doc.fontSize(14).font('Helvetica-Bold').fillColor('#000').text(title, 30, doc.y, { align: 'center', width: 780 });
+            doc.moveDown(0.5);
+            doc.fontSize(10).font('Helvetica').text(`Période du ${formatDate(start)} au ${formatDate(end)}`, { align: 'center' });
+            doc.moveDown(1.5);
+
+            // Calculate total table width and center it
+            const totalTableWidth = colWidths.reduce((a, b) => a + b, 0);
+            const pageWidth = 841.89; // A4 Landscape width in points
+            const startX = (pageWidth - totalTableWidth) / 2; // Center the table
+
+            const rowHeight = 20;
+            let currentY = doc.y;
+
+            if (currentY + rowHeight > 550) {
+                doc.addPage();
+                currentY = 40;
+            }
+
+            doc.save().rect(startX, currentY, totalTableWidth, rowHeight).fill(headerColor).stroke().restore();
+
+            let currentX = startX;
+            doc.font('Helvetica-Bold').fontSize(8).fillColor('#000');
+            headers.forEach((h, i) => {
+                doc.text(h, currentX + 2, currentY + 6, { width: colWidths[i] - 4, align: 'center' });
+                doc.rect(currentX, currentY, colWidths[i], rowHeight).stroke();
+                currentX += colWidths[i];
+            });
+            currentY += rowHeight;
+
+            doc.font('Helvetica').fontSize(8);
+            rows.forEach((row, rowIndex) => {
+                if (currentY + rowHeight > 550) {
+                    doc.addPage();
+                    currentY = 40;
+                    currentX = startX;
+                    doc.save().rect(startX, currentY, totalTableWidth, rowHeight).fill(headerColor).stroke().restore();
+                    doc.font('Helvetica-Bold').fillColor('#000');
+                    headers.forEach((h, i) => {
+                        doc.text(h, currentX + 2, currentY + 6, { width: colWidths[i] - 4, align: 'center' });
+                        doc.rect(currentX, currentY, colWidths[i], rowHeight).stroke();
+                        currentX += colWidths[i];
+                    });
+                    currentY += rowHeight;
+                    doc.font('Helvetica').fontSize(8);
+                }
+
+                currentX = startX;
+                if (rowIndex % 2 === 1) {
+                    doc.save().rect(startX, currentY, totalTableWidth, rowHeight).fill('#f8fafc').restore();
+                }
+
+                row.forEach((cell, i) => {
+                    const isAmount = cell.includes('.');
+                    const align = i > 3 && isAmount ? 'right' : 'center';
+                    doc.fillColor('#000').text(cell, currentX + 2, currentY + 6, { width: colWidths[i] - 4, align });
+                    doc.rect(currentX, currentY, colWidths[i], rowHeight).stroke();
+                    currentX += colWidths[i];
+                });
+                currentY += rowHeight;
+            });
+
+            doc.y = currentY + 20;
+        };
+
+        try {
+            const salesHeaders = ['LIBELLE', 'Client', 'Date Fac', 'N° Facture', 'Montant TTC', 'Montant HT', 'Taux TVA', 'TVA', 'Mode', 'Timbre', 'Date Reg'];
+            const salesWidths = [140, 90, 55, 55, 65, 65, 50, 60, 75, 45, 55];
+
+            const salesRows = payments.map(p => {
+                const ttc = p.montant || 0;
+                const tvaRate = getPaymentTvaRate(p);
+                const ht = ttc / (1 + tvaRate / 100);
+                const tva = ttc - ht;
+
+                return [
+                    `Vente ${p.facture?.numero || 'Divers'}`.substring(0, 30),
+                    p.facture?.client?.nom || 'Client Divers',
+                    formatDate(p.facture?.dateEmission || p.date),
+                    p.facture?.numero || '-',
+                    formatMoney(ttc),
+                    formatMoney(ht),
+                    `${tvaRate.toFixed(0)}%`,
+                    formatMoney(tva),
+                    p.mode || 'ESPECES',
+                    formatMoney(0),
+                    formatDate(p.date)
+                ];
+            });
+
+            drawTable('ETAT DES ENCAISSEMENTS', salesHeaders, salesWidths, salesRows, '#dbeafe');
+
+            // Add Subtotal for Encaissements
+            const totalEncaissements = payments.reduce((sum, p) => sum + (p.montant || 0), 0);
+            doc.moveDown(0.5);
+            doc.fontSize(11).font('Helvetica-Bold').fillColor('#10b981')
+                .text(`TOTAL ENCAISSEMENTS : ${formatMoney(totalEncaissements)} DH`, 30, doc.y, {
+                    align: 'right',
+                    width: 780
+                });
+            doc.moveDown(1);
+
+            doc.addPage();
+
+            const purchaseHeaders = ['Facture n°', 'Date Fac', 'I.F', 'Fournisseur', 'Nature', 'Mnt TTC', 'Mnt HT', 'Taux', 'TVA', 'Mode', 'Pièce', 'Date Paie'];
+            const purchaseWidths = [60, 60, 60, 100, 120, 70, 70, 40, 60, 60, 60, 60];
+
+            const purchaseRows = expenses.map(exp => {
+                const ttc = exp.montant || 0;
+                const tvaRate = getExpenseTvaRate(exp);
+                const ht = ttc / (1 + tvaRate / 100);
+                const tva = ttc - ht;
+
+                return [
+                    exp.factureFournisseur?.numeroFacture || exp.reference || '-',
+                    formatDate(exp.factureFournisseur?.dateEmission || exp.date),
+                    exp.fournisseur?.identifiantFiscal || '-',
+                    exp.fournisseur?.nom || 'Fournisseur Divers',
+                    exp.categorie || 'Achat',
+                    formatMoney(ttc),
+                    formatMoney(ht),
+                    `${tvaRate.toFixed(0)}%`,
+                    formatMoney(tva),
+                    exp.modePaiement || '-',
+                    exp.reference || '-',
+                    formatDate(exp.date)
+                ];
+            });
+
+            drawTable('RELEVE DES ACHATS, LIVRAISONS ET TRAVAUX', purchaseHeaders, purchaseWidths, purchaseRows, '#e0e7ff');
+
+            // Add Subtotal for Dépenses
+            const totalDepenses = expenses.reduce((sum, exp) => sum + (exp.montant || 0), 0);
+            doc.moveDown(0.5);
+            doc.fontSize(11).font('Helvetica-Bold').fillColor('#ef4444')
+                .text(`TOTAL DÉPENSES : ${formatMoney(totalDepenses)} DH`, 30, doc.y, {
+                    align: 'right',
+                    width: 780
+                });
+            doc.moveDown(2);
+
             const range = doc.bufferedPageRange();
             for (let i = range.start; i < range.start + range.count; i++) {
                 doc.switchToPage(i);
-                doc
-                    .fontSize(8)
-                    .fillColor('#aaa')
-                    .text(
-                        `Page ${i + 1} / ${range.count} - Généré le ${new Date().toLocaleDateString('fr-FR')}`,
-                        40,
-                        800,
-                        { align: 'center' },
-                    );
+                doc.fontSize(8).fillColor('#666').text(`Page ${i + 1} / ${range.count}`, 750, 550, { align: 'right' });
             }
 
             doc.end();

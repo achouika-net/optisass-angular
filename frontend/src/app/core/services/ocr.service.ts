@@ -88,15 +88,50 @@ export class OcrService {
                     return results;
                 };
 
-                // 1. Parsing Robuste V3 (Hybrid: Brace Counting + Regex Extraction)
+                // 1. Parsing Robuste V4 (Hybrid: Brace Counting + Regex Extraction + Smart Merging)
                 const extractHybrid = (text: string): any[] => {
                     const uniqueItems = new Map<string, any>();
 
                     const addIfValid = (item: any) => {
-                        if (item && typeof item === 'object' && (item.reference || item.marque || item.designation_brute || item.code)) {
-                            // Utiliser un index unique pour éviter de supprimer des doublons légitimes
-                            const uniqueKey = `${uniqueItems.size}`; // Simple compteur
+                        // Validation: Au minimum référence OU marque OU code
+                        const hasIdentity = item.reference || item.marque || item.code;
+                        if (!item || typeof item !== 'object' || !hasIdentity) return;
+
+                        // Clé unique basée sur le contenu réel (référence + marque + code)
+                        const uniqueKey = `${item.reference || ''}_${item.marque || ''}_${item.code || ''}`.toLowerCase().trim();
+
+                        // Détection des champs RPM
+                        const hasRpmData = item.couleur || item.calibre || item.pont || item.materiau || item.forme || item.genre;
+
+                        // Si la clé existe déjà, FUSIONNER au lieu de remplacer
+                        if (uniqueItems.has(uniqueKey)) {
+                            const existing = uniqueItems.get(uniqueKey)!;
+                            // Merge intelligent: Garder les valeurs non-vides
+                            uniqueItems.set(uniqueKey, {
+                                ...existing,
+                                ...item, // Les nouvelles valeurs écrasent les anciennes
+                                // Mais on garde les anciennes si les nouvelles sont vides/undefined
+                                reference: item.reference || existing.reference,
+                                marque: item.marque || existing.marque,
+                                code: item.code || existing.code,
+                                couleur: item.couleur || existing.couleur,
+                                calibre: item.calibre || existing.calibre,
+                                pont: item.pont || existing.pont,
+                                materiau: item.materiau || existing.materiau,
+                                forme: item.forme || existing.forme,
+                                genre: item.genre || existing.genre,
+                                designation_brute: item.designation_brute || existing.designation_brute,
+                                quantite: item.quantite || existing.quantite,
+                                prix_unitaire: item.prix_unitaire || existing.prix_unitaire,
+                                remise: item.remise || existing.remise
+                            });
+                            console.log('🔄 OCR: Fusion de données pour:', uniqueKey);
+                        } else {
                             uniqueItems.set(uniqueKey, item);
+                            // Log warning si données RPM manquantes
+                            if (!hasRpmData) {
+                                console.warn('⚠️ OCR: Article sans données RPM détecté:', item);
+                            }
                         }
                     };
 
@@ -136,7 +171,24 @@ export class OcrService {
                     const allItems = extractHybrid(n8nResponse);
                     if (allItems.length > 0) {
                         data = { articles: allItems };
-                        console.log(`✨ OCR: Extracted ${allItems.length} unique items via Hybrid Parser V3.`);
+                        console.log(`✨ OCR: Extracted ${allItems.length} unique items via Hybrid Parser V4.`);
+
+                        // Log détaillé des champs manquants pour debugging
+                        allItems.forEach((item, idx) => {
+                            const missing = [];
+                            if (!item.couleur) missing.push('couleur');
+                            if (!item.calibre) missing.push('calibre');
+                            if (!item.pont) missing.push('pont');
+                            if (!item.materiau) missing.push('materiau');
+                            if (!item.forme) missing.push('forme');
+                            if (!item.genre) missing.push('genre');
+
+                            if (missing.length > 0) {
+                                console.warn(`⚠️ OCR: Article ${idx + 1} (${item.reference || item.marque}) manque: ${missing.join(', ')}`);
+                            } else {
+                                console.log(`✅ OCR: Article ${idx + 1} (${item.reference || item.marque}) - Données RPM complètes`);
+                            }
+                        });
                     }
                 }
 
@@ -197,7 +249,13 @@ export class OcrService {
 
                 console.log('📋 OCR: Invoice metadata:', metadata);
 
-                return { ...(data || {}), ...metadata, source: 'n8n' };
+                // 🚀 DERNIER RECOURS : RECOUVREMENT RPM LOGIQUE (SÉCURITÉ FINALE)
+                const finalResult = { ...(data || {}), ...metadata, source: 'n8n' };
+                if (finalResult.articles && Array.isArray(finalResult.articles)) {
+                    finalResult.articles = finalResult.articles.map((item: any) => this.recoverRpmFromText(item));
+                }
+
+                return finalResult;
             } catch (err: any) {
                 console.warn('⚠️ OCR: n8n failed', err);
                 return {
@@ -243,6 +301,11 @@ export class OcrService {
 
             // 4. Structured Data Extraction
             const extracted = this.extractData(combinedText);
+
+            // 🚀 SÉCURITÉ RPM LOCALE AUSSI
+            if (extracted && extracted.lines) {
+                extracted.lines = extracted.lines.map((l: any) => this.recoverRpmFromText(l));
+            }
 
             await worker.terminate();
 
@@ -567,6 +630,61 @@ export class OcrService {
         );
 
         return result;
+    }
+
+    /**
+     * Système de secours déterministe et intelligent pour extraire les RPM (Calibre/Pont)
+     * et la Marque à partir d'une désignation brute.
+     */
+    private recoverRpmFromText(item: any): any {
+        if (!item) return item;
+
+        // Préparation du texte à fouiller
+        const ref = (item.reference || "").toString();
+        const brand = (item.marque || "").toString();
+        const desc = (item.designation_brute || item.designation || "").toString();
+        const fullText = ` ${ref} ${brand} ${desc} `.toUpperCase().replace(/,/g, '.');
+
+        // 1. DÉTECTION GÉNÉRIQUE DE LA MARQUE (Si vide ou "SANS MARQUE")
+        if (!item.marque || item.marque.toLowerCase().includes("sans marque") || item.marque === "À VÉRIFIER") {
+            const commonBrands = [
+                "RAY-BAN", "GUCCI", "PRADA", "OAKLEY", "VOGUE", "CARVEN", "POLICE", "CH-HER",
+                "BOSS", "DIOR", "CHANEL", "ESPRIT", "ELLE", "FESTINA", "IKKS", "SEIKO", "CHARMANT",
+                "LACOSTE", "NIKE", "CALVIN KLEIN", "TOMMY HILFIGER", "VERSACE", "ARMANI", "LONGCHAMP"
+            ];
+            for (const b of commonBrands) {
+                if (fullText.includes(" " + b + " ")) {
+                    item.marque = b;
+                    break;
+                }
+            }
+        }
+
+        // 2. DÉTECTION DES RPM (Calibre / Pont)
+        // Stratégie : On cherche 2 nombres séparés par un espace/case/tiret
+        // Mais ATTENTION : on restreint les valeurs pour éviter de prendre des prix (ex: .80 ou .00)
+        // Calibre : 40 à 66 | Pont : 14 à 24
+        // On cherche un motif qui ressemble à "54 18" ou "54-18" ou ".54.18"
+        const rpmRegex = /(?:\s|^|\.)(4[0-9]|5[0-9]|6[0-6])[\s\-\[\]xX\*\/]{1,3}(1[4-9]|2[0-4])(?:\s|$|\.)/;
+
+        let match = fullText.match(rpmRegex);
+
+        if (match) {
+            // On ne remplace que si c'est vide ou '0' ou '00'
+            const isMissing = (v: any) => !v || v === '0' || v === 0 || v === "" || v === "00";
+
+            if (isMissing(item.calibre)) item.calibre = match[1];
+            if (isMissing(item.pont)) item.pont = match[2];
+            console.log(`🛡️ OCR: Récupération locale V2 pour ${item.reference}: ${match[1]}-${match[2]}`);
+        }
+
+        // 3. NETTOYAGE DE LA RÉFÉRENCE (Si elle contient encore la marque)
+        if (item.marque && item.reference && item.reference.toUpperCase().startsWith(item.marque.toUpperCase())) {
+            item.reference = item.reference.substring(item.marque.length).trim();
+            if (item.reference.startsWith('-')) item.reference = item.reference.substring(1).trim();
+        }
+
+        return item;
     }
 
     /**
