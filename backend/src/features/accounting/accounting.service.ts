@@ -526,7 +526,7 @@ export class AccountingService {
         const formatMoney = (amount: number) => (amount || 0).toFixed(2);
         const formatDate = (date: Date | string) => this.formatDateDisplay(date);
 
-        const drawTable = (title: string, headers: string[], colWidths: number[], rows: string[][], headerColor: string = '#dbeafe') => {
+        const drawTable = (title: string, headers: string[], colWidths: number[], rows: string[][], totals: { [key: number]: number }, headerColor: string = '#dbeafe') => {
             if (doc.y + 100 > 550) doc.addPage();
 
             doc.fontSize(14).font('Helvetica-Bold').fillColor('#000').text(title, 30, doc.y, { align: 'center', width: 780 });
@@ -580,18 +580,59 @@ export class AccountingService {
                 currentY += rowHeight;
             });
 
-            doc.y = currentY + 20;
+            // --- Column-Aligned Subtotals ---
+            if (currentY + rowHeight > 550) {
+                doc.addPage();
+                currentY = 40;
+            }
+
+            // Draw Totals Row Background
+            const totalsColor = headerColor === '#dbeafe' ? '#10b981' : '#ef4444'; // Green for Sales, Red for Expenses
+            const textColor = '#ffffff';
+
+            doc.save().rect(startX, currentY, totalTableWidth, rowHeight).fill(totalsColor).stroke().restore();
+
+            let currentX = startX;
+            doc.font('Helvetica-Bold').fontSize(8).fillColor(textColor);
+
+            // "TOTAUX" label in first column
+            doc.text("TOTAUX", currentX + 2, currentY + 6, { width: colWidths[0] - 4, align: 'left' });
+            doc.rect(currentX, currentY, colWidths[0], rowHeight).stroke();
+            currentX += colWidths[0];
+
+            // Loop through other columns
+            for (let i = 1; i < colWidths.length; i++) {
+                if (totals[i] !== undefined) {
+                    const val = formatMoney(totals[i]);
+                    doc.text(val, currentX + 2, currentY + 6, { width: colWidths[i] - 4, align: 'right' });
+                }
+                doc.rect(currentX, currentY, colWidths[i], rowHeight).stroke();
+                currentX += colWidths[i];
+            }
+
+            doc.y = currentY + 30; // Move cursor well below table
         };
 
         try {
+            // --- ENCAISSEMENTS ---
             const salesHeaders = ['LIBELLE', 'Client', 'Date Fac', 'N° Facture', 'Montant TTC', 'Montant HT', 'Taux TVA', 'TVA', 'Mode', 'Timbre', 'Date Reg'];
             const salesWidths = [140, 90, 55, 55, 65, 65, 50, 60, 75, 45, 55];
+
+            let totalSalesTTC = 0;
+            let totalSalesHT = 0;
+            let totalSalesTVA = 0;
+            let totalSalesTimbre = 0; // If needed
 
             const salesRows = payments.map(p => {
                 const ttc = p.montant || 0;
                 const tvaRate = getPaymentTvaRate(p);
                 const ht = ttc / (1 + tvaRate / 100);
                 const tva = ttc - ht;
+
+                totalSalesTTC += ttc;
+                totalSalesHT += ht;
+                totalSalesTVA += tva;
+
                 return [
                     `Vente ${p.facture?.numero || 'Divers'}`.substring(0, 30),
                     p.facture?.client?.nom || 'Client Divers',
@@ -607,27 +648,37 @@ export class AccountingService {
                 ];
             });
 
-            drawTable('ETAT DES ENCAISSEMENTS', salesHeaders, salesWidths, salesRows, '#dbeafe');
+            // Totals map by column index
+            // TTC: 4, HT: 5, TVA: 7, Timbre: 9
+            const salesTotals = {
+                4: totalSalesTTC,
+                5: totalSalesHT,
+                7: totalSalesTVA,
+                9: 0 // Timbre
+            };
 
-            // Add Subtotal for Encaissements with Height Check
-            const totalEncaissements = payments.reduce((sum, p) => sum + (p.montant || 0), 0);
-            if (doc.y > 500) doc.addPage(); // Force page break if near bottom
-
-            doc.moveDown(0.5);
-            doc.fontSize(11).font('Helvetica-Bold').fillColor('#10b981')
-                .text(`TOTAL ENCAISSEMENTS : ${formatMoney(totalEncaissements)} DH`, 30, doc.y, { align: 'right', width: 780 });
-            doc.moveDown(1);
+            drawTable('ETAT DES ENCAISSEMENTS', salesHeaders, salesWidths, salesRows, salesTotals, '#dbeafe');
 
             doc.addPage();
 
+            // --- DEPENSES ---
             const purchaseHeaders = ['Facture n°', 'Date Fac', 'I.F', 'Fournisseur', 'Nature', 'Mnt TTC', 'Mnt HT', 'Taux', 'TVA', 'Mode', 'Pièce', 'Date Paie'];
             const purchaseWidths = [60, 60, 60, 100, 120, 70, 70, 40, 60, 60, 60, 60];
+
+            let totalPurchasesTTC = 0;
+            let totalPurchasesHT = 0;
+            let totalPurchasesTVA = 0;
 
             const purchaseRows = expenses.map(exp => {
                 const ttc = exp.montant || 0;
                 const tvaRate = getExpenseTvaRate(exp);
                 const ht = ttc / (1 + tvaRate / 100);
                 const tva = ttc - ht;
+
+                totalPurchasesTTC += ttc;
+                totalPurchasesHT += ht;
+                totalPurchasesTVA += tva;
+
                 return [
                     exp.factureFournisseur?.numeroFacture || exp.reference || '-',
                     formatDate(exp.factureFournisseur?.dateEmission || exp.date),
@@ -644,16 +695,15 @@ export class AccountingService {
                 ];
             });
 
-            drawTable('RELEVE DES ACHATS, LIVRAISONS ET TRAVAUX', purchaseHeaders, purchaseWidths, purchaseRows, '#e0e7ff');
+            // Totals map by column index
+            // TTC: 5, HT: 6, TVA: 8
+            const purchaseTotals = {
+                5: totalPurchasesTTC,
+                6: totalPurchasesHT,
+                8: totalPurchasesTVA
+            };
 
-            // Add Subtotal for Dépenses with Height Check
-            const totalDepenses = expenses.reduce((sum, exp) => sum + (exp.montant || 0), 0);
-            if (doc.y > 500) doc.addPage();
-
-            doc.moveDown(0.5);
-            doc.fontSize(11).font('Helvetica-Bold').fillColor('#ef4444')
-                .text(`TOTAL DÉPENSES : ${formatMoney(totalDepenses)} DH`, 30, doc.y, { align: 'right', width: 780 });
-            doc.moveDown(2);
+            drawTable('RELEVE DES ACHATS, LIVRAISONS ET TRAVAUX', purchaseHeaders, purchaseWidths, purchaseRows, purchaseTotals, '#e0e7ff');
 
             const range = doc.bufferedPageRange();
             for (let i = range.start; i < range.start + range.count; i++) {
