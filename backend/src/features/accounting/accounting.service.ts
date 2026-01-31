@@ -713,6 +713,96 @@ export class AccountingService {
 
             drawTable('RELEVE DES ACHATS, LIVRAISONS ET TRAVAUX', purchaseHeaders, purchaseWidths, purchaseRows, purchaseTotals, '#e0e7ff');
 
+            // --- RECAPITULATIF SECTION ---
+            doc.addPage();
+            doc.fontSize(16).font('Helvetica-Bold').fillColor('#000').text('RÉCAPITULATIF', 30, 40, { align: 'center', width: 780 });
+            doc.moveDown(2);
+
+            // AGGREGATION LOGIC
+            const salesByMode: { [key: string]: number } = {};
+            const salesByTva: { [key: number]: { ht: number, tva: number } } = {};
+
+            payments.forEach(p => {
+                const mode = p.mode || 'AUTRE';
+                salesByMode[mode] = (salesByMode[mode] || 0) + (p.montant || 0);
+
+                const tvaRate = getPaymentTvaRate(p);
+                const ttc = p.montant || 0;
+                const ht = ttc / (1 + tvaRate / 100);
+                const tva = ttc - ht;
+
+                if (!salesByTva[tvaRate]) salesByTva[tvaRate] = { ht: 0, tva: 0 };
+                salesByTva[tvaRate].ht += ht;
+                salesByTva[tvaRate].tva += tva;
+            });
+
+            const expensesByMode: { [key: string]: number } = {};
+            const expensesByTva: { [key: number]: { ht: number, tva: number } } = {};
+
+            expenses.forEach(e => {
+                const mode = e.modePaiement || 'AUTRE';
+                expensesByMode[mode] = (expensesByMode[mode] || 0) + (e.montant || 0);
+
+                const tvaRate = getExpenseTvaRate(e);
+                const ttc = e.montant || 0;
+                const ht = ttc / (1 + tvaRate / 100);
+                const tva = ttc - ht;
+
+                if (!expensesByTva[tvaRate]) expensesByTva[tvaRate] = { ht: 0, tva: 0 };
+                expensesByTva[tvaRate].ht += ht;
+                expensesByTva[tvaRate].tva += tva;
+            });
+
+            const drawRecapTable = (title: string, x: number, y: number, headers: string[], rows: string[][], color: string) => {
+                doc.fontSize(10).font('Helvetica-Bold').fillColor('#000').text(title, x, y);
+                y += 15;
+                const colWidth = 100;
+
+                // Header
+                doc.save().rect(x, y, headers.length * colWidth, 20).fill(color).stroke().restore();
+                headers.forEach((h, i) => {
+                    doc.fillColor('#000').text(h, x + (i * colWidth) + 5, y + 6);
+                });
+                y += 20;
+
+                // Rows
+                doc.font('Helvetica');
+                rows.forEach(row => {
+                    row.forEach((cell, i) => {
+                        doc.rect(x + (i * colWidth), y, colWidth, 20).stroke();
+                        doc.text(cell, x + (i * colWidth) + 5, y + 6);
+                    });
+                    y += 20;
+                });
+                return y;
+            };
+
+            let yPos = 80;
+
+            // SALES RECAP
+            doc.fontSize(12).font('Helvetica-Bold').text('VENTES', 50, yPos);
+            yPos += 20;
+
+            const salesModeRows = Object.entries(salesByMode).map(([mode, amt]) => [mode, formatMoney(amt)]);
+            if (totalSalesTimbre > 0) salesModeRows.push(['TIMBRE', formatMoney(totalSalesTimbre)]); // Add Timbre line
+
+            drawRecapTable('Par Mode de Paiement', 50, yPos, ['Mode', 'Montant TTC'], salesModeRows, '#dbeafe');
+
+            const salesTvaRows = Object.entries(salesByTva).map(([rate, vals]) => [`${parseFloat(rate).toFixed(0)}%`, formatMoney(vals.ht), formatMoney(vals.tva)]);
+            drawRecapTable('Par Taux de TVA', 350, yPos, ['Taux', 'Base HT', 'Montant TVA'], salesTvaRows, '#dbeafe');
+
+            yPos += Math.max(salesModeRows.length, salesTvaRows.length) * 20 + 60;
+
+            // EXPENSES RECAP
+            doc.fontSize(12).font('Helvetica-Bold').text('ACHATS', 50, yPos);
+            yPos += 20;
+
+            const expenseModeRows = Object.entries(expensesByMode).map(([mode, amt]) => [mode, formatMoney(amt)]);
+            drawRecapTable('Par Mode de Paiement', 50, yPos, ['Mode', 'Montant TTC'], expenseModeRows, '#e0e7ff');
+
+            const expenseTvaRows = Object.entries(expensesByTva).map(([rate, vals]) => [`${parseFloat(rate).toFixed(0)}%`, formatMoney(vals.ht), formatMoney(vals.tva)]);
+            drawRecapTable('Par Taux de TVA', 350, yPos, ['Taux', 'Base HT', 'Montant TVA'], expenseTvaRows, '#e0e7ff');
+
             const range = doc.bufferedPageRange();
             for (let i = range.start; i < range.start + range.count; i++) {
                 doc.switchToPage(i);
