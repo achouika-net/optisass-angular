@@ -621,7 +621,7 @@ export class AccountingService {
             let totalSalesTTC = 0;
             let totalSalesHT = 0;
             let totalSalesTVA = 0;
-            let totalSalesTimbre = 0; // If needed
+            let totalSalesTimbre = 0;
 
             const salesRows = payments.map(p => {
                 const ttc = p.montant || 0;
@@ -629,9 +629,17 @@ export class AccountingService {
                 const ht = ttc / (1 + tvaRate / 100);
                 const tva = ttc - ht;
 
+                // Stamp Duty (Droits de Timbre) - 0.25% on Cash Payments
+                // LF 2026 maintains standard practice: 0.25% on cash transactions
+                let timbre = 0;
+                if (p.mode === 'ESPECES' || p.mode === 'ESPÈCES' || p.mode === 'CASH') {
+                    timbre = ttc * 0.0025;
+                }
+
                 totalSalesTTC += ttc;
                 totalSalesHT += ht;
                 totalSalesTVA += tva;
+                totalSalesTimbre += timbre;
 
                 return [
                     `Vente ${p.facture?.numero || 'Divers'}`.substring(0, 30),
@@ -643,7 +651,7 @@ export class AccountingService {
                     `${tvaRate.toFixed(0)}%`,
                     formatMoney(tva),
                     p.mode || 'ESPECES',
-                    formatMoney(0),
+                    formatMoney(timbre),
                     formatDate(p.date)
                 ];
             });
@@ -654,7 +662,7 @@ export class AccountingService {
                 4: totalSalesTTC,
                 5: totalSalesHT,
                 7: totalSalesTVA,
-                9: 0 // Timbre
+                9: totalSalesTimbre
             };
 
             drawTable('ETAT DES ENCAISSEMENTS', salesHeaders, salesWidths, salesRows, salesTotals, '#dbeafe');
