@@ -59,7 +59,9 @@ export class ExpensesService {
                 }
             }
 
-            if (finalEcheanceId && data.statut === 'VALIDEE') {
+            // [MODIFIED] Do NOT auto-encaisse CHEQUE or LCN. These must remain EN_ATTENTE
+            // to be processed via Treasury clearance processes and appear in alerts.
+            if (finalEcheanceId && data.statut === 'VALIDEE' && data.modePaiement !== 'CHEQUE' && data.modePaiement !== 'LCN') {
                 await tx.echeancePaiement.update({
                     where: { id: finalEcheanceId },
                     data: {
@@ -190,13 +192,16 @@ export class ExpensesService {
                                 }
                             });
 
-                            // Update session totals
-                            await tx.journeeCaisse.update({
-                                where: { id: openSession.id },
-                                data: {
-                                    totalDepenses: { increment: data.montant }
-                                }
-                            });
+                            // Update session totals ONLY for Cash (ESPECES)
+                            // Non-cash expenses (Checks, Transfers) should NOT affect the physical cash drawer total.
+                            if (data.modePaiement === 'ESPECES') {
+                                await tx.journeeCaisse.update({
+                                    where: { id: openSession.id },
+                                    data: {
+                                        totalDepenses: { increment: data.montant }
+                                    }
+                                });
+                            }
                         }
                     } else if (data.modePaiement === 'ESPECES') {
                         throw new BadRequestException('La caisse doit être ouverte pour enregistrer une dépense en espèces.');
@@ -245,10 +250,39 @@ export class ExpensesService {
     }
 
     async update(id: string, updateExpenseDto: any) {
-        return this.prisma.depense.update({
-            where: { id },
-            data: updateExpenseDto,
-        });
+        // Explicitly whitelist only scalar fields to avoid passing objects to Prisma
+        const allowedFields = [
+            'date', 'montant', 'categorie', 'description', 'modePaiement',
+            'statut', 'justificatifUrl', 'dateEcheance', 'reference',
+            'fournisseurId', 'creeParId', 'valideParId', 'employeeId',
+            'echeanceId', 'factureFournisseurId'
+        ];
+
+        const data: any = {};
+        for (const field of allowedFields) {
+            if (updateExpenseDto[field] !== undefined) {
+                // Handle special conversions
+                if ((field === 'date' || field === 'dateEcheance') && updateExpenseDto[field]) {
+                    data[field] = normalizeToUTCNoon(updateExpenseDto[field]);
+                } else if (field === 'montant' && updateExpenseDto[field] !== null) {
+                    data[field] = Number(updateExpenseDto[field]);
+                } else {
+                    data[field] = updateExpenseDto[field];
+                }
+            }
+        }
+
+        console.log('📝 [ExpensesService.update] Id:', id, 'Payload:', JSON.stringify(data, null, 2));
+
+        try {
+            return await this.prisma.depense.update({
+                where: { id },
+                data,
+            });
+        } catch (error) {
+            console.error('❌ [ExpensesService.update] Error:', error);
+            throw error;
+        }
     }
 
     async remove(id: string) {

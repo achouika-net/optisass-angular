@@ -120,7 +120,8 @@ export class InvoiceSelectionDialogComponent implements OnInit {
     }, 5000);
 
     this.factureService.findAll({
-      clientId: this.data.clientId
+      clientId: this.data.clientId,
+      ficheId: this.data.ficheId
     }).pipe(
       finalize(() => {
         clearTimeout(failsafeTimeout);
@@ -133,7 +134,7 @@ export class InvoiceSelectionDialogComponent implements OnInit {
         // Statut: VALIDE, PARTIEL, BROUILLON (for direct pay), VENTE_EN_INSTANCE (for instance sales), ARCHIVE
         const allPayables = data.filter(f =>
           (f.resteAPayer || 0) > 0 &&
-          (f.statut === 'VALIDE' || f.statut === 'PARTIEL' || f.statut === 'VENTE_EN_INSTANCE' || f.statut === 'BROUILLON' || f.statut === 'ARCHIVE')
+          f.statut !== 'ANNULEE'
         );
 
         // If ficheId is provided, focus ONLY on that fiche's documents

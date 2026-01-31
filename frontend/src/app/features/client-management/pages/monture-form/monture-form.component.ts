@@ -1121,16 +1121,37 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     montureGroup.patchValue({ reference: product.designation });
                 }
 
-                if (product.specificData) {
-                    const specs = product.specificData;
-                    if (specs.calibre && specs.pont && specs.branche) {
-                        montureGroup.patchValue({
-                            taille: `${specs.calibre}-${specs.pont}-${specs.branche}`
-                        });
+                // [FIX] Robust Size/Dimensions Extraction
+                const calibre = product.calibre || product.specificData?.calibre;
+                const pont = product.pont || product.specificData?.pont;
+                const branche = product.branche || product.specificData?.branche;
+
+                let tailleStr = '';
+                if (calibre) {
+                    tailleStr = `${calibre}`;
+                    if (pont) {
+                        tailleStr += `-${pont}`;
+                        if (branche) {
+                            tailleStr += `-${branche}`;
+                        }
                     }
-                    if (specs.cerclage) {
-                        montureGroup.patchValue({ cerclage: specs.cerclage });
-                    }
+                }
+
+                if (tailleStr) {
+                    montureGroup.patchValue({
+                        taille: tailleStr
+                    });
+                }
+
+                // Cerclage mapping (Normalize enum values to select values)
+                const rawCerclage = product.typeMonture || product.specificData?.cerclage;
+                if (rawCerclage) {
+                    // Start naive mapping, or just pass value if it matches
+                    let mappedCerclage = rawCerclage;
+                    if (rawCerclage === 'cerclee') mappedCerclage = 'cerclée';
+                    if (rawCerclage === 'percee') mappedCerclage = 'percée';
+
+                    montureGroup.patchValue({ cerclage: mappedCerclage });
                 }
             }
         } else {
@@ -3544,7 +3565,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             }
 
             // Console log for debugging
-            console.log('✏️ Drawing Frame M Height:', hTotal, 'Raw:', hTotalVal);
+            if (!isNaN(hTotal)) {
+                console.log('✏️ Drawing Frame M Height:', hTotal, 'Raw:', hTotalVal);
+            }
 
             if (!isNaN(hTotal)) {
                 ctx.fillStyle = '#22c55e'; // Modern Green for Frame Height

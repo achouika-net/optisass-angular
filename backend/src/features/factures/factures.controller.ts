@@ -77,15 +77,7 @@ export class FacturesController {
         if (unpaid === 'true') {
             where.AND = [
                 { resteAPayer: { gt: 0.05 } }, // Tolerance
-                {
-                    OR: [
-                        { type: 'FACTURE' },
-                        {
-                            type: 'DEVIS',
-                            statut: { in: ['VENTE_EN_INSTANCE', 'ARCHIVE'] }
-                        }
-                    ]
-                }
+                { statut: { not: 'ANNULEE' } }
             ];
         }
 

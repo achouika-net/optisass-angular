@@ -12,6 +12,21 @@ export class PaiementsController {
         private readonly configService: ConfigService
     ) { }
 
+    @Get('do-repair')
+    adminRepair() {
+        return this.paiementsService.adminRepair();
+    }
+
+    @Get('repair-orphans')
+    repairOrphans() {
+        return this.paiementsService.repairOrphanOperations();
+    }
+
+    @Get('delete-orphans')
+    deleteOrphans() {
+        return this.paiementsService.deleteOrphanPayments();
+    }
+
     @Post()
     create(@Body() createPaiementDto: CreatePaiementDto, @Headers('authorization') authHeader: string) {
         const userId = this.getUserId(authHeader);

@@ -7,6 +7,10 @@ async function resetDatabase() {
     try {
         // Delete in correct order to respect foreign key constraints
 
+        console.log('📋 Deleting Demande Alimentation...');
+        const demandes = await prisma.demandeAlimentation.deleteMany({});
+        console.log(`   ✓ Deleted ${demandes.count} records`);
+
         console.log('📋 Deleting Points History...');
         const pointsHistory = await prisma.pointsHistory.deleteMany({});
         console.log(`   ✓ Deleted ${pointsHistory.count} records`);
@@ -22,6 +26,10 @@ async function resetDatabase() {
         console.log('💰 Deleting Client Payments...');
         const paiements = await prisma.paiement.deleteMany({});
         console.log(`   ✓ Deleted ${paiements.count} records`);
+
+        console.log('📋 Deleting Operation Caisse...');
+        const opsCaisse = await prisma.operationCaisse.deleteMany({});
+        console.log(`   ✓ Deleted ${opsCaisse.count} records`);
 
         console.log('📄 Deleting Invoices...');
         const factures = await prisma.facture.deleteMany({});
@@ -51,6 +59,10 @@ async function resetDatabase() {
         const products = await prisma.product.deleteMany({});
         console.log(`   ✓ Deleted ${products.count} records`);
 
+        console.log('📋 Deleting Journee Caisse...');
+        const journees = await prisma.journeeCaisse.deleteMany({});
+        console.log(`   ✓ Deleted ${journees.count} records`);
+
         console.log('\n✅ Database reset completed successfully!');
         console.log('\n📊 Summary:');
         console.log(`   - Clients: ${clients.count}`);
@@ -62,6 +74,9 @@ async function resetDatabase() {
         console.log(`   - Échéances: ${echeances.count}`);
         console.log(`   - Produits: ${products.count}`);
         console.log(`   - Mouvements Stock: ${stockMovements.count}`);
+        console.log(`   - Journées Caisse: ${journees.count}`);
+        console.log(`   - Opérations Caisse: ${opsCaisse.count}`);
+        console.log(`   - Demandes Alimentation: ${demandes.count}`);
         console.log(`   - Points History: ${pointsHistory.count}`);
         console.log(`   - Reward Redemptions: ${rewards.count}`);
         console.log('\n🔒 Preserved:');

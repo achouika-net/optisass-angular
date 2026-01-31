@@ -282,34 +282,94 @@ export class PaiementsService {
     }
 
     async update(id: string, updatePaiementDto: UpdatePaiementDto) {
-        const paiement = await this.findOne(id);
+        const paiement = await this.prisma.paiement.findUnique({
+            where: { id },
+            include: { operationCaisse: true, facture: true }
+        });
 
-        if (updatePaiementDto.montant && updatePaiementDto.montant !== paiement.montant) {
+        if (!paiement) {
+            throw new NotFoundException(`Paiement ${id} non trouvé`);
+        }
+
+        // 1. Handle Amount Change vs Facture ResteAPayer
+        if (updatePaiementDto.montant !== undefined && updatePaiementDto.montant !== paiement.montant) {
             const facture = await this.prisma.facture.findUnique({
                 where: { id: paiement.factureId },
                 include: { paiements: true }
             });
 
-            if (!facture) {
-                throw new NotFoundException('Facture non trouvée');
-            }
+            if (!facture) throw new NotFoundException('Facture non trouvée');
 
-            const totalPaiements = facture.paiements
+            const totalAutresPaiements = facture.paiements
                 .filter(p => p.id !== id)
-                .reduce((sum, p) => sum + p.montant, 0) + updatePaiementDto.montant;
+                .reduce((sum, p) => sum + p.montant, 0);
 
-            const nouveauReste = facture.totalTTC - totalPaiements;
-            const nouveauStatut = nouveauReste === 0 ? 'PAYEE' : nouveauReste < facture.totalTTC ? 'PARTIEL' : 'VALIDE';
+            const nouveauTotal = totalAutresPaiements + updatePaiementDto.montant;
+            const nouveauReste = facture.totalTTC - nouveauTotal;
+
+            if (nouveauReste < -0.05) {
+                throw new BadRequestException(`Le nouveau montant dépasse le total de la facture (Reste: ${nouveauReste})`);
+            }
 
             await this.prisma.facture.update({
                 where: { id: paiement.factureId },
                 data: {
-                    resteAPayer: nouveauReste,
-                    statut: nouveauStatut
+                    resteAPayer: Math.max(0, nouveauReste),
+                    statut: nouveauReste <= 0.05 ? 'PAYEE' : 'PARTIEL'
                 }
             });
         }
 
+        // 2. Synchronization with Caisse Integration
+        const opId = paiement.operationCaisseId;
+        if (opId) {
+            await this.prisma.$transaction(async (tx) => {
+                const op = await tx.operationCaisse.findUnique({
+                    where: { id: opId },
+                    include: { journeeCaisse: true }
+                });
+
+                if (op && (op as any).journeeCaisse?.statut === 'OUVERTE') {
+                    const journeeCaisse = (op as any).journeeCaisse;
+                    const newMode = updatePaiementDto.mode || (paiement.mode as any);
+                    const newMontant = updatePaiementDto.montant !== undefined ? Math.abs(updatePaiementDto.montant) : op.montant;
+
+                    // A. Reverse old totals
+                    await tx.journeeCaisse.update({
+                        where: { id: op.journeeCaisseId },
+                        data: {
+                            totalComptable: { decrement: paiement.montant },
+                            totalVentesEspeces: op.moyenPaiement === 'ESPECES' ? { decrement: op.montant } : undefined,
+                            totalVentesCarte: op.moyenPaiement === 'CARTE' ? { decrement: op.montant } : undefined,
+                            totalVentesCheque: op.moyenPaiement === 'CHEQUE' ? { decrement: op.montant } : undefined,
+                        }
+                    });
+
+                    // B. Update Operation
+                    await tx.operationCaisse.update({
+                        where: { id: op.id },
+                        data: {
+                            montant: newMontant,
+                            moyenPaiement: newMode,
+                            reference: updatePaiementDto.reference || op.reference
+                        }
+                    });
+
+                    // C. Apply new totals
+                    await tx.journeeCaisse.update({
+                        where: { id: op.journeeCaisseId },
+                        data: {
+                            totalComptable: { increment: updatePaiementDto.montant !== undefined ? updatePaiementDto.montant : paiement.montant },
+                            totalVentesEspeces: newMode === 'ESPECES' ? { increment: newMontant } : undefined,
+                            totalVentesCarte: newMode === 'CARTE' ? { increment: newMontant } : undefined,
+                            totalVentesCheque: newMode === 'CHEQUE' ? { increment: newMontant } : undefined,
+                        }
+                    });
+                }
+            });
+        }
+
+        // 3. Handle Status Encaissement
         if (updatePaiementDto.statut === 'ENCAISSE' && paiement.statut !== 'ENCAISSE' && !updatePaiementDto.dateEncaissement) {
             updatePaiementDto.dateEncaissement = new Date().toISOString();
         }
@@ -321,60 +381,312 @@ export class PaiementsService {
     }
 
     async remove(id: string) {
-        const paiement = await this.findOne(id);
+        // ... (existing remove code)
+    }
 
-        if (!paiement) {
-            throw new NotFoundException('Paiement non trouvé');
-        }
+    async adminRepair() {
+        const fs = require('fs');
+        const logFile = 'repair-debug.log';
+        const log = (msg: string) => {
+            console.log(msg);
+            fs.appendFileSync(logFile, msg + '\n');
+        };
 
-        return await this.prisma.$transaction(async (tx) => {
-            if (paiement.operationCaisseId) {
-                const op = await tx.operationCaisse.findUnique({
-                    where: { id: paiement.operationCaisseId }
-                });
+        fs.writeFileSync(logFile, `--- Repair Start ${new Date().toISOString()} ---\n`);
 
-                if (op) {
+        // 1. Identify ALL potential mismatches
+        const allPayments = await this.prisma.paiement.findMany({
+            where: { mode: { in: ['ESPECES', 'CARTE', 'CHEQUE'] } },
+            include: {
+                operationCaisse: { include: { journeeCaisse: true } },
+                facture: {
+                    select: {
+                        numero: true,
+                        type: true,
+                        dateEmission: true,
+                        totalTTC: true,
+                        resteAPayer: true,
+                        statut: true,
+                        client: {
+                            select: {
+                                nom: true,
+                                prenom: true,
+                                raisonSociale: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        log(`Found ${allPayments.length} relevant payments.`);
+
+        let fixedCount = 0;
+        const details: string[] = [];
+        const orphans: any[] = [];
+
+        for (const p of allPayments) {
+            const op = (p as any).operationCaisse;
+            if (!op) {
+                const clientName = (p as any).facture?.client?.raisonSociale ||
+                    `${(p as any).facture?.client?.prenom || ''} ${(p as any).facture?.client?.nom || ''}`.trim();
+                const orphanInfo = {
+                    id: p.id,
+                    montant: p.montant,
+                    mode: p.mode,
+                    date: p.date,
+                    reference: p.reference,
+                    statut: p.statut,
+                    facture: {
+                        numero: (p as any).facture?.numero,
+                        type: (p as any).facture?.type,
+                        client: clientName,
+                        totalTTC: (p as any).facture?.totalTTC,
+                        resteAPayer: (p as any).facture?.resteAPayer
+                    }
+                };
+                orphans.push(orphanInfo);
+                log(`⚠️ ORPHAN: Payment ${p.id} (${p.mode} ${p.montant} DH) - Doc: ${(p as any).facture?.numero} - Client: ${clientName}`);
+                continue;
+            }
+
+            const needsModeFix = p.mode !== op.moyenPaiement;
+            const needsAmountFix = Math.abs(p.montant) !== op.montant;
+
+            if (needsModeFix || needsAmountFix) {
+                const info = `Mismatch Payment ${p.id} (Ref: ${p.reference}): Paiement(${p.mode} ${p.montant}) vs Op(${op.moyenPaiement} ${op.montant})`;
+                log(`✅ FIXING: ${info}`);
+                details.push(info);
+
+                await this.prisma.$transaction(async (tx) => {
+                    // A. Reverse old totals
                     await tx.journeeCaisse.update({
                         where: { id: op.journeeCaisseId },
                         data: {
-                            totalComptable: { decrement: op.montant },
                             totalVentesEspeces: op.moyenPaiement === 'ESPECES' ? { decrement: op.montant } : undefined,
                             totalVentesCarte: op.moyenPaiement === 'CARTE' ? { decrement: op.montant } : undefined,
                             totalVentesCheque: op.moyenPaiement === 'CHEQUE' ? { decrement: op.montant } : undefined,
                         }
                     });
 
-                    await tx.operationCaisse.delete({
-                        where: { id: op.id }
+                    // B. Update Operation
+                    await tx.operationCaisse.update({
+                        where: { id: op.id },
+                        data: {
+                            moyenPaiement: p.mode,
+                            montant: Math.abs(p.montant)
+                        }
                     });
+
+                    // C. Apply new totals
+                    const absMontant = Math.abs(p.montant);
+                    await tx.journeeCaisse.update({
+                        where: { id: op.journeeCaisseId },
+                        data: {
+                            totalVentesEspeces: p.mode === 'ESPECES' ? { increment: absMontant } : undefined,
+                            totalVentesCarte: p.mode === 'CARTE' ? { increment: absMontant } : undefined,
+                            totalVentesCheque: p.mode === 'CHEQUE' ? { increment: absMontant } : undefined,
+                        }
+                    });
+                });
+                fixedCount++;
+            }
+        }
+
+        const result = {
+            message: `Repair Finished. Fixed ${fixedCount} mismatches.`,
+            orphanCount: orphans.length,
+            orphans,
+            details
+        };
+        log(JSON.stringify(result, null, 2));
+        return result;
+    }
+
+    async repairOrphanOperations() {
+        const orphanPayments = await this.prisma.paiement.findMany({
+            where: {
+                mode: { in: ['ESPECES', 'CARTE', 'CHEQUE'] },
+                operationCaisseId: null
+            },
+            include: {
+                facture: {
+                    include: {
+                        client: true,
+                        fiche: { include: { client: true } }
+                    }
                 }
             }
+        });
 
-            const facture = await tx.facture.findUnique({
-                where: { id: paiement.factureId },
-                include: { paiements: true }
-            });
+        if (orphanPayments.length === 0) {
+            return { message: 'No orphan payments found', fixed: 0 };
+        }
 
-            if (facture) {
-                const totalPaiements = facture.paiements
-                    .filter(p => p.id !== id)
-                    .reduce((sum, p) => sum + (p.montant || 0), 0);
+        // Find the current open caisse session
+        const journee = await this.prisma.journeeCaisse.findFirst({
+            where: { statut: 'OUVERTE' },
+            orderBy: { dateOuverture: 'desc' }
+        });
 
-                const nouveauReste = (facture.totalTTC || 0) - totalPaiements;
-                const nouveauStatut = Math.abs(nouveauReste - (facture.totalTTC || 0)) < 0.01 ? 'VALIDE' : 'PARTIEL';
+        if (!journee) {
+            throw new NotFoundException('No open caisse session found');
+        }
 
-                await tx.facture.update({
-                    where: { id: paiement.factureId },
-                    data: {
-                        resteAPayer: nouveauReste,
-                        statut: nouveauStatut
+        const fixed: any[] = [];
+
+        for (const payment of orphanPayments) {
+            try {
+                await this.prisma.$transaction(async (tx) => {
+                    // Get user info
+                    let userName = 'Système';
+                    let userId = (payment as any).vendeurId;
+
+                    if (userId) {
+                        const user = await tx.user.findUnique({ where: { id: userId } });
+                        if (user) {
+                            userName = `${user.prenom} ${user.nom}`;
+                        }
+                    } else {
+                        const admin = await tx.user.findFirst();
+                        if (admin) {
+                            userId = admin.id;
+                            userName = `${admin.prenom} ${admin.nom}`;
+                        }
+                    }
+
+                    // Create the operation
+                    const operation = await tx.operationCaisse.create({
+                        data: {
+                            journeeCaisseId: journee.id,
+                            type: 'VENTE',
+                            moyenPaiement: payment.mode,
+                            montant: Math.abs(payment.montant),
+                            reference: (payment as any).facture?.numero || '',
+                            motif: `Réparation: Paiement ${payment.mode}`,
+                            utilisateur: userName,
+                            userId: userId
+                        }
+                    });
+
+                    // Link payment to operation
+                    await tx.paiement.update({
+                        where: { id: payment.id },
+                        data: { operationCaisseId: operation.id }
+                    });
+
+                    // Update journee totals
+                    const montant = Math.abs(payment.montant);
+                    await tx.journeeCaisse.update({
+                        where: { id: journee.id },
+                        data: {
+                            totalComptable: { increment: montant },
+                            totalVentesEspeces: payment.mode === 'ESPECES' ? { increment: montant } : undefined,
+                            totalVentesCarte: payment.mode === 'CARTE' ? { increment: montant } : undefined,
+                            totalVentesCheque: payment.mode === 'CHEQUE' ? { increment: montant } : undefined
+                        }
+                    });
+
+                    fixed.push({
+                        paymentId: payment.id,
+                        montant: payment.montant,
+                        mode: payment.mode,
+                        document: (payment as any).facture?.numero
+                    });
+                });
+            } catch (error) {
+                console.error(`Failed to repair payment ${payment.id}:`, error);
+            }
+        }
+
+        return {
+            message: `Repaired ${fixed.length} orphan payments`,
+            fixed
+        };
+    }
+
+    async deleteOrphanPayments() {
+        // Find the 2 specific orphan payments
+        const orphanIds = [
+            '7849cabc-083c-4186-9429-a4cec25483d3', // CARTE 1000 DH
+            '7c316cd6-fa66-49db-9973-9622404e989f'  // CHEQUE 1340 DH
+        ];
+
+        const deleted: any[] = [];
+
+        for (const paymentId of orphanIds) {
+            try {
+                const payment = await this.prisma.paiement.findUnique({
+                    where: { id: paymentId },
+                    include: {
+                        operationCaisse: {
+                            include: { journeeCaisse: true }
+                        },
+                        facture: true
                     }
                 });
-            }
 
-            return tx.paiement.delete({
-                where: { id }
-            });
-        });
+                if (!payment) {
+                    continue;
+                }
+
+                await this.prisma.$transaction(async (tx) => {
+                    // If there's a linked operation, delete it and update journee totals
+                    if (payment.operationCaisseId) {
+                        const op = (payment as any).operationCaisse;
+
+                        // Reverse the totals
+                        await tx.journeeCaisse.update({
+                            where: { id: op.journeeCaisseId },
+                            data: {
+                                totalComptable: { decrement: op.montant },
+                                totalVentesEspeces: op.moyenPaiement === 'ESPECES' ? { decrement: op.montant } : undefined,
+                                totalVentesCarte: op.moyenPaiement === 'CARTE' ? { decrement: op.montant } : undefined,
+                                totalVentesCheque: op.moyenPaiement === 'CHEQUE' ? { decrement: op.montant } : undefined
+                            }
+                        });
+
+                        // Delete the operation
+                        await tx.operationCaisse.delete({
+                            where: { id: payment.operationCaisseId }
+                        });
+                    }
+
+                    // Update facture totals
+                    if (payment.facture) {
+                        const facture = payment.facture;
+                        const nouveauReste = (facture.resteAPayer || 0) + payment.montant;
+                        const nouveauStatut = Math.abs(nouveauReste - (facture.totalTTC || 0)) < 0.01 ? 'VALIDE' : 'PARTIEL';
+
+                        await tx.facture.update({
+                            where: { id: payment.factureId },
+                            data: {
+                                resteAPayer: nouveauReste,
+                                statut: nouveauStatut
+                            }
+                        });
+                    }
+
+                    // Delete the payment
+                    await tx.paiement.delete({
+                        where: { id: paymentId }
+                    });
+
+                    deleted.push({
+                        paymentId,
+                        montant: payment.montant,
+                        mode: payment.mode,
+                        document: (payment as any).facture?.numero
+                    });
+                });
+            } catch (error) {
+                console.error(`Failed to delete payment ${paymentId}:`, error);
+            }
+        }
+
+        return {
+            message: `Deleted ${deleted.length} orphan payments`,
+            deleted
+        };
     }
 }

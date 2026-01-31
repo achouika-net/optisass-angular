@@ -84,6 +84,7 @@ export class FactureFormComponent implements OnInit {
     pointsFideliteClient = 0;
 
     currentUser$: Observable<any> = this.store.select(UserSelector);
+    currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
 
     constructor(
         private fb: FormBuilder,
@@ -98,6 +99,8 @@ export class FactureFormComponent implements OnInit {
         private dialog: MatDialog,
         private store: Store
     ) {
+        // [FIX] Initialize centreId from current center
+        this.centreId = this.currentCentre()?.id || null;
         this.form = this.fb.group({
             numero: [''], // Auto-generated
             type: ['DEVIS', Validators.required], // [MODIFIED] Default to DEVIS
@@ -351,6 +354,11 @@ export class FactureFormComponent implements OnInit {
                     clientId: facture.clientId,
                     proprietes: facture.proprietes
                 });
+
+                // [FIX] Preserve centreId from DB to avoid nulling it on next save
+                if (facture.centreId) {
+                    this.centreId = facture.centreId;
+                }
 
                 if (facture.clientId) {
                     this.loadClientPoints(facture.clientId);

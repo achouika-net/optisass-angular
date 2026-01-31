@@ -32,9 +32,9 @@
             <!-- Recettes -->
             <mat-card class="kpi-card border-l-4 border-green-500">
                 <div class="metric-label flex items-center justify-center gap-1">
-                    Recettes du Mois
+                    Recettes (Cash+Banque+En coffre)
                     <mat-icon class="!text-xs text-gray-400"
-                        matTooltip="Total des paiements (Cash + Chèques) datés de ce mois.">help_outline</mat-icon>
+                        matTooltip="Total de tous les paiements enregistrés ce mois (Espèces + Carte + Chèques en coffre).">help_outline</mat-icon>
                 </div>
                 <div class="metric-value text-green-600">{{ summary.totalIncoming | number:'1.2-2' }} DH</div>
                 <div class="flex flex-col gap-1 text-sm text-gray-500 font-medium">
@@ -44,11 +44,18 @@
                     </div>
                     <div class="flex justify-between px-4">
                         <span>Carte:</span>
-                        <span class="text-blue-600">{{ summary.incomingCard | number:'1.2-2' }} DH</span>
+                        <span class="text-blue-600">
+                            {{ summary.incomingCard | number:'1.2-2' }} DH
+                            <small class="text-gray-400 font-normal ml-1">({{ summary.countCard }} pièces)</small>
+                        </span>
                     </div>
                     <div class="flex justify-between px-4 pt-1 border-t border-gray-100 mt-1">
                         <span>En coffre (Chèques/LCN):</span>
-                        <span class="text-orange-600">{{ summary.totalIncomingPending | number:'1.2-2' }} DH</span>
+                        <span class="text-orange-600">
+                            {{ summary.totalIncomingPending | number:'1.2-2' }} DH
+                            <small class="text-gray-400 font-normal ml-1">({{ summary.countChequeCoffre }}
+                                pièces)</small>
+                        </span>
                     </div>
                 </div>
             </mat-card>
@@ -77,9 +84,9 @@
             <mat-card class="kpi-card border-l-4"
                 [ngClass]="summary.balanceReal >= 0 ? 'border-blue-500' : 'border-red-500'">
                 <div class="metric-label flex items-center justify-center gap-1">
-                    Solde Réel (Cash-Flow)
+                    Solde Réel (Espèces + Cartes)
                     <mat-icon class="!text-xs text-gray-400"
-                        matTooltip="Différence entre l'argent réellement encaissé et l'argent réellement payé ce mois.">help_outline</mat-icon>
+                        matTooltip="Liquidité totale déjà encaissée (Espèces + Cartes Bancaires) moins les dépenses déjà réglées.">help_outline</mat-icon>
                 </div>
                 <div class="metric-value" [ngClass]="summary.balanceReal >= 0 ? 'text-blue-600' : 'text-red-600'">
                     {{ summary.balanceReal | number:'1.2-2' }} DH
@@ -179,7 +186,7 @@
                                         [style.color]="chartColors[i % chartColors.length]">circle</mat-icon>
                                     {{ cat.name }}
                                 </span>
-                                <span class="font-bold text-sm">{{ cat.value | number:'1.0-0' }} DH</span>
+                                <span class="font-bold text-sm">{{ cat.value | number:'1.2-2' }} DH</span>
                             </div>
                             <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
                                 <div class="h-2.5 rounded-full"

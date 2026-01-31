@@ -34,6 +34,7 @@ export interface Facture {
     createdAt?: string;
     updatedAt?: string;
     client?: any;
+    centreId?: string;
 }
 
 import { API_URL } from '../../../config/api.config';

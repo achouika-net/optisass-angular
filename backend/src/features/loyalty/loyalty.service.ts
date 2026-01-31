@@ -13,6 +13,14 @@ export class LoyaltyService {
         });
     }
 
+    async getPointsBalance(clientId: string): Promise<number> {
+        const client = await this.prisma.client.findUnique({
+            where: { id: clientId },
+            select: { pointsFidelite: true }
+        });
+        return client?.pointsFidelite || 0;
+    }
+
     async getConfig() {
         let config = await this.prisma.loyaltyConfig.findFirst();
         if (!config) {

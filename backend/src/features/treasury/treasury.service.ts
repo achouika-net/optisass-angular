@@ -119,6 +119,7 @@ export class TreasuryService {
         let incomingCashedAvoir = 0;
         let incomingCash = 0;
         let incomingCard = 0;
+        let countCard = 0;
 
         monthlyPaiements.forEach(p => {
             const amount = Number(p.montant || 0);
@@ -130,14 +131,20 @@ export class TreasuryService {
                 if (isCashed) {
                     incomingCashedAvoir += amount;
                     if (p.mode === 'ESPECES') incomingCash -= amount;
-                    if (p.mode === 'CARTE') incomingCard -= amount;
+                    if (p.mode === 'CARTE') {
+                        incomingCard -= amount;
+                        countCard++;
+                    }
                 }
             } else {
                 incomingStandard += amount;
                 if (isCashed) {
                     incomingCashedStandard += amount;
                     if (p.mode === 'ESPECES') incomingCash += amount;
-                    if (p.mode === 'CARTE') incomingCard += amount;
+                    if (p.mode === 'CARTE') {
+                        incomingCard += amount;
+                        countCard++;
+                    }
                 }
             }
         });
@@ -156,6 +163,12 @@ export class TreasuryService {
 
         const alerts = await this.getPendingAlerts(centreId);
 
+        // Calculate count for pieces in vault (EN_ATTENTE)
+        const countChequeCoffre = monthlyPaiements.filter(p =>
+            p.statut === 'EN_ATTENTE' &&
+            ['CHEQUE', 'LCN'].includes(p.mode)
+        ).length;
+
         return {
             month, year, totalExpenses, totalIncoming, totalExpensesCashed, totalIncomingCashed, balance, balanceReal,
             totalScheduled,
@@ -163,6 +176,8 @@ export class TreasuryService {
             totalOutgoingPending,
             monthlyThreshold, categories,
             incomingCash, incomingCard,
+            countCard,
+            countChequeCoffre,
             alerts
         };
     }

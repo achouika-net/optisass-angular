@@ -18,6 +18,7 @@ echo   - Tous les clients
 echo   - Toutes les fiches medicales
 echo   - Toutes les factures et paiements
 echo   - Toutes les depenses
+echo   - Toute l'historique de caisse
 echo   - Tous les produits et mouvements de stock
 echo.
 echo Ce script va PRESERVER:

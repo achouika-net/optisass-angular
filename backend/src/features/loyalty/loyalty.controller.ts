@@ -10,6 +10,11 @@ export class LoyaltyController {
         return this.loyaltyService.getPointsHistory(clientId);
     }
 
+    @Get('balance/:clientId')
+    getPointsBalance(@Param('clientId') clientId: string) {
+        return this.loyaltyService.getPointsBalance(clientId);
+    }
+
     @Post('spend')
     spendPoints(@Body() body: { clientId: string, points: number, description: string }) {
         return this.loyaltyService.spendPoints(body.clientId, body.points, body.description);

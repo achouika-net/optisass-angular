@@ -180,6 +180,8 @@ export interface JourneeResume {
     };
     totalInterne: number;
     totalDepenses: number;
+    totalDepensesCash: number;
+    totalDepensesBank: number;
     totalTransfertsDepenses: number;
     nbVentesCarte: number;
     nbVentesCheque: number;

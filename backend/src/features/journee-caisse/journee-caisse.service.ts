@@ -453,6 +453,8 @@ export class JourneeCaisseService {
             nbVentesCheque: stats.nbVentesCheque,
             totalInterne: stats.totalInterneIn,
             totalDepenses: stats.totalOutflows,
+            totalDepensesCash: stats.totalOutflowsCash,
+            totalDepensesBank: stats.totalOutflows - stats.totalOutflowsCash,
             // Solde Cards (Physical Cash)
             soldeTheorique: (journee.fondInitial || 0) + stats.totalInterneIn + stats.grossVentesEspeces - stats.totalOutflowsCash,
             soldeReel: (journee.fondInitial || 0) + stats.totalInterneIn + stats.grossVentesEspeces - stats.totalOutflowsCash,

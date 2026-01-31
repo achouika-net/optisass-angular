@@ -852,8 +852,21 @@ export class FacturesService implements OnModuleInit {
                 }
             }
 
-            // FIX: Sanitize input for update as well
-            const { client, paiements, fiche, ...cleanData } = data as any;
+            // [FIX] Explicitly whitelist allowed scalar fields to avoid passing objects to Prisma
+            const allowedFields = [
+                'numero', 'type', 'dateEmission', 'dateEcheance', 'statut',
+                'clientId', 'ficheId', 'totalHT', 'totalTVA', 'totalTTC',
+                'resteAPayer', 'lignes', 'proprietes', 'parentFactureId',
+                'montantLettres', 'notes', 'centreId', 'exportComptable',
+                'typeOperation', 'vendeurId'
+            ];
+
+            const cleanData: any = {};
+            for (const field of allowedFields) {
+                if (data[field] !== undefined) {
+                    cleanData[field] = data[field];
+                }
+            }
 
             // [NEW] Balance Cleanup: If cancelling, force resteAPayer to 0
             if (cleanData.statut === 'ANNULEE') {

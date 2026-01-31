@@ -357,7 +357,8 @@ export class PaymentListComponent implements OnInit {
         }
 
         // Fetch ALL types (Facture + Devis) to show full payment history
-        this.factureService.findAll({ clientId: this.clientId }).subscribe(factures => {
+        // Pass ficheId to ensure we find documents even if center association is mismatched
+        this.factureService.findAll({ clientId: this.clientId, ficheId: this.ficheId || undefined }).subscribe(factures => {
             // Filter fiches by ficheId if provided
             const isFicheMode = !!this.ficheId;
             const filteredFactures = isFicheMode
@@ -368,19 +369,15 @@ export class PaymentListComponent implements OnInit {
             if (!isFicheMode) {
                 console.log('$$$ [PaymentList] Filtering Debts from', factures.length, 'invoices.');
                 this.impayes = factures.filter(f => {
-                    const isFacture = f.type === 'FACTURE';
-                    const isDevis = f.type === 'DEVIS' && (f.statut === 'VENTE_EN_INSTANCE' || f.statut === 'ARCHIVE');
+                    // [MODIFIED] Include ALL types (Facture, Devis, Order, BL) that have a debt
+                    // as long as they are not cancelled.
+                    const isCancelled = f.statut === 'ANNULEE';
+
                     // [DEBUG] Ensure resteAPayer is treated as number
                     const reste = typeof f.resteAPayer === 'string' ? parseFloat(f.resteAPayer) : (f.resteAPayer || 0);
                     const hasDebt = reste > 0.05; // Tolerance for float precision
 
-                    // Log potential candidates to debug why they might be excluded
-                    if (isFacture || isDevis) {
-                        const kept = (isFacture || isDevis) && hasDebt;
-                        console.log(`   -> Doc ${f.numero} (${f.type}/${f.statut}): Reste=${f.resteAPayer} (Parsed=${reste}) => Kept? ${kept}`);
-                    }
-
-                    return (isFacture || isDevis) && hasDebt;
+                    return !isCancelled && hasDebt;
                 });
                 console.log('$$$ [PaymentList] Final Impayes:', this.impayes.length);
                 this.impayesDataSource.data = this.impayes;

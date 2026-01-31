@@ -71,25 +71,25 @@
                 <div class="value text-orange-600">{{ resume.totalDepenses | number:'1.2-2' }} DH</div>
                 <div class="card-details">
                     <div class="detail-row">
-                        <span>Dépenses réglées:</span>
-                        <b>{{ resume.totalDepenses | number:'1.2-2' }} DH</b>
+                        <span>Dépenses en Espèces:</span>
+                        <b class="text-orange-700">{{ resume.totalDepensesCash | number:'1.2-2' }} DH</b>
+                    </div>
+                    <div class="detail-row">
+                        <span>Chèques/Banque:</span>
+                        <b class="text-gray-600">{{ resume.totalDepensesBank | number:'1.2-2' }} DH</b>
                     </div>
                     <div class="detail-row" *ngIf="resume.journee.caisse.type === 'PRINCIPALE'">
-                        <span>Vers dépenses:</span>
-                        <b>{{ resume.totalInterne | number:'1.2-2' }} DH</b>
-                    </div>
-                    <div class="detail-row" *ngIf="resume.journee.caisse.type === 'DEPENSES'">
-                        <span>Entrées du jour:</span>
+                        <span>Alimentation Caisse:</span>
                         <b>{{ resume.totalInterne | number:'1.2-2' }} DH</b>
                     </div>
                 </div>
             </mat-card-content>
         </mat-card>
 
-        <!-- 3. Solde Réel (Blue) -->
+        <!-- 3. Solde Caisse (Blue) -->
         <mat-card class="summary-card blue-border">
             <mat-card-content>
-                <div class="label">Solde Réel (Cash-Flow)</div>
+                <div class="label">Solde Caisse (Espèces)</div>
                 <div class="value">{{ getSolde() | number:'1.2-2' }} DH</div>
                 <div class="card-details">
                     <div class="detail-row">
@@ -97,7 +97,7 @@
                         <b>{{ resume.fondInitial | number:'1.2-2' }} DH</b>
                     </div>
                     <div class="detail-row">
-                        <span>Flux Net Espèces:</span>
+                        <span>Flux Net (Cash):</span>
                         <b>{{ (getSolde() - resume.fondInitial) | number:'1.2-2' }} DH</b>
                     </div>
                 </div>
