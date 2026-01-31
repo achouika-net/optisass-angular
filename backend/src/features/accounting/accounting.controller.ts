@@ -46,7 +46,7 @@ export class AccountingController {
     @Get('export/balance')
     async exportBalance(@Query() dto: ExportSageDto, @Res() res: Response) {
         try {
-            const csv = await this.accountingService.generateBalance(dto);
+            const csv = await this.accountingService.generateTrialBalanceCsv(dto);
             const filename = `Balance_Comptable_${dto.startDate}_${dto.endDate}.csv`;
 
             res.set({

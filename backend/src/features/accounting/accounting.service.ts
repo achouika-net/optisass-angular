@@ -384,6 +384,94 @@ export class AccountingService {
     }
 
     /**
+     * Generates a CSV Trial Balance (Balance des Comptes)
+     * Format: Compte;Intitulé;Débit;Crédit;Solde
+     */
+    async generateTrialBalanceCsv(dto: ExportSageDto): Promise<string> {
+        this.logger.log(`Generating Trial Balance CSV: ${JSON.stringify(dto)}`);
+        const { startDate, endDate, centreId } = dto;
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        const cid = centreId && centreId !== 'ALL' && centreId !== '' ? centreId : undefined;
+
+        // 1. Get Totals per Category
+        const [invoices, payments, expenses] = await Promise.all([
+            this.prisma.facture.findMany({
+                where: {
+                    dateEmission: { lte: end },
+                    statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
+                    centreId: cid,
+                },
+                select: { totalHT: true, totalTVA: true, totalTTC: true },
+            }),
+            this.prisma.paiement.findMany({
+                where: {
+                    date: { lte: end },
+                    statut: 'ENCAISSE',
+                    facture: cid ? { centreId: cid } : undefined,
+                },
+                select: { montant: true },
+            }),
+            this.prisma.depense.findMany({
+                where: {
+                    date: { lte: end },
+                    statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
+                    centreId: cid,
+                },
+                select: { montant: true },
+            }),
+        ]);
+
+        // 2. Calculate Account Totals
+        const totalHTVentes = invoices.reduce((sum, i) => sum + (i.totalHT || 0), 0);
+        const totalTVAVentes = invoices.reduce((sum, i) => sum + (i.totalTVA || 0), 0);
+        const totalTTCVentes = invoices.reduce((sum, i) => sum + (i.totalTTC || 0), 0);
+
+        const totalEncaissements = payments.reduce((sum, p) => sum + (p.montant || 0), 0);
+
+        const totalTTCAchats = expenses.reduce((sum, e) => sum + (e.montant || 0), 0);
+        // Approximation for expenses without explicit tax breakdown
+        const totalHTAchats = totalTTCAchats / 1.2;
+        const totalTVAAchats = totalTTCAchats - totalHTAchats;
+
+        // 3. Build Account Lines
+        // Structure: Account Code | Label | Debit | Credit | Balance (Debit - Credit)
+        const accounts = [
+            // Actif
+            { code: this.CONFIG.RECEIVABLE_ACCOUNT, label: 'Clients', debit: totalTTCVentes, credit: totalEncaissements },
+            { code: this.CONFIG.CASH_ACCOUNT, label: 'Trésorerie (Caisse/Banque)', debit: totalEncaissements, credit: totalTTCAchats },
+
+            // Passif & Charges
+            { code: this.CONFIG.PAYABLE_ACCOUNT, label: 'Fournisseurs', debit: totalTTCAchats, credit: totalTTCAchats }, // Assuming paid
+            { code: this.CONFIG.SALES_TAX_ACCOUNT, label: 'État - TVA Facturée', debit: 0, credit: totalTVAVentes },
+
+            // Charges
+            { code: this.CONFIG.EXPENSE_ACCOUNT, label: 'Achats de marchandises', debit: totalHTAchats, credit: 0 },
+            { code: this.CONFIG.INPUT_TAX_ACCOUNT, label: 'État - TVA Récupérable', debit: totalTVAAchats, credit: 0 },
+
+            // Produits
+            { code: this.CONFIG.SALES_REVENUE_ACCOUNT, label: 'Ventes de marchandises', debit: 0, credit: totalHTVentes },
+        ];
+
+        // 4. Generate CSV
+        const header = 'Compte;Intitulé;Débit;Crédit;Solde\n';
+        const lines = accounts.map(acc => {
+            const solde = acc.debit - acc.credit;
+            return `${acc.code};${acc.label};${acc.debit.toFixed(2)};${acc.credit.toFixed(2)};${solde.toFixed(2)}`;
+        });
+
+        // Add Totals Line
+        const grandTotalDebit = accounts.reduce((sum, acc) => sum + acc.debit, 0);
+        const grandTotalCredit = accounts.reduce((sum, acc) => sum + acc.credit, 0);
+        lines.push(`;TOTAUX;${grandTotalDebit.toFixed(2)};${grandTotalCredit.toFixed(2)};${(grandTotalDebit - grandTotalCredit).toFixed(2)}`);
+
+        return header + lines.join('\n');
+    }
+
+    /**
      * Generates Landscape PDF with TVA rate sorting (20%, 14%, etc. - Max to Min)
      */
     private async generateJournalPdfLandscape(dto: ExportSageDto) {
@@ -415,26 +503,22 @@ export class AccountingService {
             }),
         ]);
 
-        // Helper to get TVA rate from payment/invoice
+        // Helper to get TVA rate
         const getPaymentTvaRate = (p: any): number => {
             if (p.facture?.totalTTC && p.facture?.totalHT) {
                 const tva = p.facture.totalTTC - p.facture.totalHT;
-                if (p.facture.totalHT > 0) {
-                    return (tva / p.facture.totalHT) * 100;
-                }
+                if (p.facture.totalHT > 0) return (tva / p.facture.totalHT) * 100;
             }
-            return 20; // Default
+            return 20;
         };
 
-        // Helper to get TVA rate from expense
         const getExpenseTvaRate = (e: any): number => {
             if (e.factureFournisseur?.montantHT && e.factureFournisseur?.montantTVA) {
                 return (e.factureFournisseur.montantTVA / e.factureFournisseur.montantHT) * 100;
             }
-            return 20; // Default
+            return 20;
         };
 
-        // SORTING: By TVA RATE (Max to Min)
         payments = payments.sort((a, b) => getPaymentTvaRate(b) - getPaymentTvaRate(a));
         expenses = expenses.sort((a, b) => getExpenseTvaRate(b) - getExpenseTvaRate(a));
 
@@ -450,28 +534,25 @@ export class AccountingService {
             doc.fontSize(10).font('Helvetica').text(`Période du ${formatDate(start)} au ${formatDate(end)}`, { align: 'center' });
             doc.moveDown(1.5);
 
-            // Calculate total table width and center it
             const totalTableWidth = colWidths.reduce((a, b) => a + b, 0);
-            const pageWidth = 841.89; // A4 Landscape width in points
-            const startX = (pageWidth - totalTableWidth) / 2; // Center the table
+            const pageWidth = 841.89;
+            const startX = (pageWidth - totalTableWidth) / 2;
 
             const rowHeight = 20;
             let currentY = doc.y;
 
-            if (currentY + rowHeight > 550) {
-                doc.addPage();
-                currentY = 40;
-            }
+            const drawHeaders = (y: number) => {
+                doc.save().rect(startX, y, totalTableWidth, rowHeight).fill(headerColor).stroke().restore();
+                let x = startX;
+                doc.font('Helvetica-Bold').fontSize(8).fillColor('#000');
+                headers.forEach((h, i) => {
+                    doc.text(h, x + 2, y + 6, { width: colWidths[i] - 4, align: 'center' });
+                    doc.rect(x, y, colWidths[i], rowHeight).stroke();
+                    x += colWidths[i];
+                });
+            };
 
-            doc.save().rect(startX, currentY, totalTableWidth, rowHeight).fill(headerColor).stroke().restore();
-
-            let currentX = startX;
-            doc.font('Helvetica-Bold').fontSize(8).fillColor('#000');
-            headers.forEach((h, i) => {
-                doc.text(h, currentX + 2, currentY + 6, { width: colWidths[i] - 4, align: 'center' });
-                doc.rect(currentX, currentY, colWidths[i], rowHeight).stroke();
-                currentX += colWidths[i];
-            });
+            drawHeaders(currentY);
             currentY += rowHeight;
 
             doc.font('Helvetica').fontSize(8);
@@ -479,19 +560,12 @@ export class AccountingService {
                 if (currentY + rowHeight > 550) {
                     doc.addPage();
                     currentY = 40;
-                    currentX = startX;
-                    doc.save().rect(startX, currentY, totalTableWidth, rowHeight).fill(headerColor).stroke().restore();
-                    doc.font('Helvetica-Bold').fillColor('#000');
-                    headers.forEach((h, i) => {
-                        doc.text(h, currentX + 2, currentY + 6, { width: colWidths[i] - 4, align: 'center' });
-                        doc.rect(currentX, currentY, colWidths[i], rowHeight).stroke();
-                        currentX += colWidths[i];
-                    });
+                    drawHeaders(currentY);
                     currentY += rowHeight;
                     doc.font('Helvetica').fontSize(8);
                 }
 
-                currentX = startX;
+                let currentX = startX;
                 if (rowIndex % 2 === 1) {
                     doc.save().rect(startX, currentY, totalTableWidth, rowHeight).fill('#f8fafc').restore();
                 }
@@ -518,7 +592,6 @@ export class AccountingService {
                 const tvaRate = getPaymentTvaRate(p);
                 const ht = ttc / (1 + tvaRate / 100);
                 const tva = ttc - ht;
-
                 return [
                     `Vente ${p.facture?.numero || 'Divers'}`.substring(0, 30),
                     p.facture?.client?.nom || 'Client Divers',
@@ -536,14 +609,13 @@ export class AccountingService {
 
             drawTable('ETAT DES ENCAISSEMENTS', salesHeaders, salesWidths, salesRows, '#dbeafe');
 
-            // Add Subtotal for Encaissements
+            // Add Subtotal for Encaissements with Height Check
             const totalEncaissements = payments.reduce((sum, p) => sum + (p.montant || 0), 0);
+            if (doc.y > 500) doc.addPage(); // Force page break if near bottom
+
             doc.moveDown(0.5);
             doc.fontSize(11).font('Helvetica-Bold').fillColor('#10b981')
-                .text(`TOTAL ENCAISSEMENTS : ${formatMoney(totalEncaissements)} DH`, 30, doc.y, {
-                    align: 'right',
-                    width: 780
-                });
+                .text(`TOTAL ENCAISSEMENTS : ${formatMoney(totalEncaissements)} DH`, 30, doc.y, { align: 'right', width: 780 });
             doc.moveDown(1);
 
             doc.addPage();
@@ -556,7 +628,6 @@ export class AccountingService {
                 const tvaRate = getExpenseTvaRate(exp);
                 const ht = ttc / (1 + tvaRate / 100);
                 const tva = ttc - ht;
-
                 return [
                     exp.factureFournisseur?.numeroFacture || exp.reference || '-',
                     formatDate(exp.factureFournisseur?.dateEmission || exp.date),
@@ -575,14 +646,13 @@ export class AccountingService {
 
             drawTable('RELEVE DES ACHATS, LIVRAISONS ET TRAVAUX', purchaseHeaders, purchaseWidths, purchaseRows, '#e0e7ff');
 
-            // Add Subtotal for Dépenses
+            // Add Subtotal for Dépenses with Height Check
             const totalDepenses = expenses.reduce((sum, exp) => sum + (exp.montant || 0), 0);
+            if (doc.y > 500) doc.addPage();
+
             doc.moveDown(0.5);
             doc.fontSize(11).font('Helvetica-Bold').fillColor('#ef4444')
-                .text(`TOTAL DÉPENSES : ${formatMoney(totalDepenses)} DH`, 30, doc.y, {
-                    align: 'right',
-                    width: 780
-                });
+                .text(`TOTAL DÉPENSES : ${formatMoney(totalDepenses)} DH`, 30, doc.y, { align: 'right', width: 780 });
             doc.moveDown(2);
 
             const range = doc.bufferedPageRange();
