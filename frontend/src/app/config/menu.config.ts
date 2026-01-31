@@ -25,7 +25,6 @@ export const MENU: MenuItem[] = [
     icon: 'trending_up',
     type: 'link',
     route: 'profit-report',
-    roles: [4, 3],
   },
   {
     label: 'Paiements en ligne',

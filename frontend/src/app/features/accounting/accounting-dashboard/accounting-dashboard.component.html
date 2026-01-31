@@ -51,11 +51,16 @@
                     {{ isLoading() ? 'Génération...' : 'Exporter pour Sage (.csv)' }}
                 </button>
 
-                <div class="grid grid-cols-2 gap-4 mt-2">
+                <div class="grid grid-cols-3 gap-4 mt-2">
                     <button mat-stroked-button color="primary" class="rounded-lg py-4" (click)="onExportPdf()"
                         [disabled]="isLoading()">
                         <mat-icon>picture_as_pdf</mat-icon>
                         Journal PDF
+                    </button>
+                    <button mat-stroked-button color="accent" class="rounded-lg py-4" (click)="onExportBilan()"
+                        [disabled]="isLoading()">
+                        <mat-icon>account_balance</mat-icon>
+                        Bilan
                     </button>
                     <button mat-stroked-button color="primary" class="rounded-lg py-4" (click)="onExportExcel()"
                         [disabled]="isLoading()">

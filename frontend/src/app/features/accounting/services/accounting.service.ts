@@ -33,4 +33,11 @@ export class AccountingService {
             responseType: 'blob'
         });
     }
+
+    exportBilan(startDate: string, endDate: string, centreId?: string): Observable<Blob> {
+        return this.http.get(`${this.apiUrl}/export/bilan`, {
+            params: { startDate, endDate, centreId: centreId || '' },
+            responseType: 'blob'
+        });
+    }
 }

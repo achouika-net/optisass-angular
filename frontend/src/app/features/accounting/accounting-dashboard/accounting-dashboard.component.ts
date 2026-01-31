@@ -160,4 +160,32 @@ export class AccountingDashboardComponent implements OnInit {
                 }
             });
     }
+
+    onExportBilan(): void {
+        this.isLoading.set(true);
+        const { startDate, endDate, centreId } = this.exportForm.value;
+        const start = format(startDate, 'yyyy-MM-dd');
+        const end = format(endDate, 'yyyy-MM-dd');
+
+        this.accountingService.exportBilan(start, end, centreId)
+            .pipe(finalize(() => {
+                this.isLoading.set(false);
+                this.cdr.detectChanges();
+            }))
+            .subscribe({
+                next: (blob) => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Bilan_Comptable_${start}_${end}.pdf`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    this.snackBar.open('Bilan Comptable généré avec succès', 'OK', { duration: 3000 });
+                },
+                error: (err) => {
+                    console.error('Bilan export failed', err);
+                    this.snackBar.open('Erreur lors de la génération du Bilan', 'Fermer', { duration: 5000 });
+                }
+            });
+    }
 }
