@@ -345,7 +345,10 @@ export class StatsService {
             console.time('TotalProfitReport');
             console.log('Getting Profit Report for:', { startDate, endDate, centreId });
             const start = startDate ? new Date(startDate) : new Date(new Date().setMonth(new Date().getMonth() - 1));
+            start.setHours(0, 0, 0, 0);
+
             const end = endDate ? new Date(endDate) : new Date();
+            end.setHours(23, 59, 59, 999);
 
             console.log('Parsed Dates:', { start, end });
 
