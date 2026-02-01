@@ -145,9 +145,41 @@ export class OperationCaisseService {
         });
     }
 
-    async findByJournee(journeeId: string) {
-        return this.prisma.operationCaisse.findMany({
-            where: { journeeCaisseId: journeeId },
+    async findByJournee(journeeId: string, startDate?: string, endDate?: string) {
+        console.log(`[Caisse-Operation] findByJournee: ID=${journeeId}, start=${startDate}, end=${endDate}`);
+
+        const conditions: any[] = [
+            { journeeCaisseId: journeeId }
+        ];
+
+        let hasFilter = false;
+        const dateFilter: any = {};
+
+        if (startDate && startDate !== 'undefined' && startDate !== 'null') {
+            const start = new Date(startDate);
+            if (!isNaN(start.getTime())) {
+                dateFilter.gte = start;
+                hasFilter = true;
+            }
+        }
+
+        if (endDate && endDate !== 'undefined' && endDate !== 'null') {
+            const end = new Date(endDate);
+            if (!isNaN(end.getTime())) {
+                dateFilter.lte = end;
+                hasFilter = true;
+            }
+        }
+
+        if (hasFilter) {
+            conditions.push({ createdAt: dateFilter });
+        }
+
+        const where = { AND: conditions };
+        console.log('[Caisse-Operation] FINAL PRISMA WHERE:', JSON.stringify(where));
+
+        const result = await this.prisma.operationCaisse.findMany({
+            where,
             include: {
                 user: {
                     select: {
@@ -167,12 +199,14 @@ export class OperationCaisseService {
                     },
                 },
             },
-            orderBy: [
-                { createdAt: 'desc' },
-                { id: 'desc' }
-            ],
-            take: 100,
+            orderBy: {
+                createdAt: 'desc',
+            },
+            take: hasFilter ? undefined : 200,
         });
+
+        console.log(`[Caisse-Operation] Result size: ${result.length}`);
+        return result;
     }
 
     async remove(id: string, userRole?: string) {

@@ -9,6 +9,12 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatInputModule } from '@angular/material/input';
+import { FormsModule } from '@angular/forms';
 import { JourneeCaisseService } from '../../services/journee-caisse.service';
 import { OperationCaisseService } from '../../services/operation-caisse.service';
 import { OperationFormDialogComponent } from '../../components/operation-form-dialog/operation-form-dialog.component';
@@ -28,7 +34,13 @@ import { switchMap, catchError, timeout, finalize } from 'rxjs/operators';
         MatDialogModule,
         MatProgressSpinnerModule,
         MatSnackBarModule,
-        MatChipsModule
+        MatChipsModule,
+        MatFormFieldModule,
+        MatSelectModule,
+        MatDatepickerModule,
+        MatNativeDateModule,
+        MatInputModule,
+        FormsModule
     ],
     templateUrl: './caisse-live.component.html',
     styleUrls: ['./caisse-live.component.scss'],
@@ -40,6 +52,11 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
     loading = true;
     errorLoading = false;
     refreshSubscription?: Subscription;
+
+    selectedPeriod: string = 'all';
+    startDate: Date | null = null;
+    endDate: Date | null = null;
+    activeFilterInfo: string = 'Toute la session';
 
     displayedColumns: string[] = ['date', 'type', 'montant', 'moyen', 'reference', 'motif', 'utilisateur', 'actions'];
     protected readonly OperationType = OperationType;
@@ -59,10 +76,61 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
         this.route.params.subscribe((params) => {
             this.journeeId = params['id'];
             if (this.journeeId) {
-                this.loadData();
+                this.setPeriod('all');
                 this.startAutoRefresh();
             }
         });
+    }
+
+    setPeriod(period: string): void {
+        const now = new Date();
+        const start = new Date();
+        const end = new Date();
+
+        switch (period) {
+            case 'all':
+                this.startDate = null;
+                this.endDate = null;
+                this.activeFilterInfo = 'Toute la période (Session)';
+                this.loadData();
+                return;
+            case 'today':
+                start.setHours(0, 0, 0, 0);
+                end.setHours(23, 59, 59, 999);
+                this.activeFilterInfo = 'Aujourd\'hui';
+                break;
+            case 'yesterday':
+                start.setDate(now.getDate() - 1);
+                start.setHours(0, 0, 0, 0);
+                end.setDate(now.getDate() - 1);
+                end.setHours(23, 59, 59, 999);
+                this.activeFilterInfo = 'Hier';
+                break;
+            case 'thisMonth':
+                start.setDate(1);
+                start.setHours(0, 0, 0, 0);
+                end.setHours(23, 59, 59, 999);
+                this.activeFilterInfo = 'Ce mois';
+                break;
+            case 'custom':
+                this.activeFilterInfo = 'Période personnalisée';
+                return;
+            default:
+                break;
+        }
+
+        this.startDate = start;
+        this.endDate = end;
+        this.loadData();
+    }
+
+    onCustomDateChange(): void {
+        if (this.startDate && this.endDate) {
+            // Normalize custom dates
+            this.startDate.setHours(0, 0, 0, 0);
+            this.endDate.setHours(23, 59, 59, 999);
+            this.loadData();
+        }
     }
 
     ngOnDestroy(): void {
@@ -75,75 +143,60 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
         if (!this.journeeId) return;
 
         this.zone.run(() => {
-            console.log('[CaisseLive] Starting data load for:', this.journeeId);
             this.loading = true;
             this.errorLoading = false;
             this.cdr.markForCheck();
 
-            // 1. Fetch Resume (Priority)
-            this.journeeService.getResume(this.journeeId!).pipe(
-                timeout(7000),
+            const startStr = this.startDate ? this.startDate.toISOString() : undefined;
+            const endStr = this.endDate ? this.endDate.toISOString() : undefined;
+
+            console.log('[CaisseLive] Loading with:', { startStr, endStr });
+
+            forkJoin({
+                resume: this.journeeService.getResume(this.journeeId!, startStr, endStr),
+                operations: this.operationService.findByJournee(this.journeeId!, startStr, endStr)
+            }).pipe(
+                timeout(15000),
                 catchError(err => {
-                    console.error('[CaisseLive] Resume fetch failed:', err);
+                    console.error('[CaisseLive] Load failed:', err);
                     this.errorLoading = true;
-                    this.cdr.detectChanges();
-                    return of(null);
+                    return of({ resume: this.resume, operations: this.operations });
                 }),
                 finalize(() => {
                     this.loading = false;
                     this.cdr.markForCheck();
                     this.cdr.detectChanges();
                 })
-            ).subscribe((resume: JourneeResume | null) => {
-                if (resume) {
-                    console.log('[CaisseLive] Resume loaded');
-                    this.resume = resume;
-                    this.cdr.markForCheck();
-                    this.cdr.detectChanges();
-                }
-            });
-
-            // 2. Fetch Operations (Secondary)
-            this.operationService.findByJournee(this.journeeId!).pipe(
-                timeout(15000),
-                catchError(err => {
-                    console.error('[CaisseLive] Operations fetch failed:', err);
-                    return of([]);
-                }),
-                finalize(() => {
-                    this.cdr.markForCheck();
-                    this.cdr.detectChanges();
-                })
-            ).subscribe((ops: OperationCaisse[]) => {
-                console.log('[CaisseLive] Operations loaded count:', ops.length);
-                this.operations = ops;
+            ).subscribe((res: any) => {
+                if (res.resume) this.resume = res.resume;
+                if (res.operations) this.operations = res.operations;
                 this.cdr.markForCheck();
                 this.cdr.detectChanges();
             });
         });
     }
 
+    private formatDateForApi(date: Date | null): string | undefined {
+        if (!date) return undefined;
+        const d = new Date(date);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
     startAutoRefresh(): void {
-        // Refresh totals every 30 seconds (fast summary call)
         this.refreshSubscription = interval(30000)
             .pipe(
                 switchMap(() => {
                     if (this.journeeId && this.resume) {
-                        return this.journeeService.getResume(this.journeeId).pipe(
-                            catchError(err => {
-                                console.error('Auto-refresh failed', err);
-                                return EMPTY;
-                            })
-                        );
+                        this.loadData(); // Trigger full reload every 30s
+                        return of(null);
                     }
                     return EMPTY;
                 })
             )
-            .subscribe((resume) => {
-                if (resume) {
-                    this.resume = resume as JourneeResume;
-                }
-            });
+            .subscribe();
     }
 
     openOperationDialog(type: OperationType): void {

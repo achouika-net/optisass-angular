@@ -8,6 +8,8 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
 
         .title-section {
             display: flex;
@@ -19,6 +21,55 @@
                 font-size: 24px;
                 font-weight: 600;
                 color: #333;
+            }
+        }
+
+        .filter-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #fff;
+            padding: 8px 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+            .period-select {
+                width: 160px;
+
+                ::ng-deep .mat-mdc-form-field-wrapper {
+                    padding-bottom: 0;
+                }
+            }
+
+            .date-picker {
+                width: 140px;
+
+                ::ng-deep .mat-mdc-form-field-wrapper {
+                    padding-bottom: 0;
+                }
+            }
+
+            ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+                display: none;
+            }
+
+            .refresh-btn {
+                height: 48px;
+                width: 48px;
+                min-width: 48px;
+                padding: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 10px;
+                border-color: #e2e8f0;
+                color: #64748b;
+
+                &:hover {
+                    background-color: #f1f5f9;
+                    color: #1e293b;
+                    border-color: #cbd5e1;
+                }
             }
         }
     }

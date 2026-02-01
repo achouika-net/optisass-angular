@@ -8,15 +8,18 @@
     align-items: center;
     margin-bottom: 24px;
 
-    h1 {
-        font-size: 24px;
-        font-weight: 500;
-        margin: 0;
-    }
+    .title-section {
+        h1 {
+            font-size: 24px;
+            font-weight: 500;
+            margin: 0;
+            color: #1e293b;
+        }
 
-    .subtitle {
-        color: #666;
-        font-size: 14px;
+        .subtitle {
+            color: #64748b;
+            font-size: 14px;
+        }
     }
 }
 
@@ -144,7 +147,98 @@
     }
 }
 
+.filter-toolbar {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+
+    .filter-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 12px;
+
+        .filter-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #1e293b;
+            font-weight: 600;
+            font-size: 16px;
+
+            mat-icon {
+                color: #3b82f6;
+            }
+        }
+    }
+
+    .filter-controls {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+
+        .period-select {
+            min-width: 250px;
+            flex: 1;
+
+            ::ng-deep .mat-mdc-form-field-wrapper {
+                padding-bottom: 0;
+            }
+        }
+
+        .date-picker {
+            min-width: 180px;
+            flex: 1;
+
+            ::ng-deep .mat-mdc-form-field-wrapper {
+                padding-bottom: 0;
+            }
+        }
+
+        ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+            display: none;
+        }
+
+        .refresh-main-btn {
+            mat-icon.spinning {
+                animation: rotate 1.5s linear infinite;
+            }
+        }
+    }
+}
+
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .operations-card {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+
+    mat-card-header {
+        padding: 16px 24px;
+        border-bottom: 1px solid #f1f5f9;
+        background: #f8fafc;
+
+        mat-card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+    }
+
     .type-badge {
         padding: 4px 8px;
         border-radius: 4px;

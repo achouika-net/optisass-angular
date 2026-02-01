@@ -119,10 +119,63 @@
         </button>
     </div>
 
+    <!-- Enhanced Filter Section -->
+    <div class="filter-toolbar card">
+        <div class="filter-header">
+            <div class="filter-title">
+                <mat-icon>filter_list</mat-icon>
+                <span>Filtres & Période</span>
+            </div>
+            <div class="filter-status">
+                <mat-chip-listbox>
+                    <mat-chip selected color="primary">
+                        {{ activeFilterInfo }} : <b>{{ operations.length }} opération(s)</b>
+                    </mat-chip>
+                </mat-chip-listbox>
+            </div>
+        </div>
+
+        <div class="filter-controls">
+            <mat-form-field appearance="outline" class="period-select">
+                <mat-label>Choisir la période</mat-label>
+                <mat-select [(ngModel)]="selectedPeriod" (selectionChange)="setPeriod($event.value)">
+                    <mat-option value="all">Historique complet (Session)</mat-option>
+                    <mat-option value="today">Aujourd'hui</mat-option>
+                    <mat-option value="yesterday">Hier</mat-option>
+                    <mat-option value="thisMonth">Ce mois</mat-option>
+                    <mat-option value="custom">Plage personnalisée</mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <ng-container *ngIf="selectedPeriod === 'custom'">
+                <mat-form-field appearance="outline" class="date-picker">
+                    <mat-label>Du</mat-label>
+                    <input matInput [matDatepicker]="startPicker" [(ngModel)]="startDate"
+                        (dateChange)="onCustomDateChange()">
+                    <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
+                    <mat-datepicker #startPicker></mat-datepicker>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="date-picker">
+                    <mat-label>Au</mat-label>
+                    <input matInput [matDatepicker]="endPicker" [(ngModel)]="endDate"
+                        (dateChange)="onCustomDateChange()">
+                    <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
+                    <mat-datepicker #endPicker></mat-datepicker>
+                </mat-form-field>
+            </ng-container>
+
+            <button mat-mini-fab color="primary" (click)="loadData()" [disabled]="loading" matTooltip="Rafraîchir"
+                class="refresh-main-btn">
+                <mat-icon [class.spinning]="loading">refresh</mat-icon>
+            </button>
+        </div>
+    </div>
+
     <!-- Operations Table -->
     <mat-card class="operations-card">
         <mat-card-header>
-            <mat-card-title>Journal des opérations</mat-card-title>
+            <mat-card-title>Journal des opérations détaillé</mat-card-title>
         </mat-card-header>
 
         <mat-card-content>

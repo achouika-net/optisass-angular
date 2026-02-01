@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_URL } from '../../../../config/api.config';
 import {
@@ -37,12 +37,18 @@ export class JourneeCaisseService {
         return this.http.get<JourneeCaisse[]>(`${this.apiUrl}/centre/${centreId}`);
     }
 
-    findHistory(centreId: string): Observable<JourneeCaisse[]> {
-        return this.http.get<JourneeCaisse[]>(`${this.apiUrl}/centre/${centreId}/history`);
+    findHistory(centreId: string, startDate?: string, endDate?: string): Observable<JourneeCaisse[]> {
+        let params = new HttpParams();
+        if (startDate) params = params.set('startDate', startDate);
+        if (endDate) params = params.set('endDate', endDate);
+        return this.http.get<JourneeCaisse[]>(`${this.apiUrl}/centre/${centreId}/history`, { params });
     }
 
-    getResume(id: string): Observable<JourneeResume> {
-        return this.http.get<JourneeResume>(`${this.apiUrl}/${id}/resume`);
+    getResume(id: string, startDate?: string, endDate?: string): Observable<JourneeResume> {
+        let params = new HttpParams().set('_t', Date.now().toString());
+        if (startDate && startDate !== 'undefined') params = params.set('startDate', startDate);
+        if (endDate && endDate !== 'undefined') params = params.set('endDate', endDate);
+        return this.http.get<JourneeResume>(`${this.apiUrl}/${id}/resume`, { params });
     }
 
     getLastClosingBalance(caisseId: string): Observable<{ amount: number }> {
