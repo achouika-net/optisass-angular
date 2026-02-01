@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { JourneeCaisseService } from './journee-caisse.service';
 import { OuvrirCaisseDto } from './dto/ouvrir-caisse.dto';
 import { CloturerCaisseDto } from './dto/cloturer-caisse.dto';
@@ -36,13 +36,21 @@ export class JourneeCaisseController {
     }
 
     @Get('centre/:centreId/history')
-    findHistory(@Param('centreId') centreId: string) {
-        return this.journeeCaisseService.findHistory(centreId);
+    findHistory(
+        @Param('centreId') centreId: string,
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+    ) {
+        return this.journeeCaisseService.findHistory(centreId, startDate, endDate);
     }
 
     @Get(':id/resume')
-    getResume(@Param('id') id: string) {
-        return this.journeeCaisseService.getResume(id);
+    getResume(
+        @Param('id') id: string,
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+    ) {
+        return this.journeeCaisseService.getResume(id, startDate, endDate);
     }
 
     @Get('caisse/:caisseId/last-balance')

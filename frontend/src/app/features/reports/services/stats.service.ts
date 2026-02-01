@@ -111,6 +111,17 @@ export class StatsService {
         let params = new HttpParams();
         if (startDate) params = params.set('startDate', startDate);
         if (endDate) params = params.set('endDate', endDate);
+        // Add cache buster
+        params = params.set('_t', new Date().getTime().toString());
         return this.http.get<any>(`${this.apiUrl}/profit`, { params });
+    }
+
+    getProfitEvolution(startDate?: string, endDate?: string): Observable<any[]> {
+        let params = new HttpParams();
+        if (startDate) params = params.set('startDate', startDate);
+        if (endDate) params = params.set('endDate', endDate);
+        // Add cache buster
+        params = params.set('_t', new Date().getTime().toString());
+        return this.http.get<any[]>(`${this.apiUrl}/profit-evolution`, { params });
     }
 }

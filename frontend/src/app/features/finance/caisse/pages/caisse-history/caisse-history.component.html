@@ -6,9 +6,38 @@
             </button>
             <h1>Historique des Clôtures</h1>
         </div>
-        <button mat-stroked-button (click)="loadHistory()">
-            <mat-icon>refresh</mat-icon> Actualiser
-        </button>
+
+        <div class="filter-section">
+            <mat-form-field appearance="outline" class="period-select">
+                <mat-label>Période</mat-label>
+                <mat-select [(ngModel)]="selectedPeriod" (selectionChange)="setPeriod($event.value)">
+                    <mat-option value="today">Aujourd'hui</mat-option>
+                    <mat-option value="yesterday">Hier</mat-option>
+                    <mat-option value="thisWeek">Cette Semaine</mat-option>
+                    <mat-option value="thisMonth">Ce Mois</mat-option>
+                    <mat-option value="lastMonth">Mois Dernier</mat-option>
+                    <mat-option value="custom">Personnalisé</mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="date-picker" *ngIf="selectedPeriod === 'custom'">
+                <mat-label>Du</mat-label>
+                <input matInput [matDatepicker]="startPicker" [(ngModel)]="startDate" (dateChange)="loadHistory()">
+                <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
+                <mat-datepicker #startPicker></mat-datepicker>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="date-picker" *ngIf="selectedPeriod === 'custom'">
+                <mat-label>Au</mat-label>
+                <input matInput [matDatepicker]="endPicker" [(ngModel)]="endDate" (dateChange)="loadHistory()">
+                <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
+                <mat-datepicker #endPicker></mat-datepicker>
+            </mat-form-field>
+
+            <button mat-stroked-button (click)="loadHistory()" class="refresh-btn">
+                <mat-icon>refresh</mat-icon>
+            </button>
+        </div>
     </div>
 
     <mat-card class="history-card">

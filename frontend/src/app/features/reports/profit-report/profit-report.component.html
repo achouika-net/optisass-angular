@@ -1,42 +1,63 @@
-<div class="w-full h-[82vh] p-4 overflow-y-auto overflow-x-hidden">
-    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-        <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <mat-icon class="text-blue-600 scale-125">show_chart</mat-icon>
-            Rapport de Bénéfice Réel
+<div class="w-full p-2 overflow-x-hidden">
+    <!-- Compact Header -->
+    <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-2">
+        <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <mat-icon class="text-blue-600">show_chart</mat-icon>
+            Bénéfice Réel
         </h1>
+        <div class="flex items-center gap-2 text-xs text-gray-400">
+            <button mat-button color="primary" class="!min-w-0" (click)="loadData()">
+                <mat-icon class="text-sm">refresh</mat-icon> Actualiser
+            </button>
+        </div>
+    </div>
 
-        <!-- Barre de Filtres -->
-        <div class="flex flex-wrap gap-3 items-center bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+    <!-- Enhanced Filter Section (Restored) -->
+    <div class="filter-toolbar card mb-4">
+        <div class="filter-header">
+            <div class="filter-title">
+                <mat-icon>filter_list</mat-icon>
+                <span>Filtres & Période</span>
+            </div>
+            <div class="filter-status" *ngIf="data">
+                <mat-chip-listbox>
+                    <mat-chip selected color="primary">
+                        {{ activeFilterInfo }} : <b>{{ data.expensesBreakdown?.length || 0 }} catégories</b>
+                    </mat-chip>
+                </mat-chip-listbox>
+            </div>
+        </div>
 
-            <!-- Période Select -->
-            <mat-form-field appearance="outline" class="w-40 subscript-sizing-dynamic">
-                <mat-label>Période</mat-label>
+        <div class="filter-controls">
+            <mat-form-field appearance="outline" class="period-select">
+                <mat-label>Choisir la période</mat-label>
                 <mat-select [(ngModel)]="selectedPeriod" (selectionChange)="onPeriodChange($event.value)">
                     <mat-option value="thisMonth">Ce Mois</mat-option>
                     <mat-option value="lastMonth">Mois Dernier</mat-option>
                     <mat-option value="thisYear">Cette Année</mat-option>
-                    <mat-option value="custom">Personnalisé</mat-option>
+                    <mat-option value="custom">Plage personnalisée</mat-option>
                 </mat-select>
             </mat-form-field>
 
-            <div class="h-8 w-px bg-gray-200 hidden md:block"></div>
+            <ng-container *ngIf="selectedPeriod === 'custom'">
+                <mat-form-field appearance="outline" class="date-picker">
+                    <mat-label>Du</mat-label>
+                    <input matInput [matDatepicker]="startPicker" [(ngModel)]="startDate" (dateChange)="onDateChange()">
+                    <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
+                    <mat-datepicker #startPicker></mat-datepicker>
+                </mat-form-field>
 
-            <mat-form-field appearance="outline" class="w-40 subscript-sizing-dynamic">
-                <mat-label>Du</mat-label>
-                <input matInput [matDatepicker]="startPicker" [(ngModel)]="startDate" (dateChange)="onDateChange()">
-                <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
-                <mat-datepicker #startPicker></mat-datepicker>
-            </mat-form-field>
+                <mat-form-field appearance="outline" class="date-picker">
+                    <mat-label>Au</mat-label>
+                    <input matInput [matDatepicker]="endPicker" [(ngModel)]="endDate" (dateChange)="onDateChange()">
+                    <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
+                    <mat-datepicker #endPicker></mat-datepicker>
+                </mat-form-field>
+            </ng-container>
 
-            <mat-form-field appearance="outline" class="w-40 subscript-sizing-dynamic">
-                <mat-label>Au</mat-label>
-                <input matInput [matDatepicker]="endPicker" [(ngModel)]="endDate" (dateChange)="onDateChange()">
-                <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
-                <mat-datepicker #endPicker></mat-datepicker>
-            </mat-form-field>
-
-            <button mat-icon-button color="primary" (click)="loadData()" [disabled]="loading" matTooltip="Actualiser">
-                <mat-icon>refresh</mat-icon>
+            <button mat-mini-fab color="primary" (click)="loadData()" [disabled]="loading" matTooltip="Rafraîchir"
+                class="refresh-main-btn">
+                <mat-icon [class.spinning]="loading">refresh</mat-icon>
             </button>
         </div>
     </div>
@@ -46,22 +67,23 @@
         <p class="mt-4 text-gray-500 font-medium">Analyse des données en cours...</p>
     </div>
 
-    <div *ngIf="!loading && data" class="space-y-6">
+    <div *ngIf="!loading && data" class="space-y-4">
         <!-- KPI Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Revenue Card -->
             <mat-card class="bg-blue-50 border-none shadow-sm rounded-xl overflow-hidden relative group">
                 <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                     <mat-icon class="scale-[3] text-blue-900">payments</mat-icon>
                 </div>
-                <mat-card-header class="pb-2">
-                    <mat-card-title class="text-blue-800 text-sm font-bold uppercase tracking-wider">Revenu
+                <mat-card-header class="pb-1">
+                    <mat-card-title class="text-blue-800 text-[10px] font-bold uppercase tracking-wider">Revenu
                         (HT)</mat-card-title>
                 </mat-card-header>
                 <mat-card-content>
-                    <div class="text-3xl font-extrabold text-blue-900">{{ data.revenue | number:'1.2-2' }} <span
-                            class="text-lg font-normal">DH</span></div>
-                    <div class="text-xs text-blue-600 font-medium mt-1">Total Facturé (Hors Avoirs)</div>
+                    <div class="text-2xl font-extrabold text-blue-900">{{ data.revenue | number:'1.2-2' }} <span
+                            class="text-sm font-normal">DH</span></div>
+                    <div class="text-[10px] text-blue-600 font-medium whitespace-nowrap">Total Facturé (Hors Avoirs)
+                    </div>
                 </mat-card-content>
             </mat-card>
 
@@ -70,14 +92,15 @@
                 <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                     <mat-icon class="scale-[3] text-orange-900">inventory_2</mat-icon>
                 </div>
-                <mat-card-header class="pb-2">
-                    <mat-card-title class="text-orange-800 text-sm font-bold uppercase tracking-wider">Coût d'Achat
+                <mat-card-header class="pb-1">
+                    <mat-card-title class="text-orange-800 text-[10px] font-bold uppercase tracking-wider">Coût d'Achat
                         (COGS)</mat-card-title>
                 </mat-card-header>
                 <mat-card-content>
-                    <div class="text-3xl font-extrabold text-orange-900">{{ data.cogs | number:'1.2-2' }} <span
-                            class="text-lg font-normal">DH</span></div>
-                    <div class="text-xs text-orange-600 font-medium mt-1">Valeur d'achat des produits</div>
+                    <div class="text-2xl font-extrabold text-orange-900">{{ data.cogs | number:'1.2-2' }} <span
+                            class="text-sm font-normal">DH</span></div>
+                    <div class="text-[10px] text-orange-600 font-medium whitespace-nowrap">Valeur d'achat des produits
+                    </div>
                 </mat-card-content>
             </mat-card>
 
@@ -86,14 +109,14 @@
                 <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                     <mat-icon class="scale-[3] text-red-900">trending_down</mat-icon>
                 </div>
-                <mat-card-header class="pb-2">
+                <mat-card-header class="pb-1">
                     <mat-card-title
-                        class="text-red-800 text-sm font-bold uppercase tracking-wider">Dépenses</mat-card-title>
+                        class="text-red-800 text-[10px] font-bold uppercase tracking-wider">Dépenses</mat-card-title>
                 </mat-card-header>
                 <mat-card-content>
-                    <div class="text-3xl font-extrabold text-red-900">{{ data.expenses | number:'1.2-2' }} <span
-                            class="text-lg font-normal">DH</span></div>
-                    <div class="text-xs text-red-600 font-medium mt-1">Charges Opérationnelles</div>
+                    <div class="text-2xl font-extrabold text-red-900">{{ data.expenses | number:'1.2-2' }} <span
+                            class="text-sm font-normal">DH</span></div>
+                    <div class="text-[10px] text-red-600 font-medium whitespace-nowrap">Charges Opérationnelles</div>
                 </mat-card-content>
             </mat-card>
 
@@ -105,18 +128,18 @@
                     <mat-icon class="scale-[3]"
                         [ngClass]="{'text-green-900': data.netProfit >= 0, 'text-red-900': data.netProfit < 0}">account_balance_wallet</mat-icon>
                 </div>
-                <mat-card-header class="pb-2">
-                    <mat-card-title class="text-sm font-bold uppercase tracking-wider"
+                <mat-card-header class="pb-1">
+                    <mat-card-title class="text-[10px] font-bold uppercase tracking-wider"
                         [ngClass]="{'text-green-800': data.netProfit >= 0, 'text-red-800': data.netProfit < 0}">
                         Bénéfice Net
                     </mat-card-title>
                 </mat-card-header>
                 <mat-card-content>
-                    <div class="text-3xl font-extrabold"
+                    <div class="text-2xl font-extrabold"
                         [ngClass]="{'text-green-900': data.netProfit >= 0, 'text-red-900': data.netProfit < 0}">
-                        {{ data.netProfit | number:'1.2-2' }} <span class="text-lg font-normal">DH</span>
+                        {{ data.netProfit | number:'1.2-2' }} <span class="text-sm font-normal">DH</span>
                     </div>
-                    <div class="text-xs font-medium mt-1"
+                    <div class="text-[10px] font-medium whitespace-nowrap"
                         [ngClass]="{'text-green-700': data.netProfit >= 0, 'text-red-700': data.netProfit < 0}">
                         Marge Nette: {{ data.analysis.marginRate | number:'1.1-1' }}%
                     </div>
@@ -125,15 +148,15 @@
         </div>
 
         <!-- Main Content Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
             <!-- Chart Section -->
             <mat-card class="shadow-sm rounded-xl border border-gray-100">
-                <mat-card-header class="border-b border-gray-100 pb-4 mb-4">
-                    <mat-card-title class="text-gray-800 text-lg">Visualisation</mat-card-title>
+                <mat-card-header class="border-b border-gray-100 pb-2 mb-2">
+                    <mat-card-title class="text-gray-800 text-base">Visualisation</mat-card-title>
                 </mat-card-header>
                 <mat-card-content>
-                    <div style="height: 350px;">
+                    <div style="height: 300px;">
                         <canvas id="profitChart"></canvas>
                     </div>
                 </mat-card-content>
@@ -141,16 +164,17 @@
 
             <!-- Expense Breakdown Section -->
             <mat-card class="shadow-sm rounded-xl border border-gray-100 flex flex-col">
-                <mat-card-header class="border-b border-gray-100 pb-4 mb-4 flex justify-between items-center">
-                    <mat-card-title class="text-gray-800 text-lg">Détails des Dépenses</mat-card-title>
-                    <span class="text-xs font-medium px-2 py-1 bg-gray-100 rounded-md text-gray-600"
+                <mat-card-header class="border-b border-gray-100 pb-2 mb-2 flex justify-between items-center">
+                    <mat-card-title class="text-gray-800 text-base">Détails des Dépenses</mat-card-title>
+                    <span class="text-[10px] font-medium px-2 py-0.5 bg-gray-100 rounded text-gray-600"
                         *ngIf="data.expensesBreakdown?.length">
                         {{ data.expensesBreakdown.length }} Catégories
                     </span>
                 </mat-card-header>
                 <mat-card-content class="flex-1">
 
-                    <div class="overflow-x-auto" *ngIf="data.expensesBreakdown?.length; else noExpenses">
+                    <div class="overflow-x-auto max-h-[300px] overflow-y-auto"
+                        *ngIf="data.expensesBreakdown?.length; else noExpenses">
                         <table class="w-full text-left text-sm text-gray-600">
                             <thead class="bg-gray-50 text-gray-800 font-semibold border-b border-gray-200">
                                 <tr>

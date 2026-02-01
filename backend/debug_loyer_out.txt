@@ -1,0 +1,3 @@
+--- LOYER Expenses ---
+ID: b3ff3f29-ee30-428c-898c-891536705820, Date: 2026-01-30T12:00:00.000Z, Montant: 5500, Categorie: LOYER
+ID: 16fa88e9-0090-49c4-be32-0bb1458258b8, Date: 2026-01-31T12:00:00.000Z, Montant: 4000, Categorie: LOYER

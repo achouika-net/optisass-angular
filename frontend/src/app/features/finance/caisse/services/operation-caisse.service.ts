@@ -27,8 +27,11 @@ export class OperationCaisseService {
         return this.http.post<OperationCaisse>(this.apiUrl, createOperationDto, { params });
     }
 
-    findByJournee(journeeId: string): Observable<OperationCaisse[]> {
-        return this.http.get<OperationCaisse[]>(`${this.apiUrl}/journee/${journeeId}`);
+    findByJournee(journeeId: string, startDate?: string, endDate?: string): Observable<OperationCaisse[]> {
+        let params = new HttpParams().set('_t', Date.now().toString());
+        if (startDate && startDate !== 'undefined') params = params.set('startDate', startDate);
+        if (endDate && endDate !== 'undefined') params = params.set('endDate', endDate);
+        return this.http.get<OperationCaisse[]>(`${this.apiUrl}/journee/${journeeId}`, { params });
     }
 
     getStatsByJournee(journeeId: string): Observable<OperationStats> {

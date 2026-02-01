@@ -59,7 +59,8 @@ export class StatsService {
             where: {
                 dateEmission: { gte: start, lte: end },
                 statut: { in: ['VALIDE', 'PAYEE', 'PARTIEL'] },
-                type: { not: 'AVOIR' }
+                type: { not: 'AVOIR' },
+                ...(centreId ? { centreId } : {})
             },
             select: {
                 dateEmission: true,
@@ -99,6 +100,9 @@ export class StatsService {
 
     async getProductDistribution(centreId?: string): Promise<ProductDistribution[]> {
         const products = await this.prisma.product.findMany({
+            where: centreId ? {
+                entrepot: { centreId }
+            } : {},
             select: {
                 typeArticle: true,
                 quantiteActuelle: true,
@@ -131,7 +135,8 @@ export class StatsService {
         const end = endDate ? new Date(endDate) : new Date();
 
         const whereClause = {
-            dateEmission: { gte: start, lte: end }
+            dateEmission: { gte: start, lte: end },
+            ...(centreId ? { centreId } : {})
         };
 
         const totalDevis = await this.prisma.facture.count({
@@ -146,7 +151,7 @@ export class StatsService {
             where: {
                 ...whereClause,
                 type: 'FACTURE',
-                statut: { in: ['VALIDE', 'PAYEE', 'PARTIEL'] }
+                statut: { in: ['VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL'] }
             }
         });
 
@@ -169,6 +174,7 @@ export class StatsService {
 
     async getStockByWarehouse(centreId?: string): Promise<WarehouseStock[]> {
         const warehouses = await this.prisma.entrepot.findMany({
+            where: centreId ? { centreId } : {},
             include: {
                 produits: {
                     select: {
@@ -200,7 +206,8 @@ export class StatsService {
             where: {
                 dateEmission: { gte: start, lte: end },
                 statut: { in: ['VALIDE', 'PAYEE', 'PARTIEL'] },
-                type: { not: 'AVOIR' }
+                type: { not: 'AVOIR' },
+                ...(centreId ? { centreId } : {})
             },
             select: {
                 clientId: true,
@@ -218,11 +225,8 @@ export class StatsService {
         const clientMap = new Map<string, { name: string; revenue: number; count: number }>();
 
         factures.forEach(f => {
-            const existing = clientMap.get(f.clientId) || {
-                name: f.client.raisonSociale || `${f.client.prenom || ''} ${f.client.nom || ''}`.trim(),
-                revenue: 0,
-                count: 0
-            };
+            const name = f.client.raisonSociale || `${f.client.prenom || ''} ${f.client.nom || ''}`.trim();
+            const existing = clientMap.get(f.clientId) || { name, revenue: 0, count: 0 };
             clientMap.set(f.clientId, {
                 name: existing.name,
                 revenue: existing.revenue + (f.totalTTC || 0),
@@ -336,39 +340,42 @@ export class StatsService {
             conversionRate: conversionMetrics.conversionToFacture
         };
     }
-    async getRealProfit(
-        startDate?: string,
-        endDate?: string,
-        centreId?: string
-    ) {
+
+    async getRealProfit(startDate?: string, endDate?: string, centreId?: string) {
         try {
-            console.time('TotalProfitReport');
-            console.log('Getting Profit Report for:', { startDate, endDate, centreId });
-            const start = startDate ? new Date(startDate) : new Date(new Date().setMonth(new Date().getMonth() - 1));
-            start.setHours(0, 0, 0, 0);
+            const tenantId = (centreId && centreId.trim() && centreId !== 'undefined' && centreId !== 'null' && centreId !== '') ? centreId : undefined;
 
-            const end = endDate ? new Date(endDate) : new Date();
-            end.setHours(23, 59, 59, 999);
+            let start: Date;
+            if (startDate && startDate !== 'undefined' && startDate !== 'null' && startDate !== '') {
+                start = new Date(startDate);
+            } else {
+                const now = new Date();
+                start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+            }
 
-            console.log('Parsed Dates:', { start, end });
+            let end: Date;
+            if (endDate && endDate !== 'undefined' && endDate !== 'null' && endDate !== '') {
+                end = new Date(endDate);
+            } else {
+                const now = new Date();
+                end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+            }
 
-            // 1. Revenue (Factures & Avoirs) - Optimized with Aggregate
-            console.time('Revenue');
+            console.log(`[Stats-Profit] RAW IN: start=${startDate}, end=${endDate}, tenant=${centreId}`);
+            console.log(`[Stats-Profit] FINAL PARSED: gte=${start.toISOString()}, lte=${end.toISOString()}, centre=${tenantId}`);
+
             const revenueResult = await this.prisma.facture.aggregate({
                 where: {
                     dateEmission: { gte: start, lte: end },
                     statut: { in: ['VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL'] },
-                    ...(centreId ? { centreId } : {})
+                    type: { not: 'AVOIR' },
+                    ...(tenantId ? { centreId: tenantId } : {})
                 },
                 _sum: { totalHT: true }
             });
-            console.timeEnd('Revenue');
 
             const revenue = revenueResult._sum.totalHT || 0;
-            console.log('Revenue calculated:', revenue);
 
-            // 2. COGS Calculation - Optimized with RAW SQL
-            console.time('COGS');
             const cogsQuery = Prisma.sql`
                 SELECT SUM(m."quantite" * COALESCE(m."prixAchatUnitaire", 0)) as total_cost
                 FROM "MouvementStock" m
@@ -376,47 +383,31 @@ export class StatsService {
                 WHERE f."dateEmission" >= ${start}
                 AND f."dateEmission" <= ${end}
                 AND f."statut" IN ('VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL')
-                ${centreId ? Prisma.sql`AND f."centreId" = ${centreId}` : Prisma.sql``}
+                ${tenantId ? Prisma.sql`AND f."centreId" = ${tenantId}` : Prisma.sql``}
             `;
 
             const cogsResult: any[] = await this.prisma.$queryRaw(cogsQuery);
             const rawCogs = cogsResult[0]?.total_cost || 0;
-
-            // Logic: Sales have negative Quantity. Cost = (-1 * Price) = Negative.
-            // We want COGS to be POSITIVE.
-            // So COGS = -1 * Sum(Qty * Price).
             const cogs = -1 * rawCogs;
-            console.timeEnd('COGS');
 
-            console.log('COGS calculated (SQL):', cogs);
-
-            console.time('Expenses');
-            const expenses = await this.prisma.depense.aggregate({
+            const expensesAgg = await this.prisma.depense.aggregate({
                 where: {
                     date: { gte: start, lte: end },
-                    ...(centreId ? { centreId } : {})
+                    ...(tenantId ? { centreId: tenantId } : {})
                 },
                 _sum: { montant: true }
             });
-            console.timeEnd('Expenses');
 
-            console.log('Expenses aggregated:', expenses);
+            const totalExpenses = expensesAgg._sum.montant || 0;
 
-            // Get Breakdown by Category
-            console.time('ExpenseBreakdown');
             const expenseBreakdown = await this.prisma.depense.groupBy({
                 by: ['categorie'],
                 where: {
                     date: { gte: start, lte: end },
-                    ...(centreId ? { centreId } : {})
+                    ...(tenantId ? { centreId: tenantId } : {})
                 },
                 _sum: { montant: true },
             });
-            console.timeEnd('ExpenseBreakdown');
-
-            console.log('Breakdown calculated:', expenseBreakdown.length);
-
-            const totalExpenses = expenses._sum.montant || 0;
 
             const formattedBreakdown = expenseBreakdown.map(e => ({
                 category: e.categorie || 'NON DÉFINI',
@@ -424,7 +415,6 @@ export class StatsService {
                 percentage: totalExpenses > 0 ? ((e._sum.montant || 0) / totalExpenses) * 100 : 0
             })).sort((a, b) => b.amount - a.amount);
 
-            console.timeEnd('TotalProfitReport');
             return {
                 period: { start, end },
                 revenue,
@@ -438,7 +428,98 @@ export class StatsService {
                 }
             };
         } catch (error) {
-            console.error('CRITICAL ERROR IN getRealProfit:', error);
+            console.error('[Stats-Profit] Critical Error in getRealProfit:', error);
+            throw error;
+        }
+    }
+
+    async getProfitEvolution(startDate?: string, endDate?: string, centreId?: string) {
+        try {
+            const tenantId = (centreId && centreId.trim() && centreId !== 'undefined' && centreId !== 'null' && centreId !== '') ? centreId : undefined;
+
+            let start: Date;
+            if (startDate && startDate !== 'undefined' && startDate !== 'null' && startDate !== '') {
+                start = new Date(startDate);
+            } else {
+                const now = new Date();
+                start = new Date(now.getFullYear() - 1, now.getMonth(), 1, 0, 0, 0, 0);
+            }
+
+            let end: Date;
+            if (endDate && endDate !== 'undefined' && endDate !== 'null' && endDate !== '') {
+                end = new Date(endDate);
+            } else {
+                const now = new Date();
+                end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+            }
+
+            console.log(`[Stats-Profit] Evolution Range: ${start.toISOString()} to ${end.toISOString()} (Tenant: ${tenantId})`);
+
+            const revenueQuery = Prisma.sql`
+                SELECT TO_CHAR(DATE_TRUNC('month', "dateEmission"), 'YYYY-MM') as month,
+                       SUM("totalHT") as revenue
+                FROM "Facture"
+                WHERE "dateEmission" >= ${start} AND "dateEmission" <= ${end}
+                AND "statut" IN ('VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL')
+                AND "type" != 'AVOIR'
+                ${tenantId ? Prisma.sql`AND "centreId" = ${tenantId}` : Prisma.sql``}
+                GROUP BY 1
+                ORDER BY 1
+            `;
+            const revenueRes = await this.prisma.$queryRaw(revenueQuery);
+
+            const cogsQuery = Prisma.sql`
+                SELECT TO_CHAR(DATE_TRUNC('month', f."dateEmission"), 'YYYY-MM') as month,
+                       SUM(m."quantite" * COALESCE(m."prixAchatUnitaire", 0)) as total_cost
+                FROM "MouvementStock" m
+                JOIN "Facture" f ON m."factureId" = f."id"
+                WHERE f."dateEmission" >= ${start} AND f."dateEmission" <= ${end}
+                AND f."statut" IN ('VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL')
+                ${tenantId ? Prisma.sql`AND f."centreId" = ${tenantId}` : Prisma.sql``}
+                GROUP BY 1
+                ORDER BY 1
+            `;
+            const cogsRes = await this.prisma.$queryRaw(cogsQuery);
+
+            const expensesQuery = Prisma.sql`
+                SELECT TO_CHAR(DATE_TRUNC('month', "date"), 'YYYY-MM') as month,
+                       SUM("montant") as expense
+                FROM "Depense"
+                WHERE "date" >= ${start} AND "date" <= ${end}
+                AND "statut" IN ('VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE')
+                ${tenantId ? Prisma.sql`AND "centreId" = ${tenantId}` : Prisma.sql``}
+                GROUP BY 1
+                ORDER BY 1
+            `;
+            const expensesRes = await this.prisma.$queryRaw(expensesQuery);
+
+            const months = new Set<string>();
+            (revenueRes as any[]).forEach(r => months.add(r.month));
+            (cogsRes as any[]).forEach(c => months.add(c.month));
+            (expensesRes as any[]).forEach(e => months.add(e.month));
+
+            const sortedMonths = Array.from(months).sort();
+
+            return sortedMonths.map(month => {
+                const r = (revenueRes as any[]).find(x => x.month === month);
+                const c = (cogsRes as any[]).find(x => x.month === month);
+                const e = (expensesRes as any[]).find(x => x.month === month);
+
+                const revenue = r ? parseFloat(r.revenue) : 0;
+                const rawCogs = c ? parseFloat(c.total_cost) : 0;
+                const cogs = -1 * rawCogs;
+                const expenses = e ? parseFloat(e.expense) : 0;
+
+                return {
+                    month,
+                    revenue,
+                    cogs,
+                    expenses,
+                    netProfit: revenue - cogs - expenses
+                };
+            });
+        } catch (error) {
+            console.error('[Stats-Profit] Evolution Error:', error);
             throw error;
         }
     }

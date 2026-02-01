@@ -258,17 +258,34 @@ export class JourneeCaisseService {
         });
     }
 
-    async findHistory(centreId: string) {
+    async findHistory(centreId: string, startDate?: string, endDate?: string) {
         console.time('FindHistory');
+
+        const where: any = {
+            centreId,
+            statut: 'FERMEE'
+        };
+
+        if (startDate || endDate) {
+            where.dateCloture = {};
+            if (startDate) {
+                const start = new Date(startDate);
+                start.setHours(0, 0, 0, 0);
+                where.dateCloture.gte = start;
+            }
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                where.dateCloture.lte = end;
+            }
+        }
+
         const history = await this.prisma.journeeCaisse.findMany({
-            where: {
-                centreId,
-                statut: 'FERMEE'
-            },
+            where,
             orderBy: {
                 dateCloture: 'desc'
             },
-            take: 100,
+            take: (startDate || endDate) ? undefined : 100, // No limit if filtering by date, otherwise keep 100
             include: {
                 caisse: true
             }
@@ -277,18 +294,37 @@ export class JourneeCaisseService {
         return history;
     }
 
-    async getResume(id: string) {
-        console.time('GetResume-Total');
-        console.log('--- START GET RESUME ---');
+    async getResume(id: string, startDate?: string, endDate?: string) {
+        console.log(`[Caisse-Resume] getResume: ID=${id}, start=${startDate}, end=${endDate}`);
+        const dateFilter: any = {};
+        let hasFilter = false;
 
-        console.time('GetResume-Step1-Metadata');
-        // 1. Fetch metadata only (STOP fetching all operations)
+        if (startDate && startDate !== 'undefined' && startDate !== 'null') {
+            const start = new Date(startDate);
+            if (!isNaN(start.getTime())) {
+                dateFilter.gte = start;
+                hasFilter = true;
+            }
+        }
+
+        if (endDate && endDate !== 'undefined' && endDate !== 'null') {
+            const end = new Date(endDate);
+            if (!isNaN(end.getTime())) {
+                dateFilter.lte = end;
+                hasFilter = true;
+            }
+        }
+
+        if (hasFilter) {
+            console.log('[Caisse-Resume] APPLYING FILTER:', JSON.stringify(dateFilter));
+        }
+
+        // 1. Fetch metadata
         const journee = await this.prisma.journeeCaisse.findUnique({
             where: { id },
             include: {
                 caisse: true,
                 centre: true,
-                // operations: true <--- REMOVED to prevent memory overload
             },
         });
 
@@ -302,7 +338,10 @@ export class JourneeCaisseService {
         console.time('GetResume-Step2-LocalStats');
         const localAggregates = await this.prisma.operationCaisse.groupBy({
             by: ['type', 'typeOperation', 'moyenPaiement'],
-            where: { journeeCaisseId: id },
+            where: {
+                journeeCaisseId: id,
+                ...(Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {})
+            },
             _sum: { montant: true },
             _count: { id: true }
         });
@@ -342,7 +381,7 @@ export class JourneeCaisseService {
                         stats.nbVentesCheque += count;
                     }
                 } else if (typeOperation === 'INTERNE' && moyenPaiement === 'ESPECES') {
-                    stats.totalInterneIn += amount; // Assuming Interne is mostly Cash/Espèces
+                    stats.totalInterneIn += amount;
                 }
             } else if (type === 'DECAISSEMENT') {
                 stats.totalOutflows += amount;
@@ -351,7 +390,6 @@ export class JourneeCaisseService {
                 }
 
                 if (typeOperation === 'COMPTABLE') {
-                    // Refund logic: subtract from net sales
                     if (moyenPaiement === 'ESPECES') stats.netVentesEspeces -= amount;
                     else if (moyenPaiement === 'CARTE') stats.netVentesCarte -= amount;
                     else if (moyenPaiement === 'CHEQUE' || moyenPaiement === 'LCN') stats.netVentesCheque -= amount;
@@ -369,11 +407,9 @@ export class JourneeCaisseService {
         let centreNbVentesCarte = 0;
         let centreNbVentesCheque = 0;
 
-        // Global Center Stats (Only needed for DEPENSES registers to calculate 'Total Recettes')
+        // Global Center Stats
         if (isDepenses) {
             console.time('GetResume-Step3-GlobalStats');
-            console.time('GetResume-Step3-GlobalStats-Ids');
-            // A. Get Open Session IDs first (Fast Index Scan)
             const openJournees = await this.prisma.journeeCaisse.findMany({
                 where: {
                     centreId: journee.centreId,
@@ -382,16 +418,14 @@ export class JourneeCaisseService {
                 select: { id: true }
             });
             const openJourneeIds = openJournees.map(j => j.id);
-            console.timeEnd('GetResume-Step3-GlobalStats-Ids');
 
-            console.time('GetResume-Step3-GlobalStats-Agg');
-            // B. Aggregate using simple IN clause (Avoids expensive JOIN)
             const globalStats = await this.prisma.operationCaisse.groupBy({
                 by: ['moyenPaiement'],
                 where: {
                     journeeCaisseId: { in: openJourneeIds },
                     typeOperation: 'COMPTABLE',
-                    type: 'ENCAISSEMENT'
+                    type: 'ENCAISSEMENT',
+                    ...(Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {})
                 },
                 _sum: {
                     montant: true

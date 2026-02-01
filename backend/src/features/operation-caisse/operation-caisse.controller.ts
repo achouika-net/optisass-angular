@@ -22,8 +22,12 @@ export class OperationCaisseController {
     }
 
     @Get('journee/:journeeId')
-    findByJournee(@Param('journeeId') journeeId: string) {
-        return this.operationCaisseService.findByJournee(journeeId);
+    findByJournee(
+        @Param('journeeId') journeeId: string,
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+    ) {
+        return this.operationCaisseService.findByJournee(journeeId, startDate, endDate);
     }
 
     @Get('journee/:journeeId/stats')
