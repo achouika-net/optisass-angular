@@ -354,7 +354,7 @@ export class StatsService {
             const revenueResult = await this.prisma.facture.aggregate({
                 where: {
                     dateEmission: { gte: start, lte: end },
-                    statut: { in: ['VALIDE', 'PAYEE', 'PARTIEL'] },
+                    statut: { in: ['VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL'] },
                     ...(centreId ? { centreId } : {})
                 },
                 _sum: { totalHT: true }
@@ -372,7 +372,7 @@ export class StatsService {
                 JOIN "Facture" f ON m."factureId" = f."id"
                 WHERE f."dateEmission" >= ${start}
                 AND f."dateEmission" <= ${end}
-                AND f."statut" IN ('VALIDE', 'PAYEE', 'PARTIEL')
+                AND f."statut" IN ('VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL')
                 ${centreId ? Prisma.sql`AND f."centreId" = ${centreId}` : Prisma.sql``}
             `;
 
