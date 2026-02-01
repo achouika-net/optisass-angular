@@ -4,6 +4,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatButtonModule } from '@angular/material/button';
+import { FormsModule } from '@angular/forms'; // Added FormsModule
 import { PersonnelService } from '../services/personnel.service';
 import { Chart, registerables } from 'chart.js';
 import { Store } from '@ngrx/store';
@@ -19,7 +20,8 @@ Chart.register(...registerables);
         MatCardModule,
         MatIconModule,
         MatProgressSpinnerModule,
-        MatButtonModule
+        MatButtonModule,
+        FormsModule // Added FormsModule
     ],
     templateUrl: './hr-dashboard.component.html',
     styleUrls: ['./hr-dashboard.component.scss']
@@ -35,11 +37,43 @@ export class HRDashboardComponent implements OnInit, AfterViewInit {
     isLoading = true;
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
 
+    // Filters
+    months = [
+        { value: '01', label: 'Janvier' },
+        { value: '02', label: 'Février' },
+        { value: '03', label: 'Mars' },
+        { value: '04', label: 'Avril' },
+        { value: '05', label: 'Mai' },
+        { value: '06', label: 'Juin' },
+        { value: '07', label: 'Juillet' },
+        { value: '08', label: 'Août' },
+        { value: '09', label: 'Septembre' },
+        { value: '10', label: 'Octobre' },
+        { value: '11', label: 'Novembre' },
+        { value: '12', label: 'Décembre' }
+    ];
+    years: number[] = [];
+
+    selectedMonth: string;
+    selectedYear: number;
+
     constructor(
         private personnelService: PersonnelService,
         private store: Store,
         private cd: ChangeDetectorRef
-    ) { }
+    ) {
+        const now = new Date();
+        this.selectedMonth = now.toISOString().substring(5, 7);
+        this.selectedYear = now.getFullYear();
+
+        // Populate years (current year - 5 to current + 1)
+        const currentYear = now.getFullYear();
+        for (let i = currentYear - 5; i <= currentYear + 1; i++) {
+            this.years.push(i);
+        }
+        // Ensure current year is selected if logic somehow fails or for consistency
+        this.selectedYear = currentYear;
+    }
 
     ngOnInit(): void {
         this.loadStats();
@@ -51,9 +85,8 @@ export class HRDashboardComponent implements OnInit, AfterViewInit {
 
     loadStats(): void {
         this.isLoading = true;
-        const now = new Date();
-        const mois = now.toISOString().substring(5, 7);
-        const annee = now.getFullYear();
+        const mois = this.selectedMonth;
+        const annee = this.selectedYear;
         const centreId = (this.currentCentre() as any)?.id;
 
         this.personnelService.getDashboardStats(mois, annee, centreId).subscribe({

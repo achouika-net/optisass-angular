@@ -270,110 +270,140 @@ export class AccountingService {
 
         try {
             // Header
-            doc.fontSize(18).font('Helvetica-Bold').fillColor('#1e3a8a').text('BILAN COMPTABLE', { align: 'center' });
+            doc.fontSize(20).font('Helvetica-Bold').fillColor('#1e3a8a').text('BILAN COMPTABLE', { align: 'center' });
             doc.moveDown(0.5);
             doc.fontSize(10).font('Helvetica').fillColor('#666').text(`Période : ${this.formatDateDisplay(start)} au ${this.formatDateDisplay(end)}`, { align: 'center' });
             doc.moveDown(2);
 
-            const startX = 40;
-            const colWidth = 250;
-            let currentY = doc.y;
+            // Layout Constants
+            const pageWidth = 595.28; // A4 width at 72dpi
+            const margin = 40;
+            const contentWidth = pageWidth - 2 * margin;
+            const colWidth = contentWidth / 2 - 10; // 10px gap
+            const colGap = 20;
 
-            // ACTIF (Left Side)
-            doc.fontSize(14).font('Helvetica-Bold').fillColor('#1e3a8a').text('ACTIF', startX, currentY);
-            currentY += 25;
+            const startX_Actif = margin;
+            const startX_Passif = margin + colWidth + colGap;
+            const startY = doc.y;
 
+            // Draw Header Backgrounds (Blue Headers)
+            doc.roundedRect(startX_Actif, startY, colWidth, 30, 5).fill('#1e3a8a');
+            doc.roundedRect(startX_Passif, startY, colWidth, 30, 5).fill('#1e3a8a');
+
+            // Draw Headers Text
+            doc.fontSize(14).font('Helvetica-Bold').fillColor('#fff');
+            doc.text('ACTIF', startX_Actif, startY + 8, { width: colWidth, align: 'center' });
+            doc.text('PASSIF', startX_Passif, startY + 8, { width: colWidth, align: 'center' });
+
+            let currentY_Actif = startY + 40;
+            let currentY_Passif = startY + 40;
+
+            // --- ACTIF CONTENT ---
             const actifItems = [
-                { label: 'ACTIF IMMOBILISÉ', value: balance.actif.immobilisations, bold: true },
+                { label: 'ACTIF IMMOBILISÉ', value: balance.actif.immobilisations, bold: true, bg: '#f1f5f9' },
                 { label: '  Immobilisations corporelles', value: 0, indent: true },
                 { label: '  Immobilisations incorporelles', value: 0, indent: true },
-                { label: '', value: null, separator: true },
-                { label: 'ACTIF CIRCULANT', value: null, bold: true },
+                { label: '', value: null, spacer: true },
+                { label: 'ACTIF CIRCULANT', value: null, bold: true, bg: '#f1f5f9' },
                 { label: '  Stocks et en-cours', value: balance.actif.stock, indent: true },
                 { label: '  Créances clients', value: balance.actif.creances, indent: true },
                 { label: '  Autres créances', value: 0, indent: true },
-                { label: '', value: null, separator: true },
-                { label: 'TRÉSORERIE - ACTIF', value: balance.actif.tresorerie, bold: true },
+                { label: '', value: null, spacer: true },
+                { label: 'TRÉSORERIE - ACTIF', value: balance.actif.tresorerie, bold: true, bg: '#f1f5f9' },
                 { label: '  Banques', value: balance.actif.tresorerie * 0.7, indent: true },
                 { label: '  Caisses', value: balance.actif.tresorerie * 0.3, indent: true },
             ];
 
             actifItems.forEach((item) => {
-                if (item.separator) {
-                    currentY += 10;
+                if (item.spacer) {
+                    currentY_Actif += 15;
                     return;
                 }
 
-                const font = item.bold ? 'Helvetica-Bold' : 'Helvetica';
-                const size = item.bold ? 11 : 10;
-                const color = item.bold ? '#000' : '#333';
-
-                doc.fontSize(size).font(font).fillColor(color);
-                doc.text(item.label, startX + (item.indent ? 20 : 0), currentY, { width: 180, continued: false });
-
-                if (item.value !== null) {
-                    doc.text(`${formatMoney(item.value)} DH`, startX + 180, currentY, { width: 70, align: 'right' });
+                if (item.bg) {
+                    doc.rect(startX_Actif, currentY_Actif - 4, colWidth, 20).fill(item.bg);
                 }
 
-                currentY += item.bold ? 20 : 18;
+                const font = item.bold ? 'Helvetica-Bold' : 'Helvetica';
+                const size = item.bold ? 10 : 9;
+                const color = item.bold ? '#1e293b' : '#334155';
+
+                doc.fontSize(size).font(font).fillColor(color);
+                doc.text(item.label, startX_Actif + 5, currentY_Actif, { width: colWidth - 70, continued: false });
+
+                if (item.value !== null) {
+                    doc.text(`${formatMoney(item.value)} DH`, startX_Actif + colWidth - 85, currentY_Actif, { width: 80, align: 'right' });
+                }
+
+                currentY_Actif += 20;
             });
 
-            currentY += 10;
-            doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a8a');
-            doc.rect(startX, currentY - 5, colWidth, 25).fill('#f0f9ff').stroke();
-            doc.fillColor('#1e3a8a').text('TOTAL ACTIF', startX + 10, currentY, { width: 180 });
-            doc.text(`${formatMoney(balance.actif.total)} DH`, startX + 180, currentY, { width: 60, align: 'right' });
 
-            // PASSIF (Right Side)
-            const passifX = 315;
-            currentY = 140; // Reset to same starting point
-
-            doc.fontSize(14).font('Helvetica-Bold').fillColor('#1e3a8a').text('PASSIF', passifX, currentY);
-            currentY += 25;
-
+            // --- PASSIF CONTENT ---
             const passifItems = [
-                { label: 'CAPITAUX PROPRES', value: null, bold: true },
+                { label: 'CAPITAUX PROPRES', value: null, bold: true, bg: '#f1f5f9' },
                 { label: '  Capital social', value: balance.passif.capitaux, indent: true },
                 { label: '  Réserves', value: 0, indent: true },
                 { label: '  Résultat de l\'exercice', value: balance.passif.resultat, indent: true },
-                { label: '', value: null, separator: true },
-                { label: 'DETTES', value: null, bold: true },
+                { label: '', value: null, spacer: true },
+                { label: 'DETTES', value: null, bold: true, bg: '#f1f5f9' },
                 { label: '  Dettes fournisseurs', value: balance.passif.dettes, indent: true },
                 { label: '  Dettes fiscales et sociales', value: balance.tva.aPayer, indent: true },
                 { label: '  Autres dettes', value: 0, indent: true },
-                { label: '', value: null, separator: true },
-                { label: 'TRÉSORERIE - PASSIF', value: 0, bold: true },
+                { label: '', value: null, spacer: true },
+                { label: 'TRÉSORERIE - PASSIF', value: 0, bold: true, bg: '#f1f5f9' },
                 { label: '  Découverts bancaires', value: 0, indent: true },
             ];
 
             passifItems.forEach((item) => {
-                if (item.separator) {
-                    currentY += 10;
+                if (item.spacer) {
+                    currentY_Passif += 15;
                     return;
                 }
 
-                const font = item.bold ? 'Helvetica-Bold' : 'Helvetica';
-                const size = item.bold ? 11 : 10;
-                const color = item.bold ? '#000' : '#333';
-
-                doc.fontSize(size).font(font).fillColor(color);
-                doc.text(item.label, passifX + (item.indent ? 20 : 0), currentY, { width: 180, continued: false });
-
-                if (item.value !== null) {
-                    doc.text(`${formatMoney(item.value)} DH`, passifX + 180, currentY, { width: 70, align: 'right' });
+                if (item.bg) {
+                    doc.rect(startX_Passif, currentY_Passif - 4, colWidth, 20).fill(item.bg);
                 }
 
-                currentY += item.bold ? 20 : 18;
+                const font = item.bold ? 'Helvetica-Bold' : 'Helvetica';
+                const size = item.bold ? 10 : 9;
+                const color = item.bold ? '#1e293b' : '#334155';
+
+                doc.fontSize(size).font(font).fillColor(color);
+                doc.text(item.label, startX_Passif + 5, currentY_Passif, { width: colWidth - 70, continued: false });
+
+                if (item.value !== null) {
+                    doc.text(`${formatMoney(item.value)} DH`, startX_Passif + colWidth - 85, currentY_Passif, { width: 80, align: 'right' });
+                }
+
+                currentY_Passif += 20;
             });
 
-            currentY += 10;
-            doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a8a');
-            doc.rect(passifX, currentY - 5, colWidth, 25).fill('#f0f9ff').stroke();
-            doc.fillColor('#1e3a8a').text('TOTAL PASSIF', passifX + 10, currentY, { width: 180 });
-            doc.text(`${formatMoney(balance.passif.total)} DH`, passifX + 180, currentY, { width: 60, align: 'right' });
+            // --- SEPARATOR LINE ---
+            const finalY = Math.max(currentY_Actif, currentY_Passif) + 20;
+
+            // Vertical line
+            doc.lineWidth(1).strokeColor('#e2e8f0');
+            doc.moveTo(pageWidth / 2, startY).lineTo(pageWidth / 2, finalY).stroke();
+
+
+            // --- TOTALS ROW (Aligned) ---
+            const totalY = finalY;
+
+            // Total Actif Box
+            doc.rect(startX_Actif, totalY, colWidth, 30).fill('#1e3a8a');
+            doc.fontSize(12).font('Helvetica-Bold').fillColor('#fff');
+            doc.text('TOTAL ACTIF', startX_Actif + 10, totalY + 8);
+            doc.text(`${formatMoney(balance.actif.total)} DH`, startX_Actif + colWidth - 110, totalY + 8, { width: 100, align: 'right' });
+
+            // Total Passif Box
+            doc.rect(startX_Passif, totalY, colWidth, 30).fill('#1e3a8a');
+            doc.text('TOTAL PASSIF', startX_Passif + 10, totalY + 8);
+            doc.text(`${formatMoney(balance.passif.total)} DH`, startX_Passif + colWidth - 110, totalY + 8, { width: 100, align: 'right' });
+
 
             // Footer
-            doc.fontSize(8).fillColor('#aaa').text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 40, 780, { align: 'center' });
+            doc.fontSize(8).fillColor('#94a3b8').text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, margin, 780, { align: 'center' });
 
             doc.end();
             return doc;
@@ -456,17 +486,20 @@ export class AccountingService {
             { code: this.CONFIG.SALES_REVENUE_ACCOUNT, label: 'Ventes de marchandises', debit: 0, credit: totalHTVentes },
         ];
 
-        // 4. Generate CSV
-        const header = 'Compte;Intitulé;Débit;Crédit;Solde\n';
+        // 4. Generate CSV with BOM for Excel UTF-8 support
+        const header = '\uFEFFCompte;Intitulé;Débit;Crédit;Solde\n';
+
+        const formatCsvNumber = (num: number) => num.toFixed(2).replace('.', ',');
+
         const lines = accounts.map(acc => {
             const solde = acc.debit - acc.credit;
-            return `${acc.code};${acc.label};${acc.debit.toFixed(2)};${acc.credit.toFixed(2)};${solde.toFixed(2)}`;
+            return `${acc.code};${acc.label};${formatCsvNumber(acc.debit)};${formatCsvNumber(acc.credit)};${formatCsvNumber(solde)}`;
         });
 
         // Add Totals Line
         const grandTotalDebit = accounts.reduce((sum, acc) => sum + acc.debit, 0);
         const grandTotalCredit = accounts.reduce((sum, acc) => sum + acc.credit, 0);
-        lines.push(`;TOTAUX;${grandTotalDebit.toFixed(2)};${grandTotalCredit.toFixed(2)};${(grandTotalDebit - grandTotalCredit).toFixed(2)}`);
+        lines.push(`;TOTAUX;${formatCsvNumber(grandTotalDebit)};${formatCsvNumber(grandTotalCredit)};${formatCsvNumber(grandTotalDebit - grandTotalCredit)}`);
 
         return header + lines.join('\n');
     }

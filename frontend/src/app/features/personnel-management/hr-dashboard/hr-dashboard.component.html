@@ -1,6 +1,6 @@
 <div class="flex flex-col space-y-6" *ngIf="!isLoading && stats">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
             <h1 class="text-2xl font-bold text-[#1e3a8a] flex items-center gap-2">
                 <mat-icon>analytics</mat-icon>
@@ -8,10 +8,35 @@
             </h1>
             <p class="text-gray-500">Aperçu de la performance et de la masse salariale.</p>
         </div>
-        <button mat-stroked-button color="primary" (click)="loadStats()" class="rounded-lg">
-            <mat-icon>refresh</mat-icon>
-            Actualiser
-        </button>
+
+        <div class="flex items-center gap-3">
+            <!-- Month Selector -->
+            <div class="relative">
+                <select [(ngModel)]="selectedMonth" (change)="loadStats()"
+                    class="appearance-none bg-white border border-gray-300 text-gray-700 py-2 px-4 pr-8 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-blue-500">
+                    <option *ngFor="let m of months" [value]="m.value">{{m.label}}</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                    <mat-icon class="text-sm">expand_more</mat-icon>
+                </div>
+            </div>
+
+            <!-- Year Selector -->
+            <div class="relative">
+                <select [(ngModel)]="selectedYear" (change)="loadStats()"
+                    class="appearance-none bg-white border border-gray-300 text-gray-700 py-2 px-4 pr-8 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-blue-500">
+                    <option *ngFor="let y of years" [value]="y">{{y}}</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                    <mat-icon class="text-sm">expand_more</mat-icon>
+                </div>
+            </div>
+
+            <button mat-stroked-button color="primary" (click)="loadStats()" class="rounded-lg h-10">
+                <mat-icon>refresh</mat-icon>
+                Actualiser
+            </button>
+        </div>
     </div>
 
     <!-- KPIs -->
@@ -48,7 +73,8 @@
                 <div>
                     <p class="text-gray-500 text-sm font-medium uppercase tracking-wider">Cotisation Patronale</p>
                     <h3 class="text-3xl font-bold text-orange-600 mt-1">{{stats.totalEmployerCharges | number:'1.0-0'}}
-                        <small class="text-lg font-normal">DH</small></h3>
+                        <small class="text-lg font-normal">DH</small>
+                    </h3>
                 </div>
                 <div class="bg-orange-50 p-3 rounded-lg">
                     <mat-icon class="text-orange-600 scale-125">account_balance</mat-icon>
@@ -62,7 +88,8 @@
                 <div>
                     <p class="text-gray-500 text-sm font-medium uppercase tracking-wider">Commissions (Mois)</p>
                     <h3 class="text-3xl font-bold text-green-600 mt-1">{{stats.totalCommissions | number:'1.0-0'}}
-                        <small class="text-lg font-normal">DH</small></h3>
+                        <small class="text-lg font-normal">DH</small>
+                    </h3>
                 </div>
                 <div class="bg-green-50 p-3 rounded-lg">
                     <mat-icon class="text-green-600 scale-125">trending_up</mat-icon>

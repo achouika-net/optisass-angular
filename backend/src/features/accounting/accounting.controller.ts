@@ -50,7 +50,7 @@ export class AccountingController {
             const filename = `Balance_Comptable_${dto.startDate}_${dto.endDate}.csv`;
 
             res.set({
-                'Content-Type': 'text/csv',
+                'Content-Type': 'text/csv; charset=utf-8',
                 'Content-Disposition': `attachment; filename="${filename}"`,
             });
 
