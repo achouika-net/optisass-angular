@@ -1,89 +1,200 @@
-<div class="container mx-auto p-6">
-    <div class="flex flex-col md:flex-row justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold text-gray-800">Rapport de Bénéfice Réel</h1>
+<div class="w-full h-[82vh] p-4 overflow-y-auto overflow-x-hidden">
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <mat-icon class="text-blue-600 scale-125">show_chart</mat-icon>
+            Rapport de Bénéfice Réel
+        </h1>
 
-        <div class="flex gap-4 bg-white p-2 rounded shadow">
-            <mat-form-field appearance="outline" class="w-40">
+        <!-- Barre de Filtres -->
+        <div class="flex flex-wrap gap-3 items-center bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+
+            <!-- Période Select -->
+            <mat-form-field appearance="outline" class="w-40 subscript-sizing-dynamic">
+                <mat-label>Période</mat-label>
+                <mat-select [(ngModel)]="selectedPeriod" (selectionChange)="onPeriodChange($event.value)">
+                    <mat-option value="thisMonth">Ce Mois</mat-option>
+                    <mat-option value="lastMonth">Mois Dernier</mat-option>
+                    <mat-option value="thisYear">Cette Année</mat-option>
+                    <mat-option value="custom">Personnalisé</mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <div class="h-8 w-px bg-gray-200 hidden md:block"></div>
+
+            <mat-form-field appearance="outline" class="w-40 subscript-sizing-dynamic">
                 <mat-label>Du</mat-label>
                 <input matInput [matDatepicker]="startPicker" [(ngModel)]="startDate" (dateChange)="onDateChange()">
                 <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
                 <mat-datepicker #startPicker></mat-datepicker>
             </mat-form-field>
 
-            <mat-form-field appearance="outline" class="w-40">
+            <mat-form-field appearance="outline" class="w-40 subscript-sizing-dynamic">
                 <mat-label>Au</mat-label>
                 <input matInput [matDatepicker]="endPicker" [(ngModel)]="endDate" (dateChange)="onDateChange()">
                 <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
                 <mat-datepicker #endPicker></mat-datepicker>
             </mat-form-field>
 
-            <button mat-icon-button color="primary" (click)="loadData()" [disabled]="loading">
+            <button mat-icon-button color="primary" (click)="loadData()" [disabled]="loading" matTooltip="Actualiser">
                 <mat-icon>refresh</mat-icon>
             </button>
         </div>
     </div>
 
-    <div *ngIf="loading" class="text-center py-10">
-        <p>Chargement des données...</p>
+    <div *ngIf="loading" class="flex flex-col items-center justify-center py-20">
+        <mat-spinner diameter="50"></mat-spinner>
+        <p class="mt-4 text-gray-500 font-medium">Analyse des données en cours...</p>
     </div>
 
-    <div *ngIf="!loading && data" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <!-- Revenue Card -->
-        <mat-card class="bg-blue-50">
-            <mat-card-header>
-                <mat-card-title class="text-blue-700">Revenu (HT)</mat-card-title>
-            </mat-card-header>
-            <mat-card-content class="pt-4">
-                <div class="text-3xl font-bold text-blue-900">{{ data.revenue | number:'1.2-2' }} DH</div>
-                <div class="text-sm text-blue-600">Total Facturé (Hors Avoirs)</div>
-            </mat-card-content>
-        </mat-card>
-
-        <!-- COGS Card -->
-        <mat-card class="bg-orange-50">
-            <mat-card-header>
-                <mat-card-title class="text-orange-700">Coût d'Achat (COGS)</mat-card-title>
-            </mat-card-header>
-            <mat-card-content class="pt-4">
-                <div class="text-3xl font-bold text-orange-900">{{ data.cogs | number:'1.2-2' }} DH</div>
-                <div class="text-sm text-orange-600">Valeur d'achat des produits vendus</div>
-            </mat-card-content>
-        </mat-card>
-
-        <!-- Expenses Card -->
-        <mat-card class="bg-red-50">
-            <mat-card-header>
-                <mat-card-title class="text-red-700">Dépenses</mat-card-title>
-            </mat-card-header>
-            <mat-card-content class="pt-4">
-                <div class="text-3xl font-bold text-red-900">{{ data.expenses | number:'1.2-2' }} DH</div>
-                <div class="text-sm text-red-600">Charges Opérationnelles</div>
-            </mat-card-content>
-        </mat-card>
-
-        <!-- Net Profit Card -->
-        <mat-card [ngClass]="{'bg-green-50': data.netProfit >= 0, 'bg-red-100': data.netProfit < 0}">
-            <mat-card-header>
-                <mat-card-title [ngClass]="{'text-green-700': data.netProfit >= 0, 'text-red-700': data.netProfit < 0}">
-                    Bénéfice Net
-                </mat-card-title>
-            </mat-card-header>
-            <mat-card-content class="pt-4">
-                <div class="text-3xl font-bold"
-                    [ngClass]="{'text-green-900': data.netProfit >= 0, 'text-red-900': data.netProfit < 0}">
-                    {{ data.netProfit | number:'1.2-2' }} DH
+    <div *ngIf="!loading && data" class="space-y-6">
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- Revenue Card -->
+            <mat-card class="bg-blue-50 border-none shadow-sm rounded-xl overflow-hidden relative group">
+                <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <mat-icon class="scale-[3] text-blue-900">payments</mat-icon>
                 </div>
-                <div class="text-sm font-medium">Marges: {{ data.analysis.marginRate | number:'1.1-1' }}%</div>
-            </mat-card-content>
-        </mat-card>
-    </div>
+                <mat-card-header class="pb-2">
+                    <mat-card-title class="text-blue-800 text-sm font-bold uppercase tracking-wider">Revenu
+                        (HT)</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="text-3xl font-extrabold text-blue-900">{{ data.revenue | number:'1.2-2' }} <span
+                            class="text-lg font-normal">DH</span></div>
+                    <div class="text-xs text-blue-600 font-medium mt-1">Total Facturé (Hors Avoirs)</div>
+                </mat-card-content>
+            </mat-card>
 
-    <!-- Chart Section -->
-    <mat-card *ngIf="!loading && data">
-        <mat-card-content>
-            <div style="height: 400px;">
-                <canvas id="profitChart"></canvas>
-            </div>
-        </mat-card-content>
-    </mat-card>
+            <!-- COGS Card -->
+            <mat-card class="bg-orange-50 border-none shadow-sm rounded-xl overflow-hidden relative group">
+                <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <mat-icon class="scale-[3] text-orange-900">inventory_2</mat-icon>
+                </div>
+                <mat-card-header class="pb-2">
+                    <mat-card-title class="text-orange-800 text-sm font-bold uppercase tracking-wider">Coût d'Achat
+                        (COGS)</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="text-3xl font-extrabold text-orange-900">{{ data.cogs | number:'1.2-2' }} <span
+                            class="text-lg font-normal">DH</span></div>
+                    <div class="text-xs text-orange-600 font-medium mt-1">Valeur d'achat des produits</div>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- Expenses Card -->
+            <mat-card class="bg-red-50 border-none shadow-sm rounded-xl overflow-hidden relative group">
+                <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <mat-icon class="scale-[3] text-red-900">trending_down</mat-icon>
+                </div>
+                <mat-card-header class="pb-2">
+                    <mat-card-title
+                        class="text-red-800 text-sm font-bold uppercase tracking-wider">Dépenses</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="text-3xl font-extrabold text-red-900">{{ data.expenses | number:'1.2-2' }} <span
+                            class="text-lg font-normal">DH</span></div>
+                    <div class="text-xs text-red-600 font-medium mt-1">Charges Opérationnelles</div>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- Net Profit Card -->
+            <mat-card
+                class="border-none shadow-sm rounded-xl overflow-hidden relative group transition-colors duration-300"
+                [ngClass]="{'bg-green-50': data.netProfit >= 0, 'bg-red-50': data.netProfit < 0}">
+                <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <mat-icon class="scale-[3]"
+                        [ngClass]="{'text-green-900': data.netProfit >= 0, 'text-red-900': data.netProfit < 0}">account_balance_wallet</mat-icon>
+                </div>
+                <mat-card-header class="pb-2">
+                    <mat-card-title class="text-sm font-bold uppercase tracking-wider"
+                        [ngClass]="{'text-green-800': data.netProfit >= 0, 'text-red-800': data.netProfit < 0}">
+                        Bénéfice Net
+                    </mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="text-3xl font-extrabold"
+                        [ngClass]="{'text-green-900': data.netProfit >= 0, 'text-red-900': data.netProfit < 0}">
+                        {{ data.netProfit | number:'1.2-2' }} <span class="text-lg font-normal">DH</span>
+                    </div>
+                    <div class="text-xs font-medium mt-1"
+                        [ngClass]="{'text-green-700': data.netProfit >= 0, 'text-red-700': data.netProfit < 0}">
+                        Marge Nette: {{ data.analysis.marginRate | number:'1.1-1' }}%
+                    </div>
+                </mat-card-content>
+            </mat-card>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- Chart Section -->
+            <mat-card class="shadow-sm rounded-xl border border-gray-100">
+                <mat-card-header class="border-b border-gray-100 pb-4 mb-4">
+                    <mat-card-title class="text-gray-800 text-lg">Visualisation</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div style="height: 350px;">
+                        <canvas id="profitChart"></canvas>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- Expense Breakdown Section -->
+            <mat-card class="shadow-sm rounded-xl border border-gray-100 flex flex-col">
+                <mat-card-header class="border-b border-gray-100 pb-4 mb-4 flex justify-between items-center">
+                    <mat-card-title class="text-gray-800 text-lg">Détails des Dépenses</mat-card-title>
+                    <span class="text-xs font-medium px-2 py-1 bg-gray-100 rounded-md text-gray-600"
+                        *ngIf="data.expensesBreakdown?.length">
+                        {{ data.expensesBreakdown.length }} Catégories
+                    </span>
+                </mat-card-header>
+                <mat-card-content class="flex-1">
+
+                    <div class="overflow-x-auto" *ngIf="data.expensesBreakdown?.length; else noExpenses">
+                        <table class="w-full text-left text-sm text-gray-600">
+                            <thead class="bg-gray-50 text-gray-800 font-semibold border-b border-gray-200">
+                                <tr>
+                                    <th class="py-3 px-4 rounded-tl-lg">Catégorie</th>
+                                    <th class="py-3 px-4 text-right">Montant</th>
+                                    <th class="py-3 px-4 text-right rounded-tr-lg">% Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <tr *ngFor="let item of data.expensesBreakdown"
+                                    class="hover:bg-blue-50 transition-colors">
+                                    <td class="py-3 px-4 font-medium text-gray-800">{{ item.category }}</td>
+                                    <td class="py-3 px-4 text-right font-bold">{{ item.amount | number:'1.2-2' }} <span
+                                            class="text-xs font-normal text-gray-500">DH</span></td>
+                                    <td class="py-3 px-4 text-right">
+                                        <div
+                                            class="w-full bg-gray-200 rounded-full h-1.5 mb-1 inline-block w-20 align-middle mr-2">
+                                            <div class="bg-blue-600 h-1.5 rounded-full"
+                                                [style.width.%]="item.percentage"></div>
+                                        </div>
+                                        <span class="text-xs font-medium">{{ item.percentage | number:'1.1-1' }}%</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot class="bg-gray-50 font-bold text-gray-900 border-t-2 border-gray-200">
+                                <tr>
+                                    <td class="py-3 px-4">TOTAL</td>
+                                    <td class="py-3 px-4 text-right">{{ data.expenses | number:'1.2-2' }} DH</td>
+                                    <td class="py-3 px-4 text-right">100%</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <ng-template #noExpenses>
+                        <div class="flex flex-col items-center justify-center h-64 text-gray-400">
+                            <mat-icon class="scale-150 mb-4 text-gray-300">receipt_long</mat-icon>
+                            <p class="font-medium">Aucune dépense trouvée pour cette période.</p>
+                            <p class="text-xs mt-2">Essayez de sélectionner une plage de dates plus large.</p>
+                        </div>
+                    </ng-template>
+
+                </mat-card-content>
+            </mat-card>
+        </div>
+    </div>
 </div>

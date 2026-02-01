@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -7,6 +7,10 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { FormsModule } from '@angular/forms';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatOptionModule } from '@angular/material/core';
 import { Chart, registerables } from 'chart.js';
 import { StatsService } from '../services/stats.service';
 
@@ -16,19 +20,26 @@ Chart.register(...registerables);
     selector: 'app-profit-report',
     standalone: true,
     imports: [
+        // ... existing imports
         CommonModule,
         MatCardModule,
         MatButtonModule,
         MatIconModule,
         MatFormFieldModule,
+        MatInputModule,
+        MatSelectModule,
+        MatOptionModule,
         MatDatepickerModule,
         MatNativeDateModule,
-        FormsModule
+        FormsModule,
+        MatProgressSpinnerModule
     ],
     templateUrl: './profit-report.component.html',
     styleUrls: ['./profit-report.component.scss']
 })
 export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
+    selectedPeriod: string = 'thisMonth'; // Default
+
     loading = false;
     startDate: Date | null = null;
     endDate: Date | null = null;
@@ -36,17 +47,17 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
     data: any = null;
     profitChart: Chart | null = null;
 
-    constructor(private statsService: StatsService) { }
+    constructor(
+        private statsService: StatsService,
+        private cdref: ChangeDetectorRef
+    ) { }
 
     ngOnInit(): void {
-        // Default to current month
-        const now = new Date();
-        this.startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        this.endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        this.setPeriod('thisMonth');
     }
 
     ngAfterViewInit(): void {
-        setTimeout(() => this.loadData(), 100);
+        // Initial load handled by ngOnInit -> setPeriod
     }
 
     ngOnDestroy(): void {
@@ -61,12 +72,19 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
         const end = this.endDate.toISOString();
 
         this.statsService.getRealProfit(start, end).subscribe({
-            next: (res) => {
+            next: (res: any) => {
                 this.data = res;
                 this.loading = false;
-                this.createChart(res);
+
+                // Force view update to render *ngIf elements
+                this.cdref.detectChanges();
+
+                // Wait for the view to update so the canvas exists
+                setTimeout(() => {
+                    this.createChart(res);
+                }, 300);
             },
-            error: (err) => {
+            error: (err: any) => {
                 console.error('Error loading profit data', err);
                 this.loading = false;
             }
@@ -101,6 +119,7 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false, // Critical for fixed height container
                 plugins: {
                     legend: { display: false },
                     title: {
@@ -112,7 +131,38 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
         });
     }
 
+    // Updated to accept the event from mat-select or just string
+    onPeriodChange(period: string): void {
+        this.selectedPeriod = period;
+        this.setPeriod(period);
+    }
+
+    setPeriod(period: string): void {
+        const now = new Date();
+
+        switch (period) {
+            case 'thisMonth':
+                this.startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                this.endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                break;
+            case 'lastMonth':
+                this.startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                this.endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+                break;
+            case 'thisYear':
+                this.startDate = new Date(now.getFullYear(), 0, 1);
+                this.endDate = new Date(now.getFullYear(), 11, 31);
+                break;
+            case 'custom':
+                // Do nothing, keep existing dates or let user pick
+                return;
+        }
+
+        this.loadData();
+    }
+
     onDateChange(): void {
+        this.selectedPeriod = 'custom'; // Switch dropdown to custom if user manually picks date
         this.loadData();
     }
 }
