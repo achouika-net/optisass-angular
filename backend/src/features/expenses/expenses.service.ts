@@ -156,7 +156,8 @@ export class ExpensesService {
                         // Check funds ONLY for Cash
                         let sufficientFunds = true;
                         if (data.modePaiement === 'ESPECES') {
-                            const availableCash = openSession.fondInitial + openSession.totalInterne - openSession.totalDepenses;
+                            const availableCash = (openSession.fondInitial || 0) + (openSession.totalInterne || 0) + (openSession.totalVentesEspeces || 0) - (openSession.totalDepenses || 0);
+                            console.log(`[ExpensesService] Checking funds for ${data.categorie}: Required=${data.montant}, Available=${availableCash} (Fond=${openSession.fondInitial}, Interne=${openSession.totalInterne}, Ventes=${openSession.totalVentesEspeces}, Depenses=${openSession.totalDepenses})`);
                             if (availableCash < data.montant) sufficientFunds = false;
                         }
 

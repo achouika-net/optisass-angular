@@ -2,10 +2,13 @@
     <div class="header">
         <h1 class="text-2xl font-bold flex items-center gap-2">
             <mat-icon color="primary">payments</mat-icon>
-            {{ activeTab === 'OUTGOING' ? 'Paiements Sortants' : 'Paiements Entrants' }}
+            {{ activeTab === 'OUTGOING' ? 'Paiements Sortants' : (activeTab === 'INCOMING' ? 'Paiements Entrants' :
+            (activeTab === 'UNPAID_CLIENTS' ? 'Reste à payer' : (activeTab === 'FACTURES' ? 'Gestion Factures' :
+            'Gestion BL'))) }}
         </h1>
         <div class="flex gap-2">
-            <button mat-stroked-button color="warn" (click)="resetFilters()">
+            <button mat-stroked-button color="warn" (click)="resetFilters()"
+                *ngIf="['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(activeTab)">
                 <mat-icon>refresh</mat-icon>
                 Réinitialiser Filters
             </button>
@@ -23,259 +26,271 @@
     </div>
 
     <mat-tab-group (selectedTabChange)="onTabChange($event)">
-        <mat-tab label="Sortants (Fournisseurs)">
-            <!-- Header for Outgoing already above, or keep empty if standard -->
-        </mat-tab>
-        <mat-tab label="Entrants (Clients)">
-            <!-- Header for Incoming -->
-        </mat-tab>
-        <mat-tab label="Reste à payer (Clients)">
-            <!-- Header for Unpaid -->
-        </mat-tab>
+        <mat-tab label="Sortants (Fournisseurs)"></mat-tab>
+        <mat-tab label="Entrants (Clients)"></mat-tab>
+        <mat-tab label="Reste à payer (Clients)"></mat-tab>
+        <mat-tab label="Gestion Factures"></mat-tab>
+        <mat-tab label="Gestion BL"></mat-tab>
     </mat-tab-group>
 
-    <mat-card class="mt-4 mb-6">
-        <mat-card-content class="!p-4">
-            <div class="filters">
-                <mat-form-field appearance="outline" *ngIf="activeTab === 'OUTGOING'">
-                    <mat-label>Source</mat-label>
-                    <mat-select [(ngModel)]="filters.source" (ngModelChange)="applyFilters(true)">
-                        <mat-option value="">Toutes</mat-option>
-                        <mat-option value="DEPENSE">Dépenses</mat-option>
-                        <mat-option value="FACTURE">Factures</mat-option>
-                    </mat-select>
-                </mat-form-field>
+    <ng-container *ngIf="['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(activeTab)">
+        <mat-card class="mt-4 mb-6">
+            <mat-card-content class="!p-4">
+                <div class="filters">
+                    <mat-form-field appearance="outline" *ngIf="activeTab === 'OUTGOING'">
+                        <mat-label>Source</mat-label>
+                        <mat-select [(ngModel)]="filters.source" (ngModelChange)="applyFilters(true)">
+                            <mat-option value="">Toutes</mat-option>
+                            <mat-option value="DEPENSE">Dépenses</mat-option>
+                            <mat-option value="FACTURE">Factures</mat-option>
+                        </mat-select>
+                    </mat-form-field>
 
-                <mat-form-field appearance="outline" *ngIf="activeTab === 'OUTGOING'">
-                    <mat-label>Fournisseur</mat-label>
-                    <mat-select [(ngModel)]="filters.fournisseurId" (ngModelChange)="applyFilters(true)">
-                        <mat-option value="">Tous les fournisseurs</mat-option>
-                        <mat-option *ngFor="let s of suppliers" [value]="s.id">{{ s.nom }}</mat-option>
-                    </mat-select>
-                </mat-form-field>
+                    <mat-form-field appearance="outline" *ngIf="activeTab === 'OUTGOING'">
+                        <mat-label>Fournisseur</mat-label>
+                        <mat-select [(ngModel)]="filters.fournisseurId" (ngModelChange)="applyFilters(true)">
+                            <mat-option value="">Tous les fournisseurs</mat-option>
+                            <mat-option *ngFor="let s of suppliers" [value]="s.id">{{ s.nom }}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
 
-                <!-- Helper message for Unpaid tab -->
-                <div *ngIf="activeTab === 'UNPAID_CLIENTS'" class="flex items-center text-blue-600 font-medium px-4">
-                    <mat-icon class="mr-2">info</mat-icon>
-                    Liste des factures clients non soldées.
+                    <!-- Helper message for Unpaid tab -->
+                    <div *ngIf="activeTab === 'UNPAID_CLIENTS'"
+                        class="flex items-center text-blue-600 font-medium px-4">
+                        <mat-icon class="mr-2">info</mat-icon>
+                        Liste des factures clients non soldées.
+                    </div>
+
+                    <mat-form-field appearance="outline" *ngIf="activeTab === 'OUTGOING'">
+                        <mat-label>Type / Catégorie</mat-label>
+                        <mat-select [(ngModel)]="filters.type" (ngModelChange)="applyFilters(true)">
+                            <mat-option value="">Tous les types</mat-option>
+                            <mat-option *ngFor="let t of types" [value]="t">{{ t }}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                        <mat-label>Période</mat-label>
+                        <mat-select [(ngModel)]="selectedPeriod" (ngModelChange)="applyPredefinedPeriod($event)">
+                            <mat-option value="TODAY">Aujourd'hui</mat-option>
+                            <mat-option value="YESTERDAY">Hier</mat-option>
+                            <mat-option value="THIS_WEEK">Cette semaine</mat-option>
+                            <mat-option value="THIS_MONTH">Ce mois</mat-option>
+                            <mat-option value="ALL">Tout (Historique)</mat-option>
+                            <mat-option value="CUSTOM">Personnalisé</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" *ngIf="selectedPeriod !== 'ALL'">
+                        <mat-label>Date début</mat-label>
+                        <input matInput [matDatepicker]="startPicker" [(ngModel)]="filters.startDate"
+                            (ngModelChange)="applyFilters()">
+                        <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
+                        <mat-datepicker #startPicker></mat-datepicker>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" *ngIf="selectedPeriod !== 'ALL'">
+                        <mat-label>Date fin</mat-label>
+                        <input matInput [matDatepicker]="endPicker" [(ngModel)]="filters.endDate"
+                            (ngModelChange)="applyFilters()">
+                        <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
+                        <mat-datepicker #endPicker></mat-datepicker>
+                    </mat-form-field>
                 </div>
+            </mat-card-content>
+        </mat-card>
 
-                <mat-form-field appearance="outline" *ngIf="activeTab === 'OUTGOING'">
-                    <mat-label>Type / Catégorie</mat-label>
-                    <mat-select [(ngModel)]="filters.type" (ngModelChange)="applyFilters(true)">
-                        <mat-option value="">Tous les types</mat-option>
-                        <mat-option *ngFor="let t of types" [value]="t">{{ t }}</mat-option>
-                    </mat-select>
-                </mat-form-field>
-
-                <mat-form-field appearance="outline">
-                    <mat-label>Période</mat-label>
-                    <mat-select [(ngModel)]="selectedPeriod" (ngModelChange)="applyPredefinedPeriod($event)">
-                        <mat-option value="TODAY">Aujourd'hui</mat-option>
-                        <mat-option value="YESTERDAY">Hier</mat-option>
-                        <mat-option value="THIS_WEEK">Cette semaine</mat-option>
-                        <mat-option value="THIS_MONTH">Ce mois</mat-option>
-                        <mat-option value="ALL">Tout (Historique)</mat-option>
-                        <mat-option value="CUSTOM">Personnalisé</mat-option>
-                    </mat-select>
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" *ngIf="selectedPeriod !== 'ALL'">
-                    <mat-label>Date début</mat-label>
-                    <input matInput [matDatepicker]="startPicker" [(ngModel)]="filters.startDate"
-                        (ngModelChange)="applyFilters()">
-                    <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
-                    <mat-datepicker #startPicker></mat-datepicker>
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" *ngIf="selectedPeriod !== 'ALL'">
-                    <mat-label>Date fin</mat-label>
-                    <input matInput [matDatepicker]="endPicker" [(ngModel)]="filters.endDate"
-                        (ngModelChange)="applyFilters()">
-                    <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
-                    <mat-datepicker #endPicker></mat-datepicker>
-                </mat-form-field>
+        <!-- Subtotals Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+                <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Nombre d'opérations</span>
+                <span class="text-2xl font-black text-slate-800">{{ subtotals.count }}</span>
             </div>
-        </mat-card-content>
-    </mat-card>
 
-    <!-- Subtotals Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-            <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Nombre d'opérations</span>
-            <span class="text-2xl font-black text-slate-800">{{ subtotals.count }}</span>
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+                <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total TTC</span>
+                <span class="text-2xl font-black"
+                    [ngClass]="(activeTab === 'OUTGOING') ? 'text-red-600' : 'text-green-600'">
+                    {{ subtotals.totalTTC | number:'1.2-2' }} DH
+                </span>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center"
+                *ngIf="activeTab === 'OUTGOING'">
+                <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total HT</span>
+                <span class="text-2xl font-black text-slate-700">
+                    {{ subtotals.totalHT | number:'1.2-2' }} DH
+                </span>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center"
+                *ngIf="activeTab === 'UNPAID_CLIENTS'">
+                <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total Reste à Payer</span>
+                <span class="text-2xl font-black text-orange-600">
+                    {{ subtotals.totalReste | number:'1.2-2' }} DH
+                </span>
+            </div>
         </div>
 
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-            <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total TTC</span>
-            <span class="text-2xl font-black"
-                [ngClass]="(activeTab === 'OUTGOING') ? 'text-red-600' : 'text-green-600'">
-                {{ subtotals.totalTTC | number:'1.2-2' }} DH
-            </span>
-        </div>
+        <mat-card class="relative">
+            <!-- Loading Overlay -->
+            <div *ngIf="loading"
+                class="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-xl">
+                <div class="flex flex-col items-center gap-2">
+                    <mat-progress-spinner mode="indeterminate" diameter="40" color="primary"></mat-progress-spinner>
+                    <span class="text-sm font-medium text-gray-500">Chargement...</span>
+                </div>
+            </div>
 
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center"
-            *ngIf="activeTab === 'OUTGOING'">
-            <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total HT</span>
-            <span class="text-2xl font-black text-slate-700">
-                {{ subtotals.totalHT | number:'1.2-2' }} DH
-            </span>
-        </div>
+            <div class="overflow-x-auto">
+                <table mat-table [dataSource]="payments" class="mat-elevation-z0" [trackBy]="trackByPayment">
 
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center"
-            *ngIf="activeTab === 'UNPAID_CLIENTS'">
-            <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total Reste à Payer</span>
-            <span class="text-2xl font-black text-orange-600">
-                {{ subtotals.totalReste | number:'1.2-2' }} DH
-            </span>
-        </div>
+                    <ng-container matColumnDef="numero">
+                        <th mat-header-cell *matHeaderCellDef>Compta / N°</th>
+                        <td mat-cell *matCellDef="let p" class="font-bold">{{ p.numero }}</td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="date">
+                        <th mat-header-cell *matHeaderCellDef>Date</th>
+                        <td mat-cell *matCellDef="let p">{{ (p.date || p.dateEmission) | date:'dd/MM/yyyy' }}</td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="source">
+                        <th mat-header-cell *matHeaderCellDef>Source</th>
+                        <td mat-cell *matCellDef="let p">
+                            <span class="px-2 py-1 rounded text-xs font-medium" [ngClass]="getSourceClass(p.source)">
+                                {{ p.source === 'FACTURE' ? 'Facture' : (p.source === 'FACTURE_CLIENT' ? 'Facture
+                                Client' :
+                                'Dépense') }}
+                            </span>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="libelle">
+                        <th mat-header-cell *matHeaderCellDef>Libellé / Note</th>
+                        <td mat-cell *matCellDef="let p">
+                            <div class="flex flex-col">
+                                <span class="font-medium">{{ p.libelle || p.type }}</span>
+                                <span class="text-[10px] text-gray-400" *ngIf="p.dateEcheance">
+                                    Échéance: {{ p.dateEcheance | date:'dd/MM/yyyy' }}
+                                </span>
+                            </div>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="type">
+                        <th mat-header-cell *matHeaderCellDef>Type</th>
+                        <td mat-cell *matCellDef="let p">{{ p.type }}</td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="fournisseur">
+                        <th mat-header-cell *matHeaderCellDef>Fournisseur</th>
+                        <td mat-cell *matCellDef="let p">{{ p.fournisseur }}</td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="client">
+                        <th mat-header-cell *matHeaderCellDef>Client</th>
+                        <td mat-cell *matCellDef="let p">
+                            <div class="flex flex-col">
+                                <span class="font-medium">{{ p.client?.nom || p.client }} {{ p.client?.prenom }}</span>
+                            </div>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="montant">
+                        <th mat-header-cell *matHeaderCellDef>Montant / Total</th>
+                        <td mat-cell *matCellDef="let p" class="montant-cell">
+                            <div class="flex flex-col items-end">
+                                <span
+                                    [ngClass]="p.montant < 0 ? 'text-red-600' : ((activeTab === 'INCOMING' || activeTab === 'UNPAID_CLIENTS') ? 'text-green-600' : 'text-red-600')">
+                                    {{ (activeTab === 'INCOMING' || activeTab === 'UNPAID_CLIENTS') && p.montant > 0 ?
+                                    '+' :
+                                    '' }}
+                                    {{ (p.totalTTC !== undefined ? p.totalTTC : p.montant) | number:'1.2-2' }} DH
+                                </span>
+                                <span class="text-[10px] text-gray-400 font-normal" *ngIf="p.montantHT || p.totalHT">
+                                    HT: {{ (p.montantHT || p.totalHT) | number:'1.2-2' }}
+                                </span>
+                            </div>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="reste">
+                        <th mat-header-cell *matHeaderCellDef>Reste à Payer</th>
+                        <td mat-cell *matCellDef="let p" class="montant-cell text-red-600 font-bold">
+                            {{ p.resteAPayer | number:'1.2-2' }} DH
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="statut">
+                        <th mat-header-cell *matHeaderCellDef>Statut</th>
+                        <td mat-cell *matCellDef="let p">
+                            <span class="px-2 py-1 rounded text-xs font-medium" [ngClass]="getStatusClass(p.statut)">
+                                {{ p.statut }}
+                            </span>
+                        </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="actions">
+                        <th mat-header-cell *matHeaderCellDef class="!text-right">Actions</th>
+                        <td mat-cell *matCellDef="let p">
+                            <div class="flex justify-end">
+                                <button mat-icon-button [matMenuTriggerFor]="menu" class="text-gray-500">
+                                    <mat-icon>more_vert</mat-icon>
+                                </button>
+                                <mat-menu #menu="matMenu" xPosition="before">
+                                    <button mat-menu-item (click)="viewDetail(p, true)">
+                                        <mat-icon class="text-purple-600">visibility</mat-icon>
+                                        <span>Visualiser</span>
+                                    </button>
+                                    <button mat-menu-item (click)="validatePayment(p)"
+                                        *ngIf="(activeTab === 'INCOMING' || activeTab === 'OUTGOING') && p.statut === 'EN_ATTENTE'">
+                                        <mat-icon class="text-green-600">check_circle</mat-icon>
+                                        <span>Valider/Encaisser</span>
+                                    </button>
+                                    <button mat-menu-item (click)="viewDetail(p, false)"
+                                        *ngIf="activeTab === 'OUTGOING'">
+                                        <mat-icon class="text-blue-600">edit</mat-icon>
+                                        <span>Modifier</span>
+                                    </button>
+                                    <mat-divider *ngIf="activeTab === 'OUTGOING'"></mat-divider>
+                                    <button mat-menu-item (click)="deletePayment(p, $event)" class="text-red-600"
+                                        *ngIf="activeTab === 'OUTGOING'">
+                                        <mat-icon class="text-red-600">delete</mat-icon>
+                                        <span>Supprimer</span>
+                                    </button>
+                                </mat-menu>
+                            </div>
+                        </td>
+                    </ng-container>
+
+                    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+
+                    <tr class="mat-row" *matNoDataRow>
+                        <td class="mat-cell p-8 text-center" [attr.colspan]="displayedColumns.length">
+                            <div class="flex flex-col items-center gap-2 text-gray-400">
+                                <mat-icon class="text-4xl">inventory_2</mat-icon>
+                                <span>Aucun paiement trouvé</span>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <mat-card-footer *ngIf="loading">
+                <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+            </mat-card-footer>
+        </mat-card>
+    </ng-container>
+
+    <div *ngIf="activeTab === 'FACTURES'" class="mt-4">
+        <app-supplier-invoice-list listMode="INVOICE" [isSubComponent]="true"
+            [showHeader]="true"></app-supplier-invoice-list>
     </div>
 
-    <mat-card class="relative">
-        <!-- Loading Overlay -->
-        <div *ngIf="loading"
-            class="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-xl">
-            <div class="flex flex-col items-center gap-2">
-                <mat-progress-spinner mode="indeterminate" diameter="40" color="primary"></mat-progress-spinner>
-                <span class="text-sm font-medium text-gray-500">Chargement...</span>
-            </div>
-        </div>
-
-        <div class="overflow-x-auto">
-            <table mat-table [dataSource]="payments" class="mat-elevation-z0" [trackBy]="trackByPayment">
-
-                <ng-container matColumnDef="numero">
-                    <th mat-header-cell *matHeaderCellDef>Compta / N°</th>
-                    <td mat-cell *matCellDef="let p" class="font-bold">{{ p.numero }}</td>
-                </ng-container>
-
-                <ng-container matColumnDef="date">
-                    <th mat-header-cell *matHeaderCellDef>Date</th>
-                    <td mat-cell *matCellDef="let p">{{ (p.date || p.dateEmission) | date:'dd/MM/yyyy' }}</td>
-                </ng-container>
-
-                <ng-container matColumnDef="source">
-                    <th mat-header-cell *matHeaderCellDef>Source</th>
-                    <td mat-cell *matCellDef="let p">
-                        <span class="px-2 py-1 rounded text-xs font-medium" [ngClass]="getSourceClass(p.source)">
-                            {{ p.source === 'FACTURE' ? 'Facture' : (p.source === 'FACTURE_CLIENT' ? 'Facture Client' :
-                            'Dépense') }}
-                        </span>
-                    </td>
-                </ng-container>
-
-                <ng-container matColumnDef="libelle">
-                    <th mat-header-cell *matHeaderCellDef>Libellé / Note</th>
-                    <td mat-cell *matCellDef="let p">
-                        <div class="flex flex-col">
-                            <span class="font-medium">{{ p.libelle || p.type }}</span>
-                            <span class="text-[10px] text-gray-400" *ngIf="p.dateEcheance">
-                                Échéance: {{ p.dateEcheance | date:'dd/MM/yyyy' }}
-                            </span>
-                        </div>
-                    </td>
-                </ng-container>
-
-                <ng-container matColumnDef="type">
-                    <th mat-header-cell *matHeaderCellDef>Type</th>
-                    <td mat-cell *matCellDef="let p">{{ p.type }}</td>
-                </ng-container>
-
-                <ng-container matColumnDef="fournisseur">
-                    <th mat-header-cell *matHeaderCellDef>Fournisseur</th>
-                    <td mat-cell *matCellDef="let p">{{ p.fournisseur }}</td>
-                </ng-container>
-
-                <ng-container matColumnDef="client">
-                    <th mat-header-cell *matHeaderCellDef>Client</th>
-                    <td mat-cell *matCellDef="let p">
-                        <div class="flex flex-col">
-                            <span class="font-medium">{{ p.client?.nom || p.client }} {{ p.client?.prenom }}</span>
-                        </div>
-                    </td>
-                </ng-container>
-
-                <ng-container matColumnDef="montant">
-                    <th mat-header-cell *matHeaderCellDef>Montant / Total</th>
-                    <td mat-cell *matCellDef="let p" class="montant-cell">
-                        <div class="flex flex-col items-end">
-                            <span
-                                [ngClass]="p.montant < 0 ? 'text-red-600' : ((activeTab === 'INCOMING' || activeTab === 'UNPAID_CLIENTS') ? 'text-green-600' : 'text-red-600')">
-                                {{ (activeTab === 'INCOMING' || activeTab === 'UNPAID_CLIENTS') && p.montant > 0 ? '+' :
-                                '' }}
-                                {{ (p.totalTTC !== undefined ? p.totalTTC : p.montant) | number:'1.2-2' }} DH
-                            </span>
-                            <span class="text-[10px] text-gray-400 font-normal" *ngIf="p.montantHT || p.totalHT">
-                                HT: {{ (p.montantHT || p.totalHT) | number:'1.2-2' }}
-                            </span>
-                        </div>
-                    </td>
-                </ng-container>
-
-                <ng-container matColumnDef="reste">
-                    <th mat-header-cell *matHeaderCellDef>Reste à Payer</th>
-                    <td mat-cell *matCellDef="let p" class="montant-cell text-red-600 font-bold">
-                        {{ p.resteAPayer | number:'1.2-2' }} DH
-                    </td>
-                </ng-container>
-
-                <ng-container matColumnDef="statut">
-                    <th mat-header-cell *matHeaderCellDef>Statut</th>
-                    <td mat-cell *matCellDef="let p">
-                        <span class="px-2 py-1 rounded text-xs font-medium" [ngClass]="getStatusClass(p.statut)">
-                            {{ p.statut }}
-                        </span>
-                    </td>
-                </ng-container>
-
-                <ng-container matColumnDef="actions">
-                    <th mat-header-cell *matHeaderCellDef class="!text-right">Actions</th>
-                    <td mat-cell *matCellDef="let p">
-                        <div class="flex justify-end">
-                            <button mat-icon-button [matMenuTriggerFor]="menu" class="text-gray-500">
-                                <mat-icon>more_vert</mat-icon>
-                            </button>
-                            <mat-menu #menu="matMenu" xPosition="before">
-                                <button mat-menu-item (click)="viewDetail(p, true)">
-                                    <mat-icon class="text-purple-600">visibility</mat-icon>
-                                    <span>Visualiser</span>
-                                </button>
-                                <button mat-menu-item (click)="validatePayment(p)"
-                                    *ngIf="activeTab === 'INCOMING' && p.statut === 'EN_ATTENTE'">
-                                    <mat-icon class="text-green-600">check_circle</mat-icon>
-                                    <span>Valider/Encaisser</span>
-                                </button>
-                                <button mat-menu-item (click)="viewDetail(p, false)" *ngIf="activeTab === 'OUTGOING'">
-                                    <mat-icon class="text-blue-600">edit</mat-icon>
-                                    <span>Modifier</span>
-                                </button>
-                                <mat-divider *ngIf="activeTab === 'OUTGOING'"></mat-divider>
-                                <button mat-menu-item (click)="deletePayment(p, $event)" class="text-red-600"
-                                    *ngIf="activeTab === 'OUTGOING'">
-                                    <mat-icon class="text-red-600">delete</mat-icon>
-                                    <span>Supprimer</span>
-                                </button>
-                            </mat-menu>
-                        </div>
-                    </td>
-                </ng-container>
-
-                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-
-                <tr class="mat-row" *matNoDataRow>
-                    <td class="mat-cell p-8 text-center" [attr.colspan]="displayedColumns.length">
-                        <div class="flex flex-col items-center gap-2 text-gray-400">
-                            <mat-icon class="text-4xl">inventory_2</mat-icon>
-                            <span>Aucun paiement trouvé</span>
-                        </div>
-                    </td>
-                </tr>
-            </table>
-        </div>
-
-        <mat-card-footer *ngIf="loading">
-            <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-        </mat-card-footer>
-    </mat-card>
+    <div *ngIf="activeTab === 'BL'" class="mt-4">
+        <app-supplier-invoice-list listMode="BL" [isSubComponent]="true"
+            [showHeader]="true"></app-supplier-invoice-list>
+    </div>
 </div>

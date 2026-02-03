@@ -28,9 +28,29 @@ export class SupplierInvoicesController {
         @Query('fournisseurId') fournisseurId?: string,
         @Query('statut') statut?: string,
         @Query('clientId') clientId?: string,
-        @Query('centreId') centreId?: string
+        @Query('centreId') centreId?: string,
+        @Query('isBL') isBL?: string,
+        @Query('categorieBL') categorieBL?: string,
+        @Query('parentInvoiceId') parentInvoiceId?: string,
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string
     ) {
-        return this.service.findAll(fournisseurId, statut, clientId, centreId);
+        return this.service.findAll({
+            fournisseurId,
+            statut,
+            clientId,
+            centreId,
+            isBL: isBL === 'true' ? true : isBL === 'false' ? false : undefined,
+            categorieBL,
+            parentInvoiceId,
+            startDate,
+            endDate
+        });
+    }
+
+    @Post('group')
+    groupToInvoice(@Body() body: { blIds: string[], targetInvoiceData: any }) {
+        return this.service.groupBLsToInvoice(body.blIds, body.targetInvoiceData);
     }
 
     @Get(':id')
@@ -49,7 +69,11 @@ export class SupplierInvoicesController {
     }
 
     @Get('situation/:fournisseurId')
-    getSituation(@Param('fournisseurId') fournisseurId: string) {
-        return this.service.getSupplierSituation(fournisseurId);
+    getSituation(
+        @Param('fournisseurId') fournisseurId: string,
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string
+    ) {
+        return this.service.getSupplierSituation(fournisseurId, startDate, endDate);
     }
 }

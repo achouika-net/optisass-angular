@@ -60,18 +60,40 @@ export class FinanceService {
     }
 
     // --- Supplier Invoices ---
-    getSupplierSituation(fournisseurId: string): Observable<any> {
-        return this.http.get<any>(`${this.apiUrl}/supplier-invoices/situation/${fournisseurId}`);
+    getSupplierSituation(fournisseurId: string, startDate?: string, endDate?: string): Observable<any> {
+        let params = new HttpParams();
+        if (startDate) params = params.set('startDate', startDate);
+        if (endDate) params = params.set('endDate', endDate);
+        return this.http.get<any>(`${this.apiUrl}/supplier-invoices/situation/${fournisseurId}`, { params });
     }
 
-    getInvoices(filters?: { fournisseurId?: string; statut?: string; clientId?: string; centreId?: string }): Observable<SupplierInvoice[]> {
+    getInvoices(filters?: {
+        fournisseurId?: string;
+        statut?: string;
+        clientId?: string;
+        centreId?: string;
+        isBL?: boolean;
+        categorieBL?: string;
+        parentInvoiceId?: string;
+        startDate?: string;
+        endDate?: string;
+    }): Observable<SupplierInvoice[]> {
         let params = new HttpParams();
         if (filters?.fournisseurId) params = params.set('fournisseurId', filters.fournisseurId);
         if (filters?.statut) params = params.set('statut', filters.statut);
         if (filters?.clientId) params = params.set('clientId', filters.clientId);
         if (filters?.centreId) params = params.set('centreId', filters.centreId);
+        if (filters?.isBL !== undefined) params = params.set('isBL', filters.isBL.toString());
+        if (filters?.categorieBL) params = params.set('categorieBL', filters.categorieBL);
+        if (filters?.parentInvoiceId) params = params.set('parentInvoiceId', filters.parentInvoiceId);
+        if (filters?.startDate) params = params.set('startDate', filters.startDate);
+        if (filters?.endDate) params = params.set('endDate', filters.endDate);
 
         return this.http.get<SupplierInvoice[]>(`${this.apiUrl}/supplier-invoices`, { params });
+    }
+
+    groupBLsToInvoice(blIds: string[], targetInvoiceData: any): Observable<SupplierInvoice> {
+        return this.http.post<SupplierInvoice>(`${this.apiUrl}/supplier-invoices/group`, { blIds, targetInvoiceData });
     }
 
     createInvoice(invoice: SupplierInvoiceDTO): Observable<SupplierInvoice> {

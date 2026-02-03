@@ -79,6 +79,11 @@ export interface SupplierInvoice {
     montantTTC: number;
     statut: string;
     type: string;
+    isBL?: boolean;
+    categorieBL?: string;
+    parentInvoiceId?: string;
+    parentInvoice?: SupplierInvoice;
+    childBLs?: SupplierInvoice[];
     pieceJointeUrl?: string;
     fournisseurId: string;
     centreId?: string;
@@ -109,6 +114,9 @@ export interface SupplierInvoiceDTO {
     montantTTC: number;
     statut: string;
     type: string;
+    isBL?: boolean;
+    categorieBL?: string;
+    parentInvoiceId?: string;
     fournisseurId: string;
     clientId?: string;
     centreId?: string;

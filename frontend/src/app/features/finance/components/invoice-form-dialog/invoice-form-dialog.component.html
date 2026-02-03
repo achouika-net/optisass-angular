@@ -25,7 +25,7 @@
                     <ng-template matStepLabel>{{ isBLMode ? 'Détails du BL' : 'Détails de la Facture' }}</ng-template>
                     <div class="p-6">
                         <form [formGroup]="detailsGroup">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                                 <mat-form-field appearance="outline" class="md:col-span-2">
                                     <mat-label>Fournisseur *</mat-label>
                                     <input type="text" placeholder="Sélectionner ou saisir..." matInput
@@ -108,6 +108,49 @@
                                     <mat-label>Montant TVA</mat-label>
                                     <input matInput type="number" formControlName="montantTVA" readonly>
                                 </mat-form-field>
+                            </div>
+
+                            <!-- RELATIONSHIP INFO -->
+                            <div *ngIf="parentInvoice || childBLs.length > 0" class="mb-6">
+                                <h4 class="text-sm font-semibold text-gray-700 mb-2">Documents liés</h4>
+
+                                <!-- Parent Invoice for a BL -->
+                                <div *ngIf="parentInvoice"
+                                    class="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between mb-4">
+                                    <div class="flex items-center gap-3">
+                                        <mat-icon class="text-blue-600">receipt_long</mat-icon>
+                                        <div>
+                                            <p class="text-sm font-bold text-blue-900">Facture de groupement :
+                                                {{parentInvoice.numeroFacture}}</p>
+                                            <p class="text-xs text-blue-700">Ce BL a été consolidé dans cette facture.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button mat-button color="primary" type="button" (click)="viewParentInvoice()">
+                                        Voir la facture
+                                    </button>
+                                </div>
+
+                                <!-- Child BLs for a Grouped Invoice -->
+                                <div *ngIf="childBLs.length > 0" class="space-y-2">
+                                    <p class="text-xs text-gray-500 font-medium">Bons de livraison consolidés
+                                        ({{childBLs.length}}) :</p>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <div *ngFor="let bl of childBLs"
+                                            class="p-3 bg-white border border-gray-100 rounded-lg flex items-center justify-between shadow-sm">
+                                            <div class="flex items-center gap-2">
+                                                <mat-icon class="text-gray-400 text-sm">description</mat-icon>
+                                                <span class="text-sm font-medium">{{bl.numeroFacture}}</span>
+                                                <span class="text-xs text-gray-400">({{bl.montantTTC | number:'1.2-2'}}
+                                                    DH)</span>
+                                            </div>
+                                            <button mat-icon-button type="button" (click)="viewChildBL(bl)"
+                                                matTooltip="Voir les détails">
+                                                <mat-icon class="text-xs">visibility</mat-icon>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Pièces jointes -->
