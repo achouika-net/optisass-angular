@@ -403,6 +403,13 @@ model FactureFournisseur {
   statut         String             @default("A_PAYER")
   type           String             @default("ACHAT_STOCK")
   fournisseurId  String
+  isBL           Boolean?           @default(false)
+  categorieBL    String?            // Verre, Montage, Autre
+  parentInvoiceId String?
+  
+  parentInvoice  FactureFournisseur? @relation("BLToInvoice", fields: [parentInvoiceId], references: [id])
+  childBLs       FactureFournisseur[] @relation("BLToInvoice")
+
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   centreId       String?

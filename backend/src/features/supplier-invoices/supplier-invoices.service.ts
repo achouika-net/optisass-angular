@@ -73,19 +73,43 @@ export class SupplierInvoicesService {
         });
     }
 
-    async findAll(fournisseurId?: string, statut?: string, clientId?: string, centreId?: string) {
+    async findAll(filters: {
+        fournisseurId?: string;
+        statut?: string;
+        clientId?: string;
+        centreId?: string;
+        isBL?: boolean;
+        categorieBL?: string;
+        parentInvoiceId?: string;
+        startDate?: string;
+        endDate?: string;
+    }) {
+        const { fournisseurId, statut, clientId, centreId, isBL, categorieBL, parentInvoiceId, startDate, endDate } = filters;
         const whereClause: any = {};
+
         if (fournisseurId) whereClause.fournisseurId = fournisseurId;
         if (statut) whereClause.statut = statut;
         if (clientId) whereClause.clientId = clientId;
         if (centreId) whereClause.centreId = centreId;
+        if (isBL !== undefined) {
+            whereClause.isBL = isBL === false ? { in: [false, null] } : isBL;
+        }
+        if (categorieBL) whereClause.categorieBL = categorieBL;
+        if (parentInvoiceId) whereClause.parentInvoiceId = parentInvoiceId;
+
+        if (startDate || endDate) {
+            whereClause.dateEmission = {};
+            if (startDate) whereClause.dateEmission.gte = new Date(startDate);
+            if (endDate) whereClause.dateEmission.lte = new Date(endDate);
+        }
 
         return this.prisma.factureFournisseur.findMany({
             where: whereClause,
             include: {
                 fournisseur: true,
                 echeances: true,
-                client: true
+                client: true,
+                parentInvoice: true
             },
             orderBy: { dateEmission: 'desc' }
         });
@@ -98,7 +122,13 @@ export class SupplierInvoicesService {
                 fournisseur: true,
                 echeances: true,
                 depenses: true,
-                client: true
+                client: true,
+                parentInvoice: true,
+                childBLs: {
+                    include: {
+                        client: true
+                    }
+                }
             }
         });
     }
@@ -304,12 +334,20 @@ export class SupplierInvoicesService {
         });
     }
 
-    async getSupplierSituation(fournisseurId: string) {
+    async getSupplierSituation(fournisseurId: string, startDate?: string, endDate?: string) {
+        const whereClause: any = {
+            fournisseurId: fournisseurId,
+            statut: { not: 'ANNULEE' }
+        };
+
+        if (startDate || endDate) {
+            whereClause.dateEmission = {};
+            if (startDate) whereClause.dateEmission.gte = new Date(startDate);
+            if (endDate) whereClause.dateEmission.lte = new Date(endDate);
+        }
+
         const invoices = await this.prisma.factureFournisseur.findMany({
-            where: {
-                fournisseurId: fournisseurId,
-                statut: { not: 'ANNULEE' }
-            },
+            where: whereClause,
             include: {
                 echeances: true
             }
@@ -342,6 +380,74 @@ export class SupplierInvoicesService {
             resteAPayer: totalTTC - totalPaye,
             invoiceCount: invoices.length
         };
+    }
+
+    async groupBLsToInvoice(blIds: string[], targetInvoiceData: any) {
+        const { echeances, newAttachments, ...invoiceData } = targetInvoiceData;
+
+        // Handle Attachments (Shared logic with create/update)
+        let finalPieceJointeUrl = invoiceData.pieceJointeUrl || '';
+        const uploadDir = path.join(process.cwd(), 'uploads', 'invoices');
+
+        if (newAttachments && newAttachments.length > 0) {
+            if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+            const urls: string[] = [];
+            for (const attachment of newAttachments) {
+                if (attachment.base64 && attachment.name) {
+                    const fileExt = path.extname(attachment.name) || '.jpg';
+                    const safeName = `grouped_${Date.now()}_${Math.round(Math.random() * 1000)}${fileExt}`;
+                    const filePath = path.join(uploadDir, safeName);
+                    const fileData = attachment.base64.replace(/^data:.*?;base64,/, '');
+                    fs.writeFileSync(filePath, Buffer.from(fileData, 'base64'));
+                    urls.push(`/uploads/invoices/${safeName}`);
+                }
+            }
+            finalPieceJointeUrl = urls.join(';');
+        }
+
+        const status = this.calculateInvoiceStatus(invoiceData.montantTTC, echeances || []);
+
+        return this.prisma.$transaction(async (tx) => {
+            // 1. Create the consolidated invoice
+            const invoice = await tx.factureFournisseur.create({
+                data: {
+                    ...invoiceData,
+                    pieceJointeUrl: finalPieceJointeUrl,
+                    isBL: false,
+                    statut: status,
+                    dateEmission: normalizeToUTCNoon(invoiceData.dateEmission) as Date,
+                    dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance),
+                    // Link all BLs to this new invoice
+                    childBLs: {
+                        connect: blIds.map(id => ({ id }))
+                    },
+                    // Create echeances
+                    echeances: echeances ? {
+                        create: echeances.map((e: any) => ({
+                            type: e.type,
+                            dateEcheance: normalizeToUTCNoon(e.dateEcheance) as Date,
+                            montant: e.montant,
+                            statut: e.statut,
+                            reference: e.reference || null,
+                            banque: e.banque || null
+                        }))
+                    } : undefined
+                },
+                include: {
+                    childBLs: true,
+                    echeances: true,
+                    fournisseur: true
+                }
+            });
+
+            // 2. [Bonus] Update grouped BLs status to VALIDEE to distinguish them
+            await tx.factureFournisseur.updateMany({
+                where: { id: { in: blIds } },
+                data: { statut: 'VALIDEE' }
+            });
+
+            return invoice;
+        });
     }
 }
 

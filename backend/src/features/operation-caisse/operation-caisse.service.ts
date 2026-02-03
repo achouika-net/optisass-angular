@@ -112,9 +112,12 @@ export class OperationCaisseService {
                         }
                     });
                 } else if (operation.typeOperation === TypeOperation.INTERNE) {
+                    // [MODIFIED] Only increment totalInterne for Cash to track drawer balance
                     await tx.journeeCaisse.update({
                         where: { id: operation.journeeCaisseId },
-                        data: { totalInterne: { increment: operation.montant } }
+                        data: {
+                            totalInterne: operation.moyenPaiement === 'ESPECES' ? { increment: operation.montant } : undefined
+                        }
                     });
                 }
             } else if (operation.type === 'DECAISSEMENT') {
@@ -131,10 +134,11 @@ export class OperationCaisseService {
                     });
                 } else {
                     // General Expense or Internal Outflow: Increment expenses
+                    // [MODIFIED] Only increment totalDepenses for Cash to track drawer balance
                     await tx.journeeCaisse.update({
                         where: { id: operation.journeeCaisseId },
                         data: {
-                            totalDepenses: { increment: operation.montant },
+                            totalDepenses: operation.moyenPaiement === 'ESPECES' ? { increment: operation.montant } : undefined,
                             totalTransfertsDepenses: operation.motif === 'ALIMENTATION_CAISSE_DEPENSES' ? { increment: operation.montant } : undefined,
                         }
                     });

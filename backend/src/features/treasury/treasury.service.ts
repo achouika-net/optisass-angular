@@ -352,8 +352,8 @@ export class TreasuryService {
             whereInvoice.type = filters.type;
         }
 
+        const dateRange: any = {};
         if (filters.startDate || filters.endDate) {
-            const dateRange: any = {};
             if (filters.startDate) {
                 const start = new Date(filters.startDate);
                 start.setHours(0, 0, 0, 0);
@@ -364,11 +364,14 @@ export class TreasuryService {
                 end.setHours(23, 59, 59, 999);
                 dateRange.lte = end;
             }
-            whereExpense.date = dateRange;
-            whereInvoice.dateEmission = dateRange;
+            whereExpense.OR = [
+                { date: dateRange },
+                { dateEcheance: dateRange }
+            ];
+            // We will apply dateRange to echeancePaiement.dateEcheance directly later
         }
 
-        const [expenses, invoices] = await Promise.all([
+        const [expenses, invoiceEcheances] = await Promise.all([
             filters.source === 'FACTURE' ? Promise.resolve([]) : this.prisma.depense.findMany({
                 where: whereExpense,
                 include: {
@@ -379,16 +382,21 @@ export class TreasuryService {
                 orderBy: { date: 'desc' },
                 take: 100
             }),
-            filters.source === 'DEPENSE' ? Promise.resolve([]) : this.prisma.factureFournisseur.findMany({
-                where: whereInvoice,
-                include: {
-                    fournisseur: { select: { nom: true } }
+            filters.source === 'DEPENSE' ? Promise.resolve([]) : this.prisma.echeancePaiement.findMany({
+                where: {
+                    factureFournisseur: whereInvoice,
+                    ...(Object.keys(dateRange).length > 0 ? { dateEcheance: dateRange } : {})
                 },
-                orderBy: { dateEmission: 'desc' },
+                include: {
+                    factureFournisseur: {
+                        include: { fournisseur: { select: { nom: true } } }
+                    }
+                },
+                orderBy: { dateEcheance: 'desc' },
                 take: 100
             })
         ]);
-        console.log(`[TREASURY-OUTGOINGS] Dual query took ${Date.now() - startTime}ms. Found ${expenses.length} expenses and ${invoices.length} invoices.`);
+        console.log(`[TREASURY-OUTGOINGS] Dual query took ${Date.now() - startTime}ms. Found ${expenses.length} expenses and ${invoiceEcheances.length} invoice installments.`);
 
         const consolidated = [
             ...expenses.map(e => ({
@@ -407,20 +415,21 @@ export class TreasuryService {
                 dateEncaissement: e.echeance?.dateEncaissement || null,
                 montantHT: null
             })),
-            ...invoices.map(i => ({
-                id: i.id,
-                date: i.dateEmission,
-                libelle: i.numeroFacture,
-                type: i.type,
-                fournisseur: i.fournisseur.nom,
-                montant: Number(i.montantTTC),
-                statut: i.statut,
+            ...invoiceEcheances.map(e => ({
+                id: e.factureFournisseur.id, // Keep invoice ID for frontend actions (Modifier/Supprimer)
+                echeanceId: e.id, // Specific ID for this row
+                date: e.dateEcheance, // Use echeance date as the primary date in the list
+                libelle: `${e.factureFournisseur.numeroFacture} (${e.type})`,
+                type: e.factureFournisseur.type,
+                fournisseur: e.factureFournisseur.fournisseur.nom,
+                montant: Number(e.montant),
+                statut: e.statut,
                 source: 'FACTURE',
-                modePaiement: 'VOIR_ECHEANCES',
-                reference: i.numeroFacture,
-                dateEcheance: i.dateEcheance,
-                dateEncaissement: null,
-                montantHT: Number(i.montantHT)
+                modePaiement: e.type,
+                reference: e.reference || e.factureFournisseur.numeroFacture,
+                dateEcheance: e.dateEcheance,
+                dateEncaissement: e.dateEncaissement,
+                montantHT: null // We don't show HT for individual installments usually
             }))
         ];
 

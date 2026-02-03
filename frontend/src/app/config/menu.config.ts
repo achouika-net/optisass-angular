@@ -147,12 +147,6 @@ export const MENU: MenuItem[] = [
         type: 'subchild',
         route: 'finance/payments',
       },
-      {
-        label: 'Gestion BL',
-        icon: 'description',
-        type: 'subchild',
-        route: 'finance/invoices',
-      },
     ],
   },
   {

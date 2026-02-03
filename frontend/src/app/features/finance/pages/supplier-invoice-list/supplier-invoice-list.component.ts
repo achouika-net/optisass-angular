@@ -1,4 +1,4 @@
-import { Component, OnInit, effect } from '@angular/core';
+import { Component, OnInit, effect, signal, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -11,6 +11,15 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { SelectionModel } from '@angular/cdk/collections';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { FormsModule } from '@angular/forms';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatInputModule } from '@angular/material/input';
 
 import { FinanceService } from '../../services/finance.service';
 import { SupplierInvoice } from '../../models/finance.models';
@@ -34,6 +43,14 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
     MatMenuModule,
     MatDividerModule,
     MatDialogModule,
+    MatCheckboxModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatProgressSpinnerModule,
+    FormsModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
+    MatInputModule,
     RouterModule
   ],
   templateUrl: './supplier-invoice-list.component.html',
@@ -42,6 +59,7 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
     .container { padding: 24px; width: 95%; max-width: 1600px; margin: 0 auto; box-sizing: border-box; }
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
     table { width: 100%; }
+    .mat-column-select { width: 40px; }
     .mat-column-date { width: 100px; }
     .mat-column-numero { width: 150px; }
     .mat-column-statut { width: 100px; }
@@ -55,13 +73,49 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
     
     .mat-mdc-card { border-radius: 12px; overflow: hidden; }
     .font-medium { color: #1e293b; font-weight: 500; }
+    .group-toolbar { 
+      background: #eff6ff; 
+      padding: 12px 20px; 
+      border-radius: 8px; 
+      display: flex; 
+      align-items: center; 
+      justify-content: space-between;
+      margin-bottom: 16px;
+      border: 1px solid #bfdbfe;
+    }
+    .container-sub { padding: 0 !important; width: 100% !important; max-width: none !important; }
+    .filters { display: flex; gap: 16px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
+    .filters mat-form-field { flex: 1; min-width: 200px; }
+    ::ng-deep .dense-field .mat-mdc-form-field-subscript-wrapper { display: none; }
   `]
 })
 export class SupplierInvoiceListComponent implements OnInit {
+  @Input() listMode: 'INVOICE' | 'BL' = 'BL';
+  @Input() showHeader = true;
+  @Input() isSubComponent = false;
+
   invoices: SupplierInvoice[] = [];
-  displayedColumns: string[] = ['date', 'numero', 'fournisseur', 'client', 'ficheMedicale', 'type', 'statut', 'montant', 'actions'];
+  displayedColumns: string[] = ['select', 'date', 'numero', 'fournisseur', 'client', 'ficheMedicale', 'type', 'statut', 'montant', 'actions'];
   loading = false;
   currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
+  selection = new SelectionModel<SupplierInvoice>(true, []);
+
+  selectedPeriod = signal<string>('all');
+  periods = [
+    { value: 'all', label: 'Toutes les périodes' },
+    { value: 'today', label: "Aujourd'hui" },
+    { value: 'this-month', label: 'Ce mois-ci' },
+    { value: 'last-month', label: 'Mois dernier' },
+    { value: 'this-year', label: 'Cette année' },
+    { value: 'custom', label: 'Plage personnalisée' }
+  ];
+
+  suppliers: any[] = [];
+  filters = {
+    fournisseurId: '',
+    startDate: null as Date | null,
+    endDate: null as Date | null
+  };
 
   constructor(
     private financeService: FinanceService,
@@ -76,19 +130,78 @@ export class SupplierInvoiceListComponent implements OnInit {
         this.loadInvoices();
       }
     });
+
+    effect(() => {
+      // Reload when period changes
+      this.selectedPeriod();
+      this.loadInvoices();
+    }, { allowSignalWrites: true });
   }
 
   ngOnInit(): void {
-    // Handled by effect
+    this.loadSuppliers();
+  }
+
+  applyFilters() {
+    this.loadInvoices();
+  }
+
+  resetFilters() {
+    this.selectedPeriod.set('all');
+    this.filters = {
+      fournisseurId: '',
+      startDate: null,
+      endDate: null
+    };
+    this.loadInvoices();
+  }
+
+  loadSuppliers() {
+    this.financeService.getSuppliers().subscribe(data => this.suppliers = data);
   }
 
   loadInvoices() {
     this.loading = true;
     const center = this.currentCentre();
-    this.financeService.getInvoices({ centreId: center?.id }).subscribe({
+
+    let startDate: string | undefined;
+    let endDate: string | undefined;
+
+    const now = new Date();
+    if (this.selectedPeriod() === 'today') {
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      startDate = todayStart.toISOString();
+      endDate = todayEnd.toISOString();
+    } else if (this.selectedPeriod() === 'this-month') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+    } else if (this.selectedPeriod() === 'last-month') {
+      startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+      endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).toISOString();
+    } else if (this.selectedPeriod() === 'this-year') {
+      startDate = new Date(now.getFullYear(), 0, 1).toISOString();
+      endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59).toISOString();
+    } else if (this.selectedPeriod() === 'custom') {
+      if (this.filters.startDate) startDate = new Date(this.filters.startDate).toISOString();
+      if (this.filters.endDate) {
+        const end = new Date(this.filters.endDate);
+        end.setHours(23, 59, 59);
+        endDate = end.toISOString();
+      }
+    }
+
+    this.financeService.getInvoices({
+      centreId: center?.id,
+      fournisseurId: this.filters.fournisseurId || undefined,
+      startDate,
+      endDate,
+      isBL: this.listMode === 'BL'
+    }).subscribe({
       next: (data) => {
         this.invoices = data;
         this.loading = false;
+        this.selection.clear();
       },
       error: (err) => {
         console.error('Erreur chargement factures', err);
@@ -98,11 +211,66 @@ export class SupplierInvoiceListComponent implements OnInit {
     });
   }
 
+  isAllSelected() {
+    const numSelected = this.selection.selected.length;
+    const numRows = this.invoices.length;
+    return numSelected === numRows;
+  }
+
+  masterToggle() {
+    this.isAllSelected() ?
+      this.selection.clear() :
+      this.invoices.forEach(row => this.selection.select(row));
+  }
+
+  groupSelectedBLs() {
+    if (this.selection.selected.length < 2) {
+      this.snackBar.open('Veuillez sélectionner au moins 2 BL pour les grouper', 'Fermer', { duration: 3000 });
+      return;
+    }
+
+    // Totalize for the new invoice
+    const totalTTC = this.selection.selected.reduce((sum, bl) => sum + bl.montantTTC, 0);
+    const totalHT = this.selection.selected.reduce((sum, bl) => sum + bl.montantHT, 0);
+    const totalTVA = this.selection.selected.reduce((sum, bl) => sum + bl.montantTVA, 0);
+    const supplierId = this.selection.selected[0].fournisseurId;
+
+    if (this.selection.selected.some(bl => bl.fournisseurId !== supplierId)) {
+      this.snackBar.open('Tous les BL doivent appartenir au même fournisseur', 'Fermer', { duration: 3000 });
+      return;
+    }
+
+    const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
+      width: '1400px',
+      maxWidth: '98vw',
+      maxHeight: '95vh',
+      data: {
+        isGrouping: true,
+        prefilledData: {
+          fournisseurId: supplierId,
+          montantTTC: totalTTC,
+          montantHT: totalHT,
+          montantTVA: totalTVA,
+          type: 'ACHAT_GROUPE',
+          numeroFacture: `GROUPE-${new Date().getTime()}`
+        },
+        blIds: this.selection.selected.map(bl => bl.id)
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.loadInvoices();
+        this.snackBar.open('Facture groupée générée avec succès', 'Fermer', { duration: 3000 });
+      }
+    });
+  }
+
   openInvoiceDialog(invoice?: SupplierInvoice, viewMode: boolean = false) {
     const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
-      width: '1200px',
-      maxWidth: '95vw',
-      maxHeight: '90vh', // Auto height with max limit
+      width: '1400px',
+      maxWidth: '98vw',
+      maxHeight: '95vh',
       data: { invoice, viewMode, isBL: true }
     });
 

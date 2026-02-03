@@ -22,6 +22,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
+import { SupplierInvoiceListComponent } from '../supplier-invoice-list/supplier-invoice-list.component';
 
 import { FinanceService } from '../../services/finance.service';
 import { Supplier } from '../../models/finance.models';
@@ -52,7 +53,8 @@ import { ExpenseFormDialogComponent } from '../../components/expense-form-dialog
         MatDividerModule,
         MatDialogModule,
         MatTabsModule,
-        RouterModule
+        RouterModule,
+        SupplierInvoiceListComponent
     ],
     templateUrl: './outgoing-payment-list.component.html',
     styles: [`
@@ -83,7 +85,7 @@ import { ExpenseFormDialogComponent } from '../../components/expense-form-dialog
 })
 export class OutgoingPaymentListComponent implements OnInit {
     payments: any[] = [];
-    activeTab: 'OUTGOING' | 'INCOMING' | 'UNPAID_CLIENTS' = 'OUTGOING';
+    activeTab: 'OUTGOING' | 'INCOMING' | 'UNPAID_CLIENTS' | 'FACTURES' | 'BL' = 'OUTGOING';
 
     get displayedColumns(): string[] {
         if (this.activeTab === 'UNPAID_CLIENTS') {
@@ -154,9 +156,9 @@ export class OutgoingPaymentListComponent implements OnInit {
 
     openInvoiceDialog() {
         const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
-            width: '1200px',
-            maxWidth: '95vw',
-            maxHeight: '90vh',
+            width: '1400px',
+            maxWidth: '98vw',
+            maxHeight: '95vh',
             data: {}
         });
 
@@ -189,9 +191,13 @@ export class OutgoingPaymentListComponent implements OnInit {
         const index = event.index;
         if (index === 0) this.activeTab = 'OUTGOING';
         else if (index === 1) this.activeTab = 'INCOMING';
-        else this.activeTab = 'UNPAID_CLIENTS';
+        else if (index === 2) this.activeTab = 'UNPAID_CLIENTS';
+        else if (index === 3) this.activeTab = 'FACTURES';
+        else if (index === 4) this.activeTab = 'BL';
 
-        this.loadPayments();
+        if (['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(this.activeTab)) {
+            this.loadPayments();
+        }
     }
 
     loadPayments() {
@@ -353,9 +359,9 @@ export class OutgoingPaymentListComponent implements OnInit {
         if (payment.source === 'FACTURE') {
             this.financeService.getInvoice(payment.id).subscribe(invoice => {
                 const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
-                    width: '1200px',
-                    maxWidth: '95vw',
-                    maxHeight: '90vh',
+                    width: '1400px',
+                    maxWidth: '98vw',
+                    maxHeight: '95vh',
                     data: {
                         invoice: {
                             ...invoice,
@@ -394,16 +400,31 @@ export class OutgoingPaymentListComponent implements OnInit {
 
     validatePayment(payment: any) {
         if (confirm('Voulez-vous confirmer l\'encaissement de ce paiement ?')) {
-            this.financeService.validatePayment(payment.id).subscribe({
-                next: () => {
-                    this.snackBar.open('Paiement validé avec succès', 'Fermer', { duration: 3000 });
-                    this.loadPayments();
-                },
-                error: (err) => {
-                    console.error('Error validating payment:', err);
-                    this.snackBar.open('Erreur lors de la validation', 'Fermer', { duration: 3000 });
-                }
-            });
+            if (this.activeTab === 'INCOMING') {
+                this.financeService.validatePayment(payment.id).subscribe({
+                    next: () => {
+                        this.snackBar.open('Paiement validé avec succès', 'Fermer', { duration: 3000 });
+                        this.loadPayments();
+                    },
+                    error: (err) => {
+                        console.error('Error validating payment:', err);
+                        this.snackBar.open('Erreur lors de la validation', 'Fermer', { duration: 3000 });
+                    }
+                });
+            } else {
+                // Outgoing payments (Factures/Depenses) use EcheancePaiement
+                const id = payment.echeanceId || payment.id;
+                this.financeService.validateEcheance(id).subscribe({
+                    next: () => {
+                        this.snackBar.open('Paiement validé avec succès', 'Fermer', { duration: 3000 });
+                        this.loadPayments();
+                    },
+                    error: (err) => {
+                        console.error('Error validating echeance:', err);
+                        this.snackBar.open('Erreur lors de la validation', 'Fermer', { duration: 3000 });
+                    }
+                });
+            }
         }
     }
 
