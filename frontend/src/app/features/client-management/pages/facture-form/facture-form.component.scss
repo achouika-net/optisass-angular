@@ -502,15 +502,15 @@
 
     .print-header {
         display: block !important;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
 
         .company-info {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             border-bottom: 2px solid #1e293b;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
 
             .logo-placeholder {
                 display: flex;
@@ -553,9 +553,9 @@
             justify-content: space-between;
             align-items: center;
             background: #f1f5f9;
-            padding: 15px 25px;
-            border-radius: 8px;
-            margin-bottom: 30px;
+            padding: 10px 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
 
             .doc-title h1 {
                 margin: 0;
@@ -630,6 +630,10 @@
             padding: 0 !important;
             background: transparent !important;
             box-shadow: none !important;
+        }
+
+        .line-row {
+            page-break-inside: avoid;
         }
     }
 

@@ -222,7 +222,9 @@ export class FactureListComponent implements OnInit {
 
     printFacture(facture: any) {
         this.router.navigate(['/p/clients/factures', facture.id], { queryParams: { mode: 'view' } });
-        // The user will then be able to click 'Imprimer' on the form view
-        // OR we could try to auto-trigger print, but navigation is safer to ensure data is loaded.
+    }
+
+    printList() {
+        window.print();
     }
 }

@@ -1,6 +1,10 @@
 <div class="facture-list-container">
     <div class="header-actions">
         <h2>Factures & Devis</h2>
+        <button mat-stroked-button color="primary" class="mr-2" (click)="printList()">
+            <mat-icon>print</mat-icon>
+            Imprimer la liste
+        </button>
         <button mat-raised-button color="primary" [matMenuTriggerFor]="createMenu">
             <mat-icon>add</mat-icon>
             Nouveau Document
@@ -116,4 +120,48 @@
             </div>
         </div>
     </ng-template>
+</div>
+
+<!-- PRINT LIST TEMPLATE -->
+<div class="print-list">
+    <div class="print-header">
+        <div class="company-info">
+            <h2>OPTISASS - OPTICIEN LUNETIER</h2>
+            <p>Journal des Ventes</p>
+            <p class="date">Édité le {{ 0 | date:'dd/MM/yyyy HH:mm' }}</p>
+        </div>
+    </div>
+
+    <table class="print-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Numéro</th>
+                <th>Client</th>
+                <th>Type</th>
+                <th>Statut</th>
+                <th class="text-right">Total TTC</th>
+                <th class="text-right">Reste</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr *ngFor="let row of filteredDataSource">
+                <td>{{ row.dateEmission | date:'dd/MM/yyyy' }}</td>
+                <td><strong>{{ row.numero }}</strong></td>
+                <td>{{ row.client?.nom }} {{ row.client?.prenom }}</td>
+                <td>{{ row.type }}</td>
+                <td>{{ row.statut }}</td>
+                <td class="text-right">{{ row.totalTTC | number:'1.2-2' }}</td>
+                <td class="text-right" [class.warn]="row.resteAPayer > 0">
+                    {{ row.resteAPayer | number:'1.2-2' }}
+                </td>
+            </tr>
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="5" class="text-right font-bold">TOTAL</td>
+                <!-- Note: Proper footer totals calculation would require TS logic, adding later if needed -->
+            </tr>
+        </tfoot>
+    </table>
 </div>

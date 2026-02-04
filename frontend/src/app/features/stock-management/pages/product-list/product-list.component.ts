@@ -55,6 +55,7 @@ export class ProductListComponent implements OnInit {
     dataSource: MatTableDataSource<Product> = new MatTableDataSource<Product>([]);
     selection = new SelectionModel<Product>(true, []);
     loading: boolean = false;
+    printingLabels: boolean = false;
 
     @ViewChild(MatPaginator) paginator!: MatPaginator;
     @ViewChild(MatSort) sort!: MatSort;
@@ -491,5 +492,35 @@ export class ProductListComponent implements OnInit {
                 }
             });
         }
+    }
+
+    printStockSituation() {
+        this.printingLabels = false;
+        setTimeout(() => window.print(), 100);
+    }
+
+    printLabels() {
+        const selected = this.selection.selected;
+        if (selected.length === 0) {
+            this.snackBar.open('Veuillez sélectionner des produits pour imprimer les étiquettes.', 'Fermer', { duration: 3000 });
+            return;
+        }
+        this.printingLabels = true;
+        setTimeout(() => {
+            window.print();
+            // Reset after print dialog closes (or reasonably after)
+            // setTimeout(() => this.printingLabels = false, 1000); 
+            // Better yet, let user close it via UI or standard browser "Esc" which doesn't trigger JS callback easily
+            // But for now, we leave it true so they can see what they printed, or add a "Back" button in print view if we wanted.
+            // Actually, CSS media print handles visibility. On screen, if I set printingLabels=true, 
+            // I should make sure it doesn't break the view. 
+            // My plan handles "print-labels" via CSS. 
+            // If I want to show a PREVIEW on screen, I need to hide others.
+            // But if I just want to PRINT, I can rely on @media print hiding everything else 
+            // AND showing .print-labels ONLY IF printingLabels is true.
+            // But wait, if printingLabels is true, the HTML exists. 
+            // If I want it HIDDEN on screen but VISIBLE on print, I use standard class 'print-only'.
+            // But the TABLE logic (rows/cols) needs to exists.
+        }, 100);
     }
 }

@@ -102,6 +102,9 @@ interface PaymentRow {
                       <button mat-icon-button color="primary" *ngIf="element.pieceJointe" (click)="viewAttachment(element.pieceJointe)" title="Voir la pièce jointe">
                           <mat-icon>visibility</mat-icon>
                       </button>
+                      <button mat-icon-button class="text-gray-600" (click)="printPayment(element)" title="Imprimer le reçu">
+                          <mat-icon>print</mat-icon>
+                      </button>
                       <button mat-icon-button color="warn" (click)="deletePayment(element)" title="Supprimer le paiement">
                           <mat-icon>delete</mat-icon>
                       </button>
@@ -190,8 +193,200 @@ interface PaymentRow {
         </mat-tab>
       </mat-tab-group>
     </div>
+
+    <!-- PRINT RECEIPT TEMPLATE -->
+    <div class="print-receipt" *ngIf="printingPayment">
+        <div class="receipt-container">
+            <div class="company-header">
+                <h2>OPTISASS - OPTICIEN LUNETIER</h2>
+                <p>Adresse de l'établissement - Ville, Maroc</p>
+                <p>Tél: +212 X XX XX XX XX</p>
+            </div>
+            
+            <div class="receipt-title">
+                <h1>REÇU DE PAIEMENT</h1>
+                <p class="receipt-ref">Réf: {{ printingPayment.id?.substring(0,8) || 'N/A' }}</p>
+            </div>
+
+            <div class="payment-details-box">
+                <div class="row">
+                    <span class="label">Date:</span>
+                    <span class="value">{{ printingPayment.date | date:'dd/MM/yyyy HH:mm' }}</span>
+                </div>
+                <div class="row">
+                     <span class="label">Client:</span>
+                     <span class="value">{{ printingPayment.tiersNom || 'Client' }}</span>
+                </div>
+                 <div class="row">
+                    <span class="label">Concerne:</span>
+                    <span class="value">Facture N° {{ printingPayment.factureNumero }}</span>
+                </div>
+                <div class="row highlight">
+                    <span class="label">Montant Reçu:</span>
+                    <span class="value">{{ printingPayment.montant | number:'1.2-2' }} DH</span>
+                </div>
+                <div class="row">
+                    <span class="label">Mode de Paiement:</span>
+                    <span class="value">{{ getPaymentModeLabel(printingPayment.mode) }}</span>
+                </div>
+                <div class="row" *ngIf="printingPayment.reference">
+                    <span class="label">Référence / Chèque:</span>
+                    <span class="value">{{ printingPayment.reference }}</span>
+                </div>
+                 <div class="row" *ngIf="printingPayment.resteAPayer !== undefined">
+                    <span class="label">Reste à Payer (Doc):</span>
+                    <span class="value">{{ printingPayment.resteAPayer | number:'1.2-2' }} DH</span>
+                </div>
+            </div>
+
+            <div class="signatures">
+                <div class="sig-box">
+                    <p>Signature Client</p>
+                </div>
+                <div class="sig-box">
+                    <p>Cachet et Signature</p>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <p>Merci de votre visite !</p>
+            </div>
+        </div>
+    </div>
   `,
     styles: [`
+    /* PRINT STYLES */
+    .print-receipt {
+        display: none;
+    }
+
+    @media print {
+        /* Hide everything else */
+        .payment-list-container, 
+        .modern-tabs,
+        mat-tab-group,
+        .header-actions,
+        .modern-table-container {
+            display: none !important;
+        }
+
+        .print-receipt {
+            display: block !important;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            padding: 40px;
+        }
+
+        .receipt-container {
+            max-width: 600px;
+            margin: 0 auto;
+            border: 1px solid #1e293b;
+            padding: 30px;
+            border-radius: 4px;
+        }
+
+        .company-header {
+            text-align: center;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .company-header h2 {
+            font-size: 18px;
+            font-weight: 800;
+            margin: 0 0 5px 0;
+            color: #1e293b;
+        }
+        
+        .company-header p {
+            margin: 2px 0;
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .receipt-title {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .receipt-title h1 {
+            font-size: 24px;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: 2px;
+            color: #1e293b;
+        }
+
+        .receipt-ref {
+            font-family: monospace;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .payment-details-box {
+            margin-bottom: 40px;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px dashed #e2e8f0;
+            font-size: 14px;
+        }
+
+        .row.highlight {
+            background: #f8fafc;
+            padding: 15px 10px;
+            font-weight: 800;
+            font-size: 16px;
+            color: #1e293b;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            margin: 10px 0;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .label {
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .value {
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .signatures {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 50px;
+            margin-bottom: 30px;
+        }
+
+        .sig-box {
+            width: 150px;
+            text-align: center;
+            border-top: 1px solid #cbd5e1;
+            padding-top: 10px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            font-style: italic;
+            color: #94a3b8;
+        }
+    }
+
     .payment-list-container {
         padding: 0;
     }
@@ -323,6 +518,8 @@ export class PaymentListComponent implements OnInit {
     impayes: Facture[] = []; // For visibility check
     displayedColumns: string[] = ['date', 'facture', 'montant', 'mode', 'reference', 'details', 'actions'];
     displayedColumnsImpayes: string[] = ['numero', 'date', 'total', 'paye', 'reste', 'actions'];
+
+    printingPayment: PaymentRow | null = null;
 
     constructor(
         private factureService: FactureService,
@@ -520,5 +717,22 @@ export class PaymentListComponent implements OnInit {
             'AUTRE': 'Autre'
         };
         return modes[mode] || mode;
+    }
+
+    printPayment(payment: PaymentRow) {
+        this.printingPayment = payment;
+        // Wait for change detection to render the print section
+        setTimeout(() => {
+            window.print();
+            // Optional: reset after print. kept simple for now or use window.onafterprint if needed
+            // But usually keeping it doesn't hurt as it is hidden via CSS in non-print
+            // For cleaner state:
+            // this.printingPayment = null; 
+            // Note: If we null it immediately, print preview might lose content in some browsers.
+            // Better to leave it or clear on next interaction.
+            // Let's clear it with a delay long enough for the print dialog to capture it?
+            // Actually, window.print() is blocking in many browsers but not all.
+            // Safer to leave it set until next print or destruction.
+        }, 100);
     }
 }
