@@ -1,12 +1,15 @@
 <div class="container" [class.container-sub]="isSubComponent">
     <div class="header" *ngIf="showHeader">
-        <h1 class="text-2xl font-bold flex items-center gap-2">
+        <h1 class="text-2xl font-bold flex items-center gap-2" *ngIf="!isSubComponent">
             <mat-icon color="primary">{{ listMode === 'BL' ? 'description' : 'receipt' }}</mat-icon>
             {{ listMode === 'BL' ? 'Bons de Livraison (BL)' : 'Factures Fournisseur' }}
         </h1>
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2">
             <button mat-raised-button color="primary" (click)="openInvoiceDialog()">
                 <mat-icon>add</mat-icon> {{ listMode === 'BL' ? 'Saisir BL' : 'Nouvelle Facture' }}
+            </button>
+            <button mat-raised-button color="accent" (click)="openExpenseDialog()" *ngIf="listMode === 'INVOICE'">
+                <mat-icon>receipt</mat-icon> Nouvelle Dépense
             </button>
         </div>
     </div>
@@ -65,7 +68,7 @@
         <button mat-flat-button color="primary" (click)="groupSelectedBLs()"
             *ngIf="selection.selected.length > 1 && listMode === 'BL'">
             <mat-icon>auto_awesome_motion</mat-icon>
-            Générer Facture Groupée
+            Attacher Facture Fournisseur
         </button>
     </div>
 

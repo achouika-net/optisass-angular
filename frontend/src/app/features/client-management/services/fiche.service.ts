@@ -27,8 +27,10 @@ export class FicheService {
     /**
      * Récupérer toutes les fiches d'un client
      */
-    getFichesByClient(clientId: string): Observable<FicheClient[]> {
-        return this.http.get<any[]>(`${this.apiUrl}?clientId=${clientId}`).pipe(
+    getFichesByClient(clientId: string, startDate?: string): Observable<FicheClient[]> {
+        let url = `${this.apiUrl}?clientId=${clientId}`;
+        if (startDate) url += `&startDate=${startDate}`;
+        return this.http.get<any[]>(url).pipe(
             map(fiches => fiches.map(f => this.mapBackendToFrontend(f)))
         );
     }

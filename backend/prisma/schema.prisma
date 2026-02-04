@@ -64,6 +64,7 @@ model Fiche {
   content              Json
   facture              Facture?
   client               Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  supplierInvoices     FactureFournisseur[]
 }
 
 model Facture {
@@ -415,11 +416,13 @@ model FactureFournisseur {
   centreId       String?
   pieceJointeUrl String?
   clientId       String?
+  ficheId        String?
   depenses       Depense?
   echeances      EcheancePaiement[]
   mouvementsStock MouvementStock[]
   centre         Centre?            @relation(fields: [centreId], references: [id])
   client         Client?            @relation(fields: [clientId], references: [id])
+  fiche          Fiche?             @relation(fields: [ficheId], references: [id])
   fournisseur    Fournisseur        @relation(fields: [fournisseurId], references: [id])
 
   @@unique([fournisseurId, numeroFacture])

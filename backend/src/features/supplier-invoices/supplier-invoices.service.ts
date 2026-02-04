@@ -59,6 +59,7 @@ export class SupplierInvoicesService {
                 dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance),
                 statut: status,
                 centreId: invoiceData.centreId, // Explicitly map it
+                ficheId: invoiceData.ficheId,
                 echeances: {
                     create: finalEcheances.map(e => ({
                         ...e,
@@ -81,10 +82,11 @@ export class SupplierInvoicesService {
         isBL?: boolean;
         categorieBL?: string;
         parentInvoiceId?: string;
+        ficheId?: string;
         startDate?: string;
         endDate?: string;
     }) {
-        const { fournisseurId, statut, clientId, centreId, isBL, categorieBL, parentInvoiceId, startDate, endDate } = filters;
+        const { fournisseurId, statut, clientId, centreId, isBL, categorieBL, parentInvoiceId, startDate, endDate, ficheId } = filters;
         const whereClause: any = {};
 
         if (fournisseurId) whereClause.fournisseurId = fournisseurId;
@@ -92,10 +94,11 @@ export class SupplierInvoicesService {
         if (clientId) whereClause.clientId = clientId;
         if (centreId) whereClause.centreId = centreId;
         if (isBL !== undefined) {
-            whereClause.isBL = isBL === false ? { in: [false, null] } : isBL;
+            whereClause.isBL = isBL === false ? { equals: false } : !!isBL;
         }
         if (categorieBL) whereClause.categorieBL = categorieBL;
         if (parentInvoiceId) whereClause.parentInvoiceId = parentInvoiceId;
+        if (ficheId) whereClause.ficheId = ficheId;
 
         if (startDate || endDate) {
             whereClause.dateEmission = {};
@@ -109,6 +112,7 @@ export class SupplierInvoicesService {
                 fournisseur: true,
                 echeances: true,
                 client: true,
+                fiche: true,
                 parentInvoice: true
             },
             orderBy: { dateEmission: 'desc' }
@@ -123,6 +127,7 @@ export class SupplierInvoicesService {
                 echeances: true,
                 depenses: true,
                 client: true,
+                fiche: true,
                 parentInvoice: true,
                 childBLs: {
                     include: {
@@ -168,6 +173,7 @@ export class SupplierInvoicesService {
             fournisseurId: invoiceData.fournisseurId,
             centreId: invoiceData.centreId,
             clientId: invoiceData.clientId,
+            ficheId: invoiceData.ficheId,
         };
 
         // Handle File Attachment Update (Multi-file support)

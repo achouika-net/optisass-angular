@@ -14,11 +14,11 @@ export class FichesController {
     }
 
     @Get()
-    findAll(@Query('clientId') clientId: string) {
+    findAll(@Query('clientId') clientId: string, @Query('startDate') startDate?: string) {
         if (clientId) {
-            return this.fichesService.findAllByClient(clientId);
+            return this.fichesService.findAllByClient(clientId, startDate);
         }
-        return []; // Or implement strict findAll if needed
+        return [];
     }
 
     @Get(':id')

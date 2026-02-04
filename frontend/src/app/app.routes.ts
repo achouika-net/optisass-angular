@@ -88,6 +88,10 @@ export const routes: Routes = [
         loadChildren: () => import('./features/finance/finance.routes').then(m => m.routes),
       },
       {
+        path: 'gestion-depenses',
+        loadChildren: () => import('./features/finance/finance.routes').then(m => m.routes),
+      },
+      {
         path: 'commercial',
         loadChildren: () => import('./features/commercial/commercial.routes').then(m => m.routes),
       },

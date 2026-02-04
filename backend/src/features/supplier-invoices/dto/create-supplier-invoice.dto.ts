@@ -65,6 +65,10 @@ export class CreateSupplierInvoiceDto {
     clientId?: string;
 
     @IsOptional()
+    @IsUUID()
+    ficheId?: string;
+
+    @IsOptional()
     isBL?: boolean;
 
     @IsOptional()

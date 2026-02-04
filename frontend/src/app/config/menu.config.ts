@@ -74,6 +74,12 @@ export const MENU: MenuItem[] = [
         icon: 'request_quote',
         type: 'subchild',
         route: 'finance/funding-requests',
+      },
+      {
+        label: 'Historique des paiements',
+        icon: 'history',
+        type: 'subchild',
+        route: 'finance/payments',
       }
     ]
   },
@@ -130,6 +136,28 @@ export const MENU: MenuItem[] = [
     ],
   },
   {
+    label: 'Gestion Dépenses',
+    icon: 'payments',
+    type: 'sub',
+    route: 'gestion-depenses',
+    children: [
+      {
+        label: 'Gestion Dépenses (Factures)',
+        icon: 'description',
+        type: 'subchild',
+        route: 'gestion-depenses/payments',
+        queryParams: { tab: 'FACTURES' }
+      },
+      {
+        label: 'Bon de livraison BL',
+        icon: 'receipt_long',
+        type: 'subchild',
+        route: 'gestion-depenses/payments',
+        queryParams: { tab: 'BL' }
+      }
+    ]
+  },
+  {
     label: 'Gestion Fournisseurs',
     icon: 'local_shipping',
     type: 'sub',
@@ -140,13 +168,7 @@ export const MENU: MenuItem[] = [
         icon: 'local_shipping',
         type: 'subchild',
         route: 'finance/suppliers',
-      },
-      {
-        label: 'Gestion Dépenses',
-        icon: 'payments',
-        type: 'subchild',
-        route: 'finance/payments',
-      },
+      }
     ],
   },
   {

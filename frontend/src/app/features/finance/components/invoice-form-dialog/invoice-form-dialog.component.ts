@@ -14,6 +14,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatStepperModule } from '@angular/material/stepper';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
@@ -58,7 +59,8 @@ interface AttachmentFile {
         MatCardModule,
         MatAutocompleteModule,
         MatProgressBarModule,
-        MatSnackBarModule
+        MatSnackBarModule,
+        MatSlideToggleModule
     ],
     templateUrl: './invoice-form-dialog.component.html',
     styles: [`
@@ -132,6 +134,7 @@ export class InvoiceFormDialogComponent implements OnInit {
     supplierCtrl = new FormControl('');
     filteredSuppliers!: Observable<Supplier[]>;
 
+
     @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
     attachmentFiles: AttachmentFile[] = [];
@@ -141,7 +144,7 @@ export class InvoiceFormDialogComponent implements OnInit {
     childBLs: SupplierInvoice[] = [];
 
     get isBLMode(): boolean {
-        return (this.data as any)?.isBL || !!this.detailsGroup.get('clientId')?.value || (this.data as any)?.isGrouping;
+        return this.form?.get('details.isBL')?.value === true;
     }
 
     constructor(
@@ -168,7 +171,7 @@ export class InvoiceFormDialogComponent implements OnInit {
 
         this.form = this.fb.group({
             details: this.fb.group({
-                fournisseurId: [data?.invoice?.fournisseurId || prefilled.fournisseurId || '', Validators.required],
+                fournisseurId: [data?.invoice?.fournisseurId || prefilled.fournisseurId || ''],
                 centreId: [data?.invoice?.centreId || this.currentCentre()?.id || '', Validators.required],
                 numeroFacture: [data?.invoice?.numeroFacture || prefilled.numeroFacture || '', Validators.required],
                 dateEmission: [data?.invoice?.dateEmission || new Date(), Validators.required],
@@ -183,13 +186,18 @@ export class InvoiceFormDialogComponent implements OnInit {
                 montantTTC: [data?.invoice?.montantTTC || prefilled.montantTTC || 0, [Validators.required, Validators.min(0)]],
                 type: [data?.invoice?.type || (data as any)?.prefilledType || prefilled.type || 'ACHAT_STOCK', Validators.required],
                 categorieBL: [data?.invoice?.categorieBL || 'VERRE'],
-                isBL: [data?.invoice?.isBL !== undefined ? data.invoice.isBL : !data?.isGrouping],
+                isBL: [data?.invoice?.isBL !== undefined ? data.invoice.isBL : (this.data as any)?.isBL],
                 pieceJointeUrl: [data?.invoice?.pieceJointeUrl || ''],
-                clientId: [data?.invoice?.clientId || (data as any)?.prefilledClientId || ''],
             }),
             payment: this.fb.group({
                 echeances: this.fb.array([]),
                 statut: [data?.invoice?.statut || 'EN_ATTENTE']
+            }),
+            directPayment: this.fb.group({
+                paidImmediately: [!(data?.invoice) && (data as any)?.isBL],
+                modePaiement: ['ESPECES'],
+                dateEcheance: [''],
+                banque: ['']
             })
         });
 
@@ -223,6 +231,14 @@ export class InvoiceFormDialogComponent implements OnInit {
     ngOnInit() {
         console.log('[InvoiceForm] VERSION CHECK: Aggressive Rounding & Sync Date Update ACTIVE');
         this.loadSuppliers();
+
+        // Ensure centreId is set if missing
+        if (!this.detailsGroup.get('centreId')?.value) {
+            const center = this.currentCentre();
+            if (center?.id) {
+                this.detailsGroup.patchValue({ centreId: center.id });
+            }
+        }
 
         // Check if opened as dialog with viewMode in data
         if ((this.data?.invoice as any)?.viewMode) {
@@ -258,7 +274,6 @@ export class InvoiceFormDialogComponent implements OnInit {
                         montantTTC: mTTC,
                         type: invoice.type,
                         pieceJointeUrl: invoice.pieceJointeUrl,
-                        clientId: invoice.clientId
                     },
                     payment: {
                         statut: invoice.statut
@@ -324,6 +339,7 @@ export class InvoiceFormDialogComponent implements OnInit {
             this.autoUpdateStatus();
             this.redistributeAmountAcrossEcheances();
         });
+
 
         this.filteredTypes = this.detailsGroup.get('type')!.valueChanges.pipe(
             startWith(''),
@@ -405,6 +421,7 @@ export class InvoiceFormDialogComponent implements OnInit {
         const filterValue = value.toLowerCase();
         return this.invoiceTypes.filter(option => option.toLowerCase().includes(filterValue));
     }
+
 
     viewParentInvoice() {
         if (!this.parentInvoice) return;
@@ -826,6 +843,32 @@ export class InvoiceFormDialogComponent implements OnInit {
             next: res => {
                 this.snackBar.open('Enregistrement réussi', 'Fermer', { duration: 3000 });
 
+                // CHECK FOR IMMEDIATE PAYMENT (ONLY FOR NEW BL)
+                const directPayment = this.form.get('directPayment')?.value;
+                if (directPayment?.paidImmediately && this.isBLMode) {
+                    const expenseData = {
+                        date: invoiceData.dateEmission,
+                        montant: invoiceData.montantTTC,
+                        categorie: invoiceData.type,
+                        modePaiement: directPayment.modePaiement,
+                        centreId: invoiceData.centreId || this.currentCentre()?.id,
+                        description: `Règlement immédiat BL ${res.numeroFacture}`,
+                        statut: 'VALIDEE',
+                        reference: directPayment.banque || res.numeroFacture,
+                        banque: directPayment.banque,
+                        fournisseurId: res.fournisseurId,
+                        factureFournisseurId: res.id
+                    };
+
+                    this.financeService.createExpense(expenseData).subscribe({
+                        next: () => console.log('[BL-PAYMENT] Immediate payment recorded'),
+                        error: (err) => {
+                            console.error('[BL-PAYMENT] Error recording immediate payment', err);
+                            this.snackBar.open('BL créé mais erreur lors du règlement immédiat', 'OK', { duration: 5000 });
+                        }
+                    });
+                }
+
                 const stockTypes = ['ACHAT_VERRE_OPTIQUE', 'ACHAT_MONTURES_OPTIQUE', 'ACHAT_MONTURES_SOLAIRE', 'ACHAT_LENTILLES', 'ACHAT_PRODUITS', 'ACHAT_STOCK'];
                 if (stockTypes.includes(res.type)) {
                     const feedStock = confirm('Facture enregistrée. Souhaitez-vous maintenant alimenter le stock avec les articles de cette facture ?');
@@ -999,4 +1042,5 @@ export class InvoiceFormDialogComponent implements OnInit {
             reader.onerror = error => reject(error);
         });
     }
+
 }

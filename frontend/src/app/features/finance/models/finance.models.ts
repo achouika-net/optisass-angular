@@ -88,7 +88,9 @@ export interface SupplierInvoice {
     fournisseurId: string;
     centreId?: string;
     clientId?: string;
+    ficheId?: string;
     client?: any;
+    fiche?: any;
     fournisseur?: Supplier;
     echeances?: Echeance[];
     createdAt?: string;
@@ -119,6 +121,7 @@ export interface SupplierInvoiceDTO {
     parentInvoiceId?: string;
     fournisseurId: string;
     clientId?: string;
+    ficheId?: string;
     centreId?: string;
     pieceJointeUrl?: string;
     echeances?: Echeance[];
