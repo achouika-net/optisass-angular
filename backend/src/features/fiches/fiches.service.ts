@@ -149,9 +149,13 @@ export class FichesService {
         }
     }
 
-    async findAllByClient(clientId: string) {
+    async findAllByClient(clientId: string, startDate?: string) {
+        const where: any = { clientId };
+        if (startDate) {
+            where.dateCreation = { gte: new Date(startDate) };
+        }
         const fiches = await this.prisma.fiche.findMany({
-            where: { clientId },
+            where,
             orderBy: { dateCreation: 'desc' },
         });
         return fiches.map((f: any) => this.unpackContent(f));

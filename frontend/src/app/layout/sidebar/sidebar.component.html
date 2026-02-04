@@ -24,7 +24,7 @@
       @for (item of favorisItems(); track item.label) {
       <div class="favorite-item-wrapper" cdkDrag>
         <a mat-list-item class="favorite-item sidebar-menu-item" [routerLink]="`/p/${item.route}`"
-          routerLinkActive="selected">
+          [queryParams]="item.queryParams" routerLinkActive="selected">
           <div class="grid w-full grid-cols-[auto_1fr_auto] items-center gap-2">
             <mat-icon class="icon-standard">
               {{ item.icon }}
@@ -45,7 +45,7 @@
       </div>
       @for (item of favorisItems(); track item.label) {
       <a mat-list-item class="sidebar-menu-item flex items-center justify-center" [routerLink]="`/p/${item.route}`"
-        routerLinkActive="selected" [matTooltip]="isCollapsed() ? item.label : null">
+        [queryParams]="item.queryParams" routerLinkActive="selected" [matTooltip]="isCollapsed() ? item.label : null">
         <mat-icon class="icon-standard">{{ item.icon }}</mat-icon>
       </a>
       }
@@ -69,8 +69,8 @@
   <!-- MENU PRINCIPAL -->
   <mat-nav-list>
     @if (isCollapsed()) { @for (item of flatMenuItemsForCollapsed(); track item.label) {
-    <a mat-list-item class="sidebar-menu-item" [routerLink]="`/p/${item.route}`" routerLinkActive="selected"
-      [routerLinkActiveOptions]="{ exact: true }" [matTooltip]="item.label">
+    <a mat-list-item class="sidebar-menu-item" [routerLink]="`/p/${item.route}`" [queryParams]="item.queryParams"
+      routerLinkActive="selected" [routerLinkActiveOptions]="{ exact: true }" [matTooltip]="item.label">
       <div class="place-items-center">
         <mat-icon class="icon-standard">
           {{ item.icon }}
@@ -79,7 +79,8 @@
     </a>
     } } @else { @for (item of visibleMenuItems(); track item.label) { @switch (item.type) { @case
     ('link') {
-    <a mat-list-item class="sidebar-menu-item" [routerLink]="`/p/${item.route}`" routerLinkActive="selected">
+    <a mat-list-item class="sidebar-menu-item" [routerLink]="`/p/${item.route}`" [queryParams]="item.queryParams"
+      routerLinkActive="selected">
       <div class="grid w-full grid-cols-[auto_1fr_auto] items-center gap-2">
         <mat-icon class="icon-standard">
           {{ item.icon }}
@@ -114,8 +115,8 @@
       @if (isSubMenuOpen(item.label)) {
       <div class="sidebar-sub-items bg-subgroup flex flex-col gap-1 px-1 pt-1 pb-1">
         @for (child of item.children ?? []; track child.label) {
-        <a mat-list-item class="sidebar-menu-item" [routerLink]="`/p/${child.route}`" routerLinkActive="selected"
-          [routerLinkActiveOptions]="{ exact: true }" [matTooltip]="child.label"
+        <a mat-list-item class="sidebar-menu-item" [routerLink]="`/p/${child.route}`" [queryParams]="child.queryParams"
+          routerLinkActive="selected" [routerLinkActiveOptions]="{ exact: true }" [matTooltip]="child.label"
           [class.transfer-pulsate]="child.label === 'Transferts Inter-Centres' && ((shipmentCount$ | async) > 0 || (receptionCount$ | async) > 0)">
           <div class="grid w-full grid-cols-[auto_1fr_auto_auto] gap-2">
             <mat-icon class="icon-standard">

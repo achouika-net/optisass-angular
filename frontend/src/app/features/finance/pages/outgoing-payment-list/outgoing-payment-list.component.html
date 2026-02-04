@@ -3,8 +3,8 @@
         <h1 class="text-2xl font-bold flex items-center gap-2">
             <mat-icon color="primary">payments</mat-icon>
             {{ activeTab === 'OUTGOING' ? 'Paiements Sortants' : (activeTab === 'INCOMING' ? 'Paiements Entrants' :
-            (activeTab === 'UNPAID_CLIENTS' ? 'Reste à payer' : (activeTab === 'FACTURES' ? 'Gestion Factures' :
-            'Gestion BL'))) }}
+            (activeTab === 'UNPAID_CLIENTS' ? 'Reste à payer' : (activeTab === 'FACTURES' ? 'Gestion Dépenses
+            (Factures)' : 'Bon de livraison BL'))) }}
         </h1>
         <div class="flex gap-2">
             <button mat-stroked-button color="warn" (click)="resetFilters()"
@@ -12,25 +12,15 @@
                 <mat-icon>refresh</mat-icon>
                 Réinitialiser Filters
             </button>
-            <ng-container *ngIf="activeTab === 'OUTGOING'">
-                <button mat-raised-button color="primary" (click)="openInvoiceDialog()">
-                    <mat-icon>add</mat-icon>
-                    Nouvelle Facture
-                </button>
-                <button mat-raised-button color="accent" (click)="openExpenseDialog()">
-                    <mat-icon>receipt</mat-icon>
-                    Nouvelle Dépense
-                </button>
-            </ng-container>
         </div>
     </div>
 
-    <mat-tab-group (selectedTabChange)="onTabChange($event)">
+    <mat-tab-group *ngIf="['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(activeTab)"
+        [selectedIndex]="activeTab === 'OUTGOING' ? 0 : (activeTab === 'INCOMING' ? 1 : 2)"
+        (selectedTabChange)="onTabChange($event)">
         <mat-tab label="Sortants (Fournisseurs)"></mat-tab>
         <mat-tab label="Entrants (Clients)"></mat-tab>
         <mat-tab label="Reste à payer (Clients)"></mat-tab>
-        <mat-tab label="Gestion Factures"></mat-tab>
-        <mat-tab label="Gestion BL"></mat-tab>
     </mat-tab-group>
 
     <ng-container *ngIf="['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(activeTab)">

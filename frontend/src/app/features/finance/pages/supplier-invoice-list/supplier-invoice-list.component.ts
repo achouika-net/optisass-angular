@@ -230,9 +230,9 @@ export class SupplierInvoiceListComponent implements OnInit {
     }
 
     // Totalize for the new invoice
-    const totalTTC = this.selection.selected.reduce((sum, bl) => sum + bl.montantTTC, 0);
-    const totalHT = this.selection.selected.reduce((sum, bl) => sum + bl.montantHT, 0);
-    const totalTVA = this.selection.selected.reduce((sum, bl) => sum + bl.montantTVA, 0);
+    const totalTTC = Math.round(this.selection.selected.reduce((sum, bl) => sum + bl.montantTTC, 0) * 100) / 100;
+    const totalHT = Math.round(this.selection.selected.reduce((sum, bl) => sum + bl.montantHT, 0) * 100) / 100;
+    const totalTVA = Math.round(this.selection.selected.reduce((sum, bl) => sum + bl.montantTVA, 0) * 100) / 100;
     const supplierId = this.selection.selected[0].fournisseurId;
 
     if (this.selection.selected.some(bl => bl.fournisseurId !== supplierId)) {
@@ -261,7 +261,7 @@ export class SupplierInvoiceListComponent implements OnInit {
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
         this.loadInvoices();
-        this.snackBar.open('Facture groupée générée avec succès', 'Fermer', { duration: 3000 });
+        this.snackBar.open('Facture groupée enregistrée avec succès', 'Fermer', { duration: 3000 });
       }
     });
   }
@@ -270,8 +270,22 @@ export class SupplierInvoiceListComponent implements OnInit {
     const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
       width: '1400px',
       maxWidth: '98vw',
-      maxHeight: '95vh',
-      data: { invoice, viewMode, isBL: true }
+      maxHeight: '98vh',
+      data: { invoice, viewMode, isBL: invoice ? invoice.isBL : this.listMode === 'BL' }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.loadInvoices();
+      }
+    });
+  }
+
+  openExpenseDialog() {
+    const dialogRef = this.dialog.open(ExpenseFormDialogComponent, {
+      width: '800px',
+      maxWidth: '95vw',
+      data: {}
     });
 
     dialogRef.afterClosed().subscribe(result => {

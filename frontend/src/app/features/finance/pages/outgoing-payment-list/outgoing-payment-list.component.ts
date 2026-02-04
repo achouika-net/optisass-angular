@@ -5,7 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { Router, RouterModule } from '@angular/router';
+import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
@@ -128,7 +128,8 @@ export class OutgoingPaymentListComponent implements OnInit {
         private router: Router,
         private snackBar: MatSnackBar,
         private dialog: MatDialog,
-        private store: Store
+        private store: Store,
+        private route: ActivatedRoute
     ) {
         // Automatically reload when center changes
         effect(() => {
@@ -150,38 +151,24 @@ export class OutgoingPaymentListComponent implements OnInit {
         }
 
         // Initialize filters and trigger the first load
+        // Initialize filters and trigger the first load
         this.applyPredefinedPeriod('TODAY', false);
-        this.loadPayments();
-    }
 
-    openInvoiceDialog() {
-        const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
-            width: '1400px',
-            maxWidth: '98vw',
-            maxHeight: '95vh',
-            data: {}
-        });
+        // Listen to tab query param
+        this.route.queryParamMap.subscribe(params => {
+            const tab = params.get('tab');
+            if (tab === 'FACTURES') this.activeTab = 'FACTURES';
+            else if (tab === 'BL') this.activeTab = 'BL';
+            else if (tab === 'INCOMING') this.activeTab = 'INCOMING';
+            else if (tab === 'UNPAID_CLIENTS') this.activeTab = 'UNPAID_CLIENTS';
+            else this.activeTab = 'OUTGOING';
 
-        dialogRef.afterClosed().subscribe(result => {
-            if (result) {
+            if (['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(this.activeTab)) {
                 this.loadPayments();
             }
         });
     }
 
-    openExpenseDialog() {
-        const dialogRef = this.dialog.open(ExpenseFormDialogComponent, {
-            width: '800px',
-            maxWidth: '95vw',
-            data: {}
-        });
-
-        dialogRef.afterClosed().subscribe(result => {
-            if (result) {
-                this.loadPayments();
-            }
-        });
-    }
 
     loadSuppliers() {
         this.financeService.getSuppliers().subscribe(data => this.suppliers = data);
@@ -192,8 +179,6 @@ export class OutgoingPaymentListComponent implements OnInit {
         if (index === 0) this.activeTab = 'OUTGOING';
         else if (index === 1) this.activeTab = 'INCOMING';
         else if (index === 2) this.activeTab = 'UNPAID_CLIENTS';
-        else if (index === 3) this.activeTab = 'FACTURES';
-        else if (index === 4) this.activeTab = 'BL';
 
         if (['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(this.activeTab)) {
             this.loadPayments();

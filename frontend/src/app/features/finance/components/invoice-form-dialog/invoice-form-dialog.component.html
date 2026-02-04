@@ -1,15 +1,12 @@
-<div class="p-6" [class.h-full]="dialogRef">
+<div class="p-2" [class.h-full]="dialogRef">
     <mat-card class="!shadow-sm !border !border-gray-200">
-        <mat-card-header class="mb-6 !flex items-center">
+        <mat-card-header class="mb-4 !flex items-center">
             <div class="flex-1">
                 <mat-card-title class="!text-2xl !font-bold">
-                    {{ isEditMode ? (isBLMode ? 'Modifier BL Fournisseur' : 'Modifier Facture Fournisseur') : (isBLMode
-                    ? 'Nouveau Bon de Livraison' : 'Nouvelle Facture Fournisseur') }}
+                    {{ data?.isGrouping ? 'Attacher Facture (Groupement de BL)' : (isEditMode ? (isBLMode ? 'Bon de
+                    livraison BL' : 'Modifier Facture Fournisseur') : (isBLMode
+                    ? 'Bon de livraison BL' : 'Nouvelle Facture Fournisseur')) }}
                 </mat-card-title>
-                <mat-card-subtitle>
-                    {{ isBLMode ? 'Enregistrement d\'un bon de livraison lié à un dossier client' : 'Enregistrement
-                    d\'une facture et planification du paiement' }}
-                </mat-card-subtitle>
             </div>
             <button mat-icon-button (click)="onCancel()" *ngIf="dialogRef">
                 <mat-icon>close</mat-icon>
@@ -22,185 +19,244 @@
             <mat-stepper #stepper linear="true" animationDuration="0ms">
                 <!-- ÉTAPE 1 : DÉTAILS DE LA FACTURE -->
                 <mat-step [stepControl]="detailsGroup">
-                    <ng-template matStepLabel>{{ isBLMode ? 'Détails du BL' : 'Détails de la Facture' }}</ng-template>
-                    <div class="p-6">
-                        <form [formGroup]="detailsGroup">
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                                <mat-form-field appearance="outline" class="md:col-span-2">
-                                    <mat-label>Fournisseur *</mat-label>
-                                    <input type="text" placeholder="Sélectionner ou saisir..." matInput
-                                        [formControl]="supplierCtrl" [matAutocomplete]="autoSupplier">
-                                    <mat-autocomplete #autoSupplier="matAutocomplete" [displayWith]="displayFn"
-                                        (optionSelected)="onSupplierChange($event.option.value?.id)">
-                                        <mat-option *ngFor="let s of filteredSuppliers | async" [value]="s">
-                                            {{ s.nom }}
-                                            <span *ngIf="s.ville" class="text-xs text-gray-500"> ({{ s.ville }})</span>
-                                        </mat-option>
-                                    </mat-autocomplete>
-                                    <mat-icon matSuffix class="cursor-pointer" (click)="supplierCtrl.setValue('')"
-                                        *ngIf="supplierCtrl.value">close</mat-icon>
-                                    <mat-icon matSuffix *ngIf="!supplierCtrl.value">business</mat-icon>
-                                    <mat-error
-                                        *ngIf="detailsGroup.get('fournisseurId')?.hasError('required') && !supplierCtrl.value">Requis</mat-error>
-                                </mat-form-field>
+                    <ng-template matStepLabel>{{ data?.isGrouping ? 'Détails de la Facture Groupée' : (isBLMode ?
+                        'Détails du BL' : 'Détails de la Facture') }}</ng-template>
+                    <div class="p-4">
+                        <form [formGroup]="form">
+                            <div formGroupName="details">
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Fournisseur *</mat-label>
+                                        <input type="text" placeholder="Sélectionner ou saisir..." matInput
+                                            [formControl]="supplierCtrl" [matAutocomplete]="autoSupplier">
+                                        <mat-autocomplete #autoSupplier="matAutocomplete" [displayWith]="displayFn"
+                                            (optionSelected)="onSupplierChange($event.option.value?.id)">
+                                            <mat-option *ngFor="let s of filteredSuppliers | async" [value]="s">
+                                                {{ s.nom }}
+                                                <span *ngIf="s.ville" class="text-xs text-gray-500"> ({{ s.ville
+                                                    }})</span>
+                                            </mat-option>
+                                        </mat-autocomplete>
+                                        <mat-icon matSuffix class="cursor-pointer" (click)="supplierCtrl.setValue('')"
+                                            *ngIf="supplierCtrl.value">close</mat-icon>
+                                        <mat-icon matSuffix *ngIf="!supplierCtrl.value">business</mat-icon>
+                                        <mat-error
+                                            *ngIf="detailsGroup.get('fournisseurId')?.hasError('required')">Requis
+                                            (sélectionnez dans la liste)</mat-error>
+                                    </mat-form-field>
 
-                                <mat-form-field appearance="outline">
-                                    <mat-label>{{ isBLMode ? 'Numéro de BL (ou Facture) *' : 'Numéro de Facture *'
-                                        }}</mat-label>
-                                    <input matInput formControlName="numeroFacture">
-                                    <mat-error
-                                        *ngIf="detailsGroup.get('numeroFacture')?.hasError('required')">Requis</mat-error>
-                                </mat-form-field>
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>{{ data?.isGrouping ? 'Numéro de Facture Fournisseur *' : (isBLMode ?
+                                            'Numéro de BL (ou Facture) *' : 'Numéro de Facture *')
+                                            }}</mat-label>
+                                        <input matInput formControlName="numeroFacture">
+                                        <mat-error
+                                            *ngIf="detailsGroup.get('numeroFacture')?.hasError('required')">Requis</mat-error>
+                                    </mat-form-field>
 
-                                <mat-form-field appearance="outline">
-                                    <mat-label>Type de dépense *</mat-label>
-                                    <input type="text" placeholder="Sélectionner ou saisir..." matInput
-                                        formControlName="type" [matAutocomplete]="auto">
-                                    <mat-autocomplete #auto="matAutocomplete">
-                                        <mat-option *ngFor="let t of filteredTypes | async" [value]="t">
-                                            {{ t }}
-                                        </mat-option>
-                                    </mat-autocomplete>
-                                </mat-form-field>
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Type de dépense *</mat-label>
+                                        <input type="text" placeholder="Sélectionner ou saisir..." matInput
+                                            formControlName="type" [matAutocomplete]="auto">
+                                        <mat-autocomplete #auto="matAutocomplete">
+                                            <mat-option *ngFor="let t of filteredTypes | async" [value]="t">
+                                                {{ t }}
+                                            </mat-option>
+                                        </mat-autocomplete>
+                                    </mat-form-field>
 
-                                <mat-form-field appearance="outline">
-                                    <mat-label>Date d'émission *</mat-label>
-                                    <input matInput [matDatepicker]="pickerE" formControlName="dateEmission">
-                                    <mat-datepicker-toggle matIconSuffix [for]="pickerE"></mat-datepicker-toggle>
-                                    <mat-datepicker #pickerE></mat-datepicker>
-                                </mat-form-field>
-
-                                <mat-form-field appearance="outline" *ngIf="!isBLMode">
-                                    <mat-label>Date d'échéance </mat-label>
-                                    <input matInput [matDatepicker]="pickerH" formControlName="dateEcheance">
-                                    <mat-datepicker-toggle matIconSuffix [for]="pickerH"></mat-datepicker-toggle>
-                                    <mat-datepicker #pickerH></mat-datepicker>
-                                </mat-form-field>
-                            </div>
-
-                            <div
-                                class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 pt-6 border-t bg-gray-50 p-4 rounded-xl">
-                                <mat-form-field appearance="outline">
-                                    <mat-label>Total TTC *</mat-label>
-                                    <input matInput type="number" formControlName="montantTTC"
-                                        (blur)="calculateFromTTC()">
-                                    <mat-hint>Saisissez le montant TTC</mat-hint>
-                                </mat-form-field>
-
-                                <mat-form-field appearance="outline">
-                                    <mat-label>TVA (%)</mat-label>
-                                    <mat-select formControlName="tauxTVA">
-                                        <mat-option [value]="0">0% (Exonéré)</mat-option>
-                                        <mat-option [value]="7">7%</mat-option>
-                                        <mat-option [value]="10">10%</mat-option>
-                                        <mat-option [value]="14">14%</mat-option>
-                                        <mat-option [value]="20">20%</mat-option>
-                                    </mat-select>
-                                </mat-form-field>
-
-                                <mat-form-field appearance="outline">
-                                    <mat-label>Montant HT</mat-label>
-                                    <input matInput type="number" formControlName="montantHT" readonly>
-                                    <mat-hint>Calculé automatiquement</mat-hint>
-                                </mat-form-field>
-
-                                <mat-form-field appearance="outline">
-                                    <mat-label>Montant TVA</mat-label>
-                                    <input matInput type="number" formControlName="montantTVA" readonly>
-                                </mat-form-field>
-                            </div>
-
-                            <!-- RELATIONSHIP INFO -->
-                            <div *ngIf="parentInvoice || childBLs.length > 0" class="mb-6">
-                                <h4 class="text-sm font-semibold text-gray-700 mb-2">Documents liés</h4>
-
-                                <!-- Parent Invoice for a BL -->
-                                <div *ngIf="parentInvoice"
-                                    class="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between mb-4">
-                                    <div class="flex items-center gap-3">
-                                        <mat-icon class="text-blue-600">receipt_long</mat-icon>
-                                        <div>
-                                            <p class="text-sm font-bold text-blue-900">Facture de groupement :
-                                                {{parentInvoice.numeroFacture}}</p>
-                                            <p class="text-xs text-blue-700">Ce BL a été consolidé dans cette facture.
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button mat-button color="primary" type="button" (click)="viewParentInvoice()">
-                                        Voir la facture
-                                    </button>
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Date d'émission *</mat-label>
+                                        <input matInput [matDatepicker]="pickerE" formControlName="dateEmission">
+                                        <mat-datepicker-toggle matIconSuffix [for]="pickerE"></mat-datepicker-toggle>
+                                        <mat-datepicker #pickerE></mat-datepicker>
+                                    </mat-form-field>
                                 </div>
 
-                                <!-- Child BLs for a Grouped Invoice -->
-                                <div *ngIf="childBLs.length > 0" class="space-y-2">
-                                    <p class="text-xs text-gray-500 font-medium">Bons de livraison consolidés
-                                        ({{childBLs.length}}) :</p>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        <div *ngFor="let bl of childBLs"
-                                            class="p-3 bg-white border border-gray-100 rounded-lg flex items-center justify-between shadow-sm">
-                                            <div class="flex items-center gap-2">
-                                                <mat-icon class="text-gray-400 text-sm">description</mat-icon>
-                                                <span class="text-sm font-medium">{{bl.numeroFacture}}</span>
-                                                <span class="text-xs text-gray-400">({{bl.montantTTC | number:'1.2-2'}}
-                                                    DH)</span>
-                                            </div>
-                                            <button mat-icon-button type="button" (click)="viewChildBL(bl)"
-                                                matTooltip="Voir les détails">
-                                                <mat-icon class="text-xs">visibility</mat-icon>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Pièces jointes -->
-                            <div class="mb-6">
-                                <div class="flex items-center justify-between mb-4">
-                                    <h4 class="text-sm font-semibold text-gray-700">Pièces jointes</h4>
-                                    <div class="flex gap-2" *ngIf="!isViewMode">
-                                        <button type="button" mat-raised-button color="primary"
-                                            (click)="openFileUpload()">
-                                            <mat-icon>upload_file</mat-icon>
-                                            Importer Files
-                                        </button>
-                                        <button type="button" mat-raised-button color="accent" (click)="openCamera()">
-                                            <mat-icon>photo_camera</mat-icon>
-                                            Prendre une photo
-                                        </button>
-                                    </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4"
+                                    *ngIf="!isBLMode">
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Date d'échéance </mat-label>
+                                        <input matInput [matDatepicker]="pickerH" formControlName="dateEcheance">
+                                        <mat-datepicker-toggle matIconSuffix [for]="pickerH"></mat-datepicker-toggle>
+                                        <mat-datepicker #pickerH></mat-datepicker>
+                                    </mat-form-field>
                                 </div>
 
-                                <input #fileInput type="file" accept="image/*,application/pdf" multiple class="hidden"
-                                    (change)="onFilesSelected($event)">
+                                <div
+                                    class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 pt-4 border-t bg-gray-50 p-4 rounded-xl">
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Total TTC *</mat-label>
+                                        <input matInput type="number" formControlName="montantTTC"
+                                            (blur)="calculateFromTTC()">
+                                        <mat-hint>Saisissez le montant TTC</mat-hint>
+                                    </mat-form-field>
 
-                                <!-- Liste des fichiers -->
-                                <div *ngIf="attachmentFiles.length > 0" class="space-y-2">
-                                    <div *ngFor="let file of attachmentFiles; let i = index"
-                                        class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>TVA (%)</mat-label>
+                                        <mat-select formControlName="tauxTVA">
+                                            <mat-option [value]="0">0% (Exonéré)</mat-option>
+                                            <mat-option [value]="7">7%</mat-option>
+                                            <mat-option [value]="10">10%</mat-option>
+                                            <mat-option [value]="14">14%</mat-option>
+                                            <mat-option [value]="20">20%</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Montant HT</mat-label>
+                                        <input matInput type="number" formControlName="montantHT" readonly>
+                                        <mat-hint>Calculé automatiquement</mat-hint>
+                                    </mat-form-field>
+
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Montant TVA</mat-label>
+                                        <input matInput type="number" formControlName="montantTVA" readonly>
+                                    </mat-form-field>
+                                </div>
+
+                                <!-- RELATIONSHIP INFO -->
+                                <div *ngIf="parentInvoice || childBLs.length > 0" class="mb-6">
+                                    <h4 class="text-sm font-semibold text-gray-700 mb-2">Documents liés</h4>
+
+                                    <!-- Parent Invoice for a BL -->
+                                    <div *ngIf="parentInvoice"
+                                        class="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between mb-4">
                                         <div class="flex items-center gap-3">
-                                            <mat-icon class="text-gray-600">
-                                                {{ file.type.startsWith('image/') ? 'image' : 'picture_as_pdf' }}
-                                            </mat-icon>
+                                            <mat-icon class="text-blue-600">receipt_long</mat-icon>
                                             <div>
-                                                <a href="javascript:void(0)" (click)="viewFile(file)"
-                                                    class="text-blue-600 hover:underline font-medium">
-                                                    {{ file.name }}
-                                                </a>
-                                                <p class="text-xs text-gray-500">{{ formatFileSize(file.size) }}</p>
+                                                <p class="text-sm font-bold text-blue-900">Facture de groupement :
+                                                    {{parentInvoice.numeroFacture}}</p>
+                                                <p class="text-xs text-blue-700">Ce BL a été consolidé dans cette
+                                                    facture.
+                                                </p>
                                             </div>
                                         </div>
-                                        <div class="flex gap-2">
-                                            <button type="button" mat-icon-button (click)="viewFile(file)"
-                                                matTooltip="Visualiser">
-                                                <mat-icon>visibility</mat-icon>
-                                            </button>
-                                            <button type="button" mat-icon-button color="warn" (click)="deleteFile(i)"
-                                                matTooltip="Supprimer" *ngIf="!isViewMode">
-                                                <mat-icon>delete</mat-icon>
-                                            </button>
+                                        <button mat-button color="primary" type="button" (click)="viewParentInvoice()">
+                                            Voir la facture
+                                        </button>
+                                    </div>
+
+                                    <!-- Child BLs for a Grouped Invoice -->
+                                    <div *ngIf="childBLs.length > 0" class="space-y-2">
+                                        <p class="text-xs text-gray-500 font-medium">Bons de livraison consolidés
+                                            ({{childBLs.length}}) :</p>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            <div *ngFor="let bl of childBLs"
+                                                class="p-3 bg-white border border-gray-100 rounded-lg flex items-center justify-between shadow-sm">
+                                                <div class="flex items-center gap-2">
+                                                    <mat-icon class="text-gray-400 text-sm">description</mat-icon>
+                                                    <span class="text-sm font-medium">{{bl.numeroFacture}}</span>
+                                                    <span class="text-xs text-gray-400">({{bl.montantTTC |
+                                                        number:'1.2-2'}}
+                                                        DH)</span>
+                                                </div>
+                                                <button mat-icon-button type="button" (click)="viewChildBL(bl)"
+                                                    matTooltip="Voir les détails">
+                                                    <mat-icon class="text-xs">visibility</mat-icon>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- Pièces jointes -->
+                                <div class="mb-4">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h4 class="text-sm font-semibold text-gray-700">Pièces jointes</h4>
+                                        <div class="flex gap-2" *ngIf="!isViewMode">
+                                            <button type="button" mat-raised-button color="primary"
+                                                (click)="openFileUpload()">
+                                                <mat-icon>upload_file</mat-icon>
+                                                Importer Files
+                                            </button>
+                                            <button type="button" mat-raised-button color="accent"
+                                                (click)="openCamera()">
+                                                <mat-icon>photo_camera</mat-icon>
+                                                Prendre une photo
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <input #fileInput type="file" accept="image/*,application/pdf" multiple
+                                        class="hidden" (change)="onFilesSelected($event)">
+
+                                    <!-- Liste des fichiers -->
+                                    <div *ngIf="attachmentFiles.length > 0" class="space-y-2">
+                                        <div *ngFor="let file of attachmentFiles; let i = index"
+                                            class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                            <div class="flex items-center gap-3">
+                                                <mat-icon class="text-gray-600">
+                                                    {{ file.type.startsWith('image/') ? 'image' : 'picture_as_pdf' }}
+                                                </mat-icon>
+                                                <div>
+                                                    <a href="javascript:void(0)" (click)="viewFile(file)"
+                                                        class="text-blue-600 hover:underline font-medium">
+                                                        {{ file.name }}
+                                                    </a>
+                                                    <p class="text-xs text-gray-500">{{ formatFileSize(file.size) }}</p>
+                                                </div>
+                                            </div>
+                                            <div class="flex gap-2">
+                                                <button type="button" mat-icon-button (click)="viewFile(file)"
+                                                    matTooltip="Visualiser">
+                                                    <mat-icon>visibility</mat-icon>
+                                                </button>
+                                                <button type="button" mat-icon-button color="warn"
+                                                    (click)="deleteFile(i)" matTooltip="Supprimer" *ngIf="!isViewMode">
+                                                    <mat-icon>delete</mat-icon>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Integrated Payment for BL -->
+                            <div *ngIf="isBLMode && !isEditMode"
+                                class="mt-6 pt-6 border-t bg-green-50/50 p-6 rounded-xl border border-green-100"
+                                formGroupName="directPayment">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <mat-slide-toggle formControlName="paidImmediately" color="primary">
+                                        <span class="font-bold text-green-900">Régler immédiatement (Dépense
+                                            Cash/Banque)</span>
+                                    </mat-slide-toggle>
+                                    <mat-icon class="text-green-600">payments</mat-icon>
+                                </div>
+
+
+                                <div *ngIf="form.get('directPayment.paidImmediately')?.value">
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <mat-form-field appearance="outline">
+                                            <mat-label>Mode de paiement *</mat-label>
+                                            <mat-select formControlName="modePaiement">
+                                                <mat-option *ngFor="let m of paymentMethods" [value]="m">{{ m
+                                                    }}</mat-option>
+                                            </mat-select>
+                                        </mat-form-field>
+
+                                        <mat-form-field appearance="outline"
+                                            *ngIf="form.get('directPayment.modePaiement')?.value !== 'ESPECES'">
+                                            <mat-label>Date d'échéance</mat-label>
+                                            <input matInput [matDatepicker]="pickerDP" formControlName="dateEcheance">
+                                            <mat-datepicker-toggle matIconSuffix
+                                                [for]="pickerDP"></mat-datepicker-toggle>
+                                            <mat-datepicker #pickerDP></mat-datepicker>
+                                        </mat-form-field>
+
+                                        <mat-form-field appearance="outline"
+                                            *ngIf="form.get('directPayment.modePaiement')?.value !== 'ESPECES'">
+                                            <mat-label>Banque / Réf</mat-label>
+                                            <input matInput formControlName="banque"
+                                                placeholder="Ex: BMCE ou Chèque n°...">
+                                        </mat-form-field>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-green-700 mt-2 italic"
+                                    *ngIf="form.get('directPayment.paidImmediately')?.value">
+                                    Note: L'enregistrement du BL générera automatiquement une dépense validée dans
+                                    votre trésorerie.
+                                </p>
                             </div>
                         </form>
 
@@ -211,7 +267,7 @@
                             </button>
                             <button mat-raised-button color="primary" (click)="onSubmit()"
                                 [disabled]="detailsGroup.invalid" class="!px-8" *ngIf="isBLMode">
-                                <mat-icon>save</mat-icon> Enregistrer BL
+                                <mat-icon>save</mat-icon> Enregistrer le BL
                             </button>
                         </div>
                     </div>
@@ -221,109 +277,120 @@
                 <!-- ÉTAPE 2 : PLANIFICATION DU PAIEMENT -->
                 <mat-step [stepControl]="paymentGroup" *ngIf="!isBLMode">
                     <ng-template matStepLabel>Planification du Paiement</ng-template>
-                    <div class="p-6">
-                        <div class="flex justify-between items-center mb-6">
-                            <div>
-                                <h3 class="text-lg font-bold">Échéances de paiement</h3>
-                                <p class="text-sm text-gray-500">Total à répartir : <span
-                                        class="font-bold text-gray-800">{{ detailsGroup.get('montantTTC')?.value |
-                                        number:'1.2-2' }} MAD</span></p>
-                            </div>
-                            <div class="flex gap-2">
-                                <button mat-stroked-button color="accent" (click)="manualApplyConditions()"
-                                    *ngIf="!isViewMode" matTooltip="Ré-appliquer les conditions du fournisseur">
-                                    <mat-icon>refresh</mat-icon> Rafraîchir
-                                </button>
-                                <button mat-stroked-button color="primary" (click)="addEcheance()" *ngIf="!isViewMode">
-                                    <mat-icon>add</mat-icon> Ajouter une échéance
-                                </button>
-                            </div>
-                        </div>
+                    <div class="p-4">
+                        <form [formGroup]="form">
+                            <div formGroupName="payment">
+                                <div class="flex justify-between items-center mb-6">
+                                    <div>
+                                        <h3 class="text-lg font-bold">Échéances de paiement</h3>
+                                        <p class="text-sm text-gray-500">Total à répartir : <span
+                                                class="font-bold text-gray-800">{{ detailsGroup.get('montantTTC')?.value
+                                                |
+                                                number:'1.2-2' }} MAD</span></p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button mat-stroked-button color="accent" (click)="manualApplyConditions()"
+                                            *ngIf="!isViewMode" matTooltip="Ré-appliquer les conditions du fournisseur">
+                                            <mat-icon>refresh</mat-icon> Rafraîchir
+                                        </button>
+                                        <button mat-stroked-button color="primary" (click)="addEcheance()"
+                                            *ngIf="!isViewMode">
+                                            <mat-icon>add</mat-icon> Ajouter une échéance
+                                        </button>
+                                    </div>
+                                </div>
 
-                        <div class="space-y-4">
-                            <div *ngFor="let eg of echeances.controls; let i=index" [formGroup]="$any(eg)"
-                                class="p-2 bg-gray-50 border border-gray-100 rounded-lg relative mb-2">
-                                <div class="flex justify-between items-center mb-2 border-b pb-1">
-                                    <h4 class="text-xs font-bold text-gray-700 uppercase">Échéance #{{i+1}}</h4>
-                                    <button mat-icon-button color="warn" (click)="removeEcheance(i)" *ngIf="!isViewMode"
-                                        matTooltip="Supprimer l'échéance" class="scale-75">
-                                        <mat-icon>delete</mat-icon>
+                                <div class="space-y-4">
+                                    <div *ngFor="let eg of echeances.controls; let i=index" [formGroup]="$any(eg)"
+                                        class="p-2 bg-gray-50 border border-gray-100 rounded-lg relative mb-2">
+                                        <div class="flex justify-between items-center mb-2 border-b pb-1">
+                                            <h4 class="text-xs font-bold text-gray-700 uppercase">Échéance #{{i+1}}</h4>
+                                            <button mat-icon-button color="warn" (click)="removeEcheance(i)"
+                                                *ngIf="!isViewMode" matTooltip="Supprimer l'échéance" class="scale-75">
+                                                <mat-icon>delete</mat-icon>
+                                            </button>
+                                        </div>
+
+                                        <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
+                                            <mat-form-field appearance="outline" class="dense-field">
+                                                <mat-label>Mode *</mat-label>
+                                                <mat-select formControlName="type">
+                                                    <mat-option *ngFor="let m of paymentMethods" [value]="m">{{ m
+                                                        }}</mat-option>
+                                                </mat-select>
+                                            </mat-form-field>
+
+                                            <mat-form-field appearance="outline" class="dense-field">
+                                                <mat-label>Date *</mat-label>
+                                                <input matInput [matDatepicker]="pick" formControlName="dateEcheance">
+                                                <mat-datepicker-toggle matIconSuffix
+                                                    [for]="pick"></mat-datepicker-toggle>
+                                                <mat-datepicker #pick></mat-datepicker>
+                                            </mat-form-field>
+
+                                            <mat-form-field appearance="outline" class="dense-field">
+                                                <mat-label>Montant *</mat-label>
+                                                <input matInput type="number" formControlName="montant">
+                                            </mat-form-field>
+
+                                            <mat-form-field appearance="outline" class="dense-field"
+                                                *ngIf="$any(eg).get('type')?.value !== 'ESPECES'">
+                                                <mat-label>N° Pièce</mat-label>
+                                                <input matInput formControlName="reference" placeholder="N° Chèque/LCN">
+                                            </mat-form-field>
+
+                                            <mat-form-field appearance="outline" class="dense-field"
+                                                *ngIf="$any(eg).get('type')?.value !== 'ESPECES'">
+                                                <mat-label>Banque</mat-label>
+                                                <input matInput formControlName="banque" placeholder="Nom de la banque">
+                                            </mat-form-field>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div *ngIf="echeances.length === 0"
+                                    class="text-center p-12 border-2 border-dashed rounded-xl text-gray-400 mb-6">
+                                    <mat-icon class="!w-12 !h-12 !text-5xl mb-4 opacity-20">payments</mat-icon>
+                                    <p>Aucune échéance planifiée.</p>
+                                </div>
+
+                                <div
+                                    class="mt-6 flex flex-col md:flex-row justify-between items-center p-6 bg-gray-100 rounded-xl gap-4">
+                                    <div class="text-lg">
+                                        Total échéances : <span class="font-bold">{{ totalEcheances | number:'1.2-2' }}
+                                            MAD</span>
+                                    </div>
+                                    <div class="text-lg" [class.text-red-600]="diffTTC !== 0"
+                                        [class.text-green-600]="diffTTC === 0">
+                                        @if (diffTTC > 0) {
+                                        Reste à affecter : <span class="font-bold">{{ diffTTC | number:'1.2-2' }}
+                                            MAD</span>
+                                        } @else if (diffTTC < 0) { Trop perçu : <span class="font-bold">{{ -diffTTC |
+                                            number:'1.2-2' }} MAD</span>
+                                            } @else {
+                                            <mat-icon class="align-middle">check_circle</mat-icon> Le compte est bon
+                                            }
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-between mt-8 pt-6 border-t">
+                                    <button mat-button matStepperPrevious>
+                                        <mat-icon>arrow_back</mat-icon> Retour aux détails
                                     </button>
-                                </div>
-
-                                <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-                                    <mat-form-field appearance="outline" class="dense-field">
-                                        <mat-label>Mode *</mat-label>
-                                        <mat-select formControlName="type">
-                                            <mat-option *ngFor="let m of paymentMethods" [value]="m">{{ m
-                                                }}</mat-option>
-                                        </mat-select>
-                                    </mat-form-field>
-
-                                    <mat-form-field appearance="outline" class="dense-field">
-                                        <mat-label>Date *</mat-label>
-                                        <input matInput [matDatepicker]="pick" formControlName="dateEcheance">
-                                        <mat-datepicker-toggle matIconSuffix [for]="pick"></mat-datepicker-toggle>
-                                        <mat-datepicker #pick></mat-datepicker>
-                                    </mat-form-field>
-
-                                    <mat-form-field appearance="outline" class="dense-field">
-                                        <mat-label>Montant *</mat-label>
-                                        <input matInput type="number" formControlName="montant">
-                                    </mat-form-field>
-
-                                    <mat-form-field appearance="outline" class="dense-field"
-                                        *ngIf="$any(eg).get('type')?.value !== 'ESPECES'">
-                                        <mat-label>N° Pièce</mat-label>
-                                        <input matInput formControlName="reference" placeholder="N° Chèque/LCN">
-                                    </mat-form-field>
-
-                                    <mat-form-field appearance="outline" class="dense-field"
-                                        *ngIf="$any(eg).get('type')?.value !== 'ESPECES'">
-                                        <mat-label>Banque</mat-label>
-                                        <input matInput formControlName="banque" placeholder="Nom de la banque">
-                                    </mat-form-field>
+                                    <div class="flex gap-2">
+                                        <button mat-button (click)="onCancel()">{{ isViewMode ? 'Fermer' : 'Annuler'
+                                            }}</button>
+                                        <button mat-raised-button color="primary" (click)="onSubmit()"
+                                            [disabled]="form.invalid" class="!px-10" *ngIf="!isViewMode">
+                                            <mat-icon>save</mat-icon> {{ isBLMode ? 'Enregistrer le BL' :
+                                            (data?.isGrouping
+                                            ?
+                                            'Enregistrer Facture Groupée' : 'Enregistrer la facture') }}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-
-                        <div *ngIf="echeances.length === 0"
-                            class="text-center p-12 border-2 border-dashed rounded-xl text-gray-400 mb-6">
-                            <mat-icon class="!w-12 !h-12 !text-5xl mb-4 opacity-20">payments</mat-icon>
-                            <p>Aucune échéance planifiée.</p>
-                        </div>
-
-                        <div
-                            class="mt-6 flex flex-col md:flex-row justify-between items-center p-6 bg-gray-100 rounded-xl gap-4">
-                            <div class="text-lg">
-                                Total échéances : <span class="font-bold">{{ totalEcheances | number:'1.2-2' }}
-                                    MAD</span>
-                            </div>
-                            <div class="text-lg" [class.text-red-600]="diffTTC !== 0"
-                                [class.text-green-600]="diffTTC === 0">
-                                @if (diffTTC > 0) {
-                                Reste à affecter : <span class="font-bold">{{ diffTTC | number:'1.2-2' }} MAD</span>
-                                } @else if (diffTTC < 0) { Trop perçu : <span class="font-bold">{{ -diffTTC |
-                                    number:'1.2-2' }} MAD</span>
-                                    } @else {
-                                    <mat-icon class="align-middle">check_circle</mat-icon> Le compte est bon
-                                    }
-                            </div>
-                        </div>
-
-                        <div class="flex justify-between mt-8 pt-6 border-t">
-                            <button mat-button matStepperPrevious>
-                                <mat-icon>arrow_back</mat-icon> Retour aux détails
-                            </button>
-                            <div class="flex gap-2">
-                                <button mat-button (click)="onCancel()">{{ isViewMode ? 'Fermer' : 'Annuler' }}</button>
-                                <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="form.invalid"
-                                    class="!px-10" *ngIf="!isViewMode">
-                                    <mat-icon>save</mat-icon> {{ isBLMode ? 'Enregistrer le BL' : 'Enregistrer la
-                                    facture' }}
-                                </button>
-                            </div>
-                        </div>
+                        </form>
                     </div>
                 </mat-step>
             </mat-stepper>

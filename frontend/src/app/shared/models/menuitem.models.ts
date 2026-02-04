@@ -9,4 +9,5 @@ export interface MenuItem {
   children?: MenuItem[];
   roles?: UserRole[];
   disabled?: boolean;
+  queryParams?: { [key: string]: any };
 }
