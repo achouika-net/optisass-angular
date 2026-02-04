@@ -26,6 +26,7 @@ interface PaymentRow {
     banque?: string;
     remarque?: string;
     tiersNom?: string;
+    tiersCin?: string;
 }
 
 @Component({
@@ -208,34 +209,66 @@ interface PaymentRow {
                 <p class="receipt-ref">Réf: {{ printingPayment.id?.substring(0,8) || 'N/A' }}</p>
             </div>
 
-            <div class="payment-details-box">
-                <div class="row">
-                    <span class="label">Date:</span>
-                    <span class="value">{{ printingPayment.date | date:'dd/MM/yyyy HH:mm' }}</span>
+            <!-- Client & Doc Info -->
+            <div class="info-grid">
+                <div class="info-col">
+                    <p><strong>Client:</strong> {{ printingPayment.tiersNom || 'Client' }}</p>
+                    <p><strong>CIN:</strong> {{ printingPayment.tiersCin || '-' }}</p>
+                    <p><strong>Date:</strong> {{ printingPayment.date | date:'dd/MM/yyyy HH:mm' }}</p>
                 </div>
-                <div class="row">
-                     <span class="label">Client:</span>
-                     <span class="value">{{ printingPayment.tiersNom || 'Client' }}</span>
+                <div class="info-col text-right">
+                    <p><strong>Concerne:</strong> Facture N° {{ printingPayment.factureNumero }}</p>
+                    <p><strong>Mode:</strong> {{ getPaymentModeLabel(printingPayment.mode) }}</p>
+                    <p><strong>Date Livraison:</strong> __________________</p>
                 </div>
-                 <div class="row">
-                    <span class="label">Concerne:</span>
-                    <span class="value">Facture N° {{ printingPayment.factureNumero }}</span>
+            </div>
+
+            <hr class="divider">
+
+            <!-- Current Payment Box -->
+            <div class="current-payment-box">
+                <div class="label">MONTANT REÇU</div>
+                <div class="amount">{{ printingPayment.montant | number:'1.2-2' }} DH</div>
+                <div class="notes" *ngIf="printingPayment.notes">Note: {{ printingPayment.notes }}</div>
+            </div>
+
+            <!-- Payment History Table -->
+            <div class="history-section" *ngIf="ficheId">
+                <h3>Historique des Paiements (Dossier)</h3>
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Mode</th>
+                            <th>Réf</th>
+                            <th class="text-right">Montant</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let p of dataSource.data">
+                            <td>{{ p.date | date:'dd/MM/yyyy' }}</td>
+                            <td>{{ getPaymentModeLabel(p.mode) }}</td>
+                            <td>{{ p.reference || '-' }}</td>
+                            <td class="text-right">{{ p.montant | number:'1.2-2' }} DH</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Financial Summary -->
+            <div class="financial-summary">
+                <div class="summary-row">
+                    <span>Total Dossier:</span>
+                    <span>{{ stats.totalTTC | number:'1.2-2' }} DH</span>
                 </div>
-                <div class="row highlight">
-                    <span class="label">Montant Reçu:</span>
-                    <span class="value">{{ printingPayment.montant | number:'1.2-2' }} DH</span>
+                <!-- REMOVE TOTAL PAID since we show history and Remainder directly to avoid confusion or add it back if specifically asked -->
+                 <div class="summary-row">
+                    <span>Total Versé:</span>
+                    <span>{{ stats.totalPaye | number:'1.2-2' }} DH</span>
                 </div>
-                <div class="row">
-                    <span class="label">Mode de Paiement:</span>
-                    <span class="value">{{ getPaymentModeLabel(printingPayment.mode) }}</span>
-                </div>
-                <div class="row" *ngIf="printingPayment.reference">
-                    <span class="label">Référence / Chèque:</span>
-                    <span class="value">{{ printingPayment.reference }}</span>
-                </div>
-                 <div class="row" *ngIf="printingPayment.resteAPayer !== undefined">
-                    <span class="label">Reste à Payer (Doc):</span>
-                    <span class="value">{{ printingPayment.resteAPayer | number:'1.2-2' }} DH</span>
+                <div class="summary-row big-row">
+                    <span>Reste à Payer:</span>
+                    <span>{{ stats.resteAPayer | number:'1.2-2' }} DH</span>
                 </div>
             </div>
 
@@ -249,7 +282,7 @@ interface PaymentRow {
             </div>
             
             <div class="footer">
-                <p>Merci de votre visite !</p>
+                <p>Merci de votre confiance !</p>
             </div>
         </div>
     </div>
@@ -278,112 +311,151 @@ interface PaymentRow {
             width: 100%;
             height: 100%;
             background: white;
-            padding: 40px;
+            padding: 20px;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #000;
         }
 
         .receipt-container {
-            max-width: 600px;
+            max-width: 100%;
             margin: 0 auto;
-            border: 1px solid #1e293b;
-            padding: 30px;
-            border-radius: 4px;
+            border: 2px solid #000;
+            padding: 20px;
         }
 
         .company-header {
             text-align: center;
-            border-bottom: 2px solid #e2e8f0;
-            padding-bottom: 20px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
             margin-bottom: 20px;
         }
         
         .company-header h2 {
             font-size: 18px;
-            font-weight: 800;
+            font-weight: bold;
             margin: 0 0 5px 0;
-            color: #1e293b;
+            text-transform: uppercase;
         }
         
-        .company-header p {
-            margin: 2px 0;
-            font-size: 12px;
-            color: #64748b;
-        }
-
         .receipt-title {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
         .receipt-title h1 {
             font-size: 24px;
-            font-weight: 800;
+            font-weight: bold;
             margin: 0;
-            letter-spacing: 2px;
-            color: #1e293b;
+            border: 2px solid #000;
+            display: inline-block;
+            padding: 5px 20px;
         }
 
-        .receipt-ref {
-            font-family: monospace;
-            color: #64748b;
-            font-size: 12px;
-        }
-
-        .payment-details-box {
-            margin-bottom: 40px;
-        }
-
-        .row {
+        .info-grid {
             display: flex;
             justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px dashed #e2e8f0;
+            margin-bottom: 20px;
             font-size: 14px;
         }
 
-        .row.highlight {
-            background: #f8fafc;
-            padding: 15px 10px;
-            font-weight: 800;
-            font-size: 16px;
-            color: #1e293b;
-            border: 1px solid #e2e8f0;
-            border-radius: 4px;
-            margin: 10px 0;
+        .divider {
+            border: 0;
+            border-top: 1px solid #000;
+            margin: 15px 0;
+        }
+
+        .current-payment-box {
+            background: #f0f0f0;
+            border: 1px solid #000;
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 20px;
             -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
         }
 
-        .label {
-            font-weight: 600;
-            color: #64748b;
+        .current-payment-box .label {
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
         }
 
-        .value {
-            font-weight: 600;
-            color: #0f172a;
+        .current-payment-box .amount {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 5px;
         }
 
-        .signatures {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 50px;
+        .history-section h3 {
+            font-size: 16px;
+            border-bottom: 1px solid #000;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .history-table th {
+            border-bottom: 1px solid #000;
+            text-align: left;
+            padding: 5px;
+        }
+
+        .history-table td {
+            border-bottom: 1px dotted #ccc;
+            padding: 5px;
+        }
+        
+        .text-right { text-align: right; }
+
+        .financial-summary {
+            float: right;
+            width: 50%;
+            border: 1px solid #000;
+            padding: 10px;
             margin-bottom: 30px;
         }
 
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .summary-row.big-row {
+            font-weight: bold;
+            font-size: 16px;
+            border-top: 1px solid #000;
+            padding-top: 5px;
+            margin-top: 5px;
+        }
+
+        .signatures {
+            clear: both;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 100px;
+        }
+
         .sig-box {
-            width: 150px;
+            width: 200px;
             text-align: center;
-            border-top: 1px solid #cbd5e1;
-            padding-top: 10px;
+            border-top: 1px solid #000;
+            padding-top: 5px;
+            font-weight: bold;
             font-size: 12px;
-            font-weight: 600;
         }
 
         .footer {
             text-align: center;
-            font-size: 12px;
+            font-size: 10px;
+            margin-top: 30px;
             font-style: italic;
-            color: #94a3b8;
         }
     }
 
@@ -520,6 +592,7 @@ export class PaymentListComponent implements OnInit {
     displayedColumnsImpayes: string[] = ['numero', 'date', 'total', 'paye', 'reste', 'actions'];
 
     printingPayment: PaymentRow | null = null;
+    stats = { totalTTC: 0, totalPaye: 0, resteAPayer: 0 };
 
     constructor(
         private factureService: FactureService,
@@ -601,7 +674,30 @@ export class PaymentListComponent implements OnInit {
             // Sort by date desc
             allPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             this.dataSource.data = allPayments;
+
+            // Calculate Stats for Receipt
+            this.calculateStats(filteredFactures);
         });
+    }
+
+    calculateStats(factures: Facture[]) {
+        let totalTTC = 0;
+        let totalPaye = 0;
+
+        factures.forEach(f => {
+            if (f.statut !== 'ANNULEE' && f.statut !== 'DEVIS_SANS_PAIEMENT' && f.type !== 'BON_COMM' && f.type !== 'AVOIR') {
+                // For standard invoices/sales
+                totalTTC += f.totalTTC || 0;
+                totalPaye += (f.totalTTC || 0) - (f.resteAPayer || 0);
+            }
+        });
+
+        // Adjust for floating point errors
+        this.stats = {
+            totalTTC: totalTTC,
+            totalPaye: totalPaye,
+            resteAPayer: Math.max(0, totalTTC - totalPaye)
+        };
     }
 
     payImpaye(item: Facture) {

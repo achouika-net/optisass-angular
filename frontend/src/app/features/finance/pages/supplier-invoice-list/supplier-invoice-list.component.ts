@@ -87,6 +87,67 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
     .filters { display: flex; gap: 16px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
     .filters mat-form-field { flex: 1; min-width: 200px; }
     ::ng-deep .dense-field .mat-mdc-form-field-subscript-wrapper { display: none; }
+
+    /* Print Styles */
+    @media print {
+      .header, .filters, mat-card:first-of-type, .group-toolbar, .mat-column-select, .mat-column-actions, button, mat-paginator {
+        display: none !important;
+      }
+      
+      .container {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+      }
+
+      mat-card {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+      }
+
+      .mat-mdc-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+      }
+
+      td.mat-mdc-cell, th.mat-mdc-header-cell {
+        border: 1px solid #000 !important;
+        font-size: 11px !important;
+        padding: 6px !important;
+        color: #000 !important;
+      }
+
+      th.mat-mdc-header-cell {
+        font-weight: bold !important;
+        text-transform: uppercase;
+        background: transparent !important;
+      }
+
+      .statut-chip {
+        border: 1px solid #000 !important;
+        background: transparent !important;
+        color: #000 !important;
+        font-weight: normal !important;
+      }
+
+      /* Add title for print */
+      .mat-mdc-table::before {
+        content: "Liste des Factures Fournisseurs (Dépenses)";
+        display: block;
+        font-size: 18px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+      }
+
+      /* Ensure list/table is visible */
+      :host { display: block !important; }
+      mat-card { display: block !important; }
+      table { display: table !important; }
+    }
   `]
 })
 export class SupplierInvoiceListComponent implements OnInit {
@@ -373,5 +434,9 @@ export class SupplierInvoiceListComponent implements OnInit {
     if (!client) return '-';
     if (client.raisonSociale) return client.raisonSociale;
     return `${client.nom || ''} ${client.prenom || ''}`.trim() || '-';
+  }
+
+  printList() {
+    window.print();
   }
 }
