@@ -46,15 +46,12 @@
                         <span>Carte:</span>
                         <span class="text-blue-600">
                             {{ summary.incomingCard | number:'1.2-2' }} DH
-                            <small class="text-gray-400 font-normal ml-1">({{ summary.countCard }} pièces)</small>
                         </span>
                     </div>
                     <div class="flex justify-between px-4 pt-1 border-t border-gray-100 mt-1">
                         <span>En coffre (Chèques/LCN):</span>
                         <span class="text-orange-600">
                             {{ summary.totalIncomingPending | number:'1.2-2' }} DH
-                            <small class="text-gray-400 font-normal ml-1">({{ summary.countChequeCoffre }}
-                                pièces)</small>
                         </span>
                     </div>
                 </div>
