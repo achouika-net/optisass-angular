@@ -226,3 +226,146 @@ button[color="success"] {
         font-size: 0.875rem;
     }
 }
+
+/* PRINT STYLES */
+.print-situation,
+.print-labels {
+    display: none;
+}
+
+@media print {
+
+    .product-list-container,
+    .stats-grid,
+    .filter-card,
+    mat-card {
+        display: none !important;
+    }
+
+    .print-situation {
+        display: block !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+    }
+
+    /* Reuse table styles */
+    .print-header {
+        text-align: center;
+        margin-bottom: 20px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #1e293b;
+
+        h2 {
+            margin: 0;
+            font-size: 24px;
+            color: #1e293b;
+        }
+
+        p {
+            margin: 5px 0;
+            color: #64748b;
+        }
+    }
+
+    .print-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+
+        th,
+        td {
+            border: 1px solid #cbd5e1;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            color: #1e293b;
+            font-weight: 600;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .font-bold {
+            font-weight: 700;
+            color: #1e293b;
+        }
+    }
+
+    /* LABELS */
+    .print-labels {
+        display: block !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background: white;
+    }
+
+    .label-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        /* 3 cols for A4 */
+        gap: 15px;
+    }
+
+    .label-item {
+        border: 1px dashed #cbd5e1;
+        /* Dashed border for visual cut guide */
+        padding: 5px;
+        text-align: center;
+        page-break-inside: avoid;
+        height: 3.5cm;
+        /* Approximation for standard label height */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: white;
+    }
+
+    .label-content {
+        width: 100%;
+    }
+
+    .label-price {
+        font-weight: 800;
+        font-size: 18px;
+        color: #1e293b;
+    }
+
+    .label-ref {
+        font-size: 10px;
+        font-family: monospace;
+        margin: 2px 0;
+    }
+
+    .label-barcode {
+        font-family: 'Libre Barcode 39', cursive;
+        /* Assuming font loaded or fallback */
+        font-size: 28px;
+        line-height: 1;
+        margin: 5px 0;
+        /* Simulated visual for now */
+        letter-spacing: -2px;
+    }
+
+    .label-brand {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+
+    @page {
+        size: auto;
+        margin: 10mm;
+    }
+}

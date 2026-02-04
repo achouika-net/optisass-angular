@@ -34,3 +34,75 @@
     color: #f59e0b; // Amber 500
     font-weight: 600;
 }
+
+.print-list {
+    display: none;
+}
+
+@media print {
+
+    .facture-list-container,
+    .header-actions {
+        display: none !important;
+    }
+
+    .print-list {
+        display: block !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+    }
+
+    .print-header {
+        text-align: center;
+        margin-bottom: 20px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #1e293b;
+
+        h2 {
+            margin: 0;
+            font-size: 24px;
+            color: #1e293b;
+        }
+
+        p {
+            margin: 5px 0;
+            color: #64748b;
+        }
+    }
+
+    .print-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+
+        th,
+        td {
+            border: 1px solid #cbd5e1;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            color: #1e293b;
+            font-weight: 600;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .warn {
+            color: #ef4444;
+            font-weight: 600;
+        }
+    }
+
+    @page {
+        size: landscape;
+    }
+}

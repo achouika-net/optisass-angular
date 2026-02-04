@@ -98,6 +98,12 @@ body {
     /* Use content size */
   }
 
+  /* Force background colors for badges, stripes, etc. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   /* Hide Application Shell - Specific Elements */
   mat-toolbar,
   .mat-toolbar,
@@ -113,7 +119,9 @@ body {
   img[alt="homepage-logo"],
   button,
   .no-print,
-  .cdk-overlay-container {
+  .cdk-overlay-container,
+  .mat-mdc-paginator,
+  .mat-sort-header-arrow {
     display: none !important;
   }
 
@@ -135,6 +143,7 @@ body {
     overflow: visible !important;
     position: static !important;
     display: block !important;
+    font-size: 10pt;
 
     /* Remove Flexbox/Grid constraints that might clip content */
     flex: none !important;
