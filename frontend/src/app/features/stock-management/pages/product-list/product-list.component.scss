@@ -235,7 +235,19 @@ button[color="success"] {
 
 @media print {
 
-    .product-list-container,
+    /* Hide everything in the container by default */
+    .product-list-container>*:not(.print-situation):not(.print-labels) {
+        display: none !important;
+    }
+
+    .product-list-container {
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: white !important;
+        position: static !important;
+    }
+
     .stats-grid,
     .filter-card,
     mat-card {
@@ -276,17 +288,17 @@ button[color="success"] {
 
         th,
         td {
-            border: 1px solid #cbd5e1;
-            padding: 8px;
+            border: 1px solid #000;
+            padding: 5px;
             text-align: left;
+            color: #000;
         }
 
         th {
-            background-color: #f1f5f9;
-            color: #1e293b;
-            font-weight: 600;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            background-color: transparent;
+            color: #000;
+            font-weight: bold;
+            border-bottom: 2px solid #000;
         }
 
         .text-right {
@@ -294,8 +306,8 @@ button[color="success"] {
         }
 
         .font-bold {
-            font-weight: 700;
-            color: #1e293b;
+            font-weight: bold;
+            color: #000;
         }
     }
 
