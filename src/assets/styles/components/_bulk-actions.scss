@@ -1,0 +1,93 @@
+/// Barre actions bulk - Gmail style floating bar
+/// Usage: <div class="bulk-actions-bar">...</div>
+.bulk-actions-bar {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1.25rem 2rem;
+  background-color: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 3rem;
+  box-shadow:
+    0 8px 24px rgb(0 0 0 / 15%),
+    0 4px 12px rgb(0 0 0 / 10%);
+  z-index: 100;
+
+  .bulk-selection-count {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    background-color: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+    border-radius: 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    white-space: nowrap;
+
+    mat-icon {
+      font-size: 1.25rem;
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+  }
+
+  .bulk-divider {
+    width: 1px;
+    height: 2.5rem;
+    background-color: var(--mat-sys-outline-variant);
+  }
+
+  .bulk-select {
+    width: 200px;
+
+    .mat-mdc-form-field-infix {
+      min-height: 48px !important;
+      padding-top: 0.625rem !important;
+      padding-bottom: 0.625rem !important;
+    }
+
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none;
+    }
+
+    .mat-mdc-text-field-wrapper {
+      padding: 0 1rem;
+    }
+  }
+
+  .mat-mdc-icon-button {
+    width: 48px;
+    height: 48px;
+
+    mat-icon {
+      font-size: 1.5rem;
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+  }
+
+  @media (width < 768px) {
+    bottom: 1.5rem;
+    left: 1rem;
+    right: 1rem;
+    transform: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.25rem;
+    border-radius: 2rem;
+    padding: 1.25rem 1.5rem;
+
+    .bulk-select {
+      width: calc(50% - 0.75rem);
+    }
+
+    .bulk-divider {
+      display: none;
+    }
+  }
+}

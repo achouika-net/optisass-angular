@@ -59,7 +59,6 @@
       color: var(--mat-sys-on-primary) !important;
     }
   }
-  /* Note: header background not available via M3 tokens, using CSS override */
 
   .mat-mdc-row {
     cursor: pointer;
@@ -67,8 +66,6 @@
     &:nth-child(even) {
       background-color: var(--mat-sys-surface);
     }
-
-    /* BACKUP - old value: background-color: var(--white); */
 
     &:hover {
       background-color: var(--mat-sys-surface-container-highest) !important;
@@ -86,9 +83,9 @@
   }
 }
 
-/**********************
-Overall Responsive table
-***********************/
+/* ===========================================
+   Responsive table
+   =========================================== */
 @mixin responsive-table-desktop {
   overflow: auto;
   justify-items: stretch;
@@ -126,19 +123,16 @@ Overall Responsive table
   display: flex;
   flex-direction: column;
 
-  /* Display label (display:none by default -see above-) */
   .header-label {
     display: inline-block;
     font-weight: bold;
     text-align: left;
   }
 
-  /* Hide the header row */
   .mat-mdc-header-row {
     display: none;
   }
 
-  /* Change the layout of the rows to stack vertically */
   .mat-mdc-row,
   .mat-mdc-footer-row {
     padding: 8px 15px;
@@ -146,14 +140,12 @@ Overall Responsive table
     height: 100%;
   }
 
-  /* Adjust the layout and styling of the cells to display label-value in each row */
   .mat-mdc-cell,
   .mat-mdc-footer-cell {
     display: grid;
     padding: 0.5rem;
     text-align: left;
     border-bottom: 1px solid var(--mat-sys-outline-variant) !important;
-    /* BACKUP - old value: border-bottom: 1px solid #dee2e6 !important; */
 
     &:has(.header-label) {
       grid-template-columns: 50% 50%;
@@ -170,7 +162,6 @@ Overall Responsive table
     position: unset !important;
   }
 
-  /* Action columns must be named (action or actions) */
   .mat-column-expand,
   .mat-column-action,
   .mat-column-actions {
@@ -184,11 +175,121 @@ Overall Responsive table
   @include responsive-table-desktop;
 }
 
-/* -- ==============================================================
- Ipad & above all(breakpoint.sm)
- ============================================================== */
-@media (width<= 959.98px) {
+@media (width <= 959.98px) {
   .responsive-table {
     @include responsive-table-tablette;
+  }
+}
+
+/* ===========================================
+   Expandable table rows (multiTemplateDataRows)
+   =========================================== */
+.expandable-table {
+  /* CSS-based expand animation */
+  .detail-expand-container {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 225ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    &.expanded {
+      grid-template-rows: 1fr;
+    }
+  }
+
+  .detail-expand-content {
+    overflow: hidden;
+  }
+
+  .mat-mdc-row.detail-row {
+    height: 0;
+    min-height: 0;
+    cursor: default !important;
+    background-color: transparent !important;
+
+    &:hover {
+      background-color: transparent !important;
+    }
+
+    .mat-mdc-cell {
+      padding-block: 0;
+      border-bottom-width: 0;
+      overflow: hidden;
+    }
+
+    &.expanded {
+      height: auto;
+
+      .mat-mdc-cell {
+        padding-block: 0;
+        border-bottom-width: 0;
+        overflow: visible;
+      }
+    }
+  }
+
+  /* Row status indicators - only for data rows, not detail rows */
+  .mat-mdc-row:not(.detail-row):not(.error-message-row) {
+    &.row-incomplete {
+      background-color: rgb(254 243 199 / 50%) !important;
+
+      &:hover {
+        background-color: rgb(254 243 199 / 80%) !important;
+      }
+    }
+
+    &.row-selected {
+      background-color: rgb(219 234 254 / 70%) !important;
+
+      &:hover {
+        background-color: rgb(219 234 254 / 90%) !important;
+      }
+    }
+
+    &.row-selected.row-incomplete {
+      background-color: rgb(254 243 199 / 70%) !important;
+      outline: 2px solid rgb(59 130 246 / 50%);
+      outline-offset: -2px;
+    }
+  }
+}
+
+/* Error message row - collapse when empty */
+.error-message-row {
+  height: 0 !important;
+  min-height: 0 !important;
+  background-color: transparent !important;
+
+  &:hover {
+    background-color: transparent !important;
+  }
+
+  .mat-mdc-cell {
+    padding: 0 !important;
+    border-bottom: none !important;
+  }
+
+  &:has(.row-error-message) {
+    height: auto !important;
+  }
+}
+
+/* Touch targets pour tablette/mobile */
+@media (width < 1280px) {
+  .expandable-table {
+    .inline-input {
+      min-height: 44px;
+      padding: 0.625rem 0.75rem;
+      font-size: 1rem;
+    }
+
+    .mat-mdc-icon-button {
+      width: 44px;
+      height: 44px;
+    }
+
+    .mat-mdc-checkbox .mdc-checkbox {
+      width: 44px;
+      height: 44px;
+    }
   }
 }

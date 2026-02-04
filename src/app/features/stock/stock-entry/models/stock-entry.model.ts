@@ -1,4 +1,4 @@
-import { IWarehouse } from '../../../settings/warehouse/models/warehouse.model';
+import { IWarehouse } from '../../../settings/warehouse/models';
 import { IProductForm, ISupplier, Product, ProductType } from '@app/models';
 
 export type DocumentType = 'invoice' | 'delivery_note';
@@ -69,7 +69,10 @@ export type SupplierDiffField =
   | 'ice'
   | 'taxId'
   | 'tradeRegister'
-  | 'siret';
+  | 'siret'
+  | 'bank'
+  | 'bankAccountNumber'
+  | 'businessLicense';
 
 export interface ISupplierFieldDiff {
   readonly field: SupplierDiffField;
@@ -94,6 +97,19 @@ export interface IOcrSupplierData {
   readonly ice: string | null;
   readonly fiscalId: string | null;
   readonly tradeRegister: string | null;
+  readonly cnss: string | null;
+  readonly patente: string | null;
   readonly address: string | null;
   readonly phone: string | null;
+  readonly email: string | null;
+  readonly bank: string | null;
+  readonly rib: string | null;
+  /** Structured address components from OCR */
+  readonly addressDetails?: {
+    readonly street: string | null;
+    readonly streetLine2: string | null;
+    readonly city: string | null;
+    readonly country: string | null;
+    readonly postalCode: string | null;
+  };
 }

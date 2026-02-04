@@ -1,5 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { FieldTree } from '@angular/forms/signals';
 import { Router } from '@angular/router';
+import { applyEach, form, min, required, validate } from '@angular/forms/signals';
+import { createStockEntryProductSchemaHelpers, productSchema } from '@app/validators';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialog } from '@angular/material/dialog';
@@ -7,36 +10,47 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { DeviceCapabilitiesService } from '@app/core/services';
 import { ResourceStore } from '@app/core/store';
-import { TranslateModule } from '@ngx-translate/core';
+import { createEmptyAddress, createEmptySupplier, ISupplier, Product } from '@app/models';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { ToastrService } from 'ngx-toastr';
 import { ActionsButtonsComponent, CameraCaptureDialogComponent } from '@app/components';
 import { ActionsButton } from '@app/models';
-import { ISupplier } from '@app/models';
 import {
   BulkConflictAction,
   calculateTotalQuantity,
+  createProductRow,
+  createProductRowFromProduct,
+  enrichProductRowsWithIds,
+  getDefaultStockEntryFormModel,
   IBulkConflictDialogData,
+  IBulkConflictProduct,
+  invoiceToFormData,
   IOcrSupplierData,
   IOcrUploadResult,
   IProductSearchResult,
   ISplitDialogData,
+  IStockEntryFormModel,
   IStockEntryProductFormRow,
   ISupplierDiffDialogData,
   ISupplierDiffResult,
   ISupplierFieldDiff,
   IWarehouseAllocation,
+  SupplierDiffField,
   SupplierIdentifierField,
+  toStockEntryRequest,
 } from '../../models';
 import { StockEntryStore } from '../../stock-entry.store';
 import { StockEntryActionsComponent } from '../stock-entry-actions/stock-entry-actions.component';
-import { StockEntryFormComponent } from '../stock-entry-form/stock-entry-form.component';
+import { StockEntryHeaderComponent } from '../stock-entry-header/stock-entry-header.component';
 import { StockEntryTableComponent } from '../stock-entry-table/stock-entry-table.component';
+import { StockEntryTabsComponent } from '../stock-entry-tabs/stock-entry-tabs.component';
 import { ProductSearchDialogComponent } from '../product-search-dialog/product-search-dialog.component';
 import { SplitQuantityDialogComponent } from '../split-quantity-dialog/split-quantity-dialog.component';
 import { OcrUploadDialogComponent } from '../ocr-upload-dialog/ocr-upload-dialog.component';
 import { SupplierQuickCreateDialogComponent } from '../supplier-quick-create-dialog/supplier-quick-create-dialog.component';
 import { BulkActionConflictDialogComponent } from '../bulk-action-conflict-dialog/bulk-action-conflict-dialog.component';
-import { SupplierInfoCardComponent } from '../supplier-info-card/supplier-info-card.component';
 import { SupplierDiffDialogComponent } from '../supplier-diff-dialog/supplier-diff-dialog.component';
+import { SupplierInfoComponent } from '../supplier-info/supplier-info.component';
 
 @Component({
   selector: 'app-stock-entry',
@@ -49,10 +63,11 @@ import { SupplierDiffDialogComponent } from '../supplier-diff-dialog/supplier-di
     MatProgressSpinnerModule,
     TranslateModule,
     ActionsButtonsComponent,
-    StockEntryFormComponent,
     StockEntryActionsComponent,
+    StockEntryHeaderComponent,
     StockEntryTableComponent,
-    SupplierInfoCardComponent,
+    StockEntryTabsComponent,
+    SupplierInfoComponent,
   ],
   providers: [StockEntryStore],
 })
@@ -61,16 +76,123 @@ export class StockEntryComponent {
   readonly #dialog = inject(MatDialog);
   readonly #resourceStore = inject(ResourceStore);
   readonly #deviceCapabilities = inject(DeviceCapabilitiesService);
+  readonly #toastr = inject(ToastrService);
+  readonly #translate = inject(TranslateService);
   readonly store = inject(StockEntryStore);
 
   readonly suppliers = this.#resourceStore.suppliers;
   readonly warehouses = this.#resourceStore.warehouses;
+  readonly brands = this.#resourceStore.brands;
+  readonly models = this.#resourceStore.models;
   readonly hasCamera = this.#deviceCapabilities.hasCamera;
 
+  /**
+   * Default warehouse (type PRINCIPALE) for new allocations.
+   * Always exists per business rule.
+   */
+  readonly #defaultWarehouse = computed(
+    () => this.warehouses().find((w) => w.type === 'PRINCIPALE' && w.active)!,
+  );
+
+  /**
+   * Creates default warehouse allocation.
+   * @param quantity Quantity for allocation
+   * @returns Single allocation array with default warehouse
+   */
+  #createDefaultAllocation(quantity: number): readonly IWarehouseAllocation[] {
+    return [{ warehouseId: String(this.#defaultWarehouse().id), quantity }];
+  }
+
+  readonly #formModel = signal<IStockEntryFormModel>(getDefaultStockEntryFormModel());
+  readonly #selectedRowIds = signal<Set<string>>(new Set());
+
+  readonly entryForm = form(this.#formModel, (fp) => {
+    required(fp.documentNumber);
+    required(fp.supplier.name);
+
+    applyEach(fp.products, (rowPath) => {
+      // Stock entry required fields (all products - existing and new)
+      required(rowPath.purchasePriceExclTax);
+      min(rowPath.purchasePriceExclTax, 0);
+
+      validate(rowPath.warehouseAllocations, ({ value }) => {
+        const allocations = value() as readonly IWarehouseAllocation[] | null;
+        if (!allocations || allocations.length === 0) {
+          return { kind: 'required', message: 'stock.entry.validation.warehouseRequired' };
+        }
+        const totalQty = allocations.reduce((sum, a) => sum + a.quantity, 0);
+        if (totalQty <= 0) {
+          return { kind: 'min', message: 'stock.entry.validation.quantityMin' };
+        }
+        return null;
+      });
+
+      // Product schema validators (new products only - helpers include isNewProduct check)
+      const helpers = createStockEntryProductSchemaHelpers(rowPath);
+      productSchema(rowPath, helpers, { validateAlertThreshold: false, validateDesignation: true });
+    });
+  });
+
+  readonly supplier = computed(() => this.#formModel().supplier);
+  readonly documentNumber = computed(() => this.#formModel().documentNumber);
+  readonly documentDate = computed(() => this.#formModel().documentDate);
+  readonly documentType = computed(() => this.#formModel().documentType);
+  readonly products = computed(() => this.#formModel().products);
+  readonly selectedRowIds = this.#selectedRowIds.asReadonly();
+
+  readonly totalProducts = computed(() => this.products().length);
+  readonly selectedCount = computed(() => this.#selectedRowIds().size);
+
+  readonly isFormValid = computed(() => {
+    const model = this.#formModel();
+    if (model.products.length === 0) return false;
+    return !this.entryForm().invalid();
+  });
+
+  readonly incompleteProducts = computed(() => {
+    const products = this.products();
+    const incomplete: IStockEntryProductFormRow[] = [];
+
+    for (let i = 0; i < products.length; i++) {
+      const productField = this.entryForm.products[i];
+      if (productField?.().invalid()) {
+        incomplete.push(products[i]);
+      }
+    }
+    return incomplete;
+  });
+
   readonly showSupplierInfoCard = computed(() => {
-    const supplier = this.store.supplier();
+    const supplier = this.supplier();
     return supplier.id !== null || !!supplier.name.trim();
   });
+
+  readonly totalHT = computed(() => {
+    return this.products().reduce((sum, p) => {
+      const qty = calculateTotalQuantity(p.warehouseAllocations);
+      const price = p.purchasePriceExclTax ?? 0;
+      return sum + qty * price;
+    }, 0);
+  });
+
+  readonly initialTabIndex = computed(() => {
+    const supplier = this.supplier();
+    const isOcrProcessed = this.products().some((p) => p._ocrConfidence !== null);
+    const hasValidSupplier = !!supplier.name?.trim();
+
+    if (isOcrProcessed && !hasValidSupplier) return 0;
+    return 1;
+  });
+
+  /**
+   * Function to get FieldTree for a product by index.
+   * Used by stock-entry-table to pass FieldTree to stock-entry-row.
+   */
+  readonly getProductFieldsFn = (
+    index: number,
+  ): FieldTree<IStockEntryProductFormRow> | undefined => {
+    return this.entryForm.products[index];
+  };
 
   readonly actionButtons = computed<ActionsButton[]>(() => {
     const buttons: ActionsButton[] = [
@@ -107,11 +229,587 @@ export class StockEntryComponent {
   });
 
   /**
-   * Handles product row changes.
-   * @param event Change event with rowId and updates
+   * Sets the supplier for the entry.
+   * @param supplier The supplier or null
    */
-  onProductChange(event: { rowId: string; updates: Partial<IStockEntryProductFormRow> }): void {
-    this.store.updateProduct(event.rowId, event.updates);
+  setSupplier(supplier: ISupplier | null): void {
+    this.#formModel.update((m) => ({
+      ...m,
+      supplier: supplier ?? createEmptySupplier(),
+    }));
+  }
+
+  /**
+   * Adds a new empty product row.
+   * @returns The created row ID
+   */
+  addProduct(): string {
+    const row = createProductRow({
+      warehouseAllocations: this.#createDefaultAllocation(1),
+    });
+    this.#formModel.update((m) => ({
+      ...m,
+      products: [...m.products, row],
+    }));
+    return row._rowId;
+  }
+
+  /**
+   * Finds a duplicate product in the current list.
+   * @param productId Product ID to check
+   * @param designation Designation to check
+   * @param brandId Brand ID to check
+   * @param modelId Model ID to check
+   * @returns The duplicate row or null
+   */
+  findDuplicate(
+    productId: string | null,
+    designation: string | null,
+    brandId: string | null = null,
+    modelId: string | null = null,
+  ): IStockEntryProductFormRow | null {
+    const products = this.products();
+
+    if (productId) {
+      const byId = products.find((p) => p.id === productId);
+      if (byId) return byId;
+    }
+
+    if (designation) {
+      const normalizedDesignation = designation.toLowerCase().trim();
+      const byDesignation = products.find(
+        (p) => p.designation?.toLowerCase().trim() === normalizedDesignation,
+      );
+      if (byDesignation) return byDesignation;
+    }
+
+    if (brandId && modelId) {
+      const byBrandModel = products.find((p) => p.brandId === brandId && p.modelId === modelId);
+      if (byBrandModel) return byBrandModel;
+    }
+
+    return null;
+  }
+
+  /**
+   * Merges quantity into an existing product row.
+   * @param existingRowId The existing row ID
+   * @param additionalQuantity Quantity to add
+   */
+  mergeProduct(existingRowId: string, additionalQuantity: number): void {
+    this.#formModel.update((m) => ({
+      ...m,
+      products: m.products.map((p) => {
+        if (p._rowId !== existingRowId) return p;
+        const newAllocations =
+          p.warehouseAllocations.length > 0
+            ? p.warehouseAllocations.map((a, i) =>
+                i === 0 ? { ...a, quantity: a.quantity + additionalQuantity } : a,
+              )
+            : this.#createDefaultAllocation(additionalQuantity);
+        return { ...p, warehouseAllocations: newAllocations };
+      }),
+    }));
+    this.#toastr.success(this.#translate.instant('stock.entry.duplicate.merged'));
+  }
+
+  /**
+   * Adds a product row from an existing product, handling duplicates.
+   * @param product The existing product
+   * @param quantity Initial quantity
+   * @returns Object with rowId and whether it was merged
+   */
+  addExistingProduct(product: Product, quantity = 1): { rowId: string; merged: boolean } {
+    const duplicate = this.findDuplicate(product.id, null);
+
+    if (duplicate) {
+      this.mergeProduct(duplicate._rowId, quantity);
+      return { rowId: duplicate._rowId, merged: true };
+    }
+
+    const row = createProductRowFromProduct(product);
+    const rowWithAllocation = {
+      ...row,
+      warehouseAllocations: this.#createDefaultAllocation(quantity),
+    };
+    this.#formModel.update((m) => ({
+      ...m,
+      products: [...m.products, rowWithAllocation],
+    }));
+    return { rowId: row._rowId, merged: false };
+  }
+
+  /**
+   * Removes a product row by ID.
+   * @param rowId The row ID to remove
+   */
+  removeProduct(rowId: string): void {
+    this.#formModel.update((m) => ({
+      ...m,
+      products: m.products.filter((p) => p._rowId !== rowId),
+    }));
+    this.#selectedRowIds.update((ids) => {
+      const newIds = new Set(ids);
+      newIds.delete(rowId);
+      return newIds;
+    });
+  }
+
+  /**
+   * Updates a product row.
+   * @param rowId The row ID
+   * @param updates The partial updates
+   */
+  updateProduct(rowId: string, updates: Partial<IStockEntryProductFormRow>): void {
+    this.#formModel.update((m) => ({
+      ...m,
+      products: m.products.map((p) => (p._rowId === rowId ? { ...p, ...updates } : p)),
+    }));
+  }
+
+  /**
+   * Sets warehouse allocations for a product.
+   * @param rowId The row ID
+   * @param allocations The warehouse allocations
+   */
+  setAllocations(rowId: string, allocations: readonly IWarehouseAllocation[]): void {
+    this.updateProduct(rowId, { warehouseAllocations: allocations });
+  }
+
+  /**
+   * Toggles selection of a row.
+   * @param rowId The row ID
+   */
+  toggleSelection(rowId: string): void {
+    this.#selectedRowIds.update((ids) => {
+      const newIds = new Set(ids);
+      if (newIds.has(rowId)) {
+        newIds.delete(rowId);
+      } else {
+        newIds.add(rowId);
+      }
+      return newIds;
+    });
+  }
+
+  /**
+   * Selects or deselects all rows.
+   * @param selected Whether to select all
+   */
+  selectAll(selected: boolean): void {
+    if (selected) {
+      this.#selectedRowIds.set(new Set(this.products().map((p) => p._rowId)));
+    } else {
+      this.#selectedRowIds.set(new Set());
+    }
+  }
+
+  /**
+   * Toggles expansion of a row.
+   * @param rowId The row ID
+   */
+  toggleExpand(rowId: string): void {
+    this.#formModel.update((m) => ({
+      ...m,
+      products: m.products.map((p) =>
+        p._rowId === rowId ? { ...p, _isExpanded: !p._isExpanded } : p,
+      ),
+    }));
+  }
+
+  /**
+   * Navigates to the next product with validation errors.
+   */
+  goToNextError(): void {
+    const products = this.products();
+    const currentExpandedIdx = products.findIndex((p) => p._isExpanded);
+
+    for (let i = currentExpandedIdx + 1; i < products.length; i++) {
+      if (this.entryForm.products[i]?.().invalid()) {
+        if (currentExpandedIdx >= 0) {
+          this.toggleExpand(products[currentExpandedIdx]._rowId);
+        }
+        this.toggleExpand(products[i]._rowId);
+        return;
+      }
+    }
+
+    for (let i = 0; i < currentExpandedIdx; i++) {
+      if (this.entryForm.products[i]?.().invalid()) {
+        if (currentExpandedIdx >= 0) {
+          this.toggleExpand(products[currentExpandedIdx]._rowId);
+        }
+        this.toggleExpand(products[i]._rowId);
+        return;
+      }
+    }
+  }
+
+  /**
+   * Deletes all selected products.
+   */
+  deleteSelectedProducts(): void {
+    const selectedIds = this.#selectedRowIds();
+    this.#formModel.update((m) => ({
+      ...m,
+      products: m.products.filter((p) => !selectedIds.has(p._rowId)),
+    }));
+    this.#selectedRowIds.set(new Set());
+  }
+
+  /**
+   * Gets selected products with multiple warehouse allocations (splits).
+   * @returns Products with conflicts
+   */
+  getProductsWithSplits(): readonly IBulkConflictProduct[] {
+    const selectedIds = this.#selectedRowIds();
+    return this.products()
+      .filter((p) => selectedIds.has(p._rowId) && p.warehouseAllocations.length > 1)
+      .map((p) => ({
+        rowId: p._rowId,
+        designation: p.designation,
+        allocations: p.warehouseAllocations,
+      }));
+  }
+
+  /**
+   * Applies warehouse to all selected products.
+   * @param warehouseId The warehouse ID
+   * @param excludeRowIds Row IDs to exclude from the operation
+   */
+  applyBulkWarehouse(warehouseId: string, excludeRowIds: ReadonlySet<string> = new Set()): void {
+    const selectedIds = this.#selectedRowIds();
+    this.#formModel.update((m) => ({
+      ...m,
+      products: m.products.map((p) => {
+        if (!selectedIds.has(p._rowId)) return p;
+        if (excludeRowIds.has(p._rowId)) return p;
+        const totalQty = calculateTotalQuantity(p.warehouseAllocations);
+        const qty = totalQty > 0 ? totalQty : 1;
+        const allocations: readonly IWarehouseAllocation[] = [{ warehouseId, quantity: qty }];
+        return { ...p, warehouseAllocations: allocations };
+      }),
+    }));
+  }
+
+  /**
+   * Applies TVA rate to all selected products.
+   * @param tvaRate The TVA rate (0.20 for 20%)
+   */
+  applyBulkTva(tvaRate: number): void {
+    const selectedIds = this.#selectedRowIds();
+    this.#formModel.update((m) => ({
+      ...m,
+      products: m.products.map((p) => (selectedIds.has(p._rowId) ? { ...p, tvaRate } : p)),
+    }));
+  }
+
+  /**
+   * Loads OCR invoice data into the form.
+   * @param invoice Parsed invoice data
+   * @param confidence OCR confidence score
+   * @returns OCR supplier data or null
+   */
+  #loadFromOcr(
+    invoice: import('@optisaas/opti-saas-lib').ISupplierInvoice,
+    confidence: number,
+  ): IOcrSupplierData | null {
+    const defaultWarehouseId = String(this.#defaultWarehouse().id);
+    const formData = invoiceToFormData(invoice, confidence, defaultWarehouseId);
+
+    const ocrSupplier: IOcrSupplierData | null = invoice.supplier
+      ? {
+          name: invoice.supplier.name ?? null,
+          ice: invoice.supplier.ice ?? null,
+          fiscalId: invoice.supplier.fiscalId ?? null,
+          tradeRegister: invoice.supplier.tradeRegister ?? null,
+          cnss: invoice.supplier.cnss ?? null,
+          patente: invoice.supplier.patente ?? null,
+          address: invoice.supplier.address ?? null,
+          phone: invoice.supplier.phone ?? null,
+          email: invoice.supplier.email ?? null,
+          bank: invoice.supplier.bank ?? null,
+          rib: invoice.supplier.rib ?? null,
+          addressDetails: invoice.supplier.addressDetails,
+        }
+      : null;
+
+    // Enrich products with brand/model IDs from parsed designation
+    const enrichedProducts = enrichProductRowsWithIds(
+      formData.products,
+      this.brands(),
+      this.models(),
+    );
+
+    // Expand only the first new product (others remain collapsed)
+    const productsWithFirstExpanded = enrichedProducts.map((p, i) => ({
+      ...p,
+      _isExpanded: i === 0,
+    }));
+
+    this.#formModel.update((m) => ({
+      ...m,
+      documentNumber: formData.documentNumber,
+      documentDate: formData.documentDate,
+      products: [...m.products, ...productsWithFirstExpanded],
+    }));
+
+    const count = formData.products.length;
+    this.#toastr.success(this.#translate.instant('stock.entry.ocr.productsLoaded', { count }));
+
+    return ocrSupplier;
+  }
+
+  /**
+   * Finds a supplier by unique identifiers.
+   * @param ocrSupplier OCR-extracted supplier data
+   * @param suppliersList List of existing suppliers
+   * @returns Match result or null
+   */
+  #findSupplierByIdentifiers(
+    ocrSupplier: IOcrSupplierData,
+    suppliersList: readonly ISupplier[],
+  ): { supplier: ISupplier; matchedBy: SupplierIdentifierField } | null {
+    const identifiers: { field: SupplierIdentifierField; ocrValue: string | null }[] = [
+      { field: 'ice', ocrValue: ocrSupplier.ice },
+      { field: 'taxId', ocrValue: ocrSupplier.fiscalId },
+      { field: 'tradeRegister', ocrValue: ocrSupplier.tradeRegister },
+    ];
+
+    for (const { field, ocrValue } of identifiers) {
+      if (!ocrValue) continue;
+
+      const normalizedValue = ocrValue.replace(/\s/g, '').toLowerCase();
+      const match = suppliersList.find((s) => {
+        const supplierValue = s[field];
+        if (!supplierValue) return false;
+        return supplierValue.replace(/\s/g, '').toLowerCase() === normalizedValue;
+      });
+
+      if (match) {
+        return { supplier: match, matchedBy: field };
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Computes differences between OCR data and existing supplier.
+   * @param ocrSupplier OCR-extracted supplier data
+   * @param existingSupplier Existing supplier from database
+   * @returns Array of field differences
+   */
+  #computeSupplierDiffs(
+    ocrSupplier: IOcrSupplierData,
+    existingSupplier: ISupplier,
+  ): ISupplierFieldDiff[] {
+    const diffs: ISupplierFieldDiff[] = [];
+
+    if (ocrSupplier.name && ocrSupplier.name !== existingSupplier.name) {
+      diffs.push({
+        field: 'name',
+        labelKey: 'stock.entry.supplierInfo.name',
+        currentValue: existingSupplier.name,
+        ocrValue: ocrSupplier.name,
+      });
+    }
+
+    if (ocrSupplier.address && ocrSupplier.address !== existingSupplier.address?.street) {
+      diffs.push({
+        field: 'address',
+        labelKey: 'stock.entry.supplierInfo.address',
+        currentValue: existingSupplier.address?.street ?? null,
+        ocrValue: ocrSupplier.address,
+      });
+    }
+
+    if (ocrSupplier.phone && ocrSupplier.phone !== existingSupplier.phone) {
+      diffs.push({
+        field: 'phone',
+        labelKey: 'stock.entry.supplierInfo.phone',
+        currentValue: existingSupplier.phone,
+        ocrValue: ocrSupplier.phone,
+      });
+    }
+
+    if (ocrSupplier.email && ocrSupplier.email !== existingSupplier.email) {
+      diffs.push({
+        field: 'email',
+        labelKey: 'stock.entry.supplierInfo.email',
+        currentValue: existingSupplier.email,
+        ocrValue: ocrSupplier.email,
+      });
+    }
+
+    if (ocrSupplier.ice && ocrSupplier.ice !== existingSupplier.ice) {
+      diffs.push({
+        field: 'ice',
+        labelKey: 'stock.entry.supplierInfo.ice',
+        currentValue: existingSupplier.ice,
+        ocrValue: ocrSupplier.ice,
+      });
+    }
+
+    if (ocrSupplier.fiscalId && ocrSupplier.fiscalId !== existingSupplier.taxId) {
+      diffs.push({
+        field: 'taxId',
+        labelKey: 'stock.entry.supplierInfo.taxId',
+        currentValue: existingSupplier.taxId,
+        ocrValue: ocrSupplier.fiscalId,
+      });
+    }
+
+    if (ocrSupplier.tradeRegister && ocrSupplier.tradeRegister !== existingSupplier.tradeRegister) {
+      diffs.push({
+        field: 'tradeRegister',
+        labelKey: 'stock.entry.supplierInfo.tradeRegister',
+        currentValue: existingSupplier.tradeRegister,
+        ocrValue: ocrSupplier.tradeRegister,
+      });
+    }
+
+    if (ocrSupplier.patente && ocrSupplier.patente !== existingSupplier.businessLicense) {
+      diffs.push({
+        field: 'businessLicense',
+        labelKey: 'stock.entry.supplierInfo.businessLicense',
+        currentValue: existingSupplier.businessLicense,
+        ocrValue: ocrSupplier.patente,
+      });
+    }
+
+    if (ocrSupplier.bank && ocrSupplier.bank !== existingSupplier.bank) {
+      diffs.push({
+        field: 'bank',
+        labelKey: 'stock.entry.supplierInfo.bank',
+        currentValue: existingSupplier.bank,
+        ocrValue: ocrSupplier.bank,
+      });
+    }
+
+    if (ocrSupplier.rib && ocrSupplier.rib !== existingSupplier.bankAccountNumber) {
+      diffs.push({
+        field: 'bankAccountNumber',
+        labelKey: 'stock.entry.supplierInfo.bankAccountNumber',
+        currentValue: existingSupplier.bankAccountNumber,
+        ocrValue: ocrSupplier.rib,
+      });
+    }
+
+    return diffs;
+  }
+
+  /**
+   * Creates a new supplier from OCR data.
+   * @param ocrSupplier OCR-extracted supplier data
+   * @returns New supplier with OCR data
+   */
+  #createSupplierFromOcr(ocrSupplier: IOcrSupplierData): ISupplier {
+    const newSupplier = createEmptySupplier();
+    const details = ocrSupplier.addressDetails;
+
+    return {
+      ...newSupplier,
+      name: ocrSupplier.name ?? '',
+      address: {
+        ...createEmptyAddress(),
+        street: details?.street ?? ocrSupplier.address,
+        city: details?.city ?? null,
+        postcode: details?.postalCode ?? null,
+        country: details?.country ?? 'Maroc',
+      },
+      phone: ocrSupplier.phone,
+      email: ocrSupplier.email,
+      ice: ocrSupplier.ice,
+      taxId: ocrSupplier.fiscalId,
+      tradeRegister: ocrSupplier.tradeRegister,
+      businessLicense: ocrSupplier.patente,
+      bank: ocrSupplier.bank,
+      bankAccountNumber: ocrSupplier.rib,
+    };
+  }
+
+  /**
+   * Merges accepted OCR fields into existing supplier.
+   * @param existingSupplier Existing supplier
+   * @param ocrSupplier OCR data
+   * @param acceptedFields Fields to merge
+   * @returns Merged supplier
+   */
+  #mergeSupplierWithOcr(
+    existingSupplier: ISupplier,
+    ocrSupplier: IOcrSupplierData,
+    acceptedFields: readonly SupplierDiffField[],
+  ): ISupplier {
+    const merged = { ...existingSupplier, address: { ...existingSupplier.address } };
+    const details = ocrSupplier.addressDetails;
+
+    for (const field of acceptedFields) {
+      switch (field) {
+        case 'name':
+          if (ocrSupplier.name) merged.name = ocrSupplier.name;
+          break;
+        case 'address':
+          if (details?.street || ocrSupplier.address) {
+            merged.address.street = details?.street ?? ocrSupplier.address;
+          }
+          if (details?.city) merged.address.city = details.city;
+          if (details?.postalCode) merged.address.postcode = details.postalCode;
+          if (details?.country) merged.address.country = details.country;
+          break;
+        case 'phone':
+          if (ocrSupplier.phone) merged.phone = ocrSupplier.phone;
+          break;
+        case 'email':
+          if (ocrSupplier.email) merged.email = ocrSupplier.email;
+          break;
+        case 'ice':
+          if (ocrSupplier.ice) merged.ice = ocrSupplier.ice;
+          break;
+        case 'taxId':
+          if (ocrSupplier.fiscalId) merged.taxId = ocrSupplier.fiscalId;
+          break;
+        case 'tradeRegister':
+          if (ocrSupplier.tradeRegister) merged.tradeRegister = ocrSupplier.tradeRegister;
+          break;
+        case 'businessLicense':
+          if (ocrSupplier.patente) merged.businessLicense = ocrSupplier.patente;
+          break;
+        case 'bank':
+          if (ocrSupplier.bank) merged.bank = ocrSupplier.bank;
+          break;
+        case 'bankAccountNumber':
+          if (ocrSupplier.rib) merged.bankAccountNumber = ocrSupplier.rib;
+          break;
+      }
+    }
+
+    return merged;
+  }
+
+  /**
+   * Runs product matching on all products without a match result.
+   */
+  #runProductMatching(): void {
+    const productsToMatch = this.products()
+      .filter((p) => !p._matchResult && p.designation)
+      .map((p) => ({ rowId: p._rowId, designation: p.designation }));
+
+    if (productsToMatch.length === 0) return;
+
+    const supplierId = this.supplier().id;
+    this.store.matchProducts(productsToMatch, supplierId).subscribe((results) => {
+      if (results.length === 0) return;
+
+      const resultsMap = new Map(results.map((r) => [r.rowId, r.result]));
+      this.#formModel.update((m) => ({
+        ...m,
+        products: m.products.map((p) => {
+          const matchResult = resultsMap.get(p._rowId);
+          return matchResult ? { ...p, _matchResult: matchResult } : p;
+        }),
+      }));
+    });
   }
 
   /**
@@ -186,7 +884,9 @@ export class StockEntryComponent {
    * @param result OCR upload result
    */
   #handleOcrResult(result: IOcrUploadResult): void {
-    const ocrSupplier = this.store.loadFromOcr(result.invoice, result.confidence);
+    const ocrSupplier = this.#loadFromOcr(result.invoice, result.confidence);
+
+    this.#runProductMatching();
 
     if (!ocrSupplier) return;
 
@@ -198,19 +898,19 @@ export class StockEntryComponent {
    * @param ocrSupplier OCR-extracted supplier data
    */
   #processOcrSupplier(ocrSupplier: IOcrSupplierData): void {
-    const suppliers = this.suppliers();
-    const matchResult = this.store.findSupplierByIdentifiers(ocrSupplier, suppliers);
+    const suppliersList = this.suppliers();
+    const matchResult = this.#findSupplierByIdentifiers(ocrSupplier, suppliersList);
 
     if (!matchResult) {
-      const newSupplier = this.store.createSupplierFromOcr(ocrSupplier);
-      this.store.setSupplier(newSupplier);
+      const newSupplier = this.#createSupplierFromOcr(ocrSupplier);
+      this.setSupplier(newSupplier);
       return;
     }
 
-    const diffs = this.store.computeSupplierDiffs(ocrSupplier, matchResult.supplier);
+    const diffs = this.#computeSupplierDiffs(ocrSupplier, matchResult.supplier);
 
     if (diffs.length === 0) {
-      this.store.setSupplier(matchResult.supplier);
+      this.setSupplier(matchResult.supplier);
       return;
     }
 
@@ -244,19 +944,19 @@ export class StockEntryComponent {
 
     dialogRef.afterClosed().subscribe((result: ISupplierDiffResult | undefined) => {
       if (!result) {
-        this.store.setSupplier(existingSupplier);
+        this.setSupplier(existingSupplier);
         return;
       }
 
       if (result.action === 'ignore_all') {
-        this.store.setSupplier(existingSupplier);
+        this.setSupplier(existingSupplier);
       } else {
-        const mergedSupplier = this.store.mergeSupplierWithOcr(
+        const mergedSupplier = this.#mergeSupplierWithOcr(
           existingSupplier,
           ocrSupplier,
           result.acceptedFields,
         );
-        this.store.setSupplier(mergedSupplier);
+        this.setSupplier(mergedSupplier);
       }
     });
   }
@@ -272,7 +972,7 @@ export class StockEntryComponent {
 
     dialogRef.afterClosed().subscribe((result: ISupplier | null) => {
       if (result) {
-        this.store.setSupplier(result);
+        this.setSupplier(result);
       }
     });
   }
@@ -290,10 +990,10 @@ export class StockEntryComponent {
       if (!result) return;
 
       if (result.type === 'existing') {
-        this.store.addExistingProduct(result.product, 1);
+        this.addExistingProduct(result.product, 1);
       } else {
-        const rowId = this.store.addProduct();
-        this.store.updateProduct(rowId, {
+        const rowId = this.addProduct();
+        this.updateProduct(rowId, {
           designation: result.designation,
           productType: result.productType,
           _isExpanded: true,
@@ -316,7 +1016,7 @@ export class StockEntryComponent {
    * @param rowId Row ID to split
    */
   openSplitDialog(rowId: string): void {
-    const product = this.store.products().find((p) => p._rowId === rowId);
+    const product = this.products().find((p) => p._rowId === rowId);
     if (!product) return;
 
     const data: ISplitDialogData = {
@@ -333,7 +1033,7 @@ export class StockEntryComponent {
 
     dialogRef.afterClosed().subscribe((result: readonly IWarehouseAllocation[] | undefined) => {
       if (result) {
-        this.store.setAllocations(rowId, result);
+        this.setAllocations(rowId, result);
       }
     });
   }
@@ -343,16 +1043,16 @@ export class StockEntryComponent {
    * @param warehouseId Target warehouse ID
    */
   onBulkWarehouseChange(warehouseId: string): void {
-    const conflictingProducts = this.store.getProductsWithSplits();
+    const conflictingProducts = this.getProductsWithSplits();
 
     if (conflictingProducts.length === 0) {
-      this.store.applyBulkWarehouse(warehouseId);
+      this.applyBulkWarehouse(warehouseId);
       return;
     }
 
     const warehouse = this.warehouses().find((w) => String(w.id) === warehouseId);
     const data: IBulkConflictDialogData = {
-      selectedCount: this.store.selectedCount(),
+      selectedCount: this.selectedCount(),
       conflictingProducts,
       targetWarehouseId: warehouseId,
       targetWarehouseName: warehouse?.name ?? warehouseId,
@@ -367,10 +1067,10 @@ export class StockEntryComponent {
       if (!action || action === 'cancel') return;
 
       if (action === 'overwrite') {
-        this.store.applyBulkWarehouse(warehouseId);
+        this.applyBulkWarehouse(warehouseId);
       } else if (action === 'exclude') {
         const excludeIds = new Set(conflictingProducts.map((p) => p.rowId));
-        this.store.applyBulkWarehouse(warehouseId, excludeIds);
+        this.applyBulkWarehouse(warehouseId, excludeIds);
       }
     });
   }
@@ -386,6 +1086,48 @@ export class StockEntryComponent {
    * Submits the stock entry.
    */
   onSubmit(): void {
-    this.store.submitEntry();
+    const request = toStockEntryRequest(this.#formModel());
+    this.store.submitEntry(request);
+  }
+
+  /**
+   * Handles match suggestion selection.
+   * @param event Event with rowId and productId
+   */
+  onMatchSuggestionSelect(event: { rowId: string; productId: string }): void {
+    const product = this.products().find((p) => p._rowId === event.rowId);
+    if (!product?._matchResult) return;
+
+    this.updateProduct(event.rowId, {
+      id: event.productId,
+      _matchResult: {
+        ...product._matchResult,
+        matchedProductId: event.productId,
+        confidence: 'high',
+        method: 'manual',
+      },
+    });
+  }
+
+  /**
+   * Handles match retry request.
+   * @param rowId Row ID to retry matching
+   */
+  onMatchRetry(rowId: string): void {
+    const product = this.products().find((p) => p._rowId === rowId);
+    if (!product?.designation) return;
+
+    const supplierId = this.supplier().id;
+    this.store.matchProduct(product.designation, supplierId).subscribe((matchResult) => {
+      this.updateProduct(rowId, { _matchResult: matchResult });
+    });
+  }
+
+  /**
+   * Clears the match result for a product row.
+   * @param rowId The row ID
+   */
+  clearMatchResult(rowId: string): void {
+    this.updateProduct(rowId, { _matchResult: null });
   }
 }

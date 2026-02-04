@@ -1,0 +1,111 @@
+/// Mixins pour indicateurs de niveau (high/medium/low/none)
+/// Utilisés pour OCR confidence, match confidence, priorité, etc.
+
+/// Couleurs M3 pour un niveau donné
+/// @param {string} $level - high, medium, low, none
+@mixin level-colors($level) {
+  @if $level == 'high' {
+    background-color: var(--mat-sys-tertiary-container);
+    color: var(--mat-sys-on-tertiary-container);
+  } @else if $level == 'medium' {
+    background-color: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+  } @else if $level == 'low' {
+    background-color: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+  } @else {
+    background-color: var(--mat-sys-surface-container-high);
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+/// Génère les variantes de niveau pour un préfixe donné
+/// @param {string} $prefix - Préfixe de classe (ex: 'level', 'confidence')
+@mixin level-variants($prefix) {
+  &.#{$prefix}-high {
+    @include level-colors('high');
+  }
+
+  &.#{$prefix}-medium {
+    @include level-colors('medium');
+  }
+
+  &.#{$prefix}-low {
+    @include level-colors('low');
+  }
+
+  &.#{$prefix}-none {
+    @include level-colors('none');
+  }
+}
+
+/// Structure de base pour indicateur icon
+/// @param {string} $size - 'sm' (24px), 'md' (32px)
+@mixin level-indicator-base($size: 'sm') {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+
+  @if $size == 'sm' {
+    width: 1.5rem;
+    height: 1.5rem;
+
+    mat-icon {
+      font-size: 1rem;
+      width: 1rem;
+      height: 1rem;
+    }
+  } @else if $size == 'md' {
+    width: 2rem;
+    height: 2rem;
+
+    mat-icon {
+      font-size: 1.25rem;
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+  }
+}
+
+/// Tokens CSS chip pour niveau (Material chip override)
+/// @param {string} $level - high, medium, low, none
+@mixin chip-level-tokens($level) {
+  @if $level == 'high' {
+    --mat-chip-elevated-container-color: var(--mat-sys-tertiary-container);
+    --mat-chip-label-text-color: var(--mat-sys-on-tertiary-container);
+    --mat-chip-trailing-action-color: var(--mat-sys-on-tertiary-container);
+  } @else if $level == 'medium' {
+    --mat-chip-elevated-container-color: var(--mat-sys-secondary-container);
+    --mat-chip-label-text-color: var(--mat-sys-on-secondary-container);
+    --mat-chip-trailing-action-color: var(--mat-sys-on-secondary-container);
+  } @else if $level == 'low' {
+    --mat-chip-elevated-container-color: var(--mat-sys-error-container);
+    --mat-chip-label-text-color: var(--mat-sys-on-error-container);
+    --mat-chip-trailing-action-color: var(--mat-sys-on-error-container);
+  } @else {
+    --mat-chip-elevated-container-color: var(--mat-sys-surface-container-high);
+    --mat-chip-label-text-color: var(--mat-sys-on-surface-variant);
+    --mat-chip-trailing-action-color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+/// Génère les variantes chip pour un préfixe
+/// @param {string} $prefix - Préfixe de classe (ex: 'confidence', 'level')
+@mixin chip-level-variants($prefix) {
+  &.#{$prefix}-high {
+    @include chip-level-tokens('high');
+  }
+
+  &.#{$prefix}-medium {
+    @include chip-level-tokens('medium');
+  }
+
+  &.#{$prefix}-low {
+    @include chip-level-tokens('low');
+  }
+
+  &.#{$prefix}-none {
+    @include chip-level-tokens('none');
+  }
+}

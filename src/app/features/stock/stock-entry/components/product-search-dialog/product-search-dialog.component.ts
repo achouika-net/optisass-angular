@@ -54,6 +54,22 @@ export class ProductSearchDialogComponent {
 
   readonly productTypes = this.#resourceStore.productTypes;
 
+  readonly #brandLabelsCache = computed(() => {
+    const map = new Map<string, string>();
+    for (const brand of this.#resourceStore.brands()) {
+      map.set(brand.id, brand.label);
+    }
+    return map;
+  });
+
+  readonly #productTypeLabelsCache = computed(() => {
+    const map = new Map<string, string>();
+    for (const type of this.productTypes()) {
+      map.set(type.code, type.label);
+    }
+    return map;
+  });
+
   readonly searchParams = computed(() => {
     const search = this.searchForm.search().value();
     const productType = this.searchForm.productType().value();
@@ -112,23 +128,21 @@ export class ProductSearchDialogComponent {
   }
 
   /**
-   * Gets brand label for a product.
+   * Gets brand label for a product using O(1) cache lookup.
    * @param product Product
    * @returns Brand label or '-'
    */
   getBrandLabel(product: Product): string {
     if (!product.brandId) return '-';
-    const brand = this.#resourceStore.brands().find((b) => b.id === product.brandId);
-    return brand?.label ?? '-';
+    return this.#brandLabelsCache().get(product.brandId) ?? '-';
   }
 
   /**
-   * Gets product type label.
+   * Gets product type label using O(1) cache lookup.
    * @param productType Product type code
    * @returns Product type label
    */
   getProductTypeLabel(productType: ProductType): string {
-    const type = this.productTypes().find((t) => t.code === productType);
-    return type?.label ?? productType;
+    return this.#productTypeLabelsCache().get(productType) ?? productType;
   }
 }

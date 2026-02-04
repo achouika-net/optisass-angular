@@ -1,0 +1,70 @@
+/// Mixins pour banners et alertes
+/// Utilisés pour warning, error, info, success messages
+
+/// Banner/Alert de base
+/// @param {string} $variant - 'info', 'warning', 'error', 'success'
+@mixin banner($variant: 'info') {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+
+  @if $variant == 'info' {
+    background-color: var(--mat-sys-surface-container);
+    color: var(--mat-sys-on-surface);
+    border: 1px solid var(--mat-sys-outline-variant);
+
+    mat-icon {
+      color: var(--mat-sys-primary);
+    }
+  } @else if $variant == 'warning' {
+    background-color: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+    border: 1px solid var(--mat-sys-outline-variant);
+
+    mat-icon {
+      color: var(--mat-sys-secondary);
+    }
+  } @else if $variant == 'error' {
+    background-color: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+    border: 1px solid var(--mat-sys-error);
+
+    mat-icon {
+      color: var(--mat-sys-error);
+    }
+  } @else if $variant == 'success' {
+    background-color: var(--mat-sys-tertiary-container);
+    color: var(--mat-sys-on-tertiary-container);
+    border: 1px solid var(--mat-sys-tertiary);
+
+    mat-icon {
+      color: var(--mat-sys-tertiary);
+    }
+  }
+
+  mat-icon {
+    flex-shrink: 0;
+  }
+}
+
+/// Message d'erreur inline compact
+@mixin error-message-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--mat-sys-on-error-container);
+  background-color: var(--mat-sys-error-container);
+  border-radius: 0 0 4px 4px;
+  margin-top: -1px;
+
+  mat-icon {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+  }
+}

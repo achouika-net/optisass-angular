@@ -2,7 +2,15 @@
 @use 'themes/default-theme';
 @use 'themes/custom-theme';
 
-//Matriel Overrides
+// Components globaux réutilisables
+@forward './components/level-indicators';
+@forward './components/badges';
+@forward './components/inline-inputs';
+@forward './components/banners';
+@forward './components/bulk-actions';
+@forward './components/responsive-utils';
+
+// Material Overrides
 @forward './material-overrides/mat-card';
 @forward './material-overrides/mat-table';
 @forward './material-overrides/mat-toolbar';

@@ -1,0 +1,47 @@
+@use '../_mixins/level-indicators' as *;
+
+/// Indicateur de niveau générique (pour icon-only comme OCR badge)
+/// Usage: <span class="level-indicator level-high"><mat-icon>...</mat-icon></span>
+.level-indicator {
+  @include level-indicator-base('sm');
+  @include level-variants('level');
+}
+
+.level-indicator-md {
+  @include level-indicator-base('md');
+  @include level-variants('level');
+}
+
+/// Classes utilitaires pour couleurs de niveau (compatibles Tailwind)
+/// Usage: class="bg-level-high text-level-high"
+.bg-level-high {
+  background-color: var(--mat-sys-tertiary-container);
+}
+
+.text-level-high {
+  color: var(--mat-sys-on-tertiary-container);
+}
+
+.bg-level-medium {
+  background-color: var(--mat-sys-secondary-container);
+}
+
+.text-level-medium {
+  color: var(--mat-sys-on-secondary-container);
+}
+
+.bg-level-low {
+  background-color: var(--mat-sys-error-container);
+}
+
+.text-level-low {
+  color: var(--mat-sys-on-error-container);
+}
+
+.bg-level-none {
+  background-color: var(--mat-sys-surface-container-high);
+}
+
+.text-level-none {
+  color: var(--mat-sys-on-surface-variant);
+}

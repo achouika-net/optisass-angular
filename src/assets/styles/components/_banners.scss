@@ -1,0 +1,34 @@
+@use '../_mixins/banners' as *;
+
+/// Banners/Alertes génériques
+/// Usage: <div class="banner-warning"><mat-icon>warning</mat-icon><span>Message</span></div>
+.banner {
+  @include banner('info');
+}
+
+.banner-info {
+  @include banner('info');
+}
+
+.banner-warning {
+  @include banner('warning');
+}
+
+.banner-error {
+  @include banner('error');
+}
+
+.banner-success {
+  @include banner('success');
+}
+
+/// Alias sémantique pour rétrocompatibilité
+.warning-banner {
+  @include banner('warning');
+}
+
+/// Message erreur inline (sous une ligne de table)
+/// Usage: <div class="row-error-message"><mat-icon>warning</mat-icon><span>Message</span></div>
+.row-error-message {
+  @include error-message-inline;
+}

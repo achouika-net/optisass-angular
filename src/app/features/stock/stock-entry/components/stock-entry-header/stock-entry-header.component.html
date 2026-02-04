@@ -1,0 +1,72 @@
+<mat-card class="sticky top-0 z-50 max-md:relative">
+  <mat-card-content>
+    <!-- Ligne 1: Fournisseur + Total HT -->
+    <div class="flex items-center gap-4 mb-4">
+      <!-- Supplier autocomplete with add button -->
+      <div class="flex items-center gap-2 flex-1">
+        <app-resource-autocomplete
+          class="flex-1 max-w-md"
+          [value]="currentSupplierId()"
+          [options]="supplierOptions()"
+          [showAllOption]="false"
+          [placeholder]="'stock.entry.supplier'"
+          valueKey="id"
+          labelKey="name"
+          (selectionChange)="onSupplierChange($event)"
+        />
+        <button
+          mat-icon-button
+          type="button"
+          (click)="newSupplierClick.emit()"
+          [matTooltip]="'stock.entry.newSupplier' | translate"
+        >
+          <mat-icon>add</mat-icon>
+        </button>
+      </div>
+
+      <!-- Total HT -->
+      <div class="text-right shrink-0">
+        <span class="text-sm text-on-surface-variant">{{ 'stock.entry.totalHT' | translate }}</span>
+        <p class="text-xl font-bold text-primary">{{ totalHT() | number: '1.2-2' }} MAD</p>
+      </div>
+    </div>
+
+    <!-- Ligne 2: Document info -->
+    <div class="flex flex-wrap items-center gap-4">
+      <!-- Document number -->
+      <mat-form-field appFieldControlLabel class="w-40">
+        <mat-label>{{ 'stock.entry.documentNumber' | translate }}</mat-label>
+        <input matInput [formField]="documentNumberField()" />
+        @if (documentNumberField()().touched() && documentNumberField()().invalid()) {
+          <mat-error
+            app-field-error
+            [errors]="documentNumberField()().errors()"
+            fieldname="documentNumber"
+          />
+        }
+      </mat-form-field>
+
+      <!-- Document date -->
+      <mat-form-field appFieldControlLabel class="w-44">
+        <mat-label>{{ 'stock.entry.documentDate' | translate }}</mat-label>
+        <input matInput [matDatepicker]="picker" [formField]="documentDateField()" />
+        <mat-datepicker-toggle matIconSuffix [for]="picker" />
+        <mat-datepicker #picker />
+      </mat-form-field>
+
+      <!-- Document type -->
+      <mat-radio-group
+        [value]="documentType()"
+        (change)="onDocumentTypeChange($event)"
+        class="flex gap-4"
+      >
+        <mat-radio-button value="invoice">
+          {{ 'stock.entry.invoice' | translate }}
+        </mat-radio-button>
+        <mat-radio-button value="delivery_note">
+          {{ 'stock.entry.deliveryNote' | translate }}
+        </mat-radio-button>
+      </mat-radio-group>
+    </div>
+  </mat-card-content>
+</mat-card>
