@@ -20,7 +20,7 @@
                     <mat-icon>qr_code</mat-icon>
                     Étiquettes
                 </button>
-                <button mat-raised-button color="primary" [matMenuTriggerFor]="menu">
+                <button mat-raised-button color="primary" [routerLink]="['/p/stock/new']">
                     <mat-icon>add</mat-icon>
                     Nouveau Produit
                 </button>
@@ -332,69 +332,6 @@
                                 </button>
                             </mat-menu>
 
-                            <!-- PRINT SITUATION TEMPLATE -->
-                            <div class="print-situation" *ngIf="!printingLabels">
-                                <div class="print-header">
-                                    <h2>OPTISASS - Situation de Stock</h2>
-                                    <p>Famille: {{ filter.typeArticle || 'Tout' }} | Marque: {{ filter.marque ||
-                                        'Toutes' }}</p>
-                                    <p class="date">Édité le {{ 0 | date:'dd/MM/yyyy HH:mm' }}</p>
-                                </div>
-
-                                <table class="print-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Réf</th>
-                                            <th>Marque</th>
-                                            <th>Désignation</th>
-                                            <th>Type</th>
-                                            <th>Qté</th>
-                                            <th class="text-right">P.Vente</th>
-                                            <th class="text-right">Valeur Stock</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr *ngFor="let p of dataSource.data">
-                                            <td><strong>{{ p.codeInterne }}</strong></td>
-                                            <td>{{ p.marque }}</td>
-                                            <td>{{ p.designation }}</td>
-                                            <td>{{ p.typeArticle }}</td>
-                                            <td [class.warn]="p.quantiteActuelle <= p.seuilAlerte">{{ p.quantiteActuelle
-                                                }}</td>
-                                            <td class="text-right">{{ p.prixVenteTTC | number:'1.2-2' }}</td>
-                                            <td class="text-right">{{ (p.quantiteActuelle * p.prixVenteTTC) |
-                                                number:'1.2-2' }}</td>
-                                        </tr>
-                                    </tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <td colspan="4" class="text-right font-bold">TOTAL GÉNÉRAL</td>
-                                            <td class="font-bold">{{ stats.totalProduits }}</td>
-                                            <td></td>
-                                            <td class="text-right font-bold">{{ stats.valeurStockTotal | number:'1.2-2'
-                                                }}</td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-
-                            <!-- PRINT LABELS TEMPLATE -->
-                            <div class="print-labels" *ngIf="printingLabels">
-                                <div class="label-grid">
-                                    <div class="label-item" *ngFor="let p of selection.selected">
-                                        <div class="label-content">
-                                            <div class="label-price">{{ p.prixVenteTTC | number:'1.0-0' }} DH</div>
-                                            <div class="label-ref">{{ p.codeInterne }}</div>
-                                            <!-- Placeholder for Barcode or QR Code -->
-                                            <!-- Ideally use a barcode lib/component here, but text ref + price is MVP -->
-                                            <div class="label-barcode">
-                                                || |||| ||||| ||
-                                            </div>
-                                            <div class="label-brand">{{ p.marque }}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         </td>
                     </ng-container>
 
@@ -411,4 +348,64 @@
             <mat-paginator [pageSizeOptions]="[10, 25, 50, 100]" aria-label="Select page of products"></mat-paginator>
         </mat-card-content>
     </mat-card>
+
+    <!-- PRINT SITUATION TEMPLATE -->
+    <div class="print-situation" *ngIf="!printingLabels">
+        <div class="print-header">
+            <h2>OPTISASS - Situation de Stock</h2>
+            <p>Famille: {{ filter.typeArticle || 'Tout' }} | Marque: {{ filter.marque || 'Toutes' }}</p>
+            <p class="date">Édité le {{ 0 | date:'dd/MM/yyyy HH:mm' }}</p>
+        </div>
+
+        <table class="print-table">
+            <thead>
+                <tr>
+                    <th>Réf</th>
+                    <th>Marque</th>
+                    <th>Désignation</th>
+                    <th>Type</th>
+                    <th>Qté</th>
+                    <th class="text-right">P.Vente</th>
+                    <th class="text-right">Valeur Stock</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let p of dataSource.data">
+                    <td><strong>{{ p.codeInterne }}</strong></td>
+                    <td>{{ p.marque }}</td>
+                    <td>{{ p.designation }}</td>
+                    <td>{{ p.typeArticle }}</td>
+                    <td [class.warn]="p.quantiteActuelle <= p.seuilAlerte">{{ p.quantiteActuelle }}</td>
+                    <td class="text-right">{{ p.prixVenteTTC | number:'1.2-2' }}</td>
+                    <td class="text-right">{{ (p.quantiteActuelle * p.prixVenteTTC) | number:'1.2-2' }}</td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="4" class="text-right font-bold">TOTAL GÉNÉRAL</td>
+                    <td class="font-bold">{{ stats.totalProduits }}</td>
+                    <td></td>
+                    <td class="text-right font-bold">{{ stats.valeurStockTotal | number:'1.2-2' }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- PRINT LABELS TEMPLATE -->
+    <div class="print-labels" *ngIf="printingLabels">
+        <div class="label-grid">
+            <div class="label-item" *ngFor="let p of selection.selected">
+                <div class="label-content">
+                    <div class="label-price">{{ p.prixVenteTTC | number:'1.0-0' }} DH</div>
+                    <div class="label-ref">{{ p.codeInterne }}</div>
+                    <!-- Placeholder for Barcode or QR Code -->
+                    <!-- Ideally use a barcode lib/component here, but text ref + price is MVP -->
+                    <div class="label-barcode">
+                        || |||| ||||| ||
+                    </div>
+                    <div class="label-brand">{{ p.marque }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
