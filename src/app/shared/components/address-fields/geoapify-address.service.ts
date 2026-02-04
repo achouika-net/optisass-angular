@@ -27,12 +27,18 @@ export class GeoapifyAddressService {
    * @param countryCode - Code pays pour filtrer les résultats (défaut: 'ma' pour Maroc)
    * @returns Observable des options d'adresses
    */
-  searchAddresses(query: string, minLength = 3, countryCode = 'ma'): Observable<IAddressOption[]> {
-    if (!query || query.trim().length < minLength) {
+  searchAddresses(
+    query: string | null | undefined,
+    minLength = 3,
+    countryCode = 'ma',
+  ): Observable<IAddressOption[]> {
+    // Defensive: ensure query is a string
+    const queryStr = typeof query === 'string' ? query : '';
+    if (!queryStr || queryStr.trim().length < minLength) {
       return of([]);
     }
 
-    const userInputOption = this.#createUserInputOption(query);
+    const userInputOption = this.#createUserInputOption(queryStr);
 
     // If no API key, return only user input
     if (!this.isApiConfigured) {
@@ -40,7 +46,7 @@ export class GeoapifyAddressService {
     }
 
     const params = {
-      text: query,
+      text: queryStr,
       apiKey: environment.geoapifyApiKey,
       filter: `countrycode:${countryCode}`,
       format: 'json',
@@ -54,7 +60,7 @@ export class GeoapifyAddressService {
         return [...apiResults, userInputOption];
       }),
       // On error, return only user input
-      catchError(() => of([userInputOption]))
+      catchError(() => of([userInputOption])),
     );
   }
 

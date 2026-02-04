@@ -1,0 +1,15 @@
+@use '../_mixins/inline-inputs' as *;
+
+/// Inputs inline éditables pour tables
+/// Usage: <input class="inline-input" />
+.inline-input {
+  @include inline-input('narrow');
+}
+
+.inline-input-md {
+  @include inline-input('medium');
+}
+
+.inline-input-wide {
+  @include inline-input('wide');
+}

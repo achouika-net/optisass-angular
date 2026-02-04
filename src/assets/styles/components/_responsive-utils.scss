@@ -1,0 +1,17 @@
+/// Classes utilitaires responsive pour table cells
+/// Note: Tailwind ne gère pas bien display: table-cell avec les breakpoints
+/// Ces classes sont donc nécessaires pour les colonnes de table
+
+/// Masquer sous 960px (breakpoint sm du projet)
+.hidden-below-960 {
+  @media (width < 959.98px) {
+    display: none !important;
+  }
+}
+
+/// Masquer sous 600px (breakpoint xs du projet)
+.hidden-below-600 {
+  @media (width < 599.98px) {
+    display: none !important;
+  }
+}

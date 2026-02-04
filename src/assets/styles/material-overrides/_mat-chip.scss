@@ -1,3 +1,45 @@
+@use '../_mixins/level-indicators' as *;
+
+/// File name chip (upload component)
 mat-chip.file-name {
   min-width: 200px;
+}
+
+/// Chip avec fond surface (neutre) - générique
+/// Usage: <mat-chip class="chip-surface">
+mat-chip.chip-surface {
+  --mat-chip-elevated-container-color: var(--mat-sys-surface-container);
+  --mat-chip-label-text-color: var(--mat-sys-on-surface);
+}
+
+/// Chip avec indicateur de niveau - générique
+/// Usage: <mat-chip class="chip-level level-high">
+mat-chip.chip-level {
+  cursor: pointer;
+  --mat-chip-container-height: 24px;
+  --mdc-chip-label-text-size: 0.75rem;
+
+  mat-icon {
+    font-size: 1rem !important;
+    width: 1rem !important;
+    height: 1rem !important;
+  }
+
+  @include chip-level-variants('level');
+}
+
+/// Match confidence indicator chips - utilise le mixin pour les variantes
+/// Usage: <mat-chip class="confidence-chip confidence-high">
+mat-chip.confidence-chip {
+  cursor: pointer;
+  --mat-chip-container-height: 24px;
+  --mdc-chip-label-text-size: 0.75rem;
+
+  mat-icon {
+    font-size: 1rem !important;
+    width: 1rem !important;
+    height: 1rem !important;
+  }
+
+  @include chip-level-variants('confidence');
 }
