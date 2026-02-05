@@ -1517,9 +1517,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         }
 
         if (this.clientId) {
-            this.router.navigate(['/p/dashboard']);
+            this.router.navigate(['/p/clients', this.clientId]);
         } else {
-            this.router.navigate(['/p/dashboard']);
+            this.router.navigate(['/p/clients']);
         }
     }
 
