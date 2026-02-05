@@ -103,8 +103,8 @@ export class FactureFormComponent implements OnInit {
         this.centreId = this.currentCentre()?.id || null;
         this.form = this.fb.group({
             numero: [''], // Auto-generated
-            type: ['DEVIS', Validators.required], // [MODIFIED] Default to DEVIS
-            statut: ['BROUILLON', Validators.required],
+            type: [''], // Will be set in ngOnInit based on context
+            statut: [''], // Will be set in ngOnInit based on context
             dateEmission: [new Date(), Validators.required],
             clientId: ['', Validators.required],
             lignes: this.fb.array([]),
@@ -120,6 +120,19 @@ export class FactureFormComponent implements OnInit {
     }
 
     ngOnInit(): void {
+        // CRITICAL FIX: Check if we're loading an existing invoice FIRST
+        // to avoid race condition where default values overwrite loaded data
+        const routeId = this.embedded ? this.factureId : this.route.snapshot.paramMap.get('id');
+        const isLoadingExisting = routeId && routeId !== 'new';
+
+        // Only set default type/statut if creating NEW invoice
+        if (!isLoadingExisting) {
+            this.form.patchValue({
+                type: 'DEVIS',
+                statut: 'BROUILLON'
+            });
+        }
+
         if (this.nomenclature && this.embedded) {
             this.form.patchValue({ proprietes: { nomenclature: this.nomenclature } });
         }
