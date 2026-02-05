@@ -407,11 +407,15 @@ interface PaymentRow {
         .text-right { text-align: right; }
 
         .financial-summary {
-            float: right;
-            width: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end; /* Align to right */
+            margin-left: auto; /* Push to right */
+            width: 60%;
             border: 1px solid #000;
             padding: 10px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
+            page-break-inside: avoid;
         }
 
         .summary-row {
@@ -430,10 +434,11 @@ interface PaymentRow {
         }
 
         .signatures {
-            clear: both;
+            width: 100%;
             display: flex;
             justify-content: space-between;
-            margin-top: 100px;
+            margin-top: 40px;
+            page-break-inside: avoid;
         }
 
         .sig-box {
@@ -740,10 +745,17 @@ export class PaymentListComponent implements OnInit {
         // It does NOT contain the "MONTANT REÇU" box. It shows the history and financial summary.
         // So `printingPayment` is mainly used as a trigger (*ngIf="printingPayment") and for Client Info.
 
+        // Ensure we explicitly recalculate stats before printing
+        // (Should be up to date but to be safe)
+        // Check if stats are zero, if so, maybe trigger calculation?
+        // But calculateStats requires `Facture[]`.
+        // Let's assume stats are updated when data loads.
+
         this.toDate = new Date();
+        // Use a longer timeout to ensure rendering
         setTimeout(() => {
             window.print();
-        }, 100);
+        }, 500);
     }
 
     payImpaye(item: Facture) {

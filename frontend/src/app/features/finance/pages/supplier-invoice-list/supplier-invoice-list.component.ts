@@ -107,16 +107,15 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
       /* Show Print Layout as Full Screen Overlay */
       .print-layout {
         display: block !important;
-        position: fixed; /* Fixed to viewport */
+        position: absolute;
         top: 0;
         left: 0;
-        width: 100vw;
-        height: 100vh;
+        width: 100%;
+        min-height: 100vh;
         background: white;
-        z-index: 99999; /* Highest priority */
-        padding: 10mm;
+        z-index: 99999;
+        padding: 20px;
         box-sizing: border-box;
-        overflow: visible;
       }
 
       .print-header {
