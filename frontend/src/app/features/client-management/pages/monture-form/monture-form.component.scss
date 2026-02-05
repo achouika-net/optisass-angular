@@ -1911,8 +1911,10 @@ span[matSuffix] {
         padding: 10px;
 
         .print-canvas-img {
-            max-width: 100%;
-            height: auto;
+            max-height: 250px; // REDUCED SIZE
+            width: auto;
+            display: block;
+            margin: 0 auto;
         }
     }
 
@@ -1975,6 +1977,18 @@ span[matSuffix] {
                 color: #2e7d32;
             }
         }
+    }
+
+    .technical-summary-print {
+        margin-top: 15px;
+        padding: 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 11px;
+        color: #1e293b;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 
     // Bon Verre Specific
