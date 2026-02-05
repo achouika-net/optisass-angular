@@ -1,4 +1,4 @@
-import { Component, OnInit, effect, signal, Input } from '@angular/core';
+import { Component, OnInit, effect, signal, Input, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -93,82 +93,6 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
       display: none;
     }
 
-    @media print {
-      /* Hide EVERYTHING else at root level if possible, but safe bet is to overlay */
-      :host {
-        display: block !important;
-      }
-      
-      /* Hide standard content within the component */
-      .container, .header, .filters, mat-card, .group-toolbar {
-        display: none !important;
-      }
-
-      /* Show Print Layout as Full Screen Overlay */
-      .print-layout {
-        display: block !important;
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        min-height: 100vh;
-        background: white;
-        z-index: 99999;
-        padding: 20px;
-        box-sizing: border-box;
-      }
-
-      .print-header {
-        text-align: center;
-        margin-bottom: 20px;
-        border-bottom: 2px solid #000;
-        padding-bottom: 10px;
-      }
-
-      .print-header h2 {
-        font-size: 24px;
-        font-weight: bold;
-        text-transform: uppercase;
-        margin: 0;
-        color: #000;
-      }
-      
-      .print-header p {
-        margin: 5px 0;
-        color: #000;
-      }
-
-      .print-filters-summary {
-        margin-top: 10px;
-        font-size: 12px;
-        border: 1px dashed #000;
-        padding: 5px;
-        text-align: left;
-      }
-
-      .print-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 11px;
-      }
-
-      .print-table th, .print-table td {
-        border: 1px solid #000;
-        padding: 4px 8px;
-        text-align: left;
-        color: #000;
-      }
-
-      .print-table th {
-        font-weight: bold;
-        text-transform: uppercase;
-        border-bottom: 2px solid #000;
-      }
-
-      .text-right { text-align: right !important; }
-      .font-bold { font-weight: bold !important; }
-      .sub-text { font-size: 9px; display: block; }
-    }
   `]
 })
 export class SupplierInvoiceListComponent implements OnInit {
@@ -204,7 +128,8 @@ export class SupplierInvoiceListComponent implements OnInit {
     private router: Router,
     private snackBar: MatSnackBar,
     private dialog: MatDialog,
-    private store: Store
+    private store: Store,
+    private cdr: ChangeDetectorRef
   ) {
     effect(() => {
       const center = this.currentCentre();
@@ -473,6 +398,33 @@ export class SupplierInvoiceListComponent implements OnInit {
   }
 
   printList() {
-    window.print();
+    this.cdr.detectChanges();
+
+    // 1. Get the print layout element
+    const printContent = document.querySelector('.print-layout');
+    if (!printContent) {
+      console.error('❌ [Print] Print layout element not found');
+      window.print();
+      return;
+    }
+
+    // 2. Clone it and prepare for isolation
+    const clone = printContent.cloneNode(true) as HTMLElement;
+    clone.classList.add('print-isolated');
+
+    // 3. Mark body as printing and append clone
+    document.body.classList.add('is-printing-report');
+    document.body.appendChild(clone);
+
+    // 4. Trigger print
+    setTimeout(() => {
+      window.print();
+
+      // 5. Cleanup after the print dialog is closed
+      document.body.classList.remove('is-printing-report');
+      if (document.body.contains(clone)) {
+        document.body.removeChild(clone);
+      }
+    }, 100);
   }
 }

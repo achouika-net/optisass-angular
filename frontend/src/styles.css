@@ -90,76 +90,76 @@ body {
   -webkit-text-fill-color: rgba(0, 0, 0, 0.87) !important;
 }
 
+/* ATOMIC PRINT SYSTEM v3 - BULLETPROOF ISOLATION */
 @media print {
   @page {
-    margin: 0;
-    /* Remove browser default margins */
-    size: auto;
-    /* Use content size */
+    size: A4 portrait;
+    margin: 10mm;
   }
 
-  /* Force background colors for badges, stripes, etc. */
+  /* 1. SCORCHED EARTH - Hide ALL direct children of body when printing isolated report */
+  body.is-printing-report>*:not(.print-isolated) {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 2. STYLE THE ISOLATED REPORT */
+  body.is-printing-report>.print-isolated {
+    display: block !important;
+    visibility: visible !important;
+    position: absolute !important;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: 190mm !important;
+    margin: 0 auto !important;
+    background: white !important;
+    z-index: 9999999;
+    font-size: 12px !important;
+  }
+
+  /* Force child visibility */
+  body.is-printing-report>.print-isolated * {
+    visibility: visible !important;
+  }
+
+  /* Clean up headers/filters summary if any */
+  .print-header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .print-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 0 auto !important;
+    color: black !important;
+    font-size: 12px !important;
+  }
+
+  .print-table th,
+  .print-table td {
+    border: 1px solid #000 !important;
+    padding: 6px 8px !important;
+    text-align: left !important;
+  }
+
+  .print-table th {
+    background-color: white !important;
+    font-weight: bold !important;
+  }
+
+  .text-right {
+    text-align: right !important;
+  }
+
+  .font-bold {
+    font-weight: bold !important;
+  }
+
+  /* Ensure background and colors are clean */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-  }
-
-  /* Hide Application Shell - Specific Elements */
-  mat-toolbar,
-  .mat-toolbar,
-  mat-sidenav,
-  .mat-sidenav,
-  app-sidebar,
-  app-breadcrumb,
-  app-topbar-actions,
-  /* .mat-drawer-container MUST BE VISIBLE as it wraps content */
-  .mat-drawer,
-  /* This hides the sidebar wrapper */
-  .mat-drawer-side,
-  img[alt="homepage-logo"],
-  button,
-  .no-print,
-  .cdk-overlay-container,
-  .mat-mdc-paginator,
-  .mat-sort-header-arrow {
-    display: none !important;
-  }
-
-  /* Reset Layout / Flow for Print */
-  body,
-  html,
-  mat-sidenav-container,
-  mat-sidenav-content,
-  .mat-drawer-container,
-  .mat-drawer-content,
-  main {
-    background-color: white !important;
-    background: white !important;
-    height: auto !important;
-    width: 100% !important;
-    min-width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: visible !important;
-    position: static !important;
-    display: block !important;
-    font-size: 10pt;
-
-    /* Remove Flexbox/Grid constraints that might clip content */
-    flex: none !important;
-    transform: none !important;
-  }
-
-  /* Specific resets for fixed positioning which breaks print flow */
-  .fixed,
-  .sticky,
-  .absolute {
-    position: static !important;
-  }
-
-  /* Ensure content is visible and expands */
-  main {
-    width: 100% !important;
-    max-width: none !important;
   }
 }
