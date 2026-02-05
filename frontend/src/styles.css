@@ -98,7 +98,8 @@ body {
   }
 
   /* 1. SCORCHED EARTH - Hide ALL direct children of body when printing isolated report */
-  body.is-printing-report>*:not(.print-isolated) {
+  body.is-printing-report>*:not(.print-isolated),
+  body.is-printing-report app-root {
     display: none !important;
     visibility: hidden !important;
   }

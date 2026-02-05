@@ -3677,7 +3677,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
         // Wait for template to render
         setTimeout(() => {
-            const printContent = document.querySelector('.fiche-monture-print-layout');
+            const printContent = document.querySelector('.print-fiche-montage');
             if (!printContent) {
                 window.print();
                 this.currentPrintType = null;
@@ -3713,7 +3713,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
         // Wait for template to render
         setTimeout(() => {
-            const printContent = document.querySelector('.bon-commande-layout');
+            const printContent = document.querySelector('.print-bon-verre');
             if (!printContent) {
                 window.print();
                 this.currentPrintType = null;
