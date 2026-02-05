@@ -80,6 +80,7 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
       display: flex; 
       align-items: center; 
       justify-content: space-between;
+    }
     .print-only-header { display: none; }
 
     .container-sub { padding: 0 !important; width: 100% !important; max-width: none !important; }
