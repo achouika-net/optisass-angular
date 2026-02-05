@@ -80,9 +80,8 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
       display: flex; 
       align-items: center; 
       justify-content: space-between;
-      margin-bottom: 16px;
-      border: 1px solid #bfdbfe;
-    }
+    .print-only-header { display: none; }
+
     .container-sub { padding: 0 !important; width: 100% !important; max-width: none !important; }
     .filters { display: flex; gap: 16px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
     .filters mat-form-field { flex: 1; min-width: 200px; }
@@ -132,16 +131,50 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
         font-weight: normal !important;
       }
 
-      /* Add title for print */
+      /* Add title for print - REMOVED CSS CONTENT, MOVED TO HTML */
       .mat-mdc-table::before {
-        content: "Liste des Factures Fournisseurs (Dépenses)";
-        display: block;
-        font-size: 18px;
-        font-weight: bold;
+        display: none !important;
+      }
+
+      .print-only-header {
+        display: block !important;
         text-align: center;
         margin-bottom: 20px;
+        border-bottom: 2px solid #000;
+        padding-bottom: 10px;
+      }
+      
+      .print-only-header h2 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: bold;
         text-transform: uppercase;
       }
+
+      /* Force Table Styling */
+      th.mat-mdc-header-cell {
+        background-color: transparent !important;
+        color: #000 !important;
+        border-bottom: 2px solid #000 !important;
+        font-weight: bold !important;
+      }
+      
+      tr.mat-mdc-row {
+        height: auto !important;
+      }
+
+      td.mat-mdc-cell {
+        color: #000 !important;
+        border-bottom: 1px solid #000 !important;
+        border-right: 1px solid #000 !important;
+        border-left: 1px solid #000 !important;
+      }
+
+      /* Borders */
+      table {
+         border-top: 2px solid #000 !important;
+      }
+
 
       /* Ensure list/table is visible */
       :host { display: block !important; }
