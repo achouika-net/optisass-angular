@@ -87,99 +87,87 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
     .filters mat-form-field { flex: 1; min-width: 200px; }
     ::ng-deep .dense-field .mat-mdc-form-field-subscript-wrapper { display: none; }
 
-    /* Print Styles */
+    /* Print Styles - OVERLAY STRATEGY */
+    .print-layout {
+      display: none;
+    }
+
     @media print {
-      .header, .filters, mat-card:first-of-type, .group-toolbar, .mat-column-select, .mat-column-actions, button, mat-paginator {
-        display: none !important;
+      /* Hide EVERYTHING else at root level if possible, but safe bet is to overlay */
+      :host {
+        display: block !important;
       }
       
-      .container {
-        padding: 0 !important;
-        margin: 0 !important;
-        width: 100% !important;
-        max-width: none !important;
-      }
-
-      mat-card {
-        box-shadow: none !important;
-        border: none !important;
-        padding: 0 !important;
-      }
-
-      .mat-mdc-table {
-        width: 100% !important;
-        border-collapse: collapse !important;
-      }
-
-      td.mat-mdc-cell, th.mat-mdc-header-cell {
-        border: 1px solid #000 !important;
-        font-size: 11px !important;
-        padding: 6px !important;
-        color: #000 !important;
-      }
-
-      th.mat-mdc-header-cell {
-        font-weight: bold !important;
-        text-transform: uppercase;
-        background: transparent !important;
-      }
-
-      .statut-chip {
-        border: 1px solid #000 !important;
-        background: transparent !important;
-        color: #000 !important;
-        font-weight: normal !important;
-      }
-
-      /* Add title for print - REMOVED CSS CONTENT, MOVED TO HTML */
-      .mat-mdc-table::before {
+      /* Hide standard content within the component */
+      .container, .header, .filters, mat-card, .group-toolbar {
         display: none !important;
       }
 
-      .print-only-header {
+      /* Show Print Layout as Full Screen Overlay */
+      .print-layout {
         display: block !important;
+        position: fixed; /* Fixed to viewport */
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: white;
+        z-index: 99999; /* Highest priority */
+        padding: 10mm;
+        box-sizing: border-box;
+        overflow: visible;
+      }
+
+      .print-header {
         text-align: center;
         margin-bottom: 20px;
         border-bottom: 2px solid #000;
         padding-bottom: 10px;
       }
-      
-      .print-only-header h2 {
-        margin: 0;
-        font-size: 20px;
+
+      .print-header h2 {
+        font-size: 24px;
         font-weight: bold;
         text-transform: uppercase;
-      }
-
-      /* Force Table Styling */
-      th.mat-mdc-header-cell {
-        background-color: transparent !important;
-        color: #000 !important;
-        border-bottom: 2px solid #000 !important;
-        font-weight: bold !important;
+        margin: 0;
+        color: #000;
       }
       
-      tr.mat-mdc-row {
-        height: auto !important;
+      .print-header p {
+        margin: 5px 0;
+        color: #000;
       }
 
-      td.mat-mdc-cell {
-        color: #000 !important;
-        border-bottom: 1px solid #000 !important;
-        border-right: 1px solid #000 !important;
-        border-left: 1px solid #000 !important;
+      .print-filters-summary {
+        margin-top: 10px;
+        font-size: 12px;
+        border: 1px dashed #000;
+        padding: 5px;
+        text-align: left;
       }
 
-      /* Borders */
-      table {
-         border-top: 2px solid #000 !important;
+      .print-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
       }
 
+      .print-table th, .print-table td {
+        border: 1px solid #000;
+        padding: 4px 8px;
+        text-align: left;
+        color: #000;
+      }
 
-      /* Ensure list/table is visible */
-      :host { display: block !important; }
-      mat-card { display: block !important; }
-      table { display: table !important; }
+      .print-table th {
+        font-weight: bold;
+        text-transform: uppercase;
+        border-bottom: 2px solid #000;
+      }
+
+      .text-right { text-align: right !important; }
+      .font-bold { font-weight: bold !important; }
+      .sub-text { font-size: 9px; display: block; }
     }
   `]
 })
@@ -465,8 +453,23 @@ export class SupplierInvoiceListComponent implements OnInit {
 
   formatClientName(client: any): string {
     if (!client) return '-';
-    if (client.raisonSociale) return client.raisonSociale;
+    // Handle both cases: string (legacy) or object
+    if (typeof client === 'string') return client;
     return `${client.nom || ''} ${client.prenom || ''}`.trim() || '-';
+  }
+
+  getSupplierName(id: string): string {
+    const s = this.suppliers.find(sup => sup.id === id);
+    return s ? s.nom : id;
+  }
+
+  getPeriodLabel(value: string): string {
+    const p = this.periods.find(per => per.value === value);
+    return p ? p.label : value;
+  }
+
+  getTotalTTC(): number {
+    return this.invoices.reduce((acc, inv) => acc + (inv.montantTTC || 0), 0);
   }
 
   printList() {
