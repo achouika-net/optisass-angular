@@ -45,9 +45,14 @@ interface PaymentRow {
           <div class="tab-content pt-4">
             <div class="header-actions">
               <h2>{{ ficheId ? 'Paiements de cette fiche' : 'Tous les paiements du client' }}</h2>
-              <button mat-raised-button color="primary" (click)="createNewPayment()">
-                <mat-icon>add</mat-icon> Nouveau Paiement
-              </button>
+              <div class="action-buttons">
+                  <button mat-stroked-button color="primary" (click)="printReceipt()" class="mr-2" *ngIf="dataSource.data.length > 0">
+                    <mat-icon>print</mat-icon> Imprimer Reçu
+                  </button>
+                  <button mat-raised-button color="primary" (click)="createNewPayment()">
+                    <mat-icon>add</mat-icon> Nouveau Paiement
+                  </button>
+              </div>
             </div>
 
             <div class="modern-table-container">
@@ -102,9 +107,6 @@ interface PaymentRow {
                   <td mat-cell *matCellDef="let element">
                       <button mat-icon-button color="primary" *ngIf="element.pieceJointe" (click)="viewAttachment(element.pieceJointe)" title="Voir la pièce jointe">
                           <mat-icon>visibility</mat-icon>
-                      </button>
-                      <button mat-icon-button class="text-gray-600" (click)="printPayment(element)" title="Imprimer le reçu">
-                          <mat-icon>print</mat-icon>
                       </button>
                       <button mat-icon-button color="warn" (click)="deletePayment(element)" title="Supprimer le paiement">
                           <mat-icon>delete</mat-icon>
@@ -195,46 +197,32 @@ interface PaymentRow {
       </mat-tab-group>
     </div>
 
-    <!-- PRINT RECEIPT TEMPLATE -->
-    <div class="print-receipt" *ngIf="printingPayment">
+    <!-- PRINT RECEIPT TEMPLATE A5 -->
+    <div class="print-receipt" *ngIf="printingPayment"> <!-- repurposed printingPayment as flag or holder for client info -->
         <div class="receipt-container">
             <div class="company-header">
-                <h2>OPTISASS - OPTICIEN LUNETIER</h2>
+                <h2>OPTISASS</h2>
                 <p>Adresse de l'établissement - Ville, Maroc</p>
                 <p>Tél: +212 X XX XX XX XX</p>
             </div>
             
             <div class="receipt-title">
                 <h1>REÇU DE PAIEMENT</h1>
-                <p class="receipt-ref">Réf: {{ printingPayment.id?.substring(0,8) || 'N/A' }}</p>
+                <p class="receipt-ref">Date: {{ toDate | date:'dd/MM/yyyy HH:mm' }}</p>
             </div>
 
-            <!-- Client & Doc Info -->
+            <!-- Client Info -->
             <div class="info-grid">
                 <div class="info-col">
-                    <p><strong>Client:</strong> {{ printingPayment.tiersNom || 'Client' }}</p>
-                    <p><strong>CIN:</strong> {{ printingPayment.tiersCin || '-' }}</p>
-                    <p><strong>Date:</strong> {{ printingPayment.date | date:'dd/MM/yyyy HH:mm' }}</p>
-                </div>
-                <div class="info-col text-right">
-                    <p><strong>Concerne:</strong> Facture N° {{ printingPayment.factureNumero }}</p>
-                    <p><strong>Mode:</strong> {{ getPaymentModeLabel(printingPayment.mode) }}</p>
-                    <p><strong>Date Livraison:</strong> __________________</p>
+                    <p><strong>Client:</strong> {{ clientName || 'Client' }}</p>
+                    <p><strong>CIN:</strong> {{ clientCin || '-' }}</p>
                 </div>
             </div>
 
             <hr class="divider">
 
-            <!-- Current Payment Box -->
-            <div class="current-payment-box">
-                <div class="label">MONTANT REÇU</div>
-                <div class="amount">{{ printingPayment.montant | number:'1.2-2' }} DH</div>
-                <div class="notes" *ngIf="printingPayment.notes">Note: {{ printingPayment.notes }}</div>
-            </div>
-
             <!-- Payment History Table -->
-            <div class="history-section" *ngIf="ficheId">
-                <h3>Historique des Paiements (Dossier)</h3>
+            <div class="history-section">
                 <table class="history-table">
                     <thead>
                         <tr>
@@ -261,9 +249,8 @@ interface PaymentRow {
                     <span>Total Dossier:</span>
                     <span>{{ stats.totalTTC | number:'1.2-2' }} DH</span>
                 </div>
-                <!-- REMOVE TOTAL PAID since we show history and Remainder directly to avoid confusion or add it back if specifically asked -->
                  <div class="summary-row">
-                    <span>Total Versé:</span>
+                    <span>Total Payé:</span>
                     <span>{{ stats.totalPaye | number:'1.2-2' }} DH</span>
                 </div>
                 <div class="summary-row big-row">
@@ -311,16 +298,23 @@ interface PaymentRow {
             width: 100%;
             height: 100%;
             background: white;
-            padding: 20px;
+            padding: 10px; /* Smaller padding for A5 */
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             color: #000;
         }
 
+        @page {
+            size: A5 landscape; /* Or just A5. Using landscape as it usually fits tables well. */
+            margin: 5mm;
+        }
+
         .receipt-container {
+            width: 100%;
             max-width: 100%;
-            margin: 0 auto;
+            margin: 0;
             border: 2px solid #000;
-            padding: 20px;
+            padding: 15px;
+            box-sizing: border-box;
         }
 
         .company-header {
@@ -593,6 +587,9 @@ export class PaymentListComponent implements OnInit {
 
     printingPayment: PaymentRow | null = null;
     stats = { totalTTC: 0, totalPaye: 0, resteAPayer: 0 };
+    clientName: string = '';
+    clientCin: string = '';
+    toDate = new Date(); // Used for header date in global print
 
     constructor(
         private factureService: FactureService,
@@ -684,20 +681,69 @@ export class PaymentListComponent implements OnInit {
         let totalTTC = 0;
         let totalPaye = 0;
 
+        // Recalculate based on visible payments for 'Total Paid'
+        // This ensures the "Total Payé" matches the sum of the rows in the receipt
+        if (this.dataSource.data.length > 0) {
+            totalPaye = this.dataSource.data.reduce((acc, p) => acc + (p.montant || 0), 0);
+
+            // Get Client Info from first payment if available
+            const firstP = this.dataSource.data[0];
+            this.clientName = firstP.tiersNom || '';
+            this.clientCin = firstP.tiersCin || '';
+        }
+
         factures.forEach(f => {
             if (f.statut !== 'ANNULEE' && f.statut !== 'DEVIS_SANS_PAIEMENT' && f.type !== 'BON_COMM' && f.type !== 'AVOIR') {
-                // For standard invoices/sales
                 totalTTC += f.totalTTC || 0;
-                totalPaye += (f.totalTTC || 0) - (f.resteAPayer || 0);
             }
         });
 
-        // Adjust for floating point errors
         this.stats = {
             totalTTC: totalTTC,
             totalPaye: totalPaye,
             resteAPayer: Math.max(0, totalTTC - totalPaye)
         };
+    }
+
+    printReceipt() {
+        // Create a dummy payment object for the template to bind to
+        // If we have payments, use the first one's client details
+        const firstP = this.dataSource.data.length > 0 ? this.dataSource.data[0] : null;
+
+        this.printingPayment = {
+            id: 'RELEVE',
+            date: new Date(), // Use Date object, not string
+            montant: this.stats.totalPaye,
+            // User requested "Total Payé" revision.
+            // If I set this, the "MONTANT REÇU" box will show Total Payé.
+            // If the user wants a STATEMENT, showing "Total Payé" in the big box is acceptable.
+            mode: 'GLOBAL',
+            factureNumero: 'VARIOS',
+            factureId: 'GLOBAL', // Dummy ID
+            tiersNom: firstP?.tiersNom || this.clientName || 'Client',
+            tiersCin: firstP?.tiersCin || this.clientCin || '',
+            // ... satisfy other required props if any
+        } as PaymentRow;
+
+        // However, I removed the "current-payment-box" in the A5 template in Step 6096?
+        // Let's check Step 6096 replacement content...
+        // Yes, I REMOVED <div class="current-payment-box"> in 6096.
+        // So `printingPayment.montant` is NOT used in the A5 template anymore?
+        // Wait, let's verify.
+        // Step 6096 template:
+        // <div class="print-receipt" *ngIf="printingPayment">
+        // ...
+        // <div class="info-grid">...</div>
+        // <hr class="divider">
+        // <div class="history-section">...</div>
+        // <div class="financial-summary">...</div>
+        // It does NOT contain the "MONTANT REÇU" box. It shows the history and financial summary.
+        // So `printingPayment` is mainly used as a trigger (*ngIf="printingPayment") and for Client Info.
+
+        this.toDate = new Date();
+        setTimeout(() => {
+            window.print();
+        }, 100);
     }
 
     payImpaye(item: Facture) {

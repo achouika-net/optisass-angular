@@ -11,10 +11,20 @@
             <button mat-raised-button color="accent" (click)="openExpenseDialog()" *ngIf="listMode === 'INVOICE'">
                 <mat-icon>receipt</mat-icon> Nouvelle Dépense
             </button>
+            <button mat-raised-button color="accent" (click)="openExpenseDialog()" *ngIf="listMode === 'INVOICE'">
+                <mat-icon>receipt</mat-icon> Nouvelle Dépense
+            </button>
             <button mat-stroked-button (click)="printList()">
                 <mat-icon>print</mat-icon> Imprimer la liste
             </button>
         </div>
+    </div>
+
+    <!-- Print Header (Visible only in print) -->
+    <div class="print-only-header">
+        <h2>{{ listMode === 'BL' ? 'Liste des Bons de Livraison (BL)' : 'Liste des Factures Fournisseurs (Dépenses)' }}
+        </h2>
+        <p>Date d'impression: {{ 0 | date:'dd/MM/yyyy HH:mm' }}</p>
     </div>
 
     <!-- Filters Bar -->
