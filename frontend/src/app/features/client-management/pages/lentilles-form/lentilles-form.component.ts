@@ -466,7 +466,7 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
     nextTab(): void { if (this.activeTab < 5) this.activeTab++; } // Increased max tab
     prevTab(): void { if (this.activeTab > 0) this.activeTab--; }
     goBack(): void {
-        this.router.navigate(['/p/dashboard']);
+        this.router.navigate(['/p/clients', this.clientId]);
     }
 
     // --- Stock Search ---
