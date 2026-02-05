@@ -11,70 +11,67 @@
             <button mat-raised-button color="accent" (click)="openExpenseDialog()" *ngIf="listMode === 'INVOICE'">
                 <mat-icon>receipt</mat-icon> Nouvelle Dépense
             </button>
-            <button mat-raised-button color="accent" (click)="openExpenseDialog()" *ngIf="listMode === 'INVOICE'">
-                <mat-icon>receipt</mat-icon> Nouvelle Dépense
-            </button>
             <button mat-stroked-button (click)="printList()">
                 <mat-icon>print</mat-icon> Imprimer la liste
             </button>
         </div>
     </div>
+</div>
 
-    <!-- DEDICATED PRINT LAYOUT - Full Screen Overlay -->
-    <div class="print-layout">
-        <div class="print-header">
-            <h2>{{ listMode === 'BL' ? 'Liste des Bons de Livraison' : 'Liste des Factures Fournisseurs (Dépenses)' }}
-            </h2>
-            <p><strong>Arrêté au:</strong> {{ 0 | date:'dd/MM/yyyy à HH:mm' }}</p>
+<!-- DEDICATED PRINT LAYOUT - Full Screen Overlay -->
+<div class="print-layout">
+    <div class="print-header">
+        <h2>{{ listMode === 'BL' ? 'Liste des Bons de Livraison' : 'Liste des Factures Fournisseurs (Dépenses)' }}
+        </h2>
+        <p><strong>Arrêté au:</strong> {{ 0 | date:'dd/MM/yyyy à HH:mm' }}</p>
 
-            <!-- Optional: Print Filters Summary -->
-            <div class="print-filters-summary" *ngIf="filters.fournisseurId || selectedPeriod() !== 'all'">
-                <p *ngIf="filters.fournisseurId">Fournisseur: {{ getSupplierName(filters.fournisseurId) }}</p>
-                <p>Période: {{ getPeriodLabel(selectedPeriod()) }}</p>
-            </div>
+        <!-- Optional: Print Filters Summary -->
+        <div class="print-filters-summary" *ngIf="filters.fournisseurId || selectedPeriod() !== 'all'">
+            <p *ngIf="filters.fournisseurId">Fournisseur: {{ getSupplierName(filters.fournisseurId) }}</p>
+            <p>Période: {{ getPeriodLabel(selectedPeriod()) }}</p>
         </div>
-
-        <table class="print-table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>N° Doc</th>
-                    <th>Fournisseur</th>
-                    <th>Client / Fiche</th>
-                    <th>Type</th>
-                    <th>Statut</th>
-                    <th class="text-right">Montant TTC</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr *ngFor="let row of invoices">
-                    <td>{{ row.dateEmission | date:'dd/MM/yyyy' }}</td>
-                    <td>
-                        <strong>{{ row.numeroFacture }}</strong>
-                        <div *ngIf="row.dateEcheance" class="sub-text">Éch: {{ row.dateEcheance | date:'dd/MM/yyyy' }}
-                        </div>
-                    </td>
-                    <td>{{ row.fournisseur?.nom }}</td>
-                    <td>
-                        {{ formatClientName(row.client) }}
-                        <span *ngIf="row.client?.numeroPieceIdentite" class="sub-text">({{
-                            row.client?.numeroPieceIdentite }})</span>
-                    </td>
-                    <td>{{ row.categorieBL || row.type }}</td>
-                    <td>{{ row.statut }}</td>
-                    <td class="text-right font-bold">{{ row.montantTTC | number:'1.2-2' }}</td>
-                </tr>
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="6" class="text-right font-bold">TOTAL</td>
-                    <td class="text-right font-bold">{{ getTotalTTC() | number:'1.2-2' }}</td>
-                </tr>
-            </tfoot>
-        </table>
     </div>
 
-    <!-- Filters Bar -->
+    <table class="print-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>N° Doc</th>
+                <th>Fournisseur</th>
+                <th>Client / Fiche</th>
+                <th>Type</th>
+                <th>Statut</th>
+                <th class="text-right">Montant TTC</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr *ngFor="let row of invoices">
+                <td>{{ row.dateEmission | date:'dd/MM/yyyy' }}</td>
+                <td>
+                    <strong>{{ row.numeroFacture }}</strong>
+                    <div *ngIf="row.dateEcheance" class="sub-text">Éch: {{ row.dateEcheance | date:'dd/MM/yyyy' }}
+                    </div>
+                </td>
+                <td>{{ row.fournisseur?.nom }}</td>
+                <td>
+                    {{ formatClientName(row.client) }}
+                    <span *ngIf="row.client?.numeroPieceIdentite" class="sub-text">({{
+                        row.client?.numeroPieceIdentite }})</span>
+                </td>
+                <td>{{ row.categorieBL || row.type }}</td>
+                <td>{{ row.statut }}</td>
+                <td class="text-right font-bold">{{ row.montantTTC | number:'1.2-2' }}</td>
+            </tr>
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="6" class="text-right font-bold">TOTAL</td>
+                <td class="text-right font-bold">{{ getTotalTTC() | number:'1.2-2' }}</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+<div class="container" [class.container-sub]="isSubComponent">
     <mat-card class="!shadow-none !border !border-gray-100 mb-6">
         <mat-card-content class="!p-4">
             <div class="filters">
