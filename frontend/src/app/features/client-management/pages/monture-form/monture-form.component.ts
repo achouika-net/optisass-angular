@@ -21,7 +21,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ClientManagementService } from '../../services/client.service';
 import { Client, isClientParticulier, isClientProfessionnel } from '../../models/client.model';
 import { FicheService } from '../../services/fiche.service';
-import { FicheMontureCreate, TypeFiche, StatutFiche, TypeEquipement, SuggestionIA } from '../../models/fiche-client.model';
+import { FicheMontureCreate, TypeFiche, StatutFiche, TypeEquipement, SuggestionIA, TypeVerre } from '../../models/fiche-client.model';
 import { FactureService, Facture } from '../../services/facture.service';
 import { FactureFormComponent } from '../facture-form/facture-form.component';
 import { PaymentListComponent } from '../../components/payment-list/payment-list.component';
@@ -1346,6 +1346,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 prixOD: [0],
                 prixOG: [0],
                 differentODOG: [false],
+                type: [TypeVerre.UNIFOCAL],
                 matiereOD: [null],
                 marqueOD: [null],
                 indiceOD: [null],
@@ -1393,6 +1394,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 ecartPupillaireOG: [32, [Validators.required, Validators.min(20), Validators.max(40)]],
                 hauteurOD: [20, [Validators.required, Validators.min(10), Validators.max(30)]],
                 hauteurOG: [20, [Validators.required, Validators.min(10), Validators.max(30)]],
+                diametreVerreOD: [null],
+                diametreVerreOG: [null],
                 diametreEffectif: ['65/70'],
                 capturedImage: [null], // [NEW] Base64 image from centering tablet
                 remarques: [''],

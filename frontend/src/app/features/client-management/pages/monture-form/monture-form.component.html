@@ -1679,6 +1679,13 @@
         </div>
     </div>
 
+    <div class="technical-summary-print"
+        *ngIf="ficheForm.get('montage.diametreVerreOD')?.value || ficheForm.get('montage.diametreVerreOG')?.value">
+        <strong>📦 Résumé Technique:</strong>
+        Diamètre Utile OD: {{ ficheForm.get('montage.diametreVerreOD')?.value || '-' }} mm |
+        Diamètre Utile OG: {{ ficheForm.get('montage.diametreVerreOG')?.value || '-' }} mm
+    </div>
+
     <div class="print-footer-sig">
         <div class="sig">Technicien / Monteur</div>
         <div class="sig">Contrôle Final</div>
