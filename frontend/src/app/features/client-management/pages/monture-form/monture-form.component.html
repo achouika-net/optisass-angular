@@ -1580,7 +1580,8 @@
     </div>
 
     <div class="client-summary">
-        <strong>Client:</strong> {{ clientDisplayName }}
+        <strong>Client:</strong> {{ clientDisplayName }} |
+        <strong>Type de Verre:</strong> {{ ficheForm.get('verres.type')?.value || '-' }}
     </div>
 
     <div class="print-grid">
@@ -1623,6 +1624,7 @@
                         <th>Oeil</th>
                         <th>DP (Ecart)</th>
                         <th>Hauteur (H)</th>
+                        <th>Diamètre Utile</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1630,11 +1632,15 @@
                         <td>OD</td>
                         <td>{{ ficheForm.get('montage.od.ecartPupillaire')?.value }} mm</td>
                         <td>{{ ficheForm.get('montage.od.hauteurPupillaire')?.value }} mm</td>
+                        <td>{{ ficheForm.get('montage.diametreVerreOD')?.value ?
+                            ficheForm.get('montage.diametreVerreOD')?.value + ' mm' : '-' }}</td>
                     </tr>
                     <tr>
                         <td>OG</td>
                         <td>{{ ficheForm.get('montage.og.ecartPupillaire')?.value }} mm</td>
                         <td>{{ ficheForm.get('montage.og.hauteurPupillaire')?.value }} mm</td>
+                        <td>{{ ficheForm.get('montage.diametreVerreOG')?.value ?
+                            ficheForm.get('montage.diametreVerreOG')?.value + ' mm' : '-' }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -1659,6 +1665,18 @@
     <div class="notes-print" *ngIf="ficheForm.get('observations')?.value">
         <h4>Observations</h4>
         <p>{{ ficheForm.get('observations')?.value }}</p>
+    </div>
+
+    <div class="ia-recommendation-print" *ngIf="suggestions && suggestions.length > 0">
+        <h4>Recommandation IA (Choix des Verres)</h4>
+        <div class="ia-grid">
+            <div class="ia-item" *ngFor="let sug of suggestions">
+                <span class="ia-tag">{{ sug.type }}</span>
+                <strong>{{ sug.matiere }} {{ sug.indice }}</strong>
+                <p class="ia-rationale">{{ sug.raison }}</p>
+                <div class="ia-epaisseur" *ngIf="sug.epaisseur">Épaisseur estimée: {{ sug.epaisseur }}</div>
+            </div>
+        </div>
     </div>
 
     <div class="print-footer-sig">
