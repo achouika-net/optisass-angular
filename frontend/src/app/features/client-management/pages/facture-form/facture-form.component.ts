@@ -1,6 +1,6 @@
-import { Component, OnInit, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter, OnChanges, SimpleChanges, ChangeDetectorRef } from '@angular/core';
 import { Observable, of } from 'rxjs';
-import { map, catchError, tap } from 'rxjs/operators';
+import { map, catchError, tap, take } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormArray, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -25,7 +25,6 @@ import { ProductService } from '../../../stock-management/services/product.servi
 import { numberToFrench } from '../../../../utils/number-to-text';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector, UserSelector } from '../../../../core/store/auth/auth.selectors';
-import { take } from 'rxjs';
 import { Employee } from '../../../../shared/interfaces/employee.interface';
 
 @Component({
@@ -97,7 +96,8 @@ export class FactureFormComponent implements OnInit {
         private productService: ProductService,
         private snackBar: MatSnackBar,
         private dialog: MatDialog,
-        private store: Store
+        private store: Store,
+        private cdr: ChangeDetectorRef
     ) {
         // [FIX] Initialize centreId from current center
         this.centreId = this.currentCentre()?.id || null;
@@ -120,20 +120,29 @@ export class FactureFormComponent implements OnInit {
     }
 
     ngOnInit(): void {
+        console.log('🚀 [FactureForm] ngOnInit | id:', this.id, '| factureId (input):', this.factureId, '| embedded:', this.embedded);
+
         // CRITICAL FIX: Check if we're loading an existing invoice FIRST
         // to avoid race condition where default values overwrite loaded data
         const routeId = this.embedded ? this.factureId : this.route.snapshot.paramMap.get('id');
         const isLoadingExisting = routeId && routeId !== 'new';
+        const isCreationMode = routeId === 'new' || (!this.embedded && !routeId);
 
-        // Only set default type/statut if creating NEW invoice
-        if (!isLoadingExisting) {
+        if (isLoadingExisting) {
+            console.log('⏳ [FactureForm] Detected existing ID:', routeId, '. Waiting for loadFacture...');
+        } else if (isCreationMode) {
+            console.log('✨ [FactureForm] Mode: Creation (Definitive)');
+            // Only set default type/statut if creating NEW invoice
             this.form.patchValue({
                 type: 'DEVIS',
                 statut: 'BROUILLON'
-            });
+            }, { emitEvent: false });
+        } else {
+            console.log('💤 [FactureForm] Embedded but no ID yet. Waiting for ngOnChanges...');
         }
 
         if (this.nomenclature && this.embedded) {
+            console.log('📝 [FactureForm] Applying nomenclature (embedded init)');
             this.form.patchValue({ proprietes: { nomenclature: this.nomenclature } });
         }
 
@@ -162,6 +171,7 @@ export class FactureFormComponent implements OnInit {
             this.updateViewMode();
         }
         if (changes['factureId'] && this.factureId && this.factureId !== this.id) {
+            console.log('🔄 [FactureForm] factureId changed (input):', this.factureId, '| Old ID:', this.id);
             // Reload if input ID changes
             this.id = this.factureId;
             if (this.id !== 'new') {
@@ -169,9 +179,11 @@ export class FactureFormComponent implements OnInit {
             }
         }
         if (changes['nomenclature'] && this.nomenclature && this.embedded) {
+            console.log('📝 [FactureForm] nomenclature changed (embedded)');
             this.form.get('proprietes')?.patchValue({ nomenclature: this.nomenclature });
         }
         if (changes['initialLines'] && this.initialLines && (!this.id || this.id === 'new')) {
+            console.log('🛒 [FactureForm] initialLines received (creation mode)');
             // Update lines from new initialLines if we are in creation mode
             // But we should be careful not to overwrite manual edits if possible.
             // For now, if initialLines updates (e.g. equipment changed), we replace.
@@ -211,6 +223,8 @@ export class FactureFormComponent implements OnInit {
 
     handleEmbeddedInit() {
         this.id = this.factureId;
+        console.log('🧩 [FactureForm] handleEmbeddedInit | id:', this.id, '| clientId:', this.clientIdInput);
+
         if (this.clientIdInput) {
             this.form.patchValue({ clientId: this.clientIdInput });
             this.loadClientPoints(this.clientIdInput);
@@ -218,7 +232,9 @@ export class FactureFormComponent implements OnInit {
 
         if (this.id && this.id !== 'new') {
             this.loadFacture(this.id);
-        } else {
+        } else if (this.id === 'new') {
+            // ONLY if explicitly 'new' when embedded
+            console.log('✨ [FactureForm] Embedded: NEW invoice detected');
             if (this.initialLines && this.initialLines.length > 0) {
                 this.lignes.clear();
                 this.initialLines.forEach(l => {
@@ -230,8 +246,9 @@ export class FactureFormComponent implements OnInit {
             } else {
                 this.addLine();
             }
-            // Disable form for embedded new invoices too
             this.updateViewMode();
+        } else {
+            console.log('😴 [FactureForm] Embedded: No facturation ID/Signal yet.');
         }
     }
 
@@ -353,11 +370,12 @@ export class FactureFormComponent implements OnInit {
     }
 
     loadFacture(id: string) {
+        console.log('📥 [FactureForm] Calling loadFacture for ID:', id);
         this.factureService.findOne(id).subscribe({
             next: (facture) => {
-                console.log('📄 [FactureForm] Loaded facture:', facture.numero, '| ID:', facture.id);
+                console.log('✅ [FactureForm] loadFacture SUCCESS | Numero:', facture.numero, '| ID:', facture.id, '| Status:', facture.statut);
                 this.id = facture.id; // CRITICAL FIX: Update internal ID to stop showing 'Nouveau Document'
-                console.log('📋 Nomenclature:', facture.proprietes?.nomenclature);
+                console.log('📋 Nomenclature from DB:', facture.proprietes?.nomenclature);
 
                 this.form.patchValue({
                     numero: facture.numero,
@@ -366,7 +384,7 @@ export class FactureFormComponent implements OnInit {
                     dateEmission: facture.dateEmission,
                     clientId: facture.clientId,
                     proprietes: facture.proprietes
-                });
+                }, { emitEvent: false }); // Use emitEvent: false to prevent redundant calculations
 
                 // [FIX] Preserve centreId from DB to avoid nulling it on next save
                 if (facture.centreId) {
@@ -873,6 +891,37 @@ export class FactureFormComponent implements OnInit {
     }
 
     print() {
-        window.print();
+        // Force change detection
+        this.cdr.detectChanges();
+
+        // Identify the print layout element
+        const printContent = document.querySelector('.facture-form-container');
+        if (!printContent) {
+            window.print();
+            return;
+        }
+
+        // Clone and Isolate (Hierarchy Escape Strategy)
+        const clone = printContent.cloneNode(true) as HTMLElement;
+
+        // Remove the action buttons from the clone to avoid redundant buttons in print if they weren't hidden by CSS
+        const actions = clone.querySelector('.actions');
+        if (actions) actions.remove();
+
+        clone.classList.add('print-isolated');
+
+        document.body.classList.add('is-printing-report');
+        document.body.appendChild(clone);
+
+        // Trigger print with delay
+        setTimeout(() => {
+            window.print();
+
+            // Cleanup
+            document.body.classList.remove('is-printing-report');
+            if (document.body.contains(clone)) {
+                document.body.removeChild(clone);
+            }
+        }, 300);
     }
 }

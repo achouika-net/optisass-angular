@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, ViewChild, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, ViewChild, OnChanges, SimpleChanges, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
@@ -281,51 +281,36 @@ interface PaymentRow {
     }
 
     @media print {
-        /* Hide everything else */
-        .payment-list-container, 
-        .modern-tabs,
-        mat-tab-group,
-        .header-actions,
-        .modern-table-container {
-            display: none !important;
-        }
-
+        /* This component's internal print rules are now secondary to the global is-printing-report logic */
         .print-receipt {
             display: block !important;
-            position: absolute;
-            top: 0;
-            left: 0;
+            visibility: visible !important;
             width: 100%;
-            height: 100%;
-            background: white;
-            padding: 10px; /* Smaller padding for A5 */
+            background: white !important;
+            padding: 0;
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             color: #000;
-        }
-
-        @page {
-            size: A5 landscape; /* Or just A5. Using landscape as it usually fits tables well. */
-            margin: 5mm;
+            font-size: 12px !important;
         }
 
         .receipt-container {
-            width: 100%;
-            max-width: 100%;
-            margin: 0;
-            border: 2px solid #000;
+            width: 190mm; /* A4 width minus margins */
+            margin: 0 auto;
+            border: 1px solid #000;
             padding: 15px;
             box-sizing: border-box;
+            background: white !important;
         }
 
         .company-header {
             text-align: center;
             border-bottom: 2px solid #000;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
         }
         
         .company-header h2 {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             margin: 0 0 5px 0;
             text-transform: uppercase;
@@ -333,128 +318,91 @@ interface PaymentRow {
         
         .receipt-title {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .receipt-title h1 {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: bold;
             margin: 0;
             border: 2px solid #000;
             display: inline-block;
-            padding: 5px 20px;
+            padding: 4px 15px;
         }
 
         .info-grid {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-
-        .divider {
-            border: 0;
-            border-top: 1px solid #000;
-            margin: 15px 0;
-        }
-
-        .current-payment-box {
-            background: #f0f0f0;
-            border: 1px solid #000;
-            padding: 15px;
-            text-align: center;
-            margin-bottom: 20px;
-            -webkit-print-color-adjust: exact;
-        }
-
-        .current-payment-box .label {
-            font-size: 14px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .current-payment-box .amount {
-            font-size: 24px;
-            font-weight: bold;
-            margin-top: 5px;
-        }
-
-        .history-section h3 {
-            font-size: 16px;
-            border-bottom: 1px solid #000;
-            padding-bottom: 5px;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            font-size: 12px;
         }
 
         .history-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         
         .history-table th {
             border-bottom: 1px solid #000;
             text-align: left;
-            padding: 5px;
+            padding: 4px;
+            background: #f8fafc !important;
+            -webkit-print-color-adjust: exact;
         }
 
         .history-table td {
-            border-bottom: 1px dotted #ccc;
-            padding: 5px;
+            border-bottom: 1px solid #eee;
+            padding: 4px;
         }
         
-        .text-right { text-align: right; }
-
         .financial-summary {
             display: flex;
             flex-direction: column;
-            align-items: flex-end; /* Align to right */
-            margin-left: auto; /* Push to right */
-            width: 60%;
+            align-items: flex-end;
+            margin-left: auto;
+            width: 50%;
             border: 1px solid #000;
-            padding: 10px;
-            margin-bottom: 20px;
-            page-break-inside: avoid;
+            padding: 8px;
+            margin-bottom: 15px;
         }
 
         .summary-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 5px;
-            font-size: 14px;
+            width: 100%;
+            margin-bottom: 3px;
+            font-size: 12px;
         }
 
         .summary-row.big-row {
             font-weight: bold;
-            font-size: 16px;
+            font-size: 14px;
             border-top: 1px solid #000;
-            padding-top: 5px;
-            margin-top: 5px;
+            padding-top: 3px;
         }
 
         .signatures {
             width: 100%;
             display: flex;
             justify-content: space-between;
-            margin-top: 40px;
-            page-break-inside: avoid;
+            margin-top: 30px;
         }
 
         .sig-box {
-            width: 200px;
+            width: 180px;
             text-align: center;
             border-top: 1px solid #000;
-            padding-top: 5px;
+            padding-top: 4px;
             font-weight: bold;
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .footer {
             text-align: center;
-            font-size: 10px;
-            margin-top: 30px;
-            font-style: italic;
+            font-size: 9px;
+            margin-top: 20px;
         }
     }
 
@@ -583,6 +531,8 @@ interface PaymentRow {
 export class PaymentListComponent implements OnInit {
     @Input() clientId!: string;
     @Input() ficheId?: string; // Optional: filter payments by fiche
+    @Input() clientName: string = '';
+    @Input() clientCin: string = '';
     @Output() paymentAdded = new EventEmitter<void>();
     dataSource = new MatTableDataSource<PaymentRow>([]);
     impayesDataSource = new MatTableDataSource<Facture>([]);
@@ -592,15 +542,14 @@ export class PaymentListComponent implements OnInit {
 
     printingPayment: PaymentRow | null = null;
     stats = { totalTTC: 0, totalPaye: 0, resteAPayer: 0 };
-    clientName: string = '';
-    clientCin: string = '';
     toDate = new Date(); // Used for header date in global print
 
     constructor(
         private factureService: FactureService,
         private paiementService: PaiementService,
         private dialog: MatDialog,
-        private snackBar: MatSnackBar
+        private snackBar: MatSnackBar,
+        private cdr: ChangeDetectorRef
     ) { }
 
     ngOnInit() {
@@ -691,10 +640,15 @@ export class PaymentListComponent implements OnInit {
         if (this.dataSource.data.length > 0) {
             totalPaye = this.dataSource.data.reduce((acc, p) => acc + (p.montant || 0), 0);
 
-            // Get Client Info from first payment if available
-            const firstP = this.dataSource.data[0];
-            this.clientName = firstP.tiersNom || '';
-            this.clientCin = firstP.tiersCin || '';
+            // Do NOT overwrite @Input values if they were provided by parent
+            if (!this.clientName) {
+                const firstP = this.dataSource.data[0];
+                this.clientName = firstP.tiersNom || '';
+            }
+            if (!this.clientCin) {
+                const firstP = this.dataSource.data[0];
+                this.clientCin = firstP.tiersCin || '';
+            }
         }
 
         factures.forEach(f => {
@@ -711,51 +665,54 @@ export class PaymentListComponent implements OnInit {
     }
 
     printReceipt() {
-        // Create a dummy payment object for the template to bind to
-        // If we have payments, use the first one's client details
+        // 1. Set the data for the template
         const firstP = this.dataSource.data.length > 0 ? this.dataSource.data[0] : null;
 
         this.printingPayment = {
             id: 'RELEVE',
-            date: new Date(), // Use Date object, not string
+            date: new Date(),
             montant: this.stats.totalPaye,
-            // User requested "Total Payé" revision.
-            // If I set this, the "MONTANT REÇU" box will show Total Payé.
-            // If the user wants a STATEMENT, showing "Total Payé" in the big box is acceptable.
             mode: 'GLOBAL',
-            factureNumero: 'VARIOS',
-            factureId: 'GLOBAL', // Dummy ID
-            tiersNom: firstP?.tiersNom || this.clientName || 'Client',
-            tiersCin: firstP?.tiersCin || this.clientCin || '',
-            // ... satisfy other required props if any
+            factureNumero: 'RECU',
+            factureId: 'GLOBAL',
+            tiersNom: this.clientName || firstP?.tiersNom || 'Client',
+            tiersCin: this.clientCin || firstP?.tiersCin || '',
         } as PaymentRow;
 
-        // However, I removed the "current-payment-box" in the A5 template in Step 6096?
-        // Let's check Step 6096 replacement content...
-        // Yes, I REMOVED <div class="current-payment-box"> in 6096.
-        // So `printingPayment.montant` is NOT used in the A5 template anymore?
-        // Wait, let's verify.
-        // Step 6096 template:
-        // <div class="print-receipt" *ngIf="printingPayment">
-        // ...
-        // <div class="info-grid">...</div>
-        // <hr class="divider">
-        // <div class="history-section">...</div>
-        // <div class="financial-summary">...</div>
-        // It does NOT contain the "MONTANT REÇU" box. It shows the history and financial summary.
-        // So `printingPayment` is mainly used as a trigger (*ngIf="printingPayment") and for Client Info.
-
-        // Ensure we explicitly recalculate stats before printing
-        // (Should be up to date but to be safe)
-        // Check if stats are zero, if so, maybe trigger calculation?
-        // But calculateStats requires `Facture[]`.
-        // Let's assume stats are updated when data loads.
-
         this.toDate = new Date();
-        // Use a longer timeout to ensure rendering
+
+        // 2. Force change detection to ensure printingPayment template is rendered
+        this.cdr.detectChanges();
+
+        // 3. Identify the print layout element
+        const printContent = document.querySelector('.print-receipt');
+        if (!printContent) {
+            console.error('❌ [Print] Print receipt element not found even after detectChanges');
+            window.print();
+            return;
+        }
+
+        // 4. Clone and Isolate (Hierarchy Escape Strategy)
+        const clone = printContent.cloneNode(true) as HTMLElement;
+        clone.classList.add('print-isolated');
+
+        document.body.classList.add('is-printing-report');
+        document.body.appendChild(clone);
+
+        // 5. Trigger print with delay
         setTimeout(() => {
             window.print();
-        }, 500);
+
+            // 6. Cleanup
+            document.body.classList.remove('is-printing-report');
+            if (document.body.contains(clone)) {
+                document.body.removeChild(clone);
+            }
+
+            // Reset printing flag
+            this.printingPayment = null;
+            this.cdr.detectChanges();
+        }, 300);
     }
 
     payImpaye(item: Facture) {

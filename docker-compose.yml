@@ -21,9 +21,9 @@ services:
     environment:
       DATABASE_URL: "postgresql://postgres:mypassword@db:5432/optisaas?schema=public"
       CHOKIDAR_USEPOLLING: "true"
-      CHOKIDAR_INTERVAL: "500"
+      CHOKIDAR_INTERVAL: "1000"
       WATCHPACK_POLLING: "true"
-      WEBPACK_WATCH_OPTIONS_POLL: "500"
+      WEBPACK_WATCH_OPTIONS_POLL: "1000"
       NG_CLI_ANALYTICS: "false"
     depends_on:
       - db
@@ -41,9 +41,9 @@ services:
       - "4200:4200"
     environment:
       CHOKIDAR_USEPOLLING: "true"
-      CHOKIDAR_INTERVAL: "500"
+      CHOKIDAR_INTERVAL: "1000"
       WATCHPACK_POLLING: "true"
-      WEBPACK_WATCH_OPTIONS_POLL: "500"
+      WEBPACK_WATCH_OPTIONS_POLL: "1000"
       NG_CLI_ANALYTICS: "false"
     depends_on:
       - backend

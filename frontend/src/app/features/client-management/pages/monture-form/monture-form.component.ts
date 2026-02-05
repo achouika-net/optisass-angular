@@ -717,6 +717,13 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         return 'Client';
     }
 
+    get clientCinValue(): string {
+        if (!this.client) return '';
+        if (isClientProfessionnel(this.client)) return this.client.identifiantFiscal || '';
+        if (isClientParticulier(this.client)) return this.client.numeroPieceIdentite || this.client.cinParent || '';
+        return '';
+    }
+
     private toTitleCase(str: string): string {
         if (!str) return '';
         return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
@@ -1510,9 +1517,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         }
 
         if (this.clientId) {
-            this.router.navigate(['/p/clients', this.clientId]);
+            this.router.navigate(['/p/dashboard']);
         } else {
-            this.router.navigate(['/p/clients']);
+            this.router.navigate(['/p/dashboard']);
         }
     }
 
@@ -3667,8 +3674,33 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     printFicheMontage(): void {
         this.currentPrintType = 'FICHE_MONTAGE';
         this.cdr.detectChanges();
+
+        // Wait for template to render
         setTimeout(() => {
-            window.print();
+            const printContent = document.querySelector('.fiche-monture-print-layout');
+            if (!printContent) {
+                window.print();
+                this.currentPrintType = null;
+                this.cdr.detectChanges();
+                return;
+            }
+
+            // Clone and Isolate (Hierarchy Escape Strategy)
+            const clone = printContent.cloneNode(true) as HTMLElement;
+            clone.classList.add('print-isolated');
+
+            document.body.classList.add('is-printing-report');
+            document.body.appendChild(clone);
+
+            setTimeout(() => {
+                window.print();
+                document.body.classList.remove('is-printing-report');
+                if (document.body.contains(clone)) {
+                    document.body.removeChild(clone);
+                }
+                this.currentPrintType = null;
+                this.cdr.detectChanges();
+            }, 300);
         }, 100);
     }
 
@@ -3678,8 +3710,33 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     printBonCommandeVerre(): void {
         this.currentPrintType = 'BON_COMMANDE';
         this.cdr.detectChanges();
+
+        // Wait for template to render
         setTimeout(() => {
-            window.print();
+            const printContent = document.querySelector('.bon-commande-layout');
+            if (!printContent) {
+                window.print();
+                this.currentPrintType = null;
+                this.cdr.detectChanges();
+                return;
+            }
+
+            // Clone and Isolate (Hierarchy Escape Strategy)
+            const clone = printContent.cloneNode(true) as HTMLElement;
+            clone.classList.add('print-isolated');
+
+            document.body.classList.add('is-printing-report');
+            document.body.appendChild(clone);
+
+            setTimeout(() => {
+                window.print();
+                document.body.classList.remove('is-printing-report');
+                if (document.body.contains(clone)) {
+                    document.body.removeChild(clone);
+                }
+                this.currentPrintType = null;
+                this.cdr.detectChanges();
+            }, 300);
         }, 100);
     }
 

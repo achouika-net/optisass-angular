@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, NgZone } from '@angular/core';
+import { Component, OnInit, signal, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -64,6 +64,7 @@ export class ClientListComponent implements OnInit {
         private clientService: ClientManagementService,
         private snackBar: MatSnackBar,
         private zone: NgZone,
+        private cdr: ChangeDetectorRef,
         private messagingService: MessagingService
     ) {
         this.searchForm = this.fb.group({
@@ -83,6 +84,7 @@ export class ClientListComponent implements OnInit {
     }
 
     loadStats() {
+        console.time('📊 [Stats] Card Loading');
         // TODO: Implement backend endpoint for stats or calculate from list
         // For now, we initialize with 0
         this.stats.set({
@@ -91,18 +93,28 @@ export class ClientListComponent implements OnInit {
             passage: 0,
             inactifs: 0
         });
+        console.timeEnd('📊 [Stats] Card Loading');
     }
 
     loadClients() {
+        console.time('👥 [Clients] Total Load Time');
         this.clientService.getClients().subscribe({
             next: (data) => {
+                console.time('👥 [Clients] Zone Run & Rendering');
                 this.zone.run(() => {
                     this.clients.set(data);
                     this.totalItems = data.length;
                     this.updateStats(data);
+                    this.cdr.markForCheck();
+                    this.cdr.detectChanges();
                 });
+                console.timeEnd('👥 [Clients] Zone Run & Rendering');
+                console.timeEnd('👥 [Clients] Total Load Time');
             },
-            error: (err) => console.error('Error loading clients', err)
+            error: (err) => {
+                console.timeEnd('👥 [Clients] Total Load Time');
+                console.error('Error loading clients', err);
+            }
         });
     }
 

@@ -78,6 +78,7 @@ export class WebSocketsService {
    * @private
    */
   #createWebSocketStream() {
+    /* 
     if (!this.#webSocket$) {
       this.#webSocket$ = webSocket<WebSocketMessage>({
         url: `${WSS_URL}`,
@@ -106,6 +107,8 @@ export class WebSocketsService {
         })
       )
       .subscribe();
+      */
+    console.log('WebSocket désactivé pour stabilisation environment local');
   }
 
   /**
@@ -354,7 +357,7 @@ export class WebSocketsService {
    * @param data
    * @private
    */
-  #parseData<T = unknown>(data: unknown): T {
+  #parseData <T = unknown>(data: unknown): T {
     if (typeof data === 'string') {
       try {
         return JSON.parse(data) as T;

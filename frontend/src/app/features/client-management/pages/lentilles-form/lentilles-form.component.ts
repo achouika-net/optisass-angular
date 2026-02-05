@@ -356,6 +356,13 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
         return 'Client';
     }
 
+    get clientCinValue(): string {
+        if (!this.client) return '';
+        if (isClientProfessionnel(this.client)) return this.client.identifiantFiscal || '';
+        if (isClientParticulier(this.client)) return this.client.numeroPieceIdentite || this.client.cinParent || '';
+        return '';
+    }
+
     // --- Order Tracking Logic ---
     get suiviStatut(): string {
         return this.suiviCommandeGroup.get('statut')?.value;
@@ -459,7 +466,7 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
     nextTab(): void { if (this.activeTab < 5) this.activeTab++; } // Increased max tab
     prevTab(): void { if (this.activeTab > 0) this.activeTab--; }
     goBack(): void {
-        this.router.navigate(['/p/clients', this.clientId]);
+        this.router.navigate(['/p/dashboard']);
     }
 
     // --- Stock Search ---

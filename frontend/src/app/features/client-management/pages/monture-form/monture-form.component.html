@@ -917,6 +917,7 @@
             </div>
             <div class="payment-container" style="padding: 24px;">
                 <app-payment-list [clientId]="clientId || client?.id" [ficheId]="ficheId"
+                    [clientName]="clientDisplayName" [clientCin]="clientCinValue"
                     (paymentAdded)="onPaymentAdded()"></app-payment-list>
             </div>
         </div>
