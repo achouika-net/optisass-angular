@@ -95,12 +95,15 @@ export class BreadcrumbComponent {
       this.#router.navigate(['/p/finance/caisse']);
     } else if (url.startsWith('settings/caisses')) {
       this.#router.navigate(['/p/finance/caisse']);
+    } else if (url.includes('clients/')) {
+      // Specifically for client-related pages, if we want to go home
+      this.#router.navigate(['/p/dashboard']);
     } else {
-      // Use history if available, else fallback to clients
+      // Use history if available, else fallback to dashboard
       if (window.history.length > 1) {
         window.history.back();
       } else {
-        this.#router.navigate(['/p/clients']);
+        this.#router.navigate(['/p/dashboard']);
       }
     }
   }

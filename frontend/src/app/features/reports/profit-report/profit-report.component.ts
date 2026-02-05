@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -43,6 +43,8 @@ Chart.register(...registerables);
     styleUrls: ['./profit-report.component.scss']
 })
 export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
+    @ViewChild('profitChartCanvas') profitChartCanvas!: ElementRef<HTMLCanvasElement>;
+
     selectedPeriod: string = 'thisMonth'; // Default
 
     loading = false;
@@ -97,7 +99,8 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
 
                 setTimeout(() => {
                     this.createChart(res);
-                }, 300);
+                    this.cdref.detectChanges();
+                }, 500);
 
                 // Load evolution as well
                 this.loadEvolutionData(start, end);
@@ -110,8 +113,12 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
         });
     }
 
-    createChart(data: any): void {
-        const ctx = document.getElementById('profitChart') as HTMLCanvasElement;
+    private createChart(data: any): void {
+        if (!this.profitChartCanvas?.nativeElement) {
+            console.error('❌ [Profit] Canvas not found');
+            return;
+        }
+        const ctx = this.profitChartCanvas.nativeElement.getContext('2d');
         if (!ctx) return;
 
         if (this.profitChart) this.profitChart.destroy();

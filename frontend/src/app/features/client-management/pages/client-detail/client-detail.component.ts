@@ -109,6 +109,12 @@ export class ClientDetailComponent implements OnInit {
     return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   }
 
+  get clientCinValue(): string {
+    if (!this.client) return '';
+    if (isClientProfessionnel(this.client)) return this.client.identifiantFiscal || '';
+    if (isClientParticulier(this.client)) return this.client.numeroPieceIdentite || this.client.cinParent || '';
+    return '';
+  }
 
   // Stats Signal
   clientStats = signal({
@@ -562,7 +568,7 @@ export class ClientDetailComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/p/clients']);
+    this.router.navigate(['/p/dashboard']);
   }
 
   // --- Supplier Invoices ---

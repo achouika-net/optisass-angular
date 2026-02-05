@@ -85,7 +85,7 @@ export class MainDashboardComponent implements OnInit, AfterViewInit, OnDestroy 
 
                     setTimeout(() => {
                         this.initCharts(data);
-                    }, 0);
+                    }, 100);
                 });
             },
             error: (err) => {

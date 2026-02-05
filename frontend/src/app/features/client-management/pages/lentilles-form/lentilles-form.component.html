@@ -625,6 +625,7 @@
                 <div class="tab-content" style="padding: 24px;">
                     <!-- Lazy load: only render when tab is active -->
                     <app-payment-list *ngIf="activeTab === 5" [clientId]="clientId" [ficheId]="ficheId"
+                        [clientName]="clientDisplayName" [clientCin]="clientCinValue"
                         (paymentAdded)="onPaymentAdded()"></app-payment-list>
                 </div>
             </mat-tab>

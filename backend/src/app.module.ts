@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common'; // Force Rebuild 6
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { existsSync } from 'fs';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -33,6 +33,7 @@ import { AuthModule } from './features/auth/auth.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AccountingModule } from './features/accounting/accounting.module';
+import { LoggerMiddleware } from './common/middleware/logger.middleware';
 
 @Module({
   imports: [
@@ -73,4 +74,10 @@ import { AccountingModule } from './features/accounting/accounting.module';
   controllers: [],
   providers: [],
 })
-export class AppModule { }
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(LoggerMiddleware)
+      .forRoutes('*');
+  }
+}

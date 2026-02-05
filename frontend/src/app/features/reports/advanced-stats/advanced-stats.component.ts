@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ChangeDetectorRef, NgZone, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -11,7 +11,8 @@ import { MatInputModule } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
 import { Chart, ChartConfiguration, registerables } from 'chart.js';
 import { StatsService, StatsSummary } from '../services/stats.service';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 Chart.register(...registerables);
 
@@ -33,7 +34,14 @@ Chart.register(...registerables);
     templateUrl: './advanced-stats.component.html',
     styleUrls: ['./advanced-stats.component.scss']
 })
-export class AdvancedStatsComponent implements OnInit, AfterViewInit {
+export class AdvancedStatsComponent implements OnInit, AfterViewInit, OnDestroy {
+    @ViewChild('revenueChartCanvas') revenueChartCanvas!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('productChartCanvas') productChartCanvas!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('conversionChartCanvas') conversionChartCanvas!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('stockChartCanvas') stockChartCanvas!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('clientsChartCanvas') clientsChartCanvas!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('paymentsChartCanvas') paymentsChartCanvas!: ElementRef<HTMLCanvasElement>;
+
     loading = false;
     summary: StatsSummary | null = null;
 
@@ -50,7 +58,11 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit {
     private clientsChart: Chart | null = null;
     private paymentsChart: Chart | null = null;
 
-    constructor(private statsService: StatsService) { }
+    constructor(
+        private statsService: StatsService,
+        private cdr: ChangeDetectorRef,
+        private zone: NgZone
+    ) { }
 
     ngOnInit(): void {
         // Set default date range (last 12 months)
@@ -63,44 +75,64 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit {
         // Delay to ensure DOM is fully rendered
         setTimeout(() => {
             this.loadData();
-        }, 100);
+        }, 300);
     }
 
     loadData(): void {
         this.loading = true;
+        this.cdr.detectChanges();
         const start = this.startDate?.toISOString();
         const end = this.endDate?.toISOString();
 
         console.log('📊 [Stats] Loading data with filters:', { period: this.selectedPeriod, start, end });
+        console.time('📊 [Stats] Backend Data Fetch');
 
         forkJoin({
-            summary: this.statsService.getSummary(),
-            revenue: this.statsService.getRevenueEvolution(this.selectedPeriod, start, end),
-            products: this.statsService.getProductDistribution(),
-            conversion: this.statsService.getConversionRate(start, end),
-            stock: this.statsService.getStockByWarehouse(),
-            clients: this.statsService.getTopClients(10, start, end),
-            payments: this.statsService.getPaymentMethods(start, end)
+            summary: this.statsService.getSummary().pipe(catchError(() => of(null))),
+            revenue: this.statsService.getRevenueEvolution(this.selectedPeriod, start, end).pipe(catchError(() => of([]))),
+            products: this.statsService.getProductDistribution().pipe(catchError(() => of([]))),
+            conversion: this.statsService.getConversionRate(start, end).pipe(catchError(() => of({ totalDevis: 0, validatedFactures: 0, paidFactures: 0 }))),
+            stock: this.statsService.getStockByWarehouse().pipe(catchError(() => of([]))),
+            clients: this.statsService.getTopClients(10, start, end).pipe(catchError(() => of([]))),
+            payments: this.statsService.getPaymentMethods(start, end).pipe(catchError(() => of([])))
         }).subscribe({
             next: (data) => {
-                console.log('✅ [Stats] Data loaded successfully:', data);
-                this.summary = data.summary;
-                this.createRevenueChart(data.revenue);
+                this.zone.run(() => {
+                    console.timeEnd('📊 [Stats] Backend Data Fetch');
+                    this.summary = data.summary;
+                    this.loading = false;
+                    this.cdr.detectChanges();
 
-                // Normalisation des types de produits (Monture, monture, MONTURE_OPTIQUE -> Monture)
-                const normalizedProducts = this.normalizeProductData(data.products);
-                this.createProductChart(normalizedProducts);
+                    // MUST wait for *ngIf="!loading" to render the canvas elements
+                    setTimeout(() => {
+                        console.time('📊 [Stats] Chart Rendering (All)');
 
-                this.createConversionChart(data.conversion);
-                this.createStockChart(data.stock);
-                this.createClientsChart(data.clients);
-                this.createPaymentsChart(data.payments);
-                this.loading = false;
+                        console.time('📊 [Stats] Revenue Chart');
+                        this.createRevenueChart(data.revenue);
+                        console.timeEnd('📊 [Stats] Revenue Chart');
+
+                        console.time('📊 [Stats] Product Chart');
+                        const normalizedProducts = this.normalizeProductData(data.products);
+                        this.createProductChart(normalizedProducts);
+                        console.timeEnd('📊 [Stats] Product Chart');
+
+                        console.time('📊 [Stats] Other Charts');
+                        this.createConversionChart(data.conversion);
+                        this.createStockChart(data.stock);
+                        this.createClientsChart(data.clients);
+                        this.createPaymentsChart(data.payments);
+                        console.timeEnd('📊 [Stats] Other Charts');
+
+                        console.timeEnd('📊 [Stats] Chart Rendering (All)');
+                        this.cdr.detectChanges();
+                    }, 100);
+                });
             },
             error: (err) => {
+                console.timeEnd('📊 [Stats] Backend Data Fetch');
                 console.error('❌ [Stats] Error loading stats:', err);
-                alert('Erreur lors du chargement des statistiques: ' + (err.error?.message || err.message));
                 this.loading = false;
+                this.cdr.detectChanges();
             }
         });
     }
@@ -132,7 +164,11 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit {
     }
 
     private createRevenueChart(data: any[]): void {
-        const ctx = document.getElementById('revenueChart') as HTMLCanvasElement;
+        if (!this.revenueChartCanvas?.nativeElement) {
+            console.error('❌ [Stats] Revenue chart canvas not found');
+            return;
+        }
+        const ctx = this.revenueChartCanvas.nativeElement.getContext('2d');
         if (!ctx) return;
 
         if (this.revenueChart) {
@@ -171,7 +207,11 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit {
     }
 
     private createProductChart(data: any[]): void {
-        const ctx = document.getElementById('productChart') as HTMLCanvasElement;
+        if (!this.productChartCanvas?.nativeElement) {
+            console.error('❌ [Stats] Product chart canvas not found');
+            return;
+        }
+        const ctx = this.productChartCanvas.nativeElement.getContext('2d');
         if (!ctx) return;
 
         if (this.productChart) {
@@ -212,7 +252,8 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit {
     }
 
     private createConversionChart(data: any): void {
-        const ctx = document.getElementById('conversionChart') as HTMLCanvasElement;
+        if (!this.conversionChartCanvas?.nativeElement) return;
+        const ctx = this.conversionChartCanvas.nativeElement.getContext('2d');
         if (!ctx) return;
 
         if (this.conversionChart) {
@@ -240,7 +281,8 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit {
     }
 
     private createStockChart(data: any[]): void {
-        const ctx = document.getElementById('stockChart') as HTMLCanvasElement;
+        if (!this.stockChartCanvas?.nativeElement) return;
+        const ctx = this.stockChartCanvas.nativeElement.getContext('2d');
         if (!ctx) return;
 
         if (this.stockChart) {
@@ -269,7 +311,8 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit {
     }
 
     private createClientsChart(data: any[]): void {
-        const ctx = document.getElementById('clientsChart') as HTMLCanvasElement;
+        if (!this.clientsChartCanvas?.nativeElement) return;
+        const ctx = this.clientsChartCanvas.nativeElement.getContext('2d');
         if (!ctx) return;
 
         if (this.clientsChart) {
@@ -297,7 +340,8 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit {
     }
 
     private createPaymentsChart(data: any[]): void {
-        const ctx = document.getElementById('paymentsChart') as HTMLCanvasElement;
+        if (!this.paymentsChartCanvas?.nativeElement) return;
+        const ctx = this.paymentsChartCanvas.nativeElement.getContext('2d');
         if (!ctx) return;
 
         if (this.paymentsChart) {
