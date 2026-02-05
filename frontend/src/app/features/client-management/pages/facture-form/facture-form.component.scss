@@ -478,27 +478,62 @@
 }
 
 @media print {
-    .no-print {
+
+    // Hide ALL application UI elements
+    .no-print,
+    app-header,
+    app-sidebar,
+    mat-toolbar,
+    .mat-toolbar,
+    button,
+    .header,
+    .add-line-btn,
+    .mat-divider,
+    .action-buttons,
+    .back-button,
+    mat-icon[class*="action"],
+    .form-actions,
+    .payment-section button,
+    .mat-mdc-fab,
+    .mat-mdc-mini-fab {
         display: none !important;
     }
 
+    // Hide the blue navigation bar at the top
+    :host ::ng-deep {
+
+        app-header,
+        mat-toolbar,
+        .mat-toolbar,
+        .app-header,
+        .navigation,
+        .sidebar {
+            display: none !important;
+        }
+    }
+
+    // Reset body and container styles for print
+    body,
+    html {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+    }
+
     .facture-form-container {
-        padding: 0;
-        max-width: 100%;
-        margin: 0;
+        padding: 20px !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        background: white !important;
     }
 
     .content-card {
         box-shadow: none !important;
         border: none !important;
         padding: 0 !important;
+        background: white !important;
     }
 
-    .header,
-    .add-line-btn,
-    .mat-divider {
-        display: none !important;
-    }
 
     .print-header {
         display: block !important;
