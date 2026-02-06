@@ -45,6 +45,27 @@ export class MainDashboardComponent implements OnInit, AfterViewInit, OnDestroy 
     revenueData: any[] = [];
     topClients: any[] = [];
 
+    // Filter properties
+    selectedMonth: number = new Date().getMonth();
+    selectedYear: number = new Date().getFullYear();
+
+    months = [
+        { value: 0, label: 'Janvier' },
+        { value: 1, label: 'Février' },
+        { value: 2, label: 'Mars' },
+        { value: 3, label: 'Avril' },
+        { value: 4, label: 'Mai' },
+        { value: 5, label: 'Juin' },
+        { value: 6, label: 'Juillet' },
+        { value: 7, label: 'Août' },
+        { value: 8, label: 'Septembre' },
+        { value: 9, label: 'Octobre' },
+        { value: 10, label: 'Novembre' },
+        { value: 11, label: 'Décembre' }
+    ];
+
+    years: number[] = [];
+
     private charts: Chart[] = [];
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
 
@@ -57,7 +78,15 @@ export class MainDashboardComponent implements OnInit, AfterViewInit, OnDestroy 
     ) { }
 
     ngOnInit(): void {
+        this.initFilterOptions();
         this.loadAllData();
+    }
+
+    private initFilterOptions(): void {
+        const currentYear = new Date().getFullYear();
+        for (let i = 0; i < 4; i++) {
+            this.years.push(currentYear - i);
+        }
     }
 
     ngAfterViewInit(): void {
@@ -66,14 +95,17 @@ export class MainDashboardComponent implements OnInit, AfterViewInit, OnDestroy 
 
     loadAllData(): void {
         this.loading = true;
-        const centerId = this.currentCentre()?.id;
+
+        // Calculate date range for the selected month
+        const startDate = new Date(this.selectedYear, this.selectedMonth, 1).toISOString();
+        const endDate = new Date(this.selectedYear, this.selectedMonth + 1, 0, 23, 59, 59).toISOString();
 
         forkJoin({
-            summary: this.statsService.getSummary().pipe(catchError(() => of(null))),
-            revenue: this.statsService.getRevenueEvolution('monthly').pipe(catchError(() => of([]))),
-            products: this.statsService.getProductDistribution().pipe(catchError(() => of([]))),
-            payments: this.statsService.getPaymentMethods().pipe(catchError(() => of([]))),
-            clients: this.statsService.getTopClients(5).pipe(catchError(() => of([])))
+            summary: this.statsService.getSummary(startDate, endDate).pipe(catchError(() => of(null))),
+            revenue: this.statsService.getRevenueEvolution('daily', startDate, endDate).pipe(catchError(() => of([]))),
+            products: this.statsService.getProductDistribution().pipe(catchError(() => of([]))), // Stock distribution is global
+            payments: this.statsService.getPaymentMethods(startDate, endDate).pipe(catchError(() => of([]))),
+            clients: this.statsService.getTopClients(5, startDate, endDate).pipe(catchError(() => of([])))
         }).subscribe({
             next: (data) => {
                 this.zone.run(() => {
@@ -249,5 +281,9 @@ export class MainDashboardComponent implements OnInit, AfterViewInit, OnDestroy 
 
     ngOnDestroy(): void {
         this.destroyCharts();
+    }
+
+    onFilterChange(): void {
+        this.loadAllData();
     }
 }

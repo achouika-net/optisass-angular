@@ -6,6 +6,26 @@
             <p class="subtitle">Aperçu global des performances de votre centre</p>
         </div>
         <div class="actions-section">
+            <div class="filter-controls">
+                <mat-form-field appearance="outline" class="filter-field">
+                    <mat-label>Mois</mat-label>
+                    <mat-select [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()">
+                        <mat-option *ngFor="let month of months" [value]="month.value">
+                            {{ month.label }}
+                        </mat-option>
+                    </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="filter-field">
+                    <mat-label>Année</mat-label>
+                    <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()">
+                        <mat-option *ngFor="let year of years" [value]="year">
+                            {{ year }}
+                        </mat-option>
+                    </mat-select>
+                </mat-form-field>
+            </div>
+
             <button mat-flat-button color="primary" (click)="loadAllData()" [disabled]="loading">
                 <mat-icon>refresh</mat-icon>
                 Actualiser
