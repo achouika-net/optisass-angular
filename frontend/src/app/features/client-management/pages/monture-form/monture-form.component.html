@@ -1580,8 +1580,7 @@
     </div>
 
     <div class="client-summary">
-        <strong>Client:</strong> {{ clientDisplayName }} |
-        <strong>Type de Verre:</strong> {{ ficheForm.get('verres.type')?.value || '-' }}
+        <strong>Client:</strong> {{ clientDisplayName }}
     </div>
 
     <div class="print-grid">
@@ -1630,15 +1629,15 @@
                 <tbody>
                     <tr>
                         <td>OD</td>
-                        <td>{{ ficheForm.get('montage.od.ecartPupillaire')?.value }} mm</td>
-                        <td>{{ ficheForm.get('montage.od.hauteurPupillaire')?.value }} mm</td>
+                        <td>{{ ficheForm.get('montage.ecartPupillaireOD')?.value }} mm</td>
+                        <td>{{ ficheForm.get('montage.hauteurOD')?.value }} mm</td>
                         <td>{{ (ficheForm.get('montage.diametreVerreOD')?.value ||
                             ficheForm.get('montage.diametreEffectif')?.value?.split('/')?.[0]) || '-' }} mm</td>
                     </tr>
                     <tr>
                         <td>OG</td>
-                        <td>{{ ficheForm.get('montage.og.ecartPupillaire')?.value }} mm</td>
-                        <td>{{ ficheForm.get('montage.og.hauteurPupillaire')?.value }} mm</td>
+                        <td>{{ ficheForm.get('montage.ecartPupillaireOG')?.value }} mm</td>
+                        <td>{{ ficheForm.get('montage.hauteurOG')?.value }} mm</td>
                         <td>{{ (ficheForm.get('montage.diametreVerreOG')?.value ||
                             (ficheForm.get('montage.diametreEffectif')?.value?.includes('/') ?
                             ficheForm.get('montage.diametreEffectif')?.value?.split('/')?.[1] :
@@ -1681,7 +1680,7 @@
         <div class="diameter-specs-print">
             <h4 class="specs-title">Diamètre utile</h4>
             <div class="specs-summary-value">
-                {{ ficheForm.get('montage.diametreEffectif')?.value || '-' }}
+                {{ getDiametreACommander() }}
             </div>
         </div>
     </div>
@@ -1694,7 +1693,7 @@
     <div class="centering-canvas-preview" *ngIf="frameCanvas">
         <h4>Prévisualisation du Montage</h4>
         <div class="canvas-container-print">
-            <img [src]="getFrameCanvasDataUrl()" *ngIf="frameCanvas" class="print-canvas-img">
+            <img [src]="canvasDataUrl" *ngIf="canvasDataUrl" class="print-canvas-img">
         </div>
     </div>
 
@@ -1766,8 +1765,8 @@
                     ') || '-' }}</span>
             </div>
             <div class="spec-row">
-                <span class="label">Diamètre utile:</span>
-                <span class="value">{{ ficheForm.get('montage.diametreEffectif')?.value || '-' }} mm</span>
+                <span class="label">Diamètre utile à commander:</span>
+                <span class="value">{{ getDiametreACommander() }} mm</span>
             </div>
         </div>
 
@@ -1790,8 +1789,7 @@
                     <td>{{ ficheForm.get('ordonnance.od.cylindre')?.value }}</td>
                     <td>{{ ficheForm.get('ordonnance.od.axe')?.value }}</td>
                     <td>{{ ficheForm.get('ordonnance.od.addition')?.value }}</td>
-                    <td>{{ (formEquipementPrincipal?.get('montage.diametreVerreOD')?.value ||
-                        ficheForm.get('montage.diametreEffectif')?.value?.split('/')?.[0]) || '-' }}</td>
+                    <td>{{ getDiametreACommander()?.split('/')?.[0] }}</td>
                 </tr>
                 <tr>
                     <td>OG</td>
@@ -1799,10 +1797,8 @@
                     <td>{{ ficheForm.get('ordonnance.og.cylindre')?.value }}</td>
                     <td>{{ ficheForm.get('ordonnance.og.axe')?.value }}</td>
                     <td>{{ ficheForm.get('ordonnance.og.addition')?.value }}</td>
-                    <td>{{ (formEquipementPrincipal?.get('montage.diametreVerreOG')?.value ||
-                        (ficheForm.get('montage.diametreEffectif')?.value?.includes('/') ?
-                        ficheForm.get('montage.diametreEffectif')?.value?.split('/')?.[1] :
-                        ficheForm.get('montage.diametreEffectif')?.value)) || '-' }}</td>
+                    <td>{{ (getDiametreACommander()?.includes('/') ? getDiametreACommander()?.split('/')?.[1] :
+                        getDiametreACommander()) }}</td>
                 </tr>
             </tbody>
         </table>

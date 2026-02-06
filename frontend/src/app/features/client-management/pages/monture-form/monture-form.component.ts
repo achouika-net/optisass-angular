@@ -111,6 +111,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     activeTab: number = 0;
     loading = false;
     isEditMode = false;
+    currentPrintType: 'FICHE_MONTAGE' | 'FICHE_MONTAGE_V2' | 'BON_COMMANDE' | 'FICHE_PRODUIT' | 'RECU_PAIEMENT' | null = null;
+    canvasDataUrl: string = '';
 
     readonly TypeEquipement = TypeEquipement;
 
@@ -3504,6 +3506,38 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     }
 
     /**
+     * Helper to get specifically the ordering diameter (e.g., 60/60)
+     */
+    getDiametreACommander(): string {
+        const val = this.ficheForm.get('montage.diametreEffectif')?.value;
+        if (!val) return '-';
+
+        const getStd = (d: number) => {
+            const standards = [55, 60, 65, 70, 75, 80, 85];
+            for (const s of standards) {
+                if (s >= d) return s;
+            }
+            return 85;
+        };
+
+        if (typeof val === 'string' && val.includes('/')) {
+            const parts = val.split('/');
+            const od = parseFloat(parts[0]);
+            const og = parseFloat(parts[1]);
+            if (!isNaN(od) && !isNaN(og)) {
+                return `${getStd(od + 2)}/${getStd(og + 2)}`;
+            }
+        }
+
+        const num = parseFloat(val);
+        if (!isNaN(num)) {
+            return `${getStd(num + 2)}`;
+        }
+
+        return '-';
+    }
+
+    /**
      * Draw frame visualization using a static high-fidelity reference background
      * OD (Right eye) is on the LEFT of the sheet (Technical Convention)
      */
@@ -3666,15 +3700,14 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         }
     }
 
-    /**
-     * Print type to toggle specific print layouts
-     */
-    currentPrintType: 'FICHE_MONTAGE' | 'BON_COMMANDE' | null = null;
 
     /**
      * Print Fiche Montage
      */
     printFicheMontage(): void {
+        // Cache canvas data URL before starting the print process to prevent blackout
+        this.canvasDataUrl = this.getFrameCanvasDataUrl();
+
         this.currentPrintType = 'FICHE_MONTAGE';
         this.cdr.detectChanges();
 
