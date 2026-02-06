@@ -7,9 +7,19 @@
         </div>
         <div class="actions-section">
             <div class="filter-controls">
+                <mat-form-field appearance="outline" class="filter-field small">
+                    <mat-label>Jour</mat-label>
+                    <mat-select [(ngModel)]="selectedDay" (selectionChange)="onFilterChange('day')">
+                        <mat-option [value]="null">Tous les jours</mat-option>
+                        <mat-option *ngFor="let day of days" [value]="day" [hidden]="day === null">
+                            {{ day }}
+                        </mat-option>
+                    </mat-select>
+                </mat-form-field>
+
                 <mat-form-field appearance="outline" class="filter-field">
                     <mat-label>Mois</mat-label>
-                    <mat-select [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()">
+                    <mat-select [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange('month')">
                         <mat-option *ngFor="let month of months" [value]="month.value">
                             {{ month.label }}
                         </mat-option>
@@ -18,7 +28,7 @@
 
                 <mat-form-field appearance="outline" class="filter-field">
                     <mat-label>Année</mat-label>
-                    <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()">
+                    <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange('year')">
                         <mat-option *ngFor="let year of years" [value]="year">
                             {{ year }}
                         </mat-option>

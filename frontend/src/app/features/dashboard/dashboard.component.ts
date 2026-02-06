@@ -46,8 +46,11 @@ export class MainDashboardComponent implements OnInit, AfterViewInit, OnDestroy 
     topClients: any[] = [];
 
     // Filter properties
+    selectedDay: number | null = new Date().getDate();
     selectedMonth: number = new Date().getMonth();
     selectedYear: number = new Date().getFullYear();
+
+    days: (number | null)[] = [];
 
     months = [
         { value: 0, label: 'Janvier' },
@@ -79,6 +82,7 @@ export class MainDashboardComponent implements OnInit, AfterViewInit, OnDestroy 
 
     ngOnInit(): void {
         this.initFilterOptions();
+        this.updateDaysArray();
         this.loadAllData();
     }
 
@@ -89,6 +93,19 @@ export class MainDashboardComponent implements OnInit, AfterViewInit, OnDestroy 
         }
     }
 
+    updateDaysArray(): void {
+        const daysInMonth = new Date(this.selectedYear, this.selectedMonth + 1, 0).getDate();
+        this.days = [null]; // null represents "Whole Month"
+        for (let i = 1; i <= daysInMonth; i++) {
+            this.days.push(i);
+        }
+
+        // Adjust selectedDay if it's out of bounds for the new month
+        if (this.selectedDay && this.selectedDay > daysInMonth) {
+            this.selectedDay = daysInMonth;
+        }
+    }
+
     ngAfterViewInit(): void {
         // Charts will be initialized after data load
     }
@@ -96,9 +113,18 @@ export class MainDashboardComponent implements OnInit, AfterViewInit, OnDestroy 
     loadAllData(): void {
         this.loading = true;
 
-        // Calculate date range for the selected month
-        const startDate = new Date(this.selectedYear, this.selectedMonth, 1).toISOString();
-        const endDate = new Date(this.selectedYear, this.selectedMonth + 1, 0, 23, 59, 59).toISOString();
+        let startDate: string;
+        let endDate: string;
+
+        if (this.selectedDay) {
+            // Specific day
+            startDate = new Date(this.selectedYear, this.selectedMonth, this.selectedDay, 0, 0, 0).toISOString();
+            endDate = new Date(this.selectedYear, this.selectedMonth, this.selectedDay, 23, 59, 59).toISOString();
+        } else {
+            // Whole month
+            startDate = new Date(this.selectedYear, this.selectedMonth, 1).toISOString();
+            endDate = new Date(this.selectedYear, this.selectedMonth + 1, 0, 23, 59, 59).toISOString();
+        }
 
         forkJoin({
             summary: this.statsService.getSummary(startDate, endDate).pipe(catchError(() => of(null))),
@@ -283,7 +309,10 @@ export class MainDashboardComponent implements OnInit, AfterViewInit, OnDestroy 
         this.destroyCharts();
     }
 
-    onFilterChange(): void {
+    onFilterChange(type: 'day' | 'month' | 'year'): void {
+        if (type === 'month' || type === 'year') {
+            this.updateDaysArray();
+        }
         this.loadAllData();
     }
 }
