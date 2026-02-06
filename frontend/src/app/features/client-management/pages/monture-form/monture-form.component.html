@@ -1743,29 +1743,29 @@
 
     <div class="order-details">
         <div class="section-title">CARACTÉRISTIQUES DES VERRES</div>
-        <div class="lens-specs" *ngIf="formEquipementPrincipal">
+        <div class="lens-specs">
             <div class="spec-row">
                 <span class="label">Type de Verre:</span>
                 <span class="value">{{ ficheForm.get('verres.type')?.value || '-' }}</span>
             </div>
             <div class="spec-row">
                 <span class="label">Matière:</span>
-                <span class="value">{{ formEquipementPrincipal.get('verres.matiere')?.value ||
-                    ficheForm.get('verres.matiere')?.value || ficheForm.get('verres.matiereOD')?.value }}</span>
+                <span class="value">{{ formEquipementPrincipal?.get('verres.matiere')?.value ||
+                    ficheForm.get('verres.matiere')?.value || ficheForm.get('verres.matiereOD')?.value || '-' }}</span>
             </div>
             <div class="spec-row">
                 <span class="label">Indice:</span>
-                <span class="value">{{ formEquipementPrincipal.get('verres.indice')?.value ||
-                    ficheForm.get('verres.indice')?.value || ficheForm.get('verres.indiceOD')?.value }}</span>
+                <span class="value">{{ formEquipementPrincipal?.get('verres.indice')?.value ||
+                    ficheForm.get('verres.indice')?.value || ficheForm.get('verres.indiceOD')?.value || '-' }}</span>
             </div>
             <div class="spec-row">
                 <span class="label">Traitements:</span>
-                <span class="value">{{ (formEquipementPrincipal.get('verres.traitement')?.value ||
+                <span class="value">{{ (formEquipementPrincipal?.get('verres.traitement')?.value ||
                     ficheForm.get('verres.traitement')?.value || ficheForm.get('verres.traitementOD')?.value)?.join(',
                     ') || '-' }}</span>
             </div>
             <div class="spec-row">
-                <span class="label">Diamètre utile à commander:</span>
+                <span class="label">Diamètre utile:</span>
                 <span class="value">{{ getDiametreACommander() }} mm</span>
             </div>
         </div>
