@@ -8,6 +8,12 @@ export const MENU: MenuItem[] = [
     route: 'dashboard',
   },
   {
+    label: 'Tableau de bord RH',
+    icon: 'analytics',
+    type: 'link',
+    route: 'personnel/dashboard',
+  },
+  {
     label: 'Recherche Avancée',
     icon: 'search',
     type: 'link',
@@ -194,12 +200,6 @@ export const MENU: MenuItem[] = [
         icon: 'percent',
         type: 'subchild',
         route: 'personnel/commissions',
-      },
-      {
-        label: 'Tableau de bord RH',
-        icon: 'analytics',
-        type: 'subchild',
-        route: 'personnel/dashboard',
       },
     ],
   },
