@@ -26,9 +26,12 @@ echo Saving Backend image...
 docker save -o portable_package\images\backend.tar optisaas-backend
 echo Saving Frontend image...
 docker save -o portable_package\images\frontend.tar optisaas-frontend
+echo Saving n8n image...
+docker save -o portable_package\images\n8n.tar n8nio/n8n:alpine
 
-echo [4/4] Copying Control Files...
+echo [4/4] Copying Control Files and n8n Data...
 copy docker-compose.portable.yml portable_package\docker-compose.yml > nul
+if exist "n8n-local\n8n" xcopy /E /I /Y "n8n-local\n8n" "portable_package\n8n-data" > nul
 
 :: Generate Installation Script
 echo @echo off > portable_package\INSTALL_ON_NEW_PC.bat
@@ -36,6 +39,7 @@ echo echo Importing OptiSaaS Docker Images... >> portable_package\INSTALL_ON_NEW
 echo docker load -i images\db.tar >> portable_package\INSTALL_ON_NEW_PC.bat
 echo docker load -i images\backend.tar >> portable_package\INSTALL_ON_NEW_PC.bat
 echo docker load -i images\frontend.tar >> portable_package\INSTALL_ON_NEW_PC.bat
+echo docker load -i images\n8n.tar >> portable_package\INSTALL_ON_NEW_PC.bat
 echo echo Done! You can now start the app with: docker-compose up -d >> portable_package\INSTALL_ON_NEW_PC.bat
 echo pause >> portable_package\INSTALL_ON_NEW_PC.bat
 

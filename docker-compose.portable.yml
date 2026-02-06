@@ -36,5 +36,19 @@ services:
       - backend
     restart: always
 
+  n8n:
+    image: n8nio/n8n:alpine
+    container_name: optisaas-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=motdepasse
+      - EXECUTIONS_PROCESS=main
+    volumes:
+      - ./n8n-data:/home/node/.n8n
+    restart: always
+
 volumes:
   pgdata:
