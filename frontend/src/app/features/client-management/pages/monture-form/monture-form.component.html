@@ -1632,15 +1632,17 @@
                         <td>OD</td>
                         <td>{{ ficheForm.get('montage.od.ecartPupillaire')?.value }} mm</td>
                         <td>{{ ficheForm.get('montage.od.hauteurPupillaire')?.value }} mm</td>
-                        <td>{{ ficheForm.get('montage.diametreVerreOD')?.value ?
-                            ficheForm.get('montage.diametreVerreOD')?.value + ' mm' : '-' }}</td>
+                        <td>{{ (ficheForm.get('montage.diametreVerreOD')?.value ||
+                            ficheForm.get('montage.diametreEffectif')?.value?.split('/')?.[0]) || '-' }} mm</td>
                     </tr>
                     <tr>
                         <td>OG</td>
                         <td>{{ ficheForm.get('montage.og.ecartPupillaire')?.value }} mm</td>
                         <td>{{ ficheForm.get('montage.og.hauteurPupillaire')?.value }} mm</td>
-                        <td>{{ ficheForm.get('montage.diametreVerreOG')?.value ?
-                            ficheForm.get('montage.diametreVerreOG')?.value + ' mm' : '-' }}</td>
+                        <td>{{ (ficheForm.get('montage.diametreVerreOG')?.value ||
+                            (ficheForm.get('montage.diametreEffectif')?.value?.includes('/') ?
+                            ficheForm.get('montage.diametreEffectif')?.value?.split('/')?.[1] :
+                            ficheForm.get('montage.diametreEffectif')?.value)) || '-' }} mm</td>
                     </tr>
                 </tbody>
             </table>
@@ -1679,10 +1681,14 @@
         <div class="diameter-specs-print">
             <h4 class="specs-title">Diamètre utile</h4>
             <div class="specs-summary-value">
-                {{ ficheForm.get('montage.diametreVerreOD')?.value || '-' }} / {{
-                ficheForm.get('montage.diametreVerreOG')?.value || '-' }}
+                {{ ficheForm.get('montage.diametreEffectif')?.value || '-' }}
             </div>
         </div>
+    </div>
+
+    <!-- NEW: Margin of Error Advice Block -->
+    <div class="margin-advice-print" *ngIf="getRecommendedDiameter()">
+        <p>{{ getRecommendedDiameter() }}</p>
     </div>
 
     <div class="centering-canvas-preview" *ngIf="frameCanvas">
@@ -1740,17 +1746,28 @@
         <div class="section-title">CARACTÉRISTIQUES DES VERRES</div>
         <div class="lens-specs" *ngIf="formEquipementPrincipal">
             <div class="spec-row">
+                <span class="label">Type de Verre:</span>
+                <span class="value">{{ ficheForm.get('verres.type')?.value || '-' }}</span>
+            </div>
+            <div class="spec-row">
                 <span class="label">Matière:</span>
-                <span class="value">{{ formEquipementPrincipal.get('verres.matiere')?.value }}</span>
+                <span class="value">{{ formEquipementPrincipal.get('verres.matiere')?.value ||
+                    ficheForm.get('verres.matiere')?.value || ficheForm.get('verres.matiereOD')?.value }}</span>
             </div>
             <div class="spec-row">
                 <span class="label">Indice:</span>
-                <span class="value">{{ formEquipementPrincipal.get('verres.indice')?.value }}</span>
+                <span class="value">{{ formEquipementPrincipal.get('verres.indice')?.value ||
+                    ficheForm.get('verres.indice')?.value || ficheForm.get('verres.indiceOD')?.value }}</span>
             </div>
             <div class="spec-row">
                 <span class="label">Traitements:</span>
-                <span class="value">{{ formEquipementPrincipal.get('verres.traitement')?.value?.join(', ')
-                    }}</span>
+                <span class="value">{{ (formEquipementPrincipal.get('verres.traitement')?.value ||
+                    ficheForm.get('verres.traitement')?.value || ficheForm.get('verres.traitementOD')?.value)?.join(',
+                    ') || '-' }}</span>
+            </div>
+            <div class="spec-row">
+                <span class="label">Diamètre utile:</span>
+                <span class="value">{{ ficheForm.get('montage.diametreEffectif')?.value || '-' }} mm</span>
             </div>
         </div>
 
@@ -1773,7 +1790,8 @@
                     <td>{{ ficheForm.get('ordonnance.od.cylindre')?.value }}</td>
                     <td>{{ ficheForm.get('ordonnance.od.axe')?.value }}</td>
                     <td>{{ ficheForm.get('ordonnance.od.addition')?.value }}</td>
-                    <td>{{ formEquipementPrincipal?.get('montage.diametreVerreOD')?.value }}</td>
+                    <td>{{ (formEquipementPrincipal?.get('montage.diametreVerreOD')?.value ||
+                        ficheForm.get('montage.diametreEffectif')?.value?.split('/')?.[0]) || '-' }}</td>
                 </tr>
                 <tr>
                     <td>OG</td>
@@ -1781,7 +1799,10 @@
                     <td>{{ ficheForm.get('ordonnance.og.cylindre')?.value }}</td>
                     <td>{{ ficheForm.get('ordonnance.og.axe')?.value }}</td>
                     <td>{{ ficheForm.get('ordonnance.og.addition')?.value }}</td>
-                    <td>{{ formEquipementPrincipal?.get('montage.diametreVerreOG')?.value }}</td>
+                    <td>{{ (formEquipementPrincipal?.get('montage.diametreVerreOG')?.value ||
+                        (ficheForm.get('montage.diametreEffectif')?.value?.includes('/') ?
+                        ficheForm.get('montage.diametreEffectif')?.value?.split('/')?.[1] :
+                        ficheForm.get('montage.diametreEffectif')?.value)) || '-' }}</td>
                 </tr>
             </tbody>
         </table>
