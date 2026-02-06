@@ -14,17 +14,16 @@ export const MENU: MenuItem[] = [
     route: 'personnel/dashboard',
   },
   {
-    label: 'Recherche Avancée',
-    icon: 'search',
+    label: 'Trésorerie',
+    icon: 'savings',
     type: 'link',
-    route: 'advanced-search',
+    route: 'finance/dashboard',
   },
   {
     label: 'Statistiques Avancées',
     icon: 'query_stats',
     type: 'link',
     route: 'stats',
-    // roles: [4, 3, 2],
   },
   {
     label: 'Bénéfice Réel',
@@ -39,8 +38,88 @@ export const MENU: MenuItem[] = [
     route: 'online-payments',
   },
   {
+    label: 'Recherche Avancée',
+    icon: 'search',
+    type: 'link',
+    route: 'advanced-search',
+  },
+  {
+    label: 'Gestion Clients',
+    icon: 'people',
+    type: 'sub',
+    route: 'commercial',
+    children: [
+      {
+        label: 'Dossiers Clients',
+        icon: 'edit_note',
+        type: 'subchild',
+        route: 'clients',
+      },
+      {
+        label: 'Promotions',
+        icon: 'loyalty',
+        type: 'subchild',
+        route: 'commercial/promotions',
+      },
+    ],
+  },
+  {
+    label: 'Gestion de Stock',
+    icon: 'inventory_2',
+    type: 'sub',
+    route: 'stock-management',
+    children: [
+      {
+        label: 'Liste des produits',
+        icon: 'inventory_2',
+        type: 'subchild',
+        route: 'stock',
+      },
+      {
+        label: 'Mouvements de Stock',
+        icon: 'swap_vert',
+        type: 'subchild',
+        route: 'stock/entry-v2',
+      },
+      {
+        label: 'Historique de mouvements',
+        icon: 'history',
+        type: 'subchild',
+        route: 'stock/history',
+      },
+      {
+        label: 'Transferts Inter-Centres',
+        icon: 'swap_horiz',
+        type: 'subchild',
+        route: 'stock/transfers',
+      },
+    ],
+  },
+  {
+    label: 'Gestion Dépenses',
+    icon: 'payments',
+    type: 'sub',
+    route: 'gestion-depenses',
+    children: [
+      {
+        label: 'Gestion Dépenses (Factures)',
+        icon: 'description',
+        type: 'subchild',
+        route: 'gestion-depenses/payments',
+        queryParams: { tab: 'FACTURES' }
+      },
+      {
+        label: 'Bon de livraison BL',
+        icon: 'receipt_long',
+        type: 'subchild',
+        route: 'gestion-depenses/payments',
+        queryParams: { tab: 'BL' }
+      }
+    ]
+  },
+  {
     label: 'Finance',
-    icon: 'account_balance_wallet', // ou 'attach_money'
+    icon: 'account_balance_wallet',
     type: 'sub',
     route: 'finance',
     children: [
@@ -49,13 +128,6 @@ export const MENU: MenuItem[] = [
         icon: 'point_of_sale',
         type: 'subchild',
         route: 'finance/caisse',
-      },
-
-      {
-        label: 'Trésorerie',
-        icon: 'savings',
-        type: 'subchild',
-        route: 'finance/dashboard',
       },
       {
         label: 'Contrôle des Ventes',
@@ -86,82 +158,8 @@ export const MENU: MenuItem[] = [
         icon: 'history',
         type: 'subchild',
         route: 'finance/payments',
-      }
-    ]
-  },
-  {
-    label: 'Gestion de Stock',
-    icon: 'inventory_2',
-    type: 'sub',
-    route: 'stock-management', // Keeping route generic or strictly semantic, 'logistics' was arbitrary
-    children: [
-      {
-        label: 'Liste des produits',
-        icon: 'inventory_2',
-        type: 'subchild',
-        route: 'stock',
-      },
-      {
-        label: 'Mouvements de Stock',
-        icon: 'swap_vert',
-        type: 'subchild',
-        route: 'stock/entry-v2',
-      },
-      {
-        label: 'Historique de mouvements',
-        icon: 'history',
-        type: 'subchild',
-        route: 'stock/history',
-      },
-      {
-        label: 'Transferts Inter-Centres',
-        icon: 'swap_horiz',
-        type: 'subchild',
-        route: 'stock/transfers',
-      },
-    ]
-  },
-  {
-    label: 'Gestion Clients',
-    icon: 'people',
-    type: 'sub',
-    route: 'commercial',
-    children: [
-      {
-        label: 'Dossiers Clients',
-        icon: 'edit_note',
-        type: 'subchild',
-        route: 'clients',
-      },
-      {
-        label: 'Promotions',
-        icon: 'loyalty',
-        type: 'subchild',
-        route: 'commercial/promotions',
       },
     ],
-  },
-  {
-    label: 'Gestion Dépenses',
-    icon: 'payments',
-    type: 'sub',
-    route: 'gestion-depenses',
-    children: [
-      {
-        label: 'Gestion Dépenses (Factures)',
-        icon: 'description',
-        type: 'subchild',
-        route: 'gestion-depenses/payments',
-        queryParams: { tab: 'FACTURES' }
-      },
-      {
-        label: 'Bon de livraison BL',
-        icon: 'receipt_long',
-        type: 'subchild',
-        route: 'gestion-depenses/payments',
-        queryParams: { tab: 'BL' }
-      }
-    ]
   },
   {
     label: 'Gestion Fournisseurs',
@@ -204,54 +202,6 @@ export const MENU: MenuItem[] = [
     ],
   },
   {
-    label: 'Historique',
-    icon: 'history',
-    type: 'link',
-    route: 'historique',
-    roles: [4, 3, 2],
-  },
-  {
-    label: 'Agendas',
-    icon: 'event_note',
-    type: 'link',
-    route: 'agenda',
-  },
-  {
-    label: 'Accès',
-    icon: 'vpn_key',
-    type: 'link',
-    route: 'acces',
-    roles: [4, 3],
-  },
-  {
-    label: 'Mails et SMS',
-    icon: 'mail',
-    type: 'sub',
-    children: [
-      {
-        label: 'Templates Mails',
-        icon: 'article',
-        type: 'subchild',
-        route: 'communication/mails/templates',
-        roles: [4, 3],
-      },
-      {
-        label: 'Templates SMS',
-        icon: 'sms',
-        type: 'subchild',
-        route: 'communication/sms/templates',
-        roles: [4, 3],
-      },
-      {
-        label: 'Statistiques SMS',
-        icon: 'bar_chart',
-        type: 'subchild',
-        route: 'communication/sms/statistiques',
-        roles: [4, 3],
-      },
-    ],
-  },
-  {
     label: 'Paramétrage',
     icon: 'settings',
     type: 'sub',
@@ -286,6 +236,54 @@ export const MENU: MenuItem[] = [
         icon: 'settings',
         type: 'subchild',
         route: 'settings/marketing',
+      },
+    ],
+  },
+  {
+    label: 'Agendas',
+    icon: 'event_note',
+    type: 'link',
+    route: 'agenda',
+  },
+  {
+    label: 'Historique',
+    icon: 'history',
+    type: 'link',
+    route: 'historique',
+    roles: [4, 3, 2],
+  },
+  {
+    label: 'Accès',
+    icon: 'vpn_key',
+    type: 'link',
+    route: 'acces',
+    roles: [4, 3],
+  },
+  {
+    label: 'Mails et SMS',
+    icon: 'mail',
+    type: 'sub',
+    children: [
+      {
+        label: 'Templates Mails',
+        icon: 'article',
+        type: 'subchild',
+        route: 'communication/mails/templates',
+        roles: [4, 3],
+      },
+      {
+        label: 'Templates SMS',
+        icon: 'sms',
+        type: 'subchild',
+        route: 'communication/sms/templates',
+        roles: [4, 3],
+      },
+      {
+        label: 'Statistiques SMS',
+        icon: 'bar_chart',
+        type: 'subchild',
+        route: 'communication/sms/statistiques',
+        roles: [4, 3],
       },
     ],
   },
