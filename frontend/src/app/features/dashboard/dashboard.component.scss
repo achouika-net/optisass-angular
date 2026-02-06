@@ -56,6 +56,10 @@
             .filter-field {
                 width: 140px;
 
+                &.small {
+                    width: 100px;
+                }
+
                 ::v-deep .mat-mdc-form-field-wrapper {
                     padding-bottom: 0;
                 }
