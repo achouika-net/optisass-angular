@@ -1647,6 +1647,44 @@
         </div>
     </div>
 
+    <!-- Technical Specs Block -->
+    <div class="specs-grid-print">
+        <div class="glass-specs-print">
+            <h4 class="specs-title">🟣 Types de Verres</h4>
+            <div class="specs-content">
+                <div class="spec-line">
+                    <span class="eye-label">OD:</span> {{ ficheForm.get('verres.matiereOD')?.value ||
+                    ficheForm.get('verres.matiere')?.value || '-' }}
+                    {{ ficheForm.get('verres.indiceOD')?.value || ficheForm.get('verres.indice')?.value || '' }}
+                    ({{ ficheForm.get('verres.marqueOD')?.value || ficheForm.get('verres.marque')?.value || '' }})
+                    <span class="treatment-list"
+                        *ngIf="ficheForm.get('verres.traitementOD')?.value?.length || ficheForm.get('verres.traitement')?.value?.length">
+                        • {{ ficheForm.get('verres.traitementOD')?.value?.join(', ') ||
+                        ficheForm.get('verres.traitement')?.value?.join(', ') }}
+                    </span>
+                </div>
+                <div class="spec-line">
+                    <span class="eye-label">OG:</span> {{ ficheForm.get('verres.matiereOG')?.value ||
+                    ficheForm.get('verres.matiere')?.value || '-' }}
+                    {{ ficheForm.get('verres.indiceOG')?.value || ficheForm.get('verres.indice')?.value || '' }}
+                    ({{ ficheForm.get('verres.marqueOG')?.value || ficheForm.get('verres.marque')?.value || '' }})
+                    <span class="treatment-list"
+                        *ngIf="ficheForm.get('verres.traitementOG')?.value?.length || ficheForm.get('verres.traitement')?.value?.length">
+                        • {{ ficheForm.get('verres.traitementOG')?.value?.join(', ') ||
+                        ficheForm.get('verres.traitement')?.value?.join(', ') }}
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="diameter-specs-print">
+            <h4 class="specs-title">Diamètre utile</h4>
+            <div class="specs-summary-value">
+                {{ ficheForm.get('montage.diametreVerreOD')?.value || '-' }} / {{
+                ficheForm.get('montage.diametreVerreOG')?.value || '-' }}
+            </div>
+        </div>
+    </div>
+
     <div class="centering-canvas-preview" *ngIf="frameCanvas">
         <h4>Prévisualisation du Montage</h4>
         <div class="canvas-container-print">
@@ -1679,12 +1717,6 @@
         </div>
     </div>
 
-    <div class="technical-summary-print"
-        *ngIf="ficheForm.get('montage.diametreVerreOD')?.value || ficheForm.get('montage.diametreVerreOG')?.value">
-        <strong>📦 Résumé Technique:</strong>
-        Diamètre Utile OD: {{ ficheForm.get('montage.diametreVerreOD')?.value || '-' }} mm |
-        Diamètre Utile OG: {{ ficheForm.get('montage.diametreVerreOG')?.value || '-' }} mm
-    </div>
 
     <div class="print-footer-sig">
         <div class="sig">Technicien / Monteur</div>
