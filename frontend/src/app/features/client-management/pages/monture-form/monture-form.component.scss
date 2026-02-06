@@ -1933,6 +1933,53 @@ span[matSuffix] {
         }
     }
 
+    .specs-grid-print {
+        display: grid;
+        grid-template-columns: 1fr 1fr; // Equal width columns as per screenshot
+        gap: 0;
+        margin: 15px 0;
+        border-top: 1.5px solid #000;
+        border-bottom: 1.5px solid #000;
+        padding: 5px 0;
+
+        .glass-specs-print {
+            border-right: 1px solid #ddd; // Subtle vertical divider
+            padding-right: 10px;
+        }
+
+        .diameter-specs-print {
+            padding-left: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .specs-title {
+            margin: 0 0 5px 0;
+            font-size: 13px;
+            text-transform: uppercase;
+            font-weight: 800;
+            color: #000;
+        }
+
+        .specs-content {
+            font-size: 12px;
+            line-height: 1.4;
+
+            .eye-label {
+                font-weight: bold;
+                margin-right: 5px;
+            }
+        }
+
+        .specs-summary-value {
+            font-size: 24px;
+            font-weight: 800;
+            text-align: center;
+            padding: 5px;
+        }
+    }
+
     .ia-recommendation-print {
         margin-top: 15px;
         border-top: 1px dashed #ccc;
@@ -1941,7 +1988,7 @@ span[matSuffix] {
         h4 {
             margin: 0 0 5px 0;
             font-size: 14px;
-            color: #333;
+            color: #000;
         }
 
         .ia-grid {
@@ -1951,30 +1998,34 @@ span[matSuffix] {
         }
 
         .ia-item {
-            background: #f9f9f9;
+            background: #fff; // Plain background
+            border: 1px solid #ddd;
             padding: 8px;
-            border-radius: 4px;
+            border-radius: 0; // Formal
             font-size: 11px;
+            color: #000;
 
             .ia-tag {
-                background: #e3f2fd;
-                color: #1976d2;
-                padding: 2px 6px;
-                border-radius: 10px;
+                background: none;
+                color: #000;
+                padding: 0;
+                border-radius: 0;
                 font-weight: bold;
+                border: 1px solid #000;
+                padding: 1px 4px;
                 margin-right: 5px;
                 font-size: 10px;
             }
 
             .ia-rationale {
                 margin: 4px 0;
-                color: #666;
+                color: #333;
                 font-style: italic;
             }
 
             .ia-epaisseur {
                 font-weight: 600;
-                color: #2e7d32;
+                color: #000;
             }
         }
     }
