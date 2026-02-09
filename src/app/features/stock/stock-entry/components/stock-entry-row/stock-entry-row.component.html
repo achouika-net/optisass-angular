@@ -83,7 +83,7 @@
     <!-- Modèle (filtré par marque) -->
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'stock.entry.model' | translate }}</mat-label>
-      <mat-select [formField]="rowFields().modelId" [disabled]="!brandId()">
+      <mat-select [formField]="rowFields().modelId">
         @for (model of filteredModels(); track model.id) {
           <mat-option [value]="model.id">{{ model.label }}</mat-option>
         }

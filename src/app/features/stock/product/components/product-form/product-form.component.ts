@@ -8,7 +8,7 @@ import {
   untracked,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { Field, form, FormField, max, required } from '@angular/forms/signals';
+import { Field, form, FormField, max, required, disabled } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -85,6 +85,9 @@ export class ProductFormComponent {
     required(fieldPath.supplierIds);
     required(fieldPath.purchasePriceExclTax);
     max(fieldPath.tvaRate, 1);
+
+    // Disable productType field in edit mode
+    disabled(fieldPath.productType, () => this.isEditMode());
   });
 
   readonly productTypes = this.#resourceStore.productTypes;
@@ -127,7 +130,6 @@ export class ProductFormComponent {
   readonly selectedPricingMode = computed(() => this.form.pricingMode().value() as PricingMode);
 
   readonly isEditMode = this.#productStore.isEditMode;
-  readonly isCreateMode = computed(() => !this.isEditMode());
 
   readonly showFrameFields = computed(() => {
     const type = this.selectedProductType();
@@ -215,9 +217,8 @@ export class ProductFormComponent {
     // Populates the form with product data in edit mode only
     effect(() => {
       const productData = this.#product();
-      const isCreateMode = this.isCreateMode();
       untracked(() => {
-        if (productData && !isCreateMode) {
+        if (productData && this.isEditMode()) {
           this.#formModel.set(toProductForm(productData));
         }
       });
@@ -227,7 +228,7 @@ export class ProductFormComponent {
     effect(() => {
       this.form.productType().value();
       untracked(() => {
-        if (this.isCreateMode()) {
+        if (!this.isEditMode()) {
           this.#resetTypeSpecificFields();
         }
       });
