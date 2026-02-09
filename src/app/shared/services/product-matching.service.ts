@@ -38,6 +38,115 @@ interface MatchAttempt {
 }
 
 /**
+ * Builds O(1) lookup cache for brands.
+ * Indexes by normalized code, label, aliases, and manufacturer codes.
+ * @returns Cache with Map for exact lookups
+ */
+const buildBrandCache = (brands: IBrand[]): { exactMap: Map<string, BrandCacheEntry> } => {
+  const exactMap = new Map<string, BrandCacheEntry>();
+
+  for (const brand of brands) {
+    const entry100: BrandCacheEntry = { brandId: brand.id, brand, score: 100 };
+    const entry98: BrandCacheEntry = { brandId: brand.id, brand, score: 98 };
+    const entry95: BrandCacheEntry = { brandId: brand.id, brand, score: 95 };
+    const entry90: BrandCacheEntry = { brandId: brand.id, brand, score: 90 };
+
+    const normalizedCode = normalizeBrandName(brand.code);
+    if (normalizedCode && !exactMap.has(normalizedCode)) {
+      exactMap.set(normalizedCode, entry100);
+    }
+
+    const normalizedLabel = normalizeBrandName(brand.label);
+    if (normalizedLabel && !exactMap.has(normalizedLabel)) {
+      exactMap.set(normalizedLabel, entry98);
+    }
+
+    for (const alias of brand.aliases) {
+      const normalizedAlias = normalizeBrandName(alias);
+      if (normalizedAlias && !exactMap.has(normalizedAlias)) {
+        exactMap.set(normalizedAlias, entry95);
+      }
+    }
+
+    for (const mfgCode of brand.manufacturerCodes) {
+      const normalizedMfg = normalizeBrandName(mfgCode);
+      if (normalizedMfg && !exactMap.has(normalizedMfg)) {
+        exactMap.set(normalizedMfg, entry90);
+      }
+    }
+  }
+
+  return { exactMap };
+};
+
+/**
+ * Builds O(1) lookup cache for models, grouped by brand.
+ * Indexes by brandId:normalizedKey for exact lookups.
+ * @returns Cache with Maps for exact lookups and models by brand
+ */
+const buildModelCache = (
+  models: IModel[],
+): {
+  exactMap: Map<string, ModelCacheEntry>;
+  modelsByBrand: Map<string, readonly IModel[]>;
+} => {
+  const exactMap = new Map<string, ModelCacheEntry>();
+  const modelsByBrand = new Map<string, IModel[]>();
+
+  for (const model of models) {
+    const brandId = model.brandId;
+
+    if (!modelsByBrand.has(brandId)) {
+      modelsByBrand.set(brandId, []);
+    }
+    modelsByBrand.get(brandId)!.push(model);
+
+    const entry100: ModelCacheEntry = { modelId: model.id, model, score: 100 };
+    const entry98: ModelCacheEntry = { modelId: model.id, model, score: 98 };
+    const entry95: ModelCacheEntry = { modelId: model.id, model, score: 95 };
+    const entry92: ModelCacheEntry = { modelId: model.id, model, score: 92 };
+
+    const normalizedCode = normalizeModelName(model.code);
+    if (normalizedCode) {
+      const keyCode = `${brandId}:${normalizedCode}`;
+      if (!exactMap.has(keyCode)) {
+        exactMap.set(keyCode, entry100);
+      }
+    }
+
+    const normalizedLabel = normalizeModelName(model.label);
+    if (normalizedLabel) {
+      const keyLabel = `${brandId}:${normalizedLabel}`;
+      if (!exactMap.has(keyLabel)) {
+        exactMap.set(keyLabel, entry98);
+      }
+    }
+
+    for (const alias of model.aliases) {
+      const normalizedAlias = normalizeModelName(alias);
+      if (normalizedAlias) {
+        const keyAlias = `${brandId}:${normalizedAlias}`;
+        if (!exactMap.has(keyAlias)) {
+          exactMap.set(keyAlias, entry95);
+        }
+      }
+    }
+
+    if (model.manufacturerCode) {
+      const normalizedMfg = normalizeModelName(model.manufacturerCode);
+      if (normalizedMfg) {
+        const keyMfg = `${brandId}:${normalizedMfg}`;
+        if (!exactMap.has(keyMfg)) {
+          exactMap.set(keyMfg, entry92);
+        }
+      }
+    }
+  }
+
+  return { exactMap, modelsByBrand };
+};
+
+/**
  * Service for matching OCR-extracted product information against the database.
  * Combines pure functions from the lib with access to application data.
  * Uses computed caches for O(1) brand/model lookups.
@@ -47,9 +156,9 @@ export class ProductMatchingService {
   readonly #resourceStore = inject(ResourceStore);
   readonly #productService = inject(ProductService);
 
-  readonly #brandCache = computed(() => this.#buildBrandCache());
+  readonly #brandCache = computed(() => buildBrandCache(this.#resourceStore.brands()));
 
-  readonly #modelCache = computed(() => this.#buildModelCache());
+  readonly #modelCache = computed(() => buildModelCache(this.#resourceStore.models()));
 
   /**
    * Matches a product from OCR data against the database.
@@ -353,114 +462,5 @@ export class ProductMatchingService {
         map((result) => (result.data.length > 0 ? result.data[0] : null)),
         catchError(() => of(null)),
       );
-  }
-
-  /**
-   * Builds O(1) lookup cache for brands.
-   * Indexes by normalized code, label, aliases, and manufacturer codes.
-   * @returns Cache with Map for exact lookups
-   */
-  #buildBrandCache(): { exactMap: Map<string, BrandCacheEntry> } {
-    const brands = this.#resourceStore.brands();
-    const exactMap = new Map<string, BrandCacheEntry>();
-
-    for (const brand of brands) {
-      const entry100: BrandCacheEntry = { brandId: brand.id, brand, score: 100 };
-      const entry98: BrandCacheEntry = { brandId: brand.id, brand, score: 98 };
-      const entry95: BrandCacheEntry = { brandId: brand.id, brand, score: 95 };
-      const entry90: BrandCacheEntry = { brandId: brand.id, brand, score: 90 };
-
-      const normalizedCode = normalizeBrandName(brand.code);
-      if (normalizedCode && !exactMap.has(normalizedCode)) {
-        exactMap.set(normalizedCode, entry100);
-      }
-
-      const normalizedLabel = normalizeBrandName(brand.label);
-      if (normalizedLabel && !exactMap.has(normalizedLabel)) {
-        exactMap.set(normalizedLabel, entry98);
-      }
-
-      for (const alias of brand.aliases) {
-        const normalizedAlias = normalizeBrandName(alias);
-        if (normalizedAlias && !exactMap.has(normalizedAlias)) {
-          exactMap.set(normalizedAlias, entry95);
-        }
-      }
-
-      for (const mfgCode of brand.manufacturerCodes) {
-        const normalizedMfg = normalizeBrandName(mfgCode);
-        if (normalizedMfg && !exactMap.has(normalizedMfg)) {
-          exactMap.set(normalizedMfg, entry90);
-        }
-      }
-    }
-
-    return { exactMap };
-  }
-
-  /**
-   * Builds O(1) lookup cache for models, grouped by brand.
-   * Indexes by brandId:normalizedKey for exact lookups.
-   * @returns Cache with Maps for exact lookups and models by brand
-   */
-  #buildModelCache(): {
-    exactMap: Map<string, ModelCacheEntry>;
-    modelsByBrand: Map<string, readonly IModel[]>;
-  } {
-    const models = this.#resourceStore.models();
-    const exactMap = new Map<string, ModelCacheEntry>();
-    const modelsByBrand = new Map<string, IModel[]>();
-
-    for (const model of models) {
-      const brandId = model.brandId;
-
-      if (!modelsByBrand.has(brandId)) {
-        modelsByBrand.set(brandId, []);
-      }
-      modelsByBrand.get(brandId)!.push(model);
-
-      const entry100: ModelCacheEntry = { modelId: model.id, model, score: 100 };
-      const entry98: ModelCacheEntry = { modelId: model.id, model, score: 98 };
-      const entry95: ModelCacheEntry = { modelId: model.id, model, score: 95 };
-      const entry92: ModelCacheEntry = { modelId: model.id, model, score: 92 };
-
-      const normalizedCode = normalizeModelName(model.code);
-      if (normalizedCode) {
-        const keyCode = `${brandId}:${normalizedCode}`;
-        if (!exactMap.has(keyCode)) {
-          exactMap.set(keyCode, entry100);
-        }
-      }
-
-      const normalizedLabel = normalizeModelName(model.label);
-      if (normalizedLabel) {
-        const keyLabel = `${brandId}:${normalizedLabel}`;
-        if (!exactMap.has(keyLabel)) {
-          exactMap.set(keyLabel, entry98);
-        }
-      }
-
-      for (const alias of model.aliases) {
-        const normalizedAlias = normalizeModelName(alias);
-        if (normalizedAlias) {
-          const keyAlias = `${brandId}:${normalizedAlias}`;
-          if (!exactMap.has(keyAlias)) {
-            exactMap.set(keyAlias, entry95);
-          }
-        }
-      }
-
-      if (model.manufacturerCode) {
-        const normalizedMfg = normalizeModelName(model.manufacturerCode);
-        if (normalizedMfg) {
-          const keyMfg = `${brandId}:${normalizedMfg}`;
-          if (!exactMap.has(keyMfg)) {
-            exactMap.set(keyMfg, entry92);
-          }
-        }
-      }
-    }
-
-    return { exactMap, modelsByBrand };
   }
 }

@@ -22,7 +22,7 @@
     <ul class="text-sm text-amber-700 space-y-1">
       @for (product of data.conflictingProducts; track product.rowId) {
         <li class="flex items-start gap-2">
-          <mat-icon class="text-base !w-4 !h-4 mt-0.5">inventory_2</mat-icon>
+          <mat-icon class="text-base size-4 mt-0.5">inventory_2</mat-icon>
           <span>
             {{ product.designation || ('stock.entry.unnamed' | translate) }}
             <span class="text-amber-600">

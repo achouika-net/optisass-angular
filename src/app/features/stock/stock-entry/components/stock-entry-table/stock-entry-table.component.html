@@ -1,6 +1,6 @@
 @if (products().length === 0) {
-  <div class="flex flex-col items-center justify-center py-12 text-gray-500">
-    <mat-icon class="text-6xl mb-4">inventory_2</mat-icon>
+  <div class="size-full text-center py-12 text-on-surface-variant">
+    <mat-icon class="scale-150">inventory_2</mat-icon>
     <p>{{ 'stock.entry.noProducts' | translate }}</p>
   </div>
 } @else {
@@ -215,8 +215,8 @@
             {{ 'stock.entry.splitQuantity' | translate }}
           </button>
           <mat-divider />
-          <button mat-menu-item class="text-red-600" (click)="deleteClick.emit(row._rowId)">
-            <mat-icon class="text-red-600">delete</mat-icon>
+          <button mat-menu-item class="text-error" (click)="deleteClick.emit(row._rowId)">
+            <mat-icon class="text-error">delete</mat-icon>
             {{ 'commun.delete' | translate }}
           </button>
         </mat-menu>
@@ -229,7 +229,7 @@
         mat-cell
         *matCellDef="let row"
         [attr.colspan]="displayedColumns.length"
-        class="!p-0 !border-0"
+        class="p-0! border-0!"
       >
         @if (!isComplete(row._rowId) && !row._isExpanded) {
           <div class="row-error-message">

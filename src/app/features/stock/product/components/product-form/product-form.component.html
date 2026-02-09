@@ -1,6 +1,6 @@
 <form (submit)="$event.preventDefault(); submit()">
   <!-- Create mode: Stepper -->
-  @if (isCreateMode()) {
+  @if (!isEditMode()) {
     <mat-stepper linear [selectedIndex]="currentStep()" (selectionChange)="setStep($event)">
       <!-- Step 1: Identification -->
       <mat-step [completed]="isStep1Valid()">
@@ -148,7 +148,7 @@
     <!-- Product type -->
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'stock.form.productType' | translate }}</mat-label>
-      <mat-select [formField]="form.productType" [disabled]="isEditMode()">
+      <mat-select [formField]="form.productType">
         @for (type of productTypes(); track type.code) {
           <mat-option [value]="type.code">{{ type.label | translate }}</mat-option>
         }
@@ -648,7 +648,7 @@
 <!-- Template: Pricing fields -->
 <ng-template #pricingFields>
   <div class="form-grid">
-    @if (isCreateMode()) {
+    @if (!isEditMode()) {
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.purchasePriceExclTax' | translate }}</mat-label>
         <input matInput type="number" step="0.01" [field]="form.purchasePriceExclTax" />
