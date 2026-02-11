@@ -34,6 +34,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AccountingModule } from './features/accounting/accounting.module';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
+import { ImportsModule } from './features/imports/imports.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { LoggerMiddleware } from './common/middleware/logger.middleware';
     PersonnelModule,
     AuthModule,
     AccountingModule,
+    ImportsModule,
     ServeStaticModule.forRoot({
       rootPath: existsSync('/app/uploads')
         ? '/app/uploads'

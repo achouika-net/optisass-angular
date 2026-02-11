@@ -10,7 +10,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 const noExtractTypes = ['blob', 'arraybuffer'];
-const noExtractUrl: string[] = [];
+const noExtractUrl: string[] = ['/imports/upload']; // Don't extract data from import upload response
 const allowUrl = (url: string): boolean => {
   return !noExtractUrl.some((blockedUrl) => url.includes(blockedUrl));
 };

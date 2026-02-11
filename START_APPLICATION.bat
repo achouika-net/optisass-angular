@@ -28,6 +28,12 @@ if not exist "frontend\node_modules" (
     exit /b
 )
 
+echo [INFO] Synchronizing Database...
+cd backend
+call npx prisma db push --accept-data-loss
+call npx prisma generate
+cd ..
+
 echo [INFO] Starting Backend Server (NestJS)...
 start "OptiSaas Backend" cmd /k "cd backend && npm run start:dev"
 

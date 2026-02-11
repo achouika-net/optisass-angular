@@ -123,8 +123,8 @@ export class FactureFormComponent implements OnInit {
         console.log('🚀 [FactureForm] ngOnInit | id:', this.id, '| factureId (input):', this.factureId, '| embedded:', this.embedded);
 
         // CRITICAL FIX: Check if we're loading an existing invoice FIRST
-        // to avoid race condition where default values overwrite loaded data
-        const routeId = this.embedded ? this.factureId : this.route.snapshot.paramMap.get('id');
+        // To avoid race condition where default values overwrite loaded data
+        const routeId = this.embedded ? (this.factureId || 'new') : this.route.snapshot.paramMap.get('id');
         const isLoadingExisting = routeId && routeId !== 'new';
         const isCreationMode = routeId === 'new' || (!this.embedded && !routeId);
 
@@ -210,6 +210,15 @@ export class FactureFormComponent implements OnInit {
             this.form.enable();
             this.form.get('numero')?.disable();
             this.form.get('proprietes.pointsUtilises')?.enable();
+        }
+    }
+
+    goBack(): void {
+        const clientId = this.form.get('clientId')?.value || this.clientIdInput || (this.client ? this.client.id : null);
+        if (clientId) {
+            this.router.navigate(['/p/clients', clientId]);
+        } else {
+            this.router.navigate(['/p/clients']);
         }
     }
 
@@ -531,15 +540,25 @@ export class FactureFormComponent implements OnInit {
             catchError(err => {
                 if (err.status === 409) {
                     console.log('⚠️ [FactureForm] Race condition: Invoice already exists (409). Treating as success.');
-                    // Don't show error snackbar for 409
-                    // We re-throw so the parent (MontureForm) can handle it (we'll fix parent next)
-                    // OR we could recover here, but the parent expects a Returned Invoice object.
-                    // Ideally, we shouldn't fail.
                     throw err;
                 }
                 console.error('Erreur sauvegarde facture:', err);
-                const message = err.error?.message || 'Erreur lors de l\'enregistrement';
-                this.snackBar.open(message, 'Fermer', { duration: 5000 });
+
+                let message = 'Erreur lors de l\'enregistrement';
+                // [FIX] Format class-validator errors ([object Object])
+                if (err.error && Array.isArray(err.error.message)) {
+                    const details = err.error.message.map((e: any) => {
+                        if (e.constraints) {
+                            return Object.values(e.constraints).join(', ');
+                        }
+                        return typeof e === 'string' ? e : JSON.stringify(e);
+                    }).join(' | ');
+                    message = `Erreur de validation: ${details}`;
+                } else if (err.error?.message) {
+                    message = err.error.message;
+                }
+
+                this.snackBar.open(message, 'Fermer', { duration: 7000 });
                 throw err;
             })
         );

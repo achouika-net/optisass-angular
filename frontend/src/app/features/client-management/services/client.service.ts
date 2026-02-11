@@ -18,13 +18,11 @@ export class ClientManagementService {
      * Backend uses 'civilite', frontend uses 'titre'
      */
     private mapBackendResponse(client: any): Client {
-        if (client && client.civilite) {
-            return {
-                ...client,
-                titre: client.civilite
-            };
+        const mapped = client && client.civilite ? { ...client, titre: client.civilite } : { ...client };
+        if (mapped.typeClient) {
+            mapped.typeClient = mapped.typeClient.toLowerCase();
         }
-        return client;
+        return mapped;
     }
 
     /**
@@ -74,8 +72,8 @@ export class ClientManagementService {
      * Mettre à jour un client existant
      */
     updateClient(id: string, clientData: Partial<Client>): Observable<Client> {
-        if (clientData.typeClient === TypeClient.PARTICULIER && 'cin' in clientData) {
-            return this.verifyCinUnique((clientData as any).cin!, id).pipe(
+        if (clientData.typeClient === TypeClient.PARTICULIER && 'numeroPieceIdentite' in clientData) {
+            return this.verifyCinUnique((clientData as any).numeroPieceIdentite!, id).pipe(
                 switchMap(isUnique => {
                     if (!isUnique) {
                         return throwError(() => new Error('Un client avec ce CIN existe déjà'));
@@ -114,58 +112,30 @@ export class ClientManagementService {
 
     /**
      * Rechercher des clients selon des critères
-     * Note: Sera remplacé par des Query Params backend plus tard
+     * Utilise le backend pour filtrer directement dans la base de données
      */
     searchClients(filters: {
         typeClient?: TypeClient;
+        statut?: StatutClient;
         nom?: string;
+        prenom?: string;
         telephone?: string;
         groupeFamille?: string;
         cin?: string;
     }): Observable<Client[]> {
-        return this.getClients().pipe(
-            map(clients => {
-                let results = [...clients];
+        // Construire les paramètres de requête
+        let params: any = {};
 
-                if (filters.typeClient) {
-                    results = results.filter(c => c.typeClient === filters.typeClient);
-                }
+        if (filters.typeClient) params.typeClient = filters.typeClient;
+        if (filters.statut) params.statut = filters.statut;
+        if (filters.nom) params.nom = filters.nom;
+        if (filters.prenom) params.prenom = filters.prenom;
+        if (filters.telephone) params.telephone = filters.telephone;
+        if (filters.cin) params.cin = filters.cin;
+        if (filters.groupeFamille) params.groupeFamille = filters.groupeFamille;
 
-                if (filters.nom) {
-                    results = results.filter(c => {
-                        if (c.typeClient === TypeClient.PARTICULIER && 'nom' in c) {
-                            return c.nom?.toLowerCase().includes(filters.nom!.toLowerCase()) ?? false;
-                        }
-                        if (c.typeClient === TypeClient.PROFESSIONNEL && 'raisonSociale' in c) {
-                            return c.raisonSociale?.toLowerCase().includes(filters.nom!.toLowerCase()) ?? false;
-                        }
-                        return false;
-                    });
-                }
-
-                if (filters.telephone) {
-                    results = results.filter(c =>
-                        c.telephone?.includes(filters.telephone!)
-                    );
-                }
-
-                if (filters.groupeFamille) {
-                    results = results.filter(c =>
-                        c.typeClient === TypeClient.PARTICULIER &&
-                        'groupeFamille' in c &&
-                        c.groupeFamille?.nomFamille?.toLowerCase().includes(filters.groupeFamille!.toLowerCase())
-                    );
-                }
-
-                if (filters.cin) {
-                    results = results.filter(c =>
-                        c.typeClient === TypeClient.PARTICULIER &&
-                        'numeroPieceIdentite' in c &&
-                        c.numeroPieceIdentite?.toLowerCase().includes(filters.cin!.toLowerCase())
-                    );
-                }
-                return results;
-            })
+        return this.http.get<any[]>(`${this.apiUrl}/search`, { params }).pipe(
+            map(clients => clients.map(c => this.mapBackendResponse(c)))
         );
     }
 }

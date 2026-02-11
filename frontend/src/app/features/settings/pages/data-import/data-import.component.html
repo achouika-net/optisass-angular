@@ -1,0 +1,186 @@
+<div class="container mx-auto p-4">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Import de Données</h1>
+        <button mat-stroked-button color="primary" (click)="reset()" *ngIf="importResult">
+            <mat-icon>refresh</mat-icon> Nouvel Import
+        </button>
+    </div>
+
+    <mat-card>
+        <mat-card-content>
+            <mat-stepper [linear]="true" #stepper>
+                <!-- Step 1: Configuration & Upload -->
+                <mat-step [stepControl]="importForm" label="Configuration">
+                    <form [formGroup]="importForm" class="flex flex-col gap-4 mt-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <mat-form-field appearance="outline">
+                                <mat-label>Type de données</mat-label>
+                                <mat-select formControlName="type">
+                                    <mat-option value="clients">Clients</mat-option>
+                                    <mat-option value="products">Produits (Stock)</mat-option>
+                                    <mat-option value="fiches">Fiches médicales (Lunettes)</mat-option>
+                                    <mat-option value="fiches_lentilles">Fiches médicales (Lentilles)</mat-option>
+                                    <mat-option value="fiches_produits">Fiches (Accessoires / Divers)</mat-option>
+                                    <mat-option value="fiches_unifiees">Fiches médicales (Mixte: Lunettes &
+                                        Lentilles)</mat-option>
+                                    <mat-option value="fournisseurs">Fournisseurs</mat-option>
+                                    <mat-option value="factures_fournisseurs">Factures Fournisseurs</mat-option>
+                                    <mat-option value="paiements_fournisseurs">Paiements Fournisseurs</mat-option>
+                                    <mat-option value="factures_ventes">Factures de Ventes</mat-option>
+                                    <mat-option value="paiements_clients">Paiements Clients</mat-option>
+                                    <mat-option value="depenses">Dépenses (Charges)</mat-option>
+                                </mat-select>
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline" *ngIf="importForm.get('type')?.value === 'products'">
+                                <mat-label>Entrepôt de destination</mat-label>
+                                <mat-select formControlName="warehouseId">
+                                    <mat-option *ngFor="let w of warehouses" [value]="w.id">
+                                        {{w.nom}} ({{w.centre?.nom}})
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center"
+                            [class.bg-gray-50]="!selectedFile">
+                            <input type="file" #fileInput (change)="onFileSelected($event)" accept=".csv, .xlsx, .xls"
+                                class="hidden">
+
+                            <div *ngIf="!selectedFile">
+                                <mat-icon class="text-4xl text-gray-400">cloud_upload</mat-icon>
+                                <p class="mt-2 text-gray-600">Glissez un fichier CSV/Excel ici ou cliquez pour parcourir
+                                </p>
+                                <button mat-raised-button color="primary" class="mt-4" (click)="fileInput.click()">
+                                    Sélectionner un fichier
+                                </button>
+                            </div>
+
+                            <div *ngIf="selectedFile" class="flex items-center justify-between bg-blue-50 p-4 rounded">
+                                <div class="flex items-center gap-3">
+                                    <mat-icon class="text-blue-600">description</mat-icon>
+                                    <div>
+                                        <div class="font-medium">{{selectedFile.name}}</div>
+                                        <div class="text-xs text-gray-500">{{(selectedFile.size / 1024) |
+                                            number:'1.0-2'}} KB</div>
+                                    </div>
+                                </div>
+                                <button mat-icon-button color="warn" (click)="selectedFile = null">
+                                    <mat-icon>close</mat-icon>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end mt-4">
+                            <button mat-raised-button color="primary" (click)="onUploadAndNext(stepper)"
+                                [disabled]="!selectedFile || importForm.invalid || isUploading">
+                                <mat-icon *ngIf="!isUploading">arrow_forward</mat-icon>
+                                <mat-spinner diameter="20" *ngIf="isUploading" class="mr-2"></mat-spinner>
+                                {{ isUploading ? 'Chargement...' : 'Suivant' }}
+                            </button>
+                        </div>
+                    </form>
+                </mat-step>
+
+                <!-- Step 2: Mapping -->
+                <mat-step [stepControl]="mappingForm" label="Correspondance des Colonnes">
+                    <div class="mt-4">
+                        <div class="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-100">
+                            <div class="flex items-start gap-3">
+                                <mat-icon class="text-blue-600">info</mat-icon>
+                                <div class="text-sm text-blue-800">
+                                    Associez les colonnes de votre fichier (à gauche) aux champs de la base de données
+                                    (à droite).
+                                    Les champs non mappés seront ignorés.
+                                </div>
+                            </div>
+                        </div>
+
+                        <form [formGroup]="mappingForm" class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                            <div *ngFor="let field of currentFields"
+                                class="flex items-center gap-4 p-2 hover:bg-gray-50 rounded">
+                                <div class="w-1/3 text-right font-medium text-gray-700 min-w-[120px]">
+                                    {{field.label}} <span *ngIf="field.required" class="text-red-500">*</span>
+                                </div>
+                                <mat-icon class="text-gray-400">arrow_right_alt</mat-icon>
+                                <div class="flex-1">
+                                    <mat-form-field appearance="outline" class="w-full -mb-5">
+                                        <mat-select [formControlName]="field.value" placeholder="Ignorer">
+                                            <mat-option value="">-- Ignorer --</mat-option>
+                                            <mat-option *ngFor="let header of csvHeaders" [value]="header">
+                                                {{header}}
+                                            </mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                </div>
+                            </div>
+                        </form>
+
+                        <div class="flex flex-col gap-2 mt-8" *ngIf="isImporting">
+                            <div class="flex justify-between text-xs text-gray-500 mb-1">
+                                <span>Importation en cours... (Lot {{currentBatchIndex}} / {{totalBatches}})</span>
+                                <span>{{importProgress}}%</span>
+                            </div>
+                            <mat-progress-bar mode="determinate" [value]="importProgress"></mat-progress-bar>
+                        </div>
+
+                        <div class="flex justify-between mt-8" *ngIf="!isImporting">
+                            <button mat-button matStepperPrevious>Retour</button>
+                            <button mat-raised-button color="primary" (click)="executeImport(stepper)"
+                                [disabled]="mappingForm.invalid || isImporting">
+                                <mat-icon>save_alt</mat-icon>
+                                Lancer l'Import
+                            </button>
+                        </div>
+                    </div>
+                </mat-step>
+
+                <!-- Step 3: Résultat -->
+                <mat-step label="Terminé">
+                    <div class="text-center py-8" *ngIf="isImporting">
+                        <mat-spinner class="mx-auto mb-4"></mat-spinner>
+                        <h2 class="text-xl font-bold mb-2">Importation en cours...</h2>
+                        <p class="text-gray-600 mb-4">Traitement du lot {{currentBatchIndex}} sur {{totalBatches}}
+                            ({{importTotalRows}} lignes au total)</p>
+                        <div class="max-w-md mx-auto px-4">
+                            <mat-progress-bar mode="determinate" [value]="importProgress"></mat-progress-bar>
+                            <div class="text-right text-xs text-gray-500 mt-1">{{importProgress}}%</div>
+                        </div>
+                    </div>
+
+                    <div class="text-center py-8" *ngIf="!isImporting && importResult">
+                        <div
+                            class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 text-green-600 mb-4">
+                            <mat-icon class="text-3xl">check_circle</mat-icon>
+                        </div>
+                        <h2 class="text-xl font-bold mb-2">Import terminé !</h2>
+                        <p class="text-gray-600 mb-8">
+                            <span class="font-bold text-green-700">{{importResult.success}} dossiers créés</span>
+                            (à partir de {{importResult.totalRowsProcessed || (importResult.success +
+                            importResult.failed + importResult.skipped)}} lignes traitées).
+                            <span *ngIf="importResult.skipped > 0" class="text-orange-500 font-medium ml-2">
+                                {{importResult.skipped}} lignes ignorées.
+                            </span>
+                            <span *ngIf="importResult.failed > 0" class="text-red-500 font-medium ml-2">
+                                {{importResult.failed}} erreurs.
+                            </span>
+                        </p>
+
+                        <div *ngIf="importResult.errors.length > 0"
+                            class="text-left bg-red-50 p-4 rounded-lg border border-red-100 max-h-60 overflow-y-auto mb-6">
+                            <h3 class="font-bold text-red-800 mb-2">Détail des erreurs ({{importResult.errors.length}})
+                                :</h3>
+                            <ul class="list-disc pl-5 text-sm text-red-700 space-y-1">
+                                <li *ngFor="let err of importResult.errors">{{err}}</li>
+                            </ul>
+                        </div>
+
+                        <button mat-raised-button color="primary" (click)="reset(); stepper.reset()">
+                            Effectuer un nouvel import
+                        </button>
+                    </div>
+                </mat-step>
+            </mat-stepper>
+        </mat-card-content>
+    </mat-card>
+</div>

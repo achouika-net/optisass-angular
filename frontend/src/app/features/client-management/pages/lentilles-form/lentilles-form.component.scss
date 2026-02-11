@@ -456,6 +456,13 @@
     margin-bottom: 16px;
 }
 
+.grid-4 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
 .align-center {
     align-items: center;
 }

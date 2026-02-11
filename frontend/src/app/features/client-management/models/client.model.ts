@@ -191,6 +191,8 @@ export interface ClientBase {
     pointsFidelite?: number;
     parrainId?: string;
     parrain?: any;
+    groupeId?: string;
+    groupe?: any;
     filleuls?: any[];
     pointsHistory?: any[];
 }

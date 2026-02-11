@@ -181,6 +181,36 @@
             background: rgba(99, 102, 241, 0.1);
             color: #6366f1;
         }
+
+        /* Fiches Breakdown */
+        .fiches-breakdown {
+            display: flex;
+            gap: 12px;
+            margin: 8px 0;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(16, 185, 129, 0.1);
+
+            .fiche-mini-stat {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                color: #64748b;
+                font-size: 12px;
+                font-weight: 500;
+
+                mat-icon {
+                    font-size: 14px;
+                    width: 14px;
+                    height: 14px;
+                    color: #10b981;
+                }
+
+                span {
+                    font-weight: 700;
+                    color: #1e293b;
+                }
+            }
+        }
     }
 }
 

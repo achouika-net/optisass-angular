@@ -17,9 +17,9 @@
             </div>
         </div>
         <div class="header-actions">
-            <!-- View Mode: Retour -->
+            <!-- View Mode: Dossier Client -->
             <button mat-stroked-button (click)="goBack()" *ngIf="!isEditMode">
-                <mat-icon>arrow_back</mat-icon> Retour
+                <mat-icon>arrow_back</mat-icon> Dossier Client
             </button>
 
             <!-- Create Mode: Annuler -->
@@ -190,17 +190,21 @@
                                             <input matInput formControlName="axe" placeholder="0°">
                                         </mat-form-field>
                                     </div>
-                                    <div class="grid-3">
+                                    <div class="grid-4">
                                         <mat-form-field appearance="outline" class="dense-field">
                                             <mat-label>Addition</mat-label>
                                             <input matInput formControlName="addition" placeholder="+0.00">
                                         </mat-form-field>
+                                        <mat-form-field appearance="outline" class="dense-field">
+                                            <mat-label>AC.VIS</mat-label>
+                                            <input matInput formControlName="acuiteVisuelle" placeholder="10/10">
+                                        </mat-form-field>
                                         <mat-form-field appearance="outline" class="dense-field highlight-field">
-                                            <mat-label>K1 (mm)</mat-label>
+                                            <mat-label>H (K1)</mat-label>
                                             <input matInput formControlName="k1" placeholder="7.80">
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="dense-field highlight-field">
-                                            <mat-label>K2 (mm)</mat-label>
+                                            <mat-label>V (K2)</mat-label>
                                             <input matInput formControlName="k2" placeholder="7.90">
                                         </mat-form-field>
                                     </div>
@@ -228,23 +232,28 @@
                                             <input matInput formControlName="axe" placeholder="0°">
                                         </mat-form-field>
                                     </div>
-                                    <div class="grid-3">
+                                    <div class="grid-4">
                                         <mat-form-field appearance="outline" class="dense-field">
                                             <mat-label>Addition</mat-label>
                                             <input matInput formControlName="addition" placeholder="+0.00">
                                         </mat-form-field>
+                                        <mat-form-field appearance="outline" class="dense-field">
+                                            <mat-label>AC.VIS</mat-label>
+                                            <input matInput formControlName="acuiteVisuelle" placeholder="10/10">
+                                        </mat-form-field>
                                         <mat-form-field appearance="outline" class="dense-field highlight-field">
-                                            <mat-label>K1 (mm)</mat-label>
+                                            <mat-label>H (K1)</mat-label>
                                             <input matInput formControlName="k1" placeholder="7.80">
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="dense-field highlight-field">
-                                            <mat-label>K2 (mm)</mat-label>
+                                            <mat-label>V (K2)</mat-label>
                                             <input matInput formControlName="k2" placeholder="7.90">
                                         </mat-form-field>
                                     </div>
                                 </mat-card-content>
                             </mat-card>
-                        </div> <!-- End of eyes-container -->
+                        </div>
+                        <!-- End of eyes-container -->
                     </div> <!-- End of ordonnance -->
                 </div> <!-- End of tab-content -->
             </mat-tab>
@@ -304,7 +313,7 @@
                                         <input matInput formControlName="modele" placeholder="Ex: Oasys">
                                     </mat-form-field>
                                 </div>
-                                <div class="grid-2">
+                                <div class="grid-3">
                                     <mat-form-field appearance="outline">
                                         <mat-label>Rayon (BC)</mat-label>
                                         <input matInput formControlName="rayon" placeholder="8.4">
@@ -313,9 +322,13 @@
                                         <mat-label>Diamètre (DIA)</mat-label>
                                         <input matInput formControlName="diametre" placeholder="14.0">
                                     </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>AC.VIS</mat-label>
+                                        <input matInput formControlName="acuiteVisuelle" placeholder="10/10">
+                                    </mat-form-field>
                                 </div>
-                                <mat-divider class="mb-3"></mat-divider>
-                                <div class="grid-3">
+
+                                <div class="grid-4">
                                     <mat-form-field appearance="outline" class="dense-field">
                                         <mat-label>Sphère</mat-label>
                                         <input matInput formControlName="sphere" placeholder="+0.00">
@@ -327,6 +340,52 @@
                                     <mat-form-field appearance="outline" class="dense-field">
                                         <mat-label>Axe</mat-label>
                                         <input matInput formControlName="axe" placeholder="0°">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Addition</mat-label>
+                                        <input matInput formControlName="addition" placeholder="+0.00">
+                                    </mat-form-field>
+                                </div>
+
+                                <mat-divider class="my-3"></mat-divider>
+                                <p class="section-subtitle">Adaptation & Kératométrie</p>
+
+                                <div class="grid-2">
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Mouvement</mat-label>
+                                        <mat-select formControlName="mouvement">
+                                            <mat-option value="normal">Normal</mat-option>
+                                            <mat-option value="excessif">Excessif</mat-option>
+                                            <mat-option value="insuffisant">Insuffisant</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Centrage</mat-label>
+                                        <mat-select formControlName="centrage">
+                                            <mat-option value="bon">Bon</mat-option>
+                                            <mat-option value="decentre">Décentré</mat-option>
+                                            <mat-option value="bas">Bas</mat-option>
+                                            <mat-option value="haut">Haut</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                </div>
+
+                                <div class="grid-4 mt-2">
+                                    <mat-form-field appearance="outline" class="dense-field highlight-field">
+                                        <mat-label>H (K1)</mat-label>
+                                        <input matInput formControlName="keratoH" placeholder="7.80">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field highlight-field">
+                                        <mat-label>V (K2)</mat-label>
+                                        <input matInput formControlName="keratoV" placeholder="7.90">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field highlight-field">
+                                        <mat-label>Axe</mat-label>
+                                        <input matInput formControlName="keratoAxe" placeholder="0">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field highlight-field">
+                                        <mat-label>K.Moy</mat-label>
+                                        <input matInput formControlName="keratoMoy" placeholder="7.85">
                                     </mat-form-field>
                                 </div>
                             </mat-card-content>
@@ -353,7 +412,7 @@
                                         <input matInput formControlName="modele" placeholder="Ex: Oasys">
                                     </mat-form-field>
                                 </div>
-                                <div class="grid-2">
+                                <div class="grid-3">
                                     <mat-form-field appearance="outline">
                                         <mat-label>Rayon (BC)</mat-label>
                                         <input matInput formControlName="rayon" placeholder="8.4">
@@ -362,9 +421,13 @@
                                         <mat-label>Diamètre (DIA)</mat-label>
                                         <input matInput formControlName="diametre" placeholder="14.0">
                                     </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>AC.VIS</mat-label>
+                                        <input matInput formControlName="acuiteVisuelle" placeholder="10/10">
+                                    </mat-form-field>
                                 </div>
-                                <mat-divider class="mb-3"></mat-divider>
-                                <div class="grid-3">
+
+                                <div class="grid-4">
                                     <mat-form-field appearance="outline" class="dense-field">
                                         <mat-label>Sphère</mat-label>
                                         <input matInput formControlName="sphere" placeholder="+0.00">
@@ -376,6 +439,52 @@
                                     <mat-form-field appearance="outline" class="dense-field">
                                         <mat-label>Axe</mat-label>
                                         <input matInput formControlName="axe" placeholder="0°">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Addition</mat-label>
+                                        <input matInput formControlName="addition" placeholder="+0.00">
+                                    </mat-form-field>
+                                </div>
+
+                                <mat-divider class="my-3"></mat-divider>
+                                <p class="section-subtitle">Adaptation & Kératométrie</p>
+
+                                <div class="grid-2">
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Mouvement</mat-label>
+                                        <mat-select formControlName="mouvement">
+                                            <mat-option value="normal">Normal</mat-option>
+                                            <mat-option value="excessif">Excessif</mat-option>
+                                            <mat-option value="insuffisant">Insuffisant</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field">
+                                        <mat-label>Centrage</mat-label>
+                                        <mat-select formControlName="centrage">
+                                            <mat-option value="bon">Bon</mat-option>
+                                            <mat-option value="decentre">Décentré</mat-option>
+                                            <mat-option value="bas">Bas</mat-option>
+                                            <mat-option value="haut">Haut</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                </div>
+
+                                <div class="grid-4 mt-2">
+                                    <mat-form-field appearance="outline" class="dense-field highlight-field">
+                                        <mat-label>H (K1)</mat-label>
+                                        <input matInput formControlName="keratoH" placeholder="7.80">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field highlight-field">
+                                        <mat-label>V (K2)</mat-label>
+                                        <input matInput formControlName="keratoV" placeholder="7.90">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field highlight-field">
+                                        <mat-label>Axe</mat-label>
+                                        <input matInput formControlName="keratoAxe" placeholder="0">
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="dense-field highlight-field">
+                                        <mat-label>K.Moy</mat-label>
+                                        <input matInput formControlName="keratoMoy" placeholder="7.85">
                                     </mat-form-field>
                                 </div>
                             </mat-card-content>

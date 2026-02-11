@@ -568,7 +568,7 @@ export class ClientDetailComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/p/dashboard']);
+    this.router.navigate(['/p/clients']);
   }
 
   // --- Supplier Invoices ---

@@ -50,6 +50,12 @@ export interface StatsSummary {
     totalExpenses: number;
     activeWarehouses: number;
     conversionRate: number;
+    fichesStats?: {
+        total: number;
+        monture: number;
+        lentilles: number;
+        produit: number;
+    };
 }
 
 @Injectable({

@@ -798,8 +798,7 @@
 
                 <div class="mt-6 flex justify-end gap-4">
                     <button mat-button type="button" (click)="onCancel()">Annuler</button>
-                    <button mat-raised-button color="primary" type="submit"
-                        [disabled]="clientForm.invalid || loading()">
+                    <button mat-raised-button color="primary" type="submit" [disabled]="loading()">
                         @if (loading()) {
                         <mat-icon class="animate-spin">refresh</mat-icon>
                         }

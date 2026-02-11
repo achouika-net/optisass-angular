@@ -7,9 +7,9 @@ services:
       POSTGRES_PASSWORD: mypassword
       POSTGRES_DB: optisaas
     ports:
-      - "5432:5432"
+      - "5435:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata_fresh:/var/lib/postgresql/data
 
   backend:
     build:
@@ -65,4 +65,4 @@ services:
       - db
 
 volumes:
-  pgdata:
+  pgdata_fresh:

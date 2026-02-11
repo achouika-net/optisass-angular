@@ -44,3 +44,10 @@ remote_branches.txt
 backend/uploads/invoices/*.png
 backend/uploads/invoices/*.jpg
 backend/uploads/invoices/*.jpeg
+
+# Local ignore
+portable_package/
+n8n-local/
+backend/import_execute.log
+backend/build_report.txt
+

@@ -83,6 +83,47 @@
                                     </mat-form-field>
                                 </div>
 
+                                <!-- SELECTION CLIENT & FICHE (Visible seulement pour Achat Verre Optique) -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-4 bg-blue-50/30 rounded-xl border border-blue-100"
+                                    *ngIf="detailsGroup.get('type')?.value === 'ACHAT_VERRE_OPTIQUE'">
+
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Client (Rechercher par nom) *</mat-label>
+                                        <input type="text" placeholder="Saisissez au moins 2 caractères..." matInput
+                                            [formControl]="clientCtrl" [matAutocomplete]="autoClient">
+                                        <mat-autocomplete #autoClient="matAutocomplete" [displayWith]="displayClientFn">
+                                            <mat-option *ngIf="loadingClients" class="is-loading">
+                                                <mat-spinner diameter="20"></mat-spinner>
+                                            </mat-option>
+                                            <mat-option *ngFor="let c of filteredClients | async" [value]="c">
+                                                {{ displayClientFn(c) }}
+                                            </mat-option>
+                                        </mat-autocomplete>
+                                        <mat-icon matSuffix *ngIf="!loadingClients">person_search</mat-icon>
+                                        <mat-progress-bar mode="indeterminate" *ngIf="loadingClients"
+                                            matSuffix></mat-progress-bar>
+                                        <mat-hint>Indispensable pour lier le BL à la fiche client</mat-hint>
+                                    </mat-form-field>
+
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Fiche Médicale / Dossier *</mat-label>
+                                        <mat-select formControlName="ficheId">
+                                            <mat-option *ngIf="loadingFiches" disabled>
+                                                Chargement des fiches...
+                                            </mat-option>
+                                            <mat-option *ngIf="availableFiches.length === 0 && !loadingFiches" disabled>
+                                                Aucune fiche trouvée pour ce client
+                                            </mat-option>
+                                            <mat-option *ngFor="let f of availableFiches" [value]="f.id">
+                                                {{ f.type }} - {{ f.dateCreation | date:'dd/MM/yyyy' }}
+                                                ({{ f.statut }}) - {{ f.montantTotal | number:'1.0-0' }} DH
+                                            </mat-option>
+                                        </mat-select>
+                                        <mat-hint *ngIf="availableFiches.length > 0">Sélectionnez le dossier
+                                            concerné</mat-hint>
+                                    </mat-form-field>
+                                </div>
+
                                 <div
                                     class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 pt-4 border-t bg-gray-50 p-4 rounded-xl">
                                     <mat-form-field appearance="outline">

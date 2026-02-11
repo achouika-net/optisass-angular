@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, NgZone, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, NgZone, ChangeDetectorRef, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -16,6 +16,8 @@ import { ClientManagementService } from '../../services/client.service';
 import { Client, StatutClient, TypeClient, isClientParticulier, isClientProfessionnel } from '../../models/client.model';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MessagingService, MessageType } from '../../../../core/services/messaging.service';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 
 interface ClientStats {
     actifs: number;
@@ -45,18 +47,38 @@ interface ClientStats {
     templateUrl: './client-list.component.html',
     styleUrl: './client-list.component.css'
 })
-export class ClientListComponent implements OnInit {
+export class ClientListComponent implements OnInit, OnDestroy {
+    private destroy$ = new Subject<void>();
     searchForm: FormGroup;
     stats = signal<ClientStats>({ actifs: 0, enCompte: 0, passage: 0, inactifs: 0 });
     clients = signal<Client[]>([]);
-    displayedColumns: string[] = ['type', 'titre', 'nom', 'prenom', 'telephone', 'cin', 'ville', 'statut', 'actions'];
 
-    pageSize = 10;
-    pageIndex = 0;
+    // Pagination state
+    pageSize = signal(10);
+    pageIndex = signal(0);
     totalItems = 0;
 
-    clientTypes = ['Particulier', 'Professionnel', 'Client de passage'];
-    statuts = ['Actif', 'Inactif', 'En compte', 'De passage'];
+    // Paginated data for display
+    paginatedClients = computed(() => {
+        const start = this.pageIndex() * this.pageSize();
+        const end = start + this.pageSize();
+        return this.clients().slice(start, end);
+    });
+
+    displayedColumns: string[] = ['dateCreation', 'titre', 'nom', 'prenom', 'telephone', 'cin', 'ville', 'statut', 'actions'];
+
+    clientTypes = [
+        { label: 'Particulier', value: TypeClient.PARTICULIER },
+        { label: 'Professionnel', value: TypeClient.PROFESSIONNEL },
+        { label: 'Client de passage', value: TypeClient.ANONYME }
+    ];
+
+    statuts = [
+        { label: 'Actif', value: StatutClient.ACTIF },
+        { label: 'Inactif', value: StatutClient.INACTIF },
+        { label: 'En compte', value: StatutClient.EN_COMPTE },
+        { label: 'De passage', value: StatutClient.DE_PASSAGE }
+    ];
 
     constructor(
         private fb: FormBuilder,
@@ -81,6 +103,37 @@ export class ClientListComponent implements OnInit {
     ngOnInit() {
         this.loadClients();
         this.loadStats();
+        this.setupAutoSearch();
+    }
+
+    ngOnDestroy() {
+        this.destroy$.next();
+        this.destroy$.complete();
+    }
+
+    private setupAutoSearch() {
+        // Écouter les changements sur tous les champs de recherche
+        this.searchForm.valueChanges.pipe(
+            debounceTime(500), // Attendre 500ms après la dernière frappe
+            distinctUntilChanged((prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)),
+            takeUntil(this.destroy$)
+        ).subscribe(values => {
+            // Vérifier si au moins un champ a 2+ caractères
+            const hasMinChars = Object.values(values).some(val =>
+                typeof val === 'string' && val.length >= 2
+            );
+
+            if (hasMinChars) {
+                this.onSearch();
+            } else if (this.isFormEmpty(values)) {
+                // Si tous les champs sont vides, recharger tous les clients
+                this.loadClients();
+            }
+        });
+    }
+
+    private isFormEmpty(values: any): boolean {
+        return Object.values(values).every(val => !val || val === '');
     }
 
     loadStats() {
@@ -159,10 +212,9 @@ export class ClientListComponent implements OnInit {
     }
 
     onPageChange(event: PageEvent) {
-        this.pageSize = event.pageSize;
-        this.pageIndex = event.pageIndex;
-        // Implement backend pagination if supported
-        // For now, simple refresh or slice if we had full list logic (but clients uses full list)
+        this.pageSize.set(event.pageSize);
+        this.pageIndex.set(event.pageIndex);
+        this.cdr.markForCheck();
     }
 
     viewClient(client: Client) {
@@ -220,15 +272,12 @@ export class ClientListComponent implements OnInit {
     }
 
     getClientTitle(client: Client): string {
+        // Direct access to titre if it exists (handles both Particulier and imported data)
+        const titre = (client as any).titre;
+        if (titre) return titre;
+
         if (isClientProfessionnel(client)) {
             return 'Prof';
-        }
-        const typeStr = typeof client.typeClient === 'string' ? client.typeClient.toLowerCase() : '';
-        if (typeStr === 'anonyme' || client.typeClient === TypeClient.ANONYME) {
-            return 'Client';
-        }
-        if (isClientParticulier(client)) {
-            return (client as any).titre || '-';
         }
         return '-';
     }

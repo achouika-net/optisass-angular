@@ -67,6 +67,7 @@ export interface PrescriptionLentille extends PrescriptionOeil {
     diametre?: number;
     k1?: number; // Kératométrie
     k2?: number;
+    acuiteVisuelle?: string; // AC.VIS
 }
 
 // ============ Fiche de base ============
@@ -162,6 +163,13 @@ export interface LentillesDetails {
         axe?: number;
         addition?: number;
         prix?: number;
+        acuiteVisuelle?: string; // AC.VIS
+        mouvement?: string;
+        centrage?: string;
+        keratoH?: number;
+        keratoV?: number;
+        keratoAxe?: number;
+        keratoMoy?: number;
     };
     og: {
         marque: string;
@@ -173,6 +181,13 @@ export interface LentillesDetails {
         axe?: number;
         addition?: number;
         prix?: number;
+        acuiteVisuelle?: string; // AC.VIS
+        mouvement?: string;
+        centrage?: string;
+        keratoH?: number;
+        keratoV?: number;
+        keratoAxe?: number;
+        keratoMoy?: number;
     };
 }
 

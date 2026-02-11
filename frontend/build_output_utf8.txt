@@ -1,0 +1,80 @@
+﻿
+> optisaas@0.0.0 build
+> ng build
+
+node.exe : [1m[33m[baseline-browser-mapping] The data in 
+this module is over two months old.  To ensure accurate 
+Baseline data, please update: `npm i 
+baseline-browser-mapping@latest -D`[39m[22m
+Au caractère Ligne:1 : 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([1m[33m[bas 
+   el...t -D`[39m[22m:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[33mÔØ»[39m Building...
+[baseline-browser-mapping] The data in this module is over 
+two months old.  To ensure accurate Baseline data, please 
+update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over 
+two months old.  To ensure accurate Baseline data, please 
+update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over 
+two months old.  To ensure accurate Baseline data, please 
+update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over 
+two months old.  To ensure accurate Baseline data, please 
+update: `npm i baseline-browser-mapping@latest -D`
+[32mÔ£ö[39m Building...
+Application bundle generation failed. [27.781 seconds] - 2026-02-11T01:47:52.219Z
+
+[1m[33m[33mÔû▓ [43;33m[[43;30mWARNING[43;33m][0m 
+[1mNG8113: FactureFormComponent is not used within the 
+template of MontureFormComponent[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/client-management/pages/monture-form/m
+onture-form.component.ts:71:8:
+[37m      71 Ôöé         [32mFactureFormComponent[37m,
+         ÔòÁ         [32m~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[33mÔû▓ [43;33m[[43;30mWARNING[43;33m][0m [1mNG8113: 
+PaymentListComponent is not used within the template of 
+MontureFormComponent[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/client-management/pages/monture-form/m
+onture-form.component.ts:72:8:
+[37m      72 Ôöé         [32mPaymentListComponent[37m
+         ÔòÁ         [32m~~~~~~~~~~~~~~~~~~~~[0m
+
+[39m[22m
+[1m[31m[31mX [41;31m[[41;97mERROR[41;31m][0m 
+[1mNG5002: Unexpected closing tag "div". It may happen 
+when the tag has already been closed by another tag. For 
+more info see https://www.w3.org/TR/html5/syntax.html#closi
+ng-elements-that-have-implied-end-tags[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/features/client-management/pages/monture-form/m
+onture-form.component.html:1586:0:
+[37m      1586 Ôöé [32m</div>[37m <!-- End tab-content 
+-->
+           ÔòÁ [32m~~~~~~[0m
+
+  Error occurs in the template of component 
+MontureFormComponent.
+
+    src/app/features/client-management/pages/monture-form/m
+onture-form.component.ts:80:17:
+[37m      80 Ôöé     templateUrl: 
+[32m'./monture-form.component.html'[37m,
+         ÔòÁ                  
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[39m[22m
+

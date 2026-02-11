@@ -30,6 +30,30 @@ export class ClientsController {
         return this.clientsService.findAll(nom, centreId);
     }
 
+    @Get('search')
+    search(
+        @Query('typeClient') typeClient?: string,
+        @Query('statut') statut?: string,
+        @Query('nom') nom?: string,
+        @Query('prenom') prenom?: string,
+        @Query('telephone') telephone?: string,
+        @Query('cin') cin?: string,
+        @Query('groupeFamille') groupeFamille?: string,
+        @Headers('Tenant') centreId?: string
+    ) {
+        return this.clientsService.search({
+            typeClient,
+            statut,
+            nom,
+            prenom,
+            telephone,
+            cin,
+            groupeFamille,
+            centreId
+        });
+    }
+
+
     @Get(':id')
     findOne(@Param('id') id: string) {
         return this.clientsService.findOne(id);

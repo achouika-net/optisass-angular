@@ -128,27 +128,29 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
     }
 
     ngOnInit(): void {
-        this.clientId = this.route.snapshot.paramMap.get('clientId');
-        this.ficheId = this.route.snapshot.paramMap.get('id');
+        this.route.paramMap.subscribe(params => {
+            this.clientId = params.get('clientId');
+            this.ficheId = params.get('ficheId');
 
-        if (this.clientId) {
-            this.loadClient();
-        }
+            if (this.clientId) {
+                this.loadClient();
+            }
 
-        if (this.ficheId && this.ficheId !== 'new') {
-            this.isEditMode = false;
-            this.ficheForm.disable();
-            this.loadFiche();
-            this.loadLinkedInvoice();
-        } else {
-            this.isEditMode = true;
-            this.ficheForm.enable();
-            // Default dates
-            this.ficheForm.patchValue({
-                ordonnance: { datePrescription: new Date() },
-                adaptation: { dateEssai: new Date() }
-            });
-        }
+            if (this.ficheId && this.ficheId !== 'new') {
+                this.isEditMode = false;
+                this.ficheForm.disable();
+                this.loadFiche();
+                this.loadLinkedInvoice();
+            } else {
+                this.isEditMode = true;
+                this.ficheForm.enable();
+                // Default dates
+                this.ficheForm.patchValue({
+                    ordonnance: { datePrescription: new Date() },
+                    adaptation: { dateEssai: new Date() }
+                });
+            }
+        });
 
         // REACTIVE RECEPTION CHECK: Trigger whenever the invoice status changes
         this.linkedFacture$.subscribe(facture => {
@@ -197,7 +199,8 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
                     axe: [''],
                     addition: [''],
                     k1: [''],
-                    k2: ['']
+                    k2: [''],
+                    acuiteVisuelle: ['']
                 }),
                 og: this.fb.group({
                     sphere: [''],
@@ -205,7 +208,8 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
                     axe: [''],
                     addition: [''],
                     k1: [''],
-                    k2: ['']
+                    k2: [''],
+                    acuiteVisuelle: ['']
                 })
             }),
 
@@ -224,6 +228,13 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
                     axe: [''],
                     addition: [''],
                     prix: [0],
+                    acuiteVisuelle: [''],
+                    mouvement: [''],
+                    centrage: [''],
+                    keratoH: [''],
+                    keratoV: [''],
+                    keratoAxe: [''],
+                    keratoMoy: [''],
                     productId: [null],
                     entrepotId: [null],
                     entrepotType: [null],
@@ -239,6 +250,13 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
                     axe: [''],
                     addition: [''],
                     prix: [0],
+                    acuiteVisuelle: [''],
+                    mouvement: [''],
+                    centrage: [''],
+                    keratoH: [''],
+                    keratoV: [''],
+                    keratoAxe: [''],
+                    keratoMoy: [''],
                     productId: [null],
                     entrepotId: [null],
                     entrepotType: [null],
@@ -466,7 +484,11 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
     nextTab(): void { if (this.activeTab < 5) this.activeTab++; } // Increased max tab
     prevTab(): void { if (this.activeTab > 0) this.activeTab--; }
     goBack(): void {
-        this.router.navigate(['/p/clients', this.clientId]);
+        if (this.clientId) {
+            this.router.navigate(['/p/clients', this.clientId]);
+        } else {
+            this.router.navigate(['/p/clients']);
+        }
     }
 
     // --- Stock Search ---

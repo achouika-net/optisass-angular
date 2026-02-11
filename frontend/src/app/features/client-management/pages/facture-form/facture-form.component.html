@@ -55,8 +55,10 @@
                     *ngIf="!embedded && !isViewMode">
                     <mat-icon>save</mat-icon> Enregistrer
                 </button>
-                <button type="button" mat-stroked-button routerLink="/p/clients" *ngIf="!embedded && isViewMode"
-                    class="no-print">Retour</button>
+                <button type="button" mat-stroked-button (click)="goBack()" *ngIf="!embedded && isViewMode"
+                    class="no-print">
+                    <mat-icon>arrow_back</mat-icon> Dossier Client
+                </button>
             </div>
         </div>
 

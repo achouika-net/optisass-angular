@@ -8,7 +8,13 @@ echo 1. Arret des processus existants...
 :: Optionnel: Tuer les processus sur les ports 3000, 4200, 5555 si possible via cmd
 :: (Nécessite souvent des droits admin ou des commandes complexes, on laisse start gérer les nouvelles fenêtres)
 
-echo 2. Demarrage du Backend (Port 3000)...
+echo 2. Synchronisation de la Base de Donnees...
+cd backend 
+call npx prisma db push --accept-data-loss
+call npx prisma generate
+cd ..
+
+echo 3. Demarrage du Backend (Port 3000)...
 start "Backend - NestJS" cmd /k "cd backend && npm run start:dev"
 timeout /t 5 /nobreak >nul
 
