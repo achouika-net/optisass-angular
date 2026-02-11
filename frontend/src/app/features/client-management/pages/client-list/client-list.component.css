@@ -111,3 +111,16 @@ th.mat-header-cell {
         font-size: 0.875rem;
     }
 }
+
+/* Interactivity */
+tr.mat-row {
+    cursor: pointer;
+}
+
+tr.mat-row:hover {
+    background-color: rgba(0, 0, 0, 0.02) !important;
+}
+
+.whatsapp-icon {
+    color: #25D366;
+}

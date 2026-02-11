@@ -287,7 +287,7 @@ export class StatsService {
         const start = startDate ? new Date(startDate) : undefined;
         const end = endDate ? new Date(endDate) : undefined;
 
-        const [totalProducts, totalClients, totalRevenue, activeWarehouses, totalDirectExpenses, totalScheduledExpenses] = await Promise.all([
+        const [totalProducts, totalClients, totalRevenue, activeWarehouses, totalDirectExpenses, totalScheduledExpenses, fichesBreakdown] = await Promise.all([
             this.prisma.product.count({
                 where: centreId ? {
                     entrepot: { centreId }
@@ -326,10 +326,35 @@ export class StatsService {
                     ...(start || end ? { dateEcheance: { gte: start, lte: end } } : {})
                 },
                 _sum: { montant: true }
+            }),
+            this.prisma.fiche.groupBy({
+                by: ['type'],
+                where: {
+                    client: centreId ? { centreId } : {}
+                    // Removed date filter to show global counts on the dashboard
+                },
+                _count: { _all: true }
             })
         ]);
 
         const conversionMetrics = await this.getConversionRate(startDate, endDate, centreId);
+
+        // Process fiches stats
+        const fichesStats = {
+            total: 0,
+            monture: 0,
+            lentilles: 0,
+            produit: 0
+        };
+
+        fichesBreakdown.forEach(group => {
+            const count = group._count._all;
+            fichesStats.total += count;
+            const type = group.type.toLowerCase();
+            if (type === 'monture') fichesStats.monture = count;
+            else if (type === 'lentilles') fichesStats.lentilles = count;
+            else if (type === 'produit') fichesStats.produit = count;
+        });
 
         return {
             totalProducts,
@@ -337,7 +362,8 @@ export class StatsService {
             totalRevenue: totalRevenue._sum.totalTTC || 0,
             totalExpenses: (totalDirectExpenses._sum.montant || 0) + (totalScheduledExpenses._sum.montant || 0),
             activeWarehouses,
-            conversionRate: conversionMetrics.conversionToFacture
+            conversionRate: conversionMetrics.conversionToFacture,
+            fichesStats
         };
     }
 

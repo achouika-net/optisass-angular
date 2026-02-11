@@ -114,6 +114,12 @@ export const MENU: MenuItem[] = [
         type: 'subchild',
         route: 'gestion-depenses/payments',
         queryParams: { tab: 'BL' }
+      },
+      {
+        label: 'Dépenses Diverses',
+        icon: 'payments',
+        type: 'subchild',
+        route: 'gestion-depenses/expenses'
       }
     ]
   },
@@ -236,6 +242,12 @@ export const MENU: MenuItem[] = [
         icon: 'settings',
         type: 'subchild',
         route: 'settings/marketing',
+      },
+      {
+        label: 'Import de Données',
+        icon: 'upload_file',
+        type: 'subchild',
+        route: 'settings/import',
       },
     ],
   },

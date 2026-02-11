@@ -2,8 +2,8 @@
     <!-- Header -->
     <div class="header">
         <div class="header-content">
-            <button mat-icon-button (click)="goBack()" class="mr-2">
-                <mat-icon>arrow_back</mat-icon>
+            <button mat-button (click)="goBack()" class="mr-2 text-gray-600">
+                <mat-icon>arrow_back</mat-icon> Dossiers Clients
             </button>
             <h1>
                 Dossier Client
@@ -222,7 +222,8 @@
                                 </ng-container>
 
                                 <tr mat-header-row *matHeaderRowDef="historyColumns"></tr>
-                                <tr mat-row *matRowDef="let row; columns: historyColumns;"></tr>
+                                <tr mat-row *matRowDef="let row; columns: historyColumns;" (dblclick)="viewFiche(row)"
+                                    class="cursor-pointer hover:bg-gray-50 element-row"></tr>
                             </table>
                         </div>
                     </div>
@@ -464,6 +465,15 @@
                             </div>
 
                             <div class="section-title">Groupe Famille et Le Lien Parental</div>
+                            <!-- OptiSaaS Group Relation display -->
+                            <div class="form-row mt-2 mb-4" *ngIf="client?.groupe">
+                                <mat-form-field appearance="outline" class="full-width">
+                                    <mat-label>Groupe OptiSaaS (Lien Réel)</mat-label>
+                                    <input matInput [value]="client?.groupe?.nom" readonly>
+                                    <mat-icon matSuffix color="primary">hub</mat-icon>
+                                </mat-form-field>
+                            </div>
+
                             <!-- Cas Principal : Role + Nom Famille -->
                             <ng-container *ngIf="clientParticulier.groupeFamille?.role === 'Principal'">
                                 <div class="form-row two-cols">

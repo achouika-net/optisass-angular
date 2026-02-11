@@ -66,6 +66,23 @@
             <div class="kpi-content">
                 <span class="label">Total Clients</span>
                 <h2 class="value">{{ (summary?.totalClients || 0) | number }}</h2>
+                <div class="fiches-breakdown" *ngIf="summary?.fichesStats">
+                    <div class="fiche-mini-stat" matTooltip="Montures (Optique/Solaire)">
+                        <mat-icon>eyeglasses</mat-icon>
+                        <span class="stat-label">M: </span>
+                        <span>{{ summary?.fichesStats?.monture || 0 }}</span>
+                    </div>
+                    <div class="fiche-mini-stat" matTooltip="Lentilles de contact">
+                        <mat-icon>remove_red_eye</mat-icon>
+                        <span class="stat-label">L: </span>
+                        <span>{{ summary?.fichesStats?.lentilles || 0 }}</span>
+                    </div>
+                    <div class="fiche-mini-stat" matTooltip="Produits & Accessoires">
+                        <mat-icon>inventory_2</mat-icon>
+                        <span class="stat-label">P: </span>
+                        <span>{{ summary?.fichesStats?.produit || 0 }}</span>
+                    </div>
+                </div>
                 <span class="trend up">
                     <mat-icon>trending_up</mat-icon>
                     +5 nouveaux ce mois

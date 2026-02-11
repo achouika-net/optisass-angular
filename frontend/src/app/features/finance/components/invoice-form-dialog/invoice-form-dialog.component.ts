@@ -21,13 +21,18 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
 import { Supplier, SupplierInvoice, Echeance } from '../../models/finance.models';
 import { FinanceService } from '../../services/finance.service';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
-import { Observable, of, forkJoin } from 'rxjs';
-import { map, startWith, switchMap } from 'rxjs/operators';
+import { Observable, of, forkJoin, BehaviorSubject } from 'rxjs';
+import { map, startWith, switchMap, catchError, debounceTime, tap } from 'rxjs/operators';
 import { CeilingWarningDialogComponent } from '../ceiling-warning-dialog/ceiling-warning-dialog.component';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { CameraCaptureDialogComponent } from '../../../../shared/components/camera-capture/camera-capture-dialog.component';
+import { ClientManagementService } from '../../../client-management/services/client.service';
+import { FicheService } from '../../../client-management/services/fiche.service';
+import { Client } from '../../../client-management/models/client.model';
+import { FicheClient } from '../../../client-management/models/fiche-client.model';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { environment } from '../../../../../environments/environment';
 
 interface AttachmentFile {
@@ -60,7 +65,8 @@ interface AttachmentFile {
         MatAutocompleteModule,
         MatProgressBarModule,
         MatSnackBarModule,
-        MatSlideToggleModule
+        MatSlideToggleModule,
+        MatProgressSpinnerModule
     ],
     templateUrl: './invoice-form-dialog.component.html',
     styles: [`
@@ -134,6 +140,13 @@ export class InvoiceFormDialogComponent implements OnInit {
     supplierCtrl = new FormControl('');
     filteredSuppliers!: Observable<Supplier[]>;
 
+    // Client Autocomplete (for linking BL to client file)
+    clientCtrl = new FormControl<any>('');
+    filteredClients!: Observable<Client[]>;
+    availableFiches: FicheClient[] = [];
+    loadingClients = false;
+    loadingFiches = false;
+
 
     @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
@@ -158,6 +171,8 @@ export class InvoiceFormDialogComponent implements OnInit {
         private cdr: ChangeDetectorRef,
         private dialog: MatDialog,
         private snackBar: MatSnackBar,
+        private clientService: ClientManagementService,
+        private ficheService: FicheService,
         @Optional() public dialogRef: MatDialogRef<InvoiceFormDialogComponent>,
         @Optional() @Inject(MAT_DIALOG_DATA) public data: {
             invoice?: SupplierInvoice,
@@ -188,6 +203,8 @@ export class InvoiceFormDialogComponent implements OnInit {
                 categorieBL: [data?.invoice?.categorieBL || 'VERRE'],
                 isBL: [data?.invoice?.isBL !== undefined ? data.invoice.isBL : (this.data as any)?.isBL],
                 pieceJointeUrl: [data?.invoice?.pieceJointeUrl || ''],
+                clientId: [data?.invoice?.clientId || prefilled.prefilledClientId || ''],
+                ficheId: [data?.invoice?.ficheId || prefilled.prefilledFicheId || ''],
             }),
             payment: this.fb.group({
                 echeances: this.fb.array([]),
@@ -274,6 +291,8 @@ export class InvoiceFormDialogComponent implements OnInit {
                         montantTTC: mTTC,
                         type: invoice.type,
                         pieceJointeUrl: invoice.pieceJointeUrl,
+                        clientId: invoice.clientId,
+                        ficheId: invoice.ficheId,
                     },
                     payment: {
                         statut: invoice.statut
@@ -368,6 +387,43 @@ export class InvoiceFormDialogComponent implements OnInit {
                 this.selectedSupplier = null;
             }
         });
+
+        // Setup Client Autocomplete Logic
+        this.setupClientFilter();
+
+        // If Type changes, reset or show/hide client fields handled in UI but we might want to clear them
+        this.detailsGroup.get('type')?.valueChanges.subscribe(type => {
+            if (type !== 'ACHAT_VERRE_OPTIQUE') {
+                // Should we clear? User might change back and forth. 
+                // Let's not clear immediately unless required.
+            }
+        });
+
+        // SPECIAL CASE: Consolidating BLs - Auto-add paid echeance if some BLs are paid
+        if (this.data?.isGrouping && this.data.prefilledData?.totalPaye > 0) {
+            const paidAmount = this.data.prefilledData.totalPaye;
+            const remaining = Math.max(0, this.detailsGroup.get('montantTTC')?.value - paidAmount);
+
+            this.echeances.clear();
+            // 1. Add the paid part
+            this.addEcheance({
+                type: 'ESPECES',
+                dateEcheance: this.detailsGroup.get('dateEmission')?.value || new Date(),
+                montant: paidAmount,
+                statut: 'ENCAISSE',
+                reference: 'REPRIS_DES_BL'
+            });
+            // 2. Add the remaining part if any
+            if (remaining > 0) {
+                this.addEcheance({
+                    type: 'CHEQUE',
+                    dateEcheance: this.detailsGroup.get('dateEcheance')?.value || new Date(),
+                    montant: remaining,
+                    statut: 'EN_ATTENTE'
+                });
+            }
+            this.autoUpdateStatus();
+        }
     }
 
     loadSuppliers() {
@@ -420,6 +476,66 @@ export class InvoiceFormDialogComponent implements OnInit {
     private _filterTypes(value: string): string[] {
         const filterValue = value.toLowerCase();
         return this.invoiceTypes.filter(option => option.toLowerCase().includes(filterValue));
+    }
+
+    // --- Client Filtering & Fiche Loading ---
+    setupClientFilter() {
+        this.filteredClients = this.clientCtrl.valueChanges.pipe(
+            startWith(''),
+            debounceTime(300),
+            switchMap(value => {
+                if (typeof value !== 'string') return of([]); // Selected or empty
+                if (!value || value.length < 2) return of([]);
+                this.loadingClients = true;
+                return this.clientService.searchClientsByNom(value).pipe(
+                    tap(() => this.loadingClients = false),
+                    catchError(() => {
+                        this.loadingClients = false;
+                        return of([]);
+                    })
+                );
+            })
+        );
+
+        this.clientCtrl.valueChanges.subscribe(value => {
+            if (value && typeof value === 'object' && value.id) {
+                this.detailsGroup.patchValue({ clientId: value.id });
+                this.loadFichesForClient(value.id);
+            } else if (!value) {
+                this.detailsGroup.patchValue({ clientId: null, ficheId: null });
+                this.availableFiches = [];
+            }
+        });
+    }
+
+    loadFichesForClient(clientId: string) {
+        this.loadingFiches = true;
+        this.ficheService.getFichesByClient(clientId).subscribe({
+            next: (fiches) => {
+                this.availableFiches = fiches;
+                this.loadingFiches = false;
+
+                // If only one fiche, auto-select it
+                if (this.availableFiches.length === 1 && !this.detailsGroup.get('ficheId')?.value) {
+                    this.detailsGroup.patchValue({ ficheId: this.availableFiches[0].id });
+                }
+
+                this.cdr.detectChanges();
+            },
+            error: () => {
+                this.loadingFiches = false;
+                this.cdr.detectChanges();
+            }
+        });
+    }
+
+    displayClientFn(client: any): string {
+        if (!client) return '';
+        if (typeof client === 'string') return client;
+        const name = client.nom || client.raisonSociale || '';
+        const prenom = client.prenom || '';
+        const cin = client.numeroPieceIdentite ? ` (${client.numeroPieceIdentite})` : '';
+        return `${name} ${prenom}${cin}`.trim();
     }
 
 
@@ -679,7 +795,9 @@ export class InvoiceFormDialogComponent implements OnInit {
             montantHT: Number(detailsData.montantHT),
             montantTVA: Number(detailsData.montantTVA),
             montantTTC: Number(detailsData.montantTTC),
-            isBL: this.isBLMode
+            isBL: this.isBLMode,
+            clientId: detailsData.clientId || undefined,
+            ficheId: detailsData.ficheId || undefined
         };
         const newAttachments: any[] = [];
         const existingAttachments: string[] = [];

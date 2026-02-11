@@ -359,7 +359,7 @@ export class ExpenseFormDialogComponent implements OnInit {
             if (this.dialogRef) {
                 this.dialogRef.close(result);
             } else {
-                this.router.navigate(['/p/finance/payments']);
+                this.router.navigate(['/p/finance/expenses']);
             }
         });
     }

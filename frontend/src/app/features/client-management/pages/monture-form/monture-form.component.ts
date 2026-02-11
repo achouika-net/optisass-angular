@@ -1365,6 +1365,18 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 productIdOG: [null],
                 isPendingTransfer: [false]
             }),
+            lentilles: this.fb.group({
+                od: this.fb.group({
+                    marque: [null],
+                    modele: [null],
+                    prix: [0]
+                }),
+                og: this.fb.group({
+                    marque: [null],
+                    modele: [null],
+                    prix: [0]
+                })
+            }),
             // Restore missing fields from deleted initForm (Important!)
             ordonnance: this.fb.group({
                 od: this.fb.group({
@@ -1465,6 +1477,18 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 productIdOD: [null],
                 productIdOG: [null],
                 isPendingTransfer: [false]
+            }),
+            lentilles: this.fb.group({
+                od: this.fb.group({
+                    marque: [null],
+                    modele: [null],
+                    prix: [0]
+                }),
+                og: this.fb.group({
+                    marque: [null],
+                    modele: [null],
+                    prix: [0]
+                })
             })
         });
 
@@ -1866,7 +1890,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             montage: fiche.montage,
             suggestions: fiche.suggestions,
             dateLivraisonEstimee: fiche.dateLivraisonEstimee,
-            suiviCommande: fiche.suiviCommande
+            suiviCommande: fiche.suiviCommande,
+            lentilles: fiche.lentilles // [NEW] Patch root lentilles if exists
         }, { emitEvent: false });
 
         // Explicitly patch verres to ensure UI updates for differentODOG
@@ -1941,6 +1966,18 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                         productId: [eq.verres?.productId || null],
                         entrepotId: [eq.verres?.entrepotId || null],
                         isPendingTransfer: [eq.verres?.isPendingTransfer || false]
+                    }),
+                    lentilles: this.fb.group({
+                        od: this.fb.group({
+                            marque: [eq.lentilles?.od?.marque || eq.lentilles?.marque || null],
+                            modele: [eq.lentilles?.od?.modele || eq.lentilles?.modele || null],
+                            prix: [eq.lentilles?.od?.prix || eq.lentilles?.prix || 0]
+                        }),
+                        og: this.fb.group({
+                            marque: [eq.lentilles?.og?.marque || eq.lentilles?.marque || null],
+                            modele: [eq.lentilles?.og?.modele || eq.lentilles?.modele || null],
+                            prix: [eq.lentilles?.og?.prix || eq.lentilles?.prix || 0]
+                        })
                     })
                 });
 
@@ -1960,7 +1997,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
         // Trigger visuals
         setTimeout(() => {
-            this.calculateLensPrices();
+            // [FIX] Do NOT auto-calculate prices on load, as it wipes imported values that don't match catalog
+            // this.calculateLensPrices(); 
             this.updateFrameCanvasVisualization();
         }, 500);
 
@@ -2132,6 +2170,38 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             }
         }
 
+        const mainLentilles = formValue.lentilles;
+        if (mainLentilles) {
+            const prixOD = parseFloat(mainLentilles.od?.prix) || 0;
+            const prixOG = parseFloat(mainLentilles.og?.prix) || 0;
+            if (prixOD > 0) {
+                lignes.push({
+                    description: `Lentille OD ${mainLentilles.od?.marque || ''} ${mainLentilles.od?.modele || ''}`.trim() || 'Lentille OD',
+                    qte: 1,
+                    prixUnitaireTTC: prixOD,
+                    remise: 0,
+                    totalTTC: prixOD,
+                    productId: null,
+                    entrepotId: null,
+                    entrepotType: null,
+                    entrepotNom: null
+                });
+            }
+            if (prixOG > 0) {
+                lignes.push({
+                    description: `Lentille OG ${mainLentilles.og?.marque || ''} ${mainLentilles.og?.modele || ''}`.trim() || 'Lentille OG',
+                    qte: 1,
+                    prixUnitaireTTC: prixOG,
+                    remise: 0,
+                    totalTTC: prixOG,
+                    productId: null,
+                    entrepotId: null,
+                    entrepotType: null,
+                    entrepotNom: null
+                });
+            }
+        }
+
         // 2. Additional Equipments
         if (formValue.equipements && Array.isArray(formValue.equipements)) {
             formValue.equipements.forEach((equip: any, index: number) => {
@@ -2198,6 +2268,38 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                             entrepotId: verres.entrepotId || null,
                             entrepotType: verres.entrepotType || null,
                             entrepotNom: verres.entrepotNom || null
+                        });
+                    }
+                }
+
+                if (equip.lentilles) {
+                    const addedLentilles = equip.lentilles;
+                    const prixOD = parseFloat(addedLentilles.od?.prix) || 0;
+                    const prixOG = parseFloat(addedLentilles.og?.prix) || 0;
+                    if (prixOD > 0) {
+                        lignes.push({
+                            description: `Lentille OD Eq${index + 1} ${addedLentilles.od?.marque || ''}`.trim(),
+                            qte: 1,
+                            prixUnitaireTTC: prixOD,
+                            remise: 0,
+                            totalTTC: prixOD,
+                            productId: null,
+                            entrepotId: null,
+                            entrepotType: null,
+                            entrepotNom: null
+                        });
+                    }
+                    if (prixOG > 0) {
+                        lignes.push({
+                            description: `Lentille OG Eq${index + 1} ${addedLentilles.og?.marque || ''}`.trim(),
+                            qte: 1,
+                            prixUnitaireTTC: prixOG,
+                            remise: 0,
+                            totalTTC: prixOG,
+                            productId: null,
+                            entrepotId: null,
+                            entrepotType: null,
+                            entrepotNom: null
                         });
                     }
                 }

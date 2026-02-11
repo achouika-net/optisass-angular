@@ -8,6 +8,13 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
+import { MatInputModule } from '@angular/material/input';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
+import { FormsModule } from '@angular/forms';
+import { signal } from '@angular/core';
 
 import { FinanceService } from '../../services/finance.service';
 import { Expense } from '../../models/finance.models';
@@ -26,7 +33,13 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
     MatTableModule,
     MatSnackBarModule,
     MatChipsModule,
-    MatTooltipModule
+    MatTooltipModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatInputModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
+    FormsModule
   ],
   templateUrl: './expense-list.component.html',
   styles: [`
@@ -37,6 +50,9 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
     .montant-cell { font-weight: bold; }
     .chip-caisse { background-color: #e0f2f1; color: #00695c; }
     .chip-cheque { background-color: #fff3e0; color: #ef6c00; }
+    .filters { display: flex; gap: 16px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
+    .filters mat-form-field { flex: 1; min-width: 200px; }
+    ::ng-deep .dense-field .mat-mdc-form-field-subscript-wrapper { display: none; }
   `]
 })
 export class ExpenseListComponent implements OnInit {
@@ -44,6 +60,21 @@ export class ExpenseListComponent implements OnInit {
   displayedColumns: string[] = ['date', 'categorie', 'description', 'centre', 'modePaiement', 'montant', 'actions'];
   loading = false;
   currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
+
+  selectedPeriod = signal<string>('all');
+  periods = [
+    { value: 'all', label: 'Toutes les périodes' },
+    { value: 'today', label: "Aujourd'hui" },
+    { value: 'this-month', label: 'Ce mois-ci' },
+    { value: 'last-month', label: 'Mois dernier' },
+    { value: 'this-year', label: 'Cette année' },
+    { value: 'custom', label: 'Plage personnalisée' }
+  ];
+
+  filters = {
+    startDate: null as Date | null,
+    endDate: null as Date | null
+  };
 
   constructor(
     private financeService: FinanceService,
@@ -58,6 +89,11 @@ export class ExpenseListComponent implements OnInit {
         this.loadExpenses();
       }
     });
+
+    effect(() => {
+      this.selectedPeriod();
+      this.loadExpenses();
+    }, { allowSignalWrites: true });
   }
 
   ngOnInit(): void {
@@ -67,7 +103,40 @@ export class ExpenseListComponent implements OnInit {
   loadExpenses() {
     this.loading = true;
     this.cdr.markForCheck();
-    const filters = { centreId: this.currentCentre()?.id };
+
+    let startDate: string | undefined;
+    let endDate: string | undefined;
+
+    const now = new Date();
+    if (this.selectedPeriod() === 'today') {
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      startDate = todayStart.toISOString();
+      endDate = todayEnd.toISOString();
+    } else if (this.selectedPeriod() === 'this-month') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+    } else if (this.selectedPeriod() === 'last-month') {
+      startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+      endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).toISOString();
+    } else if (this.selectedPeriod() === 'this-year') {
+      startDate = new Date(now.getFullYear(), 0, 1).toISOString();
+      endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59).toISOString();
+    } else if (this.selectedPeriod() === 'custom') {
+      if (this.filters.startDate) startDate = new Date(this.filters.startDate).toISOString();
+      if (this.filters.endDate) {
+        const end = new Date(this.filters.endDate);
+        end.setHours(23, 59, 59);
+        endDate = end.toISOString();
+      }
+    }
+
+    const filters = {
+      centreId: this.currentCentre()?.id,
+      startDate,
+      endDate
+    };
+
     this.financeService.getExpenses(filters).subscribe({
       next: (data) => {
         this.expenses = data;

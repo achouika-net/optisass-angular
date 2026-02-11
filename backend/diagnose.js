@@ -1,33 +1,43 @@
 
 const { PrismaClient } = require('@prisma/client');
+const fs = require('fs');
+const dotenv = require('dotenv');
+
+// Load .env manually to be absolutely sure
+const envConfig = dotenv.parse(fs.readFileSync('.env'));
+for (const k in envConfig) {
+    process.env[k] = envConfig[k];
+}
+
+console.log('DATABASE_URL from process.env:', process.env.DATABASE_URL);
+
+const prisma = new PrismaClient();
 
 async function main() {
-    const prisma = new PrismaClient();
+    console.log('--- Diagnosis of Recent Clients (JS) ---');
+
     try {
-        const factures = await prisma.facture.count();
-        const paiements = await prisma.paiement.count();
-        const depenses = await prisma.depense.count();
+        const total = await prisma.client.count();
+        console.log('Total clients:', total);
 
-        const fStatuts = await prisma.facture.groupBy({ by: ['statut'], _count: true });
-        const pStatuts = await prisma.paiement.groupBy({ by: ['statut'], _count: true });
-        const dStatuts = await prisma.depense.groupBy({ by: ['statut'], _count: true });
+        const inactifCount = await prisma.client.count({ where: { statut: 'INACTIF' } });
+        console.log('Total INACTIF clients:', inactifCount);
 
-        console.log('--- Counts ---');
-        console.log('Factures:', factures);
-        console.log('Paiements:', paiements);
-        console.log('Depenses:', depenses);
+        const noCentreCount = await prisma.client.count({ where: { centreId: null } });
+        console.log('Total clients with NO centreId:', noCentreCount);
 
-        console.log('\n--- Facture Statuses ---');
-        console.log(JSON.stringify(fStatuts, null, 2));
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
-        console.log('\n--- Paiement Statuses ---');
-        console.log(JSON.stringify(pStatuts, null, 2));
+        const recent = await prisma.client.findMany({
+            where: { dateCreation: { gte: today } },
+            take: 10,
+            select: { id: true, nom: true, statut: true, centreId: true, dateCreation: true }
+        });
 
-        console.log('\n--- Depense Statuses ---');
-        console.log(JSON.stringify(dStatuts, null, 2));
-
-    } catch (e) {
-        console.error(e);
+        console.log('Recent clients:', JSON.stringify(recent, null, 2));
+    } catch (err) {
+        console.error('Error during database check:', err);
     } finally {
         await prisma.$disconnect();
     }

@@ -1,0 +1,437 @@
+﻿    async importFournisseurs(data: any[], mapping: any) {
+    const results = {
+        success: 0,
+        updated: 0,
+        skipped: 0,
+        failed: 0,
+        errors: [] as string[]
+    };
+
+    for (let index = 0; index < data.length; index++) {
+        const row = data[index];
+        try {
+            const nom = row[mapping.nom];
+            if (!nom) {
+                results.skipped++;
+                results.errors.push(`Row ${index + 1}: Missing supplier name`);
+                continue;
+            }
+
+            // Check if supplier exists by nom or code
+            const code = row[mapping.code];
+            let existingFournisseur = null;
+            if (code) {
+                existingFournisseur = await this.prisma.fournisseur.findFirst({
+                    where: { nom: code }
+                });
+            }
+            if (!existingFournisseur) {
+                existingFournisseur = await this.prisma.fournisseur.findFirst({
+                    where: { nom }
+                });
+            }
+
+            const fournisseurData = {
+                nom,
+                contact: row[mapping.contact] || null,
+                email: row[mapping.email] || null,
+                telephone: row[mapping.telephone] || null,
+                adresse: row[mapping.adresse] || null,
+                ville: row[mapping.ville] || null,
+                siteWeb: row[mapping.siteWeb] || null,
+                ice: row[mapping.ice] || null,
+                rc: row[mapping.rc] || null,
+                identifiantFiscal: row[mapping.identifiantFiscal] || null,
+                patente: row[mapping.patente] || null,
+                cnss: row[mapping.cnss] || null,
+                rib: row[mapping.rib] || null,
+                banque: row[mapping.banque] || null,
+                conditionsPaiement: row[mapping.conditionsPaiement] || null
+            };
+
+            if (existingFournisseur) {
+                await this.prisma.fournisseur.update({
+                    where: { id: existingFournisseur.id },
+                    data: fournisseurData
+                });
+                results.updated++;
+            } else {
+                await this.prisma.fournisseur.create({
+                    data: fournisseurData
+                });
+                results.success++;
+            }
+        } catch (error) {
+            results.failed++;
+            results.errors.push(`Row ${index + 1}: ${error.message}`);
+        }
+    }
+
+    return results;
+}
+
+    async importFacturesFournisseurs(data: any[], mapping: any, centreId ?: string) {
+    const results = {
+        success: 0,
+        updated: 0,
+        skipped: 0,
+        failed: 0,
+        errors: [] as string[]
+    };
+
+    for (let index = 0; index < data.length; index++) {
+        const row = data[index];
+        try {
+            const numeroFacture = row[mapping.numeroFacture];
+            const codeFournisseur = row[mapping.codeFournisseur];
+            const nomFournisseur = row[mapping.nomFournisseur];
+
+            if (!numeroFacture) {
+                results.skipped++;
+                results.errors.push(`Row ${index + 1}: Missing invoice number`);
+                continue;
+            }
+
+            // Find or create supplier
+            let fournisseur = null;
+            if (codeFournisseur) {
+                fournisseur = await this.prisma.fournisseur.findFirst({
+                    where: { nom: codeFournisseur }
+                });
+            }
+            if (!fournisseur && nomFournisseur) {
+                fournisseur = await this.prisma.fournisseur.findFirst({
+                    where: { nom: nomFournisseur }
+                });
+            }
+            if (!fournisseur && nomFournisseur) {
+                // Auto-create supplier
+                fournisseur = await this.prisma.fournisseur.create({
+                    data: { nom: nomFournisseur }
+                });
+            }
+
+            if (!fournisseur) {
+                results.skipped++;
+                results.errors.push(`Row ${index + 1}: Supplier not found`);
+                continue;
+            }
+
+            const dateEmission = row[mapping.dateEmission] ? new Date(row[mapping.dateEmission]) : new Date();
+            const dateEcheance = row[mapping.dateEcheance] ? new Date(row[mapping.dateEcheance]) : null;
+            const montantHT = parseFloat(row[mapping.montantHT]) || 0;
+            const montantTVA = parseFloat(row[mapping.montantTVA]) || 0;
+            const montantTTC = parseFloat(row[mapping.montantTTC]) || (montantHT + montantTVA);
+
+            const factureData = {
+                numeroFacture,
+                dateEmission,
+                dateEcheance,
+                montantHT,
+                montantTVA,
+                montantTTC,
+                statut: row[mapping.statut] || 'A_PAYER',
+                type: row[mapping.type] || 'ACHAT_STOCK',
+                fournisseurId: fournisseur.id,
+                centreId: centreId || null
+            };
+
+            // Check if invoice exists
+            const existingFacture = await this.prisma.factureFournisseur.findFirst({
+                where: {
+                    numeroFacture,
+                    fournisseurId: fournisseur.id
+                }
+            });
+
+            if (existingFacture) {
+                await this.prisma.factureFournisseur.update({
+                    where: { id: existingFacture.id },
+                    data: factureData
+                });
+                results.updated++;
+            } else {
+                await this.prisma.factureFournisseur.create({
+                    data: factureData
+                });
+                results.success++;
+            }
+        } catch (error) {
+            results.failed++;
+            results.errors.push(`Row ${index + 1}: ${error.message}`);
+        }
+    }
+
+    return results;
+}
+
+    async importPaiementsFournisseurs(data: any[], mapping: any) {
+    const results = {
+        success: 0,
+        updated: 0,
+        skipped: 0,
+        failed: 0,
+        errors: [] as string[]
+    };
+
+    for (let index = 0; index < data.length; index++) {
+        const row = data[index];
+        try {
+            const numeroFacture = row[mapping.numeroFacture];
+            const codeFournisseur = row[mapping.codeFournisseur];
+
+            if (!numeroFacture) {
+                results.skipped++;
+                results.errors.push(`Row ${index + 1}: Missing invoice number`);
+                continue;
+            }
+
+            // Find supplier invoice
+            let facture = null;
+            if (codeFournisseur) {
+                const fournisseur = await this.prisma.fournisseur.findFirst({
+                    where: { nom: codeFournisseur }
+                });
+                if (fournisseur) {
+                    facture = await this.prisma.factureFournisseur.findFirst({
+                        where: {
+                            numeroFacture,
+                            fournisseurId: fournisseur.id
+                        }
+                    });
+                }
+            } else {
+                facture = await this.prisma.factureFournisseur.findFirst({
+                    where: { numeroFacture }
+                });
+            }
+
+            if (!facture) {
+                results.skipped++;
+                results.errors.push(`Row ${index + 1}: Invoice not found`);
+                continue;
+            }
+
+            const montant = parseFloat(row[mapping.montant]) || 0;
+            const datePaiement = row[mapping.datePaiement] ? new Date(row[mapping.datePaiement]) : new Date();
+
+            // Create echeance paiement
+            await this.prisma.echeancePaiement.create({
+                data: {
+                    factureFournisseurId: facture.id,
+                    montant,
+                    datePaiement,
+                    modePaiement: row[mapping.modePaiement] || 'EspÃ¨ces',
+                    reference: row[mapping.reference] || null,
+                    statut: 'PAYEE'
+                }
+            });
+
+            // Update invoice status
+            const totalPaye = await this.prisma.echeancePaiement.aggregate({
+                where: { factureFournisseurId: facture.id },
+                _sum: { montant: true }
+            });
+
+            const nouveauStatut = (totalPaye._sum.montant || 0) >= facture.montantTTC ? 'PAYEE' : 'PARTIELLE';
+            await this.prisma.factureFournisseur.update({
+                where: { id: facture.id },
+                data: { statut: nouveauStatut }
+            });
+
+            results.success++;
+        } catch (error) {
+            results.failed++;
+            results.errors.push(`Row ${index + 1}: ${error.message}`);
+        }
+    }
+
+    return results;
+}
+
+    async importFacturesVentes(data: any[], mapping: any, centreId ?: string) {
+    const results = {
+        success: 0,
+        updated: 0,
+        skipped: 0,
+        failed: 0,
+        errors: [] as string[]
+    };
+
+    for (let index = 0; index < data.length; index++) {
+        const row = data[index];
+        try {
+            const codeClient = row[mapping.codeClient];
+            const nomClient = row[mapping.nomClient];
+
+            if (!codeClient && !nomClient) {
+                results.skipped++;
+                results.errors.push(`Row ${index + 1}: Missing client code or name`);
+                continue;
+            }
+
+            // Find client
+            let client = null;
+            if (codeClient) {
+                client = await this.prisma.client.findFirst({
+                    where: { codeClient }
+                });
+            }
+            if (!client && nomClient) {
+                client = await this.prisma.client.findFirst({
+                    where: { nom: nomClient }
+                });
+            }
+
+            if (!client) {
+                results.skipped++;
+                results.errors.push(`Row ${index + 1}: Client not found`);
+                continue;
+            }
+
+            const type = row[mapping.type] || 'FACTURE';
+            const dateEmission = row[mapping.dateEmission] ? new Date(row[mapping.dateEmission]) : new Date();
+            const dateEcheance = row[mapping.dateEcheance] ? new Date(row[mapping.dateEcheance]) : null;
+            const totalHT = parseFloat(row[mapping.totalHT]) || 0;
+            const totalTVA = parseFloat(row[mapping.totalTVA]) || 0;
+            const totalTTC = parseFloat(row[mapping.totalTTC]) || (totalHT + totalTVA);
+
+            // Generate numero if not provided
+            let numero = row[mapping.numero];
+            if (!numero) {
+                const prefix = type === 'DEVIS' ? 'DEV' : type === 'BON_COMMANDE' ? 'BC' : 'FAC';
+                const count = await this.prisma.facture.count({
+                    where: { type }
+                });
+                numero = `${prefix}-${(count + 1).toString().padStart(6, '0')}`;
+            }
+
+            const factureData = {
+                numero,
+                type,
+                dateEmission,
+                dateEcheance,
+                statut: row[mapping.statut] || 'BROUILLON',
+                clientId: client.id,
+                totalHT,
+                totalTVA,
+                totalTTC,
+                resteAPayer: totalTTC,
+                lignes: [],
+                centreId: centreId || null
+            };
+
+            // Check if invoice exists
+            const existingFacture = await this.prisma.facture.findFirst({
+                where: { numero }
+            });
+
+            if (existingFacture) {
+                await this.prisma.facture.update({
+                    where: { id: existingFacture.id },
+                    data: factureData
+                });
+                results.updated++;
+            } else {
+                await this.prisma.facture.create({
+                    data: factureData
+                });
+                results.success++;
+            }
+        } catch (error) {
+            results.failed++;
+            results.errors.push(`Row ${index + 1}: ${error.message}`);
+        }
+    }
+
+    return results;
+}
+
+    async importPaiementsClients(data: any[], mapping: any) {
+    const results = {
+        success: 0,
+        updated: 0,
+        skipped: 0,
+        failed: 0,
+        errors: [] as string[]
+    };
+
+    for (let index = 0; index < data.length; index++) {
+        const row = data[index];
+        try {
+            const numeroFacture = row[mapping.numeroFacture];
+            const codeClient = row[mapping.codeClient];
+
+            if (!numeroFacture) {
+                results.skipped++;
+                results.errors.push(`Row ${index + 1}: Missing invoice number`);
+                continue;
+            }
+
+            // Find invoice
+            let facture = null;
+            if (codeClient) {
+                const client = await this.prisma.client.findFirst({
+                    where: { codeClient }
+                });
+                if (client) {
+                    facture = await this.prisma.facture.findFirst({
+                        where: {
+                            numero: numeroFacture,
+                            clientId: client.id
+                        }
+                    });
+                }
+            } else {
+                facture = await this.prisma.facture.findFirst({
+                    where: { numero: numeroFacture }
+                });
+            }
+
+            if (!facture) {
+                results.skipped++;
+                results.errors.push(`Row ${index + 1}: Invoice not found`);
+                continue;
+            }
+
+            const montant = parseFloat(row[mapping.montant]) || 0;
+            const datePaiement = row[mapping.datePaiement] ? new Date(row[mapping.datePaiement]) : new Date();
+
+            // Create payment
+            await this.prisma.paiement.create({
+                data: {
+                    factureId: facture.id,
+                    montant,
+                    date: datePaiement,
+                    mode: row[mapping.modePaiement] || 'EspÃ¨ces',
+                    reference: row[mapping.reference] || null,
+                    statut: 'ENCAISSE'
+                }
+            });
+
+            // Update invoice resteAPayer
+            const totalPaye = await this.prisma.paiement.aggregate({
+                where: { factureId: facture.id },
+                _sum: { montant: true }
+            });
+
+            const resteAPayer = facture.totalTTC - (totalPaye._sum.montant || 0);
+            const nouveauStatut = resteAPayer <= 0 ? 'PAYEE' : 'VALIDEE';
+
+            await this.prisma.facture.update({
+                where: { id: facture.id },
+                data: {
+                    resteAPayer,
+                    statut: nouveauStatut
+                }
+            });
+
+            results.success++;
+        } catch (error) {
+            results.failed++;
+            results.errors.push(`Row ${index + 1}: ${error.message}`);
+        }
+    }
+
+    return results;
+}

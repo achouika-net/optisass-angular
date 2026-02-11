@@ -13,9 +13,7 @@ services:
     restart: always
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.prod
+    image: optisaas-backend:latest
     container_name: optisaas-backend
     ports:
       - "3000:3000"
@@ -26,9 +24,7 @@ services:
     restart: always
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.prod
+    image: optisaas-frontend:latest
     container_name: optisaas-frontend
     ports:
       - "4200:80"

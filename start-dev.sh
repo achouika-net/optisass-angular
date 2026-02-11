@@ -43,8 +43,10 @@ if [ "$OS_TYPE" == "macos" ]; then
 fi
 
 # 3. Synchronisation Prisma
-echo "3️⃣  Génération du client Prisma..."
+echo "3️⃣  Synchronisation Base de Données..."
 cd "$BACKEND_DIR"
+# Force DB push to handle unique constraints/schema changes automatically
+npx prisma db push --accept-data-loss
 npx prisma generate
 cd "$ROOT_DIR"
 

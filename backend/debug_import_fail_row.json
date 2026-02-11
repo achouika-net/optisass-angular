@@ -1,0 +1,28 @@
+{
+  "row": 700,
+  "productData": {
+    "typeArticle": "MON",
+    "statut": "ACTIF",
+    "entrepotId": "244c6e7d-bd55-4d54-bef4-966a52de7e21",
+    "utilisateurCreation": "IMPORT_SYSTEM",
+    "seuilAlerte": 0,
+    "codeInterne": "1987",
+    "codeBarres": "919871000000",
+    "referenceFournisseur": "ABLENS",
+    "marque": "OLIVITO",
+    "modele": "OL 450-13  52-17 COL04",
+    "couleur": "MARON",
+    "famille": "Mixte",
+    "sousFamille": "Acétate",
+    "fournisseurPrincipal": "ABLENS",
+    "prixAchatHT": 216,
+    "prixVenteHT": 750,
+    "prixVenteTTC": 750,
+    "quantiteActuelle": 0,
+    "specificData": {
+      "cerclage": "Cerclée"
+    },
+    "designation": "OLIVITO OL 450-13  52-17 COL04"
+  },
+  "error": "\nInvalid `this.prisma.product.create()` invocation in\n/app/src/features/imports/imports.service.ts:161:43\n\n  158     productData.codeBarres = productData.codeInterne;\n  159 }\n  160 \n→ 161 await this.prisma.product.create(\nUnique constraint failed on the fields: (`codeBarres`,`entrepotId`)"
+}

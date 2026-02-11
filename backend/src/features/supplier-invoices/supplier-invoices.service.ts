@@ -14,7 +14,28 @@ export class SupplierInvoicesService {
     ) { }
 
     async create(createDto: CreateSupplierInvoiceDto) {
-        const { echeances, base64File, fileName, ...invoiceData } = createDto;
+        console.log('[INVOICE] CREATE PAYLOAD:', JSON.stringify(createDto));
+        const { echeances, base64File, fileName, ...inputData } = createDto;
+
+        // Clean inputData: Prisma will crash if we pass unknown fields (like directPayment or newAttachments from frontend)
+        const invoiceData: any = {
+            numeroFacture: inputData.numeroFacture,
+            dateEmission: normalizeToUTCNoon(inputData.dateEmission) as Date,
+            dateEcheance: normalizeToUTCNoon(inputData.dateEcheance),
+            montantHT: Number(inputData.montantHT),
+            montantTVA: Number(inputData.montantTVA),
+            montantTTC: Number(inputData.montantTTC),
+            statut: inputData.statut,
+            type: inputData.type,
+            fournisseurId: inputData.fournisseurId,
+            centreId: inputData.centreId,
+            clientId: inputData.clientId,
+            ficheId: inputData.ficheId,
+            isBL: inputData.isBL,
+            categorieBL: inputData.categorieBL,
+            parentInvoiceId: inputData.parentInvoiceId,
+            pieceJointeUrl: inputData.pieceJointeUrl || ''
+        };
 
         // Robust duplicate check
         const existingInvoice = await this.checkExistence(invoiceData.fournisseurId, invoiceData.numeroFacture);
@@ -25,7 +46,7 @@ export class SupplierInvoicesService {
         }
 
         // Handle File Attachment
-        let pieceJointeUrl = invoiceData.pieceJointeUrl || '';
+        let pieceJointeUrl = invoiceData.pieceJointeUrl;
         if (base64File && fileName) {
             const uploadDir = path.join(process.cwd(), 'uploads', 'invoices');
             if (!fs.existsSync(uploadDir)) {
@@ -51,27 +72,33 @@ export class SupplierInvoicesService {
             }
         ];
 
-        return this.prisma.factureFournisseur.create({
-            data: {
-                ...invoiceData,
-                pieceJointeUrl,
-                dateEmission: normalizeToUTCNoon(invoiceData.dateEmission) as Date,
-                dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance),
-                statut: status,
-                centreId: invoiceData.centreId, // Explicitly map it
-                ficheId: invoiceData.ficheId,
-                echeances: {
-                    create: finalEcheances.map(e => ({
-                        ...e,
-                        dateEcheance: normalizeToUTCNoon(e.dateEcheance) as Date
-                    }))
+        try {
+            return await this.prisma.factureFournisseur.create({
+                data: {
+                    ...invoiceData,
+                    pieceJointeUrl,
+                    statut: status,
+                    echeances: {
+                        create: finalEcheances.map(e => ({
+                            type: e.type,
+                            dateEcheance: normalizeToUTCNoon(e.dateEcheance) as Date,
+                            montant: e.montant,
+                            statut: e.statut,
+                            reference: e.reference || null,
+                            banque: e.banque || null,
+                            remarque: e.remarque || null
+                        }))
+                    }
+                },
+                include: {
+                    echeances: true,
+                    fournisseur: true
                 }
-            },
-            include: {
-                echeances: true,
-                fournisseur: true
-            }
-        });
+            });
+        } catch (error) {
+            console.error('[INVOICE] CREATE ERROR:', error);
+            throw error;
+        }
     }
 
     async findAll(filters: {
@@ -109,13 +136,14 @@ export class SupplierInvoicesService {
         return this.prisma.factureFournisseur.findMany({
             where: whereClause,
             include: {
-                fournisseur: true,
+                fournisseur: { select: { id: true, nom: true } },
                 echeances: true,
-                client: true,
-                fiche: true,
-                parentInvoice: true
+                client: { select: { id: true, nom: true, prenom: true } },
+                fiche: { select: { id: true, numero: true, type: true } },
+                parentInvoice: { select: { id: true, numeroFacture: true } }
             },
-            orderBy: { dateEmission: 'desc' }
+            orderBy: { dateEmission: 'desc' },
+            take: 200
         });
     }
 
@@ -174,6 +202,9 @@ export class SupplierInvoicesService {
             centreId: invoiceData.centreId,
             clientId: invoiceData.clientId,
             ficheId: invoiceData.ficheId,
+            isBL: invoiceData.isBL,
+            categorieBL: invoiceData.categorieBL,
+            parentInvoiceId: invoiceData.parentInvoiceId
         };
 
         // Handle File Attachment Update (Multi-file support)
@@ -318,10 +349,10 @@ export class SupplierInvoicesService {
                 where: { factureFournisseurId: id }
             });
 
-            // 2. Sync each affected product
-            for (const productId of productIds) {
-                await this.productsService.syncProductState(productId, tx);
-            }
+            // 2. Sync each affected product in parallel for better performance
+            await Promise.all(productIds.map(productId =>
+                this.productsService.syncProductState(productId, tx)
+            ));
 
             // 3. Delete linked Expense if exists
             await tx.depense.deleteMany({
@@ -343,7 +374,8 @@ export class SupplierInvoicesService {
     async getSupplierSituation(fournisseurId: string, startDate?: string, endDate?: string) {
         const whereClause: any = {
             fournisseurId: fournisseurId,
-            statut: { not: 'ANNULEE' }
+            statut: { not: 'ANNULEE' },
+            parentInvoiceId: null // Only top-level documents to avoid double counting debt
         };
 
         if (startDate || endDate) {

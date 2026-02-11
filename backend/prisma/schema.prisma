@@ -18,6 +18,7 @@ model Client {
   codePostal           String?
   pointsFidelite       Int                  @default(0)
   statut               String               @default("INACTIF")
+  codeClient           String?              @unique // Added for legacy import
   commentaires         String?
   nom                  String?
   prenom               String?
@@ -40,8 +41,10 @@ model Client {
   convention           Json?
   parrainId            String?
   centreId             String?
+  groupeId             String?
   titre                String?
   centre               Centre?              @relation(fields: [centreId], references: [id])
+  groupe               Groupe?              @relation(fields: [groupeId], references: [id])
   parrain              Client?              @relation("Parrainage", fields: [parrainId], references: [id])
   filleuls             Client[]             @relation("Parrainage")
   factures             Facture[]
@@ -136,6 +139,7 @@ model Paiement {
   @@index([mode])
   @@index([statut])
   @@index([factureId])
+  @@index([dateVersement])
 }
 
 model Groupe {
@@ -148,6 +152,7 @@ model Groupe {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   centres     Centre[]
+  clients     Client[]
 }
 
 model Centre {
@@ -391,6 +396,8 @@ model Depense {
 
   @@index([date])
   @@index([centreId])
+  @@index([dateEcheance])
+  @@index([centreId, date])
 }
 
 model FactureFournisseur {
@@ -429,6 +436,8 @@ model FactureFournisseur {
   @@index([dateEmission])
   @@index([centreId])
   @@index([clientId])
+  @@index([dateEcheance])
+  @@index([centreId, dateEmission])
 }
 
 model EcheancePaiement {
@@ -449,6 +458,7 @@ model EcheancePaiement {
 
   @@index([dateEcheance])
   @@index([statut])
+  @@index([factureFournisseurId])
 }
 
 model FinanceConfig {

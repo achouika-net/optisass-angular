@@ -240,6 +240,16 @@ export class SupplierInvoiceListComponent implements OnInit {
     const totalTTC = Math.round(this.selection.selected.reduce((sum, bl) => sum + bl.montantTTC, 0) * 100) / 100;
     const totalHT = Math.round(this.selection.selected.reduce((sum, bl) => sum + bl.montantHT, 0) * 100) / 100;
     const totalTVA = Math.round(this.selection.selected.reduce((sum, bl) => sum + bl.montantTVA, 0) * 100) / 100;
+
+    // Calculate already paid amount from child BLs
+    const totalPaye = Math.round(this.selection.selected.reduce((sum, bl) => {
+      if (bl.statut === 'PAYEE') return sum + bl.montantTTC;
+      if (bl.statut === 'PARTIELLE' && bl.echeances) {
+        return sum + bl.echeances.filter(e => e.statut === 'ENCAISSE').reduce((s, e) => s + e.montant, 0);
+      }
+      return sum;
+    }, 0) * 100) / 100;
+
     const supplierId = this.selection.selected[0].fournisseurId;
 
     if (this.selection.selected.some(bl => bl.fournisseurId !== supplierId)) {
@@ -258,6 +268,7 @@ export class SupplierInvoiceListComponent implements OnInit {
           montantTTC: totalTTC,
           montantHT: totalHT,
           montantTVA: totalTVA,
+          totalPaye: totalPaye, // Pass the already paid amount
           type: 'ACHAT_GROUPE',
           numeroFacture: `GROUPE-${new Date().getTime()}`
         },
@@ -297,7 +308,8 @@ export class SupplierInvoiceListComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        this.loadInvoices();
+        this.router.navigate(['/p/gestion-depenses/expenses']);
+        this.snackBar.open('Dépense enregistrée. Vous avez été redirigé vers la liste des dépenses.', 'Fermer', { duration: 5000 });
       }
     });
   }

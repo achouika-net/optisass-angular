@@ -24,7 +24,17 @@ export class TreasuryService {
                 where: {
                     dateEcheance: { gte: startDate, lte: endDate },
                     statut: { not: 'ANNULE' },
-                    ...(centreId ? { OR: [{ depense: { centreId } }, { factureFournisseur: { centreId } }] } : {})
+                    ...(centreId ? {
+                        OR: [
+                            { depense: { centreId } },
+                            { factureFournisseur: { centreId, parentInvoiceId: null } }
+                        ]
+                    } : {
+                        OR: [
+                            { depense: { isNot: null } },
+                            { factureFournisseur: { parentInvoiceId: null } }
+                        ]
+                    })
                 },
                 select: {
                     montant: true,
@@ -302,8 +312,13 @@ export class TreasuryService {
 
             if (filters.centreId) {
                 where.OR = [
-                    { factureFournisseur: { centreId: filters.centreId } },
+                    { factureFournisseur: { centreId: filters.centreId, parentInvoiceId: null } },
                     { depense: { centreId: filters.centreId } }
+                ];
+            } else {
+                where.OR = [
+                    { factureFournisseur: { parentInvoiceId: null } },
+                    { depense: { id: { not: null } } }
                 ];
             }
 
@@ -384,7 +399,11 @@ export class TreasuryService {
             }),
             filters.source === 'DEPENSE' ? Promise.resolve([]) : this.prisma.echeancePaiement.findMany({
                 where: {
-                    factureFournisseur: whereInvoice,
+                    factureFournisseur: {
+                        ...whereInvoice,
+                        parentInvoiceId: null // Only top-level
+                    },
+                    depense: null, // Deduplicate: if an echeance has a depense, it is already shown in the expenses query
                     ...(Object.keys(dateRange).length > 0 ? { dateEcheance: dateRange } : {})
                 },
                 include: {
@@ -453,9 +472,14 @@ export class TreasuryService {
                     ...(centreId ? {
                         OR: [
                             { depense: { centreId } },
-                            { factureFournisseur: { centreId } }
+                            { factureFournisseur: { centreId, parentInvoiceId: null } }
                         ]
-                    } : {})
+                    } : {
+                        OR: [
+                            { depense: { isNot: null } },
+                            { factureFournisseur: { parentInvoiceId: null } }
+                        ]
+                    })
                 },
                 _sum: { montant: true }
             });
@@ -488,6 +512,7 @@ export class TreasuryService {
         const now = new Date();
         const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
         const next48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+        const last30days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
         const [clientAlerts, supplierAlerts] = await Promise.all([
             // 1. Client Checks (24h before dateVersement)
@@ -495,7 +520,7 @@ export class TreasuryService {
                 where: {
                     mode: 'CHEQUE',
                     statut: 'EN_ATTENTE',
-                    dateVersement: { lte: next24h },
+                    dateVersement: { lte: next24h, gte: last30days }, // Only look back 30 days
                     facture: centreId ? { centreId } : {}
                 },
                 include: {
@@ -509,13 +534,18 @@ export class TreasuryService {
                 where: {
                     type: { in: ['CHEQUE', 'LCN'] },
                     statut: 'EN_ATTENTE',
-                    dateEcheance: { lte: next48h },
+                    dateEcheance: { lte: next48h, gte: last30days }, // Only look back 30 days
                     ...(centreId ? {
                         OR: [
                             { depense: { centreId } },
-                            { factureFournisseur: { centreId } }
+                            { factureFournisseur: { centreId, parentInvoiceId: null } }
                         ]
-                    } : {})
+                    } : {
+                        OR: [
+                            { depense: { isNot: null } },
+                            { factureFournisseur: { parentInvoiceId: null } }
+                        ]
+                    })
                 },
                 include: {
                     factureFournisseur: { include: { fournisseur: { select: { nom: true } } } },
@@ -533,13 +563,13 @@ export class TreasuryService {
                 reference: p.reference,
                 numeroFacture: p.facture.numero
             })),
-            supplier: supplierAlerts.map(e => ({
+            supplier: supplierAlerts.map((e: any) => ({
                 id: e.id,
-                fournisseur: e.factureFournisseur?.fournisseur?.nom || e.depense?.fournisseur?.nom || 'N/A',
+                fournisseur: (e as any).factureFournisseur?.fournisseur?.nom || (e as any).depense?.fournisseur?.nom || 'N/A',
                 montant: e.montant,
                 date: e.dateEcheance,
                 reference: e.reference,
-                source: e.factureFournisseur ? 'FACTURE' : 'DEPENSE'
+                source: (e as any).factureFournisseur ? 'FACTURE' : 'DEPENSE'
             }))
         };
     }

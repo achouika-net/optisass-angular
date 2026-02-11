@@ -38,16 +38,17 @@ export class ClientsService {
     async findAll(nom?: string, centreId?: string) {
         const whereClause: any = {};
 
-        if (nom) {
-            whereClause.nom = {
-                contains: nom,
-                mode: 'insensitive',
-            };
-            whereClause.typeClient = 'particulier';
-        }
-
         if (!centreId) return []; // Isolation
         whereClause.centreId = centreId;
+
+        if (nom) {
+            whereClause.OR = [
+                { nom: { contains: nom, mode: 'insensitive' } },
+                { prenom: { contains: nom, mode: 'insensitive' } },
+                { raisonSociale: { contains: nom, mode: 'insensitive' } },
+                { numeroPieceIdentite: { contains: nom, mode: 'insensitive' } },
+            ];
+        }
 
         return this.prisma.client.findMany({
             where: whereClause,
@@ -58,6 +59,73 @@ export class ClientsService {
         });
     }
 
+    async search(filters: {
+        typeClient?: string;
+        statut?: string;
+        nom?: string;
+        prenom?: string;
+        telephone?: string;
+        cin?: string;
+        groupeFamille?: string;
+        centreId?: string;
+    }) {
+        const whereClause: any = {};
+
+        // Isolation par centre
+        if (!filters.centreId) return [];
+        whereClause.centreId = filters.centreId;
+
+        // Filtre par type de client
+        if (filters.typeClient) {
+            whereClause.typeClient = filters.typeClient;
+        }
+
+        // Filtre par statut
+        if (filters.statut) {
+            whereClause.statut = filters.statut;
+        }
+
+        // Filtre par nom (cherche dans nom et raisonSociale)
+        if (filters.nom) {
+            whereClause.OR = [
+                { nom: { contains: filters.nom, mode: 'insensitive' } },
+                { raisonSociale: { contains: filters.nom, mode: 'insensitive' } },
+            ];
+        }
+
+        // Filtre par prénom
+        if (filters.prenom) {
+            whereClause.prenom = { contains: filters.prenom, mode: 'insensitive' };
+        }
+
+        // Filtre par téléphone
+        if (filters.telephone) {
+            whereClause.telephone = { contains: filters.telephone };
+        }
+
+        // Filtre par CIN/pièce d'identité
+        if (filters.cin) {
+            whereClause.numeroPieceIdentite = { contains: filters.cin, mode: 'insensitive' };
+        }
+
+        // Filtre par groupe famille (nécessite une jointure)
+        if (filters.groupeFamille) {
+            whereClause.groupe = {
+                nomFamille: { contains: filters.groupeFamille, mode: 'insensitive' }
+            };
+        }
+
+        return this.prisma.client.findMany({
+            where: whereClause,
+            orderBy: { dateCreation: 'desc' },
+            include: {
+                centre: true,
+                groupe: true
+            }
+        });
+    }
+
+
     async findOne(id: string) {
         return this.prisma.client.findUnique({
             where: { id },
@@ -65,6 +133,7 @@ export class ClientsService {
                 fiches: true,
                 parrain: true,
                 filleuls: true,
+                groupe: true,
                 pointsHistory: {
                     include: { facture: true },
                     orderBy: { date: 'desc' }
