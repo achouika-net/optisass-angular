@@ -9,7 +9,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { SalesControlService, BrouillonInvoice, VendorStatistics } from '../services/sales-control.service';
 import { RouterModule, Router } from '@angular/router';
-import { forkJoin, Subject, switchMap, tap } from 'rxjs';
+import { Subject, switchMap, tap } from 'rxjs';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { PaymentDialogComponent } from '../../client-management/dialogs/payment-dialog/payment-dialog.component';
 import { PaiementService } from '../../client-management/services/paiement.service';
@@ -79,40 +79,44 @@ export class SalesControlReportComponent implements OnInit {
     groupedWithoutPayment: MonthlyGroup[] = [];
     groupedValid: MonthlyGroup[] = [];
     groupedAvoir: MonthlyGroup[] = [];
-    groupedArchived: MonthlyGroup[] = [];
 
     statistics: VendorStatistics[] = [];
     stockStats: any = null;
 
     // Filter State
-    filterType: 'DAILY' | 'MONTHLY' | 'SEMESTER' | 'YEARLY' | 'CUSTOM' | 'ALL' = 'ALL';
+    filterType: 'DAILY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM' | 'ALL' = 'MONTHLY';
 
     // Selections
     selectedDate: Date = new Date();
-    selectedMonth: string = ''; // 'MM/YYYY'
+    selectedMonth: number = new Date().getMonth() + 1;
     selectedYear: number = new Date().getFullYear();
-    selectedSemester: number = 1;
+
     customStartDate: Date | null = null;
     customEndDate: Date | null = null;
 
-    availablePeriods: string[] = [];
+    availableMonths = [
+        { value: 1, label: 'Janvier' }, { value: 2, label: 'Février' }, { value: 3, label: 'Mars' },
+        { value: 4, label: 'Avril' }, { value: 5, label: 'Mai' }, { value: 6, label: 'Juin' },
+        { value: 7, label: 'Juillet' }, { value: 8, label: 'Août' }, { value: 9, label: 'Septembre' },
+        { value: 10, label: 'Octobre' }, { value: 11, label: 'Novembre' }, { value: 12, label: 'Décembre' }
+    ];
     availableYears: number[] = [];
 
     // Summary Metrics
     metrics = {
         totalCA: 0,
+        totalFactures: 0,
+        totalAvoirs: 0,
+        totalBC: 0,
         totalPaid: 0,
         totalReste: 0
     };
-
-    // Non-Consolidated Revenue - [REMOVED]
-    // nonConsolidatedCA: number = 0;
 
     // Filter State
     clientSearch: string = '';
 
     // Table columns
-    columnsWithPayment = ['numero', 'client', 'dateEmission', 'totalTTC', 'montantPaye', 'resteAPayer', 'actions'];
+    columnsWithPayment = ['numero', 'client', 'dateEmission', 'totalTTC', 'montantPaye', 'resteAPayer', 'actions']; // Removed 'valide'
     columnsWithoutPayment = ['numero', 'client', 'dateEmission', 'totalTTC', 'resteAPayer', 'actions'];
     columnsValid = ['numero', 'client', 'dateEmission', 'totalTTC', 'resteAPayer', 'statut'];
     columnsAvoir = ['numero', 'client', 'dateEmission', 'totalTTC', 'resteAPayer', 'type'];
@@ -120,7 +124,7 @@ export class SalesControlReportComponent implements OnInit {
 
     loading = false;
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
-    private refresh$ = new Subject<void>();
+    private refresh$ = new Subject<{ start?: string, end?: string }>();
 
     constructor(
         private salesControlService: SalesControlService,
@@ -142,13 +146,18 @@ export class SalesControlReportComponent implements OnInit {
             }
         });
 
+        // Pre-fill available years
+        const currentYear = new Date().getFullYear();
+        for (let y = currentYear; y >= currentYear - 5; y--) {
+            this.availableYears.push(y);
+        }
+
         // Setup the reactive data stream
         this.refresh$.pipe(
             tap(() => this.loading = true),
-            switchMap(() => {
-                const centerId = this.currentCentre()?.id;
-                console.log(`[REPORT-SYNC] SwitchMap fetching for: ${centerId || 'none'}`);
-                return this.salesControlService.getDashboardData();
+            switchMap((dates) => {
+                console.log(`[REPORT-SYNC] Fetching data with filters:`, dates);
+                return this.salesControlService.getDashboardData(undefined, dates.start, dates.end);
             })
         ).subscribe({
             next: (results) => {
@@ -165,15 +174,11 @@ export class SalesControlReportComponent implements OnInit {
                 this.invoicesAvoir = results.avoirs;
                 this.groupedAvoir = this.groupInvoices(results.avoirs);
 
-                this.groupedArchived = []; // Tab removed
-
-                // Inject statistics
                 this.statistics = results.stats;
-
-                this.updateAvailablePeriods();
                 this.calculateMetrics();
+
                 this.loading = false;
-                this.cdr.markForCheck(); // Force UI update
+                this.cdr.markForCheck();
             },
             error: (err) => {
                 console.error('Error loading report data:', err);
@@ -183,26 +188,56 @@ export class SalesControlReportComponent implements OnInit {
         });
     }
 
-    ngOnInit(): void {
-        // Handled by effect on center change
-    }
+    ngOnInit(): void { }
 
     loadData(): void {
-        // [FIX] Do NOT clear existing data arrays here to prevent empty state flash
-        // Only reset search if needed or keep it? User might want to keep search.
-        // this.clientSearch = ''; 
+        const dates = this.getDateRange();
 
-        // Load stock stats for CA Non Consolidé
+        // Load stock stats
         const centerId = this.currentCentre()?.id;
         this.productService.getStockStatistics(centerId).subscribe({
-            next: (stats: StockStats) => {
-                this.stockStats = stats;
-            },
+            next: (stats: StockStats) => this.stockStats = stats,
             error: (err: any) => console.error('Error loading stock stats:', err)
         });
 
         // Trigger the refresh stream
-        this.refresh$.next();
+        this.refresh$.next(dates);
+    }
+
+    private getDateRange(): { start?: string, end?: string } {
+        let start: Date | undefined;
+        let end: Date | undefined;
+
+        switch (this.filterType) {
+            case 'DAILY':
+                start = new Date(this.selectedDate); start.setHours(0, 0, 0, 0);
+                end = new Date(this.selectedDate); end.setHours(23, 59, 59, 999);
+                break;
+            case 'MONTHLY':
+                start = new Date(this.selectedYear, this.selectedMonth - 1, 1, 0, 0, 0, 0);
+                end = new Date(this.selectedYear, this.selectedMonth, 0, 23, 59, 59, 999);
+                break;
+            case 'YEARLY':
+                start = new Date(this.selectedYear, 0, 1, 0, 0, 0, 0);
+                end = new Date(this.selectedYear, 12, 0, 23, 59, 59, 999);
+                break;
+            case 'CUSTOM':
+                if (this.customStartDate) {
+                    start = new Date(this.customStartDate); start.setHours(0, 0, 0, 0);
+                }
+                if (this.customEndDate) {
+                    end = new Date(this.customEndDate); end.setHours(23, 59, 59, 999);
+                }
+                break;
+            case 'ALL':
+            default:
+                return {};
+        }
+
+        return {
+            start: start?.toISOString(),
+            end: end?.toISOString()
+        };
     }
 
     groupInvoices(invoices: BrouillonInvoice[]): MonthlyGroup[] {
@@ -210,8 +245,8 @@ export class SalesControlReportComponent implements OnInit {
 
         invoices.forEach(inv => {
             const date = new Date(inv.dateEmission);
-            const monthKey = `${date.getMonth() + 1}/${date.getFullYear()}`; // e.g. "12/2025"
-            const sortKey = date.getFullYear() * 100 + (date.getMonth() + 1); // e.g. 202512
+            const monthKey = `${date.getMonth() + 1}/${date.getFullYear()}`;
+            const sortKey = date.getFullYear() * 100 + (date.getMonth() + 1);
 
             if (!groups[monthKey]) {
                 groups[monthKey] = {
@@ -226,7 +261,6 @@ export class SalesControlReportComponent implements OnInit {
 
             groups[monthKey].invoices.push(inv);
 
-            // Only add to subtotals if invoice is not cancelled
             if (inv.statut !== 'ANNULEE') {
                 groups[monthKey].totalTTC += (inv.totalTTC || 0);
                 groups[monthKey].totalReste += (inv.resteAPayer || 0);
@@ -241,183 +275,83 @@ export class SalesControlReportComponent implements OnInit {
         return Object.values(groups).sort((a, b) => b.dateSort - a.dateSort);
     }
 
-    updateAvailablePeriods() {
-        const periods = new Set<string>();
-        const years = new Set<number>();
-
-        [...this.groupedWithPayment, ...this.groupedWithoutPayment, ...this.groupedValid, ...this.groupedAvoir, ...this.groupedArchived]
-            .forEach(g => {
-                periods.add(g.month);
-                const [m, y] = g.month.split('/').map(Number);
-                years.add(y);
-            });
-
-        // Periods
-        this.availablePeriods = Array.from(periods).sort((a, b) => {
-            const [m1, y1] = a.split('/').map(Number);
-            const [m2, y2] = b.split('/').map(Number);
-            return (y2 * 100 + m2) - (y1 * 100 + m1);
-        });
-
-        // Years
-        this.availableYears = Array.from(years).sort((a, b) => b - a);
-
-        // Set default month/year if available or if current selection is invalid for this center
-        if (this.availablePeriods.length > 0) {
-            if (!this.selectedMonth || !this.availablePeriods.includes(this.selectedMonth)) {
-                this.selectedMonth = this.availablePeriods[0];
-            }
-        } else {
-            this.selectedMonth = '';
-        }
-
-        if (this.availableYears.length > 0) {
-            if (!this.selectedYear || !this.availableYears.includes(this.selectedYear)) {
-                this.selectedYear = this.availableYears[0];
-            }
-        }
-    }
-
     calculateMetrics() {
-        this.metrics = {
-            totalCA: 0,
-            totalPaid: 0,
-            totalReste: 0
-        };
+        const stats = this.statistics.find(s => s.vendorId === 'all');
+        if (stats) {
+            this.metrics = {
+                totalCA: stats.totalAmount || 0,
+                totalFactures: (stats as any).totalFactures || 0,
+                totalAvoirs: (stats as any).totalAvoirs || 0,
+                totalBC: (stats as any).totalBC || 0,
+                totalPaid: 0,
+                totalReste: 0
+            };
+        } else {
+            this.metrics = { totalCA: 0, totalFactures: 0, totalAvoirs: 0, totalBC: 0, totalPaid: 0, totalReste: 0 };
+        }
 
-        // 1. Calculate Turnover (CA) and Reste à Payer
-        // We only sum Validated Invoices and Avoirs for CA Global
-        // Important: We include ANNULEE status for CA to balance their offsetting Avoirs,
-        // but we exclude them from the Balance (Reste à Payer).
-        const allRelevantGroups = [...this.groupedValid, ...this.groupedAvoir];
-
-        allRelevantGroups.forEach(g => {
-            g.invoices.forEach(inv => {
-                if (this.isInvoiceVisible(inv)) {
-                    // Include in CA if Valid, Avoir or even Annulee (to balance Avoirs)
-                    this.metrics.totalCA += (inv.totalTTC || 0);
-
-                    // ONLY include in Reste if NOT Annulee
-                    if (inv.statut !== 'ANNULEE') {
-                        this.metrics.totalReste += (inv.resteAPayer || 0);
-                    }
-                }
-            });
+        // Calculate Reste à Payer from visible invoices
+        [...this.invoicesValid, ...this.invoicesWithPayment].forEach(inv => {
+            if (inv.statut !== 'ANNULEE') {
+                this.metrics.totalReste += (inv.resteAPayer || 0);
+            }
         });
 
-        // 2. Calculate Total Encaissé (Cash Flow of the period)
-        const allInvoicePools = [
-            ...this.invoicesWithPayment,
-            ...this.invoicesValid,
-            ...this.invoicesAvoir
-        ];
-
+        // Calculate Total Encaissé from payments in the pool
         const processedPaymentIds = new Set<string>();
-
-        allInvoicePools.forEach(inv => {
+        [...this.invoicesWithPayment, ...this.invoicesValid].forEach(inv => {
             if (inv.paiements) {
                 inv.paiements.forEach(p => {
-                    if (this.isDateVisible(new Date(p.date)) && !processedPaymentIds.has(p.id)) {
+                    if (!processedPaymentIds.has(p.id)) {
                         this.metrics.totalPaid += (p.montant || 0);
                         processedPaymentIds.add(p.id);
-
-                        if (p.montant < 0) {
-                            console.log('🏦 [DEBUG] Negative payment found in Sales Control:', p);
-                        }
                     }
                 });
             }
         });
+    }
 
-        console.log('📊 [DEBUG] Metrics calculated:', this.metrics);
+    setFilterType(type: 'DAILY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM' | 'ALL') {
+        this.filterType = type;
+        this.loadData();
     }
 
     onFilterChange() {
-        this.calculateMetrics();
-    }
-
-    isDateVisible(date: Date): boolean {
-        if (!date) return false;
-
-        switch (this.filterType) {
-            case 'ALL':
-                return true;
-            case 'DAILY':
-                return date.toDateString() === this.selectedDate.toDateString();
-            case 'MONTHLY':
-                if (!this.selectedMonth) return true;
-                const [m, y] = this.selectedMonth.split('/').map(Number);
-                return date.getMonth() + 1 === m && date.getFullYear() === y;
-            case 'YEARLY':
-                return date.getFullYear() === this.selectedYear;
-            case 'SEMESTER':
-                const month = date.getMonth() + 1;
-                if (date.getFullYear() !== this.selectedYear) return false;
-                if (this.selectedSemester === 1) return month >= 1 && month <= 6;
-                else return month >= 7 && month <= 12;
-            case 'CUSTOM':
-                if (!this.customStartDate || !this.customEndDate) return true;
-                const start = new Date(this.customStartDate); start.setHours(0, 0, 0, 0);
-                const end = new Date(this.customEndDate); end.setHours(23, 59, 59, 999);
-                return date >= start && date <= end;
-            default:
-                return true;
-        }
-    }
-
-    isInvoiceVisible(invoice: BrouillonInvoice): boolean {
-        // 1. Date filter
-        const dateMatch = this.isDateVisible(new Date(invoice.dateEmission));
-        if (!dateMatch) return false;
-
-        // 2. Client filter
-        if (this.clientSearch && this.clientSearch.trim() !== '') {
-            const search = this.clientSearch.toLowerCase().trim();
-            const clientName = this.getClientName(invoice).toLowerCase();
-            if (!clientName.includes(search)) return false;
-        }
-
-        return true;
-    }
-
-    isGroupVisible(group: MonthlyGroup): boolean {
-        return group.invoices.some(inv => this.isInvoiceVisible(inv));
+        this.loadData();
     }
 
     getClientName(invoice: BrouillonInvoice): string {
-        if (invoice.client.raisonSociale) {
-            return invoice.client.raisonSociale;
-        }
+        if (invoice.client.raisonSociale) return invoice.client.raisonSociale;
         return `${invoice.client.prenom || ''} ${invoice.client.nom || ''}`.trim();
     }
 
     getMontantPaye(invoice: BrouillonInvoice): number {
-        if (!invoice.paiements || invoice.paiements.length === 0) {
-            return 0;
-        }
+        if (!invoice.paiements || invoice.paiements.length === 0) return 0;
         return invoice.paiements.reduce((sum, p) => sum + p.montant, 0);
     }
 
-    getLinkedAvoirNumber(invoice: BrouillonInvoice): string {
-        if (!invoice.children || invoice.children.length === 0) return '-';
-        const avoir = invoice.children.find(c => c.type === 'AVOIR');
-        return avoir ? avoir.numero : '-';
+    viewFiche(invoice: BrouillonInvoice): void {
+        const fiche = invoice.fiche;
+        const clientId = invoice.clientId;
+        if (fiche && clientId) {
+            const routeType = fiche.type === 'LENTILLES' ? 'fiche-lentilles' : 'fiche-monture';
+            this.router.navigate(['/p/clients', clientId, routeType, fiche.id]);
+        }
     }
 
-    getParentFactureNumber(invoice: BrouillonInvoice): string {
-        return invoice.parentFacture ? invoice.parentFacture.numero : '-';
+    viewDocument(invoice: BrouillonInvoice): void {
+        this.router.navigate(['/p/clients/factures', invoice.id], { queryParams: { mode: 'view' } });
     }
 
     validateInvoice(invoice: BrouillonInvoice): void {
         this.checkStockAndProceed(invoice, () => {
-            this.loading = true; // Show loading immediately
+            this.loading = true;
             this.salesControlService.validateInvoice(invoice.id).subscribe({
                 next: (newInvoice) => {
                     this.snackBar.open(`Commande passée : ${newInvoice.numero}`, 'Fermer', {
                         duration: 5000,
                         panelClass: ['snackbar-success']
                     });
-
                     this.loadData();
                 },
                 error: (err) => {
@@ -439,17 +373,10 @@ export class SalesControlReportComponent implements OnInit {
                         width: '900px',
                         data: { conflicts: check.conflicts }
                     });
-
                     dialogRef.afterClosed().subscribe(result => {
-                        if (!result) return;
-
-                        if (result.action === 'TRANSFER_REQUEST') {
-                            this.initiateTransfer(invoice, result.productId, result.sourceCentreId, result.targetCentreId);
-                        } else if (result.action === 'REPLACE') {
-                            // Navigate to edit for replacement
+                        if (result && result.action === 'REPLACE') {
                             this.router.navigate(['/p/clients/factures', invoice.id]);
-                        } else if (result.action === 'CANCEL_SALE') {
-                            // Archive/Cancel logic? For now, refresh
+                        } else if (result && result.action === 'CANCEL_SALE') {
                             this.loadData();
                         }
                     });
@@ -460,42 +387,13 @@ export class SalesControlReportComponent implements OnInit {
             error: (err) => {
                 console.error('Error checking stock availability:', err);
                 this.loading = false;
-                this.snackBar.open('Erreur lors de la vérification du stock. Opération annulée.', 'Fermer', { duration: 5000 });
+                this.snackBar.open('Erreur lors de la vérification du stock', 'Fermer', { duration: 5000 });
             }
         });
     }
-
-    private initiateTransfer(invoice: BrouillonInvoice, productId: string, sourceCentreId: string, targetCentreId: string) {
-        this.loading = true;
-        this.productService.findAll({ global: true }).subscribe(allProducts => {
-            const lines: any[] = invoice.lignes || [];
-            const sourceProduct = allProducts.find(p => p.id === productId || (p.entrepot?.centreId === sourceCentreId && (p.designation === lines.find((l: any) => l.productId === productId)?.description)));
-            const targetProduct = allProducts.find(p => p.entrepot?.centreId === targetCentreId && (p.designation === sourceProduct?.designation));
-
-            if (sourceProduct && targetProduct) {
-                this.productService.initiateTransfer(sourceProduct.id, targetProduct.id, 1).subscribe({
-                    next: () => {
-                        this.loading = false;
-                        this.snackBar.open(`Demande de transfert envoyée pour ${sourceProduct.designation}`, 'OK', { duration: 5000 });
-                        this.dialog.closeAll();
-                    },
-                    error: (err: any) => {
-                        this.loading = false;
-                        console.error('Error initiating transfer:', err);
-                        this.snackBar.open('Erreur lors de la demande de transfert', 'Fermer', { duration: 5000 });
-                    }
-                });
-            } else {
-                this.loading = false;
-                this.snackBar.open('Impossible de localiser les produits pour le transfert.', 'Fermer', { duration: 5000 });
-            }
-        });
-    }
-
 
     declareAsGift(invoice: BrouillonInvoice): void {
         if (!confirm("Etes-vous sûr de déclarer cette facture comme CADEAU ?")) return;
-
         this.loading = true;
         this.salesControlService.declareAsGift(invoice.id).subscribe({
             next: () => {
@@ -508,17 +406,6 @@ export class SalesControlReportComponent implements OnInit {
                 this.loading = false;
             }
         });
-    }
-
-    canArchive(invoice: BrouillonInvoice): boolean {
-        // 1. Must have at least one payment
-        if (this.getMontantPaye(invoice) <= 0) {
-            return false;
-        }
-
-        // 2. TEMPORARY: Allow archiving if paid, regardless of stock source
-        // (User Request: "point on payment explicitly for now")
-        return true;
     }
 
     archiveInvoice(invoice: BrouillonInvoice): void {
@@ -538,20 +425,11 @@ export class SalesControlReportComponent implements OnInit {
         const proceed = () => {
             const dialogRef = this.dialog.open(PaymentDialogComponent, {
                 maxWidth: '95vw',
-                data: {
-                    resteAPayer: invoice.resteAPayer,
-                    client: invoice.client
-                }
+                data: { resteAPayer: invoice.resteAPayer, client: invoice.client }
             });
-
             dialogRef.afterClosed().subscribe(result => {
                 if (result) {
-                    const dto = {
-                        factureId: invoice.id,
-                        ...result,
-                        date: result.date.toISOString()
-                    };
-
+                    const dto = { factureId: invoice.id, ...result, date: result.date.toISOString() };
                     this.paiementService.create(dto).subscribe({
                         next: () => {
                             this.snackBar.open('Paiement enregistré avec succès', 'OK', { duration: 3000 });
@@ -566,29 +444,8 @@ export class SalesControlReportComponent implements OnInit {
                 }
             });
         };
-
-        if (invoice.type === 'DEVIS') {
-            this.checkStockAndProceed(invoice, proceed);
-        } else {
-            proceed();
-        }
-    }
-
-    viewFiche(invoice: BrouillonInvoice): void {
-        const fiche = invoice.fiche;
-        const clientId = invoice.clientId;
-
-        if (fiche && clientId) {
-            const routeType = fiche.type === 'LENTILLES' ? 'fiche-lentilles' : 'fiche-monture';
-            this.router.navigate(['/p/clients', clientId, routeType, fiche.id]);
-        } else {
-            this.snackBar.open('Aucune fiche associée à cette vente', 'OK', { duration: 3000 });
-        }
-    }
-
-    viewDocument(invoice: BrouillonInvoice): void {
-        // Navigate to the invoice detail page in view mode
-        this.router.navigate(['/p/clients/factures', invoice.id], { queryParams: { mode: 'view' } });
+        if (invoice.type === 'DEVIS') this.checkStockAndProceed(invoice, proceed);
+        else proceed();
     }
 
     createAvoir(invoice: BrouillonInvoice): void {
@@ -596,36 +453,22 @@ export class SalesControlReportComponent implements OnInit {
             const dialogRef = this.dialog.open(m.InvoiceReturnDialogComponent, {
                 width: '800px',
                 data: {
-                    facture: {
-                        id: invoice.id,
-                        numero: invoice.numero,
-                        lignes: invoice.lignes || [],
-                        centreId: invoice.centreId
-                    }
+                    facture: { id: invoice.id, numero: invoice.numero, lignes: invoice.lignes || [], centreId: invoice.centreId }
                 }
             });
-
             dialogRef.afterClosed().subscribe(result => {
                 if (result) {
                     this.loading = true;
-                    const itemsWithReason = result.items.map((it: any) => ({
-                        ...it,
-                        reason: result.reason
-                    }));
-
+                    const itemsWithReason = result.items.map((it: any) => ({ ...it, reason: result.reason }));
                     this.factureService.exchangeInvoice(invoice.id, itemsWithReason).subscribe({
                         next: (res) => {
-                            this.snackBar.open(`Échange effectué : Avoir ${res.avoir.numero} et Facture ${res.newFacture.numero} créés`, 'OK', {
-                                duration: 5000
-                            });
+                            this.snackBar.open(`Échange effectué : Avoir ${res.avoir.numero} et Facture ${res.newFacture.numero} créés`, 'OK', { duration: 5000 });
                             this.loadData();
                             this.loading = false;
                         },
                         error: (err) => {
                             console.error('Erreur lors de l\'échange:', err);
-                            this.snackBar.open('Erreur lors de l\'échange: ' + (err.error?.message || 'Erreur serveur'), 'OK', {
-                                duration: 3000
-                            });
+                            this.snackBar.open('Erreur lors de l\'échange: ' + (err.error?.message || 'Erreur serveur'), 'OK', { duration: 3000 });
                             this.loading = false;
                         }
                     });

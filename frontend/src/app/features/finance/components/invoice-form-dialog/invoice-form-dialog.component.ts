@@ -768,6 +768,7 @@ export class InvoiceFormDialogComponent implements OnInit {
             this.prepareAndSaveInvoice();
             return;
         }
+
         const name = String(supplierInput);
         const existing = this.suppliers.find(s => s.nom.toLowerCase() === name.toLowerCase());
         if (existing) {

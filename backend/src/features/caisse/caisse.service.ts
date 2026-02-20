@@ -8,26 +8,35 @@ export class CaisseService {
     constructor(private prisma: PrismaService) { }
 
     async create(createCaisseDto: CreateCaisseDto) {
-        // Check if caisse with same name exists in the same centre
-        const existing = await this.prisma.caisse.findFirst({
-            where: {
-                nom: createCaisseDto.nom,
-                centreId: createCaisseDto.centreId,
-            },
-        });
+        console.log('[DEBUG Caisse] Creating with:', JSON.stringify(createCaisseDto, null, 2));
+        try {
+            // Check if caisse with same name exists in the same centre
+            const existing = await this.prisma.caisse.findFirst({
+                where: {
+                    nom: createCaisseDto.nom,
+                    centreId: createCaisseDto.centreId,
+                },
+            });
 
-        if (existing) {
-            throw new ConflictException(
-                `Une caisse avec le nom "${createCaisseDto.nom}" existe déjà dans ce centre`,
-            );
+            if (existing) {
+                console.log('[DEBUG Caisse] Conflict found:', existing.id);
+                throw new ConflictException(
+                    `Une caisse avec le nom "${createCaisseDto.nom}" existe déjà dans ce centre`,
+                );
+            }
+
+            const result = await this.prisma.caisse.create({
+                data: createCaisseDto,
+                include: {
+                    centre: true,
+                },
+            });
+            console.log('[DEBUG Caisse] Success:', result.id);
+            return result;
+        } catch (err) {
+            console.error('[DEBUG Caisse] Fatal Error:', err);
+            throw err;
         }
-
-        return this.prisma.caisse.create({
-            data: createCaisseDto,
-            include: {
-                centre: true,
-            },
-        });
     }
 
     async findAll() {

@@ -4,40 +4,42 @@ require('dotenv').config();
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log('🧹 Clearing ONLY Fiche table (preserving Factures and Clients)...');
+    console.log('🧹 Clearing Fiche table + orphaned import Factures (IMP-/FAC- prefixed)...');
 
     try {
-        // 1. Nullify references in Facture
-        // 1. Nullify references in Facture (Use Raw SQL to bypass Prisma issues)
-        // Note: Table names in Prisma default to PascalCase if mapped, but usually lower case in DB. 
-        // Checking schema.prisma: model Facture mapped to "Facture" table? 
-        // Default prisma behavior is model name = table name unless @@map is present.
-        // Let's assume standard "Facture" table name (case sensitive in quotes for Postgres if needed, or just standard sql)
-
+        // 1. Delete Factures created by import (numero starts with IMP- or FAC-)
+        // These are the ones that may have duplicate numero conflicts on re-import
         try {
-            console.log('Attempting to update Facture...');
+            const deletedFactures = await prisma.$executeRaw`
+                DELETE FROM "Facture" 
+                WHERE "numero" LIKE 'IMP-%' OR "numero" LIKE 'FAC-%'
+            `;
+            console.log(`✅ Deleted import Factures (IMP-/FAC- prefix). Count:`, deletedFactures);
+        } catch (e) {
+            console.error('❌ Failed to delete import Factures:', e);
+        }
+
+        // 2. Nullify ficheId in remaining Factures
+        try {
             const count = await prisma.$executeRaw`UPDATE "Facture" SET "ficheId" = NULL WHERE "ficheId" IS NOT NULL`;
-            console.log(`✅ Nullified ficheId in Factures (Raw SQL). Result:`, count);
+            console.log(`✅ Nullified ficheId in remaining Factures. Result:`, count);
         } catch (e) {
             console.error('❌ Failed to update Facture:', e);
         }
 
-        // 2. Nullify references in FactureFournisseur
+        // 3. Nullify ficheId in FactureFournisseur
         try {
-            console.log('Attempting to update FactureFournisseur...');
             const count2 = await prisma.$executeRaw`UPDATE "FactureFournisseur" SET "ficheId" = NULL WHERE "ficheId" IS NOT NULL`;
-            console.log(`✅ Nullified ficheId in FactureFournisseurs (Raw SQL). Result:`, count2);
+            console.log(`✅ Nullified ficheId in FactureFournisseurs. Result:`, count2);
         } catch (e) {
             console.error('❌ Failed to update FactureFournisseur:', e);
         }
 
-        // 3. Delete all Fiches
-        // We use executeRaw to bypass any middleware or to handle potential cascade issues more directly if needed, 
-        // but deleteMany is usually fine.
+        // 4. Delete all Fiches
         const deletedFiches = await prisma.fiche.deleteMany({});
         console.log(`✅ Deleted ${deletedFiches.count} Fiches.`);
 
-        console.log('\n✨ Fiche table is now empty.');
+        console.log('\n✨ Ready for fresh import.');
     } catch (error) {
         console.error('❌ Error during clearing:', error);
     } finally {

@@ -424,6 +424,7 @@ model FactureFournisseur {
   pieceJointeUrl String?
   clientId       String?
   ficheId        String?
+  referenceInterne String?            // Added to store legacy 'nPiece' for internal linking
   depenses       Depense?
   echeances      EcheancePaiement[]
   mouvementsStock MouvementStock[]
@@ -436,6 +437,7 @@ model FactureFournisseur {
   @@index([dateEmission])
   @@index([centreId])
   @@index([clientId])
+  @@index([referenceInterne])
   @@index([dateEcheance])
   @@index([centreId, dateEmission])
 }

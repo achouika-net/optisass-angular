@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 const XLSX = require('xlsx');
+const crypto = require('crypto');
 
 @Injectable()
 export class ImportsService {
@@ -15,6 +16,38 @@ export class ImportsService {
         } catch (e) {
             // Silently fail if file write fails, console.log is our primary now
         }
+    }
+
+    private isRowEmpty(row: any, mapping: any): boolean {
+        if (!row) return true;
+        // Check if ANY of the mapped fields have data
+        const hasData = Object.values(mapping).some(csvHeader => {
+            const val = row[csvHeader as string];
+            return val !== undefined && val !== null && String(val).trim() !== '';
+        });
+        return !hasData;
+    }
+
+    private isHeaderRow(row: any, mapping: any): boolean {
+        if (!row) return false;
+        // Detect if the row contains field names or synonyms
+        const synonyms = ['numero', 'facture', 'date', 'montant', 'client', 'fournisseur', 'type', 'designation', 'code', 'prix', 'ttc', 'fourn'];
+        let matches = 0;
+        let totalMapped = 0;
+
+        for (const [key, csvHeader] of Object.entries(mapping)) {
+            if (!csvHeader) continue;
+            totalMapped++;
+            const val = String(row[csvHeader as string] || '').toLowerCase().trim();
+            const fieldName = key.toLowerCase();
+
+            // If the cell value matches the key name or is a common synonym
+            if (val && (val === fieldName || synonyms.some(s => val.includes(s)))) {
+                matches++;
+            }
+        }
+        // If at least 2 mapped columns match header-like text, it's probably a header row
+        return matches >= 2 || (totalMapped > 0 && matches / totalMapped > 0.5);
     }
 
     async parseFile(buffer: Buffer) {
@@ -148,6 +181,9 @@ export class ImportsService {
 
                         // Assign normalized value
                         clientData[dbField] = value;
+                        if (value === null || value === '') {
+                            // console.log(`[ImportDebug] Field ${dbField} is empty for row ${index+1}`);
+                        }
                     }
                 }
 
@@ -247,6 +283,14 @@ export class ImportsService {
         return results;
     }
 
+    private parseAmount(v: any): number {
+        if (v === undefined || v === null || v === '') return 0;
+        if (typeof v === 'number') return v;
+        const s = String(v).replace(/\s/g, '').replace(',', '.').replace(/[^0-9.-]/g, '');
+        const val = parseFloat(s);
+        return isNaN(val) ? 0 : val;
+    }
+
     private parseDate(v: any): Date | null {
         if (v === undefined || v === null || String(v).trim() === '' || v === 0 || v === '0') return null;
 
@@ -279,9 +323,19 @@ export class ImportsService {
         if (typeof v === 'string') {
             const parts = v.split(/[-/]/);
             if (parts.length === 3) {
-                const day = parseInt(parts[0], 10);
-                const month = parseInt(parts[1], 10) - 1;
-                const year = parseInt(parts[2], 10);
+                let day, month, year;
+                // Check for YYYY-MM-DD (Year first)
+                if (parts[0].length === 4) {
+                    year = parseInt(parts[0], 10);
+                    month = parseInt(parts[1], 10) - 1;
+                    day = parseInt(parts[2], 10);
+                } else {
+                    // Assume DD-MM-YYYY
+                    day = parseInt(parts[0], 10);
+                    month = parseInt(parts[1], 10) - 1;
+                    year = parseInt(parts[2], 10);
+                }
+
                 if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
                     const pd = new Date(year, month, day);
                     if (!isNaN(pd.getTime()) && pd.getFullYear() >= 1980) return pd;
@@ -292,13 +346,44 @@ export class ImportsService {
         return null;
     }
 
+    private inferExpenseCategory(description: string): string {
+        const desc = description.toLowerCase();
+
+        // Salary-related
+        if (desc.includes('salaire') || desc.includes('salary') || desc.includes('paie')) {
+            return 'SALAIRE';
+        }
+
+        // Social security
+        if (desc.includes('cnss') || desc.includes('securite sociale')) {
+            return 'CHARGES_SOCIALES';
+        }
+
+        // Health insurance
+        if (desc.includes('amo') || desc.includes('assurance maladie') || desc.includes('mutuelle')) {
+            return 'ASSURANCE';
+        }
+
+        // Rent
+        if (desc.includes('loyer') || desc.includes('rent')) {
+            return 'LOYER';
+        }
+
+        // Utilities
+        if (desc.includes('electricite') || desc.includes('eau') || desc.includes('internet') || desc.includes('telephone')) {
+            return 'CHARGES_FIXES';
+        }
+
+        // Default
+        return 'AUTRE_DEPENSE';
+    }
+
     async importFiches(data: any[], mapping: any, centreId?: string, importType: string = 'fiches') {
         const results = {
             success: 0,
             updated: 0,
             skipped: 0,
             failed: 0,
-            totalRowsProcessed: data.length, // Explicitly track total input rows
             errors: [] as string[]
         };
 
@@ -306,6 +391,24 @@ export class ImportsService {
             const now = new Date();
             console.log(`[${now.toISOString().split('T')[1].split('.')[0]}] 📄 ${msg}`);
         };
+
+        // Declare outside try so bulk insert can access them after the catch
+        const fichesToCreate: any[] = [];
+        const facturesToCreate: any[] = [];
+
+        // Helper functions (defined early to avoid hoisting/TDZ issues)
+        const parseNum = (v) => {
+            if (v === undefined || v === null || v === '') return undefined;
+            const raw = String(v).trim();
+            const digitCount = (raw.match(/\d/g) || []).length;
+            const alphaCount = (raw.match(/[a-zA-Z]/g) || []).length;
+            if (alphaCount > 2 || (digitCount === 0)) return undefined;
+            let val = raw.replace(',', '.').replace(/[^-0-9.]/g, '');
+            const n = parseFloat(val);
+            return isNaN(n) ? undefined : n;
+        };
+
+        const parseDate = (v) => this.parseDate(v);
 
         try {
             // TARGETED OPTIMIZATION:
@@ -324,7 +427,8 @@ export class ImportsService {
                 if (phone) phones.add(String(phone));
             });
 
-            log(`Searching for clients in batch... (${codes.size} codes, ${names.size} names)`);
+            log(`Searching for clients in batch... (${codes.size
+                } codes, ${names.size} names)`);
 
             // Build targeted query
             const allClients = await this.prisma.client.findMany({
@@ -351,7 +455,7 @@ export class ImportsService {
             allClients.forEach(c => {
                 if (c.codeClient) codeMap.set(String(c.codeClient), c.id);
                 if (c.nom && c.telephone) {
-                    const key = `${String(c.nom).toLowerCase().trim()}_${String(c.telephone).trim()}`;
+                    const key = `${String(c.nom).toLowerCase().trim()}_${String(c.telephone).trim()} `;
                     identityMap.set(key, c.id);
                 }
             });
@@ -372,7 +476,7 @@ export class ImportsService {
                 const nom = mappedRow.nom ? String(mappedRow.nom).toLowerCase().trim() : '';
                 const tel = mappedRow.telephone ? String(mappedRow.telephone).trim() : '';
 
-                const identKey = (nom && tel) ? `${nom}_${tel}` : null;
+                const identKey = (nom && tel) ? `${nom}_${tel} ` : null;
 
                 let isMissing = false;
                 if (code && !processedCodes.has(code)) {
@@ -385,16 +489,25 @@ export class ImportsService {
                     // New fallback: Create by name even if tel/code missing
                     isMissing = true;
                     processedNames.add(nom);
-                } else if (!code && !identKey && !nom && tel && !processedNames.has(`tel_${tel}`)) {
+                } else if (!code && !identKey && !nom && tel && !processedNames.has(`tel_${tel} `)) {
                     // New fallback: Create by phone even if name/code missing
                     isMissing = true;
-                    processedNames.add(`tel_${tel}`);
+                    processedNames.add(`tel_${tel} `);
                 }
 
                 if (isMissing) {
+                    const clientTmpId = crypto.randomUUID();
+                    // Store in maps so subsequent rows in THIS SAME BATCH can find it
+                    if (code) codeMap.set(code, clientTmpId);
+                    if (identKey) identityMap.set(identKey, clientTmpId);
+                    if (nom && !identKey) {
+                        const fallbackKey = `name_${nom} `;
+                        if (!identityMap.has(fallbackKey)) identityMap.set(fallbackKey, clientTmpId);
+                    }
+
                     const clientData: any = {
                         codeClient: code || null,
-                        nom: (typeof mappedRow.nom === 'string' && mappedRow.nom.trim()) ? mappedRow.nom.trim() : (tel ? `Client Tel ${tel}` : (code ? `Client ${code}` : 'Client Inconnu')),
+                        nom: (typeof mappedRow.nom === 'string' && mappedRow.nom.trim()) ? mappedRow.nom.trim() : (tel ? `Client Tel ${tel} ` : (code ? `Client ${code} ` : 'Client Inconnu')),
                         prenom: (typeof mappedRow.prenom === 'string' && mappedRow.prenom.trim())
                             ? mappedRow.prenom.trim()
                             : (typeof mappedRow.prenom === 'number' ? String(mappedRow.prenom) : null),
@@ -430,7 +543,7 @@ export class ImportsService {
             });
 
             if (missingClients.length > 0) {
-                log(`⚡ Aggressive Auto-creating ${missingClients.length} missing clients...`);
+                log(`⚡ Aggressive Auto - creating ${missingClients.length} missing clients...`);
                 await this.prisma.client.createMany({
                     data: missingClients,
                     skipDuplicates: true
@@ -457,7 +570,7 @@ export class ImportsService {
                 newClients.forEach(c => {
                     if (c.codeClient) codeMap.set(String(c.codeClient), c.id);
                     if (c.nom && c.telephone) {
-                        const key = `${String(c.nom).toLowerCase().trim()}_${String(c.telephone).trim()}`;
+                        const key = `${String(c.nom).toLowerCase().trim()}_${String(c.telephone).trim()} `;
                         identityMap.set(key, c.id);
                     }
                     // Secondary backups: match by name only or tel only if no full identity
@@ -466,24 +579,14 @@ export class ImportsService {
                         if (!identityMap.has(nameKey)) identityMap.set(nameKey, c.id);
                     }
                     if (c.telephone) {
-                        const telKey = `tel_${String(c.telephone).trim()}`;
+                        const telKey = `tel_${String(c.telephone).trim()} `;
                         if (!identityMap.has(telKey)) identityMap.set(telKey, c.id);
                     }
                 });
             }
             // ----------------------------------------
 
-            const fichesToCreate: any[] = [];
-
-            // Helper functions
-            const parseNum = (v) => {
-                if (v === undefined || v === null || v === '') return undefined;
-                let val = String(v).replace(',', '.').replace(/[^-0-9.]/g, '');
-                const n = parseFloat(val);
-                return isNaN(n) ? undefined : n;
-            };
-
-            const parseDate = (v) => this.parseDate(v);
+            // (arrays declared above, before try block)
 
             // 1. Group data by Fiche ID + Date
             const groupedFiches = new Map<string, any[]>();
@@ -505,9 +608,9 @@ export class ImportsService {
                 // If NO FID, we force unique rows (ROW_idx) to avoid accidental merging of different people.
                 let key = '';
                 if (fid && fid !== 'nofid') {
-                    key = `FID_${fid}_${dateStr}`; // Group by ID + Date
+                    key = `FID_${fid}_${dateStr} `; // Group by ID + Date
                 } else {
-                    key = `ROW_${idx}_${fid || 'nofid'}`; // Force unique if no ID
+                    key = `ROW_${idx}_${fid || 'nofid'} `; // Force unique if no ID
                 }
 
                 if (!groupedFiches.has(key)) groupedFiches.set(key, []);
@@ -534,12 +637,12 @@ export class ImportsService {
                     } else if (sharedMapped.nom || sharedMapped.telephone) {
                         const nomStr = sharedMapped.nom ? String(sharedMapped.nom).toLowerCase().trim() : '';
                         const telStr = sharedMapped.telephone ? String(sharedMapped.telephone).trim() : '';
-                        const identKey = (nomStr && telStr) ? `${nomStr}_${telStr}` : (nomStr || `tel_${telStr}`);
+                        const identKey = (nomStr && telStr) ? `${nomStr}_${telStr} ` : (nomStr || `tel_${telStr} `);
                         clientId = identityMap.get(identKey);
                     }
 
                     if (!clientId) {
-                        log(`Skipping group ${key}: No client found (code: ${sharedMapped.codeClient}, nom: ${sharedMapped.nom}, tel: ${sharedMapped.telephone})`);
+                        log(`Skipping group ${key}: No client found(code: ${sharedMapped.codeClient}, nom: ${sharedMapped.nom}, tel: ${sharedMapped.telephone})`);
                         results.skipped += rows.length;
                         continue;
                     }
@@ -760,14 +863,14 @@ export class ImportsService {
                                     content.monture.modele = m.monture_modele || content.monture.modele;
                                     content.monture.reference = m.monture_reference || content.monture.reference;
                                     content.monture.prixMonture = parseNum(m.monture_prix) || content.monture.prixMonture;
-                                    console.log(`MERGED Subsequent Row ${rowIndex} Monture into Main: ${m.monture_marque}`);
+                                    console.log(`MERGED Subsequent Row ${rowIndex} Monture into Main: ${m.monture_marque} `);
                                 } else if (isMainVerresEmpty && m.verres_marque) {
                                     // Merge lens data into root
                                     if (!content.verres) content.verres = { type: 'Unifocal' };
                                     content.verres.marque = m.verres_marque;
                                     content.verres.prixOD = parseNum(m.verres_prix_od) || content.verres.prixOD;
                                     content.verres.prixOG = parseNum(m.verres_prix_og) || parseNum(m.verres_prix_od) || content.verres.prixOG;
-                                    console.log(`MERGED Subsequent Row ${rowIndex} Verres into Main: ${m.verres_marque}`);
+                                    console.log(`MERGED Subsequent Row ${rowIndex} Verres into Main: ${m.verres_marque} `);
                                 } else if (isMainLentillesEmpty && (m.lentilles_marque || m.lentilles_marque_od || m.lentilles_marque_og)) {
                                     // Merge contact lens data into root
                                     if (!content.lentilles) {
@@ -852,40 +955,226 @@ export class ImportsService {
                         }
                     });
 
-                    fichesToCreate.push({
+                    // Sum up montantPaye and analyze other business flags
+                    const totalPaye = rows.reduce((sum, r) => sum + (parseNum(r[mapping.montantPaye]) || 0), 0);
+                    const totalAmount = parseNum(pm.montantTotal) || 0;
+
+                    // --- LOGICAL MAPPING FOR DOCUMENT TYPE ---
+                    const isValide = String(pm.valide || '').toLowerCase().trim() === 'true' || pm.valide === true;
+                    const isDefinitive = String(pm.facture || '').trim().toLowerCase() === 'oui';
+                    const hasInvoiceNum = !!(pm.numero || pm.fiche_id || pm.numero_fiche);
+
+                    // Determine if we REALLY want to create an invoice record now
+                    // We only create it if it's Validated, Invoiced, has a Payment, or has an Explicit Number
+                    const shouldCreateInvoice = isValide || isDefinitive || totalPaye > 0 || hasInvoiceNum;
+
+                    let docType = 'DEVIS';
+                    let docStatut = 'BROUILLON';
+
+                    if (isValide) {
+                        if (isDefinitive) {
+                            docType = 'FACTURE';
+                            docStatut = 'VALIDE';
+                        } else {
+                            docType = 'BON_COMMANDE';
+                            docStatut = 'VALIDE';
+                        }
+                    } else if (totalPaye > 0 || isDefinitive) {
+                        docType = 'BON_COMMANDE';
+                        docStatut = 'VALIDE';
+                    }
+
+                    // Pre-generate IDs
+                    const ficheId = crypto.randomUUID();
+
+                    // ROBUST NUMERO PARSING FOR FICHE
+                    // e.g. "158/2019" -> 100158 (if we want uniqueness) or just 158? 
+                    // Let's stick to the same logic as Sales Import: Extract first valid number.
+                    let ficheNumero: number | undefined;
+                    const rawFicheNum = pm.numero || pm.fiche_id || pm.numero_fiche;
+                    if (rawFicheNum) {
+                        const parts = String(rawFicheNum).split(/[^0-9]/).filter(p => p.length > 0);
+                        if (parts.length > 0) {
+                            const parsed = parseInt(parts[0]);
+                            if (!isNaN(parsed)) ficheNumero = parsed;
+                        }
+                    }
+
+                    // Use the parsed number if available, otherwise let the DB auto-increment (by not providing it?)
+                    // Prisma createMany doesn't support omitting auto-increment fields easily if we mix them? 
+                    // actually it does if we mark it optional in type. 
+                    // But here we might want to force it to match the paper dossier number.
+
+                    const ficheObject: any = {
+                        id: ficheId,
                         clientId: clientId,
                         type: finalType,
                         statut: String(pm.statut || 'livre').toLowerCase(),
                         dateCreation: parseDate(pm.dateCreation) || new Date(),
-                        montantTotal: parseNum(pm.montantTotal) || 0,
-                        montantPaye: parseNum(pm.montantPaye) || 0,
+                        montantTotal: totalAmount,
+                        montantPaye: totalPaye,
                         content: content
-                    });
-                    results.success++;
+                    };
 
+                    if (ficheNumero) {
+                        ficheObject.numero = ficheNumero;
+                    }
+
+                    fichesToCreate.push(ficheObject);
+
+                    // Conditional linked Facture creation
+                    if (shouldCreateInvoice) {
+                        const factureId = crypto.randomUUID();
+                        let invoiceNumero = pm.numero ? String(pm.numero) : (pm.fiche_id ? String(pm.fiche_id) : (pm.numero_fiche ? String(pm.numero_fiche) : null));
+                        if (!invoiceNumero || invoiceNumero === 'nofid' || invoiceNumero === 'null' || invoiceNumero === 'undefined') {
+                            invoiceNumero = `IMP-${docType}-${Date.now()}-${groupIndex}`;
+                        }
+                        if (docType === 'FACTURE' && !invoiceNumero.startsWith('FAC-')) {
+                            invoiceNumero = `FAC-${invoiceNumero}`;
+                        }
+
+                        const resteAPayer = Math.max(0, totalAmount - totalPaye);
+                        const finalStatut = (resteAPayer <= 0 && docType === 'FACTURE') ? 'PAYEE' : docStatut;
+
+                        facturesToCreate.push({
+                            id: factureId,
+                            numero: invoiceNumero,
+                            type: docType,
+                            statut: finalStatut,
+                            clientId: clientId,
+                            ficheId: ficheId,
+                            centreId: centreId || null,
+                            dateEmission: parseDate(pm.dateCreation) || new Date(),
+                            totalHT: totalAmount / 1.2,
+                            totalTVA: totalAmount - (totalAmount / 1.2),
+                            totalTTC: totalAmount,
+                            resteAPayer: resteAPayer,
+                            lignes: (() => {
+                                const lines: any[] = [];
+                                const addLine = (desc: string, qte: number, price: number) => {
+                                    if (price > 0 || desc) {
+                                        lines.push({
+                                            description: desc || 'Article',
+                                            qte: qte || 1,
+                                            prixUnitaireTTC: price || 0,
+                                            remise: 0,
+                                            totalTTC: (qte || 1) * (price || 0)
+                                        });
+                                    }
+                                };
+
+                                // DEBUG LOGGING (Temporary)
+                                // if (f.numero.endsWith('50') || f.numero === 'FAC-81/2024') {
+                                //     console.log(`🔍 GENERATING LINES FOR ${f.numero}`);
+                                //     console.log('   Content Monture:', JSON.stringify(content.monture));
+                                //     console.log('   Content Verres:', JSON.stringify(content.verres));
+                                // }
+
+                                // 1. Monture
+                                if (content.monture && content.monture.marque) {
+                                    const desc = `Monture ${content.monture.marque} ${content.monture.reference || ''}`.trim();
+                                    addLine(desc, 1, content.monture.prixMonture);
+                                }
+
+                                // 2. Verres
+                                if (content.verres) {
+                                    const prixVerres = (content.verres.prixOD || 0) + (content.verres.prixOG || 0);
+                                    // Relax condition: even if price is 0, if marque exists, add it
+                                    if (prixVerres > 0 || content.verres.marque) {
+                                        const desc = `Verres ${content.verres.type} ${content.verres.marque || ''}`.trim();
+                                        addLine(desc, 1, prixVerres);
+                                    }
+                                }
+
+                                // 3. Lentilles
+                                if (content.lentilles) {
+                                    const prixLentilles = (content.lentilles.od?.prix || 0) + (content.lentilles.og?.prix || 0);
+                                    if (prixLentilles > 0 || content.lentilles.od?.marque || content.lentilles.og?.marque) {
+                                        addLine('Lentilles de contact', 1, prixLentilles);
+                                    }
+                                }
+
+                                // 4. Produits
+                                if (content.produits && Array.isArray(content.produits)) {
+                                    content.produits.forEach((p: any) => {
+                                        addLine(p.designation, p.quantite, p.prixUnitaire);
+                                    });
+                                }
+
+                                // 5. Autres Equipements
+                                if (content.equipements && Array.isArray(content.equipements)) {
+                                    content.equipements.forEach((eq: any, idx: number) => {
+                                        if (eq.monture) {
+                                            const desc = `Equipement ${idx + 2} - Monture ${eq.monture.marque || ''}`.trim();
+                                            addLine(desc, 1, eq.monture.prixMonture);
+                                        }
+                                        if (eq.verres) {
+                                            const prixV = (eq.verres.prixOD || 0) + (eq.verres.prixOG || 0);
+                                            const desc = `Equipement ${idx + 2} - Verres ${eq.verres.marque || ''}`.trim();
+                                            addLine(desc, 1, prixV);
+                                        }
+                                    });
+                                }
+
+                                // Fallback: If no lines but total > 0, add a global line
+                                const currentTotal = lines.reduce((acc, l) => acc + l.totalTTC, 0);
+                                if (lines.length === 0 && totalAmount > 0) {
+                                    addLine('Import Global - Détail manquant', 1, totalAmount);
+                                }
+
+                                return lines;
+                            })(),
+                            proprietes: {}
+                        });
+                    }
+
+                    results.success++;
                 } catch (error) {
                     results.failed++;
-                    if (results.errors.length < 100) results.errors.push(`Groupe ${key}: ${error.message}`);
-                }
-            }
-
-            // 3. Batch Create using CreateMany for max speed
-            if (fichesToCreate.length > 0) {
-                console.log(`🚀 Bulk inserting ${fichesToCreate.length} fiches...`);
-                // Split into chunks of 5000 to prevent database packet limits
-                for (let i = 0; i < fichesToCreate.length; i += 5000) {
-                    const chunk = fichesToCreate.slice(i, i + 5000);
-                    await this.prisma.fiche.createMany({
-                        data: chunk,
-                        skipDuplicates: true
-                    });
+                    if (results.errors.length < 100) results.errors.push(`Groupe ${key}: ${error.message} `);
                 }
             }
 
         } catch (globalError) {
             console.error('CRITICAL IMPORT ERROR:', globalError);
             results.failed = data.length;
-            results.errors.push(`Erreur Critique: ${globalError.message}`);
+            results.errors.push(`Erreur Critique: ${globalError.message} `);
+        }
+
+        // Bulk insert OUTSIDE global catch — failures here are non-fatal to fiche creation
+        if (fichesToCreate.length > 0) {
+            console.log(`🚀 Bulk inserting ${fichesToCreate.length} fiches and ${facturesToCreate.length} factures...`);
+            for (let i = 0; i < fichesToCreate.length; i += 5000) {
+                const ficheChunk = fichesToCreate.slice(i, i + 5000);
+                const factureChunk = facturesToCreate.slice(i, i + 5000);
+
+                try {
+                    await this.prisma.fiche.createMany({ data: ficheChunk, skipDuplicates: true });
+                } catch (ficheErr) {
+                    console.error('Fiche chunk insert error:', ficheErr.message);
+                }
+
+                // DIRECT UPSERT LOOP: Force update to fix empty lines even if record exists
+                for (const f of factureChunk) {
+                    try {
+                        // Exclude ID from update data to avoid "Field 'id' cannot be modified" error
+                        const { id, ...updateData } = f;
+
+                        // LOG FOR DEBUGGING - Check first few
+                        if (factureChunk.indexOf(f) < 3) {
+                            console.log(`🔷 Process Facture UPSERT: ${f.numero} | Type: ${f.type} | Lines: ${(f.lignes as any[])?.length}`);
+                        }
+
+                        await this.prisma.facture.upsert({
+                            where: { numero: f.numero },
+                            update: updateData,
+                            create: f
+                        });
+                    } catch (singleErr) {
+                        console.error(`❌ Upsert FAILED for facture ${f.numero}: ${singleErr.message}`);
+                    }
+                }
+            }
         }
 
         return results;
@@ -1006,7 +1295,7 @@ export class ImportsService {
                         results.success++; // Count update as success
                     } else {
                         results.success++; // Duplicate is a success
-                        this.logToFile(`Product Row ${index + 1}: Informative - Duplicate found. Counting as success.`);
+                        this.logToFile(`Product Row ${index + 1}: Informative - Duplicate found.Counting as success.`);
                     }
                 } else {
                     // Start Create
@@ -1037,7 +1326,7 @@ export class ImportsService {
                     // Unique constraint violation -> Duplicate -> Skip
                     results.skipped++;
                     // Optional: Log duplicate skipping
-                    // console.warn(`Duplicate skipped: ${error.meta?.target?.join(', ')}`);
+                    // console.warn(`Duplicate skipped: ${ error.meta?.target?.join(', ') } `);
                 } else {
                     results.failed++;
                     // ... (existing logging code) ...
@@ -1045,15 +1334,15 @@ export class ImportsService {
                     // Extract meaningful error message
                     let errorMsg = error.message;
                     if (error.code === 'P2003') {
-                        errorMsg = `Invalid reference: ${error.meta?.field_name || 'foreign key constraint'}`;
+                        errorMsg = `Invalid reference: ${error.meta?.field_name || 'foreign key constraint'} `;
                     } else if (error.message.includes('Argument')) {
                         // ...
-                        const match = error.message.match(/Argument `(\w+)`/);
+                        const match = error.message.match(/Argument `(\w +)`/);
                         if (match) {
-                            errorMsg = `Missing or invalid field: ${match[1]}`;
+                            errorMsg = `Missing or invalid field: ${match[1]} `;
                         }
                     }
-                    results.errors.push(`Row ${index + 1}: ${errorMsg}`);
+                    results.errors.push(`Row ${index + 1}: ${errorMsg} `);
                 }
             }
         }
@@ -1102,7 +1391,7 @@ export class ImportsService {
                 }
             } catch (error) {
                 results.failed++;
-                results.errors.push(`Row ${index + 1}: ${error.message}`);
+                results.errors.push(`Row ${index + 1}: ${error.message} `);
             }
         }
         return results;
@@ -1116,43 +1405,130 @@ export class ImportsService {
                 const numeroFacture = row[mapping.numeroFacture] ? String(row[mapping.numeroFacture]).trim() : null;
                 const codeFournisseur = row[mapping.codeFournisseur] ? String(row[mapping.codeFournisseur]).trim() : null;
                 const nomFournisseur = row[mapping.nomFournisseur] ? String(row[mapping.nomFournisseur]).trim() : null;
-                if (!numeroFacture) {
+
+                // Fallback: If no supplier name, check 'Libelle', 'Description', etc.
+                let effectiveNomFournisseur = nomFournisseur;
+                if (!codeFournisseur && !effectiveNomFournisseur) {
+                    const fallbackKeys = ['Libelle', 'Description', 'Motif', 'Designation', 'Obs', 'Observation', 'PieceReglement'];
+                    const rowKeys = Object.keys(row);
+                    for (const key of rowKeys) {
+                        if (fallbackKeys.some(fb => key.toUpperCase().includes(fb.toUpperCase()))) {
+                            const val = row[key];
+                            if (val && String(val).trim().length > 2 && isNaN(Number(String(val).trim()))) {
+                                effectiveNomFournisseur = String(val).trim();
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                const fs = require('fs');
+                const logDiagnostic = (msg: string) => fs.appendFileSync('import_full_diagnostic.log', `${new Date().toISOString()} ${msg} \n`);
+
+                const isEmpty = this.isRowEmpty(row, mapping);
+                const isHeader = this.isHeaderRow(row, mapping);
+
+                if (isEmpty || isHeader) {
+                    logDiagnostic(`Row ${index + 1} SKIPPED: ${isEmpty ? 'EMPTY' : 'HEADER'}.Content: ${JSON.stringify(row)} `);
                     results.skipped++;
-                    results.errors.push(`Row ${index + 1}: Missing invoice number`);
                     continue;
                 }
+
+                // If no supplier and no amount and no date, it's likely junk
+                const hasSupplier = !!codeFournisseur || !!effectiveNomFournisseur;
+                const rawAmount = row[mapping.montantTTC] || row[mapping.montantHT];
+                const amountForCheck = this.parseAmount(rawAmount);
+                const hasAmount = !!rawAmount && amountForCheck !== 0;
+                const dateEmissionRaw = row[mapping.dateEmission];
+                const hasDate = !!dateEmissionRaw && String(dateEmissionRaw).trim() !== '';
+
+                if (!hasSupplier && !hasAmount && !hasDate) {
+                    logDiagnostic(`Row ${index + 1} SKIPPED: JUNK(No Supplier / Amount / Date).Content: ${JSON.stringify(row)} `);
+                    results.failed++;
+                    results.errors.push(`Row ${index + 1} SKIPPED(JUNK)`);
+                    continue;
+                }
+
+                // EXPENSE PATH: If no invoice number, treat as Depense
+                let finalNumeroFacture = numeroFacture;
+                if (!finalNumeroFacture) {
+                    const desc = effectiveNomFournisseur || 'Dépense Importée';
+                    // Skip if looking like junk (no description and small amount?)
+                    // But user wants 22 expenses.
+                    await this.prisma.depense.create({
+                        data: {
+                            description: desc,
+                            montant: Math.abs(amountForCheck),
+                            date: this.parseDate(row[mapping.dateEmission]) || new Date(),
+                            categorie: this.inferExpenseCategory(desc),
+                            modePaiement: row[mapping.modePaiement] ? String(row[mapping.modePaiement]).trim() : 'ESPECES',
+                            statut: 'PAYEE',
+                            centreId: centreId || undefined
+                        } as any
+                    });
+                    results.success++;
+                    continue;
+                }
+
+                // INVOICE PATH: Has invoice number, create FactureFournisseur
+                // INVOICE PATH: Has invoice number, create FactureFournisseur
                 let fournisseur: any = null;
-                if (codeFournisseur) fournisseur = await this.prisma.fournisseur.findFirst({ where: { nom: codeFournisseur } });
-                if (!fournisseur && nomFournisseur) fournisseur = await this.prisma.fournisseur.findFirst({ where: { nom: nomFournisseur } });
-                if (!fournisseur && nomFournisseur) fournisseur = await this.prisma.fournisseur.create({ data: { nom: nomFournisseur } });
-                if (!fournisseur) {
-                    results.skipped++;
-                    results.errors.push(`Row ${index + 1}: Supplier not found`);
-                    continue;
-                }
+
+                // Optimized Supplier Matching Logic
+                fournisseur = await this.findOrCreateFournisseur((effectiveNomFournisseur || codeFournisseur) as string, index);
+
                 const dateEmission = this.parseDate(row[mapping.dateEmission]) || new Date();
                 const dateEcheance = this.parseDate(row[mapping.dateEcheance]);
-                const montantHT = parseFloat(row[mapping.montantHT]) || 0;
-                const montantTVA = parseFloat(row[mapping.montantTVA]) || 0;
-                const montantTTC = parseFloat(row[mapping.montantTTC]) || (montantHT + montantTVA);
+                const montantHT = this.parseAmount(row[mapping.montantHT]);
+                const montantTVA = this.parseAmount(row[mapping.montantTVA]);
+                const montantTTC = this.parseAmount(row[mapping.montantTTC]) || (montantHT + montantTVA);
+                const modePaiement = row[mapping.modePaiement] ? String(row[mapping.modePaiement]).trim() : 'ESPECES';
+
+                const referenceInterne = row[mapping.referenceInterne] ? String(row[mapping.referenceInterne]).trim() : null;
+
                 const factureData = {
-                    numeroFacture, dateEmission, dateEcheance, montantHT, montantTVA, montantTTC,
+                    numeroFacture: finalNumeroFacture, dateEmission, dateEcheance, montantHT, montantTVA, montantTTC,
                     statut: row[mapping.statut] || 'A_PAYER', type: row[mapping.type] || 'ACHAT_STOCK',
-                    fournisseurId: fournisseur.id, centreId: centreId || null
+                    fournisseurId: fournisseur.id, centreId: centreId || null,
+                    referenceInterne: referenceInterne
                 };
-                const existingFacture = await this.prisma.factureFournisseur.findFirst({
-                    where: { numeroFacture, fournisseurId: fournisseur.id }
+
+                let existingFacture = await (this.prisma.factureFournisseur as any).findFirst({
+                    where: {
+                        OR: [
+                            { numeroFacture: finalNumeroFacture, fournisseurId: fournisseur.id },
+                            { referenceInterne: referenceInterne, fournisseurId: fournisseur.id }
+                        ]
+                    }
                 });
+
                 if (existingFacture) {
-                    await this.prisma.factureFournisseur.update({ where: { id: existingFacture.id }, data: factureData as any });
+                    existingFacture = await this.prisma.factureFournisseur.update({ where: { id: existingFacture.id }, data: factureData as any });
                     results.updated++;
                 } else {
-                    await this.prisma.factureFournisseur.create({ data: factureData as any });
+                    existingFacture = await this.prisma.factureFournisseur.create({ data: factureData as any });
                     results.success++;
+                }
+
+                // Create default EcheancePaiement if none exists
+                const existingEcheances = await this.prisma.echeancePaiement.findMany({
+                    where: { factureFournisseurId: existingFacture.id }
+                });
+
+                if (existingEcheances.length === 0) {
+                    await this.prisma.echeancePaiement.create({
+                        data: {
+                            factureFournisseurId: existingFacture.id,
+                            montant: montantTTC,
+                            dateEcheance: dateEcheance || dateEmission,
+                            type: modePaiement, // Use mapped mode or default ESPECES
+                            statut: factureData.statut === 'PAYEE' ? 'ENCAISSE' : 'EN_ATTENTE'
+                        }
+                    });
                 }
             } catch (error) {
                 results.failed++;
-                results.errors.push(`Row ${index + 1}: ${error.message}`);
+                results.errors.push(`Row ${index + 1}: ${error.message} `);
             }
         }
         return results;
@@ -1165,41 +1541,191 @@ export class ImportsService {
             try {
                 const numeroFacture = row[mapping.numeroFacture] ? String(row[mapping.numeroFacture]).trim() : null;
                 const codeFournisseur = row[mapping.codeFournisseur] ? String(row[mapping.codeFournisseur]).trim() : null;
-                if (!numeroFacture) {
+
+                const nomFournisseur = row[mapping.nomFournisseur] ? String(row[mapping.nomFournisseur]).trim() : null;
+
+                // If no supplier and no amount and no date, it's likely junk
+                let effectiveNomFournisseur = nomFournisseur;
+                if (!codeFournisseur && !effectiveNomFournisseur) {
+                    const fallbackKeys = ['Libelle', 'Description', 'Motif', 'Designation', 'Obs', 'Observation', 'PieceReglement', 'Fournisseur', 'Nom'];
+                    const rowKeys = Object.keys(row);
+                    for (const key of rowKeys) {
+                        if (fallbackKeys.some(fb => key.toUpperCase().includes(fb.toUpperCase()))) {
+                            const val = row[key];
+                            if (val && String(val).trim().length > 2) {
+                                effectiveNomFournisseur = String(val).trim();
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (this.isRowEmpty(row, mapping) || this.isHeaderRow(row, mapping)) {
                     results.skipped++;
-                    results.errors.push(`Row ${index + 1}: Missing invoice number`);
+                    const fs = require('fs');
+                    fs.appendFileSync('skipped_rows.log', `Row ${index + 1} SKIPPED(Empty / Header): ${JSON.stringify(row)} \n`);
                     continue;
                 }
+
+                // HEURISTIC RECOVERY: Check for "Montant" and "Date" if mapping failed
+                let rawAmount = row[mapping.montantTTC] || row[mapping.montantHT] || row[mapping.montant];
+                if (!rawAmount) {
+                    // Try common keys
+                    rawAmount = row['Montant'] || row['Montant TTC'] || row['Total'] || row['Credit'] || row['Solde'];
+                }
+
+                const amountForCheck = this.parseAmount(rawAmount);
+                const hasAmount = !!rawAmount && amountForCheck !== 0;
+
+                let dateEmissionRaw = row[mapping.dateEmission] || row[mapping.datePaiement];
+                if (!dateEmissionRaw || String(dateEmissionRaw).trim() === '') {
+                    dateEmissionRaw = row['Date'] || row['Date Paiement'] || row['Date Echeance'];
+                }
+                const hasDate = !!dateEmissionRaw && String(dateEmissionRaw).trim() !== '';
+                const hasSupplier = !!codeFournisseur || !!effectiveNomFournisseur;
+
+                if (!hasSupplier && !hasAmount && !hasDate) {
+                    results.skipped++;
+                    const fs = require('fs');
+                    fs.appendFileSync('skipped_rows.log', `Row ${index + 1} SKIPPED(Junk - No Supplier / Amount / Date): ${JSON.stringify(row)} \n`);
+                    continue;
+                }
+
+                let finalNumeroFacture = numeroFacture;
+                const dateRaw = row[mapping.datePaiement];
+
+                if (!finalNumeroFacture) {
+                    const amountForAuto = this.parseAmount(row[mapping.montant]);
+                    const dateStr = this.parseDate(dateRaw)?.toISOString().split('T')[0].replace(/-/g, '') || '00000000';
+                    const amountStr = String(Math.abs(amountForAuto)).replace('.', '');
+                    const nameSnippet = (effectiveNomFournisseur || codeFournisseur || 'AUTRE').substring(0, 5).toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    finalNumeroFacture = `AUTO - ${dateStr} -${amountStr} -${nameSnippet} `;
+                }
+
+                const referenceInterne = row[mapping.referenceInterne] ? String(row[mapping.referenceInterne]).trim() : null;
+
                 let facture: any = null;
-                if (codeFournisseur) {
-                    const fournisseur = await this.prisma.fournisseur.findFirst({ where: { nom: codeFournisseur } });
-                    if (fournisseur) facture = await this.prisma.factureFournisseur.findFirst({ where: { numeroFacture, fournisseurId: fournisseur.id } });
-                } else {
-                    facture = await this.prisma.factureFournisseur.findFirst({ where: { numeroFacture } });
+                const supplierToUse = await this.findOrCreateFournisseur((effectiveNomFournisseur || codeFournisseur) as string, index);
+
+                if (supplierToUse) {
+                    if (referenceInterne) {
+                        facture = await (this.prisma.factureFournisseur as any).findFirst({
+                            where: { referenceInterne: referenceInterne, fournisseurId: supplierToUse.id }
+                        });
+                    }
+
+                    if (!facture && finalNumeroFacture) {
+                        facture = await this.prisma.factureFournisseur.findFirst({
+                            where: { numeroFacture: finalNumeroFacture, fournisseurId: supplierToUse.id }
+                        });
+                    }
                 }
+
+                if (!facture && referenceInterne) {
+                    facture = await (this.prisma.factureFournisseur as any).findFirst({ where: { referenceInterne: referenceInterne } });
+                }
+
+                if (!facture && finalNumeroFacture) {
+                    facture = await this.prisma.factureFournisseur.findFirst({ where: { numeroFacture: finalNumeroFacture } });
+                }
+
+                const datePaiement = this.parseDate(dateRaw) || new Date();
+
                 if (!facture) {
-                    results.skipped++;
-                    results.errors.push(`Row ${index + 1}: Invoice not found`);
-                    continue;
+                    // Log warning if date was invalid but continue with fallback
+                    if (!this.parseDate(dateRaw)) {
+                        const rawDate = row[mapping.datePaiement];
+                        results.errors.push(`Row ${index + 1}: Invalid payment date, using current date.Raw: "${rawDate}"`);
+                    }
+
+                    facture = await this.prisma.factureFournisseur.create({
+                        data: {
+                            numeroFacture: finalNumeroFacture,
+                            fournisseurId: supplierToUse.id,
+                            dateEmission: datePaiement,
+                            dateEcheance: datePaiement,
+                            montantHT: amountForCheck,
+                            montantTTC: amountForCheck,
+                            montantTVA: 0,
+                            statut: 'PAYE',
+                            type: 'ACHAT_STOCK',
+                            centreId: null
+                        }
+                    });
                 }
-                const montant = parseFloat(row[mapping.montant]) || 0;
-                const datePaiement = this.parseDate(row[mapping.datePaiement]) || new Date();
-                await this.prisma.echeancePaiement.create({
-                    data: {
-                        factureFournisseurId: facture.id, montant, dateEncaissement: datePaiement,
-                        dateEcheance: datePaiement, type: 'PAIEMENT',
-                        reference: row[mapping.reference] || null, statut: 'PAYEE'
+                const montant = amountForCheck;
+
+                // IDEMPOTENCY CHECK: Avoid duplicate payments if same file is re-imported
+                const reference = row[mapping.reference] ? String(row[mapping.reference]).substring(0, 50) : null;
+                const existingPayment = await this.prisma.echeancePaiement.findFirst({
+                    where: {
+                        factureFournisseurId: facture.id,
+                        reference: reference,
+                        montant: montant,
+                        statut: 'PAYEE'
                     }
                 });
+
+                if (existingPayment) {
+                    results.skipped++;
+                    continue;
+                }
+
+                if (!datePaiement) {
+                    results.failed++;
+                    results.errors.push(`Row ${index + 1}: Invalid payment date`);
+                    continue;
+                }
+
+                // RECONCILIATION LOGIC: Try to find an existing pending installment to update
+                const existingPending = await this.prisma.echeancePaiement.findFirst({
+                    where: {
+                        factureFournisseurId: facture.id,
+                        statut: 'EN_ATTENTE'
+                    },
+                    orderBy: { dateEcheance: 'asc' }
+                });
+
+                if (existingPending) {
+                    const dateEcheanceRaw = row[mapping.dateEcheance];
+                    const dateEcheance = this.parseDate(dateEcheanceRaw) || datePaiement;
+
+                    await this.prisma.echeancePaiement.update({
+                        where: { id: existingPending.id },
+                        data: {
+                            montant: montant, // Update amount to actual paid amount
+                            dateEncaissement: datePaiement,
+                            dateEcheance: dateEcheance,
+                            type: 'PAIEMENT',
+                            reference: row[mapping.reference] ? String(row[mapping.reference]).substring(0, 50) : null,
+                            statut: 'PAYEE'
+                        }
+                    });
+                } else {
+                    const dateEcheanceRaw = row[mapping.dateEcheance];
+                    const dateEcheance = this.parseDate(dateEcheanceRaw) || datePaiement;
+
+                    await this.prisma.echeancePaiement.create({
+                        data: {
+                            factureFournisseurId: facture.id,
+                            montant: montant,
+                            dateEncaissement: datePaiement,
+                            dateEcheance: dateEcheance,
+                            type: 'PAIEMENT',
+                            reference: row[mapping.reference] ? String(row[mapping.reference]).substring(0, 50) : null,
+                            statut: 'PAYEE'
+                        }
+                    });
+                }
                 const totalPaye = await this.prisma.echeancePaiement.aggregate({
                     where: { factureFournisseurId: facture.id }, _sum: { montant: true }
                 });
-                const nouveauStatut = (totalPaye._sum.montant || 0) >= facture.montantTTC ? 'PAYEE' : 'PARTIELLE';
+                const nouveauStatut = (totalPaye._sum.montant || 0) >= (facture as any).montantTTC ? 'PAYEE' : 'PARTIELLE';
                 await this.prisma.factureFournisseur.update({ where: { id: facture.id }, data: { statut: nouveauStatut as string } });
                 results.success++;
             } catch (error) {
                 results.failed++;
-                results.errors.push(`Row ${index + 1}: ${error.message}`);
+                results.errors.push(`Row ${index + 1}: ${error.message} `);
             }
         }
         return results;
@@ -1212,7 +1738,18 @@ export class ImportsService {
             try {
                 const codeClient = row[mapping.codeClient] ? String(row[mapping.codeClient]).trim() : null;
                 const nomClient = row[mapping.nomClient] ? String(row[mapping.nomClient]).trim() : null;
+
+                if (this.isRowEmpty(row, mapping) || (index === 0 && this.isHeaderRow(row, mapping))) {
+                    results.skipped++;
+                    continue;
+                }
+
                 if (!codeClient && !nomClient) {
+                    const hasAmount = !!row[mapping.totalTTC];
+                    if (!hasAmount) {
+                        results.skipped++;
+                        continue;
+                    }
                     results.skipped++;
                     results.errors.push(`Row ${index + 1}: Missing client code or name`);
                     continue;
@@ -1225,7 +1762,13 @@ export class ImportsService {
                     results.errors.push(`Row ${index + 1}: Client not found`);
                     continue;
                 }
-                const type = row[mapping.type] || 'FACTURE';
+                let typeRaw = row[mapping.type];
+                if (typeof typeRaw === 'boolean') typeRaw = typeRaw ? 'FACTURE' : 'DEVIS'; // Handle weird booleans
+                const type = (String(typeRaw || 'FACTURE')).trim().toUpperCase();
+
+                let statutRaw = row[mapping.statut];
+                if (typeof statutRaw === 'boolean') statutRaw = statutRaw ? 'VALIDEE' : 'BROUILLON';
+                const statut = (String(statutRaw || 'BROUILLON')).trim().toUpperCase();
                 const dateEmission = this.parseDate(row[mapping.dateEmission]) || new Date();
                 const dateEcheance = this.parseDate(row[mapping.dateEcheance]);
                 const totalHT = parseFloat(row[mapping.totalHT]) || 0;
@@ -1235,16 +1778,85 @@ export class ImportsService {
                 if (!numero) {
                     const prefix = type === 'DEVIS' ? 'DEV' : type === 'BON_COMMANDE' ? 'BC' : 'FAC';
                     const count = await this.prisma.facture.count({ where: { type } });
-                    numero = `${prefix}-${(count + 1).toString().padStart(6, '0')}`;
+                    numero = `${prefix} -${(count + 1).toString().padStart(6, '0')} `;
                 }
+
+                let ficheId: string | null = null;
+                const ficheNumStr = row[mapping.fiche] || row['Fiche'];
+                if (ficheNumStr) {
+                    // ROBUST PARSING: "98/2015" -> 98
+                    const parts = String(ficheNumStr).split(/[^0-9]/).filter(p => p.length > 0);
+                    if (parts.length > 0) {
+                        const ficheNum = parseInt(parts[0]);
+                        if (!isNaN(ficheNum)) {
+                            const fiche = await this.prisma.fiche.findFirst({
+                                where: { numero: ficheNum },
+                                include: { facture: true }
+                            });
+                            if (fiche) {
+                                ficheId = fiche.id;
+                                // If the fiche already has an invoice (e.g. from Fiche Import), reuse it
+                                if (fiche.facture) {
+                                    const alreadyPaid = fiche.facture.totalTTC - fiche.facture.resteAPayer;
+
+                                    // Check if the generated numero is already used by a DIFFERENT facture
+                                    // to avoid unique constraint violation on update
+                                    const numeroConflict = fiche.facture.numero !== numero
+                                        ? await this.prisma.facture.findFirst({ where: { numero, NOT: { id: fiche.facture.id } } })
+                                        : null;
+
+                                    await this.prisma.facture.update({
+                                        where: { id: fiche.facture.id },
+                                        data: {
+                                            // Only update numero if it won't cause a conflict
+                                            ...(numeroConflict ? {} : { numero }),
+                                            type,
+                                            dateEmission,
+                                            dateEcheance,
+                                            statut,
+                                            totalHT,
+                                            totalTVA,
+                                            totalTTC,
+                                            resteAPayer: Math.max(0, totalTTC - alreadyPaid),
+                                            centreId: centreId || null
+                                        }
+                                    });
+                                    results.updated++;
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 const factureData = {
-                    numero, type, dateEmission, dateEcheance, statut: row[mapping.statut] || 'BROUILLON',
-                    clientId: client.id, totalHT, totalTVA, totalTTC, resteAPayer: totalTTC,
+                    numero, type,
+                    dateEmission, dateEcheance, statut,
+                    clientId: client.id, ficheId, totalHT, totalTVA, totalTTC, resteAPayer: totalTTC,
                     lignes: [], centreId: centreId || null
                 };
-                const existingFacture = await this.prisma.facture.findFirst({ where: { numero } });
+
+                // MATCHING LOGIC: Be prefix-agnostic
+                let existingFacture = await this.prisma.facture.findFirst({
+                    where: {
+                        OR: [
+                            { numero: numero },
+                            { numero: `FAC-${numero}` },
+                            { numero: numero.replace(/^FAC-/, '') }
+                        ]
+                    }
+                });
+
                 if (existingFacture) {
-                    await this.prisma.facture.update({ where: { id: existingFacture.id }, data: factureData as any });
+                    // Update maintaining paid balance if it had any
+                    const alreadyPaid = existingFacture.totalTTC - existingFacture.resteAPayer;
+                    await this.prisma.facture.update({
+                        where: { id: existingFacture.id },
+                        data: {
+                            ...factureData,
+                            resteAPayer: Math.max(0, totalTTC - alreadyPaid)
+                        } as any
+                    });
                     results.updated++;
                 } else {
                     await this.prisma.facture.create({ data: factureData as any });
@@ -1252,77 +1864,167 @@ export class ImportsService {
                 }
             } catch (error) {
                 results.failed++;
-                results.errors.push(`Row ${index + 1}: ${error.message}`);
+                results.errors.push(`Row ${index + 1}: ${error.message} `);
             }
         }
         return results;
     }
 
     async importPaiementsClients(data: any[], mapping: any) {
+        console.log('[ImportLog] PaiementsClients Mapping:', JSON.stringify(mapping, null, 2));
+        if (data.length > 0) console.log('[ImportLog] First row data:', JSON.stringify(data[0], null, 2));
         const results = { success: 0, updated: 0, skipped: 0, failed: 0, errors: [] as string[] };
-        for (let index = 0; index < data.length; index++) {
-            const row = data[index];
-            try {
-                const numeroFacture = row[mapping.numeroFacture] ? String(row[mapping.numeroFacture]).trim() : null;
-                const codeClient = row[mapping.codeClient] ? String(row[mapping.codeClient]).trim() : null;
-                if (!numeroFacture) {
-                    results.skipped++;
-                    results.errors.push(`Row ${index + 1}: Missing invoice number`);
-                    continue;
-                }
+        try {
+            for (let index = 0; index < data.length; index++) {
+                const row = data[index];
+                try {
+                    const numeroFacture = row[mapping.numeroFacture] ? String(row[mapping.numeroFacture]).trim() : null;
+                    const codeClient = row[mapping.codeClient] ? String(row[mapping.codeClient]).trim() : null;
 
-                let client: any = null;
-                if (codeClient) {
-                    client = await this.prisma.client.findFirst({ where: { codeClient } });
-                }
-
-                if (!client) {
-                    results.skipped++;
-                    results.errors.push(`Row ${index + 1}: Client not found`);
-                    continue;
-                }
-
-                let facture: any = null;
-                if (client) { // Ensure client is found before trying to find facture with clientId
-                    facture = await this.prisma.facture.findFirst({ where: { numero: numeroFacture, clientId: client.id } });
-                } else {
-                    // This branch would only be hit if client was not found, but we already handled that.
-                    // If numeroFacture is present but client is not, we should not proceed.
-                    // The original code had a path for `!codeClient` to find facture without client.id,
-                    // but the edit implies client must be found first.
-                    // Reverting to original logic for finding facture if client is not found via codeClient,
-                    // but the edit explicitly checks for client first.
-                    // Given the edit, the `else` branch for finding facture without `clientId` is removed.
-                    // The edit implies `client` must be found to proceed.
-                }
-
-                if (!facture) {
-                    results.skipped++;
-                    results.errors.push(`Row ${index + 1}: Invoice not found`);
-                    continue;
-                }
-                const montant = parseFloat(row[mapping.montant]) || 0;
-                const datePaiement = this.parseDate(row[mapping.datePaiement]) || new Date();
-                await this.prisma.paiement.create({
-                    data: {
-                        factureId: facture.id, montant, date: datePaiement,
-                        mode: row[mapping.modePaiement] || 'Espèces',
-                        reference: row[mapping.reference] || null, statut: 'ENCAISSE'
+                    if (this.isRowEmpty(row, mapping) || (index === 0 && this.isHeaderRow(row, mapping))) {
+                        results.skipped++;
+                        continue;
                     }
-                });
-                const totalPaye = await this.prisma.paiement.aggregate({
-                    where: { factureId: facture.id }, _sum: { montant: true }
-                });
-                const resteAPayer = facture.totalTTC - (totalPaye._sum.montant || 0);
-                const nouveauStatut = resteAPayer <= 0 ? 'PAYEE' : 'VALIDEE';
-                await this.prisma.facture.update({
-                    where: { id: facture.id }, data: { resteAPayer, statut: nouveauStatut as string }
-                });
-                results.success++;
-            } catch (error) {
-                results.failed++;
-                results.errors.push(`Row ${index + 1}: ${error.message}`);
+
+                    let client: any = null;
+                    let facture: any = null;
+
+                    // 1. RESOLVE CLIENT & FICHE & FACTURE
+                    const ficheNumeroRaw = row[mapping.fiche] || row['Fiche'];
+                    let ficheNum: number | null = null;
+                    if (ficheNumeroRaw) {
+                        ficheNum = parseInt(String(ficheNumeroRaw).replace(/[^0-9]/g, ''));
+                    }
+
+                    if (ficheNum && !isNaN(ficheNum)) {
+                        const ficheWithDetails = await this.prisma.fiche.findFirst({
+                            where: { numero: ficheNum },
+                            include: { client: true, facture: true }
+                        });
+                        if (ficheWithDetails) {
+                            client = ficheWithDetails.client;
+                            facture = ficheWithDetails.facture;
+                        }
+                    }
+
+                    // 2. FALLBACK CLIENT SEARCH (Normalization added)
+                    if (!client) {
+                        if (codeClient) {
+                            client = await this.prisma.client.findFirst({ where: { codeClient } });
+                        }
+                        if (!client && row[mapping.nomClient]) {
+                            const normalizedSearchName = String(row[mapping.nomClient]).trim().toLowerCase();
+                            client = await this.prisma.client.findFirst({
+                                where: {
+                                    OR: [
+                                        { nom: { equals: normalizedSearchName, mode: 'insensitive' } },
+                                        { nom: { contains: normalizedSearchName, mode: 'insensitive' } }
+                                    ]
+                                }
+                            });
+                        }
+                    }
+
+                    // 3. ERROR IF NO CLIENT OR FACTURE FOUND
+                    if (!client) {
+                        console.log(`[ImportLog] Skipping row ${index + 1}: Client not found (Fiche #${ficheNum || 'N/A'})`);
+                        results.skipped++;
+                        results.errors.push(`Row ${index + 1}: Client non trouvé (F#${ficheNum || 'N/A'}) - Importation impossible sans client.`);
+                        continue;
+                    }
+
+                    if (!facture && ficheNum) {
+                        // Attempt to find or create a minimal invoice ONLY if we have a valid Fiche
+                        let fiche = await this.prisma.fiche.findFirst({ where: { numero: ficheNum }, include: { facture: true } });
+                        if (fiche) {
+                            facture = fiche.facture;
+                            if (!facture) {
+                                console.log(`[ImportLog] Creating missing link: Facture for existing Fiche #${ficheNum}`);
+                                facture = await this.prisma.facture.create({
+                                    data: {
+                                        numero: `AUTO-FAC-${ficheNum}-${Date.now().toString().slice(-4)}`,
+                                        clientId: client.id,
+                                        ficheId: fiche.id,
+                                        totalTTC: row[mapping.montant] ? Math.abs(parseFloat(row[mapping.montant])) : 0,
+                                        totalHT: (row[mapping.montant] ? Math.abs(parseFloat(row[mapping.montant])) : 0) / 1.2,
+                                        totalTVA: (row[mapping.montant] ? Math.abs(parseFloat(row[mapping.montant])) : 0) * 0.2,
+                                        resteAPayer: 0,
+                                        lignes: [],
+                                        statut: 'VALIDEE',
+                                        type: 'FACTURE',
+                                        dateEmission: this.parseDate(row[mapping.datePaiement]) || new Date()
+                                    }
+                                });
+                            }
+                        }
+                    }
+
+                    if (!facture) {
+                        console.log(`[ImportLog] Skipping row ${index + 1}: No invoice/fiche found for client ${client.id}`);
+                        results.skipped++;
+                        results.errors.push(`Row ${index + 1}: Aucune facture ou fiche trouvée pour le client ${client.nom}.`);
+                        continue;
+                    }
+
+                    // 5. APPLY PAYMENT & UPGRADE LOGIC (IDEMPOTENT)
+                    const montant = Math.abs(parseFloat(row[mapping.montant]) || 0);
+                    const datePaiement = this.parseDate(row[mapping.datePaiement]) || new Date();
+                    const reference = row[mapping.reference] ? String(row[mapping.reference]).substring(0, 100) : null;
+                    const modeSource = row[mapping.modePaiement] ? String(row[mapping.modePaiement]).trim() : 'ESPECES';
+
+                    await this.prisma.$transaction(async (tx) => {
+                        // Create the payment
+                        await tx.paiement.create({
+                            data: {
+                                factureId: facture.id,
+                                montant: montant,
+                                date: datePaiement,
+                                mode: modeSource.toUpperCase(),
+                                reference: reference,
+                                notes: row[mapping.notes] ? String(row[mapping.notes]).substring(0, 500) : null,
+                                statut: 'ENCAISSE'
+                            }
+                        });
+
+                        // Upgrade DEVIS -> BON_COMMANDE if necessary
+                        if (facture.type === 'DEVIS') {
+                            await tx.facture.update({
+                                where: { id: facture.id },
+                                data: {
+                                    type: 'BON_COMMANDE',
+                                    statut: 'VALIDE'
+                                }
+                            });
+                        }
+
+                        // Update invoice balance
+                        const allPaiements = await tx.paiement.findMany({
+                            where: { factureId: facture.id },
+                            select: { montant: true }
+                        });
+                        const totalPaye = allPaiements.reduce((sum, p) => sum + p.montant, 0);
+                        const resteAPayer = Math.max(0, (facture.totalTTC || 0) - totalPaye);
+
+                        await tx.facture.update({
+                            where: { id: facture.id },
+                            data: {
+                                resteAPayer,
+                                statut: resteAPayer <= 0 ? 'PAYEE' : 'VALIDEE'
+                            }
+                        });
+                    });
+
+                    results.success++;
+                } catch (paymentError) {
+                    console.error(`[ImportError] Failed to apply payment for row ${index + 1}: `, paymentError.message);
+                    results.failed++;
+                    results.errors.push(`Row ${index + 1}: ${paymentError.message} `);
+                }
             }
+        } catch (globalError) {
+            console.error('CRITICAL IMPORT ERROR (PaiementsClients):', globalError);
+            results.failed = data.length;
+            results.errors.push(`Erreur Critique: ${globalError.message} `);
         }
         return results;
     }
@@ -1331,19 +2033,27 @@ export class ImportsService {
         for (let index = 0; index < data.length; index++) {
             const row = data[index];
             try {
-                // Exclude if invoice number is present (to avoid duplicating invoices as expenses)
-                if (mapping.numeroFacture && row[mapping.numeroFacture]) {
+                if (this.isRowEmpty(row, mapping) || this.isHeaderRow(row, mapping)) {
+                    results.skipped++;
+                    continue;
+                }
+
+                const montant = this.parseAmount(row[mapping.montant]);
+                const description = row[mapping.description] ? String(row[mapping.description]).trim() : '';
+                const dateRaw = row[mapping.date];
+                const hasDate = !!dateRaw && String(dateRaw).trim() !== '';
+                const hasSupplier = !!row[mapping.fournisseur];
+
+                if (!montant && !description && !hasDate && !hasSupplier) {
                     results.skipped++;
                     continue;
                 }
 
                 const date = this.parseDate(row[mapping.date]) || new Date();
-                const montant = parseFloat(row[mapping.montant]) || 0;
                 const categorie = row[mapping.categorie] ? String(row[mapping.categorie]).trim() : 'AUTRE_DEPENSE';
-                const description = row[mapping.description] ? String(row[mapping.description]).trim() : null;
                 const modePaiement = row[mapping.modePaiement] ? String(row[mapping.modePaiement]).trim() : 'ESPECES';
                 const statut = row[mapping.statut] ? String(row[mapping.statut]).trim() : 'PAYEE';
-                const fournisseurNom = row[mapping.fournisseur] ? String(row[mapping.fournisseur]).trim() : null;
+                const fournisseurNom = row[mapping.fournisseur] ? String(row[mapping.fournisseur]).trim() : 'PERSONNEL';
 
                 // Basic validation
                 if (montant <= 0) {
@@ -1385,9 +2095,120 @@ export class ImportsService {
                 results.success++;
             } catch (error) {
                 results.failed++;
-                results.errors.push(`Row ${index + 1}: ${error.message}`);
+                results.errors.push(`Row ${index + 1}: ${error.message} `);
             }
         }
         return results;
+    }
+    private async findOrCreateFournisseur(nameInput: string, index: number): Promise<any> {
+        const log = (msg: string) => {
+            try { require('fs').appendFileSync('import_skips_factures.log', `[SUPPLIER_MATCH] Row ${index + 1}: ${msg} \n`); } catch (e) { }
+            console.log(`[SupplierMatch] ${msg} `);
+        };
+
+        if (!nameInput || nameInput.trim() === '') {
+            const fallbackName = "FOURNISSEUR INCONNU";
+            let fallback = await this.prisma.fournisseur.findFirst({ where: { nom: fallbackName } });
+            if (!fallback) {
+                fallback = await this.prisma.fournisseur.create({ data: { nom: fallbackName } });
+            }
+            log(`Using global fallback supplier for empty name`);
+            return fallback;
+        }
+
+        const manualMapping: { [key: string]: string } = {
+            'L-0H': 'L-OH',
+            'L-N': 'L\'N OPTIC',
+            'O-N-A': 'O-N-A', // keep as is or map if needed
+            'MAROC TELECO INTERNET': 'MAROC TELECOM',
+            'ETUI BAKRIM': 'ETUI BAKRIM', // Example if needed
+            '0-N-A': 'O-N-A'
+        };
+
+        if (manualMapping[nameInput.toUpperCase()]) {
+            const mappedName = manualMapping[nameInput.toUpperCase()];
+            const mappedSupplier = await this.prisma.fournisseur.findFirst({ where: { nom: mappedName } });
+            if (mappedSupplier) {
+                log(`Manual mapping found: "${nameInput}" -> "${mappedName}"`);
+                return mappedSupplier;
+            }
+        }
+
+        const normalize = (n: string) => {
+            if (!n) return '';
+            return n
+                .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove accents
+                .replace(/0/g, "O") // Replace 0 with O
+                .replace(/[^a-zA-Z0-9]/g, "") // Keep only letters/numbers
+                .toUpperCase();
+        };
+
+        const searchName = normalize(nameInput);
+        if (!searchName) {
+            const fallbackName = "FOURNISSEUR INCONNU";
+            let fallback = await this.prisma.fournisseur.findFirst({ where: { nom: fallbackName } });
+            if (!fallback) {
+                fallback = await this.prisma.fournisseur.create({ data: { nom: fallbackName } });
+            }
+            log(`Using global fallback supplier for non - normalizable name: "${nameInput}"`);
+            return fallback;
+        }
+
+        // 1. Try exact match first
+        let fournisseur = await this.prisma.fournisseur.findFirst({
+            where: { nom: { equals: nameInput.trim(), mode: 'insensitive' } }
+        });
+        if (fournisseur) {
+            log(`Exact match found: "${fournisseur.nom}"`);
+            return fournisseur;
+        }
+
+        // 2. Fetch all to perform smart matching
+        const allSuppliers = await this.prisma.fournisseur.findMany({ select: { id: true, nom: true } });
+        const levenshtein = require('fast-levenshtein');
+
+        const matchedS = allSuppliers.find(s => {
+            const dbName = normalize(s.nom);
+
+            // A. Exact normalized match
+            if (dbName === searchName) return true;
+
+            // B. Inclusion Match
+            if (searchName.length > 5 && dbName.length > 5) {
+                if (searchName.includes(dbName) || dbName.includes(searchName)) return true;
+            }
+
+            // C. Word-based Inclusion
+            const searchWords = nameInput.toUpperCase().split(/[^A-Z]/).filter(w => w.length > 3);
+            const dbWords = s.nom.toUpperCase().split(/[^A-Z]/).filter(w => w.length > 3);
+            if (searchWords.length > 0 && dbWords.length > 0) {
+                const commonWords = searchWords.filter(w => dbWords.includes(w));
+                if (commonWords.length >= Math.min(2, searchWords.length, dbWords.length)) return true;
+            }
+
+            // D. Fuzzy Match (Levenshtein)
+            const len = Math.max(searchName.length, dbName.length);
+            if (len > 2) {
+                const distance = levenshtein.get(searchName, dbName);
+                // For short names (3-4 chars), allow 1 edit. For longer, 33%.
+                const tolerance = len <= 4 ? 1 : Math.floor(len / 3);
+                if (distance <= tolerance) return true;
+            }
+
+            return false;
+        });
+
+        if (matchedS) {
+            fournisseur = await this.prisma.fournisseur.findUnique({ where: { id: matchedS.id } });
+            if (fournisseur) {
+                log(`Smart match found: "${fournisseur.nom}" for input "${nameInput}"`);
+                return fournisseur;
+            }
+        }
+
+        // 3. Create NEW if no match found
+        const cleanName = nameInput.trim();
+        log(`Creating NEW Supplier: "${cleanName}"`);
+        return await this.prisma.fournisseur.create({ data: { nom: cleanName } });
     }
 }

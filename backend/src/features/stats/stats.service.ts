@@ -44,6 +44,8 @@ export interface PaymentMethodStat {
 
 @Injectable()
 export class StatsService {
+    private readonly ACTIVE_STATUSES = ['VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL'];
+
     constructor(private prisma: PrismaService) { }
 
     async getRevenueEvolution(
@@ -55,16 +57,27 @@ export class StatsService {
         const start = startDate ? new Date(startDate) : new Date(new Date().setMonth(new Date().getMonth() - 12));
         const end = endDate ? new Date(endDate) : new Date();
 
+        // CA = Factures (Validated) - Avoirs
         const factures = await this.prisma.facture.findMany({
             where: {
                 dateEmission: { gte: start, lte: end },
-                statut: { in: ['VALIDE', 'PAYEE', 'PARTIEL'] },
-                type: { not: 'AVOIR' },
-                ...(centreId ? { centreId } : {})
+                centreId: centreId || undefined,
+                OR: [
+                    {
+                        // Factures
+                        OR: [{ numero: { startsWith: 'FAC' } }, { type: 'FACTURE' }],
+                        statut: { in: this.ACTIVE_STATUSES }
+                    },
+                    {
+                        // Avoirs
+                        type: 'AVOIR'
+                    }
+                ]
             },
             select: {
                 dateEmission: true,
-                totalTTC: true
+                totalTTC: true,
+                type: true
             }
         });
 
@@ -87,9 +100,12 @@ export class StatsService {
             }
 
             const existing = grouped.get(key) || { revenue: 0, count: 0 };
+            const amount = f.totalTTC || 0;
+            const adjustedRevenue = f.type === 'AVOIR' ? existing.revenue - amount : existing.revenue + amount;
+
             grouped.set(key, {
-                revenue: existing.revenue + (f.totalTTC || 0),
-                count: existing.count + 1
+                revenue: adjustedRevenue,
+                count: existing.count + (f.type === 'AVOIR' ? 0 : 1) // Count only new sales
             });
         });
 
@@ -142,23 +158,26 @@ export class StatsService {
         const totalDevis = await this.prisma.facture.count({
             where: {
                 ...whereClause,
-                type: 'BROUILLON',
-                statut: 'BROUILLON'
+                OR: [
+                    { type: 'DEVIS' },
+                    { numero: { startsWith: 'BRO' } },
+                    { numero: { startsWith: 'DEV' } }
+                ]
             }
         });
 
         const validatedFactures = await this.prisma.facture.count({
             where: {
                 ...whereClause,
-                type: 'FACTURE',
-                statut: { in: ['VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL'] }
+                OR: [{ numero: { startsWith: 'FAC' } }, { type: 'FACTURE' }],
+                statut: { in: this.ACTIVE_STATUSES }
             }
         });
 
         const paidFactures = await this.prisma.facture.count({
             where: {
                 ...whereClause,
-                type: 'FACTURE',
+                OR: [{ numero: { startsWith: 'FAC' } }, { type: 'FACTURE' }],
                 statut: 'PAYEE'
             }
         });
@@ -205,9 +224,9 @@ export class StatsService {
         const factures = await this.prisma.facture.findMany({
             where: {
                 dateEmission: { gte: start, lte: end },
-                statut: { in: ['VALIDE', 'PAYEE', 'PARTIEL'] },
-                type: { not: 'AVOIR' },
-                ...(centreId ? { centreId } : {})
+                centreId: centreId || undefined,
+                OR: [{ numero: { startsWith: 'FAC' } }, { type: 'FACTURE' }],
+                statut: { in: this.ACTIVE_STATUSES }
             },
             select: {
                 clientId: true,
@@ -287,7 +306,7 @@ export class StatsService {
         const start = startDate ? new Date(startDate) : undefined;
         const end = endDate ? new Date(endDate) : undefined;
 
-        const [totalProducts, totalClients, totalRevenue, activeWarehouses, totalDirectExpenses, totalScheduledExpenses, fichesBreakdown] = await Promise.all([
+        const [totalProducts, totalClients, facturesResult, activeWarehouses, totalDirectExpenses, totalScheduledExpenses, fichesBreakdown] = await Promise.all([
             this.prisma.product.count({
                 where: centreId ? {
                     entrepot: { centreId }
@@ -296,14 +315,23 @@ export class StatsService {
             this.prisma.client.count({
                 where: centreId ? { centreId } : {}
             }),
-            this.prisma.facture.aggregate({
+            this.prisma.facture.findMany({
                 where: {
-                    statut: { in: ['VALIDE', 'PAYEE', 'PARTIEL'] },
-                    type: { not: 'AVOIR' },
-                    ...(centreId ? { centreId } : {}),
-                    ...(start || end ? { dateEmission: { gte: start, lte: end } } : {})
+                    centreId: centreId || undefined,
+                    ...(start || end ? { dateEmission: { gte: start, lte: end } } : {}),
+                    OR: [
+                        {
+                            // Valid Invoices
+                            OR: [{ numero: { startsWith: 'FAC' } }, { type: 'FACTURE' }],
+                            statut: { in: this.ACTIVE_STATUSES }
+                        },
+                        {
+                            // Avoirs
+                            type: 'AVOIR'
+                        }
+                    ]
                 },
-                _sum: { totalTTC: true }
+                select: { totalTTC: true, type: true }
             }),
             this.prisma.entrepot.count({ where: centreId ? { centreId } : {} }),
             this.prisma.depense.aggregate({
@@ -331,15 +359,20 @@ export class StatsService {
                 by: ['type'],
                 where: {
                     client: centreId ? { centreId } : {}
-                    // Removed date filter to show global counts on the dashboard
                 },
                 _count: { _all: true }
             })
         ]);
 
+        // Calculate Net Revenue
+        let totalRevenue = 0;
+        facturesResult.forEach(f => {
+            if (f.type === 'AVOIR') totalRevenue -= (f.totalTTC || 0);
+            else totalRevenue += (f.totalTTC || 0);
+        });
+
         const conversionMetrics = await this.getConversionRate(startDate, endDate, centreId);
 
-        // Process fiches stats
         const fichesStats = {
             total: 0,
             monture: 0,
@@ -359,7 +392,7 @@ export class StatsService {
         return {
             totalProducts,
             totalClients,
-            totalRevenue: totalRevenue._sum.totalTTC || 0,
+            totalRevenue,
             totalExpenses: (totalDirectExpenses._sum.montant || 0) + (totalScheduledExpenses._sum.montant || 0),
             activeWarehouses,
             conversionRate: conversionMetrics.conversionToFacture,
@@ -387,20 +420,27 @@ export class StatsService {
                 end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
             }
 
-            console.log(`[Stats-Profit] RAW IN: start=${startDate}, end=${endDate}, tenant=${centreId}`);
-            console.log(`[Stats-Profit] FINAL PARSED: gte=${start.toISOString()}, lte=${end.toISOString()}, centre=${tenantId}`);
-
-            const revenueResult = await this.prisma.facture.aggregate({
+            const revenueDocs = await this.prisma.facture.findMany({
                 where: {
                     dateEmission: { gte: start, lte: end },
-                    statut: { in: ['VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL'] },
-                    type: { not: 'AVOIR' },
+                    tenantId: tenantId ? { centreId: tenantId } : undefined, // Wait, schema check needed
+                    OR: [
+                        {
+                            OR: [{ numero: { startsWith: 'FAC' } }, { type: 'FACTURE' }],
+                            statut: { in: this.ACTIVE_STATUSES }
+                        },
+                        { type: 'AVOIR' }
+                    ],
                     ...(tenantId ? { centreId: tenantId } : {})
                 },
-                _sum: { totalHT: true }
+                select: { totalHT: true, type: true }
             });
 
-            const revenue = revenueResult._sum.totalHT || 0;
+            let revenue = 0;
+            revenueDocs.forEach(d => {
+                if (d.type === 'AVOIR') revenue -= (d.totalHT || 0);
+                else revenue += (d.totalHT || 0);
+            });
 
             const cogsQuery = Prisma.sql`
                 SELECT SUM(m."quantite" * COALESCE(m."prixAchatUnitaire", 0)) as total_cost
@@ -408,7 +448,7 @@ export class StatsService {
                 JOIN "Facture" f ON m."factureId" = f."id"
                 WHERE f."dateEmission" >= ${start}
                 AND f."dateEmission" <= ${end}
-                AND f."statut" IN ('VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL')
+                AND ( (f."numero" LIKE 'FAC%' OR f."type" = 'FACTURE') AND f."statut" IN ('VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL') )
                 ${tenantId ? Prisma.sql`AND f."centreId" = ${tenantId}` : Prisma.sql``}
             `;
 
@@ -479,15 +519,15 @@ export class StatsService {
                 end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
             }
 
-            console.log(`[Stats-Profit] Evolution Range: ${start.toISOString()} to ${end.toISOString()} (Tenant: ${tenantId})`);
-
             const revenueQuery = Prisma.sql`
                 SELECT TO_CHAR(DATE_TRUNC('month', "dateEmission"), 'YYYY-MM') as month,
-                       SUM("totalHT") as revenue
+                       SUM(CASE WHEN "type" = 'AVOIR' THEN -"totalHT" ELSE "totalHT" END) as revenue
                 FROM "Facture"
                 WHERE "dateEmission" >= ${start} AND "dateEmission" <= ${end}
-                AND "statut" IN ('VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL')
-                AND "type" != 'AVOIR'
+                AND (
+                    ( ("numero" LIKE 'FAC%' OR "type" = 'FACTURE') AND "statut" IN ('VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL') )
+                    OR "type" = 'AVOIR'
+                )
                 ${tenantId ? Prisma.sql`AND "centreId" = ${tenantId}` : Prisma.sql``}
                 GROUP BY 1
                 ORDER BY 1
@@ -500,6 +540,7 @@ export class StatsService {
                 FROM "MouvementStock" m
                 JOIN "Facture" f ON m."factureId" = f."id"
                 WHERE f."dateEmission" >= ${start} AND f."dateEmission" <= ${end}
+                AND (f."numero" LIKE 'FAC%' OR f."type" = 'FACTURE')
                 AND f."statut" IN ('VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL')
                 ${tenantId ? Prisma.sql`AND f."centreId" = ${tenantId}` : Prisma.sql``}
                 GROUP BY 1

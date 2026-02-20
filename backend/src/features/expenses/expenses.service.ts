@@ -234,12 +234,10 @@ export class ExpensesService {
             ...whereClause,
             // Only show standalone expenses, not those linked to BLs/Invoices or Echeances that have invoices
             factureFournisseurId: null,
-            echeance: {
-                OR: [
-                    { id: { not: null }, factureFournisseurId: null },
-                    { id: null }
-                ]
-            }
+            OR: [
+                { echeanceId: null },
+                { echeance: { factureFournisseurId: null } }
+            ]
         };
 
         return this.prisma.depense.findMany({

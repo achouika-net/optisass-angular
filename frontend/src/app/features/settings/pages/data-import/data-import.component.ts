@@ -132,6 +132,9 @@ export class DataImportComponent implements OnInit {
             { value: 'telephone', label: 'Téléphone Client (Si code absent)' },
 
             // Infos Fiche
+            { value: 'numero', label: 'N° Fiche / Dossier' },
+            { value: 'valide', label: 'Validé (Oui/Non)' },
+            { value: 'facture', label: 'Facturé (Oui/Non)' },
             { value: 'statut', label: 'Statut Dossier (Livre, Commande...)' },
             { value: 'dateCreation', label: 'Date de Création' },
             { value: 'dateLivraisonEstimee', label: 'Date Livraison Estimée' },
@@ -215,6 +218,9 @@ export class DataImportComponent implements OnInit {
             { value: 'lentilles_usage', label: 'L1: Usage' },
 
             // Infos Fiche
+            { value: 'numero', label: 'N° Fiche / Dossier' },
+            { value: 'valide', label: 'Validé (Oui/Non)' },
+            { value: 'facture', label: 'Facturé (Oui/Non)' },
             { value: 'statut', label: 'Statut Dossier' },
             { value: 'dateCreation', label: 'Date de Création' },
             { value: 'dateLivraisonEstimee', label: 'Date Livraison Estimée' },
@@ -233,11 +239,14 @@ export class DataImportComponent implements OnInit {
             { value: 'produit_designation', label: 'P1: Désignation' },
             { value: 'produit_qte', label: 'P1: Quantité' },
             { value: 'produit_prix', label: 'P1: Prix Unitaire' },
+            { value: 'numero', label: 'Numéro Dossier' },
 
             // Infos Fiche
             { value: 'statut', label: 'Statut Dossier' },
             { value: 'dateCreation', label: 'Date de Création' },
             { value: 'dateLivraisonEstimee', label: 'Date Livraison Estimée' },
+            { value: 'valide', label: 'Validé (Oui/Non)' },
+            { value: 'facture', label: 'Facturé (Oui/Non)' },
             { value: 'montantTotal', label: 'Montant Total' },
             { value: 'montantPaye', label: 'Acompte / Payé' },
             { value: 'notes', label: 'Notes / Observations' }
@@ -248,6 +257,7 @@ export class DataImportComponent implements OnInit {
             { value: 'nom', label: 'Nom Client (Si code absent)' },
             { value: 'telephone', label: 'Téléphone Client (Si code absent)' },
             { value: 'fiche_type', label: 'Type Manuel (monture/lentilles)' },
+            { value: 'numero', label: 'Numéro Dossier' },
             { value: 'fiche_id', label: 'ID Fiche / Regroupement' },
 
             // PRESCRIPTION COMMUNE
@@ -330,6 +340,8 @@ export class DataImportComponent implements OnInit {
 
             // Infos Communes
             { value: 'dateCreation', label: 'Date de Création' },
+            { value: 'valide', label: 'Validé (Oui/Non)' },
+            { value: 'facture', label: 'Facturé (Oui/Non)' },
             { value: 'statut', label: 'Statut Dossier' },
             { value: 'montantTotal', label: 'Prix Total' },
             { value: 'montantPaye', label: 'Acompte / Payé' },
@@ -358,6 +370,7 @@ export class DataImportComponent implements OnInit {
         ],
         factures_fournisseurs: [
             { value: 'numeroFacture', label: 'N° Facture' },
+            { value: 'referenceInterne', label: 'Référence Interne / nPiece' },
             { value: 'codeFournisseur', label: 'Code Fournisseur' },
             { value: 'nomFournisseur', label: 'Nom Fournisseur (si code absent)' },
             { value: 'dateEmission', label: 'Date Facture' },
@@ -367,19 +380,23 @@ export class DataImportComponent implements OnInit {
             { value: 'montantTTC', label: 'Montant TTC' },
             { value: 'statut', label: 'Statut (A_PAYER/PAYEE/PARTIELLE)' },
             { value: 'type', label: 'Type (ACHAT_STOCK/AUTRE)' },
+            { value: 'modePaiement', label: 'Mode de Règlement (Pour échéance auto)' },
             { value: 'notes', label: 'Notes' }
         ],
         paiements_fournisseurs: [
             { value: 'numeroFacture', label: 'N° Facture Fournisseur' },
+            { value: 'referenceInterne', label: 'Référence Interne / nPiece' },
             { value: 'codeFournisseur', label: 'Code Fournisseur' },
             { value: 'datePaiement', label: 'Date Paiement' },
             { value: 'montant', label: 'Montant Payé' },
             { value: 'modePaiement', label: 'Mode Paiement (Espèces/Chèque/Virement)' },
             { value: 'reference', label: 'Référence (N° Chèque/Virement)' },
+            { value: 'dateEcheance', label: 'Date Échéance (Chèque/LCN)' },
             { value: 'notes', label: 'Notes' }
         ],
         factures_ventes: [
             { value: 'numero', label: 'N° Facture' },
+            { value: 'fiche', label: 'N° Fiche / Dossier' },
             { value: 'codeClient', label: 'Code Client' },
             { value: 'nomClient', label: 'Nom Client (si code absent)' },
             { value: 'type', label: 'Type (DEVIS/FACTURE/BON_COMMANDE)' },
@@ -393,6 +410,7 @@ export class DataImportComponent implements OnInit {
         ],
         paiements_clients: [
             { value: 'numeroFacture', label: 'N° Facture' },
+            { value: 'fiche', label: 'N° Fiche / Dossier' },
             { value: 'codeClient', label: 'Code Client' },
             { value: 'datePaiement', label: 'Date Paiement' },
             { value: 'montant', label: 'Montant Payé' },
@@ -403,6 +421,51 @@ export class DataImportComponent implements OnInit {
     };
 
     currentFields: any[] = [];
+    showIgnoredFields = false;
+
+    /** Fields that have a mapped value (non-empty). Used to hide "Ignorer" rows. */
+    get visibleFields(): any[] {
+        if (this.showIgnoredFields) return this.currentFields;
+        return this.currentFields.filter(f => !!this.mappingForm.get(f.value)?.value);
+    }
+
+    /** LocalStorage key for saving default mappings per import type */
+    private defaultMappingKey(type: string): string {
+        return `import_default_mapping_${type}`;
+    }
+
+    /** Save the current mapping as default for the current import type */
+    saveDefaultMapping() {
+        const type = this.importForm.get('type')?.value;
+        if (!type) return;
+        const currentMapping = this.mappingForm.value;
+        // Only save non-empty values
+        const toSave: { [key: string]: string } = {};
+        Object.entries(currentMapping).forEach(([k, v]) => {
+            if (v) toSave[k] = v as string;
+        });
+        localStorage.setItem(this.defaultMappingKey(type), JSON.stringify(toSave));
+        this.snackBar.open(
+            `✅ Mapping sauvegardé comme défaut pour "${type}"`,
+            'Fermer',
+            { duration: 3000 }
+        );
+    }
+
+    /** Load saved default mapping from localStorage for the given type */
+    private loadSavedMapping(type: string): { [key: string]: string } {
+        try {
+            const raw = localStorage.getItem(this.defaultMappingKey(type));
+            return raw ? JSON.parse(raw) : {};
+        } catch {
+            return {};
+        }
+    }
+
+    toggleIgnoredFields() {
+        this.showIgnoredFields = !this.showIgnoredFields;
+    }
+
 
     constructor(
         private fb: FormBuilder,
@@ -515,187 +578,206 @@ export class DataImportComponent implements OnInit {
     }
 
     updateMappingControls() {
-        // AI-like Mapping Dictionary
-        const synonyms: { [key: string]: string[] } = {
-            // Clients
-            'codeClient': ['code', 'ref', 'id', 'interne', 'client_id', 'matricule', 'reference', 'client', 'ref client', 'id client', 'code_client'],
-            'titre': ['civ', 'civilite', 'genre', 'title', 'mr', 'mme', 'sexe', 'p_titre', 'civilite client'],
-            'nom': ['lastname', 'name', 'nom_famille', 'nom_client'],
-            'prenom': ['firstname', 'first_name', 'prenom', 'prenom client', 'prenom_client'],
-            'dateNaissance': ['dn', 'naissance', 'born', 'date_naissance', 'birth_date', 'date de naissance'],
-            'couvertureSociale': ['assurance', 'mutuelle', 'couverture', 'sociale', 'insurance', 'organisme'],
-            'numCouvertureSociale': ['numero_assurance', 'n_assurance', 'num_mutuelle', 'insurance_number', 'policy_id', 'numero mutuelle'],
-            'dateCreation': ['date', 'creation', 'saisie', 'ajout', 'date_creation', 'created_at', 'date dossier'],
-            'raisonSociale': ['societe', 'company', 'entreprise', 'rs', 'raison', 'raison_sociale'],
-            'email': ['mail', 'e-mail', 'courriel', 'adresse mail'],
-            'telephone': ['tel', 'phone', 'mobile', 'gsm', 'fixe', 'contact'],
-            'adresse': ['address', 'rue', 'voie', 'localisation', 'addr', 'adresse client'],
-            'ville': ['city', 'commune', 'town', 'ville client'],
-            'codePostal': ['cp', 'zip', 'zipcode', 'code_postal', 'cp client'],
-            'cin': ['cin', 'cni', 'identite', 'id_card', 'cin client'],
-            'ice': ['ice_id', 'identifiant_ice', 'ice'],
-            'identifiantFiscal': ['if', 'fiscal', 'nif', 'id_fiscal', 'tax_id', 'if client'],
-            'registreCommerce': ['rc', 'registre', 'commerce', 'cr', 'reg_commerce', 'rc client'],
-            'patente': ['patente_id', 'taxe_pro', 'patente client'],
-            'numeroAutorisation': ['autorisation', 'license', 'num_auth'],
-            'siteWeb': ['web', 'website', 'url', 'site'],
-            'commentaires': ['notes', 'comment', 'obs', 'observation', 'remarque', 'observations'],
-            'pointsFidelite': ['points', 'fidelite', 'loyalty'],
+        // 1. Identify valid keys for the current import type
+        const newFieldKeys = this.currentFields.map(f => f.value);
+        const type = this.importForm.get('type')?.value || 'clients';
 
-            // Products
-            'codeInterne': ['code', 'ref', 'reference', 'id', 'interne', 'article_id', 'code_article'],
-            'codeBarres': ['ean', 'cip', 'barcode', 'code_barre', 'cb', 'ean13', 'upc'],
-            'designation': ['libelle', 'nom', 'article', 'description', 'produit', 'name', 'libellé'],
-            'marque': ['brand', 'marque', 'fabricant', 'brand_name'],
-            'modele': ['model', 'modele', 'ref_modele', 'modèle'],
-            'couleur': ['color', 'couleur', 'teinte', 'coloris'],
-            'typeArticle': ['type', 'categorie', 'famille_article'],
-            'famille': ['famille', 'family', 'cat', 'category'],
-            'sousFamille': ['sous_famille', 'sub_category', 'sub'],
-            'fournisseurPrincipal': ['fournisseur', 'supplier', 'prov', 'provider'],
-            'montage': ['cerclage', 'type_monture', 'montage', 'systeme', 'type_m1'],
-            'prixAchatHT': ['pa', 'achat', 'cout', 'cost', 'prix_achat', 'pmp'],
-            'prixVenteHT': ['pv', 'vente_ht', 'prix_vente_ht', 'pvht'],
-            'prixVenteTTC': ['pv_ttc', 'pvttc', 'prix_ttc', 'prix_vente', 'pvttc'],
-            'coefficient': ['coeff', 'marge', 'markup'],
-            'tauxTVA': ['tva', 'vat', 'taxe'],
-            'quantiteActuelle': ['stock', 'qte', 'quantite', 'quantité', 'dispo'],
-
-            // Fiches
-            'fiche_id': ['id_fiche', 'fiche_id', 'numero_fiche', 'fiche_no', 'n_fiche', 'folder_id', 'dossier_id', 'client', 'ref client', 'n dossier', 'ndossier'],
-            'fiche_type': ['type_fiche', 'type', 'fiche', 'categorie', 'cat', 'category', 'dossier_type', 'kind', 'typedossier', 'type dossier'],
-            'od_sphere': ['od_sph', 'sph_od', 'sphere_od', 'od_sphere', 'od_sph1', 'od : sph', 'sph', 'sph_od', 'sphod', 'od_sph_1'],
-            'od_cylindre': ['od_cyl', 'cyl_od', 'cylindre_od', 'od_cylindre', 'od_cyl1', 'od : cyl', 'cyl', 'cyl_od', 'cylod', 'od_cyl_1'],
-            'od_axe': ['od_axe', 'axe_od', 'od_axis', 'od_axe1', 'od : axe', 'axe', 'axe_od', 'axeod', 'od_axe_1'],
-            'od_addition': ['add_od', 'addition_od', 'od_add', 'od_add1', 'od : add', 'add', 'add_od', 'addod', 'od_add_1'],
-            'og_sphere': ['og_sph', 'sph_og', 'sphere_og', 'og_sphere', 'og_sph1', 'og : sph', 'sph', 'sph_og', 'sphog', 'og_sph_1'],
-            'og_cylindre': ['og_cyl', 'cyl_og', 'cylindre_og', 'og_cylindre', 'og_cyl1', 'og : cyl', 'cyl', 'cyl_og', 'cylog', 'og_cyl_1'],
-            'og_axe': ['og_axe', 'axe_og', 'og_axis', 'og_axe1', 'og : axe', 'axe', 'axe_og', 'axeog', 'og_axe_1'],
-            'og_addition': ['add_og', 'addition_og', 'og_add', 'og_add1', 'og : add', 'add', 'add_og', 'addog', 'og_add_1'],
-            'ep_od': ['ecart_od', 'ep_od', 'od_ep', 'od_pd', 'pd_od', 'od_loin', 'ecart pu', 'ecpup', 'pupillaire', 'pup', 'ep_d', 'pd_d', 'ecart_d'],
-            'ep_og': ['ecart_og', 'ep_og', 'og_ep', 'og_pd', 'pd_og', 'od_loin', 'ecart pu', 'ecpup', 'pupillaire', 'pup', 'ep_g', 'pd_g', 'ecart_g'],
-            'monture_marque': ['marque_monture', 'monture', 'frame_brand', 'monture1', 'marque_m1', 'm_marque', 'frame1'],
-            'monture_modele': ['modele_monture', 'modèle', 'frame_model', 'modele_m1', 'm_modele', 'frame1_model'],
-            'monture_reference': ['ref_monture', 'reference_monture', 'frame_ref', 'ref_m1', 'm_ref', 'frame1_ref'],
-            'monture_prix': ['prix_monture', 'prix_monture1', 'monture_pv', 'price_frame', 'prixm1', 'prix mt', 'prix_m1', 'm_prix'],
-            'monture2_marque': ['monture2', 'marque_monture2', 'second_frame_brand', 'monture (2)', 'marque_m2', 'm2_marque', 'frame2'],
-            'monture2_modele': ['modele2', 'modele_monture2', 'frame_model2', 'modele_m2', 'm2_modele', 'frame2_model'],
-            'monture2_reference': ['ref2', 'reference_monture2', 'frame_ref2', 'ref_m2', 'm2_ref', 'frame2_ref'],
-            'monture2_prix': ['prix_monture2', 'monture2_pv', 'price_frame2', 'prixm2', 'prix mt', 'prix_m2', 'm2_prix'],
-
-            'verres_type': ['type_verre', 'verre_type', 'lens_type', 'type_v1', 'v_type', 'v1_type'],
-            'verres_indice': ['indice_verre', 'lens_index', 'indice', 'index', 'indice_v1', 'v_indice', 'v1_indice'],
-            'verres_marque': ['marque_verre', 'lens_brand', 'marqu_v1', 'v_marque'],
-            'verres_matiere': ['matiere', 'material', 'matiere_verre', 'nature', 'matier_v1', 'v_matiere', 'v1_matiere'],
-            'verres_traitement': ['traitement', 'coating', 'traitement_verre', 'traitement_v1', 'v_traitement', 'v1_traitement'],
-            'verres_prix_od': ['prix_verre_od', 'od_lens_price', 'pd_od', 'prix v.o', 'prix_v1', 'v_prix_od', 'prix verre od'],
-            'verres_prix_og': ['prix_verre_og', 'og_lens_price', 'pd_og', 'prix v.o', 'prix_v1', 'v_prix_og', 'prix verre og', 'prixv1g'],
-
-            'verres_marque_od': ['marque_od1', 'od1_marque', 'od_marque', 'od_v_marque', 'marqu_v1', 'v1_marque_od', 'marque_v1_od'],
-            'verres_matiere_od': ['matiere_od1', 'od1_matiere', 'od_matiere', 'nature_od', 'matiere_od', 'matière_od', 'matiere', 'matier_v1', 'v1_matiere_od', 'verre1d'],
-            'verres_indice_od': ['indice_od1', 'od1_indice', 'od_indice', 'index_od', 'indice_od', 'indice', 'indice_v1', 'v1_indice_od'],
-            'verres_marque_og': ['marque_og1', 'og1_marque', 'og_marque', 'og_v_marque', 'marqu_v1', 'v1_marque_og', 'marque_v1_og'],
-            'verres_matiere_og': ['matiere_og1', 'og1_matiere', 'og_matiere', 'nature_og', 'matiere_og', 'matière_og', 'matiere', 'matier_v1', 'v1_matiere_og', 'verre 1g'],
-            'verres_indice_og': ['indice_og1', 'og1_indice', 'og_indice', 'index_og', 'indice_og', 'indice', 'indice_v1', 'v1_indice_og'],
-            'verres_traitement_od': ['traitement_od1', 'od1_traitement', 'od_traitement', 'traitement_od', 'traitement_v1', 'v1_traitement_od'],
-            'verres_traitement_og': ['traitement_og1', 'og1_traitement', 'og_traitement', 'traitement_og', 'traitement_v1', 'v1_traitement_og'],
-
-            // Lentilles Specific
-            'od_rayon': ['rayon_od', 'bc_od', 'rayon_bc_od', 'rayon', 'bc', 'od_base1', 'base_od', 'rayon_d', 'bc_d'],
-            'od_diametre': ['diametre_od', 'dia_od', 'diamètre_od', 'diametre', 'dia', 'od_base1', 'dia_od', 'diam_od', 'diam_d'],
-            'og_rayon': ['rayon_og', 'bc_og', 'rayon_bc_og', 'rayon', 'bc', 'og_base1', 'base_og', 'rayon_g', 'bc_g'],
-            'og_diametre': ['diametre_og', 'dia_og', 'diamètre_og', 'diametre', 'dia', 'og_base1', 'dia_og', 'diam_og', 'diam_g'],
-            'od_k1': ['od_k1', 'keratoh', 'k1_od', 'k1_d'],
-            'od_k2': ['od_k2', 'keratov', 'k2_od', 'k2_d'],
-            'og_k1': ['og_k1', 'keratoh2', 'k1_og', 'k1_g'],
-            'og_k2': ['og_k2', 'keratov2', 'k2_og', 'k2_g'],
-            'lentilles_marque': ['marque_lentille', 'lens_brand', 'lentille1', 'l_marque', 'l1_marque'],
-            'lentilles_modele': ['modele_lentille', 'lens_model', 'modele_lentille1', 'lentille1', 'l_modele', 'l1_modele'],
-            'lentilles_usage': ['usage', 'type_frequence', 'freq1', 'frequence', 'usage_l1'],
-            'lentilles_prix': ['prix_lentilles', 'prix_lentille', 'lens_price', 'prix_lentille1', 'prixl1', 'l_prix', 'l1_prix'],
-            'lentilles_qte': ['qte_lentilles', 'qte_lentille', 'lens_qty', 'qte_lentille1', 'qtel1', 'l_qte', 'l1_qte'],
-            'lentille2_marque': ['lentille2', 'marque_lentille2', 'lentille2', 'l2_marque', 'marque_l2'],
-            'lentille2_modele': ['modele_lentille2', 'lentille2_mod', 'lentille2', 'l2_modele', 'modele_l2'],
-            'lentilles_prix2': ['prix_lentille2', 'lentille2_prix', 'prixl2', 'l2_prix'],
-            'lentilles_qte2': ['qte_lentille2', 'lentille2_qte', 'qtel2', 'l2_qte'],
-
-            'verres2_marque': ['marque_verre2', 'verre2_marque', 'marque_od2', 'v2_marque'],
-            'verres2_matiere': ['matiere_verre2', 'verre2_matiere', 'matiere_od2', 'v2_matiere'],
-            'verres2_matiere_od': ['verre2d', 'v2_matiere_od'],
-            'verres2_matiere_og': ['verre2g', 'v2_matiere_og'],
-            'verres2_indice': ['indice_verre2', 'verre2_indice', 'indice_od2', 'v2_indice'],
-            'verres2_prix_od': ['prix_verre2', 'verre2_prix', 'prixv2d', 'v2_prix_od'],
-            'verres2_prix_og': ['prixv2g', 'v2_prix_og'],
-
-            // Produits / Accessoires
-            'produit_ref': ['ref_produit', 'reference_produit', 'code_produit', 'produit1', 'p1_ref', 'acc_ref'],
-            'produit_designation': ['designation_produit', 'nom_produit', 'label', 'designation_produit1', 'acc1', 'p1_nom'],
-            'produit_qte': ['quantite_vendue', 'qte_vendue', 'nb', 'qte_produit1', 'p1_qte'],
-            'produit_prix': ['prix_u', 'pu', 'unitaire', 'prix_produit1', 'prixa1', 'p1_prix'],
-            'produit2_ref': ['produit2', 'ref_produit2', 'p2_ref'],
-            'produit2_designation': ['designation_produit2', 'nom_produit2', 'acc2', 'p2_nom'],
-            'produit2_qte': ['qte_produit2', 'nb_produit2', 'p2_qte'],
-            'produit2_prix': ['prix_produit2', 'pu_produit2', 'prixa2', 'p2_prix'],
-
-            'date_ordonnance': ['date_ord', 'ord_date', 'date_prescription', 'date ordonnance'],
-            'nom_medecin': ['medecin', 'docteur', 'doctor_name', 'nom medecin', 'ophtalmo'],
-            'statut': ['status', 'etat_dossier', 'valide', 'statut dossier', 'etat'],
-            'dateLivraisonEstimee': ['date_livraison', 'livraison_estimee', 'livraison', 'date livraison', 'dateliv'],
-            'montantTotal': ['total', 'montant_ttc', 'total_ttc', 'prix total', 'ttc total'],
-            'montantPaye': ['paye', 'acompte', 'paid_amount', 'montant paye', 'deja paye'],
-            'notes': ['note', 'observation', 'remarques', 'observations', 'commentaire'],
-            'fournisseur': ['supplier', 'vendor', 'provider', 'fournisseur_nom', 'fournisseur_id'],
-            'facture_fournisseur': ['facture', 'invoice', 'num_facture', 'n_facture', 'invoice_number', 'facture_f'],
-
-            // Fournisseurs (code and siteWeb conflict with existing keys, removed)
-            'contact': ['personne_contact', 'contact_person', 'nom_contact', 'contact_fournisseur'],
-            'rc': ['registre_commerce', 'commerce', 'reg_commerce', 'rc_fournisseur'],
-            'cnss': ['cnss_id', 'securite_sociale', 'cnss_fournisseur'],
-            'rib': ['rib_fournisseur', 'bank_account', 'compte_bancaire', 'rib_f'],
-            'banque': ['bank', 'nom_banque', 'etablissement', 'banque_f'],
-            'conditionsPaiement': ['conditions', 'paiement', 'payment_terms', 'delai_paiement', 'conditions_f'],
-
-            // Factures Fournisseurs
-            'numeroFacture': ['numero', 'n_facture', 'num_facture', 'facture_num', 'invoice_number', 'invoice_no', 'numero facture'],
-            'codeFournisseur': ['code_fournisseur', 'fournisseur_code', 'supplier_code', 'ref_fournisseur', 'code fournisseur'],
-            'nomFournisseur': ['nom_fournisseur', 'fournisseur', 'supplier_name', 'nom fournisseur'],
-            'dateEmission': ['date_facture', 'date_emission', 'invoice_date', 'emission', 'date emission'],
-            'dateEcheance': ['echeance', 'due_date', 'date_due', 'date_limite', 'date echeance'],
-            'montantHT': ['ht', 'montant_ht', 'total_ht', 'amount_ht', 'total ht'],
-            'montantTVA': ['tva', 'montant_tva', 'tax', 'vat', 'total tva'],
-            'montantTTC': ['ttc', 'montant_ttc', 'total_ttc', 'total', 'amount', 'total ttc'],
-
-            // Paiements Fournisseurs
-            'datePaiement': ['date_paiement', 'payment_date', 'date_pay', 'paiement', 'date paiement'],
-            'montant': ['montant_paye', 'amount', 'paiement', 'paid_amount', 'montant payé'],
-            'modePaiement': ['mode', 'payment_method', 'methode_paiement', 'mode_pay', 'mode paiement'],
-            'reference': ['ref', 'ref_paiement', 'numero_cheque', 'num_virement', 'payment_ref', 'reference paiement'],
-
-            // Factures Ventes (codeClient conflicts with existing key, removed)
-            'nomClient': ['nom_client', 'client', 'customer_name', 'nom client'],
-            'totalHT': ['total_ht', 'ht', 'montant_ht', 'amount_ht', 'total ht'],
-            'totalTVA': ['total_tva', 'tva', 'tax', 'vat', 'total tva'],
-            'totalTTC': ['total_ttc', 'ttc', 'total', 'amount', 'montant_total', 'total ttc'],
-
-            // Paiements Clients
-            // (uses same synonyms as paiements fournisseurs)
-
-            'seuilAlerte': ['seuil', 'alerte', 'min', 'alert', 'min_stock'],
-        };
-
-        this.currentFields.forEach(field => {
-            const bestMatch = this.findBestMatch(field.value, field.label, this.csvHeaders, synonyms[field.value] || []);
-
-            if (!this.mappingForm.contains(field.value)) {
-                this.mappingForm.addControl(field.value, this.fb.control(bestMatch || ''));
-            } else {
-                this.mappingForm.get(field.value)?.setValue(bestMatch || '');
+        // 2. Remove controls that are NOT relevant to the new type
+        Object.keys(this.mappingForm.controls).forEach(key => {
+            if (!newFieldKeys.includes(key)) {
+                this.mappingForm.removeControl(key);
             }
         });
 
+        // 3. Load saved default mapping for this type
+        const savedMapping = this.loadSavedMapping(type);
+
+        // AI-like Mapping Dictionary — French & English synonyms for every field
+        const synonyms: { [key: string]: string[] } = {
+            // ─── CLIENT ───────────────────────────────────────────────────────
+            codeClient: ['code', 'codeclient', 'id client', 'identifiant', 'ref client', 'numero client', 'client id', 'client code', 'no client'],
+            titre: ['titre', 'civilite', 'civility', 'salutation', 'mr', 'mme', 'title'],
+            nom: ['nom', 'name', 'last name', 'lastname', 'surname', 'family name', 'nom client', 'client name'],
+            prenom: ['prenom', 'first name', 'firstname', 'given name', 'givenname', 'prénom'],
+            dateNaissance: ['date naissance', 'naissance', 'birthday', 'birth date', 'dob', 'date de naissance', 'né le'],
+            couvertureSociale: ['couverture', 'assurance', 'mutuelle', 'cnam', 'cnss', 'securite sociale', 'insurance', 'coverage'],
+            numCouvertureSociale: ['num couverture', 'numero assurance', 'num assurance', 'insurance number', 'num mutuelle'],
+            dateCreation: ['date creation', 'date saisie', 'created at', 'created date', 'date ajout', 'date entree', 'date inscription', 'date ouverture'],
+            raisonSociale: ['raison sociale', 'company', 'societe', 'entreprise', 'business name', 'company name'],
+            telephone: ['tel', 'phone', 'mobile', 'gsm', 'portable', 'telephone', 'num tel', 'contact'],
+            email: ['email', 'mail', 'e-mail', 'courriel', 'adresse mail'],
+            adresse: ['adresse', 'address', 'rue', 'street', 'domicile'],
+            ville: ['ville', 'city', 'town', 'localite'],
+            codePostal: ['code postal', 'cp', 'zip', 'postal code', 'zipcode'],
+            cin: ['cin', 'carte identite', 'id card', 'cni', 'piece identite'],
+            ice: ['ice', 'identifiant commun', 'common identifier'],
+            identifiantFiscal: ['if', 'identifiant fiscal', 'tax id', 'fiscal id', 'num fiscal'],
+            registreCommerce: ['rc', 'registre commerce', 'trade register', 'commerce register'],
+            patente: ['patente', 'patent'],
+            numeroAutorisation: ['num autorisation', 'autorisation', 'authorization number'],
+            siteWeb: ['site', 'web', 'website', 'url', 'site web'],
+            commentaires: ['commentaire', 'comment', 'remarque', 'note', 'observation'],
+            pointsFidelite: ['points', 'fidelite', 'loyalty', 'points fidelite'],
+            solde: ['solde', 'balance', 'solde initial', 'initial balance'],
+
+            // ─── FICHE ────────────────────────────────────────────────────────
+            fiche_id: ['fiche', 'dossier', 'num fiche', 'numero fiche', 'id fiche', 'fiche id', 'no fiche', 'n fiche', 'n° fiche'],
+            fiche_type: ['type fiche', 'type dossier', 'categorie fiche', 'fiche type'],
+            numero: ['numero', 'num', 'n°', 'no', 'numero fiche', 'num fiche', 'n° fiche', 'dossier', 'id fiche', 'numero facture', 'invoice number'],
+            valide: ['valide', 'valid', 'validated', 'confirme', 'oui non', 'checkbox', 'coche'],
+            facture: ['facture', 'facturation', 'facturee', 'invoiced', 'invoice', 'facture oui non', 'n° fiche', 'num fiche'],
+            statut: ['statut', 'status', 'etat', 'state', 'situation'],
+            dateLivraisonEstimee: ['livraison', 'date livraison', 'delivery date', 'date remise', 'remise', 'date retrait'],
+            montantTotal: ['montant total', 'total', 'prix total', 'total ttc', 'montant ttc', 'price', 'prix', 'amount'],
+            montantPaye: ['acompte', 'paye', 'verse', 'montant paye', 'paid', 'deposit', 'avance', 'reglement', 'paiement'],
+            notes: ['notes', 'note', 'observations', 'remarques', 'commentaires', 'info', 'details'],
+
+            // ─── PRESCRIPTION ─────────────────────────────────────────────────
+            od_sphere: ['sph od', 'sphere od', 'od sph', 'od sphere', 'sph d', 'sphere d', 'od', 'sph droit', 'sphere droit'],
+            og_sphere: ['sph og', 'sphere og', 'og sph', 'og sphere', 'sph g', 'sphere g', 'og', 'sph gauche', 'sphere gauche'],
+            od_cylindre: ['cyl od', 'cylindre od', 'od cyl', 'cyl d', 'cylindre d', 'cyl droit'],
+            og_cylindre: ['cyl og', 'cylindre og', 'og cyl', 'cyl g', 'cylindre g', 'cyl gauche'],
+            od_axe: ['axe od', 'od axe', 'axe d', 'axis od', 'ax od'],
+            og_axe: ['axe og', 'og axe', 'axe g', 'axis og', 'ax og'],
+            od_addition: ['add od', 'addition od', 'od add', 'add d', 'addition d'],
+            og_addition: ['add og', 'addition og', 'og add', 'add g', 'addition g'],
+            ep_od: ['ep od', 'ecart pupillaire od', 'pd od', 'pupillary distance od', 'ep d'],
+            ep_og: ['ep og', 'ecart pupillaire og', 'pd og', 'pupillary distance og', 'ep g'],
+            date_ordonnance: ['date ordonnance', 'ordonnance', 'prescription date', 'date prescription'],
+            nom_medecin: ['medecin', 'docteur', 'dr', 'doctor', 'ophtalmologue', 'ophtalmo', 'prescripteur'],
+
+            // ─── LENTILLES ────────────────────────────────────────────────────
+            od_rayon: ['rayon od', 'bc od', 'base curve od', 'rc od', 'rayon d'],
+            og_rayon: ['rayon og', 'bc og', 'base curve og', 'rc og', 'rayon g'],
+            od_diametre: ['diametre od', 'diam od', 'diameter od', 'dia od'],
+            og_diametre: ['diametre og', 'diam og', 'diameter og', 'dia og'],
+            od_k1: ['k1 od', 'od k1', 'keratometrie 1 od'],
+            og_k1: ['k1 og', 'og k1', 'keratometrie 1 og'],
+            od_k2: ['k2 od', 'od k2', 'keratometrie 2 od'],
+            og_k2: ['k2 og', 'og k2', 'keratometrie 2 og'],
+            lentilles_marque: ['marque lentille', 'lentille marque', 'lens brand', 'marque l1', 'l1 marque'],
+            lentilles_modele: ['modele lentille', 'lentille modele', 'lens model', 'modele l1', 'l1 modele'],
+            lentilles_usage: ['usage lentille', 'lentille usage', 'lens usage', 'usage l1', 'frequence'],
+            lentilles_prix: ['prix lentille', 'lentille prix', 'lens price', 'prix l1', 'l1 prix'],
+
+            // ─── MONTURE ──────────────────────────────────────────────────────
+            monture_marque: ['marque monture', 'monture marque', 'frame brand', 'marque m1', 'm1 marque', 'marque'],
+            monture_modele: ['modele monture', 'monture modele', 'frame model', 'modele m1', 'm1 modele', 'modele'],
+            monture_reference: ['ref monture', 'monture ref', 'frame ref', 'reference monture', 'ref m1', 'm1 ref'],
+            monture_prix: ['prix monture', 'monture prix', 'frame price', 'prix m1', 'm1 prix'],
+
+            // ─── VERRES ───────────────────────────────────────────────────────
+            verres_type: ['type verre', 'verre type', 'lens type', 'type v1', 'progressif', 'unifocal', 'bifocal'],
+            verres_indice: ['indice verre', 'verre indice', 'lens index', 'indice v1', 'indice'],
+            verres_matiere: ['matiere verre', 'verre matiere', 'lens material', 'matiere v1', 'materiau'],
+            verres_marque: ['marque verre', 'verre marque', 'lens brand', 'marque v1', 'v1 marque'],
+            verres_traitement: ['traitement verre', 'verre traitement', 'lens treatment', 'traitement v1', 'ar', 'antireflet', 'anti reflet'],
+            verres_prix_od: ['prix verre od', 'verre od prix', 'prix od', 'v1 od prix', 'prix verre droit'],
+            verres_prix_og: ['prix verre og', 'verre og prix', 'prix og', 'v1 og prix', 'prix verre gauche'],
+
+            // ─── PRODUITS ─────────────────────────────────────────────────────
+            codeInterne: ['code interne', 'code article', 'article code', 'internal code', 'sku', 'reference interne'],
+            codeBarres: ['code barre', 'barcode', 'ean', 'upc', 'gtin', 'code barre'],
+            referenceFournisseur: ['ref fournisseur', 'reference fournisseur', 'supplier ref', 'fournisseur ref'],
+            designation: ['designation', 'libelle', 'description', 'nom article', 'article', 'product name', 'nom produit'],
+            marque: ['marque', 'brand', 'fabricant', 'manufacturer'],
+            modele: ['modele', 'model', 'reference'],
+            couleur: ['couleur', 'color', 'colour'],
+            typeArticle: ['type article', 'type produit', 'article type', 'product type', 'categorie'],
+            famille: ['famille', 'family', 'category', 'categorie'],
+            sousFamille: ['sous famille', 'sous-famille', 'sub family', 'subcategory'],
+            fournisseurPrincipal: ['fournisseur', 'supplier', 'vendor', 'fournisseur principal'],
+            montage: ['montage', 'cerclage', 'frame type', 'type cerclage'],
+            prixAchatHT: ['prix achat', 'achat ht', 'purchase price', 'cost', 'cout', 'pa ht'],
+            prixVenteHT: ['prix vente ht', 'vente ht', 'pv ht', 'selling price ht'],
+            prixVenteTTC: ['prix vente ttc', 'vente ttc', 'pv ttc', 'prix ttc', 'selling price', 'prix public'],
+            coefficient: ['coefficient', 'coeff', 'markup', 'marge'],
+            tauxTVA: ['tva', 'tax rate', 'vat', 'taux tva'],
+            quantiteActuelle: ['quantite', 'qty', 'stock', 'qte', 'quantity', 'stock actuel'],
+            seuilAlerte: ['seuil', 'alerte', 'alert', 'minimum stock', 'stock min', 'reorder point'],
+
+            // ─── FOURNISSEURS ─────────────────────────────────────────────────
+            code: ['code', 'code fournisseur', 'supplier code', 'vendor code', 'ref fournisseur'],
+            contact: ['contact', 'personne contact', 'contact person', 'interlocuteur'],
+            rib: ['rib', 'iban', 'bank account', 'compte bancaire'],
+            banque: ['banque', 'bank', 'etablissement bancaire'],
+            conditionsPaiement: ['conditions paiement', 'payment terms', 'delai paiement', 'modalites paiement'],
+            cnss: ['cnss', 'social security', 'securite sociale'],
+            rc: ['rc', 'registre commerce', 'trade register'],
+
+            // ─── FACTURES ─────────────────────────────────────────────────────
+            // Note: 'numero' and 'facture' keys are defined above in FICHE section (merged)
+            numeroFacture: ['numero facture', 'num facture', 'n° facture', 'invoice no', 'invoice number', 'facture', 'ref facture'],
+            fiche: ['fiche', 'dossier', 'num fiche', 'numero fiche', 'n° fiche', 'no fiche'],
+            nomClient: ['nom client', 'client', 'client name', 'customer', 'customer name'],
+            type: ['type', 'type facture', 'invoice type', 'document type'],
+            dateEmission: ['date facture', 'date emission', 'invoice date', 'date', 'date document', 'date creation'],
+            dateEcheance: ['echeance', 'date echeance', 'due date', 'date limite', 'date paiement'],
+            totalHT: ['total ht', 'ht', 'montant ht', 'hors taxe', 'subtotal'],
+            totalTVA: ['total tva', 'tva', 'montant tva', 'taxe', 'tax amount'],
+            totalTTC: ['total ttc', 'ttc', 'montant ttc', 'total general', 'total amount', 'montant total'],
+            montantHT: ['montant ht', 'ht', 'total ht', 'hors taxe'],
+            montantTVA: ['montant tva', 'tva', 'total tva'],
+            montantTTC: ['montant ttc', 'ttc', 'total ttc', 'total'],
+            codeFournisseur: ['code fournisseur', 'fournisseur code', 'supplier code'],
+            nomFournisseur: ['nom fournisseur', 'fournisseur', 'supplier name', 'vendor name'],
+
+            // ─── PAIEMENTS ────────────────────────────────────────────────────
+            datePaiement: ['date paiement', 'date reglement', 'payment date', 'date versement', 'date', 'date encaissement'],
+            montant: ['montant', 'amount', 'montant paye', 'paid amount', 'reglement', 'versement', 'paiement'],
+            modePaiement: ['mode paiement', 'mode reglement', 'payment method', 'moyen paiement', 'mode', 'type paiement', 'especes', 'cheque', 'virement'],
+            reference: ['reference', 'ref', 'num cheque', 'numero cheque', 'num virement', 'transaction id', 'ref paiement'],
+
+            // ─── DEPENSES ─────────────────────────────────────────────────────
+            date: ['date', 'date depense', 'expense date', 'date operation'],
+            categorie: ['categorie', 'category', 'type depense', 'nature', 'rubrique'],
+            description: ['description', 'libelle', 'designation', 'motif', 'objet', 'detail'],
+            fournisseur: ['fournisseur', 'supplier', 'vendor', 'prestataire', 'beneficiaire'],
+        };
+
+        // 3. For each field in the current type, keep existing mapping or find a new one
+        this.currentFields.forEach(field => {
+            const currentControl = this.mappingForm.get(field.value);
+            const existingValue = currentControl?.value;
+
+            // Priority: existing value > saved default > auto-detected match
+            if (!existingValue) {
+                // Try saved default first
+                const savedValue = savedMapping[field.value] || '';
+                // If saved value is valid (still exists in current CSV headers), use it
+                const resolvedSaved = savedValue && (this.csvHeaders.includes(savedValue) || savedValue === '') ? savedValue : '';
+                const bestMatch = resolvedSaved || this.findBestMatch(field.value, field.label, this.csvHeaders, synonyms[field.value] || []);
+
+                if (!this.mappingForm.contains(field.value)) {
+                    this.mappingForm.addControl(field.value, this.fb.control(bestMatch || ''));
+                } else {
+                    this.mappingForm.get(field.value)?.setValue(bestMatch || '');
+                }
+            }
+            // Else: we keep the existing value (Persistence)
+        });
+
         if (Object.values(this.mappingForm.value).some(v => !!v)) {
-            this.snackBar.open('⚡ Mapping automatique intelligent appliqué !', 'Super', { duration: 4000 });
+            // Only snackbar if we actually found something or kept something
+            console.log('Mapping updated/preserved.');
         }
+    }
+
+    /** Force a full re-run of intelligent mapping, resetting all current values first */
+    autoMap() {
+        // Reset all controls to empty so updateMappingControls will re-detect everything
+        this.currentFields.forEach(field => {
+            this.mappingForm.get(field.value)?.setValue('');
+        });
+        this.updateMappingControls();
+
+        const matched = Object.values(this.mappingForm.value).filter(v => !!v).length;
+        const total = this.currentFields.length;
+        this.snackBar.open(
+            `✅ Mapping automatique : ${matched} / ${total} champs détectés`,
+            'Fermer',
+            { duration: 4000 }
+        );
     }
 
     // "AI" Matching Algorithm
@@ -809,7 +891,16 @@ export class DataImportComponent implements OnInit {
         const dataToImport = this.fullData.length > 0 ? this.fullData : this.previewData; // Use fullData if available, else previewData
         this.importTotalRows = dataToImport.length;
 
-        const batchSize = 500;
+        // Consolidate batches for entity-based imports to avoid cross-batch duplication.
+        // Backend's deduplication logic (lookup existing by code/name) only works
+        // within the scope of a single request. 
+        const singleBatchTypes = [
+            'fiches', 'fiches_lentilles', 'fiches_produits',
+            'clients', 'fournisseurs', 'factures_fournisseurs',
+            'factures_ventes', 'paiements_clients', 'paiements_fournisseurs'
+        ];
+        const isSingleBatch = singleBatchTypes.includes(type);
+        const batchSize = isSingleBatch ? dataToImport.length : 500;
         const batches = [];
         for (let i = 0; i < dataToImport.length; i += batchSize) {
             batches.push(dataToImport.slice(i, i + batchSize));

@@ -36,11 +36,11 @@
                         </mat-select>
                     </mat-form-field>
 
-                    <mat-form-field appearance="outline" *ngIf="activeTab === 'OUTGOING'">
-                        <mat-label>Fournisseur</mat-label>
-                        <mat-select [(ngModel)]="filters.fournisseurId" (ngModelChange)="applyFilters(true)">
-                            <mat-option value="">Tous les fournisseurs</mat-option>
-                            <mat-option *ngFor="let s of suppliers" [value]="s.id">{{ s.nom }}</mat-option>
+                    <mat-form-field appearance="outline">
+                        <mat-label>Centre</mat-label>
+                        <mat-select [(ngModel)]="filters.centreId" (ngModelChange)="applyFilters(true)">
+                            <mat-option value="">Tous les centres</mat-option>
+                            <mat-option *ngFor="let c of centers" [value]="c.id">{{ c.nom }}</mat-option>
                         </mat-select>
                     </mat-form-field>
 

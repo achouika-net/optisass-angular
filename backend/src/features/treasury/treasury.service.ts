@@ -255,8 +255,7 @@ export class TreasuryService {
                     }
                 }
             },
-            orderBy: { date: 'desc' },
-            take: 100
+            orderBy: { date: 'desc' }
         });
 
         console.log(`[TREASURY-INCOMINGS] Query took ${Date.now() - startTime}ms. Found ${payments.length} records.`);
@@ -318,7 +317,7 @@ export class TreasuryService {
             } else {
                 where.OR = [
                     { factureFournisseur: { parentInvoiceId: null } },
-                    { depense: { id: { not: null } } }
+                    { depense: { isNot: null } }
                 ];
             }
 
@@ -328,8 +327,7 @@ export class TreasuryService {
                     factureFournisseur: { include: { fournisseur: { select: { nom: true } } } },
                     depense: { include: { fournisseur: { select: { nom: true } } } }
                 },
-                orderBy: { dateEcheance: 'desc' },
-                take: 100
+                orderBy: { dateEcheance: 'desc' }
             });
 
             return pieces.map(p => ({
@@ -394,8 +392,7 @@ export class TreasuryService {
                     factureFournisseur: { include: { fournisseur: { select: { nom: true } } } },
                     echeance: { select: { id: true, banque: true, dateEncaissement: true } }
                 },
-                orderBy: { date: 'desc' },
-                take: 100
+                orderBy: { date: 'desc' }
             }),
             filters.source === 'DEPENSE' ? Promise.resolve([]) : this.prisma.echeancePaiement.findMany({
                 where: {
@@ -411,8 +408,7 @@ export class TreasuryService {
                         include: { fournisseur: { select: { nom: true } } }
                     }
                 },
-                orderBy: { dateEcheance: 'desc' },
-                take: 100
+                orderBy: { dateEcheance: 'desc' }
             })
         ]);
         console.log(`[TREASURY-OUTGOINGS] Dual query took ${Date.now() - startTime}ms. Found ${expenses.length} expenses and ${invoiceEcheances.length} invoice installments.`);

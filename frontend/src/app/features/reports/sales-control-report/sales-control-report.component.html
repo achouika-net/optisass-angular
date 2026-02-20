@@ -2,495 +2,376 @@
     <div class="header">
         <h1>
             Contrôle des Ventes
-            <span class="subtitle">Gestion fiscale des factures BROUILLON</span>
+            <span class="subtitle">Gestion fiscale et suivi des ventes par période</span>
         </h1>
-
-
+        <div class="date-range-badge" *ngIf="filterType !== 'ALL'">
+            {{ filterType }} :
+            <span *ngIf="filterType === 'DAILY'">{{ selectedDate | date:'dd/MM/yyyy' }}</span>
+            <span *ngIf="filterType === 'MONTHLY'">{{ availableMonths[selectedMonth-1].label }} {{ selectedYear
+                }}</span>
+            <span *ngIf="filterType === 'YEARLY'">Année {{ selectedYear }}</span>
+            <span *ngIf="filterType === 'CUSTOM'">{{ customStartDate | date:'dd/MM/yyyy' }} - {{ customEndDate |
+                date:'dd/MM/yyyy' }}</span>
+        </div>
     </div>
 
     <!-- Summary Cards -->
     <div class="summary-cards" style="display: flex; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap;">
+        <!-- CA Global Card -->
         <mat-card class="stat-card blue"
-            style="flex: 1; min-width: 250px; background: #e3f2fd; border-left: 5px solid #2196f3;">
-            <mat-card-content style="padding: 1.5rem;">
-                <div class="stat-icon" style="float: right; color: #2196f3;">
-                    <mat-icon style="transform: scale(1.5);">monetization_on</mat-icon>
+            style="flex: 1.5; min-width: 300px; background: #f0f7ff; border-left: 5px solid #007bff; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+            <mat-card-content style="padding: 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div class="stat-info">
+                        <p class="stat-label"
+                            style="margin: 0; color: #64748b; font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.025em;">
+                            Chiffre d'Affaires Global</p>
+                        <h2 class="stat-value"
+                            style="margin: 0.25rem 0; font-size: 2.25rem; font-weight: 800; color: #1e293b;">{{
+                            metrics.totalCA | number:'1.2-2' }} <span
+                                style="font-size: 1rem; font-weight: 500;">DH</span></h2>
+                    </div>
+                    <div class="stat-icon"
+                        style="background: #007bff1a; padding: 0.75rem; border-radius: 12px; color: #007bff;">
+                        <mat-icon style="width: 32px; height: 32px; font-size: 32px;">account_balance_wallet</mat-icon>
+                    </div>
                 </div>
-                <div class="stat-info">
-                    <p class="stat-label" style="margin: 0; color: #546e7a; font-weight: 500;">Chiffre d'Affaires Global
-                    </p>
-                    <h2 class="stat-value" style="margin: 0.5rem 0 0; font-size: 2rem; color: #0d47a1;">{{
-                        metrics.totalCA | number:'1.2-2' }} DH</h2>
+                <div
+                    style="display: flex; gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; font-size: 0.85rem;">
+                    <div style="flex: 1;">
+                        <span style="color: #64748b;">Factures:</span>
+                        <div style="font-weight: 700; color: #10b981;">+{{ metrics.totalFactures | number:'1.2-2' }}
+                        </div>
+                    </div>
+                    <div style="flex: 1; border-left: 1px solid #e2e8f0; padding-left: 1rem;">
+                        <span style="color: #64748b;">BC (Instance):</span>
+                        <div style="font-weight: 700; color: #f59e0b;">{{ metrics.totalBC | number:'1.2-2' }}</div>
+                    </div>
+                    <div style="flex: 1; border-left: 1px solid #e2e8f0; padding-left: 1rem;">
+                        <span style="color: #64748b;">Avoirs:</span>
+                        <div style="font-weight: 700; color: #ef4444;">-{{ metrics.totalAvoirs | number:'1.2-2' }}</div>
+                    </div>
                 </div>
             </mat-card-content>
         </mat-card>
 
+        <!-- Cash Flow Card -->
         <mat-card class="stat-card green"
-            style="flex: 1; min-width: 250px; background: #e8f5e9; border-left: 5px solid #4caf50;">
-            <mat-card-content style="padding: 1.5rem;">
-                <div class="stat-icon" style="float: right; color: #4caf50;">
-                    <mat-icon style="transform: scale(1.5);">check_circle</mat-icon>
-                </div>
-                <div class="stat-info">
-                    <p class="stat-label" style="margin: 0; color: #546e7a; font-weight: 500;">Total Encaissé</p>
-                    <h2 class="stat-value" style="margin: 0.5rem 0 0; font-size: 2rem; color: #1b5e20;">{{
-                        metrics.totalPaid | number:'1.2-2' }} DH</h2>
+            style="flex: 1; min-width: 250px; background: #f0fdf4; border-left: 5px solid #22c55e;">
+            <mat-card-content style="padding: 1.25rem;">
+                <div style="display: flex; justify-content: space-between;">
+                    <div>
+                        <p class="stat-label" style="margin: 0; color: #64748b; font-size: 0.875rem; font-weight: 600;">
+                            ENCAISSÉ (PÉRIODE)</p>
+                        <h2 class="stat-value"
+                            style="margin: 0.5rem 0; font-size: 1.75rem; color: #15803d; font-weight: 700;">{{
+                            metrics.totalPaid | number:'1.2-2' }} DH</h2>
+                    </div>
+                    <mat-icon style="color: #22c55e; font-size: 28px;">payments</mat-icon>
                 </div>
             </mat-card-content>
         </mat-card>
 
+        <!-- Balance Card -->
         <mat-card class="stat-card red"
-            style="flex: 1; min-width: 250px; background: #ffebee; border-left: 5px solid #f44336;">
-            <mat-card-content style="padding: 1.5rem;">
-                <div class="stat-icon" style="float: right; color: #f44336;">
-                    <mat-icon style="transform: scale(1.5);">warning</mat-icon>
-                </div>
-                <div class="stat-info">
-                    <p class="stat-label" style="margin: 0; color: #546e7a; font-weight: 500;">Reste à Payer</p>
-                    <h2 class="stat-value" style="margin: 0.5rem 0 0; font-size: 2rem; color: #b71c1c;">{{
-                        metrics.totalReste | number:'1.2-2' }} DH</h2>
+            style="flex: 1; min-width: 250px; background: #fef2f2; border-left: 5px solid #ef4444;">
+            <mat-card-content style="padding: 1.25rem;">
+                <div style="display: flex; justify-content: space-between;">
+                    <div>
+                        <p class="stat-label" style="margin: 0; color: #64748b; font-size: 0.875rem; font-weight: 600;">
+                            RESTE À RECOUVRER</p>
+                        <h2 class="stat-value"
+                            style="margin: 0.5rem 0; font-size: 1.75rem; color: #b91c1c; font-weight: 700;">{{
+                            metrics.totalReste | number:'1.2-2' }} DH</h2>
+                    </div>
+                    <mat-icon style="color: #ef4444; font-size: 28px;">warning</mat-icon>
                 </div>
             </mat-card-content>
         </mat-card>
     </div>
 
     <!-- Advanced Filter Section -->
-    <div class="filter-section mb-4"
-        style="width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
-        <!-- Filter Type Selector -->
-        <mat-form-field appearance="outline" class="density-compact filter-field" style="width: 100%;">
-            <mat-label>Type de Filtre</mat-label>
-            <mat-select [(ngModel)]="filterType" (selectionChange)="onFilterChange()">
-                <mat-option value="ALL">Tout</mat-option>
-                <mat-option value="DAILY">Journalier</mat-option>
-                <mat-option value="MONTHLY">Mensuel</mat-option>
-                <mat-option value="SEMESTER">Semestriel</mat-option>
-                <mat-option value="YEARLY">Annuel</mat-option>
-                <mat-option value="CUSTOM">Personnalisé</mat-option>
-            </mat-select>
-        </mat-form-field>
+    <div class="filter-toolbar">
+        <div class="period-chips">
+            <button mat-stroked-button [color]="filterType === 'ALL' ? 'primary' : ''"
+                (click)="setFilterType('ALL')">Toute la période</button>
+            <button mat-stroked-button [color]="filterType === 'DAILY' ? 'primary' : ''"
+                (click)="setFilterType('DAILY')">Aujourd'hui</button>
+            <button mat-stroked-button [color]="filterType === 'MONTHLY' ? 'primary' : ''"
+                (click)="setFilterType('MONTHLY')">Par Mois</button>
+            <button mat-stroked-button [color]="filterType === 'YEARLY' ? 'primary' : ''"
+                (click)="setFilterType('YEARLY')">Annuel</button>
+            <button mat-stroked-button [color]="filterType === 'CUSTOM' ? 'primary' : ''"
+                (click)="setFilterType('CUSTOM')">Personnalisé</button>
+        </div>
 
-        <!-- Client Search Filter -->
-        <mat-form-field appearance="outline" class="density-compact filter-field" style="width: 100%;">
-            <mat-label>Filtrer par Client</mat-label>
-            <input matInput [(ngModel)]="clientSearch" (input)="onFilterChange()" placeholder="Rechercher un client...">
-            <mat-icon matPrefix>search</mat-icon>
-            <button *ngIf="clientSearch" matSuffix mat-icon-button aria-label="Clear"
-                (click)="clientSearch=''; onFilterChange()">
-                <mat-icon>close</mat-icon>
+        <div class="filter-controls">
+            <!-- Dynamic Controls -->
+            <ng-container [ngSwitch]="filterType">
+                <!-- Daily -->
+                <mat-form-field appearance="outline" class="density-compact" *ngSwitchCase="'DAILY'">
+                    <mat-label>Date</mat-label>
+                    <input matInput [matDatepicker]="dPicker" [(ngModel)]="selectedDate"
+                        (dateChange)="onFilterChange()">
+                    <mat-datepicker-toggle matSuffix [for]="dPicker"></mat-datepicker-toggle>
+                    <mat-datepicker #dPicker></mat-datepicker>
+                </mat-form-field>
+
+                <!-- Monthly -->
+                <ng-container *ngSwitchCase="'MONTHLY'">
+                    <mat-form-field appearance="outline" class="density-compact">
+                        <mat-label>Mois</mat-label>
+                        <mat-select [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()">
+                            <mat-option *ngFor="let m of availableMonths" [value]="m.value">{{ m.label }}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="density-compact">
+                        <mat-label>Année</mat-label>
+                        <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()">
+                            <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                </ng-container>
+
+                <!-- Yearly -->
+                <mat-form-field appearance="outline" class="density-compact" *ngSwitchCase="'YEARLY'">
+                    <mat-label>Année</mat-label>
+                    <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()">
+                        <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
+                    </mat-select>
+                </mat-form-field>
+
+                <!-- Custom -->
+                <ng-container *ngSwitchCase="'CUSTOM'">
+                    <mat-form-field appearance="outline" class="density-compact">
+                        <mat-label>Du</mat-label>
+                        <input matInput [matDatepicker]="sPicker" [(ngModel)]="customStartDate"
+                            (dateChange)="onFilterChange()">
+                        <mat-datepicker-toggle matSuffix [for]="sPicker"></mat-datepicker-toggle>
+                        <mat-datepicker #sPicker></mat-datepicker>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="density-compact">
+                        <mat-label>Au</mat-label>
+                        <input matInput [matDatepicker]="ePicker" [(ngModel)]="customEndDate"
+                            (dateChange)="onFilterChange()">
+                        <mat-datepicker-toggle matSuffix [for]="ePicker"></mat-datepicker-toggle>
+                        <mat-datepicker #ePicker></mat-datepicker>
+                    </mat-form-field>
+                </ng-container>
+            </ng-container>
+
+            <!-- Search -->
+            <mat-form-field appearance="outline" class="density-compact search-field">
+                <mat-label>Filtrer par Client / N°</mat-label>
+                <input matInput [(ngModel)]="clientSearch" placeholder="Rechercher...">
+                <mat-icon matPrefix>search</mat-icon>
+            </mat-form-field>
+
+            <button mat-icon-button (click)="loadData()" [class.refreshing]="loading" color="primary">
+                <mat-icon>refresh</mat-icon>
             </button>
-        </mat-form-field>
-
-        <button mat-icon-button (click)="loadData()" [disabled]="loading" matTooltip="Actualiser les données"
-            color="primary">
-            <mat-icon [class.refresh-loading]="loading">refresh</mat-icon>
-        </button>
-
-        <!-- Daily Filter -->
-        <mat-form-field appearance="outline" class="density-compact filter-field" *ngIf="filterType === 'DAILY'"
-            style="width: 100%;">
-            <mat-label>Date</mat-label>
-            <input matInput [matDatepicker]="dailyPicker" [(ngModel)]="selectedDate" (dateChange)="onFilterChange()">
-            <mat-datepicker-toggle matSuffix [for]="dailyPicker"></mat-datepicker-toggle>
-            <mat-datepicker #dailyPicker></mat-datepicker>
-        </mat-form-field>
-
-        <!-- Monthly Filter -->
-        <mat-form-field appearance="outline" class="density-compact filter-field" *ngIf="filterType === 'MONTHLY'"
-            style="width: 100%;">
-            <mat-label>Mois</mat-label>
-            <mat-select [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()">
-                <mat-option *ngFor="let p of availablePeriods" [value]="p">{{ p }}</mat-option>
-            </mat-select>
-        </mat-form-field>
-
-        <!-- Semester Filter -->
-        <ng-container *ngIf="filterType === 'SEMESTER'">
-            <mat-form-field appearance="outline" class="density-compact filter-field" style="width: 100%;">
-                <mat-label>Année</mat-label>
-                <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()">
-                    <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
-                </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="density-compact filter-field" style="width: 100%;">
-                <mat-label>Semestre</mat-label>
-                <mat-select [(ngModel)]="selectedSemester" (selectionChange)="onFilterChange()">
-                    <mat-option [value]="1">Semestre 1 (Jan-Juin)</mat-option>
-                    <mat-option [value]="2">Semestre 2 (Juil-Déc)</mat-option>
-                </mat-select>
-            </mat-form-field>
-        </ng-container>
-
-        <!-- Yearly Filter -->
-        <mat-form-field appearance="outline" class="density-compact filter-field" *ngIf="filterType === 'YEARLY'"
-            style="width: 100%;">
-            <mat-label>Année</mat-label>
-            <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()">
-                <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
-            </mat-select>
-        </mat-form-field>
-
-        <!-- Custom Range Filter -->
-        <ng-container *ngIf="filterType === 'CUSTOM'">
-            <mat-form-field appearance="outline" class="density-compact filter-field" style="width: 100%;">
-                <mat-label>Date Début</mat-label>
-                <input matInput [matDatepicker]="startPicker" [(ngModel)]="customStartDate"
-                    (dateChange)="onFilterChange()">
-                <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
-                <mat-datepicker #startPicker></mat-datepicker>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="density-compact filter-field" style="width: 100%;">
-                <mat-label>Date Fin</mat-label>
-                <input matInput [matDatepicker]="endPicker" [(ngModel)]="customEndDate" (dateChange)="onFilterChange()">
-                <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
-                <mat-datepicker #endPicker></mat-datepicker>
-            </mat-form-field>
-        </ng-container>
+        </div>
     </div>
 
-    <mat-tab-group animationDuration="0ms">
-        <!-- Tab 1: Invoices with payments -->
+    <mat-tab-group animationDuration="0ms" class="styled-tabs">
+        <!-- Tab 1: BC (Bons de Commande) -->
         <mat-tab>
             <ng-template mat-tab-label>
-                <mat-icon class="mr-2">payments</mat-icon>
-                Vente en instance ({{ invoicesWithPayment.length }})
+                <mat-icon>shopping_cart</mat-icon>
+                <span>Bons de Commande</span>
+                <span class="tab-badge" *ngIf="invoicesWithPayment.length > 0">{{ invoicesWithPayment.length }}</span>
             </ng-template>
 
             <div class="tab-content">
                 <div class="modern-table-container">
-                    <table>
+                    <table class="premium-table">
                         <thead>
                             <tr>
-                                <th>Ref Fiche</th>
                                 <th>Numéro</th>
                                 <th>Client</th>
-                                <th>Vendeur</th>
-                                <th>Date</th>
+                                <th>Date Emission</th>
                                 <th>Total TTC</th>
-                                <th>Montant Payé</th>
-                                <th>Reste à Payer</th>
-                                <th>Actions</th>
+                                <th>Payé</th>
+                                <th>Reste</th>
+                                <th class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <ng-container *ngFor="let group of groupedWithPayment">
-                                <ng-container *ngIf="isGroupVisible(group)">
-                                    <!-- Month Header -->
-                                    <tr class="bg-light">
-                                        <td colspan="9"
-                                            class="py-2 px-3 font-semibold text-gray-700 bg-gray-50 border-b">
-                                            <div class="flex items-center">
-                                                <mat-icon class="mr-2 text-sm text-gray-500">calendar_today</mat-icon>
-                                                {{ group.month }}
-                                            </div>
-                                        </td>
-                                    </tr>
-
-                                    <!-- Invoices -->
-                                    <tr *ngFor="let invoice of group.invoices">
-                                        <td>{{
-                                            (invoice.ficheId || invoice.proprietes?.['ficheId'])?.substring(0, 12) }}
-                                        </td>
-                                        <td>{{ invoice.numero }}</td>
-                                        <td>{{ getClientName(invoice) }}</td>
-                                        <td>Admin</td>
-                                        <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
-                                        <td>{{ invoice.totalTTC | number:'1.2-2' }} DH</td>
-                                        <td class="text-success">{{ getMontantPaye(invoice) | number:'1.2-2' }} DH</td>
-                                        <td>{{ invoice.resteAPayer | number:'1.2-2' }} DH</td>
-                                        <td>
+                                <tr class="group-header">
+                                    <td colspan="7">
+                                        <div class="header-content">
+                                            <mat-icon>calendar_month</mat-icon>
+                                            {{ group.month }}
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr *ngFor="let invoice of group.invoices" class="data-row">
+                                    <td class="font-bold">{{ invoice.numero }}</td>
+                                    <td>
+                                        <div class="client-cell">
+                                            <div class="name">{{ getClientName(invoice) }}</div>
+                                            <div class="fiche-ref" *ngIf="invoice.ficheId">Ref: {{
+                                                invoice.ficheId.substring(0,8) }}</div>
+                                        </div>
+                                    </td>
+                                    <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
+                                    <td class="price-cell">{{ invoice.totalTTC | number:'1.2-2' }}</td>
+                                    <td class="price-cell paid">{{ getMontantPaye(invoice) | number:'1.2-2' }}</td>
+                                    <td class="price-cell remain">{{ invoice.resteAPayer | number:'1.2-2' }}</td>
+                                    <td class="actions-cell">
+                                        <div class="action-buttons">
+                                            <button mat-icon-button color="primary" (click)="viewDocument(invoice)"
+                                                matTooltip="Voir">
+                                                <mat-icon>description</mat-icon>
+                                            </button>
                                             <button mat-icon-button [matMenuTriggerFor]="menu">
                                                 <mat-icon>more_vert</mat-icon>
                                             </button>
-                                            <mat-menu #menu="matMenu">
-                                                <button mat-menu-item (click)="viewDocument(invoice)">
-                                                    <mat-icon class="premium-menu-icon-view">description</mat-icon>
-                                                    <span>Voir document</span>
-                                                </button>
-                                                <button mat-menu-item (click)="openPaymentDialog(invoice)"
-                                                    *ngIf="invoice.resteAPayer > 0">
-                                                    <mat-icon style="color: #4f46e5 !important;">payments</mat-icon>
-                                                    <span>Paiement</span>
-                                                </button>
-                                                <button mat-menu-item (click)="viewFiche(invoice)">
-                                                    <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
-                                                    <span>Afficher Fiche</span>
-                                                </button>
-                                                <mat-divider></mat-divider>
-                                                <button mat-menu-item (click)="validateInvoice(invoice)">
-                                                    <mat-icon style="color: #10b981 !important;">check_circle</mat-icon>
-                                                    <span>Passer Facture (BC → Fact)</span>
-                                                </button>
-
-
-                                                <button mat-menu-item (click)="createAvoir(invoice)">
-                                                    <mat-icon
-                                                        class="premium-menu-icon-delete">assignment_return</mat-icon>
-                                                    <span>Créer Avoir (Annuler)</span>
-                                                </button>
-                                                <button mat-menu-item (click)="archiveInvoice(invoice)"
-                                                    *ngIf="canArchive(invoice)">
-                                                    <mat-icon style="color: #4b5563 !important;">inventory_2</mat-icon>
-                                                    <span>Archiver (Consolider)</span>
-                                                </button>
-                                            </mat-menu>
-                                        </td>
-                                    </tr>
-
-                                    <!-- Subtotal -->
-                                    <tr class="bg-gray-50 font-bold border-t-2">
-                                        <td colspan="5" class="text-right pr-4">Sous-total {{ group.month }}:</td>
-                                        <td>{{ group.totalTTC | number:'1.2-2' }} DH</td>
-                                        <td class="text-success">{{ group.totalPaid | number:'1.2-2' }} DH</td>
-                                        <td class="text-danger">{{ group.totalReste | number:'1.2-2' }} DH</td>
-                                        <td></td>
-                                    </tr>
-                                </ng-container>
+                                        </div>
+                                        <mat-menu #menu="matMenu">
+                                            <button mat-menu-item (click)="openPaymentDialog(invoice)"
+                                                *ngIf="invoice.resteAPayer > 0">
+                                                <mat-icon color="primary">payments</mat-icon>
+                                                <span>Paiement</span>
+                                            </button>
+                                            <button mat-menu-item (click)="validateInvoice(invoice)">
+                                                <mat-icon style="color: #10b981;">check_circle</mat-icon>
+                                                <span>Facturer (BC → Facture)</span>
+                                            </button>
+                                            <button mat-menu-item (click)="viewFiche(invoice)">
+                                                <mat-icon>visibility</mat-icon>
+                                                <span>Afficher Fiche</span>
+                                            </button>
+                                            <mat-divider></mat-divider>
+                                            <button mat-menu-item (click)="createAvoir(invoice)">
+                                                <mat-icon color="warn">assignment_return</mat-icon>
+                                                <span>Annuler (Créer Avoir)</span>
+                                            </button>
+                                        </mat-menu>
+                                    </td>
+                                </tr>
+                                <tr class="group-footer">
+                                    <td colspan="3" class="text-right">Total {{ group.month }}:</td>
+                                    <td class="price-cell">{{ group.totalTTC | number:'1.2-2' }}</td>
+                                    <td class="price-cell">{{ group.totalPaid | number:'1.2-2' }}</td>
+                                    <td class="price-cell">{{ group.totalReste | number:'1.2-2' }}</td>
+                                    <td></td>
+                                </tr>
                             </ng-container>
-
-                            <tr *ngIf="groupedWithPayment.length === 0">
-                                <td colspan="9">
-                                    <div class="empty-state">
-                                        <mat-icon>check_circle</mat-icon>
-                                        <h3>Prêt pour validation</h3>
-                                        <p>Aucune vente en instance en attente.</p>
-                                    </div>
-                                </td>
-                            </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </mat-tab>
 
-        <!-- Tab 2: Invoices without payments -->
+        <!-- Tab 2: Factures (Validated) -->
         <mat-tab>
             <ng-template mat-tab-label>
-                <mat-icon class="mr-2">inventory_2</mat-icon>
-                Devis ({{ invoicesWithoutPayment.length }})
+                <mat-icon>verified</mat-icon>
+                <span>Factures</span>
+                <span class="tab-badge ok" *ngIf="invoicesValid.length > 0">{{ invoicesValid.length }}</span>
             </ng-template>
 
             <div class="tab-content">
                 <div class="modern-table-container">
-                    <table>
+                    <table class="premium-table">
                         <thead>
                             <tr>
-                                <th>Ref Fiche</th>
                                 <th>Numéro</th>
                                 <th>Client</th>
-                                <th>Vendeur</th>
-                                <th>Date</th>
+                                <th>Date Emission</th>
                                 <th>Total TTC</th>
-                                <th>Reste à Payer</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <ng-container *ngFor="let group of groupedWithoutPayment">
-                                <ng-container *ngIf="isGroupVisible(group)">
-                                    <!-- Month Header -->
-                                    <tr class="bg-light">
-                                        <td colspan="8"
-                                            class="py-2 px-3 font-semibold text-gray-700 bg-gray-50 border-b">
-                                            <div class="flex items-center">
-                                                <mat-icon class="mr-2 text-sm text-gray-500">calendar_today</mat-icon>
-                                                {{ group.month }}
-                                            </div>
-                                        </td>
-                                    </tr>
-
-                                    <!-- Invoices -->
-                                    <tr *ngFor="let invoice of group.invoices">
-                                        <td>{{
-                                            (invoice.ficheId || invoice.proprietes?.['ficheId'])?.substring(0, 12) }}
-                                        </td>
-                                        <td>{{ invoice.numero }}</td>
-                                        <td>{{ getClientName(invoice) }}</td>
-                                        <td>Admin</td>
-                                        <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
-                                        <td>{{ invoice.totalTTC | number:'1.2-2' }} DH</td>
-                                        <td class="font-weight-bold text-danger">{{ invoice.resteAPayer | number:'1.2-2'
-                                            }}
-                                            DH
-                                        </td>
-                                        <td>
-                                            <!-- Offert Badge for Drafts -->
-                                            <span class="badge badge-info mr-2"
-                                                *ngIf="invoice.totalTTC === 0">OFFERT</span>
-
-                                            <button mat-icon-button [matMenuTriggerFor]="menu">
-                                                <mat-icon>more_vert</mat-icon>
-                                            </button>
-                                            <mat-menu #menu="matMenu">
-                                                <button mat-menu-item (click)="viewDocument(invoice)">
-                                                    <mat-icon class="premium-menu-icon-view">description</mat-icon>
-                                                    <span>Voir document</span>
-                                                </button>
-                                                <button mat-menu-item (click)="openPaymentDialog(invoice)"
-                                                    *ngIf="invoice.totalTTC > 0">
-                                                    <mat-icon style="color: #4f46e5 !important;">payments</mat-icon>
-                                                    <span>Paiement</span>
-                                                </button>
-                                                <button mat-menu-item (click)="viewFiche(invoice)">
-                                                    <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
-                                                    <span>Afficher Fiche</span>
-                                                </button>
-                                                <mat-divider></mat-divider>
-                                                <button mat-menu-item (click)="validateInvoice(invoice)"
-                                                    *ngIf="invoice.totalTTC > 0">
-                                                    <mat-icon style="color: #6366f1 !important;">receipt</mat-icon>
-                                                    <span>Passer Commande (Devis -> BC)</span>
-                                                </button>
-
-                                                <button mat-menu-item (click)="declareAsGift(invoice)"
-                                                    *ngIf="invoice.totalTTC > 0">
-                                                    <mat-icon
-                                                        style="color: #4b5563 !important;">card_giftcard</mat-icon>
-                                                    <span>Déclarer comme Offert</span>
-                                                </button>
-                                                <button mat-menu-item (click)="createAvoir(invoice)">
-                                                    <mat-icon
-                                                        class="premium-menu-icon-delete">assignment_return</mat-icon>
-                                                    <span>Créer Avoir (Annuler)</span>
-                                                </button>
-                                            </mat-menu>
-                                        </td>
-                                    </tr>
-
-                                    <!-- Subtotal -->
-                                    <tr class="bg-gray-50 font-bold border-t-2">
-                                        <td colspan="5" class="text-right pr-4">Sous-total {{ group.month }}:</td>
-                                        <td>{{ group.totalTTC | number:'1.2-2' }} DH</td>
-                                        <td class="text-danger">{{ group.totalReste | number:'1.2-2' }} DH</td>
-                                        <td></td>
-                                    </tr>
-                                </ng-container>
-                            </ng-container>
-
-                            <tr *ngIf="groupedWithoutPayment.length === 0">
-                                <td colspan="8">
-                                    <div class="empty-state">
-                                        <mat-icon>check_circle</mat-icon>
-                                        <h3>Aucune donnée</h3>
-                                        <p>Aucun devis sans paiement trouvé.</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </mat-tab>
-
-        <!-- Tab 3: Valid Invoices -->
-        <mat-tab>
-            <ng-template mat-tab-label>
-                <mat-icon class="mr-2">verified</mat-icon>
-                Factures Validées ({{ invoicesValid.length }})
-            </ng-template>
-
-            <div class="tab-content">
-                <div class="modern-table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Ref Fiche</th>
-                                <th>Numéro</th>
-                                <th>Client</th>
-                                <th>Vendeur</th>
-                                <th>Date</th>
-                                <th>Total TTC</th>
-                                <th>Reste à Payer</th>
-                                <th>Avoir num</th>
+                                <th>Reste</th>
                                 <th>Statut</th>
-                                <th>Actions</th>
+                                <th class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <ng-container *ngFor="let group of groupedValid">
-                                <ng-container *ngIf="isGroupVisible(group)">
-                                    <!-- Month Header -->
-                                    <tr class="bg-light">
-                                        <td colspan="11"
-                                            class="py-2 px-3 font-semibold text-gray-700 bg-gray-50 border-b">
-                                            <div class="flex items-center">
-                                                <mat-icon class="mr-2 text-sm text-gray-500">calendar_today</mat-icon>
-                                                {{ group.month }}
-                                            </div>
-                                        </td>
-                                    </tr>
-
-                                    <!-- Invoices -->
-                                    <tr *ngFor="let invoice of group.invoices">
-                                        <td>{{
-                                            (invoice.ficheId || invoice.proprietes?.['ficheId'])?.substring(0, 12) }}
-                                        </td>
-                                        <td>{{ invoice.numero }}</td>
-                                        <td>{{ getClientName(invoice) }}</td>
-                                        <td>Admin</td>
-                                        <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
-                                        <td>{{ invoice.totalTTC | number:'1.2-2' }} DH</td>
-                                        <td class="font-weight-bold">{{ invoice.resteAPayer | number:'1.2-2' }} DH</td>
-                                        <td class="text-sm font-medium">
-                                            <span [class.text-danger]="getLinkedAvoirNumber(invoice) !== '-'">
-                                                {{ getLinkedAvoirNumber(invoice) }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="badge" [ngClass]="{
-                                            'badge-success': invoice.statut === 'PAYEE',
-                                            'badge-warning': invoice.statut === 'PARTIEL',
-                                            'badge-info': invoice.statut === 'VALIDE' && !invoice.proprietes?.['typeVente'],
-                                            'badge-primary': invoice.proprietes?.['typeVente'] === 'DON'
-                                        }">{{ invoice.proprietes?.['typeVente'] === 'DON' ? 'OFFERT' : invoice.statut
-                                                }}</span>
-                                        </td>
-                                        <td>
-                                            <button mat-icon-button [matMenuTriggerFor]="menu">
+                                <tr class="group-header">
+                                    <td colspan="7">
+                                        <div class="header-content">
+                                            <mat-icon>calendar_today</mat-icon>
+                                            {{ group.month }}
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr *ngFor="let invoice of group.invoices" class="data-row">
+                                    <td class="font-bold">{{ invoice.numero }}</td>
+                                    <td>{{ getClientName(invoice) }}</td>
+                                    <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
+                                    <td class="price-cell">{{ invoice.totalTTC | number:'1.2-2' }}</td>
+                                    <td class="price-cell">{{ invoice.resteAPayer | number:'1.2-2' }}</td>
+                                    <td>
+                                        <span class="status-badge" [ngClass]="invoice.statut?.toLowerCase()">
+                                            {{ invoice.statut }}
+                                        </span>
+                                    </td>
+                                    <td class="actions-cell">
+                                        <div class="action-buttons">
+                                            <button mat-icon-button color="primary" (click)="viewDocument(invoice)">
+                                                <mat-icon>visibility</mat-icon>
+                                            </button>
+                                            <button mat-icon-button [matMenuTriggerFor]="mFact">
                                                 <mat-icon>more_vert</mat-icon>
                                             </button>
-                                            <mat-menu #menu="matMenu">
-                                                <button mat-menu-item (click)="viewDocument(invoice)">
-                                                    <mat-icon class="premium-menu-icon-view">description</mat-icon>
-                                                    <span>Voir document</span>
-                                                </button>
-                                                <button mat-menu-item (click)="openPaymentDialog(invoice)"
-                                                    *ngIf="invoice.resteAPayer > 0">
-                                                    <mat-icon style="color: #4f46e5 !important;">payments</mat-icon>
-                                                    <span>Paiement</span>
-                                                </button>
-                                                <button mat-menu-item (click)="viewFiche(invoice)">
-                                                    <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
-                                                    <span>Afficher Fiche</span>
-                                                </button>
-                                                <mat-divider></mat-divider>
-                                                <button mat-menu-item (click)="createAvoir(invoice)">
-                                                    <mat-icon
-                                                        class="premium-menu-icon-delete">assignment_return</mat-icon>
-                                                    <span>Créer Avoir (Annuler)</span>
-                                                </button>
-                                            </mat-menu>
-                                        </td>
-                                    </tr>
-
-                                    <!-- Subtotal -->
-                                    <tr class="bg-gray-50 font-bold border-t-2">
-                                        <td colspan="5" class="text-right pr-4">Sous-total {{ group.month }}:</td>
-                                        <td>{{ group.totalTTC | number:'1.2-2' }} DH</td>
-                                        <td>{{ group.totalReste | number:'1.2-2' }} DH</td>
-                                        <td></td>
-                                        <td></td>
-                                        <td></td>
-                                    </tr>
-                                </ng-container>
+                                        </div>
+                                        <mat-menu #mFact="matMenu">
+                                            <button mat-menu-item (click)="openPaymentDialog(invoice)"
+                                                *ngIf="invoice.resteAPayer > 0">
+                                                <mat-icon>payments</mat-icon>
+                                                <span>Paiement</span>
+                                            </button>
+                                            <button mat-menu-item (click)="createAvoir(invoice)">
+                                                <mat-icon color="warn">assignment_return</mat-icon>
+                                                <span>Échanger / Avoir</span>
+                                            </button>
+                                        </mat-menu>
+                                    </td>
+                                </tr>
                             </ng-container>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </mat-tab>
 
-                            <tr *ngIf="groupedValid.length === 0">
-                                <td colspan="11">
-                                    <div class="empty-state">
-                                        <mat-icon>verified</mat-icon>
-                                        <h3>Aucune facture validée</h3>
-                                    </div>
+        <!-- Tab 3: Devis -->
+        <mat-tab>
+            <ng-template mat-tab-label>
+                <mat-icon>inventory_2</mat-icon>
+                <span>Devis (Instance)</span>
+            </ng-template>
+            <div class="tab-content">
+                <div class="modern-table-container">
+                    <table class="premium-table">
+                        <thead>
+                            <tr>
+                                <th>Numéro</th>
+                                <th>Client</th>
+                                <th>Date</th>
+                                <th>Total TTC</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let invoice of invoicesWithoutPayment" class="data-row">
+                                <td>{{ invoice.numero }}</td>
+                                <td>{{ getClientName(invoice) }}</td>
+                                <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
+                                <td class="price-cell">{{ invoice.totalTTC | number:'1.2-2' }}</td>
+                                <td class="actions-cell">
+                                    <button mat-button color="primary" (click)="validateInvoice(invoice)">
+                                        Valider BC
+                                    </button>
+                                    <button mat-icon-button [matMenuTriggerFor]="mDevis">
+                                        <mat-icon>more_vert</mat-icon>
+                                    </button>
+                                    <mat-menu #mDevis="matMenu">
+                                        <button mat-menu-item (click)="viewDocument(invoice)">Voir</button>
+                                        <button mat-menu-item (click)="archiveInvoice(invoice)">Archiver</button>
+                                    </mat-menu>
                                 </td>
                             </tr>
                         </tbody>
@@ -502,170 +383,34 @@
         <!-- Tab 4: Avoirs -->
         <mat-tab>
             <ng-template mat-tab-label>
-                <mat-icon class="mr-2">assignment_return</mat-icon>
-                Avoirs ({{ invoicesAvoir.length }})
+                <mat-icon>assignment_return</mat-icon>
+                <span>Avoirs</span>
+                <span class="tab-badge warn" *ngIf="invoicesAvoir.length > 0">{{ invoicesAvoir.length }}</span>
             </ng-template>
-
             <div class="tab-content">
                 <div class="modern-table-container">
-                    <table>
+                    <table class="premium-table">
                         <thead>
                             <tr>
-                                <th>Ref Fiche</th>
-                                <th>Numéro</th>
+                                <th>N° Avoir</th>
+                                <th>Facture Origine</th>
                                 <th>Client</th>
-                                <th>Vendeur</th>
                                 <th>Date</th>
-                                <th>Num facture</th>
-                                <th>Total TTC</th>
-                                <th>Reste à Payer</th>
-                                <th>Type</th>
+                                <th>Montant</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <ng-container *ngFor="let group of groupedAvoir">
-                                <ng-container *ngIf="isGroupVisible(group)">
-                                    <!-- Month Header -->
-                                    <tr class="bg-light">
-                                        <td colspan="10"
-                                            class="py-2 px-3 font-semibold text-gray-700 bg-gray-50 border-b">
-                                            <div class="flex items-center">
-                                                <mat-icon class="mr-2 text-sm text-gray-500">calendar_today</mat-icon>
-                                                {{ group.month }}
-                                            </div>
-                                        </td>
-                                    </tr>
-
-                                    <!-- Invoices -->
-                                    <tr *ngFor="let invoice of group.invoices">
-                                        <td>{{
-                                            (invoice.ficheId || invoice.proprietes?.['ficheId'])?.substring(0, 12) }}
-                                        </td>
-                                        <td>{{ invoice.numero }}</td>
-                                        <td>{{ getClientName(invoice) }}</td>
-                                        <td>Admin</td>
-                                        <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
-                                        <td class="text-sm font-medium">{{ getParentFactureNumber(invoice) }}</td>
-                                        <td>{{ invoice.totalTTC | number:'1.2-2' }} DH</td>
-                                        <td class="font-weight-bold">{{ invoice.resteAPayer | number:'1.2-2' }} DH</td>
-                                        <td>
-                                            <span class="badge badge-danger"
-                                                *ngIf="invoice.type === 'AVOIR'">AVOIR</span>
-                                            <span class="badge badge-secondary"
-                                                *ngIf="invoice.statut === 'ANNULEE'">ANNULÉE</span>
-                                        </td>
-                                        <td>
-                                            <button mat-icon-button [matMenuTriggerFor]="menu">
-                                                <mat-icon>more_vert</mat-icon>
-                                            </button>
-                                            <mat-menu #menu="matMenu">
-                                                <button mat-menu-item (click)="viewDocument(invoice)">
-                                                    <mat-icon class="premium-menu-icon-view">description</mat-icon>
-                                                    <span>Voir document</span>
-                                                </button>
-                                                <button mat-menu-item (click)="viewFiche(invoice)">
-                                                    <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
-                                                    <span>Afficher Fiche</span>
-                                                </button>
-                                            </mat-menu>
-                                        </td>
-                                    </tr>
-
-                                    <!-- Subtotal -->
-                                    <tr class="bg-gray-50 font-bold border-t-2">
-                                        <td colspan="5" class="text-right pr-4">Sous-total {{ group.month }}:</td>
-                                        <td></td>
-                                        <td>{{ group.totalTTC | number:'1.2-2' }} DH</td>
-                                        <td>{{ group.totalReste | number:'1.2-2' }} DH</td>
-                                        <td></td>
-                                        <td></td>
-                                    </tr>
-                                </ng-container>
-                            </ng-container>
-
-                            <tr *ngIf="groupedAvoir.length === 0">
-                                <td colspan="10">
-                                    <div class="empty-state">
-                                        <mat-icon>assignment_return</mat-icon>
-                                        <h3>Aucun avoir</h3>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-
-                    </table>
-                </div>
-            </div>
-        </mat-tab>
-
-
-        <!-- Tab 3: Statistics -->
-        <mat-tab>
-            <ng-template mat-tab-label>
-                <mat-icon class="mr-2">bar_chart</mat-icon>
-                Statistiques
-            </ng-template>
-
-            <div class="tab-content">
-                <div class="modern-table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Vendeur</th>
-                                <th>Vente en instance</th>
-                                <th>Devis</th>
-                                <th>Factures Validées</th>
-                                <th>Avoirs</th>
-                                <th>CA consolidé</th>
-                                <th>CA Non Consolidé (HT)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr *ngFor="let stat of statistics">
+                            <tr *ngFor="let invoice of invoicesAvoir" class="data-row">
+                                <td class="font-bold text-danger">{{ invoice.numero }}</td>
+                                <td>{{ invoice.parentFacture?.numero || '-' }}</td>
+                                <td>{{ getClientName(invoice) }}</td>
+                                <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
+                                <td class="price-cell text-danger">-{{ invoice.totalTTC | number:'1.2-2' }}</td>
                                 <td>
-                                    <div class="flex items-center">
-                                        <mat-icon class="text-gray-400 mr-2">person</mat-icon>
-                                        {{ stat.vendorName }}
-                                    </div>
-                                </td>
-                                <td class="text-center">
-                                    <span class="badge badge-warning" *ngIf="stat.countWithPayment > 0">
-                                        {{ stat.countWithPayment }} ventes
-                                    </span>
-                                    <span class="text-gray-400" *ngIf="stat.countWithPayment === 0">-</span>
-                                </td>
-                                <td class="text-center">
-                                    <span class="badge badge-info" *ngIf="stat.countWithoutPayment > 0">
-                                        {{ stat.countWithoutPayment }} devis
-                                    </span>
-                                    <span class="text-gray-400" *ngIf="stat.countWithoutPayment === 0">-</span>
-                                </td>
-                                <td class="text-center">
-                                    <span class="badge badge-success" *ngIf="stat.countValid && stat.countValid > 0">
-                                        {{ stat.countValid }} factures
-                                    </span>
-                                    <span class="text-gray-400"
-                                        *ngIf="!stat.countValid || stat.countValid === 0">-</span>
-                                </td>
-                                <td class="text-center">
-                                    <span class="badge badge-danger" *ngIf="stat.countAvoir && stat.countAvoir > 0">
-                                        {{ stat.countAvoir }} avoirs
-                                    </span>
-                                    <span class="text-gray-400"
-                                        *ngIf="!stat.countAvoir || stat.countAvoir === 0">-</span>
-                                </td>
-                                <td class="text-center text-bold">{{ stat.totalAmount | number:'1.2-2' }} DH</td>
-                                <td class="text-center text-bold" style="color: #f57c00;">{{ stockStats?.caNonConsolide
-                                    | number:'1.2-2' }} DH</td>
-                            </tr>
-                            <tr *ngIf="statistics.length === 0">
-                                <td colspan="8">
-                                    <div class="empty-state">
-                                        <mat-icon>bar_chart</mat-icon>
-                                        <h3>Aucune donnée</h3>
-                                        <p>Pas de statistiques disponibles.</p>
-                                    </div>
+                                    <button mat-icon-button (click)="viewDocument(invoice)">
+                                        <mat-icon>visibility</mat-icon>
+                                    </button>
                                 </td>
                             </tr>
                         </tbody>
