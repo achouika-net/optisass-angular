@@ -142,8 +142,7 @@ export class SupplierInvoicesService {
                 fiche: { select: { id: true, numero: true, type: true } },
                 parentInvoice: { select: { id: true, numeroFacture: true } }
             },
-            orderBy: { dateEmission: 'desc' },
-            take: 200
+            orderBy: { dateEmission: 'desc' }
         });
     }
 

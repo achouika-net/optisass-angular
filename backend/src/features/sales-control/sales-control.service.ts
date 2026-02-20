@@ -10,200 +10,120 @@ export class SalesControlService {
         private facturesService: FacturesService
     ) { }
 
-    // Get items for Tab 1: Vente en instance (BCs, Documents with Payments, or Instance status)
-    async getBrouillonWithPayments(userId?: string, centreId?: string) {
+    // Tab 1: Bons de Commande (BCs, Documents with Payments, or Instance status)
+    async getBrouillonWithPayments(userId?: string, centreId?: string, startDate?: string, endDate?: string) {
         if (!centreId) return [];
+        const start = startDate ? new Date(startDate) : undefined;
+        const end = endDate ? new Date(endDate) : undefined;
 
         const results = await this.prisma.facture.findMany({
             where: {
                 centreId,
                 statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
-                type: { not: 'AVOIR' }
+                ...(start || end ? { dateEmission: { gte: start, lte: end } } : {})
             },
             include: {
-                client: {
-                    select: {
-                        nom: true,
-                        prenom: true,
-                        raisonSociale: true
-                    }
-                },
+                client: { select: { nom: true, prenom: true, raisonSociale: true } },
                 paiements: true,
                 fiche: true
             },
-            orderBy: {
-                dateEmission: 'desc'
-            }
+            orderBy: { dateEmission: 'desc' }
         });
 
-        // RE-FILTER: Strictly include only confirmed sales or drafts with money
         return results.filter(f => {
-            // Priority 1: Specifically marked as Instance
+            if (f.statut === 'ANNULEE' || f.type === 'AVOIR') return false;
+            // Valide Factures are handled in Tab 3
+            if ((f.numero || '').startsWith('FAC') || f.type === 'FACTURE') {
+                if (f.statut !== 'VENTE_EN_INSTANCE') return false;
+            }
+
             if (f.statut === 'VENTE_EN_INSTANCE') return true;
-
-            // Priority 2: Established BCs (even without payments yet)
-            if (f.type === 'BON_COMM' || f.numero.startsWith('BC')) return true;
-
-            // Priority 3: Drafts with payments (that are not final invoices)
+            const isBC = f.type === 'BON_COMMANDE' || f.type === 'BON_COMM' || (f.numero || '').startsWith('BC');
+            if (isBC) return true;
             const hasPayments = f.paiements && f.paiements.length > 0;
-            const isNotFinal = !f.numero.startsWith('FAC');
-            if (hasPayments && isNotFinal) return true;
-
-            return false;
+            return hasPayments;
         });
     }
 
-    // Get items for Tab 2: Devis (Prospects, Drafts with NO payments and NOT BCs)
-    async getBrouillonWithoutPayments(userId?: string, centreId?: string) {
+    // Tab 2: Devis
+    async getBrouillonWithoutPayments(userId?: string, centreId?: string, startDate?: string, endDate?: string) {
         if (!centreId) return [];
+        const start = startDate ? new Date(startDate) : undefined;
+        const end = endDate ? new Date(endDate) : undefined;
 
         const results = await this.prisma.facture.findMany({
             where: {
                 centreId,
                 statut: { notIn: ['ARCHIVE', 'ANNULEE', 'VENTE_EN_INSTANCE'] },
-                paiements: {
-                    none: {}
-                }
+                paiements: { none: {} },
+                ...(start || end ? { dateEmission: { gte: start, lte: end } } : {})
             },
             include: {
-                client: {
-                    select: {
-                        nom: true,
-                        prenom: true,
-                        raisonSociale: true
-                    }
-                },
+                client: { select: { nom: true, prenom: true, raisonSociale: true } },
                 fiche: true
             },
-            orderBy: {
-                dateEmission: 'desc'
-            }
+            orderBy: { dateEmission: 'desc' }
         });
 
-        // RE-FILTER: Strictly include only real prospects/devis
         return results.filter(f => {
-            // EXCLUDE: Already promoted to BC or Instance
-            if (f.type === 'BON_COMM' || f.numero.startsWith('BC')) return false;
-            if (f.statut === 'VENTE_EN_INSTANCE') return false;
-
-            // INCLUDE: Real Devis/Drafts
+            const isBC = f.type === 'BON_COMMANDE' || f.type === 'BON_COMM' || (f.numero || '').startsWith('BC');
+            if (isBC) return false;
             const num = (f.numero || '').toUpperCase();
-            const isDevis = f.type === 'DEVIS' || num.startsWith('BRO') || num.startsWith('DEV') || num.startsWith('DEVIS');
-
-            return isDevis;
+            return f.type === 'DEVIS' || num.startsWith('BRO') || num.startsWith('DEV') || num.startsWith('DEVIS');
         });
     }
 
-    // Tab 3: VALID invoices (Official FAC- Documents)
-    async getValidInvoices(userId?: string, centreId?: string) {
+    // Tab 3: Valid Invoices (Official FAC- Documents)
+    async getValidInvoices(userId?: string, centreId?: string, startDate?: string, endDate?: string) {
         if (!centreId) return [];
+        const start = startDate ? new Date(startDate) : undefined;
+        const end = endDate ? new Date(endDate) : undefined;
 
         return this.prisma.facture.findMany({
             where: {
                 centreId,
-                numero: { startsWith: 'FAC' },
-                statut: { not: 'VENTE_EN_INSTANCE' }
+                OR: [{ numero: { startsWith: 'FAC' } }, { type: 'FACTURE' }],
+                statut: { notIn: ['VENTE_EN_INSTANCE', 'ANNULEE', 'ARCHIVE'] },
+                type: { not: 'AVOIR' },
+                ...(start || end ? { dateEmission: { gte: start, lte: end } } : {})
             },
             include: {
-                client: {
-                    select: {
-                        nom: true,
-                        prenom: true,
-                        raisonSociale: true
-                    }
-                },
+                client: { select: { nom: true, prenom: true, raisonSociale: true } },
                 paiements: true,
                 fiche: true,
-                children: {
-                    select: {
-                        id: true,
-                        numero: true,
-                        type: true,
-                        statut: true
-                    }
-                }
+                children: { select: { id: true, numero: true, type: true, statut: true } }
             },
-            orderBy: {
-                numero: 'desc'
-            }
+            orderBy: { numero: 'desc' }
         });
     }
 
     // Tab 4: AVOIRS 
-    async getAvoirs(userId?: string, centreId?: string) {
+    async getAvoirs(userId?: string, centreId?: string, startDate?: string, endDate?: string) {
         if (!centreId) return [];
+        const start = startDate ? new Date(startDate) : undefined;
+        const end = endDate ? new Date(endDate) : undefined;
 
         return this.prisma.facture.findMany({
             where: {
                 centreId,
-                type: 'AVOIR'
+                type: 'AVOIR',
+                ...(start || end ? { dateEmission: { gte: start, lte: end } } : {})
             },
             include: {
-                client: {
-                    select: {
-                        nom: true,
-                        prenom: true,
-                        raisonSociale: true
-                    }
-                },
+                client: { select: { nom: true, prenom: true, raisonSociale: true } },
                 paiements: true,
                 fiche: true,
-                parentFacture: true
+                parentFacture: { select: { id: true, numero: true } }
             },
-            orderBy: {
-                numero: 'desc'
-            }
+            orderBy: { numero: 'desc' }
         });
     }
 
-    // Tab: Statistics
-    async getStatisticsByVendor(centreId?: string) {
-        if (!centreId) return [{
-            vendorId: 'all',
-            vendorName: 'Tous les vendeurs',
-            countWithPayment: 0,
-            countWithoutPayment: 0,
-            countValid: 0,
-            countAvoir: 0,
-            countCancelled: 0,
-            totalAmount: 0
-        }];
-
-        const factures = await this.prisma.facture.findMany({
-            where: { centreId },
-            include: { paiements: true }
-        });
-
-        const inInstance = factures.filter(f => {
-            if (f.statut === 'VENTE_EN_INSTANCE') return true;
-            if (f.type === 'BON_COMM' || f.numero.startsWith('BC')) return true;
-            return f.paiements && f.paiements.length > 0 && !f.numero.startsWith('FAC') && f.statut !== 'ARCHIVE' && f.statut !== 'ANNULEE';
-        });
-
-        const isDevis = factures.filter(f => {
-            if (f.type === 'BON_COMM' || f.numero.startsWith('BC')) return false;
-            if (f.statut === 'VENTE_EN_INSTANCE') return false;
-            if (f.paiements && f.paiements.length > 0) return false;
-            const num = (f.numero || '').toUpperCase();
-            return (f.type === 'DEVIS' || num.startsWith('BRO') || num.startsWith('DEV')) && f.statut !== 'ARCHIVE' && f.statut !== 'ANNULEE';
-        });
-
-        const validInvoices = factures.filter(f => f.numero.startsWith('FAC') && f.type === 'FACTURE' && f.statut !== 'ANNULEE');
-        const avoirs = factures.filter(f => f.type === 'AVOIR');
-        const cancelledDrafts = factures.filter(f => f.statut === 'ANNULEE' && (f.numero.startsWith('BRO') || (f.numero || '').startsWith('Devis')));
-
-        const caRelevant = factures.filter(f => (f.numero.startsWith('FAC') || f.type === 'AVOIR') && f.statut !== 'ARCHIVE');
-
-        return [{
-            vendorId: 'all',
-            vendorName: 'Tous les vendeurs',
-            countWithPayment: inInstance.length,
-            countWithoutPayment: isDevis.length,
-            countValid: validInvoices.length,
-            countAvoir: avoirs.length,
-            countCancelled: cancelledDrafts.length,
-            totalAmount: caRelevant.reduce((sum, f) => sum + (f.totalTTC || 0), 0)
-        }];
+    // Tab: Statistics (Now compatible with Dashboard Data)
+    async getStatisticsByVendor(centreId?: string, startDate?: string, endDate?: string) {
+        if (!centreId) return [];
+        const dashboard = await this.getDashboardData(undefined, centreId, startDate, endDate);
+        return dashboard.stats;
     }
 
     // Validate invoice - handles both DEVIS→BC and BC→FACTURE transitions
@@ -211,7 +131,7 @@ export class SalesControlService {
         const currentDoc = await this.prisma.facture.findUnique({ where: { id } });
         if (!currentDoc) throw new Error(`Document ${id} not found`);
 
-        if (currentDoc.type === 'BON_COMM') {
+        if (currentDoc.type === 'BON_COMMANDE' || currentDoc.type === 'BON_COMM') {
             return this.facturesService.update({
                 where: { id },
                 data: {
@@ -225,7 +145,7 @@ export class SalesControlService {
         return this.facturesService.update({
             where: { id },
             data: {
-                type: 'BON_COMM' as any,
+                type: 'BON_COMMANDE' as any,
                 statut: 'VENTE_EN_INSTANCE',
                 proprietes: { forceStockDecrement: true }
             }
@@ -233,14 +153,37 @@ export class SalesControlService {
     }
 
     // Consolidated dashboard data
-    async getDashboardData(userId?: string, centreId?: string) {
-        const [withPayments, withoutPayments, valid, avoirs, stats] = await Promise.all([
-            this.getBrouillonWithPayments(userId, centreId),
-            this.getBrouillonWithoutPayments(userId, centreId),
-            this.getValidInvoices(userId, centreId),
-            this.getAvoirs(userId, centreId),
-            this.getStatisticsByVendor(centreId)
+    async getDashboardData(userId?: string, centreId?: string, startDate?: string, endDate?: string) {
+        if (!centreId) return { withPayments: [], withoutPayments: [], valid: [], avoirs: [], stats: [] };
+
+        const [withPayments, withoutPayments, valid, avoirs] = await Promise.all([
+            this.getBrouillonWithPayments(userId, centreId, startDate, endDate),
+            this.getBrouillonWithoutPayments(userId, centreId, startDate, endDate),
+            this.getValidInvoices(userId, centreId, startDate, endDate),
+            this.getAvoirs(userId, centreId, startDate, endDate)
         ]);
+
+        // Detailed Totals for Breakdown
+        const totalFactures = valid.reduce((sum, f) => sum + (f.totalTTC || 0), 0);
+        const totalAvoirs = avoirs.reduce((sum, f) => sum + (f.totalTTC || 0), 0);
+        const totalBC = withPayments.reduce((sum, f) => sum + (f.totalTTC || 0), 0);
+
+        // Final CA: Invoices - Avoirs
+        const totalAmount = totalFactures - totalAvoirs;
+
+        const stats = [{
+            vendorId: 'all',
+            vendorName: 'Tous les vendeurs',
+            countWithPayment: withPayments.length,
+            countWithoutPayment: withoutPayments.length,
+            countValid: valid.length,
+            countAvoir: avoirs.length,
+            countCancelled: 0,
+            totalAmount,
+            totalFactures,
+            totalAvoirs,
+            totalBC
+        }];
 
         return { withPayments, withoutPayments, valid, avoirs, stats };
     }

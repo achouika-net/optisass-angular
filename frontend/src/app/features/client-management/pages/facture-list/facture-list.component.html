@@ -50,6 +50,7 @@
                         <th>Statut</th>
                         <th>Total TTC</th>
                         <th>Reste à payer</th>
+                        <th>Valide</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -73,6 +74,12 @@
                             <span [class.text-success]="facture.resteAPayer === 0"
                                 [class.text-warning]="facture.resteAPayer > 0">
                                 {{ facture.resteAPayer | number:'1.2-2' }} DH
+                            </span>
+                        </td>
+                        <td>
+                            <span [class.text-success]="facture.numero.startsWith('FAC')"
+                                [class.text-danger]="!facture.numero.startsWith('FAC')">
+                                {{ facture.numero.startsWith('FAC') ? 'vrai' : 'faux' }}
                             </span>
                         </td>
                         <td>

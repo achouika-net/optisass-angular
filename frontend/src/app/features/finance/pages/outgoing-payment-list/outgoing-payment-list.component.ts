@@ -1,5 +1,6 @@
 import { Component, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -108,28 +109,31 @@ export class OutgoingPaymentListComponent implements OnInit {
     };
 
     suppliers: Supplier[] = [];
+    centers: any[] = [];
     types: string[] = [
+        'ACHAT_VERRE_OPTIQUE', 'ACHAT_MONTURES_OPTIQUE', 'ACHAT_MONTURES_SOLAIRE',
+        'ACHAT_LENTILLES', 'ACHAT_PRODUITS', 'COTISATION_AMO_CNSS',
         'LOYER', 'ELECTRICITE', 'EAU', 'INTERNET', 'TELEPHONE', 'SALAIRE',
-        'ACHAT_MARCHANDISE', 'TRANSPORT', 'REPAS', 'AUTRE',
-        'ACHAT_STOCK', 'FRAIS_GENERAUX', 'IMMOBILISATION'
+        'ACHAT_MARCHANDISE', 'TRANSPORT', 'REPAS', 'AUTRE'
     ];
 
     filters: any = {
         source: '',
         fournisseurId: '',
         type: '',
-        startDate: new Date(),
-        endDate: new Date(),
+        startDate: '',
+        endDate: '',
         centreId: ''
     };
-    selectedPeriod: string = 'TODAY';
+    selectedPeriod: string = 'ALL';
     constructor(
         private financeService: FinanceService,
         private router: Router,
         private snackBar: MatSnackBar,
         private dialog: MatDialog,
         private store: Store,
-        private route: ActivatedRoute
+        private route: ActivatedRoute,
+        private http: HttpClient
     ) {
         // Automatically reload when center changes
         effect(() => {
@@ -144,15 +148,16 @@ export class OutgoingPaymentListComponent implements OnInit {
 
     ngOnInit(): void {
         this.loadSuppliers();
+        this.loadCenters();
 
-        const center = this.currentCentre();
-        if (center?.id) {
+        const center = this.store.selectSignal(UserCurrentCentreSelector)();
+        if (center?.id && !this.filters.centreId) {
             this.filters.centreId = center.id;
         }
 
         // Initialize filters and trigger the first load
         // Initialize filters and trigger the first load
-        this.applyPredefinedPeriod('TODAY', false);
+        this.applyPredefinedPeriod('ALL', false);
 
         // Listen to tab query param
         this.route.queryParamMap.subscribe(params => {
@@ -172,6 +177,13 @@ export class OutgoingPaymentListComponent implements OnInit {
 
     loadSuppliers() {
         this.financeService.getSuppliers().subscribe(data => this.suppliers = data);
+    }
+
+    loadCenters() {
+        // We can get centers from the store or a service. 
+        // For now, let's inject AuthService or use the store if available.
+        // Actually, let's just add it to financeService if not there.
+        this.http.get<any[]>(`${this.financeService['apiUrl']}/centres`).subscribe(data => this.centers = data);
     }
 
     onTabChange(event: any) {
@@ -330,7 +342,7 @@ export class OutgoingPaymentListComponent implements OnInit {
             endDate: new Date(),
             centreId: this.currentCentre()?.id || ''
         };
-        this.selectedPeriod = 'TODAY';
+        this.selectedPeriod = 'ALL';
         this.loadPayments();
     }
 

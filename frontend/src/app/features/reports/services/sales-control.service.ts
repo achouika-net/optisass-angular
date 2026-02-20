@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { API_URL } from '../../../config/api.config';
 
 export interface BrouillonInvoice {
     id: string;
@@ -41,9 +42,10 @@ export interface VendorStatistics {
     countValid?: number;
     countAvoir?: number;
     totalArchived?: number;
+    totalFactures?: number;
+    totalAvoirs?: number;
+    totalBC?: number;
 }
-
-import { API_URL } from '../../../config/api.config';
 
 @Injectable({
     providedIn: 'root'
@@ -53,33 +55,40 @@ export class SalesControlService {
 
     constructor(private http: HttpClient) { }
 
-    getBrouillonWithPayments(userId?: string): Observable<BrouillonInvoice[]> {
-        const params = userId ? { userId } : {};
+    private getParams(startDate?: string, endDate?: string): HttpParams {
+        let params = new HttpParams();
+        if (startDate) params = params.set('startDate', startDate);
+        if (endDate) params = params.set('endDate', endDate);
+        return params;
+    }
+
+    getBrouillonWithPayments(userId?: string, startDate?: string, endDate?: string): Observable<BrouillonInvoice[]> {
+        let params = this.getParams(startDate, endDate);
+        if (userId) params = params.set('userId', userId);
         return this.http.get<BrouillonInvoice[]>(`${this.apiUrl}/brouillon-with-payments`, { params });
     }
 
-    getBrouillonWithoutPayments(userId?: string): Observable<BrouillonInvoice[]> {
-        const params = userId ? { userId } : {};
+    getBrouillonWithoutPayments(userId?: string, startDate?: string, endDate?: string): Observable<BrouillonInvoice[]> {
+        let params = this.getParams(startDate, endDate);
+        if (userId) params = params.set('userId', userId);
         return this.http.get<BrouillonInvoice[]>(`${this.apiUrl}/brouillon-without-payments`, { params });
     }
 
-    getValidInvoices(userId?: string): Observable<BrouillonInvoice[]> {
-        const params = userId ? { userId } : {};
+    getValidInvoices(userId?: string, startDate?: string, endDate?: string): Observable<BrouillonInvoice[]> {
+        let params = this.getParams(startDate, endDate);
+        if (userId) params = params.set('userId', userId);
         return this.http.get<BrouillonInvoice[]>(`${this.apiUrl}/valid-invoices`, { params });
     }
 
-    getArchivedInvoices(userId?: string): Observable<BrouillonInvoice[]> {
-        const params = userId ? { userId } : {};
-        return this.http.get<BrouillonInvoice[]>(`${this.apiUrl}/archived`, { params });
-    }
-
-    getAvoirs(userId?: string): Observable<BrouillonInvoice[]> {
-        const params = userId ? { userId } : {};
+    getAvoirs(userId?: string, startDate?: string, endDate?: string): Observable<BrouillonInvoice[]> {
+        let params = this.getParams(startDate, endDate);
+        if (userId) params = params.set('userId', userId);
         return this.http.get<BrouillonInvoice[]>(`${this.apiUrl}/avoirs`, { params });
     }
 
-    getStatistics(): Observable<VendorStatistics[]> {
-        return this.http.get<VendorStatistics[]>(`${this.apiUrl}/statistics`);
+    getStatistics(startDate?: string, endDate?: string): Observable<VendorStatistics[]> {
+        const params = this.getParams(startDate, endDate);
+        return this.http.get<VendorStatistics[]>(`${this.apiUrl}/statistics`, { params });
     }
 
     validateInvoice(id: string): Observable<any> {
@@ -94,9 +103,9 @@ export class SalesControlService {
         return this.http.post(`${this.apiUrl}/archive/${id}`, {});
     }
 
-
-    getDashboardData(userId?: string): Observable<any> {
-        const params = userId ? { userId } : {};
+    getDashboardData(userId?: string, startDate?: string, endDate?: string): Observable<any> {
+        let params = this.getParams(startDate, endDate);
+        if (userId) params = params.set('userId', userId);
         return this.http.get<any>(`${this.apiUrl}/dashboard-data`, { params });
     }
 }

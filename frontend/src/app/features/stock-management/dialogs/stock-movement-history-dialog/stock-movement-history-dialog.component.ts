@@ -57,36 +57,48 @@ export class StockMovementHistoryDialogComponent implements OnInit {
 
     loadHistory(): void {
         this.loading = true;
+        this.cdr.detectChanges();
+
         console.log('Loading history for product ID:', this.data.product.id);
 
         this.stockMovementsService.getHistory(this.data.product.id).subscribe({
             next: (data) => {
-                console.log('History loaded successfully:', data);
+                try {
+                    console.log('History loaded successfully:', data);
 
-                // Deduplicate: Hide TRANSFERT_ENTREE if a RECEPTION exists for the same transfer
-                this.movements = data.filter((move, _, self) => {
-                    if (move.type === 'TRANSFERT_ENTREE') {
-                        // Extract TRS number (e.g. TRS-2026-0001)
-                        const trsMatch = move.motif?.match(/TRS-\d{4}-\d{4}/);
-                        if (trsMatch) {
-                            const trsNumber = trsMatch[0];
-                            const hasReception = self.some(m =>
-                                m.type === 'RECEPTION' &&
-                                m.motif?.includes(trsNumber)
-                            );
-                            if (hasReception) return false;
-                        }
+                    if (!data || !Array.isArray(data)) {
+                        this.movements = [];
+                    } else {
+                        // Deduplicate: Hide TRANSFERT_ENTREE if a RECEPTION exists for the same transfer
+                        this.movements = data.filter((move, _, self) => {
+                            if (move.type === 'TRANSFERT_ENTREE') {
+                                // Extract TRS number (e.g. TRS-2026-0001)
+                                const trsMatch = move.motif?.match(/TRS-\d{4}-\d{4}/);
+                                if (trsMatch) {
+                                    const trsNumber = trsMatch[0];
+                                    const hasReception = self.some(m =>
+                                        m.type === 'RECEPTION' &&
+                                        m.motif?.includes(trsNumber)
+                                    );
+                                    if (hasReception) return false;
+                                }
+                            }
+                            return true;
+                        });
                     }
-                    return true;
-                });
-
-                this.loading = false;
-                this.cdr.detectChanges(); // Force update
+                } catch (e) {
+                    console.error('Error processing history data:', e);
+                    this.movements = [];
+                } finally {
+                    this.loading = false;
+                    this.cdr.detectChanges();
+                }
             },
             error: (err) => {
                 console.error('Error loading history:', err);
                 this.loading = false;
-                this.cdr.detectChanges(); // Force update
+                this.movements = [];
+                this.cdr.detectChanges();
             }
         });
     }

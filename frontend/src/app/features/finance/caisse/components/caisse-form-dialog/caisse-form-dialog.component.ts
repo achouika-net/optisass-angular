@@ -43,6 +43,7 @@ export interface CaisseDialogData {
                     <mat-select formControlName="type">
                         <mat-option [value]="CaisseType.PRINCIPALE">Caisse Principale (Ventes)</mat-option>
                         <mat-option [value]="CaisseType.DEPENSES">Caisse Dépenses (Interne)</mat-option>
+                        <mat-option [value]="CaisseType.MIXTE">Caisse Mixte (Ventes + Interne)</mat-option>
                     </mat-select>
                 </mat-form-field>
 

@@ -8,6 +8,7 @@ export enum CaisseStatut {
 export enum CaisseType {
     PRINCIPALE = 'PRINCIPALE',
     DEPENSES = 'DEPENSES',
+    MIXTE = 'MIXTE',
 }
 
 export class CreateCaisseDto {
