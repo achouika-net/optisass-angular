@@ -1,0 +1,77 @@
+﻿
+> optisaas@0.0.0 build
+> ng build
+
+node.exe : [1m[33m[baseline-browser-mapping] The data in this 
+module is over two months old.  To ensure accurate Baseline data, 
+please update: `npm i baseline-browser-mapping@latest -D`[39m[22m
+Au caractère Ligne:1 : 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~
+    + CategoryInfo          : NotSpecified: ([1m[33m[basel...t - 
+   D`[39m[22m:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[33mÔØ»[39m Building...
+[baseline-browser-mapping] The data in this module is over two 
+months old.  To ensure accurate Baseline data, please update: `npm 
+i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two 
+months old.  To ensure accurate Baseline data, please update: `npm 
+i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two 
+months old.  To ensure accurate Baseline data, please update: `npm 
+i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two 
+months old.  To ensure accurate Baseline data, please update: `npm 
+i baseline-browser-mapping@latest -D`
+[32mÔ£ö[39m Building...
+Application bundle generation failed. [23.480 seconds] - 2026-02-21T03:37:17.487Z
+
+[1m[31m[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: 
+Property 'nom' does not exist on type 'Client'.
+  Property 'nom' does not exist on type 'ClientProfessionnel'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/features/client-management/pages/fiche-produit-form/fic
+he-produit-form.component.html:9:42:
+[37m      9 Ôöé ...      Client: <strong>{{ client.[32mnom[37m 
+}} {{ client.prenom }}</strong>
+        ÔòÁ                                    [32m~~~[0m
+
+  Error occurs in the template of component 
+FicheProduitFormComponent.
+
+    src/app/features/client-management/pages/fiche-produit-form/fic
+he-produit-form.component.ts:40:17:
+[37m      40 Ôöé     templateUrl: 
+[32m'./fiche-produit-form.component.html'[37m,
+         ÔòÁ                  
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'prenom' does not exist on type 'Client'.
+  Property 'prenom' does not exist on type 
+'ClientProfessionnel'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/client-management/pages/fiche-produit-form/fic
+he-produit-form.component.html:9:59:
+[37m      9 Ôöé ...      Client: <strong>{{ client.nom }} {{ 
+client.[32mprenom[37m }}</strong>
+        ÔòÁ                                                     
+[32m~~~~~~[0m
+
+  Error occurs in the template of component 
+FicheProduitFormComponent.
+
+    src/app/features/client-management/pages/fiche-produit-form/fic
+he-produit-form.component.ts:40:17:
+[37m      40 Ôöé     templateUrl: 
+[32m'./fiche-produit-form.component.html'[37m,
+         ÔòÁ                  
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[39m[22m

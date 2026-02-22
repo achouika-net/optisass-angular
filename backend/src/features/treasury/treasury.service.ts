@@ -5,10 +5,22 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class TreasuryService {
     constructor(private prisma: PrismaService) { }
 
-    async getMonthlySummary(year: number, month: number, centreId?: string) {
+    async getMonthlySummary(year: number, month: number, centreId?: string, startDateStr?: string, endDateStr?: string) {
         const startTime = Date.now();
-        const startDate = new Date(Date.UTC(year, month - 1, 1));
-        const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+        let startDate: Date;
+        let endDate: Date;
+
+        if (startDateStr) {
+            startDate = new Date(startDateStr);
+        } else {
+            startDate = month === 0 ? new Date(0) : new Date(Date.UTC(year, month - 1, 1));
+        }
+
+        if (endDateStr) {
+            endDate = new Date(endDateStr);
+        } else {
+            endDate = month === 0 ? new Date(3000, 0, 1) : new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+        }
 
         // Use a more consolidated approach to reduce database round-trips and connection pool saturation
         const results = await Promise.all([
@@ -112,7 +124,7 @@ export class TreasuryService {
             const amount = Number(e.montant || 0);
             totalScheduled += amount;
 
-            let cat = e.depense?.categorie || (e.factureFournisseur ? 'FACTURE' : 'AUTRE');
+            let cat = e.depense?.categorie || e.factureFournisseur?.type || 'AUTRE';
             combinedCategoriesMap.set(cat, (combinedCategoriesMap.get(cat) || 0) + amount);
 
             if (e.statut === 'EN_ATTENTE') {

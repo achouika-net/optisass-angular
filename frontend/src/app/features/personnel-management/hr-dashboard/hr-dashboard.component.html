@@ -1,44 +1,24 @@
-<div class="flex flex-col space-y-6" *ngIf="!isLoading && stats">
-    <!-- Header -->
-    <div class="flex items-center justify-between flex-wrap gap-4">
-        <div>
-            <h1 class="text-2xl font-bold text-[#1e3a8a] flex items-center gap-2">
-                <mat-icon>analytics</mat-icon>
-                Tableau de Bord RH
-            </h1>
-            <p class="text-gray-500">Aperçu de la performance et de la masse salariale.</p>
-        </div>
-
-        <div class="flex items-center gap-3">
-            <!-- Month Selector -->
-            <div class="relative">
-                <select [(ngModel)]="selectedMonth" (change)="loadStats()"
-                    class="appearance-none bg-white border border-gray-300 text-gray-700 py-2 px-4 pr-8 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-blue-500">
-                    <option *ngFor="let m of months" [value]="m.value">{{m.label}}</option>
-                </select>
-                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                    <mat-icon class="text-sm">expand_more</mat-icon>
-                </div>
-            </div>
-
-            <!-- Year Selector -->
-            <div class="relative">
-                <select [(ngModel)]="selectedYear" (change)="loadStats()"
-                    class="appearance-none bg-white border border-gray-300 text-gray-700 py-2 px-4 pr-8 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-blue-500">
-                    <option *ngFor="let y of years" [value]="y">{{y}}</option>
-                </select>
-                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                    <mat-icon class="text-sm">expand_more</mat-icon>
-                </div>
-            </div>
-
-            <button mat-stroked-button color="primary" (click)="loadStats()" class="rounded-lg h-10">
-                <mat-icon>refresh</mat-icon>
-                Actualiser
-            </button>
-        </div>
+<!-- Header + Filter — TOUJOURS visible (en dehors du ngIf pour que le filtre s'initialise) -->
+<div class="flex items-center justify-between flex-wrap gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-[#1e3a8a] flex items-center gap-2">
+            <mat-icon>analytics</mat-icon>
+            Tableau de Bord RH
+        </h1>
+        <p class="text-gray-500 text-sm">Aperçu de la performance et de la masse salariale.</p>
     </div>
 
+    <app-dashboard-filter (filterChanged)="onFilterChanged($event)"></app-dashboard-filter>
+</div>
+
+<!-- Spinner de chargement -->
+<div *ngIf="isLoading" class="flex flex-col items-center justify-center p-24 gap-4">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p class="text-gray-500 font-medium">Analyse des données RH en cours...</p>
+</div>
+
+<!-- Contenu principal -->
+<div class="flex flex-col space-y-6" *ngIf="!isLoading && stats">
     <!-- KPIs -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <mat-card class="rounded-xl border-none shadow-sm p-6 bg-gradient-to-br from-blue-500 to-blue-700 text-white">
@@ -115,9 +95,4 @@
             </div>
         </mat-card>
     </div>
-</div>
-
-<div *ngIf="isLoading" class="flex flex-col items-center justify-center p-24 gap-4">
-    <mat-spinner diameter="50"></mat-spinner>
-    <p class="text-gray-500 font-medium">Analyse des données RH en cours...</p>
 </div>

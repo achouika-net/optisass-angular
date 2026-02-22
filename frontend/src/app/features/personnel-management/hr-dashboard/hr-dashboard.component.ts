@@ -9,6 +9,7 @@ import { PersonnelService } from '../services/personnel.service';
 import { Chart, registerables } from 'chart.js';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../core/store/auth/auth.selectors';
+import { DashboardFilterComponent, DashboardFilterResult } from '../../../shared/components/dashboard-filter/dashboard-filter.component';
 
 Chart.register(...registerables);
 
@@ -21,7 +22,8 @@ Chart.register(...registerables);
         MatIconModule,
         MatProgressSpinnerModule,
         MatButtonModule,
-        FormsModule // Added FormsModule
+        FormsModule,
+        DashboardFilterComponent
     ],
     templateUrl: './hr-dashboard.component.html',
     styleUrls: ['./hr-dashboard.component.scss']
@@ -37,68 +39,59 @@ export class HRDashboardComponent implements OnInit, AfterViewInit {
     isLoading = true;
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
 
-    // Filters
-    months = [
-        { value: '01', label: 'Janvier' },
-        { value: '02', label: 'Février' },
-        { value: '03', label: 'Mars' },
-        { value: '04', label: 'Avril' },
-        { value: '05', label: 'Mai' },
-        { value: '06', label: 'Juin' },
-        { value: '07', label: 'Juillet' },
-        { value: '08', label: 'Août' },
-        { value: '09', label: 'Septembre' },
-        { value: '10', label: 'Octobre' },
-        { value: '11', label: 'Novembre' },
-        { value: '12', label: 'Décembre' }
-    ];
-    years: number[] = [];
-
-    selectedMonth: string;
-    selectedYear: number;
+    startDate: Date | null = null;
+    endDate: Date | null = null;
 
     constructor(
         private personnelService: PersonnelService,
         private store: Store,
         private cd: ChangeDetectorRef
-    ) {
-        const now = new Date();
-        this.selectedMonth = now.toISOString().substring(5, 7);
-        this.selectedYear = now.getFullYear();
-
-        // Populate years (current year - 5 to current + 1)
-        const currentYear = now.getFullYear();
-        for (let i = currentYear - 5; i <= currentYear + 1; i++) {
-            this.years.push(i);
-        }
-        // Ensure current year is selected if logic somehow fails or for consistency
-        this.selectedYear = currentYear;
-    }
+    ) { }
 
     ngOnInit(): void {
+        // Call loadStats immediately. DashboardFilterComponent (now outside *ngIf)
+        // will also emit and trigger another call with date filters — that's fine.
         this.loadStats();
     }
 
     ngAfterViewInit(): void {
-        // Initial load will trigger chart creation if data available
+        // Charts will be initialized when data arrives
+    }
+
+    onFilterChanged(filter: DashboardFilterResult): void {
+        this.startDate = filter.startDate;
+        this.endDate = filter.endDate;
+        this.loadStats();
     }
 
     loadStats(): void {
         this.isLoading = true;
-        const mois = this.selectedMonth;
-        const annee = this.selectedYear;
         const centreId = (this.currentCentre() as any)?.id;
 
-        this.personnelService.getDashboardStats(mois, annee, centreId).subscribe({
+        const start = this.startDate?.toISOString();
+        const end = this.endDate?.toISOString();
+
+        this.personnelService.getDashboardStats(undefined, undefined, centreId, start, end).subscribe({
             next: (data) => {
                 this.stats = data;
                 this.isLoading = false;
                 this.cd.detectChanges();
-                setTimeout(() => this.initCharts(), 100);
+                // Ensure DOM is updated before chart init
+                requestAnimationFrame(() => this.initCharts());
             },
             error: (err) => {
                 console.error('Error loading RH stats', err);
+                // Set empty stats so spinner disappears and dashboard shows zeros
+                this.stats = {
+                    totalNet: 0,
+                    totalCommissions: 0,
+                    totalEmployerCharges: 0,
+                    employeeCount: 0,
+                    history: [],
+                    posteDistribution: []
+                };
                 this.isLoading = false;
+                this.cd.detectChanges();
             }
         });
     }

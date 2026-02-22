@@ -1,27 +1,89 @@
 <div class="dashboard-wrapper">
+    <!-- Header -->
     <div class="dashboard-header">
         <div class="title-section">
             <h1>Trésorerie & Plafonds</h1>
             <p class="subtitle">Suivi des flux financiers et contrôle des plafonds</p>
         </div>
-        <div class="flex items-center gap-3">
-            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="!w-44 dense-form-field">
-                <mat-label>Mois</mat-label>
-                <mat-select [(ngModel)]="currentMonth" (selectionChange)="loadData()">
-                    <mat-option *ngFor="let m of months" [value]="m.value">{{ m.label }}</mat-option>
-                </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="!w-36 dense-form-field">
-                <mat-label>Année</mat-label>
-                <mat-select [(ngModel)]="currentYear" (selectionChange)="loadData()">
-                    <mat-option *ngFor="let y of years" [value]="y">{{ y }}</mat-option>
-                </mat-select>
-            </mat-form-field>
-            <button mat-flat-button color="primary" class="!h-[44px] !rounded-xl translate-y-[2px]" (click)="loadData()"
-                [disabled]="loading">
-                <mat-icon>refresh</mat-icon>
+        <div class="actions-section">
+            <button mat-flat-button color="primary" (click)="loadData()" [disabled]="loading">
+                <mat-icon [class.rotating]="loading">refresh</mat-icon>
                 Actualiser
             </button>
+        </div>
+    </div>
+
+    <!-- Unified Filter Toolbar -->
+    <div class="filter-toolbar glass">
+        <div class="period-chips">
+            <button mat-button class="chip-btn" [class.active]="filterType === 'ALL'"
+                (click)="setFilterType('ALL')">Toute la période</button>
+            <button mat-button class="chip-btn" [class.active]="filterType === 'DAILY'"
+                (click)="setFilterType('DAILY')">Aujourd'hui</button>
+            <button mat-button class="chip-btn" [class.active]="filterType === 'MONTHLY'"
+                (click)="setFilterType('MONTHLY')">Par Mois</button>
+            <button mat-button class="chip-btn" [class.active]="filterType === 'YEARLY'"
+                (click)="setFilterType('YEARLY')">Annuel</button>
+            <button mat-button class="chip-btn" [class.active]="filterType === 'CUSTOM'"
+                (click)="setFilterType('CUSTOM')">Personnalisé</button>
+        </div>
+
+        <div class="filter-controls">
+            <ng-container [ngSwitch]="filterType">
+                <!-- Daily -->
+                <mat-form-field appearance="outline" class="density-compact" *ngSwitchCase="'DAILY'">
+                    <mat-label>Date</mat-label>
+                    <input matInput [matDatepicker]="dPicker" [(ngModel)]="selectedDate" (dateChange)="onFilterChange()"
+                        title="Choisir une date" placeholder="JJ/MM/AAAA">
+                    <mat-datepicker-toggle matSuffix [for]="dPicker"></mat-datepicker-toggle>
+                    <mat-datepicker #dPicker></mat-datepicker>
+                </mat-form-field>
+
+                <!-- Monthly -->
+                <ng-container *ngSwitchCase="'MONTHLY'">
+                    <mat-form-field appearance="outline" class="density-compact month-field">
+                        <mat-label>Mois</mat-label>
+                        <mat-select [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()"
+                            title="Sélectionner le mois">
+                            <mat-option *ngFor="let m of availableMonths" [value]="m.value">{{ m.label }}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="density-compact year-field">
+                        <mat-label>Année</mat-label>
+                        <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
+                            title="Sélectionner l'année">
+                            <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                </ng-container>
+
+                <!-- Yearly -->
+                <mat-form-field appearance="outline" class="density-compact year-field" *ngSwitchCase="'YEARLY'">
+                    <mat-label>Année</mat-label>
+                    <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
+                        title="Sélectionner l'année">
+                        <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
+                    </mat-select>
+                </mat-form-field>
+
+                <!-- Custom -->
+                <ng-container *ngSwitchCase="'CUSTOM'">
+                    <mat-form-field appearance="outline" class="density-compact">
+                        <mat-label>Du</mat-label>
+                        <input matInput [matDatepicker]="sPicker" [(ngModel)]="customStartDate"
+                            (dateChange)="onFilterChange()" title="Date de début" placeholder="JJ/MM/AAAA">
+                        <mat-datepicker-toggle matSuffix [for]="sPicker"></mat-datepicker-toggle>
+                        <mat-datepicker #sPicker></mat-datepicker>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="density-compact">
+                        <mat-label>Au</mat-label>
+                        <input matInput [matDatepicker]="ePicker" [(ngModel)]="customEndDate"
+                            (dateChange)="onFilterChange()" title="Date de fin" placeholder="JJ/MM/AAAA">
+                        <mat-datepicker-toggle matSuffix [for]="ePicker"></mat-datepicker-toggle>
+                        <mat-datepicker #ePicker></mat-datepicker>
+                    </mat-form-field>
+                </ng-container>
+            </ng-container>
         </div>
     </div>
 

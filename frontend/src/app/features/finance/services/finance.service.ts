@@ -120,9 +120,13 @@ export class FinanceService {
     }
 
     // --- Treasury ---
-    getTreasurySummary(year: number, month: number, centreId?: string): Observable<any> {
-        let params = new HttpParams().set('year', year.toString()).set('month', month.toString());
+    getTreasurySummary(year?: number, month?: number, centreId?: string, startDate?: string, endDate?: string): Observable<any> {
+        let params = new HttpParams();
+        if (year) params = params.set('year', year.toString());
+        if (month) params = params.set('month', month.toString());
         if (centreId) params = params.set('centreId', centreId);
+        if (startDate) params = params.set('startDate', startDate);
+        if (endDate) params = params.set('endDate', endDate);
         return this.http.get<any>(`${this.apiUrl}/treasury/summary`, { params });
     }
 

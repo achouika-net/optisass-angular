@@ -1,0 +1,379 @@
+﻿
+> optisaas@0.0.0 build
+> ng build
+
+node.exe : [1m[33m[baseline-browser-mapping] The data in this 
+module is over two months old.  To ensure accurate Baseline data, 
+please update: `npm i baseline-browser-mapping@latest -D`[39m[22m
+Au caractère Ligne:1 : 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~
+    + CategoryInfo          : NotSpecified: ([1m[33m[basel...t - 
+   D`[39m[22m:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[33mÔØ»[39m Building...
+[baseline-browser-mapping] The data in this module is over two 
+months old.  To ensure accurate Baseline data, please update: `npm 
+i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two 
+months old.  To ensure accurate Baseline data, please update: `npm 
+i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two 
+months old.  To ensure accurate Baseline data, please update: `npm 
+i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two 
+months old.  To ensure accurate Baseline data, please update: `npm 
+i baseline-browser-mapping@latest -D`
+[32mÔ£ö[39m Building...
+Application bundle generation failed. [54.069 seconds] - 2026-02-21T13:08:55.875Z
+
+[1m[31m[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: 
+Property 'editingThreshold' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.html:88:42:
+[37m      88 Ôöé ...          <span 
+*ngIf="![32meditingThreshold[37m">Max: {{ monthlyThresh...
+         ÔòÁ                            [32m~~~~~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component 
+FinanceDashboardComponent.
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:37:17:
+[37m      37 Ôöé     templateUrl: 
+[32m'./finance-dashboard.component.html'[37m,
+         ÔòÁ                  
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'editingThreshold' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.html:89:42:
+[37m      89 Ôöé ...          <input 
+*ngIf="[32meditingThreshold[37m" type="number" [(ngMod...
+         ÔòÁ                            [32m~~~~~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component 
+FinanceDashboardComponent.
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:37:17:
+[37m      37 Ôöé     templateUrl: 
+[32m'./finance-dashboard.component.html'[37m,
+         ÔòÁ                  
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'newThreshold' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.html:89:87:
+[37m      89 Ôöé ... *ngIf="editingThreshold" type="number" 
+[(ngModel)]="[32mnewThreshold[37m"
+         ÔòÁ                                                       
+  [32m~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component 
+FinanceDashboardComponent.
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:37:17:
+[37m      37 Ôöé     templateUrl: 
+[32m'./finance-dashboard.component.html'[37m,
+         ÔòÁ                  
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'newThreshold' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.html:89:87:
+[37m      89 Ôöé ... *ngIf="editingThreshold" type="number" 
+[(ngModel)]="[32mnewThreshold[37m"
+         ÔòÁ                                                       
+  [32m~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component 
+FinanceDashboardComponent.
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:37:17:
+[37m      37 Ôöé     templateUrl: 
+[32m'./finance-dashboard.component.html'[37m,
+         ÔòÁ                  
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'editingThreshold' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.html:92:41:
+[37m      92 Ôöé ...               
+(click)="[32meditingThreshold[37m ? saveThreshold() : to...
+         ÔòÁ                            [32m~~~~~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component 
+FinanceDashboardComponent.
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:37:17:
+[37m      37 Ôöé     templateUrl: 
+[32m'./finance-dashboard.component.html'[37m,
+         ÔòÁ                  
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'editingThreshold' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.html:93:66:
+[37m      93 Ôöé ...class="!text-[12px]">{{ 
+[32meditingThreshold[37m ? 'check' : 'edit' }}<...
+         ÔòÁ                            [32m~~~~~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component 
+FinanceDashboardComponent.
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:37:17:
+[37m      37 Ôöé     templateUrl: 
+[32m'./finance-dashboard.component.html'[37m,
+         ÔòÁ                  
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'chartColors' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.html:165:55:
+[37m      165 Ôöé ...           
+[style.color]="[32mchartColors[37m[i % chartColors.length]"...
+          ÔòÁ                              [32m~~~~~~~~~~~[0m
+
+  Error occurs in the template of component 
+FinanceDashboardComponent.
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:37:17:
+[37m      37 Ôöé     templateUrl: 
+[32m'./finance-dashboard.component.html'[37m,
+         ÔòÁ                  
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'chartColors' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.html:165:71:
+[37m      165 Ôöé ...le.color]="chartColors[i % 
+[32mchartColors[37m.length]">circle</mat-icon>
+          ÔòÁ                               [32m~~~~~~~~~~~[0m
+
+  Error occurs in the template of component 
+FinanceDashboardComponent.
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:37:17:
+[37m      37 Ôöé     templateUrl: 
+[32m'./finance-dashboard.component.html'[37m,
+         ÔòÁ                  
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'chartColors' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.html:173:62:
+[37m      173 Ôöé ...  
+[style.background-color]="[32mchartColors[37m[i % 
+chartColors.length]">
+          ÔòÁ                                [32m~~~~~~~~~~~[0m
+
+  Error occurs in the template of component 
+FinanceDashboardComponent.
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:37:17:
+[37m      37 Ôöé     templateUrl: 
+[32m'./finance-dashboard.component.html'[37m,
+         ÔòÁ                  
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'chartColors' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.html:173:78:
+[37m      173 Ôöé ...  [style.background-color]="chartColors[i % 
+[32mchartColors[37m.length]">
+          ÔòÁ                                                
+[32m~~~~~~~~~~~[0m
+
+  Error occurs in the template of component 
+FinanceDashboardComponent.
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:37:17:
+[37m      37 Ôöé     templateUrl: 
+[32m'./finance-dashboard.component.html'[37m,
+         ÔòÁ                  
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'currentYear' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.html:192:45:
+[37m      192 Ôöé                         Sant├® Financi├¿re 
+({[32m{ currentYe[37mar }})
+          ÔòÁ                                            
+[32m~~~~~~~~~~~[0m
+
+  Error occurs in the template of component 
+FinanceDashboardComponent.
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:37:17:
+[37m      37 Ôöé     templateUrl: 
+[32m'./finance-dashboard.component.html'[37m,
+         ÔòÁ                  
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'currentCentre' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:107:32:
+[37m      107 Ôöé             const center = 
+this.[32mcurrentCentre[37m();
+          ÔòÁ                                 
+[32m~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'editingThreshold' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:120:13:
+[37m      120 Ôöé         this.[32meditingThreshold[37m = 
+!this.editingThreshold;
+          ÔòÁ              [32m~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'editingThreshold' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:120:38:
+[37m      120 Ôöé         this.editingThreshold = 
+!this.[32meditingThreshold[37m;
+          ÔòÁ                                       
+[32m~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'newThreshold' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:121:13:
+[37m      121 Ôöé         this.[32mnewThreshold[37m = 
+this.monthlyThreshold;
+          ÔòÁ              [32m~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'newThreshold' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:125:54:
+[37m      125 Ôöé ...inanceService.updateTreasuryConfig(this.[32m
+newThreshold[37m).subscribe({
+          ÔòÁ                                            
+[32m~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'newThreshold' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:127:45:
+[37m      127 Ôöé                 this.monthlyThreshold = 
+this.[32mnewThreshold[37m;
+          ÔòÁ                                              
+[32m~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'editingThreshold' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:128:21:
+[37m      128 Ôöé                 this.[32meditingThreshold[37m 
+= false;
+          ÔòÁ                      [32m~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'currentCentre' does not exist on type 
+'FinanceDashboardComponent'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/finance/pages/finance-dashboard/finance-dashbo
+ard.component.ts:146:30:
+[37m      146 Ôöé         const centreId = 
+this.[32mcurrentCentre[37m()?.id;
+          ÔòÁ                               [32m~~~~~~~~~~~~~[0m
+
+[39m[22m

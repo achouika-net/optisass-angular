@@ -325,18 +325,23 @@ export class ClientDetailComponent implements OnInit {
     return `OD: ${formatEye(od)}\nOG: ${formatEye(og)}`;
   }
 
+  getProductsSummary(fiche: any): string {
+    if (fiche.type !== TypeFiche.PRODUIT || !fiche.produits) return '-';
+    return fiche.produits.map((p: any) => `${p.designation} (${p.quantite})`).join('\n');
+  }
+
   createFicheProduit(): void {
     this.router.navigate(['/p/clients', this.clientId, 'fiche-produit', 'new']);
   }
 
   viewFiche(fiche: FicheClient): void {
-    const routePath = `fiche-${fiche.type.toLowerCase()}`;
-    this.router.navigate(['/p/clients', this.clientId, routePath, fiche.id]);
+    const typeLabel = fiche.type === TypeFiche.PRODUIT ? 'fiche-produit' : `fiche-${fiche.type.toLowerCase()}`;
+    this.router.navigate(['/p/clients', this.clientId, typeLabel, fiche.id]);
   }
 
   editClientFiche(fiche: FicheClient): void {
-    const routePath = `fiche-${fiche.type.toLowerCase()}`;
-    this.router.navigate(['/p/clients', this.clientId, routePath, fiche.id]);
+    const typeLabel = fiche.type === TypeFiche.PRODUIT ? 'fiche-produit' : `fiche-${fiche.type.toLowerCase()}`;
+    this.router.navigate(['/p/clients', this.clientId, typeLabel, fiche.id]);
   }
 
   getFicheDescription(fiche: FicheClient): string {

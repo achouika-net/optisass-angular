@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, ViewChild, ElementRef, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ViewChild, ElementRef, OnDestroy, ChangeDetectorRef, NgZone, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -7,6 +7,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatInputModule } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
 import { Chart, registerables, ChartConfiguration } from 'chart.js';
 import { forkJoin, of } from 'rxjs';
@@ -30,6 +34,10 @@ Chart.register(...registerables);
         MatProgressBarModule,
         MatSelectModule,
         MatFormFieldModule,
+        MatChipsModule,
+        MatDatepickerModule,
+        MatNativeDateModule,
+        MatInputModule,
         FormsModule
     ],
     templateUrl: './dashboard.component.html',
@@ -46,28 +54,21 @@ export class MainDashboardComponent implements OnInit, AfterViewInit, OnDestroy 
     topClients: any[] = [];
 
     // Filter properties
-    selectedDay: number | null = new Date().getDate();
-    selectedMonth: number = new Date().getMonth();
+    filterType: 'DAILY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM' | 'ALL' = 'MONTHLY';
+
+    selectedDate: Date = new Date();
+    selectedMonth: number = new Date().getMonth() + 1;
     selectedYear: number = new Date().getFullYear();
+    customStartDate: Date | null = null;
+    customEndDate: Date | null = null;
 
-    days: (number | null)[] = [];
-
-    months = [
-        { value: 0, label: 'Janvier' },
-        { value: 1, label: 'Février' },
-        { value: 2, label: 'Mars' },
-        { value: 3, label: 'Avril' },
-        { value: 4, label: 'Mai' },
-        { value: 5, label: 'Juin' },
-        { value: 6, label: 'Juillet' },
-        { value: 7, label: 'Août' },
-        { value: 8, label: 'Septembre' },
-        { value: 9, label: 'Octobre' },
-        { value: 10, label: 'Novembre' },
-        { value: 11, label: 'Décembre' }
+    availableMonths = [
+        { value: 1, label: 'Janvier' }, { value: 2, label: 'Février' }, { value: 3, label: 'Mars' },
+        { value: 4, label: 'Avril' }, { value: 5, label: 'Mai' }, { value: 6, label: 'Juin' },
+        { value: 7, label: 'Juillet' }, { value: 8, label: 'Août' }, { value: 9, label: 'Septembre' },
+        { value: 10, label: 'Octobre' }, { value: 11, label: 'Novembre' }, { value: 12, label: 'Décembre' }
     ];
-
-    years: number[] = [];
+    availableYears: number[] = [];
 
     private charts: Chart[] = [];
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
@@ -78,60 +79,87 @@ export class MainDashboardComponent implements OnInit, AfterViewInit, OnDestroy 
         private store: Store,
         private cdr: ChangeDetectorRef,
         private zone: NgZone
-    ) { }
+    ) {
+        effect(() => {
+            const center = this.currentCentre();
+            if (center) {
+                // Wrap in setTimeout to avoid ExpressionChangedAfterItHasBeenCheckedError if called during initial change detection
+                setTimeout(() => this.loadAllData());
+            }
+        });
+    }
 
     ngOnInit(): void {
         this.initFilterOptions();
-        this.updateDaysArray();
-        this.loadAllData();
+        // effect will trigger loadAllData() usually, we can keep this for safety but remove multiple calls 
+    }
+
+    ngAfterViewInit(): void {
+        // Charts are initialized in loadAllData via setTimeout to ensure ViewChild references are available
     }
 
     private initFilterOptions(): void {
         const currentYear = new Date().getFullYear();
-        for (let i = 0; i < 4; i++) {
-            this.years.push(currentYear - i);
+        for (let i = 0; i < 5; i++) {
+            this.availableYears.push(currentYear - i);
         }
     }
 
-    updateDaysArray(): void {
-        const daysInMonth = new Date(this.selectedYear, this.selectedMonth + 1, 0).getDate();
-        this.days = [null]; // null represents "Whole Month"
-        for (let i = 1; i <= daysInMonth; i++) {
-            this.days.push(i);
-        }
-
-        // Adjust selectedDay if it's out of bounds for the new month
-        if (this.selectedDay && this.selectedDay > daysInMonth) {
-            this.selectedDay = daysInMonth;
-        }
+    setFilterType(type: 'DAILY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM' | 'ALL'): void {
+        this.filterType = type;
+        this.loadAllData();
     }
 
-    ngAfterViewInit(): void {
-        // Charts will be initialized after data load
+    onFilterChange(): void {
+        this.loadAllData();
+    }
+
+    private getDateRange(): { start?: string, end?: string } {
+        let start: Date | undefined;
+        let end: Date | undefined;
+
+        switch (this.filterType) {
+            case 'DAILY':
+                start = new Date(this.selectedDate); start.setHours(0, 0, 0, 0);
+                end = new Date(this.selectedDate); end.setHours(23, 59, 59, 999);
+                break;
+            case 'MONTHLY':
+                start = new Date(this.selectedYear, this.selectedMonth - 1, 1, 0, 0, 0, 0);
+                end = new Date(this.selectedYear, this.selectedMonth, 0, 23, 59, 59, 999);
+                break;
+            case 'YEARLY':
+                start = new Date(this.selectedYear, 0, 1, 0, 0, 0, 0);
+                end = new Date(this.selectedYear, 12, 0, 23, 59, 59, 999);
+                break;
+            case 'CUSTOM':
+                if (this.customStartDate) {
+                    start = new Date(this.customStartDate); start.setHours(0, 0, 0, 0);
+                }
+                if (this.customEndDate) {
+                    end = new Date(this.customEndDate); end.setHours(23, 59, 59, 999);
+                }
+                break;
+            case 'ALL':
+            default:
+                return {};
+        }
+
+        return {
+            start: start?.toISOString(),
+            end: end?.toISOString()
+        };
     }
 
     loadAllData(): void {
         this.loading = true;
-
-        let startDate: string;
-        let endDate: string;
-
-        if (this.selectedDay) {
-            // Specific day
-            startDate = new Date(this.selectedYear, this.selectedMonth, this.selectedDay, 0, 0, 0).toISOString();
-            endDate = new Date(this.selectedYear, this.selectedMonth, this.selectedDay, 23, 59, 59).toISOString();
-        } else {
-            // Whole month
-            startDate = new Date(this.selectedYear, this.selectedMonth, 1).toISOString();
-            endDate = new Date(this.selectedYear, this.selectedMonth + 1, 0, 23, 59, 59).toISOString();
-        }
+        const dates = this.getDateRange();
 
         forkJoin({
-            summary: this.statsService.getSummary(startDate, endDate).pipe(catchError(() => of(null))),
-            revenue: this.statsService.getRevenueEvolution('daily', startDate, endDate).pipe(catchError(() => of([]))),
+            summary: this.statsService.getSummary(dates.start, dates.end).pipe(catchError(() => of(null))),
+            revenue: this.statsService.getRevenueEvolution('daily', dates.start, dates.end).pipe(catchError(() => of([]))),
             products: this.statsService.getProductDistribution().pipe(catchError(() => of([]))), // Stock distribution is global
-            payments: this.statsService.getPaymentMethods(startDate, endDate).pipe(catchError(() => of([]))),
-            clients: this.statsService.getTopClients(5, startDate, endDate).pipe(catchError(() => of([])))
+            payments: this.statsService.getPaymentMethods(dates.start, dates.end).pipe(catchError(() => of([]))),
+            clients: this.statsService.getTopClients(5, dates.start, dates.end).pipe(catchError(() => of([])))
         }).subscribe({
             next: (data) => {
                 this.zone.run(() => {
@@ -139,6 +167,7 @@ export class MainDashboardComponent implements OnInit, AfterViewInit, OnDestroy 
                     this.revenueData = data.revenue;
                     this.topClients = data.clients;
                     this.loading = false;
+                    this.cdr.markForCheck();
                     this.cdr.detectChanges();
 
                     setTimeout(() => {
@@ -309,10 +338,4 @@ export class MainDashboardComponent implements OnInit, AfterViewInit, OnDestroy 
         this.destroyCharts();
     }
 
-    onFilterChange(type: 'day' | 'month' | 'year'): void {
-        if (type === 'month' || type === 'year') {
-            this.updateDaysArray();
-        }
-        this.loadAllData();
-    }
 }

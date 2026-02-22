@@ -68,7 +68,9 @@ export class ProductListComponent implements OnInit {
     };
 
     stats: StockStats = {
+        totalArticles: 0,
         totalProduits: 0,
+        totalUnites: 0,
         valeurStockTotal: 0,
         caNonConsolide: 0,
         produitsStockBas: 0,

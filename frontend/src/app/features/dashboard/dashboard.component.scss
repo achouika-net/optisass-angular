@@ -48,47 +48,93 @@
         align-items: center;
         gap: 16px;
 
-        .filter-controls {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-
-            .filter-field {
-                width: 140px;
-
-                &.small {
-                    width: 100px;
-                }
-
-                ::v-deep .mat-mdc-form-field-wrapper {
-                    padding-bottom: 0;
-                }
-
-                ::v-deep .mat-mdc-text-field-wrapper {
-                    height: 48px;
-                    background: white;
-                    border-radius: 12px;
-                }
-
-                ::v-deep .mat-mdc-form-field-flex {
-                    height: 48px;
-                    align-items: center;
-                }
-
-                ::v-deep .mat-mdc-form-field-infix {
-                    padding-top: 8px;
-                    padding-bottom: 8px;
-                }
-            }
-        }
-
         button {
             border-radius: 12px;
             padding: 0 24px;
             height: 48px;
             font-weight: 600;
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+
+            mat-icon.rotating {
+                animation: spin 1s linear infinite;
+            }
         }
+    }
+}
+
+/* Unified Filter Toolbar */
+.filter-toolbar {
+    background: white;
+    padding: 1rem 1.5rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    margin-bottom: 32px;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+
+    .period-chips {
+        display: flex;
+        gap: 0.75rem;
+        overflow-x: auto;
+        padding-bottom: 4px;
+
+        .chip-btn {
+            border-radius: 9999px;
+            font-weight: 600;
+            text-transform: none;
+            padding: 0 16px !important;
+            height: 36px;
+            color: #64748b;
+            background: #f1f5f9;
+            transition: all 0.2s ease;
+
+            &:hover {
+                background: #e2e8f0;
+            }
+
+            &.active {
+                background: #3b82f6;
+                color: white;
+                box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+            }
+        }
+    }
+
+    .filter-controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+
+        .density-compact {
+            width: 180px;
+
+            ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+                display: none;
+            }
+
+            &.month-field {
+                width: 160px;
+            }
+
+            &.year-field {
+                width: 120px;
+            }
+        }
+    }
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
     }
 }
 

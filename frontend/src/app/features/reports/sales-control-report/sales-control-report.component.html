@@ -69,6 +69,16 @@
                     </div>
                     <mat-icon style="color: #22c55e; font-size: 28px;">payments</mat-icon>
                 </div>
+                <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #dcfce7; font-size: 0.8rem; color: #166534;"
+                    *ngIf="metrics.paymentBreakdown.length > 0">
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+                        <div *ngFor="let p of metrics.paymentBreakdown"
+                            style="background: #ffffff; padding: 2px 8px; border-radius: 4px; border: 1px solid #dcfce7;">
+                            <span style="color: #64748b;">{{ getPaymentLabel(p.methode) }}:</span>
+                            <span style="font-weight: 700; margin-left: 4px;">{{ p.total | number:'1.2-2' }}</span>
+                        </div>
+                    </div>
+                </div>
             </mat-card-content>
         </mat-card>
 
@@ -111,8 +121,8 @@
                 <!-- Daily -->
                 <mat-form-field appearance="outline" class="density-compact" *ngSwitchCase="'DAILY'">
                     <mat-label>Date</mat-label>
-                    <input matInput [matDatepicker]="dPicker" [(ngModel)]="selectedDate"
-                        (dateChange)="onFilterChange()">
+                    <input matInput [matDatepicker]="dPicker" [(ngModel)]="selectedDate" (dateChange)="onFilterChange()"
+                        title="Choisir une date">
                     <mat-datepicker-toggle matSuffix [for]="dPicker"></mat-datepicker-toggle>
                     <mat-datepicker #dPicker></mat-datepicker>
                 </mat-form-field>
@@ -121,13 +131,15 @@
                 <ng-container *ngSwitchCase="'MONTHLY'">
                     <mat-form-field appearance="outline" class="density-compact">
                         <mat-label>Mois</mat-label>
-                        <mat-select [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()">
+                        <mat-select [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()"
+                            title="Sélectionner le mois">
                             <mat-option *ngFor="let m of availableMonths" [value]="m.value">{{ m.label }}</mat-option>
                         </mat-select>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="density-compact">
                         <mat-label>Année</mat-label>
-                        <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()">
+                        <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
+                            title="Sélectionner l'année">
                             <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
                         </mat-select>
                     </mat-form-field>
@@ -136,7 +148,8 @@
                 <!-- Yearly -->
                 <mat-form-field appearance="outline" class="density-compact" *ngSwitchCase="'YEARLY'">
                     <mat-label>Année</mat-label>
-                    <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()">
+                    <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
+                        title="Sélectionner l'année">
                         <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
                     </mat-select>
                 </mat-form-field>
@@ -146,14 +159,14 @@
                     <mat-form-field appearance="outline" class="density-compact">
                         <mat-label>Du</mat-label>
                         <input matInput [matDatepicker]="sPicker" [(ngModel)]="customStartDate"
-                            (dateChange)="onFilterChange()">
+                            (dateChange)="onFilterChange()" title="Date de début">
                         <mat-datepicker-toggle matSuffix [for]="sPicker"></mat-datepicker-toggle>
                         <mat-datepicker #sPicker></mat-datepicker>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="density-compact">
                         <mat-label>Au</mat-label>
                         <input matInput [matDatepicker]="ePicker" [(ngModel)]="customEndDate"
-                            (dateChange)="onFilterChange()">
+                            (dateChange)="onFilterChange()" title="Date de fin">
                         <mat-datepicker-toggle matSuffix [for]="ePicker"></mat-datepicker-toggle>
                         <mat-datepicker #ePicker></mat-datepicker>
                     </mat-form-field>
@@ -163,7 +176,8 @@
             <!-- Search -->
             <mat-form-field appearance="outline" class="density-compact search-field">
                 <mat-label>Filtrer par Client / N°</mat-label>
-                <input matInput [(ngModel)]="clientSearch" placeholder="Rechercher...">
+                <input matInput [(ngModel)]="clientSearch" placeholder="Rechercher..."
+                    title="Recherche par client ou numéro">
                 <mat-icon matPrefix>search</mat-icon>
             </mat-form-field>
 

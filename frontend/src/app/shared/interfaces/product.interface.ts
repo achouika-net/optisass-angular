@@ -415,7 +415,9 @@ export interface ProductFilters {
  * Stock Statistics
  */
 export interface StockStats {
-    totalProduits: number;
+    totalArticles: number; // Count of unique product references
+    totalProduits: number; // Count of unique references with quantiteActuelle > 0
+    totalUnites: number;   // Sum of all quantiteActuelle values
     valeurStockTotal: number;
     caNonConsolide: number;
     produitsStockBas: number;

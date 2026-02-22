@@ -10,30 +10,78 @@
         </button>
     </div>
 
-    <!-- Filters -->
-    <div class="filters-section">
-        <mat-form-field appearance="outline">
-            <mat-label>Période</mat-label>
-            <mat-select [(ngModel)]="selectedPeriod" (selectionChange)="onPeriodChange()">
-                <mat-option value="daily">Journalier</mat-option>
-                <mat-option value="monthly">Mensuel</mat-option>
-                <mat-option value="yearly">Annuel</mat-option>
-            </mat-select>
-        </mat-form-field>
+    <!-- Unified Filter Toolbar -->
+    <div class="filter-toolbar glass mt-4 mb-6">
+        <div class="period-chips">
+            <button mat-button class="chip-btn" [class.active]="filterType === 'ALL'"
+                (click)="setFilterType('ALL')">Toute la période</button>
+            <button mat-button class="chip-btn" [class.active]="filterType === 'DAILY'"
+                (click)="setFilterType('DAILY')">Aujourd'hui</button>
+            <button mat-button class="chip-btn" [class.active]="filterType === 'MONTHLY'"
+                (click)="setFilterType('MONTHLY')">Par Mois</button>
+            <button mat-button class="chip-btn" [class.active]="filterType === 'YEARLY'"
+                (click)="setFilterType('YEARLY')">Annuel</button>
+            <button mat-button class="chip-btn" [class.active]="filterType === 'CUSTOM'"
+                (click)="setFilterType('CUSTOM')">Personnalisé</button>
+        </div>
 
-        <mat-form-field appearance="outline">
-            <mat-label>Date Début</mat-label>
-            <input matInput [matDatepicker]="startPicker" [(ngModel)]="startDate" (dateChange)="onDateRangeChange()">
-            <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
-            <mat-datepicker #startPicker></mat-datepicker>
-        </mat-form-field>
+        <div class="filter-controls">
+            <ng-container [ngSwitch]="filterType">
+                <!-- Daily -->
+                <mat-form-field appearance="outline" class="density-compact" *ngSwitchCase="'DAILY'">
+                    <mat-label>Date</mat-label>
+                    <input matInput [matDatepicker]="dPicker" [(ngModel)]="selectedDate" (dateChange)="onFilterChange()"
+                        title="Choisir une date" placeholder="JJ/MM/AAAA">
+                    <mat-datepicker-toggle matSuffix [for]="dPicker"></mat-datepicker-toggle>
+                    <mat-datepicker #dPicker></mat-datepicker>
+                </mat-form-field>
 
-        <mat-form-field appearance="outline">
-            <mat-label>Date Fin</mat-label>
-            <input matInput [matDatepicker]="endPicker" [(ngModel)]="endDate" (dateChange)="onDateRangeChange()">
-            <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
-            <mat-datepicker #endPicker></mat-datepicker>
-        </mat-form-field>
+                <!-- Monthly -->
+                <ng-container *ngSwitchCase="'MONTHLY'">
+                    <mat-form-field appearance="outline" class="density-compact month-field">
+                        <mat-label>Mois</mat-label>
+                        <mat-select [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()"
+                            title="Sélectionner le mois">
+                            <mat-option *ngFor="let m of availableMonths" [value]="m.value">{{ m.label }}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="density-compact year-field">
+                        <mat-label>Année</mat-label>
+                        <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
+                            title="Sélectionner l'année">
+                            <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                </ng-container>
+
+                <!-- Yearly -->
+                <mat-form-field appearance="outline" class="density-compact year-field" *ngSwitchCase="'YEARLY'">
+                    <mat-label>Année</mat-label>
+                    <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
+                        title="Sélectionner l'année">
+                        <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
+                    </mat-select>
+                </mat-form-field>
+
+                <!-- Custom -->
+                <ng-container *ngSwitchCase="'CUSTOM'">
+                    <mat-form-field appearance="outline" class="density-compact">
+                        <mat-label>Du</mat-label>
+                        <input matInput [matDatepicker]="sPicker" [(ngModel)]="customStartDate"
+                            (dateChange)="onFilterChange()" title="Date de début" placeholder="JJ/MM/AAAA">
+                        <mat-datepicker-toggle matSuffix [for]="sPicker"></mat-datepicker-toggle>
+                        <mat-datepicker #sPicker></mat-datepicker>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="density-compact">
+                        <mat-label>Au</mat-label>
+                        <input matInput [matDatepicker]="ePicker" [(ngModel)]="customEndDate"
+                            (dateChange)="onFilterChange()" title="Date de fin" placeholder="JJ/MM/AAAA">
+                        <mat-datepicker-toggle matSuffix [for]="ePicker"></mat-datepicker-toggle>
+                        <mat-datepicker #ePicker></mat-datepicker>
+                    </mat-form-field>
+                </ng-container>
+            </ng-container>
+        </div>
     </div>
 
     <!-- Loading Spinner -->
@@ -88,6 +136,18 @@
                 <div class="stat-info">
                     <p class="stat-label">Taux de Conversion</p>
                     <h2 class="stat-value">{{ summary.conversionRate | number:'1.1-1' }}%</h2>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="stat-card red">
+            <mat-card-content>
+                <div class="stat-icon">
+                    <mat-icon>payments</mat-icon>
+                </div>
+                <div class="stat-info">
+                    <p class="stat-label">Total Dépenses</p>
+                    <h2 class="stat-value">{{ summary.totalExpenses | number:'1.2-2' }} DH</h2>
                 </div>
             </mat-card-content>
         </mat-card>

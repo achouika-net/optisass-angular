@@ -4,21 +4,22 @@ import { FacturesService } from '../factures/factures.service';
 
 @Injectable()
 export class SalesControlService {
-
     constructor(
         private prisma: PrismaService,
         private facturesService: FacturesService
     ) { }
 
-    // Tab 1: Bons de Commande (BCs, Documents with Payments, or Instance status)
-    async getBrouillonWithPayments(userId?: string, centreId?: string, startDate?: string, endDate?: string) {
+    // Tab 1: Bons de Commande = "Ventes sans facture" (type BON_COMMANDE)
+    async getBrouillonWithPayments(userId?: string, centreId?: string, startDate?: string, endDate?: string, take?: number) {
         if (!centreId) return [];
         const start = startDate ? new Date(startDate) : undefined;
         const end = endDate ? new Date(endDate) : undefined;
 
-        const results = await this.prisma.facture.findMany({
+        // Only BON_COMMANDE records (= ventes sans facture)
+        return this.prisma.facture.findMany({
             where: {
                 centreId,
+                type: { in: ['BON_COMMANDE', 'BON_COMM'] },
                 statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
                 ...(start || end ? { dateEmission: { gte: start, lte: end } } : {})
             },
@@ -27,26 +28,13 @@ export class SalesControlService {
                 paiements: true,
                 fiche: true
             },
-            orderBy: { dateEmission: 'desc' }
-        });
-
-        return results.filter(f => {
-            if (f.statut === 'ANNULEE' || f.type === 'AVOIR') return false;
-            // Valide Factures are handled in Tab 3
-            if ((f.numero || '').startsWith('FAC') || f.type === 'FACTURE') {
-                if (f.statut !== 'VENTE_EN_INSTANCE') return false;
-            }
-
-            if (f.statut === 'VENTE_EN_INSTANCE') return true;
-            const isBC = f.type === 'BON_COMMANDE' || f.type === 'BON_COMM' || (f.numero || '').startsWith('BC');
-            if (isBC) return true;
-            const hasPayments = f.paiements && f.paiements.length > 0;
-            return hasPayments;
+            orderBy: { dateEmission: 'desc' },
+            take
         });
     }
 
     // Tab 2: Devis
-    async getBrouillonWithoutPayments(userId?: string, centreId?: string, startDate?: string, endDate?: string) {
+    async getBrouillonWithoutPayments(userId?: string, centreId?: string, startDate?: string, endDate?: string, take?: number) {
         if (!centreId) return [];
         const start = startDate ? new Date(startDate) : undefined;
         const end = endDate ? new Date(endDate) : undefined;
@@ -62,7 +50,8 @@ export class SalesControlService {
                 client: { select: { nom: true, prenom: true, raisonSociale: true } },
                 fiche: true
             },
-            orderBy: { dateEmission: 'desc' }
+            orderBy: { dateEmission: 'desc' },
+            take
         });
 
         return results.filter(f => {
@@ -73,8 +62,10 @@ export class SalesControlService {
         });
     }
 
-    // Tab 3: Valid Invoices (Official FAC- Documents)
-    async getValidInvoices(userId?: string, centreId?: string, startDate?: string, endDate?: string) {
+    // Tab 3: Factures = "Ventes avec facture"
+    // During import, these were stored as type=DEVIS (vente avec facture) or type=FACTURE
+    // They are identified by: type FACTURE, numero starting with FAC, OR type DEVIS
+    async getValidInvoices(userId?: string, centreId?: string, startDate?: string, endDate?: string, take?: number) {
         if (!centreId) return [];
         const start = startDate ? new Date(startDate) : undefined;
         const end = endDate ? new Date(endDate) : undefined;
@@ -82,9 +73,14 @@ export class SalesControlService {
         return this.prisma.facture.findMany({
             where: {
                 centreId,
-                OR: [{ numero: { startsWith: 'FAC' } }, { type: 'FACTURE' }],
-                statut: { notIn: ['VENTE_EN_INSTANCE', 'ANNULEE', 'ARCHIVE'] },
                 type: { not: 'AVOIR' },
+                statut: { notIn: ['VENTE_EN_INSTANCE', 'ANNULEE', 'ARCHIVE'] },
+                // "Vente avec facture" stored as DEVIS, OR classic FAC/FACTURE documents
+                OR: [
+                    { numero: { startsWith: 'FAC' } },
+                    { type: 'FACTURE' },
+                    { type: 'DEVIS' }  // imported "vente avec facture" stored as DEVIS
+                ],
                 ...(start || end ? { dateEmission: { gte: start, lte: end } } : {})
             },
             include: {
@@ -93,12 +89,13 @@ export class SalesControlService {
                 fiche: true,
                 children: { select: { id: true, numero: true, type: true, statut: true } }
             },
-            orderBy: { numero: 'desc' }
+            orderBy: { dateEmission: 'desc' },
+            take
         });
     }
 
-    // Tab 4: AVOIRS 
-    async getAvoirs(userId?: string, centreId?: string, startDate?: string, endDate?: string) {
+    // Tab 4: AVOIRS
+    async getAvoirs(userId?: string, centreId?: string, startDate?: string, endDate?: string, take?: number) {
         if (!centreId) return [];
         const start = startDate ? new Date(startDate) : undefined;
         const end = endDate ? new Date(endDate) : undefined;
@@ -115,7 +112,8 @@ export class SalesControlService {
                 fiche: true,
                 parentFacture: { select: { id: true, numero: true } }
             },
-            orderBy: { numero: 'desc' }
+            orderBy: { numero: 'desc' },
+            take
         });
     }
 
@@ -152,40 +150,133 @@ export class SalesControlService {
         });
     }
 
-    // Consolidated dashboard data
+    // Consolidated dashboard data - Optimized for high performance
     async getDashboardData(userId?: string, centreId?: string, startDate?: string, endDate?: string) {
-        if (!centreId) return { withPayments: [], withoutPayments: [], valid: [], avoirs: [], stats: [] };
+        if (!centreId) {
+            return { withPayments: [], withoutPayments: [], valid: [], avoirs: [], stats: [], payments: [] };
+        }
 
-        const [withPayments, withoutPayments, valid, avoirs] = await Promise.all([
+        const start = startDate ? new Date(startDate) : undefined;
+        const end = endDate ? new Date(endDate) : undefined;
+
+        // 1. Fetch metrics and initial tab data in parallel
+        const dateFilter = (start || end) ? { dateEmission: { gte: start, lte: end } } : {};
+        const paymentDateFilter = (start || end) ? { date: { gte: start, lte: end } } : {};
+
+        const [
+            factureMetrics,
+            bcMetrics,
+            avoirMetrics,
+            totalResteMetrics,
+            withPayments,
+            withoutPayments,
+            valid,
+            avoirs,
+            paymentAgg
+        ] = await Promise.all([
+            // Factures Metrics — "Vente avec facture" = DEVIS type + classic FACTURE/FAC documents
+            this.prisma.facture.aggregate({
+                _sum: { totalTTC: true },
+                _count: true,
+                where: {
+                    centreId,
+                    type: { not: 'AVOIR' },
+                    statut: { notIn: ['VENTE_EN_INSTANCE', 'ANNULEE', 'ARCHIVE'] },
+                    OR: [
+                        { numero: { startsWith: 'FAC' } },
+                        { type: 'FACTURE' },
+                        { type: 'DEVIS' }  // "vente avec facture" imported as DEVIS
+                    ],
+                    ...dateFilter
+                }
+            }),
+            // BC Metrics (Aligning with Tab 1 logic - Bons de Commande & Instances)
+            this.prisma.facture.aggregate({
+                _sum: { totalTTC: true },
+                _count: true,
+                where: {
+                    centreId,
+                    statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
+                    OR: [
+                        { statut: 'VENTE_EN_INSTANCE' },
+                        { type: 'BON_COMMANDE' },
+                        { type: 'BON_COMM' },
+                        { numero: { startsWith: 'BC' } }
+                    ],
+                    ...dateFilter
+                }
+            }),
+            // Avoirs Metrics
+            this.prisma.facture.aggregate({
+                _sum: { totalTTC: true },
+                _count: true,
+                where: {
+                    centreId,
+                    type: 'AVOIR',
+                    statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
+                    ...dateFilter
+                }
+            }),
+            // Reste à Recouvrer (Period-based balance for center)
+            this.prisma.facture.aggregate({
+                _sum: { resteAPayer: true },
+                where: {
+                    centreId,
+                    statut: { not: 'ANNULEE' },
+                    ...dateFilter
+                }
+            }),
+            // Limited lists for the tabs
             this.getBrouillonWithPayments(userId, centreId, startDate, endDate),
             this.getBrouillonWithoutPayments(userId, centreId, startDate, endDate),
             this.getValidInvoices(userId, centreId, startDate, endDate),
-            this.getAvoirs(userId, centreId, startDate, endDate)
+            this.getAvoirs(userId, centreId, startDate, endDate),
+            // Payments Breakdown (Period-based) - Fetch and group in memory to avoid Prisma relation groupBy bugs
+            this.prisma.paiement.findMany({
+                where: {
+                    ...paymentDateFilter,
+                    facture: { centreId }
+                },
+                select: { mode: true, montant: true }
+            })
         ]);
 
-        // Detailed Totals for Breakdown
-        const totalFactures = valid.reduce((sum, f) => sum + (f.totalTTC || 0), 0);
-        const totalAvoirs = avoirs.reduce((sum, f) => sum + (f.totalTTC || 0), 0);
-        const totalBC = withPayments.reduce((sum, f) => sum + (f.totalTTC || 0), 0);
+        const totalFactures = factureMetrics._sum.totalTTC || 0;
+        const totalAvoirs = avoirMetrics._sum.totalTTC || 0;
+        const totalBC = bcMetrics._sum.totalTTC || 0;
 
-        // Final CA: Invoices - Avoirs
-        const totalAmount = totalFactures - totalAvoirs;
+        // CA Global = Factures + BC - Avoirs (to match user expectation of "Chiffre d'Affaires Global")
+        const totalAmount = totalFactures + totalBC - totalAvoirs;
+        const totalReste = totalResteMetrics._sum.resteAPayer || 0;
+
+        const paymentMap = new Map<string, number>();
+        for (const p of (paymentAgg as { mode: string, montant: number }[])) {
+            const m = p.mode || 'AUTRE';
+            paymentMap.set(m, (paymentMap.get(m) || 0) + p.montant);
+        }
+
+        const payments = Array.from(paymentMap.entries()).map(([methode, total]) => ({
+            methode,
+            total
+        }));
+        const totalEncaissePeriod = payments.reduce((sum, p) => sum + p.total, 0);
 
         const stats = [{
             vendorId: 'all',
             vendorName: 'Tous les vendeurs',
-            countWithPayment: withPayments.length,
-            countWithoutPayment: withoutPayments.length,
-            countValid: valid.length,
-            countAvoir: avoirs.length,
-            countCancelled: 0,
+            countValid: factureMetrics._count,
+            countWithPayment: bcMetrics._count,
+            countAvoir: avoirMetrics._count,
             totalAmount,
             totalFactures,
             totalAvoirs,
-            totalBC
+            totalBC,
+            totalEncaissePeriod,
+            totalReste,
+            payments
         }];
 
-        return { withPayments, withoutPayments, valid, avoirs, stats };
+        return { withPayments, withoutPayments, valid, avoirs, stats, payments };
     }
 
     async declareAsGift(id: string) {
@@ -195,11 +286,15 @@ export class SalesControlService {
         return this.prisma.facture.update({
             where: { id },
             data: {
-                totalHT: 0, totalTVA: 0, totalTTC: 0, resteAPayer: 0,
+                totalHT: 0,
+                totalTVA: 0,
+                totalTTC: 0,
+                resteAPayer: 0,
                 statut: 'VALIDE',
                 proprietes: {
-                    ...facture.proprietes as any,
-                    typeVente: 'DON', raison: 'Déclaré comme don/offert'
+                    ...(facture.proprietes as any),
+                    typeVente: 'DON',
+                    raison: 'Déclaré comme don/offert'
                 }
             }
         });

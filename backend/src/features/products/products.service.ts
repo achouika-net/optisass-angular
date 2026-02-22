@@ -720,7 +720,9 @@ export class ProductsService {
     async getStockStats(centreId?: string) {
         if (!centreId) {
             return {
+                totalArticles: 0,
                 totalProduits: 0,
+                totalUnites: 0,
                 valeurStockTotal: 0,
                 caNonConsolide: 0,
                 produitsStockBas: 0,
@@ -736,7 +738,9 @@ export class ProductsService {
         });
 
         const stats = {
+            totalArticles: 0,
             totalProduits: 0,
+            totalUnites: 0,
             valeurStockTotal: 0,
             caNonConsolide: 0,
             produitsStockBas: 0,
@@ -759,9 +763,19 @@ export class ProductsService {
             if (isDefective) {
                 stats.caNonConsolide += (p.quantiteActuelle * (p.prixAchatHT || 0));
             } else {
-                // Main stats only for salable stock
-                stats.totalProduits += p.quantiteActuelle;
+                // Reference count (Total unique products imported)
+                stats.totalArticles++;
+
+                // Units count (Actual physical quantity)
+                stats.totalUnites += p.quantiteActuelle;
+
+                // Financial value
                 stats.valeurStockTotal += (p.quantiteActuelle * (p.prixAchatHT || 0));
+
+                // References currently in stock
+                if (p.quantiteActuelle > 0) {
+                    stats.totalProduits++;
+                }
 
                 if (p.quantiteActuelle > 0 && p.quantiteActuelle <= p.seuilAlerte) {
                     stats.produitsStockBas++;
@@ -779,7 +793,7 @@ export class ProductsService {
                     stats.produitsEnTransit++;
                 }
 
-                // byType breakdown
+                // byType breakdown (using physical units)
                 const type = p.typeArticle;
                 if (type === 'MONTURE_OPTIQUE' || type === 'MONTURE_SOLAIRE' || type === 'monture') {
                     stats.byType.montures += p.quantiteActuelle;

@@ -15,6 +15,10 @@ import { Store } from '@ngrx/store';
 import { forkJoin } from 'rxjs';
 import { ChangeDetectorRef } from '@angular/core';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatInputModule } from '@angular/material/input';
 
 Chart.register(...registerables);
 
@@ -30,7 +34,11 @@ Chart.register(...registerables);
         MatSelectModule,
         MatFormFieldModule,
         MatProgressBarModule,
-        MatTooltipModule
+        MatTooltipModule,
+        MatChipsModule,
+        MatDatepickerModule,
+        MatNativeDateModule,
+        MatInputModule
     ],
     templateUrl: './finance-dashboard.component.html',
     styles: [`
@@ -50,6 +58,76 @@ Chart.register(...registerables);
     @media (max-width: 1200px) { .charts-grid { grid-template-columns: 1fr; } }
     .chart-card { border-radius: 20px; border: none; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05); overflow: hidden; height: 100%; }
     .chart-container { height: 350px; position: relative; }
+    
+    /* Unified Filter Toolbar */
+    .filter-toolbar {
+        background: white;
+        padding: 1rem 1.5rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+        margin-bottom: 32px;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+    }
+    .period-chips {
+        display: flex;
+        gap: 0.75rem;
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+    .period-chips .chip-btn {
+        border-radius: 9999px;
+        font-weight: 600;
+        text-transform: none;
+        padding: 0 16px !important;
+        height: 36px;
+        color: #64748b;
+        background: #f1f5f9;
+        transition: all 0.2s ease;
+    }
+    .period-chips .chip-btn:hover {
+        background: #e2e8f0;
+    }
+    .period-chips .chip-btn.active {
+        background: #3b82f6;
+        color: white;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+    }
+    .actions-section {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    .actions-section button {
+        border-radius: 12px;
+        padding: 0 24px;
+        height: 48px;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    }
+    .filter-controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .filter-controls .density-compact {
+        width: 180px;
+    }
+    ::ng-deep .filter-controls .density-compact .mat-mdc-form-field-subscript-wrapper {
+        display: none;
+    }
+    .filter-controls .density-compact.month-field {
+        width: 160px;
+    }
+    .filter-controls .density-compact.year-field {
+        width: 120px;
+    }
+
     ::ng-deep .dense-form-field .mat-mdc-form-field-wrapper { padding-bottom: 0 !important; }
     ::ng-deep .dense-form-field .mat-mdc-form-field-flex { height: 44px !important; }
     ::ng-deep .dense-form-field .mat-mdc-text-field-wrapper { height: 44px !important; padding: 0 16px !important; border-radius: 12px !important; }
@@ -89,30 +167,29 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
 
     summary: any = null;
     loading = false;
-    currentYear = new Date().getFullYear();
-    currentMonth = new Date().getMonth() + 1;
+    // Filter properties
+    filterType: 'DAILY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM' | 'ALL' = 'MONTHLY';
+    selectedDate: Date = new Date();
+    selectedMonth: number = new Date().getMonth() + 1;
+    selectedYear: number = new Date().getFullYear();
+    customStartDate: Date | null = null;
+    customEndDate: Date | null = null;
 
+    chartColors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4caf50', '#8bc34a', '#cddc39', '#ffeb3b', '#ffc107', '#ff9800', '#ff5722'];
+
+    availableMonths = [
+        { value: 1, label: 'Janvier' }, { value: 2, label: 'Février' }, { value: 3, label: 'Mars' },
+        { value: 4, label: 'Avril' }, { value: 5, label: 'Mai' }, { value: 6, label: 'Juin' },
+        { value: 7, label: 'Juillet' }, { value: 8, label: 'Août' }, { value: 9, label: 'Septembre' },
+        { value: 10, label: 'Octobre' }, { value: 11, label: 'Novembre' }, { value: 12, label: 'Décembre' }
+    ];
+    availableYears: number[] = [];
+
+    currentYear = new Date().getFullYear();
     monthlyThreshold = 50000;
     editingThreshold = false;
     newThreshold = 50000;
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
-    chartColors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'];
-
-    months = [
-        { value: 1, label: 'Janvier' },
-        { value: 2, label: 'Février' },
-        { value: 3, label: 'Mars' },
-        { value: 4, label: 'Avril' },
-        { value: 5, label: 'Mai' },
-        { value: 6, label: 'Juin' },
-        { value: 7, label: 'Juillet' },
-        { value: 8, label: 'Août' },
-        { value: 9, label: 'Septembre' },
-        { value: 10, label: 'Octobre' },
-        { value: 11, label: 'Novembre' },
-        { value: 12, label: 'Décembre' }
-    ];
-    years: number[] = [];
 
     constructor(
         private financeService: FinanceService,
@@ -120,27 +197,69 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         private zone: NgZone,
         private cd: ChangeDetectorRef
     ) {
-        // Build year list
-        const startYear = 2023;
-        const endYear = new Date().getFullYear() + 1;
-        for (let y = startYear; y <= endYear; y++) {
-            this.years.push(y);
-        }
-
-        // Reactivity to center and date changes
+        // Reactivity to center changes
         effect(() => {
             const center = this.currentCentre();
-            // Trigger load when center OR date changes (though date is not a signal, we can call it manually)
             if (center?.id) {
-                console.log(`[TREASURY-SYNC] Center detected: ${center.id}, triggering load...`);
-                this.loadData();
+                setTimeout(() => this.loadData());
             }
         });
     }
 
     ngOnInit(): void {
-        // Initial load handled by effect or manual call if needed
-        // Since currentCentre is a signal, the effect will run initially.
+        this.initFilterOptions();
+    }
+
+    private initFilterOptions(): void {
+        const currentYear = new Date().getFullYear();
+        for (let i = 0; i < 5; i++) {
+            this.availableYears.push(currentYear - i);
+        }
+    }
+
+    setFilterType(type: 'DAILY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM' | 'ALL'): void {
+        this.filterType = type;
+        this.loadData();
+    }
+
+    onFilterChange(): void {
+        this.loadData();
+    }
+
+    private getDateRange(): { start?: string, end?: string } {
+        let start: Date | undefined;
+        let end: Date | undefined;
+
+        switch (this.filterType) {
+            case 'DAILY':
+                start = new Date(this.selectedDate); start.setHours(0, 0, 0, 0);
+                end = new Date(this.selectedDate); end.setHours(23, 59, 59, 999);
+                break;
+            case 'MONTHLY':
+                start = new Date(this.selectedYear, this.selectedMonth - 1, 1, 0, 0, 0, 0);
+                end = new Date(this.selectedYear, this.selectedMonth, 0, 23, 59, 59, 999);
+                break;
+            case 'YEARLY':
+                start = new Date(this.selectedYear, 0, 1, 0, 0, 0, 0);
+                end = new Date(this.selectedYear, 12, 0, 23, 59, 59, 999);
+                break;
+            case 'CUSTOM':
+                if (this.customStartDate) {
+                    start = new Date(this.customStartDate); start.setHours(0, 0, 0, 0);
+                }
+                if (this.customEndDate) {
+                    end = new Date(this.customEndDate); end.setHours(23, 59, 59, 999);
+                }
+                break;
+            case 'ALL':
+            default:
+                return {};
+        }
+
+        return {
+            start: start?.toISOString(),
+            end: end?.toISOString()
+        };
     }
 
     toggleEditThreshold() {
@@ -165,25 +284,42 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
     loadData() {
         this.loading = true;
         const centreId = this.currentCentre()?.id;
+        const dates = this.getDateRange();
+
+        let yearToUse = this.selectedYear;
+        if (this.filterType === 'DAILY') {
+            yearToUse = this.selectedDate.getFullYear();
+        } else if (this.filterType === 'CUSTOM' && this.customStartDate) {
+            yearToUse = this.customStartDate.getFullYear();
+        } else if (this.filterType === 'ALL') {
+            yearToUse = new Date().getFullYear();
+        }
+        this.currentYear = yearToUse;
+
+        let monthToUse = this.selectedMonth;
+        if (this.filterType === 'DAILY') {
+            monthToUse = this.selectedDate.getMonth() + 1;
+        } else if (this.filterType === 'CUSTOM' && this.customStartDate) {
+            monthToUse = this.customStartDate.getMonth() + 1;
+        } else if (this.filterType === 'ALL') {
+            monthToUse = 0; // Means all months for some backends, but the API uses it. We might just pass 0.
+        }
 
         forkJoin({
-            monthly: this.financeService.getTreasurySummary(this.currentYear, this.currentMonth, centreId),
-            yearly: this.financeService.getYearlyProjection(this.currentYear, centreId)
+            monthly: this.financeService.getTreasurySummary(monthToUse, yearToUse, centreId, dates.start, dates.end),
+            yearly: this.financeService.getYearlyProjection(yearToUse, centreId)
         }).subscribe({
             next: ({ monthly, yearly }) => {
                 this.zone.run(() => {
-                    console.log('Dashboard Data Loaded:', { monthly, yearly });
                     this.summary = monthly;
                     this.monthlyThreshold = monthly.monthlyThreshold || 50000;
                     this.loading = false;
-                    this.cd.detectChanges(); // Force view update
+                    this.cd.detectChanges();
 
                     // Update charts after DOM is rendered
-                    setTimeout(() => {
-                        console.log('Initializing charts...');
-                        // this.updateCategoryChart(monthly.categories); // Removed
+                    requestAnimationFrame(() => {
                         this.updateHealthChart(yearly);
-                    }, 100);
+                    });
                 });
             },
             error: (err) => {
