@@ -6,40 +6,84 @@
             <p class="subtitle">Aperçu global des performances de votre centre</p>
         </div>
         <div class="actions-section">
-            <div class="filter-controls">
-                <mat-form-field appearance="outline" class="filter-field small">
-                    <mat-label>Jour</mat-label>
-                    <mat-select [(ngModel)]="selectedDay" (selectionChange)="onFilterChange('day')">
-                        <mat-option [value]="null">Tous les jours</mat-option>
-                        <mat-option *ngFor="let day of days" [value]="day" [hidden]="day === null">
-                            {{ day }}
-                        </mat-option>
-                    </mat-select>
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" class="filter-field">
-                    <mat-label>Mois</mat-label>
-                    <mat-select [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange('month')">
-                        <mat-option *ngFor="let month of months" [value]="month.value">
-                            {{ month.label }}
-                        </mat-option>
-                    </mat-select>
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" class="filter-field">
-                    <mat-label>Année</mat-label>
-                    <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange('year')">
-                        <mat-option *ngFor="let year of years" [value]="year">
-                            {{ year }}
-                        </mat-option>
-                    </mat-select>
-                </mat-form-field>
-            </div>
-
             <button mat-flat-button color="primary" (click)="loadAllData()" [disabled]="loading">
-                <mat-icon>refresh</mat-icon>
+                <mat-icon [class.rotating]="loading">refresh</mat-icon>
                 Actualiser
             </button>
+        </div>
+    </div>
+
+    <!-- Unified Filter Toolbar -->
+    <div class="filter-toolbar glass">
+        <div class="period-chips">
+            <button mat-button class="chip-btn" [class.active]="filterType === 'ALL'"
+                (click)="setFilterType('ALL')">Toute la période</button>
+            <button mat-button class="chip-btn" [class.active]="filterType === 'DAILY'"
+                (click)="setFilterType('DAILY')">Aujourd'hui</button>
+            <button mat-button class="chip-btn" [class.active]="filterType === 'MONTHLY'"
+                (click)="setFilterType('MONTHLY')">Par Mois</button>
+            <button mat-button class="chip-btn" [class.active]="filterType === 'YEARLY'"
+                (click)="setFilterType('YEARLY')">Annuel</button>
+            <button mat-button class="chip-btn" [class.active]="filterType === 'CUSTOM'"
+                (click)="setFilterType('CUSTOM')">Personnalisé</button>
+        </div>
+
+        <div class="filter-controls">
+            <ng-container [ngSwitch]="filterType">
+                <!-- Daily -->
+                <mat-form-field appearance="outline" class="density-compact" *ngSwitchCase="'DAILY'">
+                    <mat-label>Date</mat-label>
+                    <input matInput [matDatepicker]="dPicker" [(ngModel)]="selectedDate" (dateChange)="onFilterChange()"
+                        title="Choisir une date" placeholder="JJ/MM/AAAA">
+                    <mat-datepicker-toggle matSuffix [for]="dPicker"></mat-datepicker-toggle>
+                    <mat-datepicker #dPicker></mat-datepicker>
+                </mat-form-field>
+
+                <!-- Monthly -->
+                <ng-container *ngSwitchCase="'MONTHLY'">
+                    <mat-form-field appearance="outline" class="density-compact month-field">
+                        <mat-label>Mois</mat-label>
+                        <mat-select [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()"
+                            title="Sélectionner le mois">
+                            <mat-option *ngFor="let m of availableMonths" [value]="m.value">{{ m.label }}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="density-compact year-field">
+                        <mat-label>Année</mat-label>
+                        <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
+                            title="Sélectionner l'année">
+                            <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                </ng-container>
+
+                <!-- Yearly -->
+                <mat-form-field appearance="outline" class="density-compact year-field" *ngSwitchCase="'YEARLY'">
+                    <mat-label>Année</mat-label>
+                    <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
+                        title="Sélectionner l'année">
+                        <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
+                    </mat-select>
+                </mat-form-field>
+
+                <!-- Custom -->
+                <ng-container *ngSwitchCase="'CUSTOM'">
+                    <mat-form-field appearance="outline" class="density-compact">
+                        <mat-label>Du</mat-label>
+                        <input matInput [matDatepicker]="sPicker" [(ngModel)]="customStartDate"
+                            (dateChange)="onFilterChange()" title="Date de début" placeholder="JJ/MM/AAAA">
+                        <mat-datepicker-toggle matSuffix [for]="sPicker"></mat-datepicker-toggle>
+                        <mat-datepicker #sPicker></mat-datepicker>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="density-compact">
+                        <mat-label>Au</mat-label>
+                        <input matInput [matDatepicker]="ePicker" [(ngModel)]="customEndDate"
+                            (dateChange)="onFilterChange()" title="Date de fin" placeholder="JJ/MM/AAAA">
+                        <mat-datepicker-toggle matSuffix [for]="ePicker"></mat-datepicker-toggle>
+                        <mat-datepicker #ePicker></mat-datepicker>
+                    </mat-form-field>
+                </ng-container>
+            </ng-container>
         </div>
     </div>
 
@@ -52,10 +96,6 @@
             <div class="kpi-content">
                 <span class="label">Chiffre d'Affaires</span>
                 <h2 class="value">{{ (summary?.totalRevenue || 0) | number:'1.2-2' }} DH</h2>
-                <span class="trend up">
-                    <mat-icon>trending_up</mat-icon>
-                    +12.5% vs mois dernier
-                </span>
             </div>
         </mat-card>
 
@@ -83,10 +123,6 @@
                         <span>{{ summary?.fichesStats?.produit || 0 }}</span>
                     </div>
                 </div>
-                <span class="trend up">
-                    <mat-icon>trending_up</mat-icon>
-                    +5 nouveaux ce mois
-                </span>
             </div>
         </mat-card>
 
@@ -97,10 +133,6 @@
             <div class="kpi-content">
                 <span class="label">Dépenses Globales</span>
                 <h2 class="value">{{ (summary?.totalExpenses || 0) | number:'1.2-2' }} DH</h2>
-                <span class="trend">
-                    <mat-icon>payments</mat-icon>
-                    Charges & Fournisseurs
-                </span>
             </div>
         </mat-card>
 
@@ -111,10 +143,6 @@
             <div class="kpi-content">
                 <span class="label">Taux de Conversion</span>
                 <h2 class="value">{{ (summary?.conversionRate || 0) | number:'1.1-1' }}%</h2>
-                <span class="trend down">
-                    <mat-icon>trending_down</mat-icon>
-                    -2.1% focus requis
-                </span>
             </div>
         </mat-card>
     </div>

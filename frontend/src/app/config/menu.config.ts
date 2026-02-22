@@ -2,12 +2,6 @@ import { MenuItem } from '@app/models';
 
 export const MENU: MenuItem[] = [
   {
-    label: 'Tableau de bord',
-    icon: 'dashboard',
-    type: 'link',
-    route: 'dashboard',
-  },
-  {
     label: 'Tableau de bord RH',
     icon: 'analytics',
     type: 'link',

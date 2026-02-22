@@ -9,12 +9,16 @@ export class TreasuryController {
     getMonthlySummary(
         @Query('year') year: string,
         @Query('month') month: string,
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
         @Query('centreId') centreId?: string
     ) {
         return this.treasuryService.getMonthlySummary(
             parseInt(year) || new Date().getFullYear(),
             parseInt(month) || (new Date().getMonth() + 1),
-            centreId
+            centreId,
+            startDate,
+            endDate
         );
     }
 

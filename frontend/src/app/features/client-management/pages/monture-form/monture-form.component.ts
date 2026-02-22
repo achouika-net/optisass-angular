@@ -21,7 +21,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ClientManagementService } from '../../services/client.service';
 import { Client, isClientParticulier, isClientProfessionnel } from '../../models/client.model';
 import { FicheService } from '../../services/fiche.service';
-import { FicheMontureCreate, TypeFiche, StatutFiche, TypeEquipement, SuggestionIA, TypeVerre } from '../../models/fiche-client.model';
+import { FicheClient, FicheMontureCreate, TypeFiche, StatutFiche, TypeEquipement, SuggestionIA, TypeVerre } from '../../models/fiche-client.model';
 import { FactureService, Facture } from '../../services/facture.service';
 import { FactureFormComponent } from '../facture-form/facture-form.component';
 import { PaymentListComponent } from '../../components/payment-list/payment-list.component';
@@ -341,7 +341,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             this.ficheId = params.get('ficheId');
 
             if (this.clientId) {
-                this.clientService.getClient(this.clientId).subscribe(client => {
+                this.clientService.getClient(this.clientId).subscribe((client: Client | undefined) => {
                     this.client = client;
                     this.cdr.markForCheck();
                 });
@@ -389,7 +389,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         this.updateNomenclature();
 
         // REACTIVE RECEPTION CHECK: Trigger whenever the invoice status changes
-        this.linkedFacture$.subscribe(facture => {
+        this.linkedFacture$.subscribe((facture: Facture | null) => {
             if (facture?.statut === 'VENTE_EN_INSTANCE' && this.currentFiche) {
                 console.log('🔄 [RECEPTION] Reactive trigger (Invoice changed or loaded)');
                 this.checkReceptionForInstance(this.currentFiche);
@@ -459,7 +459,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             if (!center) return;
 
             // Fetch ALL products for model-based matching fallback
-            this.productService.findAll({ global: true }).subscribe(allProducts => {
+            this.productService.findAll({ global: true }).subscribe((allProducts: Product[]) => {
                 let allArrived = true;
                 let someTransit = false;
                 let someReserved = false;
@@ -584,7 +584,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
         // Find invoice linked to this fiche directly using ficheId filter
         this.factureService.findAll({ ficheId: this.ficheId }).subscribe({
-            next: (factures) => {
+            next: (factures: Facture[]) => {
                 // Should only be one due to unique constraint, but find just in case
                 const found = factures.find(f => f.ficheId === this.ficheId);
                 if (found) {
@@ -595,7 +595,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     this.linkedFactureSubject.next(null);
                 }
             },
-            error: (err) => {
+            error: (err: any) => {
                 console.error('❌ [MontureForm] Error loading linked facture:', err);
                 this.linkedFactureSubject.next(null);
             }
@@ -615,7 +615,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         });
     }
 
-    onInvoiceSaved(facture: any): void {
+    onInvoiceSaved(facture: Facture): void {
         console.log('✅ [EVENT] Invoice saved in MontureFormComponent:', facture.numero || facture);
         console.log('📊 [EVENT] Invoice status:', facture.statut, '| Type:', facture.type);
 
@@ -1437,60 +1437,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     }
 
     addEquipment(): void {
-        const typeEquipement = 'Monture';
-
-        const equipmentGroup = this.fb.group({
-            type: [typeEquipement],
-            dateAjout: [new Date()],
-            monture: this.fb.group({
-                reference: [''],
-                marque: [''],
-                couleur: [''],
-                taille: [''],
-                cerclage: ['cerclée'],
-                prixMonture: [0],
-                productId: [null],
-                entrepotId: [null],
-                entrepotType: [null],
-                entrepotNom: [null],
-                isPendingTransfer: [false]
-            }),
-            verres: this.fb.group({
-                matiere: [null],
-                marque: [null],
-                indice: [null],
-                traitement: [[]],
-                prixOD: [0],
-                prixOG: [0],
-                differentODOG: [false],
-                matiereOD: [null],
-                marqueOD: [null],
-                indiceOD: [null],
-                traitementOD: [[]],
-                matiereOG: [null],
-                marqueOG: [null],
-                indiceOG: [null],
-                traitementOG: [[]],
-                productId: [null],
-                entrepotId: [null],
-                entrepotType: [null],
-                productIdOD: [null],
-                productIdOG: [null],
-                isPendingTransfer: [false]
-            }),
-            lentilles: this.fb.group({
-                od: this.fb.group({
-                    marque: [null],
-                    modele: [null],
-                    prix: [0]
-                }),
-                og: this.fb.group({
-                    marque: [null],
-                    modele: [null],
-                    prix: [0]
-                })
-            })
-        });
+        const equipmentGroup = this.createEquipementFormGroup({ type: 'Monture' });
 
         // Setup listeners for this new equipment
         this.setupLensListeners(equipmentGroup);
@@ -1507,6 +1454,62 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
     getEquipmentGroup(index: number): FormGroup {
         return this.equipements.at(index) as FormGroup;
+    }
+
+    createEquipementFormGroup(data?: any): FormGroup {
+        const group = this.fb.group({
+            type: [data?.type || 'Monture'],
+            dateAjout: [data?.dateAjout || new Date()],
+            monture: this.fb.group({
+                reference: [data?.monture?.reference || ''],
+                marque: [data?.monture?.marque || ''],
+                couleur: [data?.monture?.couleur || ''],
+                taille: [data?.monture?.taille || ''],
+                cerclage: [data?.monture?.cerclage || 'cerclée'],
+                prixMonture: [data?.monture?.prixMonture || 0],
+                productId: [data?.monture?.productId || null],
+                entrepotId: [data?.monture?.entrepotId || null],
+                entrepotType: [data?.monture?.entrepotType || null],
+                entrepotNom: [data?.monture?.entrepotNom || null],
+                isPendingTransfer: [data?.monture?.isPendingTransfer || false]
+            }),
+            verres: this.fb.group({
+                matiere: [data?.verres?.matiere || null],
+                marque: [data?.verres?.marque || null],
+                indice: [data?.verres?.indice || null],
+                traitement: [data?.verres?.traitement || []],
+                prixOD: [data?.verres?.prixOD || 0],
+                prixOG: [data?.verres?.prixOG || 0],
+                differentODOG: [data?.verres?.differentODOG || false],
+                matiereOD: [data?.verres?.matiereOD || null],
+                marqueOD: [data?.verres?.marqueOD || null],
+                indiceOD: [data?.verres?.indiceOD || null],
+                traitementOD: [data?.verres?.traitementOD || []],
+                matiereOG: [data?.verres?.matiereOG || null],
+                marqueOG: [data?.verres?.marqueOG || null],
+                indiceOG: [data?.verres?.indiceOG || null],
+                traitementOG: [data?.verres?.traitementOG || []],
+                productId: [data?.verres?.productId || null],
+                entrepotId: [data?.verres?.entrepotId || null],
+                entrepotType: [data?.verres?.entrepotType || null],
+                productIdOD: [data?.verres?.productIdOD || null],
+                productIdOG: [data?.verres?.productIdOG || null],
+                isPendingTransfer: [data?.verres?.isPendingTransfer || false]
+            }),
+            lentilles: this.fb.group({
+                od: this.fb.group({
+                    marque: [data?.lentilles?.od?.marque || null],
+                    modele: [data?.lentilles?.od?.modele || null],
+                    prix: [data?.lentilles?.od?.prix || 0]
+                }),
+                og: this.fb.group({
+                    marque: [data?.lentilles?.og?.marque || null],
+                    modele: [data?.lentilles?.og?.modele || null],
+                    prix: [data?.lentilles?.og?.prix || 0]
+                })
+            })
+        });
+        return group;
     }
 
     toggleMainEquipment(): void {
@@ -1580,7 +1583,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     type: file.type,
                     size: file.size,
                     preview,
-                    file,
+                    file: file as File,
                     uploadDate: new Date()
                 };
                 this.prescriptionFiles.push(prescriptionFile);
@@ -1845,7 +1848,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
         this.loading = true;
         this.ficheService.getFicheById(this.ficheId).subscribe({
-            next: (fiche: any) => {
+            next: (fiche: FicheClient | undefined) => {
                 if (fiche) {
                     console.log('📄 [LOAD] Fiche loaded:', fiche.id);
                     this.currentFiche = fiche;
@@ -1873,7 +1876,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     console.log('📋 Nomenclature generated after fiche load:', this.nomenclatureString);
                 }, 100);
             },
-            error: (err) => {
+            error: (err: any) => {
                 console.error('Error loading fiche:', err);
                 this.loading = false;
                 alert('Erreur lors du chargement de la fiche.');
@@ -1930,56 +1933,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             equipementsArray.clear(); // Clear existing
 
             fiche.equipements.forEach((eq: any) => {
-                // Manually rebuild structure to ensure arrays (treatments) are handled correctly
-                // and to include new fields like 'cerclage'
-                const eqGroup = this.fb.group({
-                    type: [eq.type],
-                    dateAjout: [eq.dateAjout],
-                    monture: this.fb.group({
-                        reference: [eq.monture?.reference || ''],
-                        marque: [eq.monture?.marque || ''],
-                        couleur: [eq.monture?.couleur || ''],
-                        taille: [eq.monture?.taille || ''],
-                        cerclage: [eq.monture?.cerclage || 'cerclée'], // Added Field
-                        prixMonture: [eq.monture?.prixMonture || 0],
-                        productId: [eq.monture?.productId || null], // [NEW] Load if exists
-                        entrepotId: [eq.monture?.entrepotId || null],
-                        entrepotType: [eq.monture?.entrepotType || null],
-                        isPendingTransfer: [eq.monture?.isPendingTransfer || false]
-                    }),
-                    verres: this.fb.group({
-                        matiere: [eq.verres?.matiere],
-                        marque: [eq.verres?.marque],
-                        indice: [eq.verres?.indice ? String(eq.verres.indice) : null], // Type conversion
-                        traitement: [eq.verres?.traitement || []], // Array safe here because passed as initial value? No, safest is patchValue below.
-                        prixOD: [eq.verres?.prixOD],
-                        prixOG: [eq.verres?.prixOG],
-                        differentODOG: [eq.verres?.differentODOG || false],
-                        matiereOD: [eq.verres?.matiereOD],
-                        marqueOD: [eq.verres?.marqueOD],
-                        indiceOD: [eq.verres?.indiceOD ? String(eq.verres.indiceOD) : null],
-                        traitementOD: [eq.verres?.traitementOD || []],
-                        matiereOG: [eq.verres?.matiereOG],
-                        marqueOG: [eq.verres?.marqueOG],
-                        indiceOG: [eq.verres?.indiceOG ? String(eq.verres.indiceOG) : null],
-                        traitementOG: [eq.verres?.traitementOG || []],
-                        productId: [eq.verres?.productId || null],
-                        entrepotId: [eq.verres?.entrepotId || null],
-                        isPendingTransfer: [eq.verres?.isPendingTransfer || false]
-                    }),
-                    lentilles: this.fb.group({
-                        od: this.fb.group({
-                            marque: [eq.lentilles?.od?.marque || eq.lentilles?.marque || null],
-                            modele: [eq.lentilles?.od?.modele || eq.lentilles?.modele || null],
-                            prix: [eq.lentilles?.od?.prix || eq.lentilles?.prix || 0]
-                        }),
-                        og: this.fb.group({
-                            marque: [eq.lentilles?.og?.marque || eq.lentilles?.marque || null],
-                            modele: [eq.lentilles?.og?.modele || eq.lentilles?.modele || null],
-                            prix: [eq.lentilles?.og?.prix || eq.lentilles?.prix || 0]
-                        })
-                    })
-                });
+                const eqGroup = this.createEquipementFormGroup(eq);
 
                 // Set up listeners first
                 this.setupLensListeners(eqGroup);
@@ -2341,7 +2295,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
         this.factureService.create(factureData).subscribe({
             next: (f) => this.router.navigate(['/p/clients/factures', f.id]),
-            error: (err) => {
+            error: (err: any) => {
                 const msg = err.error?.message || err.statusText || 'Erreur inconnue';
                 alert(`Erreur: ${msg}`);
             }
@@ -3038,7 +2992,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 }
             })
         ).subscribe({
-            next: (fiche) => {
+            next: (fiche: FicheClient) => {
                 this.loading = false;
                 console.log('Fiche saved:', fiche);
 
@@ -3063,7 +3017,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     this.setActiveTab(2);
                 }
             },
-            error: (err) => {
+            error: (err: any) => {
                 this.loading = false;
                 console.error('Error saving fiche:', err);
                 const msg = err.error?.message || err.statusText || 'Erreur inconnue';
@@ -3439,43 +3393,49 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 console.log('✅ [RECEPTION] Fiche synced with local IDs.');
 
                 // [NEW] Also sync the Facture in the background to ensure Monitor/Badges are updated
-                this.factureService.findAll({ clientId: this.clientId || '' }).subscribe(factures => {
-                    const linked = factures.find(f => f.ficheId === this.ficheId);
-                    if (linked && linked.statut === 'VENTE_EN_INSTANCE') {
-                        console.log('🔄 [RECEPTION] Background syncing linked invoice:', linked.numero);
-                        const lines = this.getInvoiceLines();
-                        const total = lines.reduce((acc, l) => acc + l.totalTTC, 0);
-                        this.factureService.update(linked.id, {
-                            lignes: lines,
-                            totalTTC: total,
-                            proprietes: {
-                                ...(linked.proprietes || {}),
-                                nomenclature: this.nomenclatureString || '',
-                                lastSilentUpdate: new Date()
-                            }
-                        }).subscribe(() => {
-                            console.log('✅ [RECEPTION] Invoice synced.');
+                this.factureService.findAll({ clientId: this.clientId || '' }).subscribe({
+                    next: (factures) => {
+                        const linked = factures.find(f => f.ficheId === this.ficheId);
+                        if (linked && linked.statut === 'VENTE_EN_INSTANCE') {
+                            console.log('🔄 [RECEPTION] Background syncing linked invoice:', linked.numero);
+                            const lines = this.getInvoiceLines();
+                            const total = lines.reduce((acc, l) => acc + l.totalTTC, 0);
+                            this.factureService.update(linked.id, {
+                                lignes: lines,
+                                totalTTC: total,
+                                proprietes: {
+                                    ...(linked.proprietes || {}),
+                                    nomenclature: this.nomenclatureString || '',
+                                    lastSilentUpdate: new Date()
+                                }
+                            }).subscribe({
+                                next: () => {
+                                    console.log('✅ [RECEPTION] Invoice synced.');
+                                    if (reload) this.loadFiche();
+                                    else {
+                                        this.currentFiche = { ...this.currentFiche, ...ficheData };
+                                        // Trigger immediate UI refresh for status banners
+                                        this.checkReceptionForInstance(this.currentFiche);
+                                        this.cdr.markForCheck();
+                                        setTimeout(() => this.cdr.detectChanges(), 100);
+                                    }
+                                },
+                                error: (err: any) => console.error('❌ [RECEPTION] Error syncing legacy invoice:', err)
+                            });
+                        } else {
                             if (reload) this.loadFiche();
                             else {
                                 this.currentFiche = { ...this.currentFiche, ...ficheData };
-                                // Trigger immediate UI refresh for status banners
                                 this.checkReceptionForInstance(this.currentFiche);
                                 this.cdr.markForCheck();
                                 setTimeout(() => this.cdr.detectChanges(), 100);
                             }
-                        });
-                    } else {
-                        if (reload) this.loadFiche();
-                        else {
-                            this.currentFiche = { ...this.currentFiche, ...ficheData };
-                            this.checkReceptionForInstance(this.currentFiche);
-                            this.cdr.markForCheck();
-                            setTimeout(() => this.cdr.detectChanges(), 100);
                         }
-                    }
+                    },
+                    error: (err: any) => console.error('❌ [RECEPTION] Error fetching factures for background sync:', err)
                 });
             },
-            error: (err) => {
+            error: (err: any) => {
                 console.error('❌ [RECEPTION] Error in silent update:', err);
                 this.cdr.markForCheck();
             }

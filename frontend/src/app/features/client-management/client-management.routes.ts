@@ -50,6 +50,14 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/lentilles-form/lentilles-form.component').then(m => m.LentillesFormComponent),
     },
     {
+        path: ':clientId/fiche-produit/new',
+        loadComponent: () => import('./pages/fiche-produit-form/fiche-produit-form.component').then(m => m.FicheProduitFormComponent),
+    },
+    {
+        path: ':clientId/fiche-produit/:ficheId',
+        loadComponent: () => import('./pages/fiche-produit-form/fiche-produit-form.component').then(m => m.FicheProduitFormComponent),
+    },
+    {
         path: 'instance-sales',
         loadComponent: () => import('./pages/instance-sales-dashboard/instance-sales-dashboard.component').then(m => m.InstanceSalesDashboardComponent),
     },

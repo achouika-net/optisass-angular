@@ -44,17 +44,29 @@ Chart.register(...registerables);
 })
 export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
     @ViewChild('profitChartCanvas') profitChartCanvas!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('evolutionChartCanvas') evolutionChartCanvas!: ElementRef<HTMLCanvasElement>;
 
-    selectedPeriod: string = 'thisMonth'; // Default
+    filterType: 'DAILY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM' | 'ALL' = 'MONTHLY';
+    selectedDate: Date = new Date();
+    selectedMonth: number = new Date().getMonth() + 1;
+    selectedYear: number = new Date().getFullYear();
+    customStartDate: Date | null = null;
+    customEndDate: Date | null = null;
 
     loading = false;
-    startDate: Date | null = null;
-    endDate: Date | null = null;
-
+    centreId: string = '';
     activeFilterInfo: string = 'Ce mois';
-
     data: any = null;
     profitChart: Chart | null = null;
+    evolutionChart: Chart | null = null;
+
+    availableMonths = [
+        { value: 1, label: 'Janvier' }, { value: 2, label: 'Février' }, { value: 3, label: 'Mars' },
+        { value: 4, label: 'Avril' }, { value: 5, label: 'Mai' }, { value: 6, label: 'Juin' },
+        { value: 7, label: 'Juillet' }, { value: 8, label: 'Août' }, { value: 9, label: 'Septembre' },
+        { value: 10, label: 'Octobre' }, { value: 11, label: 'Novembre' }, { value: 12, label: 'Décembre' }
+    ];
+    availableYears: number[] = [];
 
     constructor(
         private statsService: StatsService,
@@ -63,10 +75,12 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
     ) { }
 
     ngOnInit(): void {
-        this.store.select(TenantSelector).subscribe(centreId => {
-            if (centreId) {
-                this.setPeriod(this.selectedPeriod);
-            }
+        this.initFilterOptions();
+        this.store.select(TenantSelector).subscribe(cid => {
+            this.centreId = cid || '';
+            console.log('[ProfitReport] centreId changed:', this.centreId);
+            // Removed 'if (this.centreId)' to allow loading data for 'All Centers'
+            this.loadData();
         });
     }
 
@@ -77,36 +91,78 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
         if (this.evolutionChart) this.evolutionChart.destroy();
     }
 
-    loadData(): void {
-        if (!this.startDate || !this.endDate) {
-            console.warn('[ProfitReport] loadData skipped: Missing dates', { start: this.startDate, end: this.endDate });
-            return;
+    private initFilterOptions(): void {
+        const currentYear = new Date().getFullYear();
+        for (let i = 0; i < 5; i++) {
+            this.availableYears.push(currentYear - i);
+        }
+    }
+
+    private getDateRange(): { start?: string, end?: string } {
+        let start: Date | undefined;
+        let end: Date | undefined;
+
+        switch (this.filterType) {
+            case 'DAILY':
+                start = new Date(this.selectedDate); start.setHours(0, 0, 0, 0);
+                end = new Date(this.selectedDate); end.setHours(23, 59, 59, 999);
+                this.activeFilterInfo = 'Aujourd\'hui';
+                break;
+            case 'MONTHLY':
+                start = new Date(this.selectedYear, this.selectedMonth - 1, 1, 0, 0, 0, 0);
+                end = new Date(this.selectedYear, this.selectedMonth, 0, 23, 59, 59, 999);
+                const monthName = this.availableMonths.find(m => m.value === this.selectedMonth)?.label;
+                this.activeFilterInfo = `${monthName} ${this.selectedYear}`;
+                break;
+            case 'YEARLY':
+                start = new Date(this.selectedYear, 0, 1, 0, 0, 0, 0);
+                end = new Date(this.selectedYear, 12, 0, 23, 59, 59, 999);
+                this.activeFilterInfo = `Année ${this.selectedYear}`;
+                break;
+            case 'CUSTOM':
+                if (this.customStartDate && this.customEndDate) {
+                    start = new Date(this.customStartDate); start.setHours(0, 0, 0, 0);
+                    end = new Date(this.customEndDate); end.setHours(23, 59, 59, 999);
+                    this.activeFilterInfo = 'Période personnalisée';
+                }
+                break;
+            case 'ALL':
+            default:
+                this.activeFilterInfo = 'Tout l\'historique';
+                return {};
         }
 
+        return {
+            start: start?.toISOString(),
+            end: end?.toISOString()
+        };
+    }
+
+    loadData(): void {
+        const dates = this.getDateRange();
         this.loading = true;
         this.cdref.markForCheck();
 
-        const start = this.startDate.toISOString();
-        const end = this.endDate.toISOString();
+        const start = dates.start || '';
+        const end = dates.end || '';
 
-        console.log(`[ProfitReport] Fetching Profit: ${start} to ${end} (Period: ${this.selectedPeriod})`);
+        console.log(`[ProfitReport] Loading data for period: ${this.activeFilterInfo}`, { start, end, centreId: this.centreId });
 
-        this.statsService.getRealProfit(start, end).subscribe({
+        this.statsService.getRealProfit(start, end, this.centreId).subscribe({
             next: (res: any) => {
+                console.log('[ProfitReport] Data received:', res);
                 this.data = res;
                 this.loading = false;
                 this.cdref.detectChanges();
 
                 setTimeout(() => {
                     this.createChart(res);
-                    this.cdref.detectChanges();
                 }, 500);
 
-                // Load evolution as well
                 this.loadEvolutionData(start, end);
             },
             error: (err: any) => {
-                console.error('Error loading profit data', err);
+                console.error('[ProfitReport] Error loading profit data:', err);
                 this.loading = false;
                 this.cdref.markForCheck();
             }
@@ -114,10 +170,7 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     private createChart(data: any): void {
-        if (!this.profitChartCanvas?.nativeElement) {
-            console.error('❌ [Profit] Canvas not found');
-            return;
-        }
+        if (!this.profitChartCanvas?.nativeElement) return;
         const ctx = this.profitChartCanvas.nativeElement.getContext('2d');
         if (!ctx) return;
 
@@ -157,26 +210,26 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
         });
     }
 
-    evolutionChart: Chart | null = null;
-
     loadEvolutionData(start: string, end: string): void {
-        this.statsService.getProfitEvolution(start, end).subscribe({
+        this.statsService.getProfitEvolution(start, end, this.centreId).subscribe({
             next: (data: any[]) => {
+                console.log('[ProfitReport] Evolution data received:', data);
                 setTimeout(() => {
                     this.createEvolutionChart(data);
                 }, 300);
             },
-            error: (err: any) => console.error('Error loading evolution', err)
+            error: (err: any) => console.error('[ProfitReport] Error loading evolution:', err)
         });
     }
 
     createEvolutionChart(data: any[]): void {
-        const ctx = document.getElementById('evolutionChart') as HTMLCanvasElement;
+        if (!this.evolutionChartCanvas?.nativeElement) return;
+        const ctx = this.evolutionChartCanvas.nativeElement.getContext('2d');
         if (!ctx) return;
 
         if (this.evolutionChart) this.evolutionChart.destroy();
 
-        const labels = data.map(d => d.month); // YYYY-MM
+        const labels = data.map(d => d.month);
         const revenue = data.map(d => d.revenue);
         const expenses = data.map(d => d.expenses);
         const netProfit = data.map(d => d.netProfit);
@@ -208,7 +261,7 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
                         borderColor: '#4CAF50',
                         backgroundColor: 'rgba(76, 175, 80, 0.3)',
                         borderWidth: 3,
-                        fill: false, // Don't fill area for main metric
+                        fill: false,
                         tension: 0.4
                     }
                 ]
@@ -249,55 +302,12 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
         });
     }
 
-    // Updated to accept the event from mat-select or just string
-    onPeriodChange(period: string): void {
-        this.selectedPeriod = period;
-        this.setPeriod(period);
-    }
-
-    setPeriod(period: string): void {
-        const now = new Date();
-        let start = new Date();
-        let end = new Date();
-
-        switch (period) {
-            case 'thisMonth':
-                // Start of current month: Year, Month, 1st day, 00:00:00
-                start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-                // End of today (standard view of "this month so far")
-                end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-                this.activeFilterInfo = 'Ce mois';
-                break;
-            case 'lastMonth':
-                // Start of previous month
-                start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
-                // Last day of previous month (day 0 of current month)
-                end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-                this.activeFilterInfo = 'Mois dernier';
-                break;
-            case 'thisYear':
-                // Start of current year
-                start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
-                end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-                this.activeFilterInfo = 'Cette année';
-                break;
-            case 'custom':
-                this.activeFilterInfo = 'Période personnalisée';
-                return;
-        }
-
-        this.startDate = start;
-        this.endDate = end;
+    setFilterType(type: 'DAILY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM' | 'ALL'): void {
+        this.filterType = type;
         this.loadData();
     }
 
-    onDateChange(): void {
-        if (this.startDate && this.endDate) {
-            this.selectedPeriod = 'custom';
-            this.startDate.setHours(0, 0, 0, 0);
-            this.endDate.setHours(23, 59, 59, 999);
-            this.activeFilterInfo = 'Période personnalisée';
-            this.loadData();
-        }
+    onFilterChange(): void {
+        this.loadData();
     }
 }

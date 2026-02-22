@@ -65,22 +65,23 @@
 
     <!-- Statistics Cards -->
     <div class="stats-grid mb-6">
+        <mat-card class="stat-card stat-card-blue">
+            <mat-card-content>
+                <div class="stat-value">{{ stats.totalArticles }}</div>
+                <div class="stat-label">Total Produits</div>
+            </mat-card-content>
+        </mat-card>
         <mat-card class="stat-card stat-card-orange">
             <mat-card-content>
                 <div class="stat-value">{{ stats.totalProduits }}</div>
-                <div class="stat-label">Produits en stock</div>
+                <div class="stat-label">Articles en stock</div>
+                <div class="text-[10px] mt-1 opacity-80 font-bold uppercase">({{ stats.totalUnites }} Unités)</div>
             </mat-card-content>
         </mat-card>
         <mat-card class="stat-card stat-card-green">
             <mat-card-content>
                 <div class="stat-value">{{ stats.valeurStockTotal | number:'1.2-2' }}</div>
                 <div class="stat-label">Valeur du stock (HT)</div>
-            </mat-card-content>
-        </mat-card>
-        <mat-card class="stat-card stat-card-purple">
-            <mat-card-content>
-                <div class="stat-value">{{ stats.caNonConsolide | number:'1.2-2' }}</div>
-                <div class="stat-label">CA Non Consolidé (HT)</div>
             </mat-card-content>
         </mat-card>
         <mat-card class="stat-card stat-card-yellow">

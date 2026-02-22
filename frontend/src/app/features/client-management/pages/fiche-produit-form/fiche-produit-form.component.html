@@ -1,0 +1,89 @@
+<div class="fiche-produit-container" *ngIf="!loading; else loadingTmp">
+    <mat-card class="header-card">
+        <mat-card-header>
+            <div mat-card-avatar class="header-icon">
+                <mat-icon color="primary">inventory_2</mat-icon>
+            </div>
+            <mat-card-title>{{ ficheId ? 'Modifier la Fiche Produit' : 'Nouvelle Fiche Produit' }}</mat-card-title>
+            <mat-card-subtitle *ngIf="client">
+                Client: <strong>{{ clientDisplayName }}</strong>
+            </mat-card-subtitle>
+        </mat-card-header>
+    </mat-card>
+
+    <form [formGroup]="ficheForm" (ngSubmit)="onSubmit()">
+        <mat-card class="form-card">
+            <mat-card-content>
+                <div class="flex-row">
+                    <mat-form-field appearance="outline" class="flex-grow">
+                        <mat-label>Date de livraison estimée</mat-label>
+                        <input matInput [matDatepicker]="picker" formControlName="dateLivraisonEstimee"
+                            placeholder="Choisissez une date">
+                        <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+                        <mat-datepicker #picker></mat-datepicker>
+                    </mat-form-field>
+                </div>
+
+                <mat-form-field appearance="outline" class="full-width">
+                    <mat-label>Notes / Observations</mat-label>
+                    <textarea matInput formControlName="notes" rows="3" placeholder="Ajouter des notes..."></textarea>
+                </mat-form-field>
+
+                <mat-divider class="my-4"></mat-divider>
+
+                <div class="products-header">
+                    <h3>Liste des produits</h3>
+                    <button type="button" mat-stroked-button color="primary" (click)="addProduct()">
+                        <mat-icon>add</mat-icon> Ajouter un produit
+                    </button>
+                </div>
+
+                <div formArrayName="orderItems" class="products-list">
+                    <div *ngFor="let item of orderItems.controls; let i = index" [formGroupName]="i"
+                        class="product-item">
+                        <div class="product-row">
+                            <mat-form-field appearance="outline" class="flex-grow">
+                                <mat-label>Désignation</mat-label>
+                                <input matInput formControlName="designation" placeholder="Ex: Produit de nettoyage">
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline" class="flex-grow">
+                                <mat-label>Référence</mat-label>
+                                <input matInput formControlName="reference" placeholder="Ex: REF123">
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline" class="small-width">
+                                <mat-label>Prix Unitaire (DH)</mat-label>
+                                <input matInput type="number" formControlName="prixUnitaire" placeholder="0">
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline" class="tiny-width">
+                                <mat-label>Qté</mat-label>
+                                <input matInput type="number" formControlName="quantite" placeholder="1">
+                            </mat-form-field>
+
+                            <button type="button" mat-icon-button color="warn" (click)="removeProduct(i)"
+                                matTooltip="Supprimer ce produit">
+                                <mat-icon>delete</mat-icon>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </mat-card-content>
+
+            <mat-card-actions align="end">
+                <button type="button" mat-button (click)="onCancel()">Annuler</button>
+                <button type="submit" mat-raised-button color="primary" [disabled]="ficheForm.invalid || saving">
+                    <mat-icon>save</mat-icon> {{ ficheId ? 'Mettre à jour' : 'Enregistrer' }}
+                </button>
+            </mat-card-actions>
+        </mat-card>
+    </form>
+</div>
+
+<ng-template #loadingTmp>
+    <div class="loading-container">
+        <mat-spinner diameter="40"></mat-spinner>
+        <p>Chargement de la fiche...</p>
+    </div>
+</ng-template>

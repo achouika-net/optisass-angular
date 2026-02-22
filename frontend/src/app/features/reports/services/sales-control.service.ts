@@ -45,6 +45,9 @@ export interface VendorStatistics {
     totalFactures?: number;
     totalAvoirs?: number;
     totalBC?: number;
+    totalEncaissePeriod?: number;
+    totalReste?: number;
+    payments?: { methode: string; total: number }[];
 }
 
 @Injectable({

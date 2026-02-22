@@ -168,10 +168,10 @@ export class PersonnelController {
 
     @Get('dashboard/stats')
     getDashboardStats(
-        @Query('mois') mois: string,
-        @Query('annee') annee: string,
+        @Query('mois') mois?: string,
+        @Query('annee') annee?: string,
         @Query('centreId') centreId?: string
     ) {
-        return this.payrollService.getDashboardStats(mois, parseInt(annee), centreId);
+        return this.payrollService.getDashboardStats(mois, annee ? parseInt(annee) : undefined, centreId);
     }
 }

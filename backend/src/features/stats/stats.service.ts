@@ -27,6 +27,7 @@ export interface WarehouseStock {
     totalQuantity: number;
     totalValue: number;
     productCount: number;
+    breakdown: { type: string; quantity: number; value: number }[];
 }
 
 export interface TopClient {
@@ -57,21 +58,19 @@ export class StatsService {
         const start = startDate ? new Date(startDate) : new Date(new Date().setMonth(new Date().getMonth() - 12));
         const end = endDate ? new Date(endDate) : new Date();
 
-        // CA = Factures (Validated) - Avoirs
+        // CA = toutes les ventes (DEVIS=vente avec facture, BON_COMMANDE=vente sans facture, FACTURE) + Avoirs
         const factures = await this.prisma.facture.findMany({
             where: {
                 dateEmission: { gte: start, lte: end },
                 centreId: centreId || undefined,
+                statut: { notIn: ['ANNULEE', 'ARCHIVE'] },
                 OR: [
-                    {
-                        // Factures
-                        OR: [{ numero: { startsWith: 'FAC' } }, { type: 'FACTURE' }],
-                        statut: { in: this.ACTIVE_STATUSES }
-                    },
-                    {
-                        // Avoirs
-                        type: 'AVOIR'
-                    }
+                    { type: 'DEVIS' },         // vente avec facture (importée)
+                    { type: 'BON_COMMANDE' },  // vente sans facture (importée)
+                    { type: 'BON_COMM' },
+                    { type: 'FACTURE' },
+                    { numero: { startsWith: 'FAC' } },
+                    { type: 'AVOIR' }
                 ]
             },
             select: {
@@ -114,7 +113,7 @@ export class StatsService {
             .sort((a, b) => a.period.localeCompare(b.period));
     }
 
-    async getProductDistribution(centreId?: string): Promise<ProductDistribution[]> {
+    async getProductDistribution(startDate?: string, endDate?: string, centreId?: string): Promise<ProductDistribution[]> {
         const products = await this.prisma.product.findMany({
             where: centreId ? {
                 entrepot: { centreId }
@@ -152,33 +151,51 @@ export class StatsService {
 
         const whereClause = {
             dateEmission: { gte: start, lte: end },
-            ...(centreId ? { centreId } : {})
+            ...(centreId ? { centreId } : {}),
+            statut: { notIn: ['ANNULEE', 'ARCHIVE'] }
         };
 
+        // Total ventes (toutes catégories confondues)
         const totalDevis = await this.prisma.facture.count({
             where: {
                 ...whereClause,
                 OR: [
                     { type: 'DEVIS' },
-                    { numero: { startsWith: 'BRO' } },
-                    { numero: { startsWith: 'DEV' } }
+                    { type: 'BON_COMMANDE' },
+                    { type: 'BON_COMM' },
+                    { type: 'FACTURE' },
+                    { numero: { startsWith: 'FAC' } }
                 ]
             }
         });
 
+        // Ventes avec au moins un paiement = "converties"
         const validatedFactures = await this.prisma.facture.count({
             where: {
                 ...whereClause,
-                OR: [{ numero: { startsWith: 'FAC' } }, { type: 'FACTURE' }],
-                statut: { in: this.ACTIVE_STATUSES }
+                OR: [
+                    { type: 'DEVIS' },
+                    { type: 'BON_COMMANDE' },
+                    { type: 'BON_COMM' },
+                    { type: 'FACTURE' },
+                    { numero: { startsWith: 'FAC' } }
+                ],
+                paiements: { some: {} }
             }
         });
 
+        // Ventes entièrement payées
         const paidFactures = await this.prisma.facture.count({
             where: {
                 ...whereClause,
-                OR: [{ numero: { startsWith: 'FAC' } }, { type: 'FACTURE' }],
-                statut: 'PAYEE'
+                OR: [
+                    { type: 'DEVIS' },
+                    { type: 'BON_COMMANDE' },
+                    { type: 'BON_COMM' },
+                    { type: 'FACTURE' },
+                    { numero: { startsWith: 'FAC' } }
+                ],
+                statut: { in: ['PAYEE', 'SOLDEE', 'ENCAISSE'] }
             }
         });
 
@@ -187,29 +204,54 @@ export class StatsService {
             validatedFactures,
             paidFactures,
             conversionToFacture: totalDevis > 0 ? (validatedFactures / totalDevis) * 100 : 0,
-            conversionToPaid: validatedFactures > 0 ? (paidFactures / validatedFactures) * 100 : 0
+            conversionToPaid: totalDevis > 0 ? (paidFactures / totalDevis) * 100 : 0
         };
     }
 
-    async getStockByWarehouse(centreId?: string): Promise<WarehouseStock[]> {
+    async getStockByWarehouse(startDate?: string, endDate?: string, centreId?: string): Promise<WarehouseStock[]> {
         const warehouses = await this.prisma.entrepot.findMany({
             where: centreId ? { centreId } : {},
             include: {
                 produits: {
                     select: {
+                        typeArticle: true,
                         quantiteActuelle: true,
-                        prixAchatHT: true
+                        prixAchatHT: true,
+                        prixVenteHT: true
                     }
                 }
             }
         });
 
-        return warehouses.map(w => ({
-            warehouseName: w.nom,
-            totalQuantity: w.produits.reduce((sum, p) => sum + (p.quantiteActuelle || 0), 0),
-            totalValue: w.produits.reduce((sum, p) => sum + ((p.quantiteActuelle || 0) * (p.prixAchatHT || 0)), 0),
-            productCount: w.produits.length
-        })).sort((a, b) => b.totalValue - a.totalValue);
+        return warehouses.map(w => {
+            const breakdownMap = new Map<string, { quantity: number; value: number }>();
+
+            w.produits.forEach(p => {
+                const type = p.typeArticle || 'NON_DÉFINI';
+                const existing = breakdownMap.get(type) || { quantity: 0, value: 0 };
+                breakdownMap.set(type, {
+                    quantity: existing.quantity + (p.quantiteActuelle || 0),
+                    value: existing.value + ((p.quantiteActuelle || 0) * (p.prixAchatHT || 0))
+                });
+            });
+
+            const breakdown = Array.from(breakdownMap.entries()).map(([type, data]) => ({
+                type,
+                quantity: data.quantity,
+                value: data.value
+            }));
+
+            const totalQuantity = w.produits.reduce((sum, p) => sum + (p.quantiteActuelle || 0), 0);
+            const totalValue = w.produits.reduce((sum, p) => sum + ((p.quantiteActuelle || 0) * (p.prixAchatHT || 0)), 0);
+
+            return {
+                warehouseName: w.nom,
+                totalQuantity,
+                totalValue,
+                productCount: w.produits.length,
+                breakdown
+            };
+        }).sort((a, b) => b.totalValue - a.totalValue);
     }
 
     async getTopClients(
@@ -225,8 +267,14 @@ export class StatsService {
             where: {
                 dateEmission: { gte: start, lte: end },
                 centreId: centreId || undefined,
-                OR: [{ numero: { startsWith: 'FAC' } }, { type: 'FACTURE' }],
-                statut: { in: this.ACTIVE_STATUSES }
+                statut: { notIn: ['ANNULEE', 'ARCHIVE'] },
+                OR: [
+                    { type: 'DEVIS' },
+                    { type: 'BON_COMMANDE' },
+                    { type: 'BON_COMM' },
+                    { type: 'FACTURE' },
+                    { numero: { startsWith: 'FAC' } }
+                ]
             },
             select: {
                 clientId: true,
@@ -274,7 +322,8 @@ export class StatsService {
 
         const payments = await this.prisma.paiement.findMany({
             where: {
-                date: { gte: start, lte: end }
+                date: { gte: start, lte: end },
+                ...(centreId ? { facture: { centreId } } : {})
             },
             select: {
                 mode: true,
@@ -319,16 +368,14 @@ export class StatsService {
                 where: {
                     centreId: centreId || undefined,
                     ...(start || end ? { dateEmission: { gte: start, lte: end } } : {}),
+                    statut: { notIn: ['ANNULEE', 'ARCHIVE'] },
                     OR: [
-                        {
-                            // Valid Invoices
-                            OR: [{ numero: { startsWith: 'FAC' } }, { type: 'FACTURE' }],
-                            statut: { in: this.ACTIVE_STATUSES }
-                        },
-                        {
-                            // Avoirs
-                            type: 'AVOIR'
-                        }
+                        { type: 'DEVIS' },         // vente avec facture (importée)
+                        { type: 'BON_COMMANDE' },  // vente sans facture (importée)
+                        { type: 'BON_COMM' },
+                        { type: 'FACTURE' },
+                        { numero: { startsWith: 'FAC' } },
+                        { type: 'AVOIR' }
                     ]
                 },
                 select: { totalTTC: true, type: true }
@@ -412,28 +459,21 @@ export class StatsService {
                 start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
             }
 
-            let end: Date;
-            if (endDate && endDate !== 'undefined' && endDate !== 'null' && endDate !== '') {
-                end = new Date(endDate);
-            } else {
-                const now = new Date();
-                end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-            }
+            const end = (endDate && endDate !== 'undefined' && endDate !== 'null' && endDate !== '') ? new Date(endDate) : new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 23, 59, 59, 999);
 
             const revenueDocs = await this.prisma.facture.findMany({
                 where: {
                     dateEmission: { gte: start, lte: end },
-                    tenantId: tenantId ? { centreId: tenantId } : undefined, // Wait, schema check needed
                     OR: [
                         {
-                            OR: [{ numero: { startsWith: 'FAC' } }, { type: 'FACTURE' }],
+                            OR: [{ numero: { startsWith: 'FAC' } }, { type: 'FACTURE' }, { type: 'BON_COMMANDE' }],
                             statut: { in: this.ACTIVE_STATUSES }
                         },
                         { type: 'AVOIR' }
                     ],
                     ...(tenantId ? { centreId: tenantId } : {})
                 },
-                select: { totalHT: true, type: true }
+                select: { id: true, totalHT: true, type: true, lignes: true, ficheId: true }
             });
 
             let revenue = 0;
@@ -442,20 +482,62 @@ export class StatsService {
                 else revenue += (d.totalHT || 0);
             });
 
+            // 1. Primary COGS from MouvementStock
             const cogsQuery = Prisma.sql`
                 SELECT SUM(m."quantite" * COALESCE(m."prixAchatUnitaire", 0)) as total_cost
                 FROM "MouvementStock" m
                 JOIN "Facture" f ON m."factureId" = f."id"
                 WHERE f."dateEmission" >= ${start}
                 AND f."dateEmission" <= ${end}
-                AND ( (f."numero" LIKE 'FAC%' OR f."type" = 'FACTURE') AND f."statut" IN ('VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL') )
+                AND ( (f."numero" LIKE 'FAC%' OR f."type" = 'FACTURE' OR f."type" = 'BON_COMMANDE') AND f."statut" IN ('VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL') )
                 ${tenantId ? Prisma.sql`AND f."centreId" = ${tenantId}` : Prisma.sql``}
             `;
+            const cogsResult = await this.prisma.$queryRaw<any[]>(cogsQuery);
+            let rawCogs = Math.abs(Number(cogsResult[0]?.total_cost || 0));
 
-            const cogsResult: any[] = await this.prisma.$queryRaw(cogsQuery);
-            const rawCogs = cogsResult[0]?.total_cost || 0;
+            // 2. Secondary COGS from linked BL Verre (via FicheId)
+            const ficheIds = revenueDocs
+                .map(d => d.ficheId)
+                .filter((id): id is string => !!id && typeof id === 'string');
+
+            if (ficheIds.length > 0) {
+                const linkedBls = await this.prisma.factureFournisseur.aggregate({
+                    where: {
+                        ficheId: { in: ficheIds },
+                        isBL: true
+                    },
+                    _sum: { montantHT: true }
+                });
+                rawCogs += (linkedBls?._sum?.montantHT || 0);
+            }
+
+            // 3. Fallback COGS for items with no movements (estimations based on Product prices)
+            // Only run if stock movements are suspiciously low/missing for the revenue
+            if (rawCogs < (revenue * 0.1) && revenue > 0) {
+                let estimatedCogs = 0;
+                for (const doc of revenueDocs) {
+                    if (doc.type === 'AVOIR') continue;
+                    const lines = (doc.lignes as any[]) || [];
+                    for (const line of lines) {
+                        if (line.description) {
+                            // Simple heuristic: search for product by designation
+                            const product = await this.prisma.product.findFirst({
+                                where: { designation: line.description },
+                                select: { prixAchatHT: true }
+                            });
+                            if (product && product.prixAchatHT > 0) {
+                                estimatedCogs += (line.qte || 1) * product.prixAchatHT;
+                            }
+                        }
+                    }
+                }
+                if (estimatedCogs > rawCogs) rawCogs = estimatedCogs;
+            }
+
             const cogs = -1 * rawCogs;
 
+            // --- EXPENSES ---
+            // 1. Direct expenses from Depense table
             const expensesAgg = await this.prisma.depense.aggregate({
                 where: {
                     date: { gte: start, lte: end },
@@ -464,8 +546,27 @@ export class StatsService {
                 _sum: { montant: true }
             });
 
-            const totalExpenses = expensesAgg._sum.montant || 0;
+            // 2. Operational expenses from FactureFournisseur (Supplier Invoices that are not inventory)
+            const operationalPurchaseTypes = [
+                'REGLEMENT CONSOMMATION EAU', 'REGLEMENT SALAIRS OPTIQUES', 'LOYER',
+                'ELECTRICITE', 'INTERNET', 'ASSURANCE', 'FRAIS BANCAIRES', 'AUTRES CHARGES'
+            ];
+            const purchaseExpensesAgg = await this.prisma.factureFournisseur.aggregate({
+                where: {
+                    dateEmission: { gte: start, lte: end },
+                    isBL: false,
+                    OR: [
+                        { type: { in: operationalPurchaseTypes } },
+                        { type: { notIn: ['ACHAT VERRES OPTIQUES', 'ACHAT MONTURES', 'ACHAT LENTILLES DE CONTACT', 'ACHAT ACCESSOIRES', 'ACHAT STOCK'] } }
+                    ],
+                    ...(tenantId ? { centreId: tenantId } : {})
+                },
+                _sum: { montantHT: true }
+            });
 
+            const totalExpenses = (expensesAgg._sum.montant || 0) + (purchaseExpensesAgg._sum.montantHT || 0);
+
+            // Expense breakdown combine Depense and FactureFournisseur
             const expenseBreakdown = await this.prisma.depense.groupBy({
                 by: ['categorie'],
                 where: {
@@ -475,22 +576,42 @@ export class StatsService {
                 _sum: { montant: true },
             });
 
-            const formattedBreakdown = expenseBreakdown.map(e => ({
-                category: e.categorie || 'NON DÉFINI',
-                amount: e._sum.montant || 0,
-                percentage: totalExpenses > 0 ? ((e._sum.montant || 0) / totalExpenses) * 100 : 0
+            const purchaseBreakdown = await this.prisma.factureFournisseur.groupBy({
+                by: ['type'],
+                where: {
+                    dateEmission: { gte: start, lte: end },
+                    isBL: false,
+                    OR: [
+                        { type: { in: operationalPurchaseTypes } },
+                        { type: { notIn: ['ACHAT VERRES OPTIQUES', 'ACHAT MONTURES', 'ACHAT LENTILLES DE CONTACT', 'ACHAT ACCESSOIRES', 'ACHAT STOCK'] } }
+                    ],
+                    ...(tenantId ? { centreId: tenantId } : {})
+                },
+                _sum: { montantHT: true }
+            });
+
+            const combinedBreakdownMap = new Map<string, number>();
+            expenseBreakdown.forEach(e => combinedBreakdownMap.set(e.categorie || 'AUTRES', (combinedBreakdownMap.get(e.categorie || 'AUTRES') || 0) + (e._sum.montant || 0)));
+            purchaseBreakdown.forEach(p => combinedBreakdownMap.set(p.type || 'AUTRES PURCHASES', (combinedBreakdownMap.get(p.type || 'AUTRES PURCHASES') || 0) + (p._sum.montantHT || 0)));
+
+            const formattedBreakdown = Array.from(combinedBreakdownMap.entries()).map(([category, amount]) => ({
+                category,
+                amount,
+                percentage: totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0
             })).sort((a, b) => b.amount - a.amount);
 
+            const netProfit = revenue - rawCogs - totalExpenses;
+
             return {
-                period: { start, end },
                 revenue,
-                cogs,
-                grossMargin: revenue - cogs,
+                cogs: rawCogs,
                 expenses: totalExpenses,
-                netProfit: revenue - cogs - totalExpenses,
+                grossProfit: revenue - rawCogs,
+                netProfit,
                 expensesBreakdown: formattedBreakdown,
                 analysis: {
-                    marginRate: revenue ? ((revenue - cogs) / revenue) * 100 : 0
+                    grossMarginRate: revenue ? ((revenue - rawCogs) / revenue) * 100 : 0,
+                    marginRate: revenue ? (netProfit / revenue) * 100 : 0
                 }
             };
         } catch (error) {
@@ -525,14 +646,14 @@ export class StatsService {
                 FROM "Facture"
                 WHERE "dateEmission" >= ${start} AND "dateEmission" <= ${end}
                 AND (
-                    ( ("numero" LIKE 'FAC%' OR "type" = 'FACTURE') AND "statut" IN ('VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL') )
+                    ( ("numero" LIKE 'FAC%' OR "type" = 'FACTURE' OR "type" = 'BON_COMMANDE') AND "statut" IN ('VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL') )
                     OR "type" = 'AVOIR'
                 )
                 ${tenantId ? Prisma.sql`AND "centreId" = ${tenantId}` : Prisma.sql``}
                 GROUP BY 1
                 ORDER BY 1
             `;
-            const revenueRes = await this.prisma.$queryRaw(revenueQuery);
+            const revenueRes = await this.prisma.$queryRaw<any[]>(revenueQuery);
 
             const cogsQuery = Prisma.sql`
                 SELECT TO_CHAR(DATE_TRUNC('month', f."dateEmission"), 'YYYY-MM') as month,
@@ -540,13 +661,13 @@ export class StatsService {
                 FROM "MouvementStock" m
                 JOIN "Facture" f ON m."factureId" = f."id"
                 WHERE f."dateEmission" >= ${start} AND f."dateEmission" <= ${end}
-                AND (f."numero" LIKE 'FAC%' OR f."type" = 'FACTURE')
+                AND (f."numero" LIKE 'FAC%' OR f."type" = 'FACTURE' OR f."type" = 'BON_COMMANDE')
                 AND f."statut" IN ('VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL')
                 ${tenantId ? Prisma.sql`AND f."centreId" = ${tenantId}` : Prisma.sql``}
                 GROUP BY 1
                 ORDER BY 1
             `;
-            const cogsRes = await this.prisma.$queryRaw(cogsQuery);
+            const cogsRes = await this.prisma.$queryRaw<any[]>(cogsQuery);
 
             const expensesQuery = Prisma.sql`
                 SELECT TO_CHAR(DATE_TRUNC('month', "date"), 'YYYY-MM') as month,
@@ -558,31 +679,47 @@ export class StatsService {
                 GROUP BY 1
                 ORDER BY 1
             `;
-            const expensesRes = await this.prisma.$queryRaw(expensesQuery);
+            const expensesRes = await this.prisma.$queryRaw<any[]>(expensesQuery);
+
+            const purchaseExpensesQuery = Prisma.sql`
+                SELECT TO_CHAR(DATE_TRUNC('month', "dateEmission"), 'YYYY-MM') as month,
+                       SUM("montantHT") as expense
+                FROM "FactureFournisseur"
+                WHERE "dateEmission" >= ${start} AND "dateEmission" <= ${end}
+                AND "isBL" = false
+                AND (
+                    "type" IN ('ELECTRICITE', 'INTERNET', 'ASSURANCE', 'FRAIS BANCAIRES', 'AUTRES CHARGES', 'REGLEMENT CONSOMMATION EAU', 'REGLEMENT SALAIRS OPTIQUES', 'LOYER')
+                    OR "type" NOT IN ('ACHAT VERRES OPTIQUES', 'ACHAT MONTURES', 'ACHAT LENTILLES DE CONTACT', 'ACHAT ACCESSOIRES', 'ACHAT STOCK')
+                )
+                ${tenantId ? Prisma.sql`AND "centreId" = ${tenantId}` : Prisma.sql``}
+                GROUP BY 1
+            `;
+            const pExpensesRes = await this.prisma.$queryRaw<any[]>(purchaseExpensesQuery);
 
             const months = new Set<string>();
-            (revenueRes as any[]).forEach(r => months.add(r.month));
-            (cogsRes as any[]).forEach(c => months.add(c.month));
-            (expensesRes as any[]).forEach(e => months.add(e.month));
+            revenueRes.forEach((r: any) => months.add(r.month));
+            cogsRes.forEach((c: any) => months.add(c.month));
+            expensesRes.forEach((e: any) => months.add(e.month));
+            pExpensesRes.forEach((pe: any) => months.add(pe.month));
 
             const sortedMonths = Array.from(months).sort();
 
             return sortedMonths.map(month => {
-                const r = (revenueRes as any[]).find(x => x.month === month);
-                const c = (cogsRes as any[]).find(x => x.month === month);
-                const e = (expensesRes as any[]).find(x => x.month === month);
+                const r = revenueRes.find((x: any) => x.month === month);
+                const c = cogsRes.find((x: any) => x.month === month);
+                const e = expensesRes.find((x: any) => x.month === month);
+                const pe = pExpensesRes.find((x: any) => x.month === month);
 
-                const revenue = r ? parseFloat(r.revenue) : 0;
-                const rawCogs = c ? parseFloat(c.total_cost) : 0;
-                const cogs = -1 * rawCogs;
-                const expenses = e ? parseFloat(e.expense) : 0;
+                const revenue = r ? parseFloat(r.revenue || 0) : 0;
+                const rawCogs = Math.abs(parseFloat(c?.total_cost || 0));
+                const expenses = parseFloat(e?.expense || 0) + parseFloat(pe?.expense || 0);
 
                 return {
                     month,
                     revenue,
-                    cogs,
+                    cogs: rawCogs,
                     expenses,
-                    netProfit: revenue - cogs - expenses
+                    netProfit: revenue - rawCogs - expenses
                 };
             });
         } catch (error) {

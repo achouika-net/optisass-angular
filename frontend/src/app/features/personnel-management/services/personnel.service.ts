@@ -129,9 +129,12 @@ export class PersonnelService {
         return this.http.get<any[]>(`${this.apiUrl}/employees/${employeeId}/advances`);
     }
 
-    getDashboardStats(mois: string, annee: number, centreId?: string): Observable<any> {
-        return this.http.get<any>(`${this.apiUrl}/dashboard/stats`, {
-            params: { mois, annee, centreId: centreId || '' }
-        });
+    getDashboardStats(mois?: string, annee?: number, centreId?: string, startDate?: string, endDate?: string): Observable<any> {
+        const params: any = { centreId: centreId || '' };
+        if (mois) params.mois = mois;
+        if (annee) params.annee = annee.toString();
+        if (startDate) params.startDate = startDate;
+        if (endDate) params.endDate = endDate;
+        return this.http.get<any>(`${this.apiUrl}/dashboard/stats`, { params });
     }
 }

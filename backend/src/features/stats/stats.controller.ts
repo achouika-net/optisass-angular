@@ -16,8 +16,12 @@ export class StatsController {
     }
 
     @Get('product-distribution')
-    getProductDistribution(@Headers('Tenant') centreId?: string) {
-        return this.statsService.getProductDistribution(centreId);
+    getProductDistribution(
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+        @Headers('Tenant') centreId?: string
+    ) {
+        return this.statsService.getProductDistribution(startDate, endDate, centreId);
     }
 
     @Get('conversion-rate')
@@ -30,8 +34,12 @@ export class StatsController {
     }
 
     @Get('stock-by-warehouse')
-    getStockByWarehouse(@Headers('Tenant') centreId?: string) {
-        return this.statsService.getStockByWarehouse(centreId);
+    getStockByWarehouse(
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+        @Headers('Tenant') centreId?: string
+    ) {
+        return this.statsService.getStockByWarehouse(startDate, endDate, centreId);
     }
 
     @Get('top-clients')

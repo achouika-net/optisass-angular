@@ -12,51 +12,80 @@
         </div>
     </div>
 
-    <!-- Enhanced Filter Section (Restored) -->
-    <div class="filter-toolbar card mb-4">
-        <div class="filter-header">
-            <div class="filter-title">
-                <mat-icon>filter_list</mat-icon>
-                <span>Filtres & Période</span>
-            </div>
-            <div class="filter-status" *ngIf="data">
-                <mat-chip-listbox>
-                    <mat-chip selected color="primary">
-                        {{ activeFilterInfo }} : <b>{{ data.expensesBreakdown?.length || 0 }} catégories</b>
-                    </mat-chip>
-                </mat-chip-listbox>
-            </div>
+    <!-- Unified Filter Toolbar (Matching Finance Dashboard) -->
+    <div class="filter-toolbar glass mb-4">
+        <div class="period-chips">
+            <button mat-button class="chip-btn" [class.active]="filterType === 'ALL'"
+                (click)="setFilterType('ALL')">Toute la période</button>
+            <button mat-button class="chip-btn" [class.active]="filterType === 'DAILY'"
+                (click)="setFilterType('DAILY')">Aujourd'hui</button>
+            <button mat-button class="chip-btn" [class.active]="filterType === 'MONTHLY'"
+                (click)="setFilterType('MONTHLY')">Par Mois</button>
+            <button mat-button class="chip-btn" [class.active]="filterType === 'YEARLY'"
+                (click)="setFilterType('YEARLY')">Annuel</button>
+            <button mat-button class="chip-btn" [class.active]="filterType === 'CUSTOM'"
+                (click)="setFilterType('CUSTOM')">Personnalisé</button>
         </div>
 
         <div class="filter-controls">
-            <mat-form-field appearance="outline" class="period-select">
-                <mat-label>Choisir la période</mat-label>
-                <mat-select [(ngModel)]="selectedPeriod" (selectionChange)="onPeriodChange($event.value)">
-                    <mat-option value="thisMonth">Ce Mois</mat-option>
-                    <mat-option value="lastMonth">Mois Dernier</mat-option>
-                    <mat-option value="thisYear">Cette Année</mat-option>
-                    <mat-option value="custom">Plage personnalisée</mat-option>
-                </mat-select>
-            </mat-form-field>
-
-            <ng-container *ngIf="selectedPeriod === 'custom'">
-                <mat-form-field appearance="outline" class="date-picker">
-                    <mat-label>Du</mat-label>
-                    <input matInput [matDatepicker]="startPicker" [(ngModel)]="startDate" (dateChange)="onDateChange()">
-                    <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
-                    <mat-datepicker #startPicker></mat-datepicker>
+            <ng-container [ngSwitch]="filterType">
+                <!-- Daily -->
+                <mat-form-field appearance="outline" class="density-compact" *ngSwitchCase="'DAILY'">
+                    <mat-label>Date</mat-label>
+                    <input matInput [matDatepicker]="dPicker" [(ngModel)]="selectedDate" (dateChange)="onFilterChange()"
+                        title="Choisir une date" placeholder="JJ/MM/AAAA">
+                    <mat-datepicker-toggle matSuffix [for]="dPicker"></mat-datepicker-toggle>
+                    <mat-datepicker #dPicker></mat-datepicker>
                 </mat-form-field>
 
-                <mat-form-field appearance="outline" class="date-picker">
-                    <mat-label>Au</mat-label>
-                    <input matInput [matDatepicker]="endPicker" [(ngModel)]="endDate" (dateChange)="onDateChange()">
-                    <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
-                    <mat-datepicker #endPicker></mat-datepicker>
+                <!-- Monthly -->
+                <ng-container *ngSwitchCase="'MONTHLY'">
+                    <mat-form-field appearance="outline" class="density-compact month-field">
+                        <mat-label>Mois</mat-label>
+                        <mat-select [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()"
+                            title="Sélectionner le mois">
+                            <mat-option *ngFor="let m of availableMonths" [value]="m.value">{{ m.label }}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="density-compact year-field">
+                        <mat-label>Année</mat-label>
+                        <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
+                            title="Sélectionner l'année">
+                            <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                </ng-container>
+
+                <!-- Yearly -->
+                <mat-form-field appearance="outline" class="density-compact year-field" *ngSwitchCase="'YEARLY'">
+                    <mat-label>Année</mat-label>
+                    <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
+                        title="Sélectionner l'année">
+                        <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
+                    </mat-select>
                 </mat-form-field>
+
+                <!-- Custom -->
+                <ng-container *ngSwitchCase="'CUSTOM'">
+                    <mat-form-field appearance="outline" class="density-compact">
+                        <mat-label>Du</mat-label>
+                        <input matInput [matDatepicker]="sPicker" [(ngModel)]="customStartDate"
+                            (dateChange)="onFilterChange()" title="Date de début" placeholder="JJ/MM/AAAA">
+                        <mat-datepicker-toggle matSuffix [for]="sPicker"></mat-datepicker-toggle>
+                        <mat-datepicker #sPicker></mat-datepicker>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="density-compact">
+                        <mat-label>Au</mat-label>
+                        <input matInput [matDatepicker]="ePicker" [(ngModel)]="customEndDate"
+                            (dateChange)="onFilterChange()" title="Date de fin" placeholder="JJ/MM/AAAA">
+                        <mat-datepicker-toggle matSuffix [for]="ePicker"></mat-datepicker-toggle>
+                        <mat-datepicker #ePicker></mat-datepicker>
+                    </mat-form-field>
+                </ng-container>
             </ng-container>
 
             <button mat-mini-fab color="primary" (click)="loadData()" [disabled]="loading" matTooltip="Rafraîchir"
-                class="refresh-main-btn">
+                class="refresh-main-btn ml-auto">
                 <mat-icon [class.spinning]="loading">refresh</mat-icon>
             </button>
         </div>
@@ -147,34 +176,52 @@
             </mat-card>
         </div>
 
-        <!-- Main Content Grid -->
+        <!-- Multi-Chart View -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-            <!-- Chart Section -->
+            <!-- Profit Bar Chart -->
             <mat-card class="shadow-sm rounded-xl border border-gray-100">
                 <mat-card-header class="border-b border-gray-100 pb-2 mb-2">
-                    <mat-card-title class="text-gray-800 text-base">Visualisation</mat-card-title>
+                    <mat-card-title class="text-gray-800 text-base">Analyse de Rentabilité</mat-card-title>
                 </mat-card-header>
                 <mat-card-content>
-                    <div style="height: 300px;">
+                    <div class="chart-container">
                         <canvas #profitChartCanvas></canvas>
                     </div>
                 </mat-card-content>
             </mat-card>
 
-            <!-- Expense Breakdown Section -->
-            <mat-card class="shadow-sm rounded-xl border border-gray-100 flex flex-col">
+            <!-- Evolution Line Chart -->
+            <mat-card class="shadow-sm rounded-xl border border-gray-100">
+                <mat-card-header class="border-b border-gray-100 pb-2 mb-2">
+                    <mat-card-title class="text-gray-800 text-base">Évolution Mensuelle</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="chart-container">
+                        <canvas #evolutionChartCanvas></canvas>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+        </div>
+
+        <!-- Expense Breakdown Section -->
+        <div class="w-full">
+            <mat-card class="shadow-sm rounded-xl border border-gray-100">
                 <mat-card-header class="border-b border-gray-100 pb-2 mb-2 flex justify-between items-center">
                     <mat-card-title class="text-gray-800 text-base">Détails des Dépenses</mat-card-title>
-                    <span class="text-[10px] font-medium px-2 py-0.5 bg-gray-100 rounded text-gray-600"
-                        *ngIf="data.expensesBreakdown?.length">
-                        {{ data.expensesBreakdown.length }} Catégories
-                    </span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                            {{ activeFilterInfo }}
+                        </span>
+                        <span class="text-[10px] font-medium px-2 py-0.5 bg-gray-100 rounded text-gray-600"
+                            *ngIf="data.expensesBreakdown?.length">
+                            {{ data.expensesBreakdown.length }} Catégories
+                        </span>
+                    </div>
                 </mat-card-header>
-                <mat-card-content class="flex-1">
+                <mat-card-content>
+                    <!-- ... existing table content ... -->
 
-                    <div class="overflow-x-auto max-h-[300px] overflow-y-auto"
-                        *ngIf="data.expensesBreakdown?.length; else noExpenses">
+                    <div class="breakdown-table-container" *ngIf="data.expensesBreakdown?.length; else noExpenses">
                         <table class="w-full text-left text-sm text-gray-600">
                             <thead class="bg-gray-50 text-gray-800 font-semibold border-b border-gray-200">
                                 <tr>

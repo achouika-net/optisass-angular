@@ -434,11 +434,16 @@ export class PayrollService {
         });
     }
 
-    async getDashboardStats(mois: string, annee: number, centreId?: string) {
+    async getDashboardStats(mois?: string, annee?: number, centreId?: string) {
+        // Default to current month/year if not provided
+        const now = new Date();
+        const effectiveMois = mois || (now.getMonth() + 1).toString().padStart(2, '0');
+        const effectiveAnnee = (annee && !isNaN(annee)) ? annee : now.getFullYear();
+
         const payrolls = await this.prisma.payroll.findMany({
             where: {
-                mois,
-                annee,
+                mois: effectiveMois,
+                annee: effectiveAnnee,
                 employee: centreId ? { centres: { some: { centreId } } } : {}
             },
             include: { employee: true }
@@ -457,7 +462,7 @@ export class PayrollService {
         // History of last 6 months
         const history: any[] = [];
         for (let i = 5; i >= 0; i--) {
-            const date = new Date(annee, parseInt(mois) - 1 - i, 1);
+            const date = new Date(effectiveAnnee, parseInt(effectiveMois) - 1 - i, 1);
             const hMois = (date.getMonth() + 1).toString().padStart(2, '0');
             const hAnnee = date.getFullYear();
 

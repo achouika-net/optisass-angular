@@ -109,7 +109,8 @@ export class SalesControlReportComponent implements OnInit {
         totalAvoirs: 0,
         totalBC: 0,
         totalPaid: 0,
-        totalReste: 0
+        totalReste: 0,
+        paymentBreakdown: [] as { methode: string, total: number }[]
     };
 
     // Filter State
@@ -276,39 +277,35 @@ export class SalesControlReportComponent implements OnInit {
     }
 
     calculateMetrics() {
+        console.log('[REPORT-DEBUG] Statistics received:', this.statistics);
         const stats = this.statistics.find(s => s.vendorId === 'all');
         if (stats) {
             this.metrics = {
                 totalCA: stats.totalAmount || 0,
-                totalFactures: (stats as any).totalFactures || 0,
-                totalAvoirs: (stats as any).totalAvoirs || 0,
-                totalBC: (stats as any).totalBC || 0,
-                totalPaid: 0,
-                totalReste: 0
+                totalFactures: stats.totalFactures || 0,
+                totalAvoirs: stats.totalAvoirs || 0,
+                totalBC: stats.totalBC || 0,
+                totalPaid: stats.totalEncaissePeriod || 0,
+                totalReste: stats.totalReste || 0,
+                paymentBreakdown: stats.payments || []
             };
         } else {
-            this.metrics = { totalCA: 0, totalFactures: 0, totalAvoirs: 0, totalBC: 0, totalPaid: 0, totalReste: 0 };
+            this.metrics = { totalCA: 0, totalFactures: 0, totalAvoirs: 0, totalBC: 0, totalPaid: 0, totalReste: 0, paymentBreakdown: [] };
         }
+    }
 
-        // Calculate Reste à Payer from visible invoices
-        [...this.invoicesValid, ...this.invoicesWithPayment].forEach(inv => {
-            if (inv.statut !== 'ANNULEE') {
-                this.metrics.totalReste += (inv.resteAPayer || 0);
-            }
-        });
-
-        // Calculate Total Encaissé from payments in the pool
-        const processedPaymentIds = new Set<string>();
-        [...this.invoicesWithPayment, ...this.invoicesValid].forEach(inv => {
-            if (inv.paiements) {
-                inv.paiements.forEach(p => {
-                    if (!processedPaymentIds.has(p.id)) {
-                        this.metrics.totalPaid += (p.montant || 0);
-                        processedPaymentIds.add(p.id);
-                    }
-                });
-            }
-        });
+    getPaymentLabel(methode: string): string {
+        const labels: { [key: string]: string } = {
+            'ESPECE': 'Espèce',
+            'CHEQUE': 'Chèque',
+            'VIREMENT': 'Virement',
+            'CB': 'Carte Bancaire',
+            'TPE': 'TPE',
+            'EFFET': 'Effet',
+            'OFFERT': 'Offert',
+            'AUTRE': 'Autre'
+        };
+        return labels[methode.toUpperCase()] || methode;
     }
 
     setFilterType(type: 'DAILY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM' | 'ALL') {
