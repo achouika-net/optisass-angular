@@ -411,6 +411,7 @@ model FactureFournisseur {
   statut           String               @default("A_PAYER")
   type             String               @default("ACHAT_STOCK")
   fournisseurId    String
+  quantite         Float?               @default(0)
   isBL             Boolean?             @default(false)
   categorieBL      String?
   parentInvoiceId  String?

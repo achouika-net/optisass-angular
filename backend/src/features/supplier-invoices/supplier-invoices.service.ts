@@ -112,8 +112,10 @@ export class SupplierInvoicesService {
         ficheId?: string;
         startDate?: string;
         endDate?: string;
+        page?: number;
+        limit?: number;
     }) {
-        const { fournisseurId, statut, clientId, centreId, isBL, categorieBL, parentInvoiceId, startDate, endDate, ficheId } = filters;
+        const { fournisseurId, statut, clientId, centreId, isBL, categorieBL, parentInvoiceId, startDate, endDate, ficheId, page, limit } = filters;
         const whereClause: any = {};
 
         if (fournisseurId) whereClause.fournisseurId = fournisseurId;
@@ -133,17 +135,27 @@ export class SupplierInvoicesService {
             if (endDate) whereClause.dateEmission.lte = new Date(endDate);
         }
 
-        return this.prisma.factureFournisseur.findMany({
-            where: whereClause,
-            include: {
-                fournisseur: { select: { id: true, nom: true } },
-                echeances: true,
-                client: { select: { id: true, nom: true, prenom: true } },
-                fiche: { select: { id: true, numero: true, type: true } },
-                parentInvoice: { select: { id: true, numeroFacture: true } }
-            },
-            orderBy: { dateEmission: 'desc' }
-        });
+        const skip = (page && limit) ? (Number(page) - 1) * Number(limit) : undefined;
+        const take = limit ? Number(limit) : undefined;
+
+        const [data, total] = await Promise.all([
+            this.prisma.factureFournisseur.findMany({
+                where: whereClause,
+                include: {
+                    fournisseur: { select: { id: true, nom: true } },
+                    echeances: true,
+                    client: { select: { id: true, nom: true, prenom: true } },
+                    fiche: { select: { id: true, numero: true, type: true } },
+                    parentInvoice: { select: { id: true, numeroFacture: true } }
+                },
+                orderBy: { dateEmission: 'desc' },
+                skip,
+                take
+            }),
+            this.prisma.factureFournisseur.count({ where: whereClause })
+        ]);
+
+        return { data, total };
     }
 
     async findOne(id: string) {

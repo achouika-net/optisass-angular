@@ -102,13 +102,15 @@ export class FactureListComponent implements OnInit {
             case 'VENTE_EN_INSTANCE':
                 this.filteredDataSource = this.dataSource.filter(f =>
                     f.statut === 'VENTE_EN_INSTANCE' ||
+                    f.type === 'BON_COMMANDE' ||
+                    f.type === 'BON_COMM' ||
                     (f.type === 'DEVIS' && f.paiements && f.paiements.length > 0)
                 );
                 break;
             case 'VALIDATED':
                 this.filteredDataSource = this.dataSource.filter(f =>
-                    f.type === 'FACTURE' &&
-                    (f.statut === 'VALIDE' || f.statut === 'PAYEE' || f.statut === 'PARTIEL')
+                    (f.type === 'FACTURE' || f.type === 'BON_COMMANDE' || f.type === 'BON_COMM') &&
+                    (f.statut === 'VALIDE' || f.statut === 'PAYEE' || f.statut === 'PARTIEL' || f.statut === 'VALIDEE')
                 );
                 break;
             default:

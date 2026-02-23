@@ -1397,7 +1397,7 @@ export class ImportsService {
         return results;
     }
 
-    async importFacturesFournisseurs(data: any[], mapping: any, centreId?: string) {
+    async importFacturesFournisseurs(data: any[], mapping: any, centreId?: string, isBLOverride?: any) {
         const results = { success: 0, updated: 0, skipped: 0, failed: 0, errors: [] as string[] };
         for (let index = 0; index < data.length; index++) {
             const row = data[index];
@@ -1471,7 +1471,6 @@ export class ImportsService {
                 }
 
                 // INVOICE PATH: Has invoice number, create FactureFournisseur
-                // INVOICE PATH: Has invoice number, create FactureFournisseur
                 let fournisseur: any = null;
 
                 // Optimized Supplier Matching Logic
@@ -1482,15 +1481,72 @@ export class ImportsService {
                 const montantHT = this.parseAmount(row[mapping.montantHT]);
                 const montantTVA = this.parseAmount(row[mapping.montantTVA]);
                 const montantTTC = this.parseAmount(row[mapping.montantTTC]) || (montantHT + montantTVA);
+                const quantite = this.parseAmount(row[mapping.quantite]);
                 const modePaiement = row[mapping.modePaiement] ? String(row[mapping.modePaiement]).trim() : 'ESPECES';
 
                 const referenceInterne = row[mapping.referenceInterne] ? String(row[mapping.referenceInterne]).trim() : null;
 
+                // --- SMART CLIENT & FICHE LINKING ---
+                let clientId: string | null = null;
+                let ficheId: string | null = null;
+
+                // Try to identify client from mapping
+                const clientCodeMapping = row[mapping.codeClient];
+                const clientNomMapping = row[mapping.nomClient] || row[mapping.nom]; // allow both
+                const clientTelMapping = row[mapping.telephoneClient] || row[mapping.telephone];
+
+                if (clientCodeMapping) {
+                    const c = await this.prisma.client.findUnique({ where: { codeClient: String(clientCodeMapping).trim() } });
+                    if (c) clientId = c.id;
+                } else if (clientNomMapping && clientTelMapping) {
+                    const c = await this.prisma.client.findFirst({
+                        where: {
+                            nom: { equals: String(clientNomMapping).trim(), mode: 'insensitive' },
+                            telephone: String(clientTelMapping).trim()
+                        }
+                    });
+                    if (c) clientId = c.id;
+                }
+
+                // If client found, find the most relevant Fiche (closest date <= BL date)
+                if (clientId) {
+                    const bestFiche = await this.prisma.fiche.findFirst({
+                        where: {
+                            clientId: clientId,
+                            dateCreation: { lte: dateEmission }
+                        },
+                        orderBy: { dateCreation: 'desc' }
+                    });
+                    if (bestFiche) {
+                        ficheId = bestFiche.id;
+                    }
+                }
+
+                // Global override takes precedence, fallback to column mapping, default to true (legacy)
+                let isBL = true;
+                if (isBLOverride !== undefined && isBLOverride !== null) {
+                    isBL = (isBLOverride === true || isBLOverride === 'true' || isBLOverride === 1);
+                } else if (row[mapping.isBL] !== undefined) {
+                    isBL = (row[mapping.isBL] === true || row[mapping.isBL] === 'true' || row[mapping.isBL] === 1);
+                }
+                // ------------------------------------
+
                 const factureData = {
-                    numeroFacture: finalNumeroFacture, dateEmission, dateEcheance, montantHT, montantTVA, montantTTC,
-                    statut: row[mapping.statut] || 'A_PAYER', type: row[mapping.type] || 'ACHAT_STOCK',
-                    fournisseurId: fournisseur.id, centreId: centreId || null,
-                    referenceInterne: referenceInterne
+                    numeroFacture: finalNumeroFacture,
+                    dateEmission,
+                    dateEcheance,
+                    montantHT,
+                    montantTVA,
+                    montantTTC,
+                    quantite,
+                    statut: row[mapping.statut] || 'A_PAYER',
+                    type: row[mapping.type] || 'ACHAT_STOCK',
+                    fournisseurId: fournisseur.id,
+                    centreId: centreId || null,
+                    referenceInterne: referenceInterne,
+                    clientId: clientId,
+                    ficheId: ficheId,
+                    isBL: isBL
                 };
 
                 let existingFacture = await (this.prisma.factureFournisseur as any).findFirst({

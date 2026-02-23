@@ -15,4 +15,7 @@ export class ExecuteImportDto {
 
     @IsOptional()
     centreId?: any;
+
+    @IsOptional()
+    isBL?: any;
 }

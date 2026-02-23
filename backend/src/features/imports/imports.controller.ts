@@ -111,7 +111,7 @@ export class ImportsController {
                 return res;
             } else if (body.type === 'factures_fournisseurs') {
                 log('Executing importFacturesFournisseurs...');
-                const res = await this.importsService.importFacturesFournisseurs(data, mapping, body.centreId);
+                const res = await this.importsService.importFacturesFournisseurs(data, mapping, body.centreId, body.isBL);
                 log('Factures fournisseurs import completed successfully');
                 return res;
             } else if (body.type === 'paiements_fournisseurs') {

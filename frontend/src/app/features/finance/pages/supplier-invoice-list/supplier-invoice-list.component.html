@@ -264,5 +264,12 @@
             <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="selection.toggle(row)"></tr>
         </table>
+
+        <div class="border-t border-gray-100">
+            <mat-paginator [length]="totalCount" [pageSize]="pageSize" [pageIndex]="pageIndex"
+                [pageSizeOptions]="[10, 20, 50, 100]" (page)="onPageChange($event)" showFirstLastButtons
+                aria-label="Sélectionner la page">
+            </mat-paginator>
+        </div>
     </mat-card>
 </div>

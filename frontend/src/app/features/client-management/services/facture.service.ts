@@ -15,7 +15,7 @@ export type FactureStatus = 'BROUILLON' | 'VALIDE' | 'PAYEE' | 'ANNULEE' | 'PART
 export interface Facture {
     id: string;
     numero: string;
-    type: 'FACTURE' | 'DEVIS' | 'AVOIR' | 'BL' | 'BON_COMM';
+    type: 'FACTURE' | 'DEVIS' | 'AVOIR' | 'BL' | 'BON_COMM' | 'BON_COMMANDE';
     dateEmission: Date;
 
     dateEcheance?: Date;

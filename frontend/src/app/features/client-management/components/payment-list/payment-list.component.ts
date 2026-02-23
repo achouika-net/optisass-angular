@@ -652,7 +652,9 @@ export class PaymentListComponent implements OnInit {
         }
 
         factures.forEach(f => {
-            if (f.statut !== 'ANNULEE' && f.statut !== 'DEVIS_SANS_PAIEMENT' && f.type !== 'BON_COMM' && f.type !== 'AVOIR') {
+            const isSale = f.type === 'FACTURE' || f.type === 'BON_COMM' || f.type === 'BON_COMMANDE' ||
+                (f.type === 'DEVIS' && f.statut !== 'DEVIS_SANS_PAIEMENT' && f.statut !== 'BROUILLON');
+            if (f.statut !== 'ANNULEE' && isSale && f.type !== 'AVOIR') {
                 totalTTC += f.totalTTC || 0;
             }
         });

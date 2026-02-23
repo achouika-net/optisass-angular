@@ -714,7 +714,7 @@ export class FactureFormComponent implements OnInit {
         const type = this.form.get('type')?.value;
         const statut = this.form.get('statut')?.value;
         // [MODIFIED] Only validated invoices/BC can be exchanged
-        const isOfficial = (type === 'FACTURE' || type === 'BON_COMM' || type === 'BL') && (statut === 'VALIDE' || statut === 'PAYEE' || statut === 'PARTIEL');
+        const isOfficial = (type === 'FACTURE' || type === 'BON_COMM' || type === 'BON_COMMANDE' || type === 'BL') && (statut === 'VALIDE' || statut === 'PAYEE' || statut === 'PARTIEL');
         return isOfficial && this.id !== 'new';
     }
 

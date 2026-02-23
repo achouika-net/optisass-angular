@@ -136,7 +136,7 @@ export class FacturesService implements OnModuleInit {
 
         console.log('✅ Facture created with proprietes:', facture.proprietes);
 
-        const isOfficial = facture.type === 'FACTURE' || facture.type === 'BON_COMM' || facture.type === 'BL';
+        const isOfficial = facture.type === 'FACTURE' || facture.type === 'BON_COMM' || facture.type === 'BON_COMMANDE' || facture.type === 'BL';
         const isInstance = facture.statut === 'VENTE_EN_INSTANCE' || facture.statut === 'BON_DE_COMMANDE';
         const isValidated = facture.statut === 'VALIDE' || facture.statut === 'PAYEE' || facture.statut === 'PARTIEL';
 
