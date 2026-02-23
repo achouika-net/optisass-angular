@@ -221,7 +221,14 @@
                                     </td>
                                 </tr>
                                 <tr *ngFor="let invoice of group.invoices" class="data-row">
-                                    <td class="font-bold">{{ invoice.numero }}</td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span
+                                                style="font-size: 0.7rem; padding: 2px 6px; background-color: #dbecfe; color: #1e40af; border: 1px solid #bfdbfe; border-radius: 4px; font-weight: 600;"
+                                                *ngIf="invoice.type === 'BON_COMMANDE' || invoice.type === 'BON_COMM'">BC</span>
+                                            <span class="font-bold">{{ invoice.numero }}</span>
+                                        </div>
+                                    </td>
                                     <td>
                                         <div class="client-cell">
                                             <div class="name">{{ getClientName(invoice) }}</div>
