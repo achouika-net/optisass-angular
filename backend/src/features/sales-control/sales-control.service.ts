@@ -15,12 +15,21 @@ export class SalesControlService {
         const start = startDate ? new Date(startDate) : undefined;
         const end = endDate ? new Date(endDate) : undefined;
 
-        // Only BON_COMMANDE records (= ventes sans facture)
+        // "Bons de commande" actually means any document that has generated payments but is NOT technically a closed Official Sale yet. 
+        // We broadly accept any document with payments, but we exclude official FACTURE types from this specific query to avoid double counting them here and in Tab 2, UNLESS the user wants them here. 
+        // Actually, Tab 1 is meant for 'Vente en instance' (BCs). If a legacy DEVIS has a payment, it's effectively a BC.
         return this.prisma.facture.findMany({
             where: {
                 centreId,
-                type: { in: ['BON_COMMANDE', 'BON_COMM'] },
                 statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
+                // Include explicit BCs, AND any document that has payments but isn't a final FACTURE/BL/AVOIR
+                OR: [
+                    { type: { in: ['BON_COMMANDE', 'BON_COMM'] } },
+                    {
+                        paiements: { some: {} },
+                        type: { notIn: ['FACTURE', 'BL', 'AVOIR'] }
+                    }
+                ],
                 ...(start || end ? { dateEmission: { gte: start, lte: end } } : {})
             },
             include: {
