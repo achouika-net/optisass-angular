@@ -245,6 +245,12 @@ export class SalesControlReportComponent implements OnInit {
         const groups: { [key: string]: MonthlyGroup } = {};
 
         invoices.forEach(inv => {
+            // [LEGACY FIX] If a DEVIS has payments, treat it visually as a BON_COMMANDE
+            if (inv.type === 'DEVIS' && inv.paiements && inv.paiements.length > 0) {
+                inv.type = 'BON_COMMANDE' as any;
+                inv.statut = 'VENTE_EN_INSTANCE';
+            }
+
             const date = new Date(inv.dateEmission);
             const monthKey = `${date.getMonth() + 1}/${date.getFullYear()}`;
             const sortKey = date.getFullYear() * 100 + (date.getMonth() + 1);
