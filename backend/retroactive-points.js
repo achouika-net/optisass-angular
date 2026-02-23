@@ -12,11 +12,12 @@ async function run() {
     const ratio = config.pointsPerDH || 0.1;
     console.log(`⚙ Ratio configuré: ${ratio} points / MAD`);
 
-    // 2. Find eligible factures (PAYEE, PARTIEL, ou VALIDE)
+    // 2. Find eligible factures
     const factures = await prisma.facture.findMany({
         where: {
-            statut: { in: ['VALIDE', 'PARTIEL', 'PAYEE', 'VALIDEE', 'BON_DE_COMMANDE'] },
-            type: { in: ['FACTURE', 'BON_COMM', 'BON_COMMANDE'] }
+            // We want any final-like document or any Bon de commande
+            type: { in: ['FACTURE', 'BON_COMM', 'BON_COMMANDE'] },
+            statut: { notIn: ['ARCHIVE', 'ANNULEE'] }
         }
     });
 
