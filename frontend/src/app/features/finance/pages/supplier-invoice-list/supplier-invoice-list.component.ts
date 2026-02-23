@@ -20,6 +20,7 @@ import { FormsModule } from '@angular/forms';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatInputModule } from '@angular/material/input';
+import { MatPaginatorModule } from '@angular/material/paginator';
 
 import { FinanceService } from '../../services/finance.service';
 import { SupplierInvoice } from '../../models/finance.models';
@@ -51,6 +52,7 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
     MatDatepickerModule,
     MatNativeDateModule,
     MatInputModule,
+    MatPaginatorModule,
     RouterModule
   ],
   templateUrl: './supplier-invoice-list.component.html',
@@ -105,6 +107,10 @@ export class SupplierInvoiceListComponent implements OnInit {
   loading = false;
   currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
   selection = new SelectionModel<SupplierInvoice>(true, []);
+
+  totalCount = 0;
+  pageIndex = 0;
+  pageSize = 50;
 
   selectedPeriod = signal<string>('all');
   periods = [
@@ -203,10 +209,18 @@ export class SupplierInvoiceListComponent implements OnInit {
       fournisseurId: this.filters.fournisseurId || undefined,
       startDate,
       endDate,
-      isBL: this.listMode === 'BL'
+      isBL: this.listMode === 'BL',
+      page: this.pageIndex + 1,
+      limit: this.pageSize
     }).subscribe({
-      next: (data) => {
-        this.invoices = data;
+      next: (res: any) => {
+        if (Array.isArray(res)) {
+          this.invoices = res;
+          this.totalCount = res.length;
+        } else {
+          this.invoices = res?.data || [];
+          this.totalCount = res?.total || 0;
+        }
         this.loading = false;
         this.selection.clear();
       },
@@ -216,6 +230,12 @@ export class SupplierInvoiceListComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  onPageChange(event: any) {
+    this.pageIndex = event.pageIndex;
+    this.pageSize = event.pageSize;
+    this.loadInvoices();
   }
 
   isAllSelected() {

@@ -40,6 +40,16 @@
                                     </mat-option>
                                 </mat-select>
                             </mat-form-field>
+
+                            <mat-form-field appearance="outline"
+                                *ngIf="importForm.get('type')?.value === 'factures_fournisseurs'">
+                                <mat-label>Type de document (Global)</mat-label>
+                                <mat-select formControlName="isBL">
+                                    <mat-option [value]="true">Bon de Livraison (BL)</mat-option>
+                                    <mat-option [value]="false">Facture</mat-option>
+                                </mat-select>
+                                <mat-hint>Ce réglage s'appliquera à toutes les lignes importées</mat-hint>
+                            </mat-form-field>
                         </div>
 
                         <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center"

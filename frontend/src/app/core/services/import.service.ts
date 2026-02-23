@@ -27,13 +27,14 @@ export class ImportService {
         );
     }
 
-    executeImport(type: string, data: any[], mapping: any, warehouseId?: string, centreId?: string): Observable<any> {
+    executeImport(type: string, data: any[], mapping: any, warehouseId?: string, centreId?: string, isBL?: any): Observable<any> {
         return this.http.post(`${this.apiUrl}/execute`, {
             type,
             data,
             mapping,
             warehouseId,
-            centreId
+            centreId,
+            isBL
         });
     }
 }

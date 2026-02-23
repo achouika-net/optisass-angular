@@ -77,7 +77,9 @@ export class FinanceService {
         parentInvoiceId?: string;
         startDate?: string;
         endDate?: string;
-    }): Observable<SupplierInvoice[]> {
+        page?: number;
+        limit?: number;
+    }): Observable<{ data: SupplierInvoice[], total: number }> {
         let params = new HttpParams();
         if (filters?.fournisseurId) params = params.set('fournisseurId', filters.fournisseurId);
         if (filters?.statut) params = params.set('statut', filters.statut);
@@ -88,8 +90,10 @@ export class FinanceService {
         if (filters?.parentInvoiceId) params = params.set('parentInvoiceId', filters.parentInvoiceId);
         if (filters?.startDate) params = params.set('startDate', filters.startDate);
         if (filters?.endDate) params = params.set('endDate', filters.endDate);
+        if (filters?.page) params = params.set('page', filters.page.toString());
+        if (filters?.limit) params = params.set('limit', filters.limit.toString());
 
-        return this.http.get<SupplierInvoice[]>(`${this.apiUrl}/supplier-invoices`, { params });
+        return this.http.get<{ data: SupplierInvoice[], total: number }>(`${this.apiUrl}/supplier-invoices`, { params });
     }
 
     groupBLsToInvoice(blIds: string[], targetInvoiceData: any): Observable<SupplierInvoice> {

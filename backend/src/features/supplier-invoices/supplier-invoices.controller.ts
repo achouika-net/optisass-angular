@@ -33,7 +33,9 @@ export class SupplierInvoicesController {
         @Query('categorieBL') categorieBL?: string,
         @Query('parentInvoiceId') parentInvoiceId?: string,
         @Query('startDate') startDate?: string,
-        @Query('endDate') endDate?: string
+        @Query('endDate') endDate?: string,
+        @Query('page') page?: number,
+        @Query('limit') limit?: number
     ) {
         return this.service.findAll({
             fournisseurId,
@@ -44,7 +46,9 @@ export class SupplierInvoicesController {
             categorieBL,
             parentInvoiceId,
             startDate,
-            endDate
+            endDate,
+            page,
+            limit
         });
     }
 

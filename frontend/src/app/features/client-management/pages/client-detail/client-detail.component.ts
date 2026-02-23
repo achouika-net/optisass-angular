@@ -227,13 +227,17 @@ export class ClientDetailComponent implements OnInit {
       next: (factures) => {
         const activeFactures = factures.filter(f => f.statut !== 'ANNULEE');
         const ca = activeFactures.reduce((sum, f) => {
-          if (f.type === 'FACTURE' || (f.type === 'DEVIS' && (f.statut === 'VENTE_EN_INSTANCE' || f.statut === 'ARCHIVE'))) {
+          const isCA = f.type === 'FACTURE' || f.type === 'BON_COMM' || f.type === 'BON_COMMANDE' ||
+            (f.type === 'DEVIS' && (f.statut === 'VENTE_EN_INSTANCE' || f.statut === 'ARCHIVE'));
+          if (isCA) {
             return sum + f.totalTTC;
           }
           return sum;
         }, 0);
         const reste = activeFactures.reduce((sum, f) => {
-          if (f.type === 'FACTURE' || (f.type === 'DEVIS' && (f.statut === 'VENTE_EN_INSTANCE' || f.statut === 'ARCHIVE'))) {
+          const isCA = f.type === 'FACTURE' || f.type === 'BON_COMM' || f.type === 'BON_COMMANDE' ||
+            (f.type === 'DEVIS' && (f.statut === 'VENTE_EN_INSTANCE' || f.statut === 'ARCHIVE'));
+          if (isCA) {
             const val = typeof f.resteAPayer === 'string' ? parseFloat(f.resteAPayer) : (f.resteAPayer || 0);
             return sum + val;
           }
@@ -547,6 +551,9 @@ export class ClientDetailComponent implements OnInit {
         console.log('[REWARD] Eligibility result:', result);
         this.isEligibleForReward = result.eligible;
         this.rewardThreshold = result.threshold;
+        if (this.client && result.currentPoints !== undefined) {
+          this.client.pointsFidelite = result.currentPoints;
+        }
         console.log('[REWARD] isEligibleForReward:', this.isEligibleForReward, 'threshold:', this.rewardThreshold);
         this.cdr.markForCheck();
       },
@@ -581,8 +588,9 @@ export class ClientDetailComponent implements OnInit {
   loadSupplierInvoices(): void {
     if (!this.clientId) return;
     this.financeService.getInvoices({ clientId: this.clientId }).subscribe({
-      next: (invoices) => {
-        this.supplierInvoices.set(invoices);
+      next: (res: any) => {
+        const data = Array.isArray(res) ? res : (res?.data || []);
+        this.supplierInvoices.set(data);
         this.cdr.markForCheck();
       },
       error: (err) => console.error('Error loading supplier invoices:', err)

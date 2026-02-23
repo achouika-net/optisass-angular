@@ -373,11 +373,15 @@ export class DataImportComponent implements OnInit {
             { value: 'referenceInterne', label: 'Référence Interne / nPiece' },
             { value: 'codeFournisseur', label: 'Code Fournisseur' },
             { value: 'nomFournisseur', label: 'Nom Fournisseur (si code absent)' },
+            { value: 'codeClient', label: 'Code Client (Reconnaissance)' },
+            { value: 'nomClient', label: 'Nom Client (Si code absent)' },
+            { value: 'telephoneClient', label: 'Téléphone Client (Si code absent)' },
             { value: 'dateEmission', label: 'Date Facture' },
             { value: 'dateEcheance', label: 'Date Échéance' },
             { value: 'montantHT', label: 'Montant HT' },
             { value: 'montantTVA', label: 'Montant TVA' },
             { value: 'montantTTC', label: 'Montant TTC' },
+            { value: 'quantite', label: 'Quantité d\'articles' },
             { value: 'statut', label: 'Statut (A_PAYER/PAYEE/PARTIELLE)' },
             { value: 'type', label: 'Type (ACHAT_STOCK/AUTRE)' },
             { value: 'modePaiement', label: 'Mode de Règlement (Pour échéance auto)' },
@@ -477,7 +481,8 @@ export class DataImportComponent implements OnInit {
     ngOnInit() {
         this.importForm = this.fb.group({
             type: ['clients', Validators.required],
-            warehouseId: [null]
+            warehouseId: [null],
+            isBL: [true]
         });
 
         this.mappingForm = this.fb.group({});
@@ -709,7 +714,7 @@ export class DataImportComponent implements OnInit {
             // Note: 'numero' and 'facture' keys are defined above in FICHE section (merged)
             numeroFacture: ['numero facture', 'num facture', 'n° facture', 'invoice no', 'invoice number', 'facture', 'ref facture'],
             fiche: ['fiche', 'dossier', 'num fiche', 'numero fiche', 'n° fiche', 'no fiche'],
-            nomClient: ['nom client', 'client', 'client name', 'customer', 'customer name'],
+            nomClient: ['nom client', 'client', 'client name', 'customer', 'customer name', 'nom'],
             type: ['type', 'type facture', 'invoice type', 'document type'],
             dateEmission: ['date facture', 'date emission', 'invoice date', 'date', 'date document', 'date creation'],
             dateEcheance: ['echeance', 'date echeance', 'due date', 'date limite', 'date paiement'],
@@ -719,8 +724,10 @@ export class DataImportComponent implements OnInit {
             montantHT: ['montant ht', 'ht', 'total ht', 'hors taxe'],
             montantTVA: ['montant tva', 'tva', 'total tva'],
             montantTTC: ['montant ttc', 'ttc', 'total ttc', 'total'],
+            quantite: ['quantite', 'qte', 'quantity', 'nombre articles', 'nombre', 'nb'],
             codeFournisseur: ['code fournisseur', 'fournisseur code', 'supplier code'],
             nomFournisseur: ['nom fournisseur', 'fournisseur', 'supplier name', 'vendor name'],
+            telephoneClient: ['telephone client', 'tel client', 'phone customer', 'tel'],
 
             // ─── PAIEMENTS ────────────────────────────────────────────────────
             datePaiement: ['date paiement', 'date reglement', 'payment date', 'date versement', 'date', 'date encaissement'],
@@ -894,13 +901,8 @@ export class DataImportComponent implements OnInit {
         // Consolidate batches for entity-based imports to avoid cross-batch duplication.
         // Backend's deduplication logic (lookup existing by code/name) only works
         // within the scope of a single request. 
-        const singleBatchTypes = [
-            'fiches', 'fiches_lentilles', 'fiches_produits',
-            'clients', 'fournisseurs', 'factures_fournisseurs',
-            'factures_ventes', 'paiements_clients', 'paiements_fournisseurs'
-        ];
-        const isSingleBatch = singleBatchTypes.includes(type);
-        const batchSize = isSingleBatch ? dataToImport.length : 500;
+        const isSingleBatch = false; // Enable batching for all types
+        const batchSize = 1000;
         const batches = [];
         for (let i = 0; i < dataToImport.length; i += batchSize) {
             batches.push(dataToImport.slice(i, i + batchSize));
@@ -916,9 +918,10 @@ export class DataImportComponent implements OnInit {
                 this.importProgress = Math.round((i / batches.length) * 100);
                 this.cdr.detectChanges();
 
+                const isBL = this.importForm.get('isBL')?.value;
                 console.log(`Sending batch ${this.currentBatchIndex}/${this.totalBatches}...`);
                 const res = await lastValueFrom(
-                    this.importService.executeImport(type, batches[i], mapping, warehouseId, centreId)
+                    this.importService.executeImport(type, batches[i], mapping, warehouseId, centreId, isBL)
                 );
 
                 // Aggregate results
