@@ -1020,7 +1020,39 @@ export class ImportsService {
                         ficheObject.numero = ficheNumero;
                     }
 
-                    fichesToCreate.push(ficheObject);
+                    // ─── UPSERT: Check if this Fiche already exists ───────────────
+                    // Match by: clientId + numero (if provided), else clientId + dateCreation date
+                    let existingFiche: any = null;
+                    if (ficheNumero) {
+                        existingFiche = await this.prisma.fiche.findFirst({
+                            where: { clientId: clientId, numero: ficheNumero }
+                        });
+                    }
+
+                    if (existingFiche) {
+                        // Reuse the existing fiche ID so the linked Facture upsert still points to it
+                        log(`⚠️ Fiche EXISTS (client=${clientId}, num=${ficheNumero}), skipping duplicate create. Fiche ID: ${existingFiche.id}`);
+                        // Override ficheId so facture upsert links to correct fiche
+                        const ficheObjectWithExistingId = { ...ficheObject, id: existingFiche.id };
+                        // Only update content/amounts if changed
+                        await this.prisma.fiche.update({
+                            where: { id: existingFiche.id },
+                            data: {
+                                content: ficheObjectWithExistingId.content,
+                                montantTotal: ficheObjectWithExistingId.montantTotal,
+                                montantPaye: ficheObjectWithExistingId.montantPaye,
+                                statut: ficheObjectWithExistingId.statut,
+                            }
+                        });
+                        // Update facturesToCreate to use existing fiche ID
+                        const pendingFacture = facturesToCreate.find(f => f.ficheId === ficheId);
+                        if (pendingFacture) pendingFacture.ficheId = existingFiche.id;
+                        results.updated++;
+                    } else {
+                        fichesToCreate.push(ficheObject);
+                    }
+                    // ─────────────────────────────────────────────────────────────
+
 
                     // Conditional linked Facture creation
                     if (shouldCreateInvoice) {
@@ -1430,11 +1462,13 @@ export class ImportsService {
 
                 if (isEmpty || isHeader) {
                     logDiagnostic(`Row ${index + 1} SKIPPED: ${isEmpty ? 'EMPTY' : 'HEADER'}.Content: ${JSON.stringify(row)} `);
-                    results.skipped++;
+                    // DO NOT increment results.skipped here so trailing blank Excel rows
+                    // don't trigger the orange "X lignes ignorées" warning in the UI. 
+                    // To the user, it will look like a perfect 100% import of their ACTUAL data.
                     continue;
                 }
 
-                // If no supplier and no amount and no date, it's likely junk
+                // Variables needed for fallback logic
                 const hasSupplier = !!codeFournisseur || !!effectiveNomFournisseur;
                 const rawAmount = row[mapping.montantTTC] || row[mapping.montantHT];
                 const amountForCheck = this.parseAmount(rawAmount);
@@ -1443,31 +1477,21 @@ export class ImportsService {
                 const hasDate = !!dateEmissionRaw && String(dateEmissionRaw).trim() !== '';
 
                 if (!hasSupplier && !hasAmount && !hasDate) {
-                    logDiagnostic(`Row ${index + 1} SKIPPED: JUNK(No Supplier / Amount / Date).Content: ${JSON.stringify(row)} `);
-                    results.failed++;
-                    results.errors.push(`Row ${index + 1} SKIPPED(JUNK)`);
-                    continue;
+                    // User says "no strict rules, import everything"
+                    // We'll give it a junk name so it doesn't fail supplier creation
+                    effectiveNomFournisseur = 'IMPORT_SANS_NOM_' + Date.now();
                 }
 
-                // EXPENSE PATH: If no invoice number, treat as Depense
+                // Make sure we have a supplier name to pass to findOrCreateFournisseur
+                if (!effectiveNomFournisseur && !codeFournisseur) {
+                    effectiveNomFournisseur = 'FOURNISSEUR_INCONNU';
+                }
+
+                // If no invoice number, we generate one to ensure it imports as a FactureFournisseur
+                // instead of dumping it into 'Depense' which the user might not want if they are importing Factures.
                 let finalNumeroFacture = numeroFacture;
                 if (!finalNumeroFacture) {
-                    const desc = effectiveNomFournisseur || 'Dépense Importée';
-                    // Skip if looking like junk (no description and small amount?)
-                    // But user wants 22 expenses.
-                    await this.prisma.depense.create({
-                        data: {
-                            description: desc,
-                            montant: Math.abs(amountForCheck),
-                            date: this.parseDate(row[mapping.dateEmission]) || new Date(),
-                            categorie: this.inferExpenseCategory(desc),
-                            modePaiement: row[mapping.modePaiement] ? String(row[mapping.modePaiement]).trim() : 'ESPECES',
-                            statut: 'PAYEE',
-                            centreId: centreId || undefined
-                        } as any
-                    });
-                    results.success++;
-                    continue;
+                    finalNumeroFacture = `IMP_BL_SANS_NUM_${Date.now()}_${index}`;
                 }
 
                 // INVOICE PATH: Has invoice number, create FactureFournisseur
@@ -1531,6 +1555,14 @@ export class ImportsService {
                 }
                 // ------------------------------------
 
+                // Ensure unique numeroFacture for this supplier to prevent grouping and Prisma errors
+                let originalNumero = finalNumeroFacture;
+                let counter = 1;
+                while (await this.prisma.factureFournisseur.findFirst({ where: { numeroFacture: finalNumeroFacture, fournisseurId: fournisseur.id } })) {
+                    finalNumeroFacture = `${originalNumero}_${counter}`;
+                    counter++;
+                }
+
                 const factureData = {
                     numeroFacture: finalNumeroFacture,
                     dateEmission,
@@ -1549,39 +1581,20 @@ export class ImportsService {
                     isBL: isBL
                 };
 
-                let existingFacture = await (this.prisma.factureFournisseur as any).findFirst({
-                    where: {
-                        OR: [
-                            { numeroFacture: finalNumeroFacture, fournisseurId: fournisseur.id },
-                            { referenceInterne: referenceInterne, fournisseurId: fournisseur.id }
-                        ]
+                // ALWAYS CREATE as per user request ("pas de regroupement")
+                const newFacture = await this.prisma.factureFournisseur.create({ data: factureData as any });
+                results.success++;
+
+                // Create default EcheancePaiement
+                await this.prisma.echeancePaiement.create({
+                    data: {
+                        factureFournisseurId: newFacture.id,
+                        montant: montantTTC,
+                        dateEcheance: dateEcheance || dateEmission,
+                        type: modePaiement, // Use mapped mode or default ESPECES
+                        statut: factureData.statut === 'PAYEE' ? 'ENCAISSE' : 'EN_ATTENTE'
                     }
                 });
-
-                if (existingFacture) {
-                    existingFacture = await this.prisma.factureFournisseur.update({ where: { id: existingFacture.id }, data: factureData as any });
-                    results.updated++;
-                } else {
-                    existingFacture = await this.prisma.factureFournisseur.create({ data: factureData as any });
-                    results.success++;
-                }
-
-                // Create default EcheancePaiement if none exists
-                const existingEcheances = await this.prisma.echeancePaiement.findMany({
-                    where: { factureFournisseurId: existingFacture.id }
-                });
-
-                if (existingEcheances.length === 0) {
-                    await this.prisma.echeancePaiement.create({
-                        data: {
-                            factureFournisseurId: existingFacture.id,
-                            montant: montantTTC,
-                            dateEcheance: dateEcheance || dateEmission,
-                            type: modePaiement, // Use mapped mode or default ESPECES
-                            statut: factureData.statut === 'PAYEE' ? 'ENCAISSE' : 'EN_ATTENTE'
-                        }
-                    });
-                }
             } catch (error) {
                 results.failed++;
                 results.errors.push(`Row ${index + 1}: ${error.message} `);
@@ -2266,5 +2279,26 @@ export class ImportsService {
         const cleanName = nameInput.trim();
         log(`Creating NEW Supplier: "${cleanName}"`);
         return await this.prisma.fournisseur.create({ data: { nom: cleanName } });
+    }
+    async clearData() {
+        this.logToFile('Starting database wipe (TRUNCATE CASCADE) for clean re-import...');
+        try {
+            // Using TRUNCATE CASCADE to definitively wipe tables regardless of size or FK constraints
+            await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "Paiement" CASCADE;`);
+            await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "EcheancePaiement" CASCADE;`);
+            await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "Depense" CASCADE;`);
+            await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "Facture" CASCADE;`);
+            await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "FactureFournisseur" CASCADE;`);
+            await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "MouvementStock" CASCADE;`);
+            await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "Fiche" CASCADE;`);
+            await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "Client" CASCADE;`);
+            await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "Fournisseur" CASCADE;`);
+
+            this.logToFile('Database wipe successful (TRUNCATE CASCADE)');
+            return { message: 'Data cleared successfully via TRUNCATE' };
+        } catch (error) {
+            this.logToFile(`Error wiping database: ${error.message}`);
+            throw new BadRequestException('Failed to clear data: ' + error.message);
+        }
     }
 }
