@@ -36,6 +36,8 @@ import { AccountingModule } from './features/accounting/accounting.module';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
 import { ImportsModule } from './features/imports/imports.module';
 
+import { DiagController } from './diag.controller';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -73,13 +75,11 @@ import { ImportsModule } from './features/imports/imports.module';
       serveRoot: '/uploads',
     }),
   ],
-  controllers: [],
+  controllers: [DiagController],
   providers: [],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(LoggerMiddleware)
-      .forRoutes('*');
+    consumer.apply(LoggerMiddleware).forRoutes('*');
   }
 }

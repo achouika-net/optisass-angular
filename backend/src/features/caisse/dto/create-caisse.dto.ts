@@ -1,32 +1,32 @@
 import { IsString, IsOptional, IsEnum } from 'class-validator';
 
 export enum CaisseStatut {
-    ACTIVE = 'ACTIVE',
-    INACTIVE = 'INACTIVE',
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
 }
 
 export enum CaisseType {
-    PRINCIPALE = 'PRINCIPALE',
-    DEPENSES = 'DEPENSES',
-    MIXTE = 'MIXTE',
+  PRINCIPALE = 'PRINCIPALE',
+  DEPENSES = 'DEPENSES',
+  MIXTE = 'MIXTE',
 }
 
 export class CreateCaisseDto {
-    @IsString()
-    nom: string;
+  @IsString()
+  nom: string;
 
-    @IsOptional()
-    @IsString()
-    description?: string;
+  @IsOptional()
+  @IsString()
+  description?: string;
 
-    @IsOptional()
-    @IsEnum(CaisseType)
-    type?: CaisseType;
+  @IsOptional()
+  @IsEnum(CaisseType)
+  type?: CaisseType;
 
-    @IsOptional()
-    @IsEnum(CaisseStatut)
-    statut?: CaisseStatut;
+  @IsOptional()
+  @IsEnum(CaisseStatut)
+  statut?: CaisseStatut;
 
-    @IsString()
-    centreId: string;
+  @IsString()
+  centreId: string;
 }

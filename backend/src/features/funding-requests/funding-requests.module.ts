@@ -4,9 +4,9 @@ import { FundingRequestsController } from './funding-requests.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
-    imports: [PrismaModule],
-    controllers: [FundingRequestsController],
-    providers: [FundingRequestsService],
-    exports: [FundingRequestsService],
+  imports: [PrismaModule],
+  controllers: [FundingRequestsController],
+  providers: [FundingRequestsService],
+  exports: [FundingRequestsService],
 })
-export class FundingRequestsModule { }
+export class FundingRequestsModule {}

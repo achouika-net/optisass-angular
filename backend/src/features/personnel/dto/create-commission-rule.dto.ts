@@ -1,16 +1,16 @@
 import { IsString, IsNumber, IsOptional, IsUUID } from 'class-validator';
 
 export class CreateCommissionRuleDto {
-    @IsString()
-    poste: string;
+  @IsString()
+  poste: string;
 
-    @IsOptional()
-    @IsUUID()
-    centreId?: string;
+  @IsOptional()
+  @IsUUID()
+  centreId?: string;
 
-    @IsString()
-    typeProduit: string; // MONTURE, VERRE, LENTILLE, GLOBAL
+  @IsString()
+  typeProduit: string; // MONTURE, VERRE, LENTILLE, GLOBAL
 
-    @IsNumber()
-    taux: number;
+  @IsNumber()
+  taux: number;
 }

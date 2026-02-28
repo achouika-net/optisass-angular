@@ -18,7 +18,6 @@ model Client {
   codePostal           String?
   pointsFidelite       Int                  @default(0)
   statut               String               @default("INACTIF")
-  codeClient           String?              @unique
   commentaires         String?
   nom                  String?
   prenom               String?
@@ -42,6 +41,7 @@ model Client {
   parrainId            String?
   centreId             String?
   titre                String?
+  codeClient           String?
   groupeId             String?
   centre               Centre?              @relation(fields: [centreId], references: [id])
   groupe               Groupe?              @relation(fields: [groupeId], references: [id])
@@ -56,7 +56,6 @@ model Client {
 
 model Fiche {
   id                   String               @id @default(uuid())
-  numero               Int                  @default(autoincrement())
   dateCreation         DateTime             @default(now())
   statut               String
   type                 String
@@ -65,6 +64,7 @@ model Fiche {
   montantPaye          Float                @default(0)
   clientId             String
   content              Json
+  numero               Int                  @default(autoincrement())
   facture              Facture?
   supplierInvoices     FactureFournisseur[]
   client               Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -139,7 +139,6 @@ model Paiement {
   @@index([mode])
   @@index([statut])
   @@index([factureId])
-  @@index([dateVersement])
 }
 
 model Groupe {
@@ -253,8 +252,8 @@ model MouvementStock {
   datePeremption        DateTime?
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
-  userId                String?
   factureFournisseurId  String?
+  userId                String?
   entrepotDestination   Entrepot?           @relation("EntrepotDestination", fields: [entrepotDestinationId], references: [id])
   entrepotSource        Entrepot?           @relation("EntrepotSource", fields: [entrepotSourceId], references: [id])
   factureFournisseur    FactureFournisseur? @relation(fields: [factureFournisseurId], references: [id])
@@ -396,49 +395,44 @@ model Depense {
 
   @@index([date])
   @@index([centreId])
-  @@index([dateEcheance])
-  @@index([centreId, date])
 }
 
 model FactureFournisseur {
-  id               String               @id @default(uuid())
-  numeroFacture    String
-  dateEmission     DateTime
-  dateEcheance     DateTime?
-  montantHT        Float
-  montantTVA       Float
-  montantTTC       Float
-  statut           String               @default("A_PAYER")
-  type             String               @default("ACHAT_STOCK")
-  fournisseurId    String
-  quantite         Float?               @default(0)
-  isBL             Boolean?             @default(false)
-  categorieBL      String?
-  parentInvoiceId  String?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  centreId         String?
-  pieceJointeUrl   String?
-  clientId         String?
-  ficheId          String?
+  id              String               @id @default(uuid())
+  numeroFacture   String
+  dateEmission    DateTime
+  dateEcheance    DateTime?
+  montantHT       Float
+  montantTVA      Float
+  montantTTC      Float
+  statut          String               @default("A_PAYER")
+  type            String               @default("ACHAT_STOCK")
+  fournisseurId   String
+  quantite        Float?
   referenceInterne String?
-  depenses         Depense?
-  echeances        EcheancePaiement[]
-  centre           Centre?              @relation(fields: [centreId], references: [id])
-  client           Client?              @relation(fields: [clientId], references: [id])
-  fiche            Fiche?               @relation(fields: [ficheId], references: [id])
-  fournisseur      Fournisseur          @relation(fields: [fournisseurId], references: [id])
-  parentInvoice    FactureFournisseur?  @relation("BLToInvoice", fields: [parentInvoiceId], references: [id])
-  childBLs         FactureFournisseur[] @relation("BLToInvoice")
-  mouvementsStock  MouvementStock[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  centreId        String?
+  clientId        String?
+  pieceJointeUrl  String?
+  categorieBL     String?
+  isBL            Boolean?             @default(false)
+  parentInvoiceId String?
+  ficheId         String?
+  depenses        Depense?
+  echeances       EcheancePaiement[]
+  centre          Centre?              @relation(fields: [centreId], references: [id])
+  client          Client?              @relation(fields: [clientId], references: [id])
+  fiche           Fiche?               @relation(fields: [ficheId], references: [id])
+  fournisseur     Fournisseur          @relation(fields: [fournisseurId], references: [id])
+  parentInvoice   FactureFournisseur?  @relation("BLToInvoice", fields: [parentInvoiceId], references: [id])
+  childBLs        FactureFournisseur[] @relation("BLToInvoice")
+  mouvementsStock MouvementStock[]
 
   @@unique([fournisseurId, numeroFacture])
   @@index([dateEmission])
   @@index([centreId])
   @@index([clientId])
-  @@index([referenceInterne])
-  @@index([dateEcheance])
-  @@index([centreId, dateEmission])
 }
 
 model EcheancePaiement {
@@ -459,7 +453,6 @@ model EcheancePaiement {
 
   @@index([dateEcheance])
   @@index([statut])
-  @@index([factureFournisseurId])
 }
 
 model FinanceConfig {
@@ -549,13 +542,13 @@ model DemandeAlimentation {
   id              String        @id @default(uuid())
   montant         Float
   depenseId       String?       @unique
+  paiementId      String?       @unique
   journeeCaisseId String
   statut          String        @default("EN_ATTENTE")
   createdAt       DateTime      @default(now())
   validatedAt     DateTime?
   validatedBy     String?
   remarque        String?
-  paiementId      String?       @unique
   depense         Depense?      @relation(fields: [depenseId], references: [id], onDelete: Cascade)
   journeeCaisse   JourneeCaisse @relation(fields: [journeeCaisseId], references: [id])
   paiement        Paiement?     @relation(fields: [paiementId], references: [id], onDelete: Cascade)
@@ -598,9 +591,9 @@ model Employee {
   updatedAt                 DateTime         @updatedAt
   photoUrl                  String?
   childrenCount             Int              @default(0)
-  familyStatus              String           @default("CELIBATAIRE")
   paymentMode               String           @default("VIREMENT")
   socialSecurityAffiliation Boolean          @default(true)
+  familyStatus              String           @default("CELIBATAIRE")
   attendance                Attendance[]
   commissions               Commission[]
   depenses                  Depense[]
@@ -658,24 +651,24 @@ model Payroll {
   mois                     String
   annee                    Int
   salaireBase              Float
-  primes                   Float    @default(0)
   commissions              Float    @default(0)
   heuresSup                Float    @default(0)
   retenues                 Float    @default(0)
-  avances                  Float    @default(0)
-  grossSalary              Float    @default(0)
-  socialSecurityDeduction  Float    @default(0)
-  healthInsuranceDeduction Float    @default(0)
-  incomeTaxDeduction       Float    @default(0)
-  professionalExpenses     Float    @default(0)
-  taxableNet               Float    @default(0)
-  employerCharges          Float    @default(0)
   netAPayer                Float
   statut                   String   @default("BROUILLON")
   pdfUrl                   String?
   expenseId                String?  @unique
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
+  employerCharges          Float    @default(0)
+  grossSalary              Float    @default(0)
+  healthInsuranceDeduction Float    @default(0)
+  incomeTaxDeduction       Float    @default(0)
+  primes                   Float    @default(0)
+  professionalExpenses     Float    @default(0)
+  socialSecurityDeduction  Float    @default(0)
+  taxableNet               Float    @default(0)
+  avances                  Float    @default(0)
   employee                 Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   expense                  Depense? @relation(fields: [expenseId], references: [id])
 }
@@ -685,21 +678,21 @@ model PayrollConfig {
   annee                 Int      @unique
   socialSecurityRate_S  Float    @default(4.48)
   socialSecurityRate_P  Float    @default(8.98)
-  familyAllowanceRate_P Float    @default(6.40)
-  trainingRate_P        Float    @default(1.60)
   socialSecurityCap     Float    @default(6000)
   healthInsuranceRate_S Float    @default(2.26)
   healthInsuranceRate_P Float    @default(4.11)
   profExpensesRate      Float    @default(20)
   profExpensesCap       Float    @default(2500)
-  profExpensesThreshold Float?   @default(78000)
-  profExpensesRateLow   Float?   @default(35)
-  profExpensesRateHigh  Float?   @default(25)
-  profExpensesCapLow    Float?   @default(30000)
-  profExpensesCapHigh   Float?   @default(35000)
   incomeTaxBrackets     Json
   familyDeduction       Float    @default(30)
-  familyDeductionCap    Float    @default(180)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+  familyAllowanceRate_P Float    @default(6.40)
+  trainingRate_P        Float    @default(1.60)
+  familyDeductionCap    Float    @default(180)
+  profExpensesCapHigh   Float?   @default(35000)
+  profExpensesCapLow    Float?   @default(30000)
+  profExpensesRateHigh  Float?   @default(25)
+  profExpensesRateLow   Float?   @default(35)
+  profExpensesThreshold Float?   @default(78000)
 }

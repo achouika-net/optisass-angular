@@ -6,9 +6,9 @@ import { ClientsModule } from '../clients/clients.module';
 import { ProductsModule } from '../products/products.module';
 
 @Module({
-    imports: [PrismaModule, ClientsModule, ProductsModule],
-    controllers: [ImportsController],
-    providers: [ImportsService],
-    exports: [ImportsService],
+  imports: [PrismaModule, ClientsModule, ProductsModule],
+  controllers: [ImportsController],
+  providers: [ImportsService],
+  exports: [ImportsService],
 })
-export class ImportsModule { }
+export class ImportsModule {}

@@ -6,8 +6,8 @@ import { ProductsModule } from '../products/products.module';
 import { MarketingConfigService } from './marketing-config.service';
 
 @Module({
-    imports: [ClientsModule, ProductsModule],
-    controllers: [MarketingController],
-    providers: [MarketingService, MarketingConfigService],
+  imports: [ClientsModule, ProductsModule],
+  controllers: [MarketingController],
+  providers: [MarketingService, MarketingConfigService],
 })
-export class MarketingModule { }
+export class MarketingModule {}

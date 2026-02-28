@@ -1,22 +1,29 @@
-import { IsDateString, IsNumber, IsBoolean, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsDateString,
+  IsNumber,
+  IsBoolean,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class CreateAttendanceDto {
-    @IsUUID()
-    employeeId: string;
+  @IsUUID()
+  employeeId: string;
 
-    @IsDateString()
-    date: string;
+  @IsDateString()
+  date: string;
 
-    @IsNumber()
-    heuresTravaillees: number;
+  @IsNumber()
+  heuresTravaillees: number;
 
-    @IsNumber()
-    retardMinutes: number;
+  @IsNumber()
+  retardMinutes: number;
 
-    @IsBoolean()
-    estAbsent: boolean;
+  @IsBoolean()
+  estAbsent: boolean;
 
-    @IsOptional()
-    @IsString()
-    motif?: string;
+  @IsOptional()
+  @IsString()
+  motif?: string;
 }

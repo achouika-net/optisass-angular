@@ -10,15 +10,15 @@ import { ExpensesModule } from '../expenses/expenses.module';
 import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
-    imports: [PrismaModule, ExpensesModule],
-    controllers: [PersonnelController, PayrollConfigController],
-    providers: [
-        PersonnelService,
-        AttendanceService,
-        CommissionService,
-        PayrollService,
-        PayslipService
-    ],
-    exports: [PersonnelService, CommissionService]
+  imports: [PrismaModule, ExpensesModule],
+  controllers: [PersonnelController, PayrollConfigController],
+  providers: [
+    PersonnelService,
+    AttendanceService,
+    CommissionService,
+    PayrollService,
+    PayslipService,
+  ],
+  exports: [PersonnelService, CommissionService],
 })
-export class PersonnelModule { }
+export class PersonnelModule {}
