@@ -110,7 +110,7 @@ export class SupplierInvoiceListComponent implements OnInit {
 
   totalCount = 0;
   pageIndex = 0;
-  pageSize = 50;
+  pageSize = 10;
 
   selectedPeriod = signal<string>('all');
   periods = [
@@ -137,18 +137,15 @@ export class SupplierInvoiceListComponent implements OnInit {
     private store: Store,
     private cdr: ChangeDetectorRef
   ) {
+    // Unified effect to react to center or period changes
     effect(() => {
       const center = this.currentCentre();
+      const period = this.selectedPeriod(); // Explicit dependency
+
       if (center?.id) {
         this.loadInvoices();
       }
     });
-
-    effect(() => {
-      // Reload when period changes
-      this.selectedPeriod();
-      this.loadInvoices();
-    }, { allowSignalWrites: true });
   }
 
   ngOnInit(): void {
@@ -174,9 +171,14 @@ export class SupplierInvoiceListComponent implements OnInit {
   }
 
   loadInvoices() {
-    this.loading = true;
     const center = this.currentCentre();
+    if (!center?.id) {
+      console.warn('⚠️ [SupplierInvoiceList] No active center, skipping load.');
+      return;
+    }
 
+    this.loading = true;
+    this.cdr.markForCheck();
     let startDate: string | undefined;
     let endDate: string | undefined;
 
@@ -214,15 +216,17 @@ export class SupplierInvoiceListComponent implements OnInit {
       limit: this.pageSize
     }).subscribe({
       next: (res: any) => {
-        if (Array.isArray(res)) {
-          this.invoices = res;
-          this.totalCount = res.length;
+        console.log(`📦 [Invoices] Response type: ${Array.isArray(res) ? 'Array' : 'Object'}, total=${res?.total}`);
+        if (res && !Array.isArray(res) && res.data !== undefined) {
+          this.invoices = res.data || [];
+          this.totalCount = Number(res.total);
         } else {
-          this.invoices = res?.data || [];
-          this.totalCount = res?.total || 0;
+          this.invoices = Array.isArray(res) ? res : [];
+          this.totalCount = this.invoices.length;
         }
         this.loading = false;
         this.selection.clear();
+        this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Erreur chargement factures', err);

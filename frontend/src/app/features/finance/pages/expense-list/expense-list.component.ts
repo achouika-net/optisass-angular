@@ -2,6 +2,7 @@ import { Component, OnInit, effect, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
+import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -31,6 +32,7 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
     MatButtonModule,
     MatIconModule,
     MatTableModule,
+    MatPaginatorModule,
     MatSnackBarModule,
     MatChipsModule,
     MatTooltipModule,
@@ -76,6 +78,10 @@ export class ExpenseListComponent implements OnInit {
     endDate: null as Date | null
   };
 
+  totalCount = 0;
+  pageIndex = 0;
+  pageSize = 10;
+
   constructor(
     private financeService: FinanceService,
     private router: Router,
@@ -85,19 +91,15 @@ export class ExpenseListComponent implements OnInit {
   ) {
     effect(() => {
       const center = this.currentCentre();
+      const period = this.selectedPeriod(); // Explicit dependency
+
       if (center?.id) {
         this.loadExpenses();
       }
     });
-
-    effect(() => {
-      this.selectedPeriod();
-      this.loadExpenses();
-    }, { allowSignalWrites: true });
   }
 
   ngOnInit(): void {
-    // Handled by effect
   }
 
   loadExpenses() {
@@ -134,12 +136,21 @@ export class ExpenseListComponent implements OnInit {
     const filters = {
       centreId: this.currentCentre()?.id,
       startDate,
-      endDate
+      endDate,
+      page: this.pageIndex + 1,
+      limit: this.pageSize
     };
 
     this.financeService.getExpenses(filters).subscribe({
-      next: (data) => {
-        this.expenses = data;
+      next: (res: any) => {
+        console.log(`📦 [Expenses] Response type: ${Array.isArray(res) ? 'Array' : 'Object'}, total=${res?.total}`);
+        if (res && !Array.isArray(res) && res.data !== undefined) {
+          this.expenses = res.data || [];
+          this.totalCount = Number(res.total);
+        } else {
+          this.expenses = Array.isArray(res) ? res : [];
+          this.totalCount = this.expenses.length;
+        }
         this.loading = false;
         this.cdr.detectChanges();
       },
@@ -150,6 +161,12 @@ export class ExpenseListComponent implements OnInit {
         this.cdr.detectChanges();
       }
     });
+  }
+
+  onPageChange(event: any) {
+    this.pageIndex = event.pageIndex;
+    this.pageSize = event.pageSize;
+    this.loadExpenses();
   }
 
   openExpenseDialog(expense?: Expense) {
