@@ -5,109 +5,117 @@ import { UpdateEmployeeDto } from './dto/update-employee.dto';
 
 @Injectable()
 export class PersonnelService {
-    constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
-    async create(createEmployeeDto: CreateEmployeeDto) {
-        const { centreIds, ...data } = createEmployeeDto;
+  async create(createEmployeeDto: CreateEmployeeDto) {
+    const { centreIds, ...data } = createEmployeeDto;
 
-        return this.prisma.employee.create({
-            data: {
-                ...data,
-                dateEmbauche: data.dateEmbauche ? new Date(data.dateEmbauche) : new Date(),
-                centres: {
-                    create: centreIds.map(id => ({ centreId: id }))
-                }
-            },
-            include: {
-                centres: {
-                    include: { centre: { select: { nom: true } } }
-                }
-            }
-        });
+    return this.prisma.employee.create({
+      data: {
+        ...data,
+        dateEmbauche: data.dateEmbauche
+          ? new Date(data.dateEmbauche)
+          : new Date(),
+        centres: {
+          create: centreIds.map((id) => ({ centreId: id })),
+        },
+      },
+      include: {
+        centres: {
+          include: { centre: { select: { nom: true } } },
+        },
+      },
+    });
+  }
+
+  async findAll(centreId?: string) {
+    const whereClause: any = {};
+    if (centreId) {
+      whereClause.centres = {
+        some: { centreId },
+      };
     }
 
-    async findAll(centreId?: string) {
-        const whereClause: any = {};
-        if (centreId) {
-            whereClause.centres = {
-                some: { centreId }
-            };
-        }
+    return this.prisma.employee.findMany({
+      where: whereClause,
+      include: {
+        centres: {
+          include: { centre: { select: { nom: true } } },
+        },
+      },
+      orderBy: { nom: 'asc' },
+    });
+  }
 
-        return this.prisma.employee.findMany({
-            where: whereClause,
-            include: {
-                centres: {
-                    include: { centre: { select: { nom: true } } }
-                }
-            },
-            orderBy: { nom: 'asc' }
+  async findOne(id: string) {
+    const employee = await this.prisma.employee.findUnique({
+      where: { id },
+      include: {
+        centres: {
+          include: { centre: { select: { nom: true } } },
+        },
+        user: {
+          select: { email: true, centreRoles: true },
+        },
+      },
+    });
+
+    if (!employee)
+      throw new NotFoundException(`Employé avec l'ID ${id} non trouvé`);
+    return employee;
+  }
+
+  async update(id: string, updateEmployeeDto: UpdateEmployeeDto) {
+    const { centreIds, ...data } = updateEmployeeDto;
+
+    return this.prisma.$transaction(async (tx) => {
+      if (centreIds) {
+        // Delete existing ones
+        await tx.employeeCentre.deleteMany({
+          where: { employeeId: id },
         });
-    }
 
-    async findOne(id: string) {
-        const employee = await this.prisma.employee.findUnique({
-            where: { id },
-            include: {
-                centres: {
-                    include: { centre: { select: { nom: true } } }
-                },
-                user: {
-                    select: { email: true, centreRoles: true }
-                }
-            }
+        // Add new ones
+        await tx.employeeCentre.createMany({
+          data: centreIds.map((cId) => ({
+            employeeId: id,
+            centreId: cId,
+          })),
         });
+      }
 
-        if (!employee) throw new NotFoundException(`Employé avec l'ID ${id} non trouvé`);
-        return employee;
-    }
+      const updated = await tx.employee.update({
+        where: { id },
+        data: {
+          ...data,
+          dateEmbauche: data.dateEmbauche
+            ? new Date(data.dateEmbauche)
+            : undefined,
+          photoUrl: data.photoUrl,
+          childrenCount:
+            data.childrenCount !== undefined
+              ? Number(data.childrenCount)
+              : undefined,
+          paymentMode: data.paymentMode,
+          socialSecurityAffiliation: data.socialSecurityAffiliation,
+        },
+        include: {
+          centres: {
+            include: { centre: { select: { nom: true } } },
+          },
+        },
+      });
+      console.log('Successfully updated employee in DB:', updated.id, {
+        childrenCount: updated.childrenCount,
+        paymentMode: updated.paymentMode,
+      });
+      return updated;
+    });
+  }
 
-    async update(id: string, updateEmployeeDto: UpdateEmployeeDto) {
-        const { centreIds, ...data } = updateEmployeeDto;
-
-        return this.prisma.$transaction(async (tx) => {
-            if (centreIds) {
-                // Delete existing ones
-                await tx.employeeCentre.deleteMany({
-                    where: { employeeId: id }
-                });
-
-                // Add new ones
-                await tx.employeeCentre.createMany({
-                    data: centreIds.map(cId => ({
-                        employeeId: id,
-                        centreId: cId
-                    }))
-                });
-            }
-
-            const updated = await tx.employee.update({
-                where: { id },
-                data: {
-                    ...data,
-                    dateEmbauche: data.dateEmbauche ? new Date(data.dateEmbauche) : undefined,
-                    photoUrl: data.photoUrl,
-                    childrenCount: data.childrenCount !== undefined ? Number(data.childrenCount) : undefined,
-                    paymentMode: data.paymentMode,
-                    socialSecurityAffiliation: data.socialSecurityAffiliation,
-                },
-                include: {
-                    centres: {
-                        include: { centre: { select: { nom: true } } }
-                    }
-                }
-            });
-            console.log('Successfully updated employee in DB:', updated.id, {
-                childrenCount: updated.childrenCount,
-                paymentMode: updated.paymentMode
-            });
-            return updated;
-        });
-    }
-
-    async remove(id: string) {
-        return this.prisma.employee.delete({
-            where: { id }
-        });
-    }
+  async remove(id: string) {
+    return this.prisma.employee.delete({
+      where: { id },
+    });
+  }
 }

@@ -8,9 +8,9 @@ import { FacturesModule } from '../factures/factures.module';
 import { PersonnelModule } from '../personnel/personnel.module';
 
 @Module({
-    imports: [PrismaModule, forwardRef(() => FacturesModule), PersonnelModule],
-    controllers: [PaiementsController],
-    providers: [PaiementsService],
-    exports: [PaiementsService],
+  imports: [PrismaModule, forwardRef(() => FacturesModule), PersonnelModule],
+  controllers: [PaiementsController],
+  providers: [PaiementsService],
+  exports: [PaiementsService],
 })
-export class PaiementsModule { }
+export class PaiementsModule {}

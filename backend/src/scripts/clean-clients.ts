@@ -8,21 +8,21 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log('🧹 Purging Client table...');
-    try {
-        const count = await prisma.client.deleteMany({});
-        console.log(`✅ Success! Deleted ${count.count} clients.`);
-    } catch (error) {
-        console.error('❌ Error purging clients:', error);
-        process.exit(1);
-    }
+  console.log('🧹 Purging Client table...');
+  try {
+    const count = await prisma.client.deleteMany({});
+    console.log(`✅ Success! Deleted ${count.count} clients.`);
+  } catch (error) {
+    console.error('❌ Error purging clients:', error);
+    process.exit(1);
+  }
 }
 
 main()
-    .catch((e) => {
-        console.error(e);
-        process.exit(1);
-    })
-    .finally(async () => {
-        await prisma.$disconnect();
-    });
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

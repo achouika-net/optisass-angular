@@ -6,8 +6,8 @@ import { FacturesModule } from '../factures/factures.module';
 import { LoyaltyModule } from '../loyalty/loyalty.module';
 
 @Module({
-    imports: [FacturesModule, LoyaltyModule],
-    controllers: [FichesController],
-    providers: [FichesService],
+  imports: [FacturesModule, LoyaltyModule],
+  controllers: [FichesController],
+  providers: [FichesService],
 })
-export class FichesModule { }
+export class FichesModule {}

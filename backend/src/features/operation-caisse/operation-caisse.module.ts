@@ -4,9 +4,9 @@ import { OperationCaisseController } from './operation-caisse.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
-    imports: [PrismaModule],
-    controllers: [OperationCaisseController],
-    providers: [OperationCaisseService],
-    exports: [OperationCaisseService],
+  imports: [PrismaModule],
+  controllers: [OperationCaisseController],
+  providers: [OperationCaisseService],
+  exports: [OperationCaisseService],
 })
-export class OperationCaisseModule { }
+export class OperationCaisseModule {}

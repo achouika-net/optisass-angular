@@ -4,9 +4,9 @@ import { LoyaltyController } from './loyalty.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
-    imports: [PrismaModule],
-    controllers: [LoyaltyController],
-    providers: [LoyaltyService],
-    exports: [LoyaltyService]
+  imports: [PrismaModule],
+  controllers: [LoyaltyController],
+  providers: [LoyaltyService],
+  exports: [LoyaltyService],
 })
-export class LoyaltyModule { }
+export class LoyaltyModule {}

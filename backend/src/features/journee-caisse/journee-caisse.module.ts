@@ -4,9 +4,9 @@ import { JourneeCaisseController } from './journee-caisse.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
-    imports: [PrismaModule],
-    controllers: [JourneeCaisseController],
-    providers: [JourneeCaisseService],
-    exports: [JourneeCaisseService],
+  imports: [PrismaModule],
+  controllers: [JourneeCaisseController],
+  providers: [JourneeCaisseService],
+  exports: [JourneeCaisseService],
 })
-export class JourneeCaisseModule { }
+export class JourneeCaisseModule {}

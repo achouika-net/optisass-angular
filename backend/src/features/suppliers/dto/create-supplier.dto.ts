@@ -1,72 +1,72 @@
 import { IsString, IsOptional, IsEmail } from 'class-validator';
 
 export class CreateSupplierDto {
-    @IsString()
-    nom: string;
+  @IsString()
+  nom: string;
 
-    @IsOptional()
-    @IsString()
-    contact?: string;
+  @IsOptional()
+  @IsString()
+  contact?: string;
 
-    @IsOptional()
-    @IsEmail()
-    email?: string;
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 
-    @IsOptional()
-    @IsString()
-    telephone?: string;
+  @IsOptional()
+  @IsString()
+  telephone?: string;
 
-    @IsOptional()
-    @IsString()
-    adresse?: string;
+  @IsOptional()
+  @IsString()
+  adresse?: string;
 
-    @IsOptional()
-    @IsString()
-    ville?: string;
+  @IsOptional()
+  @IsString()
+  ville?: string;
 
-    @IsOptional()
-    @IsString()
-    siteWeb?: string;
+  @IsOptional()
+  @IsString()
+  siteWeb?: string;
 
-    @IsOptional()
-    @IsString()
-    ice?: string;
+  @IsOptional()
+  @IsString()
+  ice?: string;
 
-    @IsOptional()
-    @IsString()
-    rc?: string;
+  @IsOptional()
+  @IsString()
+  rc?: string;
 
-    @IsOptional()
-    @IsString()
-    identifiantFiscal?: string;
+  @IsOptional()
+  @IsString()
+  identifiantFiscal?: string;
 
-    @IsOptional()
-    @IsString()
-    patente?: string;
+  @IsOptional()
+  @IsString()
+  patente?: string;
 
-    @IsOptional()
-    @IsString()
-    cnss?: string;
+  @IsOptional()
+  @IsString()
+  cnss?: string;
 
-    @IsOptional()
-    @IsString()
-    siret?: string;
+  @IsOptional()
+  @IsString()
+  siret?: string;
 
-    @IsOptional()
-    @IsString()
-    rib?: string;
+  @IsOptional()
+  @IsString()
+  rib?: string;
 
-    @IsOptional()
-    @IsString()
-    banque?: string;
+  @IsOptional()
+  @IsString()
+  banque?: string;
 
-    @IsOptional()
-    @IsString()
-    conditionsPaiement?: string;
+  @IsOptional()
+  @IsString()
+  conditionsPaiement?: string;
 
-    @IsOptional()
-    contacts?: any;
+  @IsOptional()
+  contacts?: any;
 
-    @IsOptional()
-    convention?: any;
+  @IsOptional()
+  convention?: any;
 }

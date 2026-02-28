@@ -1,12 +1,12 @@
 import { IsString, IsNumber, IsUUID } from 'class-validator';
 
 export class GeneratePayrollDto {
-    @IsUUID()
-    employeeId: string;
+  @IsUUID()
+  employeeId: string;
 
-    @IsString()
-    mois: string; // YYYY-MM
+  @IsString()
+  mois: string; // YYYY-MM
 
-    @IsNumber()
-    annee: number;
+  @IsNumber()
+  annee: number;
 }

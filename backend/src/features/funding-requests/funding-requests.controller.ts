@@ -3,33 +3,31 @@ import { FundingRequestsService } from './funding-requests.service';
 
 @Controller('funding-requests')
 export class FundingRequestsController {
-    constructor(private readonly fundingRequestsService: FundingRequestsService) { }
+  constructor(
+    private readonly fundingRequestsService: FundingRequestsService,
+  ) {}
 
-    @Get()
-    findAll(@Query('centreId') centreId?: string) {
-        return this.fundingRequestsService.findAll(centreId);
-    }
+  @Get()
+  findAll(@Query('centreId') centreId?: string) {
+    return this.fundingRequestsService.findAll(centreId);
+  }
 
-    @Get('count-pending')
-    countPending(@Query('centreId') centreId?: string) {
-        return this.fundingRequestsService.countPending(centreId);
-    }
+  @Get('count-pending')
+  countPending(@Query('centreId') centreId?: string) {
+    return this.fundingRequestsService.countPending(centreId);
+  }
 
+  @Post(':id/approve')
+  approve(@Param('id') id: string, @Body('validatorId') validatorId: string) {
+    return this.fundingRequestsService.approve(id, validatorId);
+  }
 
-    @Post(':id/approve')
-    approve(
-        @Param('id') id: string,
-        @Body('validatorId') validatorId: string,
-    ) {
-        return this.fundingRequestsService.approve(id, validatorId);
-    }
-
-    @Post(':id/reject')
-    reject(
-        @Param('id') id: string,
-        @Body('validatorId') validatorId: string,
-        @Body('remarque') remarque?: string,
-    ) {
-        return this.fundingRequestsService.reject(id, validatorId, remarque);
-    }
+  @Post(':id/reject')
+  reject(
+    @Param('id') id: string,
+    @Body('validatorId') validatorId: string,
+    @Body('remarque') remarque?: string,
+  ) {
+    return this.fundingRequestsService.reject(id, validatorId, remarque);
+  }
 }

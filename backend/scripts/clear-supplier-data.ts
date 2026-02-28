@@ -1,55 +1,48 @@
-
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+    datasources: {
+        db: {
+            url: "postgresql://postgres:mypassword@localhost:5435/optisaas?schema=public"
+        }
+    }
+});
 
 async function main() {
-    console.log('--- Clearing Supplier and Invoice Data ---');
+    console.log('Cleaning up supplier-related data...');
 
     try {
-        // Order of deletion to respect foreign keys:
-        // 1. EcheancePaiement (linked to FactureFournisseur)
-        // 2. Depense (linked to FactureFournisseur or EcheancePaiement)
-        // 3. FactureFournisseur (linked to Fournisseur)
-        // 4. Fournisseur
+        // Orders matter due to foreign key constraints if not using cascade in Prisma $executeRaw
+        // However, FactureFournisseur has relations that might need careful deletion.
 
-        console.log('Deleting EcheancePaiement...');
+        // 1. Delete MouvementsStock linked to supplier invoices
+        const movements = await prisma.mouvementStock.deleteMany({
+            where: { factureFournisseurId: { not: null } }
+        });
+        console.log(`Deleted ${movements.count} MouvementStock records.`);
+
+        // 2. Delete EcheancePaiement
         const echeances = await prisma.echeancePaiement.deleteMany({});
-        console.log(`Deleted ${echeances.count} installments.`);
+        console.log(`Deleted ${echeances.count} EcheancePaiement records.`);
 
-        console.log('Deleting Depense...');
-        const depenses = await prisma.depense.deleteMany({});
-        console.log(`Deleted ${depenses.count} expenses.`);
+        // 3. Delete ALL Depense records
+        const depensesTotal = await prisma.depense.deleteMany({});
+        console.log(`Deleted ${depensesTotal.count} Depense records.`);
 
-        console.log('Deleting FactureFournisseur...');
-        const factures = await prisma.factureFournisseur.deleteMany({});
-        console.log(`Deleted ${factures.count} invoices.`);
+        // 4. Delete FactureFournisseur
+        const invoices = await prisma.factureFournisseur.deleteMany({});
+        console.log(`Deleted ${invoices.count} FactureFournisseur records.`);
 
-        console.log('Deleting Fournisseur...');
-        const fournisseurs = await prisma.fournisseur.deleteMany({});
-        console.log(`Deleted ${fournisseurs.count} suppliers.`);
+        // 5. Delete Fournisseur
+        const suppliers = await prisma.fournisseur.deleteMany({});
+        console.log(`Deleted ${suppliers.count} Fournisseur records.`);
 
-        console.log('\n--- Verification ---');
-        const countSuppliers = await prisma.fournisseur.count();
-        const countInvoices = await prisma.factureFournisseur.count();
-        const countExpenses = await prisma.depense.count();
-        const countInstallments = await prisma.echeancePaiement.count();
-
-        console.log(`Remaining Suppliers: ${countSuppliers}`);
-        console.log(`Remaining Invoices: ${countInvoices}`);
-        console.log(`Remaining Expenses: ${countExpenses}`);
-        console.log(`Remaining Installments: ${countInstallments}`);
-
-        if (countSuppliers === 0 && countInvoices === 0 && countExpenses === 0 && countInstallments === 0) {
-            console.log('\n✅ Cleanup complete and verified.');
-        } else {
-            console.error('\n❌ Cleanup FAILED: Some data remains.');
-        }
+        console.log('Cleanup complete.');
     } catch (error) {
-        console.error('❌ Error during cleanup:', error);
+        console.error('Error during cleanup:', error);
+    } finally {
+        await prisma.$disconnect();
     }
 }
 
-main()
-    .catch(e => console.error(e))
-    .finally(async () => await prisma.$disconnect());
+main();

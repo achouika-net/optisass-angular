@@ -8,495 +8,556 @@ import * as path from 'path';
 
 @Injectable()
 export class SupplierInvoicesService {
-    constructor(
-        private prisma: PrismaService,
-        private productsService: ProductsService
-    ) { }
+  constructor(
+    private prisma: PrismaService,
+    private productsService: ProductsService,
+  ) { }
 
-    async create(createDto: CreateSupplierInvoiceDto) {
-        console.log('[INVOICE] CREATE PAYLOAD:', JSON.stringify(createDto));
-        const { echeances, base64File, fileName, ...inputData } = createDto;
+  async create(createDto: CreateSupplierInvoiceDto) {
+    console.log('[INVOICE] CREATE PAYLOAD:', JSON.stringify(createDto));
+    const { echeances, base64File, fileName, ...inputData } = createDto;
 
-        // Clean inputData: Prisma will crash if we pass unknown fields (like directPayment or newAttachments from frontend)
-        const invoiceData: any = {
-            numeroFacture: inputData.numeroFacture,
-            dateEmission: normalizeToUTCNoon(inputData.dateEmission) as Date,
-            dateEcheance: normalizeToUTCNoon(inputData.dateEcheance),
-            montantHT: Number(inputData.montantHT),
-            montantTVA: Number(inputData.montantTVA),
-            montantTTC: Number(inputData.montantTTC),
-            statut: inputData.statut,
-            type: inputData.type,
-            fournisseurId: inputData.fournisseurId,
-            centreId: inputData.centreId,
-            clientId: inputData.clientId,
-            ficheId: inputData.ficheId,
-            isBL: inputData.isBL,
-            categorieBL: inputData.categorieBL,
-            parentInvoiceId: inputData.parentInvoiceId,
-            pieceJointeUrl: inputData.pieceJointeUrl || ''
-        };
+    // Clean inputData: Prisma will crash if we pass unknown fields (like directPayment or newAttachments from frontend)
+    const invoiceData: any = {
+      numeroFacture: inputData.numeroFacture,
+      dateEmission: normalizeToUTCNoon(inputData.dateEmission) as Date,
+      dateEcheance: normalizeToUTCNoon(inputData.dateEcheance),
+      montantHT: Number(inputData.montantHT),
+      montantTVA: Number(inputData.montantTVA),
+      montantTTC: Number(inputData.montantTTC),
+      statut: inputData.statut,
+      type: inputData.type,
+      fournisseurId: inputData.fournisseurId,
+      centreId: inputData.centreId,
+      clientId: inputData.clientId,
+      ficheId: inputData.ficheId,
+      isBL: inputData.isBL,
+      categorieBL: inputData.categorieBL,
+      parentInvoiceId: inputData.parentInvoiceId,
+      pieceJointeUrl: inputData.pieceJointeUrl || '',
+    };
 
-        // Robust duplicate check
-        const existingInvoice = await this.checkExistence(invoiceData.fournisseurId, invoiceData.numeroFacture);
+    // Robust duplicate check
+    const existingInvoice = await this.checkExistence(
+      invoiceData.fournisseurId,
+      invoiceData.numeroFacture,
+    );
 
-        if (existingInvoice) {
-            console.log(`[INVOICE] Update existing invoice ${existingInvoice.numeroFacture} for supplier ${invoiceData.fournisseurId}`);
-            return this.update(existingInvoice.id, createDto);
-        }
+    if (existingInvoice) {
+      console.log(
+        `[INVOICE] Update existing invoice ${existingInvoice.numeroFacture} for supplier ${invoiceData.fournisseurId}`,
+      );
+      return this.update(existingInvoice.id, createDto);
+    }
 
-        // Handle File Attachment
-        let pieceJointeUrl = invoiceData.pieceJointeUrl;
-        if (base64File && fileName) {
-            const uploadDir = path.join(process.cwd(), 'uploads', 'invoices');
-            if (!fs.existsSync(uploadDir)) {
-                fs.mkdirSync(uploadDir, { recursive: true });
-            }
-            const fileExt = path.extname(fileName) || '.jpg';
-            const safeName = `inv_${Date.now()}${fileExt}`;
-            const filePath = path.join(uploadDir, safeName);
-            const buffer = Buffer.from(base64File.replace(/^data:.*?;base64,/, ''), 'base64');
-            fs.writeFileSync(filePath, buffer);
-            pieceJointeUrl = `/uploads/invoices/${safeName}`;
-        }
+    // Handle File Attachment
+    let pieceJointeUrl = invoiceData.pieceJointeUrl;
+    if (base64File && fileName) {
+      const uploadDir = path.join(process.cwd(), 'uploads', 'invoices');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      const fileExt = path.extname(fileName) || '.jpg';
+      const safeName = `inv_${Date.now()}${fileExt}`;
+      const filePath = path.join(uploadDir, safeName);
+      const buffer = Buffer.from(
+        base64File.replace(/^data:.*?;base64,/, ''),
+        'base64',
+      );
+      fs.writeFileSync(filePath, buffer);
+      pieceJointeUrl = `/uploads/invoices/${safeName}`;
+    }
 
-        const status = this.calculateInvoiceStatus(invoiceData.montantTTC, echeances || []);
+    const status = this.calculateInvoiceStatus(
+      invoiceData.montantTTC,
+      echeances || [],
+    );
 
-        // Si aucune échéance n'est fournie (ex: BL simple), on en crée une par défaut pour le total
-        const finalEcheances = (echeances && echeances.length > 0) ? echeances : [
-            {
-                type: 'ESPECES',
-                dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance || new Date()) as Date,
-                montant: invoiceData.montantTTC,
-                statut: 'EN_ATTENTE'
-            }
+    // Si aucune échéance n'est fournie (ex: BL simple), on en crée une par défaut pour le total
+    const finalEcheances =
+      echeances && echeances.length > 0
+        ? echeances
+        : [
+          {
+            type: 'ESPECES',
+            dateEcheance: normalizeToUTCNoon(
+              invoiceData.dateEcheance || new Date(),
+            ) as Date,
+            montant: invoiceData.montantTTC,
+            statut: 'EN_ATTENTE',
+          },
         ];
 
-        try {
-            return await this.prisma.factureFournisseur.create({
-                data: {
-                    ...invoiceData,
-                    pieceJointeUrl,
-                    statut: status,
-                    echeances: {
-                        create: finalEcheances.map(e => ({
-                            type: e.type,
-                            dateEcheance: normalizeToUTCNoon(e.dateEcheance) as Date,
-                            montant: e.montant,
-                            statut: e.statut,
-                            reference: e.reference || null,
-                            banque: e.banque || null,
-                            remarque: e.remarque || null
-                        }))
-                    }
-                },
-                include: {
-                    echeances: true,
-                    fournisseur: true
-                }
-            });
-        } catch (error) {
-            console.error('[INVOICE] CREATE ERROR:', error);
-            throw error;
-        }
+    try {
+      return await this.prisma.factureFournisseur.create({
+        data: {
+          ...invoiceData,
+          pieceJointeUrl,
+          statut: status,
+          echeances: {
+            create: finalEcheances.map((e) => ({
+              type: e.type,
+              dateEcheance: normalizeToUTCNoon(e.dateEcheance) as Date,
+              montant: e.montant,
+              statut: e.statut,
+              reference: e.reference || null,
+              banque: e.banque || null,
+              remarque: e.remarque || null,
+            })),
+          },
+        },
+        include: {
+          echeances: true,
+          fournisseur: true,
+        },
+      });
+    } catch (error) {
+      console.error('[INVOICE] CREATE ERROR:', error);
+      throw error;
+    }
+  }
+
+  async findAll(filters: {
+    fournisseurId?: string;
+    statut?: string;
+    clientId?: string;
+    centreId?: string;
+    isBL?: boolean;
+    categorieBL?: string;
+    parentInvoiceId?: string;
+    ficheId?: string;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const {
+      fournisseurId,
+      statut,
+      clientId,
+      centreId,
+      isBL,
+      categorieBL,
+      parentInvoiceId,
+      startDate,
+      endDate,
+      ficheId,
+      page,
+      limit,
+    } = filters;
+    const whereClause: any = {};
+
+    if (fournisseurId) whereClause.fournisseurId = fournisseurId;
+    if (statut) whereClause.statut = statut;
+    if (clientId) whereClause.clientId = clientId;
+    if (centreId) whereClause.centreId = centreId;
+    if (isBL !== undefined) {
+      const isBLBool = String(isBL) === 'true';
+      whereClause.isBL = isBLBool;
+    }
+    if (categorieBL) whereClause.categorieBL = categorieBL;
+    if (parentInvoiceId) whereClause.parentInvoiceId = parentInvoiceId;
+    if (ficheId) whereClause.ficheId = ficheId;
+
+    if (startDate || endDate) {
+      whereClause.dateEmission = {};
+      if (startDate) whereClause.dateEmission.gte = new Date(startDate);
+      if (endDate) whereClause.dateEmission.lte = new Date(endDate);
     }
 
-    async findAll(filters: {
-        fournisseurId?: string;
-        statut?: string;
-        clientId?: string;
-        centreId?: string;
-        isBL?: boolean;
-        categorieBL?: string;
-        parentInvoiceId?: string;
-        ficheId?: string;
-        startDate?: string;
-        endDate?: string;
-        page?: number;
-        limit?: number;
-    }) {
-        const { fournisseurId, statut, clientId, centreId, isBL, categorieBL, parentInvoiceId, startDate, endDate, ficheId, page, limit } = filters;
-        const whereClause: any = {};
+    const skip = page && limit ? (Number(page) - 1) * Number(limit) : undefined;
+    const take = limit ? Number(limit) : undefined;
 
-        if (fournisseurId) whereClause.fournisseurId = fournisseurId;
-        if (statut) whereClause.statut = statut;
-        if (clientId) whereClause.clientId = clientId;
-        if (centreId) whereClause.centreId = centreId;
-        if (isBL !== undefined) {
-            whereClause.isBL = isBL === false ? { equals: false } : !!isBL;
+    const [data, total] = await Promise.all([
+      this.prisma.factureFournisseur.findMany({
+        where: whereClause,
+        include: {
+          fournisseur: { select: { id: true, nom: true } },
+          echeances: true,
+          client: { select: { id: true, nom: true, prenom: true } },
+          fiche: { select: { id: true, numero: true, type: true } },
+          parentInvoice: { select: { id: true, numeroFacture: true } },
+        },
+        orderBy: { dateEmission: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.factureFournisseur.count({ where: whereClause }),
+    ]);
+
+    return { data, total };
+  }
+
+  async findOne(id: string) {
+    return this.prisma.factureFournisseur.findUnique({
+      where: { id },
+      include: {
+        fournisseur: true,
+        echeances: true,
+        depenses: true,
+        client: true,
+        fiche: true,
+        parentInvoice: true,
+        childBLs: {
+          include: {
+            client: true,
+          },
+        },
+      },
+    });
+  }
+
+  async checkExistence(fournisseurId: string, numeroFacture: string) {
+    if (!fournisseurId || !numeroFacture) return null;
+    const trimmedNumero = numeroFacture.trim();
+    return this.prisma.factureFournisseur.findFirst({
+      where: {
+        fournisseurId: fournisseurId,
+        numeroFacture: {
+          equals: trimmedNumero,
+          mode: 'insensitive',
+        },
+      },
+      include: {
+        echeances: true,
+        fournisseur: true,
+      },
+    });
+  }
+
+  async update(id: string, updateDto: any) {
+    const { echeances, base64File, fileName, ...invoiceData } = updateDto;
+
+    // Clean invoiceData to remove unwanted circular or extra relation objects
+    const cleanedInvoiceData: any = {
+      numeroFacture: invoiceData.numeroFacture,
+      dateEmission: normalizeToUTCNoon(invoiceData.dateEmission),
+      dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance),
+      montantHT: invoiceData.montantHT,
+      montantTVA: invoiceData.montantTVA,
+      montantTTC: invoiceData.montantTTC,
+      statut: invoiceData.statut,
+      type: invoiceData.type,
+      pieceJointeUrl: invoiceData.pieceJointeUrl,
+      fournisseurId: invoiceData.fournisseurId,
+      centreId: invoiceData.centreId,
+      clientId: invoiceData.clientId,
+      ficheId: invoiceData.ficheId,
+      isBL: invoiceData.isBL,
+      categorieBL: invoiceData.categorieBL,
+      parentInvoiceId: invoiceData.parentInvoiceId,
+    };
+
+    // Handle File Attachment Update (Multi-file support)
+    const newAttachments = updateDto.newAttachments || [];
+    const existingAttachments = updateDto.existingAttachments || [];
+    const finalUrls: string[] = [];
+
+    // 1. Process Existing Attachments
+    if (Array.isArray(existingAttachments)) {
+      existingAttachments.forEach((url) => {
+        // Clean URL if it comes with domain
+        let cleanUrl = url;
+        if (url.includes('/uploads/')) {
+          const parts = url.split('/uploads/');
+          cleanUrl = '/uploads/' + parts[parts.length - 1];
         }
-        if (categorieBL) whereClause.categorieBL = categorieBL;
-        if (parentInvoiceId) whereClause.parentInvoiceId = parentInvoiceId;
-        if (ficheId) whereClause.ficheId = ficheId;
-
-        if (startDate || endDate) {
-            whereClause.dateEmission = {};
-            if (startDate) whereClause.dateEmission.gte = new Date(startDate);
-            if (endDate) whereClause.dateEmission.lte = new Date(endDate);
-        }
-
-        const skip = (page && limit) ? (Number(page) - 1) * Number(limit) : undefined;
-        const take = limit ? Number(limit) : undefined;
-
-        const [data, total] = await Promise.all([
-            this.prisma.factureFournisseur.findMany({
-                where: whereClause,
-                include: {
-                    fournisseur: { select: { id: true, nom: true } },
-                    echeances: true,
-                    client: { select: { id: true, nom: true, prenom: true } },
-                    fiche: { select: { id: true, numero: true, type: true } },
-                    parentInvoice: { select: { id: true, numeroFacture: true } }
-                },
-                orderBy: { dateEmission: 'desc' },
-                skip,
-                take
-            }),
-            this.prisma.factureFournisseur.count({ where: whereClause })
-        ]);
-
-        return { data, total };
+        finalUrls.push(cleanUrl);
+      });
+    } else if (invoiceData.pieceJointeUrl) {
+      // Fallback for legacy single URL in pieceJointeUrl
+      finalUrls.push(invoiceData.pieceJointeUrl);
     }
 
-    async findOne(id: string) {
-        return this.prisma.factureFournisseur.findUnique({
-            where: { id },
-            include: {
-                fournisseur: true,
-                echeances: true,
-                depenses: true,
-                client: true,
-                fiche: true,
-                parentInvoice: true,
-                childBLs: {
-                    include: {
-                        client: true
-                    }
-                }
-            }
+    // 2. Process New Attachments (Array)
+    const uploadDir = path.join(process.cwd(), 'uploads', 'invoices');
+    if (newAttachments.length > 0 && !fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    for (const attachment of newAttachments) {
+      if (attachment.base64 && attachment.name) {
+        const fileExt = path.extname(attachment.name) || '.jpg';
+        const safeName = `inv_${Date.now()}_${Math.round(Math.random() * 1000)}${fileExt}`;
+        const filePath = path.join(uploadDir, safeName);
+
+        // Base64 cleanup
+        const matches = attachment.base64.match(
+          /^data:([A-Za-z-+\/]+);base64,(.+)$/,
+        );
+        let fileData = attachment.base64;
+        if (matches && matches.length === 3) fileData = matches[2];
+        else fileData = attachment.base64.replace(/^data:.*?;base64,/, '');
+
+        fs.writeFileSync(filePath, Buffer.from(fileData, 'base64'));
+        finalUrls.push(`/uploads/invoices/${safeName}`);
+      }
+    }
+
+    // 3. Fallback: Legacy Single File (if newAttachments empty but base64File present)
+    if (newAttachments.length === 0 && base64File && fileName) {
+      if (!fs.existsSync(uploadDir))
+        fs.mkdirSync(uploadDir, { recursive: true });
+      const fileExt = path.extname(fileName) || '.jpg';
+      const safeName = `inv_update_${Date.now()}${fileExt}`;
+      const filePath = path.join(uploadDir, safeName);
+
+      const matches = base64File.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      let fileData = base64File;
+      if (matches && matches.length === 3) fileData = matches[2];
+      else fileData = base64File.replace(/^data:.*?;base64,/, '');
+
+      fs.writeFileSync(filePath, Buffer.from(fileData, 'base64'));
+      finalUrls.push(`/uploads/invoices/${safeName}`);
+    }
+
+    // 4. Save combined URLs
+    if (finalUrls.length > 0) {
+      cleanedInvoiceData.pieceJointeUrl = finalUrls.join(';');
+    } else if (
+      updateDto.pieceJointeUrl === null &&
+      existingAttachments.length === 0
+    ) {
+      cleanedInvoiceData.pieceJointeUrl = null;
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      if (echeances) {
+        // Pour simplifier, on supprime les anciennes échéances et on recrée
+        await tx.echeancePaiement.deleteMany({
+          where: { factureFournisseurId: id },
         });
-    }
+      }
 
-    async checkExistence(fournisseurId: string, numeroFacture: string) {
-        if (!fournisseurId || !numeroFacture) return null;
-        const trimmedNumero = numeroFacture.trim();
-        return this.prisma.factureFournisseur.findFirst({
-            where: {
-                fournisseurId: fournisseurId,
-                numeroFacture: {
-                    equals: trimmedNumero,
-                    mode: 'insensitive'
-                }
-            },
-            include: {
-                echeances: true,
-                fournisseur: true
+      const status = this.calculateInvoiceStatus(
+        cleanedInvoiceData.montantTTC || 0,
+        echeances || [],
+      );
+      cleanedInvoiceData.statut = status;
+
+      return tx.factureFournisseur.update({
+        where: { id },
+        data: {
+          ...cleanedInvoiceData,
+          echeances: echeances
+            ? {
+              create: echeances.map((e: any) => ({
+                type: e.type,
+                dateEcheance: normalizeToUTCNoon(e.dateEcheance) as Date,
+                dateEncaissement: normalizeToUTCNoon(e.dateEncaissement),
+                montant: e.montant,
+                statut: e.statut,
+                reference: e.reference || null,
+                banque: e.banque || null,
+                remarque: e.remarque || null,
+              })),
             }
-        });
+            : undefined,
+        },
+        include: {
+          echeances: true,
+        },
+      });
+    });
+  }
+
+  private calculateInvoiceStatus(totalTTC: number, echeances: any[]): string {
+    if (!echeances || echeances.length === 0) return 'EN_ATTENTE';
+
+    // Filter out cancelled ones
+    const activeEcheances = echeances.filter((e) => e.statut !== 'ANNULE');
+    if (activeEcheances.length === 0) return 'EN_ATTENTE';
+
+    const totalPaid =
+      Math.round(
+        activeEcheances
+          .filter((e) => e.statut === 'ENCAISSE')
+          .reduce((sum, e) => sum + (e.montant || 0), 0) * 100,
+      ) / 100;
+
+    const roundedTotalTTC = Math.round(totalTTC * 100) / 100;
+
+    if (totalPaid >= roundedTotalTTC && roundedTotalTTC > 0) {
+      return 'PAYEE';
     }
 
-    async update(id: string, updateDto: any) {
-        const { echeances, base64File, fileName, ...invoiceData } = updateDto;
+    if (totalPaid > 0) return 'PARTIELLE';
 
-        // Clean invoiceData to remove unwanted circular or extra relation objects
-        const cleanedInvoiceData: any = {
-            numeroFacture: invoiceData.numeroFacture,
-            dateEmission: normalizeToUTCNoon(invoiceData.dateEmission),
-            dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance),
-            montantHT: invoiceData.montantHT,
-            montantTVA: invoiceData.montantTVA,
-            montantTTC: invoiceData.montantTTC,
-            statut: invoiceData.statut,
-            type: invoiceData.type,
-            pieceJointeUrl: invoiceData.pieceJointeUrl,
-            fournisseurId: invoiceData.fournisseurId,
-            centreId: invoiceData.centreId,
-            clientId: invoiceData.clientId,
-            ficheId: invoiceData.ficheId,
-            isBL: invoiceData.isBL,
-            categorieBL: invoiceData.categorieBL,
-            parentInvoiceId: invoiceData.parentInvoiceId
-        };
+    const hasScheduled = activeEcheances.some(
+      (e) => e.type !== 'ESPECES' && e.statut === 'EN_ATTENTE',
+    );
+    return hasScheduled ? 'PARTIELLE' : 'EN_ATTENTE';
+  }
 
-        // Handle File Attachment Update (Multi-file support)
-        const newAttachments = updateDto.newAttachments || [];
-        const existingAttachments = updateDto.existingAttachments || [];
-        const finalUrls: string[] = [];
+  async remove(id: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const invoice = await tx.factureFournisseur.findUnique({
+        where: { id },
+        include: { mouvementsStock: true },
+      });
 
-        // 1. Process Existing Attachments
-        if (Array.isArray(existingAttachments)) {
-            existingAttachments.forEach(url => {
-                // Clean URL if it comes with domain
-                let cleanUrl = url;
-                if (url.includes('/uploads/')) {
-                    const parts = url.split('/uploads/');
-                    cleanUrl = '/uploads/' + parts[parts.length - 1];
-                }
-                finalUrls.push(cleanUrl);
-            });
-        } else if (invoiceData.pieceJointeUrl) {
-            // Fallback for legacy single URL in pieceJointeUrl
-            finalUrls.push(invoiceData.pieceJointeUrl);
+      if (!invoice) return null;
+
+      // 0. Get affected product IDs before deletion
+      const productIds = Array.from(
+        new Set(invoice.mouvementsStock.map((m) => m.produitId)),
+      );
+
+      // 1. Clear Movements (This triggers the sync later)
+      await tx.mouvementStock.deleteMany({
+        where: { factureFournisseurId: id },
+      });
+
+      // 2. Sync each affected product in parallel for better performance
+      await Promise.all(
+        productIds.map((productId) =>
+          this.productsService.syncProductState(productId, tx),
+        ),
+      );
+
+      // 3. Delete linked Expense if exists
+      await tx.depense.deleteMany({
+        where: { factureFournisseurId: id },
+      });
+
+      // 4. Delete payment schedules
+      await tx.echeancePaiement.deleteMany({
+        where: { factureFournisseurId: id },
+      });
+
+      // 5. Delete the Invoice itself
+      return tx.factureFournisseur.delete({
+        where: { id },
+      });
+    });
+  }
+
+  async getSupplierSituation(
+    fournisseurId: string,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const whereClause: any = {
+      fournisseurId: fournisseurId,
+      statut: { not: 'ANNULEE' },
+      parentInvoiceId: null, // Only top-level documents to avoid double counting debt
+    };
+
+    if (startDate || endDate) {
+      whereClause.dateEmission = {};
+      if (startDate) whereClause.dateEmission.gte = new Date(startDate);
+      if (endDate) whereClause.dateEmission.lte = new Date(endDate);
+    }
+
+    const invoices = await this.prisma.factureFournisseur.findMany({
+      where: whereClause,
+      include: {
+        echeances: true,
+      },
+    });
+
+    let totalTTC = 0;
+    let totalPaye = 0;
+
+    for (const invoice of invoices) {
+      totalTTC += invoice.montantTTC;
+
+      // Calculate paid amount from echeances
+      if (invoice.echeances) {
+        const paidEcheances = invoice.echeances.filter(
+          (e) => e.statut === 'ENCAISSE',
+        );
+        const paidAmount = paidEcheances.reduce((sum, e) => sum + e.montant, 0);
+        totalPaye += paidAmount;
+      }
+
+      // If invoices are marked PAYEE manually but no echeances?
+      // We assume echeances are the source of truth for payment,
+      // but if status is PAYEE and paidAmount is 0, maybe we should count full amount?
+      // Let's stick to echeances for accuracy, or if status is PAYEE assume full if no echeances exist?
+      // For now, let's rely on echeances for calculation.
+    }
+
+    return {
+      fournisseurId,
+      totalTTC,
+      totalPaye,
+      resteAPayer: totalTTC - totalPaye,
+      invoiceCount: invoices.length,
+    };
+  }
+
+  async groupBLsToInvoice(blIds: string[], targetInvoiceData: any) {
+    const { echeances, newAttachments, ...invoiceData } = targetInvoiceData;
+
+    // Handle Attachments (Shared logic with create/update)
+    let finalPieceJointeUrl = invoiceData.pieceJointeUrl || '';
+    const uploadDir = path.join(process.cwd(), 'uploads', 'invoices');
+
+    if (newAttachments && newAttachments.length > 0) {
+      if (!fs.existsSync(uploadDir))
+        fs.mkdirSync(uploadDir, { recursive: true });
+      const urls: string[] = [];
+      for (const attachment of newAttachments) {
+        if (attachment.base64 && attachment.name) {
+          const fileExt = path.extname(attachment.name) || '.jpg';
+          const safeName = `grouped_${Date.now()}_${Math.round(Math.random() * 1000)}${fileExt}`;
+          const filePath = path.join(uploadDir, safeName);
+          const fileData = attachment.base64.replace(/^data:.*?;base64,/, '');
+          fs.writeFileSync(filePath, Buffer.from(fileData, 'base64'));
+          urls.push(`/uploads/invoices/${safeName}`);
         }
+      }
+      finalPieceJointeUrl = urls.join(';');
+    }
 
-        // 2. Process New Attachments (Array)
-        const uploadDir = path.join(process.cwd(), 'uploads', 'invoices');
-        if (newAttachments.length > 0 && !fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
+    const status = this.calculateInvoiceStatus(
+      invoiceData.montantTTC,
+      echeances || [],
+    );
 
-        for (const attachment of newAttachments) {
-            if (attachment.base64 && attachment.name) {
-                const fileExt = path.extname(attachment.name) || '.jpg';
-                const safeName = `inv_${Date.now()}_${Math.round(Math.random() * 1000)}${fileExt}`;
-                const filePath = path.join(uploadDir, safeName);
-
-                // Base64 cleanup
-                const matches = attachment.base64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-                let fileData = attachment.base64;
-                if (matches && matches.length === 3) fileData = matches[2];
-                else fileData = attachment.base64.replace(/^data:.*?;base64,/, '');
-
-                fs.writeFileSync(filePath, Buffer.from(fileData, 'base64'));
-                finalUrls.push(`/uploads/invoices/${safeName}`);
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Create the consolidated invoice
+      const invoice = await tx.factureFournisseur.create({
+        data: {
+          ...invoiceData,
+          pieceJointeUrl: finalPieceJointeUrl,
+          isBL: false,
+          statut: status,
+          dateEmission: normalizeToUTCNoon(invoiceData.dateEmission) as Date,
+          dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance),
+          // Link all BLs to this new invoice
+          childBLs: {
+            connect: blIds.map((id) => ({ id })),
+          },
+          // Create echeances
+          echeances: echeances
+            ? {
+              create: echeances.map((e: any) => ({
+                type: e.type,
+                dateEcheance: normalizeToUTCNoon(e.dateEcheance) as Date,
+                montant: e.montant,
+                statut: e.statut,
+                reference: e.reference || null,
+                banque: e.banque || null,
+              })),
             }
-        }
+            : undefined,
+        },
+        include: {
+          childBLs: true,
+          echeances: true,
+          fournisseur: true,
+        },
+      });
 
-        // 3. Fallback: Legacy Single File (if newAttachments empty but base64File present)
-        if (newAttachments.length === 0 && base64File && fileName) {
-            if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-            const fileExt = path.extname(fileName) || '.jpg';
-            const safeName = `inv_update_${Date.now()}${fileExt}`;
-            const filePath = path.join(uploadDir, safeName);
+      // 2. [Bonus] Update grouped BLs status to VALIDEE to distinguish them
+      await tx.factureFournisseur.updateMany({
+        where: { id: { in: blIds } },
+        data: { statut: 'VALIDEE' },
+      });
 
-            const matches = base64File.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-            let fileData = base64File;
-            if (matches && matches.length === 3) fileData = matches[2];
-            else fileData = base64File.replace(/^data:.*?;base64,/, '');
-
-            fs.writeFileSync(filePath, Buffer.from(fileData, 'base64'));
-            finalUrls.push(`/uploads/invoices/${safeName}`);
-        }
-
-        // 4. Save combined URLs
-        if (finalUrls.length > 0) {
-            cleanedInvoiceData.pieceJointeUrl = finalUrls.join(';');
-        } else if (updateDto.pieceJointeUrl === null && existingAttachments.length === 0) {
-            cleanedInvoiceData.pieceJointeUrl = null;
-        }
-
-        return this.prisma.$transaction(async (tx) => {
-            if (echeances) {
-                // Pour simplifier, on supprime les anciennes échéances et on recrée
-                await tx.echeancePaiement.deleteMany({
-                    where: { factureFournisseurId: id }
-                });
-            }
-
-            const status = this.calculateInvoiceStatus(cleanedInvoiceData.montantTTC || 0, echeances || []);
-            cleanedInvoiceData.statut = status;
-
-            return tx.factureFournisseur.update({
-                where: { id },
-                data: {
-                    ...cleanedInvoiceData,
-                    echeances: echeances ? {
-                        create: echeances.map((e: any) => ({
-                            type: e.type,
-                            dateEcheance: normalizeToUTCNoon(e.dateEcheance) as Date,
-                            dateEncaissement: normalizeToUTCNoon(e.dateEncaissement),
-                            montant: e.montant,
-                            statut: e.statut,
-                            reference: e.reference || null,
-                            banque: e.banque || null,
-                            remarque: e.remarque || null
-                        }))
-                    } : undefined
-                },
-                include: {
-                    echeances: true
-                }
-            });
-        });
-    }
-
-    private calculateInvoiceStatus(totalTTC: number, echeances: any[]): string {
-        if (!echeances || echeances.length === 0) return 'EN_ATTENTE';
-
-        // Filter out cancelled ones
-        const activeEcheances = echeances.filter(e => e.statut !== 'ANNULE');
-        if (activeEcheances.length === 0) return 'EN_ATTENTE';
-
-        const totalPaid = Math.round(activeEcheances
-            .filter(e => e.statut === 'ENCAISSE')
-            .reduce((sum, e) => sum + (e.montant || 0), 0) * 100) / 100;
-
-        const roundedTotalTTC = Math.round(totalTTC * 100) / 100;
-
-        if (totalPaid >= roundedTotalTTC && roundedTotalTTC > 0) {
-            return 'PAYEE';
-        }
-
-        if (totalPaid > 0) return 'PARTIELLE';
-
-        const hasScheduled = activeEcheances.some(e => e.type !== 'ESPECES' && e.statut === 'EN_ATTENTE');
-        return hasScheduled ? 'PARTIELLE' : 'EN_ATTENTE';
-    }
-
-    async remove(id: string) {
-        return this.prisma.$transaction(async (tx) => {
-            const invoice = await tx.factureFournisseur.findUnique({
-                where: { id },
-                include: { mouvementsStock: true }
-            });
-
-            if (!invoice) return null;
-
-            // 0. Get affected product IDs before deletion
-            const productIds = Array.from(new Set(invoice.mouvementsStock.map(m => m.produitId)));
-
-            // 1. Clear Movements (This triggers the sync later)
-            await tx.mouvementStock.deleteMany({
-                where: { factureFournisseurId: id }
-            });
-
-            // 2. Sync each affected product in parallel for better performance
-            await Promise.all(productIds.map(productId =>
-                this.productsService.syncProductState(productId, tx)
-            ));
-
-            // 3. Delete linked Expense if exists
-            await tx.depense.deleteMany({
-                where: { factureFournisseurId: id }
-            });
-
-            // 4. Delete payment schedules
-            await tx.echeancePaiement.deleteMany({
-                where: { factureFournisseurId: id }
-            });
-
-            // 5. Delete the Invoice itself
-            return tx.factureFournisseur.delete({
-                where: { id }
-            });
-        });
-    }
-
-    async getSupplierSituation(fournisseurId: string, startDate?: string, endDate?: string) {
-        const whereClause: any = {
-            fournisseurId: fournisseurId,
-            statut: { not: 'ANNULEE' },
-            parentInvoiceId: null // Only top-level documents to avoid double counting debt
-        };
-
-        if (startDate || endDate) {
-            whereClause.dateEmission = {};
-            if (startDate) whereClause.dateEmission.gte = new Date(startDate);
-            if (endDate) whereClause.dateEmission.lte = new Date(endDate);
-        }
-
-        const invoices = await this.prisma.factureFournisseur.findMany({
-            where: whereClause,
-            include: {
-                echeances: true
-            }
-        });
-
-        let totalTTC = 0;
-        let totalPaye = 0;
-
-        for (const invoice of invoices) {
-            totalTTC += invoice.montantTTC;
-
-            // Calculate paid amount from echeances
-            if (invoice.echeances) {
-                const paidEcheances = invoice.echeances.filter(e => e.statut === 'ENCAISSE');
-                const paidAmount = paidEcheances.reduce((sum, e) => sum + e.montant, 0);
-                totalPaye += paidAmount;
-            }
-
-            // If invoices are marked PAYEE manually but no echeances? 
-            // We assume echeances are the source of truth for payment, 
-            // but if status is PAYEE and paidAmount is 0, maybe we should count full amount? 
-            // Let's stick to echeances for accuracy, or if status is PAYEE assume full if no echeances exist?
-            // For now, let's rely on echeances for calculation.
-        }
-
-        return {
-            fournisseurId,
-            totalTTC,
-            totalPaye,
-            resteAPayer: totalTTC - totalPaye,
-            invoiceCount: invoices.length
-        };
-    }
-
-    async groupBLsToInvoice(blIds: string[], targetInvoiceData: any) {
-        const { echeances, newAttachments, ...invoiceData } = targetInvoiceData;
-
-        // Handle Attachments (Shared logic with create/update)
-        let finalPieceJointeUrl = invoiceData.pieceJointeUrl || '';
-        const uploadDir = path.join(process.cwd(), 'uploads', 'invoices');
-
-        if (newAttachments && newAttachments.length > 0) {
-            if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-            const urls: string[] = [];
-            for (const attachment of newAttachments) {
-                if (attachment.base64 && attachment.name) {
-                    const fileExt = path.extname(attachment.name) || '.jpg';
-                    const safeName = `grouped_${Date.now()}_${Math.round(Math.random() * 1000)}${fileExt}`;
-                    const filePath = path.join(uploadDir, safeName);
-                    const fileData = attachment.base64.replace(/^data:.*?;base64,/, '');
-                    fs.writeFileSync(filePath, Buffer.from(fileData, 'base64'));
-                    urls.push(`/uploads/invoices/${safeName}`);
-                }
-            }
-            finalPieceJointeUrl = urls.join(';');
-        }
-
-        const status = this.calculateInvoiceStatus(invoiceData.montantTTC, echeances || []);
-
-        return this.prisma.$transaction(async (tx) => {
-            // 1. Create the consolidated invoice
-            const invoice = await tx.factureFournisseur.create({
-                data: {
-                    ...invoiceData,
-                    pieceJointeUrl: finalPieceJointeUrl,
-                    isBL: false,
-                    statut: status,
-                    dateEmission: normalizeToUTCNoon(invoiceData.dateEmission) as Date,
-                    dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance),
-                    // Link all BLs to this new invoice
-                    childBLs: {
-                        connect: blIds.map(id => ({ id }))
-                    },
-                    // Create echeances
-                    echeances: echeances ? {
-                        create: echeances.map((e: any) => ({
-                            type: e.type,
-                            dateEcheance: normalizeToUTCNoon(e.dateEcheance) as Date,
-                            montant: e.montant,
-                            statut: e.statut,
-                            reference: e.reference || null,
-                            banque: e.banque || null
-                        }))
-                    } : undefined
-                },
-                include: {
-                    childBLs: true,
-                    echeances: true,
-                    fournisseur: true
-                }
-            });
-
-            // 2. [Bonus] Update grouped BLs status to VALIDEE to distinguish them
-            await tx.factureFournisseur.updateMany({
-                where: { id: { in: blIds } },
-                data: { statut: 'VALIDEE' }
-            });
-
-            return invoice;
-        });
-    }
+      return invoice;
+    });
+  }
 }
-

@@ -9,9 +9,15 @@ import { ProductsModule } from '../products/products.module';
 import { PersonnelModule } from '../personnel/personnel.module';
 
 @Module({
-    imports: [PrismaModule, LoyaltyModule, PaiementsModule, ProductsModule, PersonnelModule],
-    controllers: [FacturesController],
-    providers: [FacturesService, StockAvailabilityService],
-    exports: [FacturesService, StockAvailabilityService]
+  imports: [
+    PrismaModule,
+    LoyaltyModule,
+    PaiementsModule,
+    ProductsModule,
+    PersonnelModule,
+  ],
+  controllers: [FacturesController],
+  providers: [FacturesService, StockAvailabilityService],
+  exports: [FacturesService, StockAvailabilityService],
 })
-export class FacturesModule { }
+export class FacturesModule {}
