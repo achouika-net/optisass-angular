@@ -187,14 +187,17 @@
                             <mat-icon class="text-3xl">check_circle</mat-icon>
                         </div>
                         <h2 class="text-xl font-bold mb-2">Import terminé !</h2>
-                        <p class="text-gray-600 mb-8">
-                            <span class="font-bold text-green-700">{{importResult.success}} dossiers créés</span>
-                            (à partir de {{importTotalRows}} lignes traitées).
+                        <p class="text-gray-600 mb-8 flex flex-wrap justify-center items-center gap-2">
+                            <span class="font-bold text-green-700">{{importResult.success}} nouveaux éléments</span>
+                            <span *ngIf="importResult.updated > 0" class="text-blue-600 font-medium">
+                                (+ {{importResult.updated}} mis à jour)
+                            </span>
+                            <span>sur {{importTotalRows}} lignes traitées.</span>
                             <span *ngIf="importResult.skipped > 0" class="text-orange-500 font-medium ml-2">
-                                {{importResult.skipped}} lignes ignorées.
+                                ({{importResult.skipped}} ignorées)
                             </span>
                             <span *ngIf="importResult.failed > 0" class="text-red-500 font-medium ml-2">
-                                {{importResult.failed}} erreurs.
+                                ({{importResult.failed}} erreurs)
                             </span>
                         </p>
 

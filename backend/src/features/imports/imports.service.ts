@@ -2281,25 +2281,35 @@ export class ImportsService {
         let depense;
 
         if (numeroFacture && numeroFacture.length > 0) {
+          // STRICT-1:1-v2 RECONCILIATION:
+          // Search for EXACT match OR any version with suffix (e.g. "FA-100_1") 
+          // created by the strict 1:1 import logic.
           facture = await this.prisma.factureFournisseur.findFirst({
             where: {
               fournisseurId: supplier.id,
               OR: [
                 { numeroFacture: { equals: numeroFacture, mode: 'insensitive' } },
+                { numeroFacture: { startsWith: numeroFacture + '_', mode: 'insensitive' } },
                 { referenceInterne: { equals: numeroFacture, mode: 'insensitive' } },
-              ]
+                { referenceInterne: { startsWith: `AUTO-CREATED (nPiece: ${numeroFacture}`, mode: 'insensitive' } },
+              ],
+            },
+            // CRITICAL: Prioritize invoices that still have pending installments
+            orderBy: {
+              statut: 'asc' // 'A_PAYER' or 'PARTIELLE' come before 'PAYEE'
             }
           });
         }
 
-        // Fallback: match by exact amount among unpaid invoices
+        // Fallback: match by exact amount among unpaid invoices if still not found
         if (!facture && montant > 0) {
           facture = await this.prisma.factureFournisseur.findFirst({
             where: {
               fournisseurId: supplier.id,
               montantTTC: montant,
               statut: { in: ['A_PAYER', 'PARTIELLE'] }
-            }
+            },
+            orderBy: { dateEmission: 'asc' }
           });
         }
 

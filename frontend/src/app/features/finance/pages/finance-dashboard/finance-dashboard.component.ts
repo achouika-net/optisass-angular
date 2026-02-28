@@ -306,7 +306,7 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         }
 
         forkJoin({
-            monthly: this.financeService.getTreasurySummary(monthToUse, yearToUse, centreId, dates.start, dates.end),
+            monthly: this.financeService.getTreasurySummary(yearToUse, monthToUse, centreId, dates.start, dates.end),
             yearly: this.financeService.getYearlyProjection(yearToUse, centreId)
         }).subscribe({
             next: ({ monthly, yearly }) => {

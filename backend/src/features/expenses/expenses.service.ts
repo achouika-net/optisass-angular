@@ -5,7 +5,7 @@ import { normalizeToUTCNoon } from '../../shared/utils/date-utils';
 
 @Injectable()
 export class ExpensesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(createExpenseDto: CreateExpenseDto) {
     const { reference, dateEcheance, fournisseurId, banque, ...data } =
@@ -250,7 +250,7 @@ export class ExpensesService {
     });
   }
 
-  async findAll(centreId?: string, startDate?: string, endDate?: string) {
+  async findAll(centreId?: string, startDate?: string, endDate?: string, page?: number, limit?: number) {
     const whereClause: any = {};
 
     if (centreId) {
@@ -271,20 +271,29 @@ export class ExpensesService {
       OR: [{ echeanceId: null }, { echeance: { factureFournisseurId: null } }],
     };
 
-    return this.prisma.depense.findMany({
-      where: combinedWhere,
-      include: {
-        centre: { select: { nom: true } },
-        factureFournisseur: {
-          select: {
-            numeroFacture: true,
-            fournisseur: { select: { nom: true } },
+    const skip = page && limit ? (Number(page) - 1) * Number(limit) : undefined;
+    const take = limit ? Number(limit) : undefined;
+
+    const [data, total] = await Promise.all([
+      this.prisma.depense.findMany({
+        where: combinedWhere,
+        include: {
+          centre: { select: { nom: true } },
+          factureFournisseur: {
+            select: {
+              numeroFacture: true,
+              fournisseur: { select: { nom: true } },
+            },
           },
         },
-      },
-      orderBy: { date: 'desc' },
-      take: 200,
-    });
+        orderBy: { date: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.depense.count({ where: combinedWhere }),
+    ]);
+
+    return { data, total };
   }
 
   async findOne(id: string) {

@@ -34,13 +34,15 @@ export class FinanceService {
     }
 
     // --- Expenses ---
-    getExpenses(filters?: { centreId?: string; startDate?: string; endDate?: string }): Observable<Expense[]> {
+    getExpenses(filters?: { centreId?: string; startDate?: string; endDate?: string; page?: number, limit?: number }): Observable<{ data: Expense[], total: number }> {
         let params = new HttpParams();
         if (filters?.centreId) params = params.set('centreId', filters.centreId);
         if (filters?.startDate) params = params.set('startDate', filters.startDate);
         if (filters?.endDate) params = params.set('endDate', filters.endDate);
+        if (filters?.page) params = params.set('page', filters.page.toString());
+        if (filters?.limit) params = params.set('limit', filters.limit.toString());
 
-        return this.http.get<Expense[]>(`${this.apiUrl}/expenses`, { params });
+        return this.http.get<{ data: Expense[], total: number }>(`${this.apiUrl}/expenses`, { params });
     }
 
     getExpense(id: string): Observable<Expense> {
@@ -126,8 +128,8 @@ export class FinanceService {
     // --- Treasury ---
     getTreasurySummary(year?: number, month?: number, centreId?: string, startDate?: string, endDate?: string): Observable<any> {
         let params = new HttpParams();
-        if (year) params = params.set('year', year.toString());
-        if (month) params = params.set('month', month.toString());
+        if (year !== undefined) params = params.set('year', year.toString());
+        if (month !== undefined) params = params.set('month', month.toString());
         if (centreId) params = params.set('centreId', centreId);
         if (startDate) params = params.set('startDate', startDate);
         if (endDate) params = params.set('endDate', endDate);

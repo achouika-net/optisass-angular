@@ -138,8 +138,9 @@ export class DataImportComponent implements OnInit {
             { value: 'statut', label: 'Statut Dossier (Livre, Commande...)' },
             { value: 'dateCreation', label: 'Date de Création' },
             { value: 'dateLivraisonEstimee', label: 'Date Livraison Estimée' },
-            { value: 'montantTotal', label: 'Montant Total' },
-            { value: 'montantPaye', label: 'Acompte / Payé' },
+            { value: 'montantTotal', label: 'Montant Total (TTC)' },
+            { value: 'montantPaye', label: 'Acompte / Payé (CB)' },
+            { value: 'avecFacture', label: 'Avec Facture ? (VRAI/FAUX) — CE' },
 
             // Ordonnance - OD
             { value: 'od_sphere', label: 'Sphère OD' },
@@ -224,8 +225,9 @@ export class DataImportComponent implements OnInit {
             { value: 'statut', label: 'Statut Dossier' },
             { value: 'dateCreation', label: 'Date de Création' },
             { value: 'dateLivraisonEstimee', label: 'Date Livraison Estimée' },
-            { value: 'montantTotal', label: 'Montant Total' },
-            { value: 'montantPaye', label: 'Acompte / Payé' },
+            { value: 'montantTotal', label: 'Montant Total (TTC)' },
+            { value: 'montantPaye', label: 'Acompte / Payé (CB)' },
+            { value: 'avecFacture', label: 'Avec Facture ? (VRAI/FAUX) — CE' },
             { value: 'notes', label: 'Notes / Observations' },
             { value: 'fiche_type', label: 'Type Manuel (monture/lentilles)' }
         ],
@@ -247,8 +249,9 @@ export class DataImportComponent implements OnInit {
             { value: 'dateLivraisonEstimee', label: 'Date Livraison Estimée' },
             { value: 'valide', label: 'Validé (Oui/Non)' },
             { value: 'facture', label: 'Facturé (Oui/Non)' },
-            { value: 'montantTotal', label: 'Montant Total' },
-            { value: 'montantPaye', label: 'Acompte / Payé' },
+            { value: 'montantTotal', label: 'Montant Total (TTC)' },
+            { value: 'montantPaye', label: 'Acompte / Payé (CB)' },
+            { value: 'avecFacture', label: 'Avec Facture ? (VRAI/FAUX) — CE' },
             { value: 'notes', label: 'Notes / Observations' }
         ],
         fiches_unifiees: [
@@ -343,8 +346,9 @@ export class DataImportComponent implements OnInit {
             { value: 'valide', label: 'Validé (Oui/Non)' },
             { value: 'facture', label: 'Facturé (Oui/Non)' },
             { value: 'statut', label: 'Statut Dossier' },
-            { value: 'montantTotal', label: 'Prix Total' },
-            { value: 'montantPaye', label: 'Acompte / Payé' },
+            { value: 'montantTotal', label: 'Prix Total (TTC)' },
+            { value: 'montantPaye', label: 'Acompte / Payé (CB)' },
+            { value: 'avecFacture', label: 'Avec Facture ? (VRAI/FAUX) — CE' },
             { value: 'nom_medecin', label: 'Nom du Médecin' },
             { value: 'fournisseur', label: 'Fournisseur' },
             { value: 'dateLivraisonEstimee', label: 'Date Livraison (Est.)' },
@@ -376,6 +380,7 @@ export class DataImportComponent implements OnInit {
             { value: 'codeClient', label: 'Code Client (Reconnaissance)' },
             { value: 'nomClient', label: 'Nom Client (Si code absent)' },
             { value: 'telephoneClient', label: 'Téléphone Client (Si code absent)' },
+            { value: 'ficheNumero', label: 'N° Fiche / Dossier' },
             { value: 'dateEmission', label: 'Date Facture' },
             { value: 'dateEcheance', label: 'Date Échéance' },
             { value: 'montantHT', label: 'Montant HT' },
@@ -384,13 +389,16 @@ export class DataImportComponent implements OnInit {
             { value: 'quantite', label: 'Quantité d\'articles' },
             { value: 'statut', label: 'Statut (A_PAYER/PAYEE/PARTIELLE)' },
             { value: 'type', label: 'Type (ACHAT_STOCK/AUTRE)' },
+            { value: 'isBL', label: 'Est un BL ? (VRAI/FAUX)' },
             { value: 'modePaiement', label: 'Mode de Règlement (Pour échéance auto)' },
             { value: 'notes', label: 'Notes' }
         ],
         paiements_fournisseurs: [
-            { value: 'numeroFacture', label: 'N° Facture Fournisseur' },
+            { value: 'numeroFacture', label: 'N° Facture Fournisseur (Ou nPiece)' },
             { value: 'referenceInterne', label: 'Référence Interne / nPiece' },
+            { value: 'ficheNumero', label: 'N° Fiche / Dossier' },
             { value: 'codeFournisseur', label: 'Code Fournisseur' },
+            { value: 'nomFournisseur', label: 'Nom Fournisseur (si code absent)' },
             { value: 'datePaiement', label: 'Date Paiement' },
             { value: 'montant', label: 'Montant Payé' },
             { value: 'modePaiement', label: 'Mode Paiement (Espèces/Chèque/Virement)' },
@@ -429,7 +437,9 @@ export class DataImportComponent implements OnInit {
 
     /** Fields that have a mapped value (non-empty). Used to hide "Ignorer" rows. */
     get visibleFields(): any[] {
-        if (this.showIgnoredFields) return this.currentFields;
+        // Always show all fields if there are few (<= 5) or if most are unmapped (detectability/guidance)
+        const mappedCount = this.currentFields.filter(f => !!this.mappingForm.get(f.value)?.value).length;
+        if (this.showIgnoredFields || mappedCount < 3 || this.currentFields.length <= 5) return this.currentFields;
         return this.currentFields.filter(f => !!this.mappingForm.get(f.value)?.value);
     }
 
@@ -634,7 +644,8 @@ export class DataImportComponent implements OnInit {
             statut: ['statut', 'status', 'etat', 'state', 'situation'],
             dateLivraisonEstimee: ['livraison', 'date livraison', 'delivery date', 'date remise', 'remise', 'date retrait'],
             montantTotal: ['montant total', 'total', 'prix total', 'total ttc', 'montant ttc', 'price', 'prix', 'amount'],
-            montantPaye: ['acompte', 'paye', 'verse', 'montant paye', 'paid', 'deposit', 'avance', 'reglement', 'paiement'],
+            montantPaye: ['acompte', 'paye', 'verse', 'montant paye', 'paid', 'deposit', 'avance', 'reglement', 'paiement', 'cb'],
+            avecFacture: ['avec facture', 'facture oui', 'factured', 'invoice status', 'ce', 'avec fact', 'a facture', 'facturation'],
             notes: ['notes', 'note', 'observations', 'remarques', 'commentaires', 'info', 'details'],
 
             // ─── PRESCRIPTION ─────────────────────────────────────────────────
@@ -712,21 +723,23 @@ export class DataImportComponent implements OnInit {
 
             // ─── FACTURES ─────────────────────────────────────────────────────
             // Note: 'numero' and 'facture' keys are defined above in FICHE section (merged)
-            numeroFacture: ['numero facture', 'num facture', 'n° facture', 'invoice no', 'invoice number', 'facture', 'ref facture'],
-            fiche: ['fiche', 'dossier', 'num fiche', 'numero fiche', 'n° fiche', 'no fiche'],
+            numeroFacture: ['numero facture', 'num facture', 'n° facture', 'invoice no', 'invoice number', 'facture', 'ref facture', 'nfacture', 'reference'],
+            referenceInterne: ['reference interne', 'npiece', 'n° piece', 'no piece', 'piece', 'piece jointe', 'n° jnl'],
+            fiche: ['fiche', 'dossier', 'num fiche', 'numero fiche', 'n° fiche', 'no fiche', 'compteur', 'n° dossier'],
             nomClient: ['nom client', 'client', 'client name', 'customer', 'customer name', 'nom'],
             type: ['type', 'type facture', 'invoice type', 'document type'],
-            dateEmission: ['date facture', 'date emission', 'invoice date', 'date', 'date document', 'date creation'],
+            dateEmission: ['date facture', 'date emission', 'invoice date', 'date', 'date document', 'date creation', 'date virement'],
             dateEcheance: ['echeance', 'date echeance', 'due date', 'date limite', 'date paiement'],
             totalHT: ['total ht', 'ht', 'montant ht', 'hors taxe', 'subtotal'],
             totalTVA: ['total tva', 'tva', 'montant tva', 'taxe', 'tax amount'],
-            totalTTC: ['total ttc', 'ttc', 'montant ttc', 'total general', 'total amount', 'montant total'],
+            totalTTC: ['total ttc', 'ttc', 'montant ttc', 'total general', 'total amount', 'montant total', 'montant', 'net a payer'],
             montantHT: ['montant ht', 'ht', 'total ht', 'hors taxe'],
             montantTVA: ['montant tva', 'tva', 'total tva'],
-            montantTTC: ['montant ttc', 'ttc', 'total ttc', 'total'],
+            montantTTC: ['montant ttc', 'ttc', 'total ttc', 'total', 'montant'],
             quantite: ['quantite', 'qte', 'quantity', 'nombre articles', 'nombre', 'nb'],
             codeFournisseur: ['code fournisseur', 'fournisseur code', 'supplier code'],
             nomFournisseur: ['nom fournisseur', 'fournisseur', 'supplier name', 'vendor name'],
+            client: ['client', 'code client', 'id client', 'identifiant client', 'nom client'],
             telephoneClient: ['telephone client', 'tel client', 'phone customer', 'tel'],
 
             // ─── PAIEMENTS ────────────────────────────────────────────────────
@@ -889,7 +902,7 @@ export class DataImportComponent implements OnInit {
         this.isImporting = true;
         this.importProgress = 0;
         this.currentBatchIndex = 0;
-        this.importResult = { success: 0, skipped: 0, failed: 0, errors: [] };
+        this.importResult = { success: 0, updated: 0, skipped: 0, failed: 0, errors: [] };
 
         // Move to step 3 (Result/Progress)
         if (stepper) stepper.next();
@@ -926,6 +939,7 @@ export class DataImportComponent implements OnInit {
 
                 // Aggregate results
                 this.importResult.success += res.success || 0;
+                this.importResult.updated += (res.updated || 0);
                 this.importResult.skipped += res.skipped || 0;
                 this.importResult.failed += res.failed || 0;
                 if (res.errors && Array.isArray(res.errors)) {

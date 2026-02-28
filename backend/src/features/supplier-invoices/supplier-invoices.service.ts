@@ -185,6 +185,8 @@ export class SupplierInvoicesService {
       this.prisma.factureFournisseur.count({ where: whereClause }),
     ]);
 
+    console.log(`🔍 [Invoices] FindAll: where=${JSON.stringify(whereClause)}, total=${total}, dataLen=${data.length}`);
+
     return { data, total };
   }
 
