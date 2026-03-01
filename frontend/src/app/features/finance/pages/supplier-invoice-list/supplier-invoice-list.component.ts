@@ -103,7 +103,7 @@ export class SupplierInvoiceListComponent implements OnInit {
   @Input() isSubComponent = false;
 
   invoices: SupplierInvoice[] = [];
-  displayedColumns: string[] = ['select', 'date', 'numero', 'fournisseur', 'client', 'ficheMedicale', 'type', 'statut', 'montant', 'actions'];
+  displayedColumns: string[] = [];
   loading = false;
   currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
   selection = new SelectionModel<SupplierInvoice>(true, []);
@@ -159,10 +159,19 @@ export class SupplierInvoiceListComponent implements OnInit {
       } else if (params['tab'] === 'FACTURES') {
         this.listMode = 'INVOICE';
       }
+      this.updateColumns();
       // Changing listMode will be picked up by the effect (indirectly) if we reload
       // But since we want immediate refresh:
       this.loadInvoices();
     });
+  }
+
+  updateColumns() {
+    if (this.listMode === 'BL') {
+      this.displayedColumns = ['select', 'date', 'numero', 'fournisseur', 'client', 'ficheMedicale', 'type', 'statut', 'montant', 'actions'];
+    } else {
+      this.displayedColumns = ['date', 'numero', 'fournisseur', 'type', 'statut', 'montant', 'actions'];
+    }
   }
 
   applyFilters() {

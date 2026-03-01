@@ -96,7 +96,7 @@ export const MENU: MenuItem[] = [
     route: 'gestion-depenses',
     children: [
       {
-        label: 'Gestion Dépenses (Factures)',
+        label: 'Gestion Facture Fournisseur',
         icon: 'description',
         type: 'subchild',
         route: 'gestion-depenses/payments',
