@@ -55,8 +55,7 @@
                 <td>{{ row.fournisseur?.nom }}</td>
                 <td *ngIf="listMode === 'BL'">
                     {{ formatClientName(row.client) }}
-                    <span *ngIf="row.client?.numeroPieceIdentite" class="sub-text">({{
-                        row.client?.numeroPieceIdentite }})</span>
+                    <span *ngIf="row.fiche?.numero" class="sub-text">(Fiche : {{ row.fiche?.numero }})</span>
                 </td>
                 <td>{{ $any(row).categorieBL || row.type }}</td>
                 <td>{{ row.statut }}</td>
@@ -191,7 +190,7 @@
             <ng-container matColumnDef="ficheMedicale">
                 <th mat-header-cell *matHeaderCellDef> N° Fiche Médicale </th>
                 <td mat-cell *matCellDef="let element">
-                    <span class="text-gray-600">{{element.client?.numeroPieceIdentite || '-'}}</span>
+                    <span class="text-gray-600">{{element.fiche?.numero || '-'}}</span>
                 </td>
             </ng-container>
 

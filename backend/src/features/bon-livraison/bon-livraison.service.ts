@@ -123,7 +123,13 @@ export class BonLivraisonService {
                 include: {
                     fournisseur: { select: { id: true, nom: true } },
                     echeances: true,
-                    client: { select: { id: true, nom: true, prenom: true } },
+                    // Inclus les fiches du client pour trouver la plus proche si nécessaire
+                    client: {
+                        select: {
+                            id: true, nom: true, prenom: true, numeroPieceIdentite: true,
+                            fiches: { select: { id: true, numero: true, dateCreation: true } }
+                        }
+                    },
                     fiche: { select: { id: true, numero: true, type: true } },
                     factureFournisseur: { select: { id: true, numeroFacture: true } },
                 },
@@ -134,7 +140,25 @@ export class BonLivraisonService {
             this.prisma.bonLivraison.count({ where: whereClause }),
         ]);
 
-        return { data, total };
+        const enrichedData = data.map(bl => {
+            const result = { ...bl };
+            if (!result.fiche && result.client && (result.client as any).fiches && (result.client as any).fiches.length > 0) {
+                // Find closest fiche
+                const closestFiche = (result.client as any).fiches.reduce((prev: any, curr: any) => {
+                    const prevDiff = Math.abs(prev.dateCreation.getTime() - result.dateEmission.getTime());
+                    const currDiff = Math.abs(curr.dateCreation.getTime() - result.dateEmission.getTime());
+                    return currDiff < prevDiff ? curr : prev;
+                });
+                result.fiche = closestFiche as any;
+            }
+            // Nettoyage pour ne pas renvoyer toutes les fiches au front
+            if (result.client) {
+                delete (result.client as any).fiches;
+            }
+            return result;
+        });
+
+        return { data: enrichedData, total };
     }
 
     async findOne(id: string) {
