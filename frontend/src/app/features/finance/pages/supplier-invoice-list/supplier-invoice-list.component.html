@@ -38,7 +38,7 @@
                 <th>Date</th>
                 <th>N° Doc</th>
                 <th>Fournisseur</th>
-                <th>Client / Fiche</th>
+                <th *ngIf="listMode === 'BL'">Client / Fiche</th>
                 <th>Type</th>
                 <th>Statut</th>
                 <th class="text-right">Montant TTC</th>
@@ -53,7 +53,7 @@
                     </div>
                 </td>
                 <td>{{ row.fournisseur?.nom }}</td>
-                <td>
+                <td *ngIf="listMode === 'BL'">
                     {{ formatClientName(row.client) }}
                     <span *ngIf="row.client?.numeroPieceIdentite" class="sub-text">({{
                         row.client?.numeroPieceIdentite }})</span>
