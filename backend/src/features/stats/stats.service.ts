@@ -668,28 +668,9 @@ export class StatsService {
         rawCogs += linkedBls?._sum?.montantHT || 0;
       }
 
-      // 3. Fallback COGS for items with no movements (estimations based on Product prices)
-      // Only run if stock movements are suspiciously low/missing for the revenue
-      if (rawCogs < revenue * 0.1 && revenue > 0) {
-        let estimatedCogs = 0;
-        for (const doc of revenueDocs) {
-          if (doc.type === 'AVOIR') continue;
-          const lines = (doc.lignes as any[]) || [];
-          for (const line of lines) {
-            if (line.description) {
-              // Simple heuristic: search for product by designation
-              const product = await this.prisma.product.findFirst({
-                where: { designation: line.description },
-                select: { prixAchatHT: true },
-              });
-              if (product && product.prixAchatHT > 0) {
-                estimatedCogs += (line.qte || 1) * product.prixAchatHT;
-              }
-            }
-          }
-        }
-        if (estimatedCogs > rawCogs) rawCogs = estimatedCogs;
-      }
+      // 3. Fallback COGS for items with no movements a été supprimé car il créait
+      // un bottleneck majeur de performances avec une requête BDD par ligne de facture.
+      // Les BLs et Mouvements de stocks sont désormais censés être la source de vérité.
 
       const cogs = -1 * rawCogs;
 
