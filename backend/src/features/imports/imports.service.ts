@@ -2054,6 +2054,13 @@ export class ImportsService {
         lastRef = referenceInterne || lastRef;
         lastIsBL = isBL;
 
+        // If it's a BL import, we MUST use FactureFournisseur table even if numeroFacture is missing.
+        // We will fallback to referenceInterne or a generated ID to satisfy the unique constraint.
+        if (!numeroFacture && isBL) {
+          numeroFacture = referenceInterne || `BL-AUTO-${index}-${new Date().getTime()}`;
+          console.log(`[IMPORT-FF] Row ${index}: Missing numeroFacture for BL. Using fallback: ${numeroFacture}`);
+        }
+
         if (!numeroFacture) {
           if (centreId && montantTTC > 0) {
             // Create new standalone expense (No more checking existingDepense for 1:1 mapping)
@@ -2093,14 +2100,23 @@ export class ImportsService {
         let finalNum = numeroFacture;
         let dupIndex = 1;
         while (true) {
-          const exists = await this.prisma.factureFournisseur.findUnique({
-            where: {
-              fournisseurId_numeroFacture: {
-                fournisseurId: supplier.id,
-                numeroFacture: finalNum
-              }
-            }
-          });
+          const exists = isBL
+            ? await this.prisma.bonLivraison.findUnique({
+              where: {
+                fournisseurId_numeroBL: {
+                  fournisseurId: supplier.id,
+                  numeroBL: finalNum,
+                },
+              },
+            })
+            : await this.prisma.factureFournisseur.findUnique({
+              where: {
+                fournisseurId_numeroFacture: {
+                  fournisseurId: supplier.id,
+                  numeroFacture: finalNum,
+                },
+              },
+            });
           if (!exists) break;
           finalNum = `${numeroFacture}_${dupIndex++}`;
         }
@@ -2197,36 +2213,65 @@ export class ImportsService {
             }
           }
 
-          // New record entirely (No more dbExisting check for 1:1 mapping)
-          const record = await this.prisma.factureFournisseur.create({
-            data: {
-              numeroFacture,
-              dateEmission,
-              dateEcheance,
-              montantHT: montantHT || 0,
-              montantTVA: montantTVA || 0,
-              montantTTC: montantTTC || 0,
-              quantite: this.parseAmount(row[mapping.quantite]),
-              statut: 'A_PAYER',
-              type: row[mapping.type] || 'ACHAT_STOCK',
-              fournisseurId: supplier.id,
-              centreId: centreId || null,
-              referenceInterne,
-              clientId,
-              ficheId,
-              isBL,
-            } as any,
-          });
+          // Redirect creation to the correct table
+          if (isBL) {
+            const record = await this.prisma.bonLivraison.create({
+              data: {
+                numeroBL: numeroFacture,
+                dateEmission,
+                dateEcheance,
+                montantHT: montantHT || 0,
+                montantTVA: montantTVA || 0,
+                montantTTC: montantTTC || 0,
+                statut: 'VALIDEE',
+                type: row[mapping.type] || 'ACHAT_STOCK',
+                fournisseurId: supplier.id,
+                centreId: centreId || null,
+                clientId,
+                ficheId,
+                categorieBL: row[mapping.categorieBL] || null,
+              },
+            });
 
-          await this.prisma.echeancePaiement.create({
-            data: {
-              factureFournisseurId: record.id,
-              montant: montantTTC || 0,
-              dateEcheance: dateEcheance || dateEmission,
-              type: row[mapping.modePaiement] || 'ESPECES',
-              statut: 'EN_ATTENTE',
-            },
-          });
+            await this.prisma.echeancePaiement.create({
+              data: {
+                bonLivraisonId: record.id,
+                montant: montantTTC || 0,
+                dateEcheance: dateEcheance || dateEmission,
+                type: row[mapping.modePaiement] || 'ESPECES',
+                statut: 'EN_ATTENTE',
+              },
+            });
+          } else {
+            const record = await this.prisma.factureFournisseur.create({
+              data: {
+                numeroFacture,
+                dateEmission,
+                dateEcheance,
+                montantHT: montantHT || 0,
+                montantTVA: montantTVA || 0,
+                montantTTC: montantTTC || 0,
+                quantite: this.parseAmount(row[mapping.quantite]),
+                statut: 'A_PAYER',
+                type: row[mapping.type] || 'ACHAT_STOCK',
+                fournisseurId: supplier.id,
+                centreId: centreId || null,
+                referenceInterne,
+                clientId,
+                ficheId,
+              } as any,
+            });
+
+            await this.prisma.echeancePaiement.create({
+              data: {
+                factureFournisseurId: record.id,
+                montant: montantTTC || 0,
+                dateEcheance: dateEcheance || dateEmission,
+                type: row[mapping.modePaiement] || 'ESPECES',
+                statut: 'EN_ATTENTE',
+              },
+            });
+          }
           results.success++;
 
         }
@@ -2280,6 +2325,7 @@ export class ImportsService {
         let facture;
         let depense;
 
+        let bl;
         if (numeroFacture && numeroFacture.length > 0) {
           // STRICT-1:1-v2 RECONCILIATION:
           // Search for EXACT match OR any version with suffix (e.g. "FA-100_1") 
@@ -2296,9 +2342,24 @@ export class ImportsService {
             },
             // CRITICAL: Prioritize invoices that still have pending installments
             orderBy: {
-              statut: 'asc' // 'A_PAYER' or 'PARTIELLE' come before 'PAYEE'
-            }
+              statut: 'asc', // 'A_PAYER' or 'PARTIELLE' come before 'PAYEE'
+            },
           });
+
+          if (!facture) {
+            bl = await this.prisma.bonLivraison.findFirst({
+              where: {
+                fournisseurId: supplier.id,
+                OR: [
+                  { numeroBL: { equals: numeroFacture, mode: 'insensitive' } },
+                  { numeroBL: { startsWith: numeroFacture + '_', mode: 'insensitive' } },
+                ],
+              },
+              orderBy: {
+                statut: 'asc',
+              },
+            });
+          }
         }
 
         // Fallback: match by exact amount among unpaid invoices if still not found
@@ -2326,7 +2387,7 @@ export class ImportsService {
 
         const safeRef = referenceReglement && String(referenceReglement).trim().length > 0 ? String(referenceReglement).trim() : null;
 
-        if (!facture && !depense) {
+        if (!facture && !bl && !depense) {
           if (numeroFacture) {
             // Create a fallback Invoice to allow multiple installments for the same nPiece (Facture)
             facture = await this.prisma.factureFournisseur.create({
@@ -2346,7 +2407,8 @@ export class ImportsService {
             // Create the corresponding payment record
             await this.prisma.echeancePaiement.create({
               data: {
-                factureFournisseurId: facture.id,
+                factureFournisseurId: facture ? facture.id : undefined,
+                bonLivraisonId: bl ? bl.id : undefined,
                 montant,
                 dateEncaissement: dateReglement,
                 dateEcheance: dateReglement,

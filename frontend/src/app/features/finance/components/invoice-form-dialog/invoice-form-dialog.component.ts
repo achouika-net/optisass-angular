@@ -188,7 +188,8 @@ export class InvoiceFormDialogComponent implements OnInit {
             details: this.fb.group({
                 fournisseurId: [data?.invoice?.fournisseurId || prefilled.fournisseurId || ''],
                 centreId: [data?.invoice?.centreId || this.currentCentre()?.id || '', Validators.required],
-                numeroFacture: [data?.invoice?.numeroFacture || prefilled.numeroFacture || '', Validators.required],
+                numeroFacture: [data?.invoice?.numeroFacture || prefilled.numeroFacture || ''],
+                numeroBL: [(data?.invoice as any)?.numeroBL || prefilled.numeroBL || ''],
                 dateEmission: [data?.invoice?.dateEmission || new Date(), Validators.required],
                 dateEcheance: [data?.invoice?.dateEcheance || null],
                 montantHT: [data?.invoice?.montantHT || prefilled.montantHT || 0, [Validators.required, Validators.min(0)]],
@@ -200,8 +201,8 @@ export class InvoiceFormDialogComponent implements OnInit {
                 montantTVA: [data?.invoice?.montantTVA || prefilled.montantTVA || 0, [Validators.required, Validators.min(0)]],
                 montantTTC: [data?.invoice?.montantTTC || prefilled.montantTTC || 0, [Validators.required, Validators.min(0)]],
                 type: [data?.invoice?.type || (data as any)?.prefilledType || prefilled.type || 'ACHAT_STOCK', Validators.required],
-                categorieBL: [data?.invoice?.categorieBL || 'VERRE'],
-                isBL: [data?.invoice?.isBL !== undefined ? data.invoice.isBL : (this.data as any)?.isBL],
+                categorieBL: [(data?.invoice as any)?.categorieBL || (data?.invoice as any)?.categorieBL || 'VERRE'],
+                isBL: [(data?.invoice as any)?.isBL !== undefined ? (data.invoice as any).isBL : (this.data as any)?.isBL],
                 pieceJointeUrl: [data?.invoice?.pieceJointeUrl || ''],
                 clientId: [data?.invoice?.clientId || prefilled.prefilledClientId || ''],
                 ficheId: [data?.invoice?.ficheId || prefilled.prefilledFicheId || ''],
@@ -284,6 +285,7 @@ export class InvoiceFormDialogComponent implements OnInit {
                     details: {
                         fournisseurId: invoice.fournisseurId,
                         numeroFacture: invoice.numeroFacture,
+                        numeroBL: (invoice as any).numeroBL,
                         dateEmission: invoice.dateEmission,
                         dateEcheance: invoice.dateEcheance,
                         montantHT: mHT,
@@ -750,6 +752,16 @@ export class InvoiceFormDialogComponent implements OnInit {
     removeEcheance(index: number) { this.echeances.removeAt(index); }
 
     onSubmit() {
+        if (this.isBLMode) {
+            this.detailsGroup.get('numeroBL')?.setValidators([Validators.required]);
+            this.detailsGroup.get('numeroFacture')?.clearValidators();
+        } else {
+            this.detailsGroup.get('numeroFacture')?.setValidators([Validators.required]);
+            this.detailsGroup.get('numeroBL')?.clearValidators();
+        }
+        this.detailsGroup.get('numeroFacture')?.updateValueAndValidity();
+        this.detailsGroup.get('numeroBL')?.updateValueAndValidity();
+
         const isValid = this.isBLMode ? this.detailsGroup.valid : this.form.valid;
         if (isValid) {
             this.submitting = true;
@@ -796,10 +808,18 @@ export class InvoiceFormDialogComponent implements OnInit {
             montantHT: Number(detailsData.montantHT),
             montantTVA: Number(detailsData.montantTVA),
             montantTTC: Number(detailsData.montantTTC),
-            isBL: this.isBLMode,
             clientId: detailsData.clientId || undefined,
             ficheId: detailsData.ficheId || undefined
         };
+
+        if (this.isBLMode) {
+            delete invoiceData.numeroFacture;
+            invoiceData.numeroBL = detailsData.numeroBL;
+        } else {
+            delete invoiceData.numeroBL;
+            invoiceData.numeroFacture = detailsData.numeroFacture;
+        }
+
         const newAttachments: any[] = [];
         const existingAttachments: string[] = [];
         for (const file of this.attachmentFiles) {
@@ -837,12 +857,16 @@ export class InvoiceFormDialogComponent implements OnInit {
         if (this.isEditMode) {
             const id = this.route.snapshot.paramMap.get('id') || this.data?.invoice?.id;
             if (id) {
-                this.financeService.updateInvoice(id, invoiceData).subscribe({
+                const updateCall: Observable<any> = this.isBLMode
+                    ? this.financeService.updateBonLivraison(id, invoiceData)
+                    : this.financeService.updateInvoice(id, invoiceData);
+
+                updateCall.subscribe({
                     next: () => {
                         this.snackBar.open('Modifications enregistrées', 'Fermer', { duration: 3000 });
                         this.finalize(invoiceData);
                     },
-                    error: (err) => {
+                    error: (err: any) => {
                         this.submitting = false;
                         const msg = this.getErrorMessage(err);
                         this.snackBar.open(msg || 'Erreur lors de la mise à jour', 'Fermer', { duration: 7000 });
@@ -958,8 +982,12 @@ export class InvoiceFormDialogComponent implements OnInit {
     }
 
     private createInvoiceAfterCeilingCheck(invoiceData: any) {
-        this.financeService.createInvoice(invoiceData).subscribe({
-            next: res => {
+        const createCall: Observable<any> = this.isBLMode
+            ? this.financeService.createBonLivraison(invoiceData)
+            : this.financeService.createInvoice(invoiceData);
+
+        createCall.subscribe({
+            next: (res: any) => {
                 this.snackBar.open('Enregistrement réussi', 'Fermer', { duration: 3000 });
 
                 // CHECK FOR IMMEDIATE PAYMENT (ONLY FOR NEW BL)
@@ -971,17 +999,18 @@ export class InvoiceFormDialogComponent implements OnInit {
                         categorie: invoiceData.type,
                         modePaiement: directPayment.modePaiement,
                         centreId: invoiceData.centreId || this.currentCentre()?.id,
-                        description: `Règlement immédiat BL ${res.numeroFacture}`,
+                        description: `Règlement immédiat BL ${res.numeroBL || res.numeroFacture}`,
                         statut: 'VALIDEE',
-                        reference: directPayment.banque || res.numeroFacture,
+                        reference: directPayment.banque || res.numeroBL || res.numeroFacture,
                         banque: directPayment.banque,
                         fournisseurId: res.fournisseurId,
-                        factureFournisseurId: res.id
+                        bonLivraisonId: res.numeroBL ? res.id : undefined,
+                        factureFournisseurId: res.numeroFacture ? res.id : undefined
                     };
 
                     this.financeService.createExpense(expenseData).subscribe({
                         next: () => console.log('[BL-PAYMENT] Immediate payment recorded'),
-                        error: (err) => {
+                        error: (err: any) => {
                             console.error('[BL-PAYMENT] Error recording immediate payment', err);
                             this.snackBar.open('BL créé mais erreur lors du règlement immédiat', 'OK', { duration: 5000 });
                         }
@@ -990,12 +1019,12 @@ export class InvoiceFormDialogComponent implements OnInit {
 
                 const stockTypes = ['ACHAT_VERRE_OPTIQUE', 'ACHAT_MONTURES_OPTIQUE', 'ACHAT_MONTURES_SOLAIRE', 'ACHAT_LENTILLES', 'ACHAT_PRODUITS', 'ACHAT_STOCK'];
                 if (stockTypes.includes(res.type)) {
-                    const feedStock = confirm('Facture enregistrée. Souhaitez-vous maintenant alimenter le stock avec les articles de cette facture ?');
+                    const feedStock = confirm('Document enregistré. Souhaitez-vous maintenant alimenter le stock avec les articles de ce document ?');
                     if (feedStock) {
                         this.dialogRef.close(res);
                         this.router.navigate(['/p/stock/entry-v2'], {
                             queryParams: {
-                                prefillInvoice: res.numeroFacture,
+                                prefillInvoice: res.numeroBL || res.numeroFacture,
                                 prefillSupplier: res.fournisseurId,
                                 prefillDate: res.dateEmission
                             }
@@ -1005,7 +1034,7 @@ export class InvoiceFormDialogComponent implements OnInit {
                 }
                 this.finalize(res);
             },
-            error: (err) => {
+            error: (err: any) => {
                 this.submitting = false;
                 const msg = this.getErrorMessage(err);
                 this.snackBar.open(msg || 'Erreur lors de la création', 'Fermer', { duration: 7000 });

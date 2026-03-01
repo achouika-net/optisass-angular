@@ -110,6 +110,7 @@ export class ExpenseFormDialogComponent implements OnInit {
             dateEcheance: [data?.expense?.dateEcheance || null],
             fournisseurId: [data?.expense?.fournisseurId || null],
             factureFournisseurId: [(data?.expense as any)?.factureFournisseurId || null],
+            bonLivraisonId: [(data?.expense as any)?.bonLivraisonId || null],
             echeanceId: [(data?.expense as any)?.echeanceId || null]
         });
     }
@@ -252,6 +253,7 @@ export class ExpenseFormDialogComponent implements OnInit {
             montant: Number(formValue.montant),
             fournisseurId: formValue.fournisseurId || null,
             factureFournisseurId: formValue.factureFournisseurId || null,
+            bonLivraisonId: formValue.bonLivraisonId || null,
             echeanceId: formValue.echeanceId || null,
             centreId: formValue.centreId || null
         };

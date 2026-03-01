@@ -119,7 +119,6 @@ export class StockMovementsService {
             fournisseurId: invoiceData.fournisseurId,
             centreId: effectiveCentreId,
             pieceJointeUrl: pieceJointeUrl,
-            isBL: invoiceData.type === 'BL',
             echeances: {
               create: [
                 {

@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_URL } from '../../../config/api.config';
-import { Supplier, Expense, SupplierInvoice, ExpenseDTO, SupplierInvoiceDTO, FundingRequest } from '../models/finance.models';
+import { Supplier, Expense, SupplierInvoice, ExpenseDTO, SupplierInvoiceDTO, FundingRequest, BonLivraison, BonLivraisonDTO } from '../models/finance.models';
 
 @Injectable({
     providedIn: 'root'
@@ -74,9 +74,6 @@ export class FinanceService {
         statut?: string;
         clientId?: string;
         centreId?: string;
-        isBL?: boolean;
-        categorieBL?: string;
-        parentInvoiceId?: string;
         startDate?: string;
         endDate?: string;
         page?: number;
@@ -87,9 +84,6 @@ export class FinanceService {
         if (filters?.statut) params = params.set('statut', filters.statut);
         if (filters?.clientId) params = params.set('clientId', filters.clientId);
         if (filters?.centreId) params = params.set('centreId', filters.centreId);
-        if (filters?.isBL !== undefined) params = params.set('isBL', filters.isBL.toString());
-        if (filters?.categorieBL) params = params.set('categorieBL', filters.categorieBL);
-        if (filters?.parentInvoiceId) params = params.set('parentInvoiceId', filters.parentInvoiceId);
         if (filters?.startDate) params = params.set('startDate', filters.startDate);
         if (filters?.endDate) params = params.set('endDate', filters.endDate);
         if (filters?.page) params = params.set('page', filters.page.toString());
@@ -116,6 +110,50 @@ export class FinanceService {
 
     deleteInvoice(id: string): Observable<void> {
         return this.http.delete<void>(`${this.apiUrl}/supplier-invoices/${id}`);
+    }
+
+    // --- Bon Livraisons (BL) ---
+    getBonLivraisons(filters?: {
+        fournisseurId?: string;
+        statut?: string;
+        clientId?: string;
+        centreId?: string;
+        categorieBL?: string;
+        factureFournisseurId?: string;
+        startDate?: string;
+        endDate?: string;
+        page?: number;
+        limit?: number;
+    }): Observable<{ data: BonLivraison[], total: number }> {
+        let params = new HttpParams();
+        if (filters?.fournisseurId) params = params.set('fournisseurId', filters.fournisseurId);
+        if (filters?.statut) params = params.set('statut', filters.statut);
+        if (filters?.clientId) params = params.set('clientId', filters.clientId);
+        if (filters?.centreId) params = params.set('centreId', filters.centreId);
+        if (filters?.categorieBL) params = params.set('categorieBL', filters.categorieBL);
+        if (filters?.factureFournisseurId) params = params.set('factureFournisseurId', filters.factureFournisseurId);
+        if (filters?.startDate) params = params.set('startDate', filters.startDate);
+        if (filters?.endDate) params = params.set('endDate', filters.endDate);
+        if (filters?.page) params = params.set('page', filters.page.toString());
+        if (filters?.limit) params = params.set('limit', filters.limit.toString());
+
+        return this.http.get<{ data: BonLivraison[], total: number }>(`${this.apiUrl}/bon-livraison`, { params });
+    }
+
+    createBonLivraison(bl: BonLivraisonDTO): Observable<BonLivraison> {
+        return this.http.post<BonLivraison>(`${this.apiUrl}/bon-livraison`, bl);
+    }
+
+    getBonLivraison(id: string): Observable<BonLivraison> {
+        return this.http.get<BonLivraison>(`${this.apiUrl}/bon-livraison/${id}`);
+    }
+
+    updateBonLivraison(id: string, bl: any): Observable<BonLivraison> {
+        return this.http.put<BonLivraison>(`${this.apiUrl}/bon-livraison/${id}`, bl);
+    }
+
+    deleteBonLivraison(id: string): Observable<void> {
+        return this.http.delete<void>(`${this.apiUrl}/bon-livraison/${id}`);
     }
 
     checkInvoiceExistence(fournisseurId: string, numeroFacture: string): Observable<{ exists: boolean, invoice?: any }> {

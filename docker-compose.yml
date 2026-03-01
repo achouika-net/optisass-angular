@@ -27,7 +27,7 @@ services:
       NG_CLI_ANALYTICS: "false"
     depends_on:
       - db
-    command: sh -c "npx prisma generate && npx prisma db push && npm run start:dev"
+    command: sh -c "npx prisma generate && npx prisma db push --accept-data-loss && npm run start:dev"
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -60,7 +60,10 @@ services:
       - "5555:5555"
     environment:
       DATABASE_URL: "postgresql://postgres:mypassword@db:5432/optisaas?schema=public"
-    command: npx prisma studio --browser none
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: sh -c "npx prisma generate && npx prisma studio --browser none"
     depends_on:
       - db
 

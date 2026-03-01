@@ -587,7 +587,7 @@ export class ClientDetailComponent implements OnInit {
 
   loadSupplierInvoices(): void {
     if (!this.clientId) return;
-    this.financeService.getInvoices({ clientId: this.clientId }).subscribe({
+    this.financeService.getBonLivraisons({ clientId: this.clientId }).subscribe({
       next: (res: any) => {
         const data = Array.isArray(res) ? res : (res?.data || []);
         this.supplierInvoices.set(data);

@@ -134,7 +134,15 @@ export class ClientsService {
     return this.prisma.client.findUnique({
       where: { id },
       include: {
-        fiches: true,
+        fiches: {
+          orderBy: { dateCreation: 'desc' }
+        },
+        bonsLivraison: {
+          orderBy: { dateEmission: 'desc' }
+        },
+        facturesFournisseurs: {
+          orderBy: { dateEmission: 'desc' }
+        },
         parrain: true,
         filleuls: true,
         groupe: true,

@@ -5,7 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { Router, RouterModule } from '@angular/router';
+import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatMenuModule } from '@angular/material/menu';
@@ -132,6 +132,7 @@ export class SupplierInvoiceListComponent implements OnInit {
   constructor(
     private financeService: FinanceService,
     private router: Router,
+    private route: ActivatedRoute,
     private snackBar: MatSnackBar,
     private dialog: MatDialog,
     private store: Store,
@@ -150,6 +151,18 @@ export class SupplierInvoiceListComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadSuppliers();
+
+    // Subscribe to query params to detect if we should show BL or Invoices
+    this.route.queryParams.subscribe(params => {
+      if (params['tab'] === 'BL') {
+        this.listMode = 'BL';
+      } else if (params['tab'] === 'FACTURES') {
+        this.listMode = 'INVOICE';
+      }
+      // Changing listMode will be picked up by the effect (indirectly) if we reload
+      // But since we want immediate refresh:
+      this.loadInvoices();
+    });
   }
 
   applyFilters() {
@@ -206,18 +219,27 @@ export class SupplierInvoiceListComponent implements OnInit {
       }
     }
 
-    this.financeService.getInvoices({
-      centreId: center?.id,
-      fournisseurId: this.filters.fournisseurId || undefined,
-      startDate,
-      endDate,
-      isBL: this.listMode === 'BL',
-      page: this.pageIndex + 1,
-      limit: this.pageSize
-    }).subscribe({
+    const serviceCall = this.listMode === 'BL'
+      ? this.financeService.getBonLivraisons({
+        centreId: center?.id,
+        fournisseurId: this.filters.fournisseurId || undefined,
+        startDate,
+        endDate,
+        page: this.pageIndex + 1,
+        limit: this.pageSize
+      })
+      : this.financeService.getInvoices({
+        centreId: center?.id,
+        fournisseurId: this.filters.fournisseurId || undefined,
+        startDate,
+        endDate,
+        page: this.pageIndex + 1,
+        limit: this.pageSize
+      });
+
+    (serviceCall as any).subscribe({
       next: (res: any) => {
-        console.log(`📦 [Invoices] Response type: ${Array.isArray(res) ? 'Array' : 'Object'}, total=${res?.total}`);
-        if (res && !Array.isArray(res) && res.data !== undefined) {
+        if (res && res.data !== undefined) {
           this.invoices = res.data || [];
           this.totalCount = Number(res.total);
         } else {
@@ -228,9 +250,9 @@ export class SupplierInvoiceListComponent implements OnInit {
         this.selection.clear();
         this.cdr.detectChanges();
       },
-      error: (err) => {
-        console.error('Erreur chargement factures', err);
-        this.snackBar.open('Erreur lors du chargement des factures', 'Fermer', { duration: 3000 });
+      error: (err: any) => {
+        console.error('Erreur chargement données', err);
+        this.snackBar.open('Erreur lors du chargement des données', 'Fermer', { duration: 3000 });
         this.loading = false;
       }
     });
@@ -313,7 +335,7 @@ export class SupplierInvoiceListComponent implements OnInit {
       width: '1400px',
       maxWidth: '98vw',
       maxHeight: '98vh',
-      data: { invoice, viewMode, isBL: invoice ? invoice.isBL : this.listMode === 'BL' }
+      data: { invoice, viewMode, isBL: (invoice as any)?.numeroBL !== undefined || this.listMode === 'BL' }
     });
 
     dialogRef.afterClosed().subscribe(result => {
@@ -348,16 +370,20 @@ export class SupplierInvoiceListComponent implements OnInit {
     // Find first pending echeance
     const pendingEcheance = invoice.echeances?.find(e => e.statut === 'EN_ATTENTE');
 
+    const isBL = (invoice as any).numeroBL !== undefined || this.listMode === 'BL';
+    const numero = (invoice as any).numeroBL || invoice.numeroFacture;
+
     const dialogRef = this.dialog.open(ExpenseFormDialogComponent, {
       width: '600px',
       data: {
         expense: {
           fournisseurId: invoice.fournisseurId,
-          factureFournisseurId: invoice.id,
+          factureFournisseurId: isBL ? undefined : invoice.id,
+          bonLivraisonId: isBL ? invoice.id : undefined,
           echeanceId: pendingEcheance?.id,
           montant: invoice.montantTTC, // Default to full amount
           categorie: invoice.type || 'ACHAT_STOCK',
-          description: `Paiement BL ${invoice.numeroFacture}`,
+          description: `Paiement ${isBL ? 'BL' : 'Facture'} ${numero}`,
           date: new Date().toISOString(),
           modePaiement: 'ESPECES',
           statut: 'VALIDEE',
@@ -375,10 +401,18 @@ export class SupplierInvoiceListComponent implements OnInit {
   }
 
   deleteInvoice(invoice: SupplierInvoice) {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer la facture ${invoice.numeroFacture} ?`)) {
-      this.financeService.deleteInvoice(invoice.id!).subscribe({
+    const isBL = (invoice as any).numeroBL !== undefined || this.listMode === 'BL';
+    const numero = (invoice as any).numeroBL || invoice.numeroFacture;
+    const typeLabel = isBL ? 'le BL' : 'la facture';
+
+    if (confirm(`Êtes-vous sûr de vouloir supprimer ${typeLabel} ${numero} ?`)) {
+      const deleteCall = isBL
+        ? this.financeService.deleteBonLivraison(invoice.id!)
+        : this.financeService.deleteInvoice(invoice.id!);
+
+      deleteCall.subscribe({
         next: () => {
-          this.snackBar.open('Facture supprimée', 'Fermer', { duration: 3000 });
+          this.snackBar.open(`${isBL ? 'BL supprimé' : 'Facture supprimée'}`, 'Fermer', { duration: 3000 });
           this.loadInvoices();
         },
         error: (err) => {

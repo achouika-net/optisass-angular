@@ -14,7 +14,6 @@ export class SupplierInvoicesService {
   ) { }
 
   async create(createDto: CreateSupplierInvoiceDto) {
-    console.log('[INVOICE] CREATE PAYLOAD:', JSON.stringify(createDto));
     const { echeances, base64File, fileName, ...inputData } = createDto;
 
     // Clean inputData: Prisma will crash if we pass unknown fields (like directPayment or newAttachments from frontend)
@@ -31,9 +30,6 @@ export class SupplierInvoicesService {
       centreId: inputData.centreId,
       clientId: inputData.clientId,
       ficheId: inputData.ficheId,
-      isBL: inputData.isBL,
-      categorieBL: inputData.categorieBL,
-      parentInvoiceId: inputData.parentInvoiceId,
       pieceJointeUrl: inputData.pieceJointeUrl || '',
     };
 
@@ -122,12 +118,9 @@ export class SupplierInvoicesService {
     statut?: string;
     clientId?: string;
     centreId?: string;
-    isBL?: boolean;
-    categorieBL?: string;
-    parentInvoiceId?: string;
-    ficheId?: string;
     startDate?: string;
     endDate?: string;
+    ficheId?: string;
     page?: number;
     limit?: number;
   }) {
@@ -136,9 +129,6 @@ export class SupplierInvoicesService {
       statut,
       clientId,
       centreId,
-      isBL,
-      categorieBL,
-      parentInvoiceId,
       startDate,
       endDate,
       ficheId,
@@ -151,12 +141,6 @@ export class SupplierInvoicesService {
     if (statut) whereClause.statut = statut;
     if (clientId) whereClause.clientId = clientId;
     if (centreId) whereClause.centreId = centreId;
-    if (isBL !== undefined) {
-      const isBLBool = String(isBL) === 'true';
-      whereClause.isBL = isBLBool;
-    }
-    if (categorieBL) whereClause.categorieBL = categorieBL;
-    if (parentInvoiceId) whereClause.parentInvoiceId = parentInvoiceId;
     if (ficheId) whereClause.ficheId = ficheId;
 
     if (startDate || endDate) {
@@ -176,7 +160,6 @@ export class SupplierInvoicesService {
           echeances: true,
           client: { select: { id: true, nom: true, prenom: true } },
           fiche: { select: { id: true, numero: true, type: true } },
-          parentInvoice: { select: { id: true, numeroFacture: true } },
         },
         orderBy: { dateEmission: 'desc' },
         skip,
@@ -185,7 +168,6 @@ export class SupplierInvoicesService {
       this.prisma.factureFournisseur.count({ where: whereClause }),
     ]);
 
-    console.log(`🔍 [Invoices] FindAll: where=${JSON.stringify(whereClause)}, total=${total}, dataLen=${data.length}`);
 
     return { data, total };
   }
@@ -199,12 +181,6 @@ export class SupplierInvoicesService {
         depenses: true,
         client: true,
         fiche: true,
-        parentInvoice: true,
-        childBLs: {
-          include: {
-            client: true,
-          },
-        },
       },
     });
   }
@@ -245,9 +221,6 @@ export class SupplierInvoicesService {
       centreId: invoiceData.centreId,
       clientId: invoiceData.clientId,
       ficheId: invoiceData.ficheId,
-      isBL: invoiceData.isBL,
-      categorieBL: invoiceData.categorieBL,
-      parentInvoiceId: invoiceData.parentInvoiceId,
     };
 
     // Handle File Attachment Update (Multi-file support)

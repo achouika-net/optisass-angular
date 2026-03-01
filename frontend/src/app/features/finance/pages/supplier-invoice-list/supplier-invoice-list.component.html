@@ -48,7 +48,7 @@
             <tr *ngFor="let row of invoices">
                 <td>{{ row.dateEmission | date:'dd/MM/yyyy' }}</td>
                 <td>
-                    <strong>{{ row.numeroFacture }}</strong>
+                    <strong>{{ $any(row).numeroBL || row.numeroFacture }}</strong>
                     <div *ngIf="row.dateEcheance" class="sub-text">Éch: {{ row.dateEcheance | date:'dd/MM/yyyy' }}
                     </div>
                 </td>
@@ -58,7 +58,7 @@
                     <span *ngIf="row.client?.numeroPieceIdentite" class="sub-text">({{
                         row.client?.numeroPieceIdentite }})</span>
                 </td>
-                <td>{{ row.categorieBL || row.type }}</td>
+                <td>{{ $any(row).categorieBL || row.type }}</td>
                 <td>{{ row.statut }}</td>
                 <td class="text-right font-bold">{{ row.montantTTC | number:'1.2-2' }}</td>
             </tr>
@@ -167,7 +167,7 @@
             <ng-container matColumnDef="numero">
                 <th mat-header-cell *matHeaderCellDef> {{ listMode === 'BL' ? 'N° BL' : 'N° Facture' }} </th>
                 <td mat-cell *matCellDef="let element">
-                    <div class="font-bold">{{element.numeroFacture}}</div>
+                    <div class="font-bold">{{ $any(element).numeroBL || element.numeroFacture }}</div>
                     <div class="text-xs text-gray-400" *ngIf="element.dateEcheance">Échéance: {{element.dateEcheance |
                         date:'dd/MM/yyyy'}}</div>
                 </td>
@@ -201,7 +201,7 @@
                 <td mat-cell *matCellDef="let element">
                     <mat-chip-set>
                         <mat-chip class="!bg-gray-100 !text-gray-600 mini-chip">
-                            {{element.categorieBL || element.type}}
+                            {{ $any(element).categorieBL || element.type }}
                         </mat-chip>
                     </mat-chip-set>
                 </td>
@@ -215,7 +215,8 @@
                         class="statut-chip px-2 py-1 rounded-full font-semibold">
                         {{element.statut}}
                     </span>
-                    <div *ngIf="element.parentInvoiceId" class="text-xs text-blue-600 font-medium">Groupé</div>
+                    <div *ngIf="element.parentInvoiceId || element.factureFournisseurId"
+                        class="text-xs text-blue-600 font-medium">Groupé</div>
                 </td>
             </ng-container>
 
@@ -246,7 +247,9 @@
                         </button>
                         <button mat-menu-item (click)="openPaymentDialog(element)" *ngIf="element.statut !== 'PAYEE'">
                             <mat-icon style="color: #2e7d32 !important;">payments</mat-icon>
-                            <span>Payer</span>
+                            <span>{{ (element.type === 'ACHAT_VERRE_OPTIQUE' && listMode === 'BL') ? (
+                                $any(element).numeroBL || element.numeroFacture ) : (element.numeroFacture ||
+                                $any(element).numeroBL) }}</span>
                         </button>
                         <mat-divider></mat-divider>
                         <button mat-menu-item *ngIf="element.pieceJointeUrl">
