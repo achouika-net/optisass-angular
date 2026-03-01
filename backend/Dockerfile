@@ -28,4 +28,4 @@ EXPOSE 3000
 
 # Commande de démarrage
 # On attend un peu que la DB soit prête, on push le schéma, puis on lance
-CMD ["sh", "-c", "npx prisma db push && npm run start:dev"]
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npm run start:dev"]

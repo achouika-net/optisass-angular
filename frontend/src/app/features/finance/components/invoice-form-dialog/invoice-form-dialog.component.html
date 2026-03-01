@@ -45,13 +45,20 @@
                                             (sélectionnez dans la liste)</mat-error>
                                     </mat-form-field>
 
-                                    <mat-form-field appearance="outline">
-                                        <mat-label>{{ data?.isGrouping ? 'Numéro de Facture Fournisseur *' : (isBLMode ?
-                                            'Numéro de BL (ou Facture) *' : 'Numéro de Facture *')
-                                            }}</mat-label>
-                                        <input matInput formControlName="numeroFacture">
+                                    <mat-form-field appearance="outline" *ngIf="!isBLMode">
+                                        <mat-label>{{ data?.isGrouping ? 'Numéro de Facture Fournisseur *' : 'Numéro de
+                                            Facture *' }}</mat-label>
+                                        <input matInput formControlName="numeroFacture"
+                                            placeholder="Saisir le numéro de facture">
                                         <mat-error
                                             *ngIf="detailsGroup.get('numeroFacture')?.hasError('required')">Requis</mat-error>
+                                    </mat-form-field>
+
+                                    <mat-form-field appearance="outline" *ngIf="isBLMode">
+                                        <mat-label>Numéro de BL *</mat-label>
+                                        <input matInput formControlName="numeroBL" placeholder="Saisir le numéro de BL">
+                                        <mat-error
+                                            *ngIf="detailsGroup.get('numeroBL')?.hasError('required')">Requis</mat-error>
                                     </mat-form-field>
 
                                     <mat-form-field appearance="outline">
@@ -187,7 +194,8 @@
                                                 class="p-3 bg-white border border-gray-100 rounded-lg flex items-center justify-between shadow-sm">
                                                 <div class="flex items-center gap-2">
                                                     <mat-icon class="text-gray-400 text-sm">description</mat-icon>
-                                                    <span class="text-sm font-medium">{{bl.numeroFacture}}</span>
+                                                    <span class="text-sm font-medium">{{$any(bl).numeroBL ||
+                                                        bl.numeroFacture}}</span>
                                                     <span class="text-xs text-gray-400">({{bl.montantTTC |
                                                         number:'1.2-2'}}
                                                         DH)</span>

@@ -40,12 +40,7 @@ export class TreasuryService {
           date: { gte: startDate, lte: endDate },
           centreId: centreId,
           echeanceId: null,
-          factureFournisseur: {
-            OR: [
-              { isBL: false },
-              { isBL: null }
-            ]
-          }
+          // Factures only (no longer filtering by isBL since BLs are separate)
         } as any,
         _sum: { montant: true },
       }),
@@ -59,13 +54,13 @@ export class TreasuryService {
             ? {
               OR: [
                 { depense: { centreId } },
-                { factureFournisseur: { centreId, parentInvoiceId: null } },
+                { factureFournisseur: { centreId } },
               ],
             }
             : {
               OR: [
                 { depense: { isNot: null } },
-                { factureFournisseur: { parentInvoiceId: null } },
+                { factureFournisseur: { isNot: null } },
               ],
             }),
         },
@@ -420,14 +415,13 @@ export class TreasuryService {
           {
             factureFournisseur: {
               centreId: filters.centreId,
-              parentInvoiceId: null,
             },
           },
           { depense: { centreId: filters.centreId } },
         ];
       } else {
         where.OR = [
-          { factureFournisseur: { parentInvoiceId: null } },
+          { factureFournisseur: { isNot: null } },
           { depense: { isNot: null } },
         ];
       }
@@ -527,7 +521,6 @@ export class TreasuryService {
           where: {
             factureFournisseur: {
               ...whereInvoice,
-              parentInvoiceId: null, // Only top-level
             },
             depense: null, // Deduplicate: if an echeance has a depense, it is already shown in the expenses query
             ...(Object.keys(dateRange).length > 0
@@ -605,13 +598,13 @@ export class TreasuryService {
             ? {
               OR: [
                 { depense: { centreId } },
-                { factureFournisseur: { centreId, parentInvoiceId: null } },
+                { factureFournisseur: { centreId } },
               ],
             }
             : {
               OR: [
                 { depense: { isNot: null } },
-                { factureFournisseur: { parentInvoiceId: null } },
+                { factureFournisseur: { isNot: null } },
               ],
             }),
         },
@@ -675,13 +668,13 @@ export class TreasuryService {
             ? {
               OR: [
                 { depense: { centreId } },
-                { factureFournisseur: { centreId, parentInvoiceId: null } },
+                { factureFournisseur: { centreId } },
               ],
             }
             : {
               OR: [
                 { depense: { isNot: null } },
-                { factureFournisseur: { parentInvoiceId: null } },
+                { factureFournisseur: { isNot: null } },
               ],
             }),
         },

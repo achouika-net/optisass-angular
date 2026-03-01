@@ -15,17 +15,14 @@ async function debugDisplayIssue() {
     console.log(`   - Depense: ${totalExpenses}`);
     console.log(`   - EcheancePaiement: ${totalEcheances}\n`);
 
-    // 2. Check for parent invoices (should be excluded)
-    const parentInvoices = await prisma.factureFournisseur.count({
-        where: { parentInvoiceId: { not: null } }
-    });
-    console.log(`🔗 Factures enfants (exclues): ${parentInvoices}`);
-    console.log(`📄 Factures principales: ${totalInvoices - parentInvoices}\n`);
+    // 2. parentInvoiceId concept removed — all invoices are top-level now
+    console.log(`🔗 Factures enfants (exclues): 0 (concept supprimé)`);
+    console.log(`📄 Factures principales: ${totalInvoices}\n`);
 
     // 3. Check echeances linked to invoices vs expenses
     const echeancesWithInvoice = await prisma.echeancePaiement.count({
         where: {
-            factureFournisseur: { parentInvoiceId: null },
+            factureFournisseur: { isNot: null },
             depense: null
         }
     });
@@ -57,7 +54,7 @@ async function debugDisplayIssue() {
         where: {
             statut: { not: 'ANNULE' },
             OR: [
-                { factureFournisseur: { parentInvoiceId: null } },
+                { factureFournisseur: { isNot: null } },
                 { depense: { isNot: null } }
             ]
         },
@@ -75,7 +72,7 @@ async function debugDisplayIssue() {
         }),
         prisma.echeancePaiement.findMany({
             where: {
-                factureFournisseur: { parentInvoiceId: null },
+                factureFournisseur: { isNot: null },
                 depense: null
             },
             orderBy: { dateEcheance: 'desc' },

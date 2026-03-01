@@ -50,6 +50,8 @@ export interface Expense {
     fournisseurId?: string;
     fournisseur?: { nom: string };
     factureFournisseur?: { numeroFacture: string, fournisseur: { nom: string } };
+    bonLivraisonId?: string;
+    bonLivraison?: { numeroBL: string, fournisseur?: { nom: string } };
     createdAt?: string;
 }
 
@@ -67,6 +69,7 @@ export interface ExpenseDTO {
     centreId: string;
     fournisseurId?: string;
     factureFournisseurId?: string;
+    bonLivraisonId?: string;
 }
 
 export interface SupplierInvoice {
@@ -79,11 +82,8 @@ export interface SupplierInvoice {
     montantTTC: number;
     statut: string;
     type: string;
-    isBL?: boolean;
-    categorieBL?: string;
-    parentInvoiceId?: string;
     parentInvoice?: SupplierInvoice;
-    childBLs?: SupplierInvoice[];
+    childBLs?: any[]; // Links to BonLivraison objects
     pieceJointeUrl?: string;
     fournisseurId: string;
     centreId?: string;
@@ -116,9 +116,52 @@ export interface SupplierInvoiceDTO {
     montantTTC: number;
     statut: string;
     type: string;
-    isBL?: boolean;
+    fournisseurId: string;
+    clientId?: string;
+    ficheId?: string;
+    centreId?: string;
+    pieceJointeUrl?: string;
+    echeances?: Echeance[];
+    base64File?: string;
+    fileName?: string;
+}
+
+export interface BonLivraison {
+    id: string;
+    numeroBL: string;
+    dateEmission: string;
+    dateEcheance?: string;
+    montantHT: number;
+    montantTVA: number;
+    montantTTC: number;
+    statut: string;
+    type: string;
     categorieBL?: string;
-    parentInvoiceId?: string;
+    factureFournisseurId?: string;
+    factureFournisseur?: SupplierInvoice;
+    pieceJointeUrl?: string;
+    fournisseurId: string;
+    centreId?: string;
+    clientId?: string;
+    ficheId?: string;
+    client?: any;
+    fiche?: any;
+    fournisseur?: Supplier;
+    echeances?: Echeance[];
+    createdAt?: string;
+}
+
+export interface BonLivraisonDTO {
+    numeroBL: string;
+    dateEmission: string;
+    dateEcheance?: string;
+    montantHT: number;
+    montantTVA: number;
+    montantTTC: number;
+    statut: string;
+    type: string;
+    categorieBL?: string;
+    factureFournisseurId?: string;
     fournisseurId: string;
     clientId?: string;
     ficheId?: string;

@@ -64,4 +64,8 @@ export class CreateExpenseDto {
   @IsOptional()
   @IsUUID()
   employeeId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  bonLivraisonId?: string;
 }

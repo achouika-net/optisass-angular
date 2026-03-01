@@ -13,7 +13,7 @@ import { CreateSupplierInvoiceDto } from './dto/create-supplier-invoice.dto';
 
 @Controller('supplier-invoices')
 export class SupplierInvoicesController {
-  constructor(private readonly service: SupplierInvoicesService) {}
+  constructor(private readonly service: SupplierInvoicesService) { }
 
   @Get('check-existence')
   async checkExistence(
@@ -41,11 +41,9 @@ export class SupplierInvoicesController {
     @Query('statut') statut?: string,
     @Query('clientId') clientId?: string,
     @Query('centreId') centreId?: string,
-    @Query('isBL') isBL?: string,
-    @Query('categorieBL') categorieBL?: string,
-    @Query('parentInvoiceId') parentInvoiceId?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
+    @Query('ficheId') ficheId?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
@@ -54,11 +52,9 @@ export class SupplierInvoicesController {
       statut,
       clientId,
       centreId,
-      isBL: isBL === 'true' ? true : isBL === 'false' ? false : undefined,
-      categorieBL,
-      parentInvoiceId,
       startDate,
       endDate,
+      ficheId,
       page,
       limit,
     });

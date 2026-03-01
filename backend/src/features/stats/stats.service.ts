@@ -62,7 +62,7 @@ export class StatsService {
     'PARTIEL',
   ];
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async getRevenueEvolution(
     period: 'daily' | 'monthly' | 'yearly',
@@ -475,8 +475,8 @@ export class StatsService {
       this.prisma.product.count({
         where: centreId
           ? {
-              entrepot: { centreId },
-            }
+            entrepot: { centreId },
+          }
           : {},
       }),
       this.prisma.client.count({
@@ -512,11 +512,11 @@ export class StatsService {
           statut: { not: 'ANNULE' },
           ...(centreId
             ? {
-                OR: [
-                  { depense: { centreId } },
-                  { factureFournisseur: { centreId } },
-                ],
-              }
+              OR: [
+                { depense: { centreId } },
+                { factureFournisseur: { centreId } },
+              ],
+            }
             : {}),
           ...(start || end ? { dateEcheance: { gte: start, lte: end } } : {}),
         },
@@ -577,10 +577,10 @@ export class StatsService {
     try {
       const tenantId =
         centreId &&
-        centreId.trim() &&
-        centreId !== 'undefined' &&
-        centreId !== 'null' &&
-        centreId !== ''
+          centreId.trim() &&
+          centreId !== 'undefined' &&
+          centreId !== 'null' &&
+          centreId !== ''
           ? centreId
           : undefined;
 
@@ -599,9 +599,9 @@ export class StatsService {
 
       const end =
         endDate &&
-        endDate !== 'undefined' &&
-        endDate !== 'null' &&
-        endDate !== ''
+          endDate !== 'undefined' &&
+          endDate !== 'null' &&
+          endDate !== ''
           ? new Date(endDate)
           : new Date(3000, 0, 1);
 
@@ -662,7 +662,6 @@ export class StatsService {
         const linkedBls = await this.prisma.factureFournisseur.aggregate({
           where: {
             ficheId: { in: ficheIds },
-            isBL: true,
           },
           _sum: { montantHT: true },
         });
@@ -719,7 +718,6 @@ export class StatsService {
         await this.prisma.factureFournisseur.aggregate({
           where: {
             dateEmission: { gte: start, lte: end },
-            isBL: false,
             OR: [
               { type: { in: operationalPurchaseTypes } },
               {
@@ -757,7 +755,6 @@ export class StatsService {
         by: ['type'],
         where: {
           dateEmission: { gte: start, lte: end },
-          isBL: false,
           OR: [
             { type: { in: operationalPurchaseTypes } },
             {
@@ -782,14 +779,14 @@ export class StatsService {
         combinedBreakdownMap.set(
           e.categorie || 'AUTRES',
           (combinedBreakdownMap.get(e.categorie || 'AUTRES') || 0) +
-            (e._sum.montant || 0),
+          (e._sum.montant || 0),
         ),
       );
       purchaseBreakdown.forEach((p) =>
         combinedBreakdownMap.set(
           p.type || 'AUTRES PURCHASES',
           (combinedBreakdownMap.get(p.type || 'AUTRES PURCHASES') || 0) +
-            (p._sum.montantHT || 0),
+          (p._sum.montantHT || 0),
         ),
       );
 
@@ -829,10 +826,10 @@ export class StatsService {
     try {
       const tenantId =
         centreId &&
-        centreId.trim() &&
-        centreId !== 'undefined' &&
-        centreId !== 'null' &&
-        centreId !== ''
+          centreId.trim() &&
+          centreId !== 'undefined' &&
+          centreId !== 'null' &&
+          centreId !== ''
           ? centreId
           : undefined;
 
@@ -907,7 +904,6 @@ export class StatsService {
                        SUM("montantHT") as expense
                 FROM "FactureFournisseur"
                 WHERE "dateEmission" >= ${start} AND "dateEmission" <= ${end}
-                AND "isBL" = false
                 AND (
                     "type" IN ('ELECTRICITE', 'INTERNET', 'ASSURANCE', 'FRAIS BANCAIRES', 'AUTRES CHARGES', 'REGLEMENT CONSOMMATION EAU', 'REGLEMENT SALAIRS OPTIQUES', 'LOYER')
                     OR "type" NOT IN ('ACHAT VERRES OPTIQUES', 'ACHAT MONTURES', 'ACHAT LENTILLES DE CONTACT', 'ACHAT ACCESSOIRES', 'ACHAT STOCK')

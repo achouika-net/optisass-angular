@@ -76,16 +76,6 @@ export class CreateSupplierInvoiceDto {
   @IsUUID()
   ficheId?: string;
 
-  @IsOptional()
-  isBL?: boolean;
-
-  @IsOptional()
-  @IsString()
-  categorieBL?: string;
-
-  @IsOptional()
-  @IsUUID()
-  parentInvoiceId?: string;
 
   @IsOptional()
   @IsArray()
