@@ -203,9 +203,69 @@
             </mat-card>
         </div>
 
-        <!-- Expense Breakdown Section -->
-        <div class="w-full">
-            <mat-card class="shadow-sm rounded-xl border border-gray-100">
+        <!-- Breakdown Section Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <!-- COGS Breakdown -->
+            <mat-card class="shadow-sm rounded-xl border border-gray-100 flex flex-col h-full">
+                <mat-card-header class="border-b border-gray-100 pb-2 mb-2 flex justify-between items-center">
+                    <mat-card-title class="text-gray-800 text-base">Détails du Coût d'Achat (COGS)</mat-card-title>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
+                            {{ activeFilterInfo }}
+                        </span>
+                        <span class="text-[10px] font-medium px-2 py-0.5 bg-gray-100 rounded text-gray-600"
+                            *ngIf="data.cogsBreakdown?.length">
+                            {{ data.cogsBreakdown.length }} Catégories
+                        </span>
+                    </div>
+                </mat-card-header>
+                <mat-card-content class="flex-grow overflow-auto">
+                    <div class="breakdown-table-container" *ngIf="data.cogsBreakdown?.length; else noCogs">
+                        <table class="w-full text-left text-sm text-gray-600">
+                            <thead class="bg-gray-50 text-gray-800 font-semibold border-b border-gray-200">
+                                <tr>
+                                    <th class="py-3 px-4 rounded-tl-lg">Type de Produit</th>
+                                    <th class="py-3 px-4 text-right">Montant</th>
+                                    <th class="py-3 px-4 text-right rounded-tr-lg">% COGS</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <tr *ngFor="let item of data.cogsBreakdown"
+                                    class="hover:bg-orange-50 transition-colors">
+                                    <td class="py-3 px-4 font-medium text-gray-800">{{ item.category }}</td>
+                                    <td class="py-3 px-4 text-right font-bold">{{ item.amount | number:'1.2-2' }} <span
+                                            class="text-xs font-normal text-gray-500">DH</span></td>
+                                    <td class="py-3 px-4 text-right">
+                                        <div
+                                            class="w-full bg-gray-200 rounded-full h-1.5 mb-1 inline-block w-20 align-middle mr-2">
+                                            <div class="bg-orange-600 h-1.5 rounded-full"
+                                                [style.width.%]="item.percentage"></div>
+                                        </div>
+                                        <span class="text-xs font-medium">{{ item.percentage | number:'1.1-1' }}%</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot class="bg-gray-50 font-bold text-gray-900 border-t-2 border-gray-200">
+                                <tr>
+                                    <td class="py-3 px-4 font-bold">TOTAL ACHATS</td>
+                                    <td class="py-3 px-4 text-right border-t border-gray-200 font-extrabold">{{
+                                        data.cogs | number:'1.2-2' }} DH</td>
+                                    <td class="py-3 px-4 text-right border-t border-gray-200">100%</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    <ng-template #noCogs>
+                        <div class="flex flex-col items-center justify-center h-64 text-gray-400">
+                            <mat-icon class="scale-150 mb-4 text-gray-300">inventory_2</mat-icon>
+                            <p class="font-medium">Aucun achat de stock trouvé pour cette période.</p>
+                        </div>
+                    </ng-template>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- Expense Breakdown -->
+            <mat-card class="shadow-sm rounded-xl border border-gray-100 flex flex-col h-full">
                 <mat-card-header class="border-b border-gray-100 pb-2 mb-2 flex justify-between items-center">
                     <mat-card-title class="text-gray-800 text-base">Détails des Dépenses</mat-card-title>
                     <div class="flex items-center gap-2">
@@ -218,9 +278,7 @@
                         </span>
                     </div>
                 </mat-card-header>
-                <mat-card-content>
-                    <!-- ... existing table content ... -->
-
+                <mat-card-content class="flex-grow overflow-auto">
                     <div class="breakdown-table-container" *ngIf="data.expensesBreakdown?.length; else noExpenses">
                         <table class="w-full text-left text-sm text-gray-600">
                             <thead class="bg-gray-50 text-gray-800 font-semibold border-b border-gray-200">
@@ -248,9 +306,10 @@
                             </tbody>
                             <tfoot class="bg-gray-50 font-bold text-gray-900 border-t-2 border-gray-200">
                                 <tr>
-                                    <td class="py-3 px-4">TOTAL</td>
-                                    <td class="py-3 px-4 text-right">{{ data.expenses | number:'1.2-2' }} DH</td>
-                                    <td class="py-3 px-4 text-right">100%</td>
+                                    <td class="py-3 px-4 font-bold">TOTAL DÉPENSES</td>
+                                    <td class="py-3 px-4 text-right border-t border-gray-200 font-extrabold">{{
+                                        data.expenses | number:'1.2-2' }} DH</td>
+                                    <td class="py-3 px-4 text-right border-t border-gray-200">100%</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -263,7 +322,6 @@
                             <p class="text-xs mt-2">Essayez de sélectionner une plage de dates plus large.</p>
                         </div>
                     </ng-template>
-
                 </mat-card-content>
             </mat-card>
         </div>
