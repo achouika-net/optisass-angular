@@ -472,13 +472,13 @@ export class StatsService {
     const start = isValidDate(startDate) ? new Date(startDate!) : undefined;
     const end = isValidDate(endDate) ? new Date(endDate!) : undefined;
 
+    // Get consolidated profit data to ensure consistency across dashboards
+    const profitData = await this.getRealProfit(startDate, endDate, centreId);
+
     const [
       totalProducts,
       totalClients,
-      facturesResult,
       activeWarehouses,
-      totalDirectExpenses,
-      totalScheduledExpenses,
       fichesBreakdown,
     ] = await Promise.all([
       this.prisma.product.count({
@@ -491,39 +491,7 @@ export class StatsService {
       this.prisma.client.count({
         where: centreId ? { centreId } : {},
       }),
-      this.prisma.facture.findMany({
-        where: {
-          centreId: centreId || undefined,
-          ...(start || end ? { dateEmission: { gte: start, lte: end } } : {}),
-          statut: { in: this.ACTIVE_STATUSES },
-          type: { in: ['FACTURE', 'BON_COMMANDE', 'AVOIR'] },
-        },
-        select: { totalTTC: true, type: true },
-      }),
       this.prisma.entrepot.count({ where: centreId ? { centreId } : {} }),
-      this.prisma.depense.aggregate({
-        where: {
-          echeanceId: null,
-          ...(centreId ? { centreId } : {}),
-          ...(start || end ? { date: { gte: start, lte: end } } : {}),
-        },
-        _sum: { montant: true },
-      }),
-      this.prisma.echeancePaiement.aggregate({
-        where: {
-          statut: { not: 'ANNULE' },
-          ...(centreId
-            ? {
-              OR: [
-                { depense: { centreId } },
-                { factureFournisseur: { centreId } },
-              ],
-            }
-            : {}),
-          ...(start || end ? { dateEcheance: { gte: start, lte: end } } : {}),
-        },
-        _sum: { montant: true },
-      }),
       this.prisma.fiche.groupBy({
         by: ['type'],
         where: {
@@ -532,13 +500,6 @@ export class StatsService {
         _count: { _all: true },
       }),
     ]);
-
-    // Calculate Net Revenue
-    let totalRevenue = 0;
-    facturesResult.forEach((f) => {
-      if (f.type === 'AVOIR') totalRevenue -= f.totalTTC || 0;
-      else totalRevenue += f.totalTTC || 0;
-    });
 
     const conversionMetrics = await this.getConversionRate(
       startDate,
@@ -565,10 +526,10 @@ export class StatsService {
     return {
       totalProducts,
       totalClients,
-      totalRevenue,
-      totalExpenses:
-        (totalDirectExpenses._sum.montant || 0) +
-        (totalScheduledExpenses._sum.montant || 0),
+      totalRevenue: profitData.revenue,
+      // In Advanced Stats, "Total Dépenses" should represent all outgoing costs (COGS + OpEx)
+      // to be consistent with the Net Profit calculation.
+      totalExpenses: profitData.cogs + profitData.expenses,
       activeWarehouses,
       conversionRate: conversionMetrics.conversionToFacture,
       fichesStats,
