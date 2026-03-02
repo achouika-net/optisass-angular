@@ -1,11 +1,15 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { LoyaltyService } from '../loyalty/loyalty.service';
 const XLSX = require('xlsx');
 const crypto = require('crypto');
 
 @Injectable()
 export class ImportsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private loyaltyService: LoyaltyService,
+  ) { }
 
   private normalizeInvoiceNum(num: any): string {
     if (num === undefined || num === null || num === '') return '';
@@ -1564,11 +1568,15 @@ export class ImportsService {
                 // Exclude ID and _acompte from update data to avoid Prisma errors
                 const { id, _acompte, ...updateData } = f;
 
-                await this.prisma.facture.upsert({
+                const upserted = await this.prisma.facture.upsert({
                   where: { numero: f.numero },
                   update: updateData,
-                  create: { ...updateData, id: f.id }, // Make sure _acompte is removed from create too
+                  create: { ...updateData, id: f.id },
                 });
+                // Award Fidelio points automatically after import
+                try {
+                  await this.loyaltyService.awardPointsForPurchase(upserted.id);
+                } catch { /* Points error is non-blocking */ }
               } catch (singleErr) {
                 console.error(
                   `❌ Upsert FAILED for facture ${f.numero}: ${(singleErr as Error).message}`,
