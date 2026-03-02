@@ -309,49 +309,39 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <ng-container *ngFor="let group of groupedValid">
-                                <tr class="group-header">
-                                    <td colspan="7">
-                                        <div class="header-content">
-                                            <mat-icon>calendar_today</mat-icon>
-                                            {{ group.month }}
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr *ngFor="let invoice of group.invoices" class="data-row">
-                                    <td class="font-bold">{{ invoice.numero }}</td>
-                                    <td>{{ getClientName(invoice) }}</td>
-                                    <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
-                                    <td class="price-cell">{{ invoice.totalTTC | number:'1.2-2' }}</td>
-                                    <td class="price-cell">{{ invoice.resteAPayer | number:'1.2-2' }}</td>
-                                    <td>
-                                        <span class="status-badge" [ngClass]="invoice.statut?.toLowerCase()">
-                                            {{ invoice.statut }}
-                                        </span>
-                                    </td>
-                                    <td class="actions-cell">
-                                        <div class="action-buttons">
-                                            <button mat-icon-button color="primary" (click)="viewDocument(invoice)">
-                                                <mat-icon>visibility</mat-icon>
-                                            </button>
-                                            <button mat-icon-button [matMenuTriggerFor]="mFact">
-                                                <mat-icon>more_vert</mat-icon>
-                                            </button>
-                                        </div>
-                                        <mat-menu #mFact="matMenu">
-                                            <button mat-menu-item (click)="openPaymentDialog(invoice)"
-                                                *ngIf="invoice.resteAPayer > 0">
-                                                <mat-icon>payments</mat-icon>
-                                                <span>Paiement</span>
-                                            </button>
-                                            <button mat-menu-item (click)="createAvoir(invoice)">
-                                                <mat-icon color="warn">assignment_return</mat-icon>
-                                                <span>Échanger / Avoir</span>
-                                            </button>
-                                        </mat-menu>
-                                    </td>
-                                </tr>
-                            </ng-container>
+                            <tr *ngFor="let invoice of invoicesValid" class="data-row">
+                                <td class="font-bold">{{ invoice.numero }}</td>
+                                <td>{{ getClientName(invoice) }}</td>
+                                <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
+                                <td class="price-cell">{{ invoice.totalTTC | number:'1.2-2' }}</td>
+                                <td class="price-cell">{{ invoice.resteAPayer | number:'1.2-2' }}</td>
+                                <td>
+                                    <span class="status-badge" [ngClass]="invoice.statut?.toLowerCase()">
+                                        {{ invoice.statut }}
+                                    </span>
+                                </td>
+                                <td class="actions-cell">
+                                    <div class="action-buttons">
+                                        <button mat-icon-button color="primary" (click)="viewDocument(invoice)">
+                                            <mat-icon>visibility</mat-icon>
+                                        </button>
+                                        <button mat-icon-button [matMenuTriggerFor]="mFact">
+                                            <mat-icon>more_vert</mat-icon>
+                                        </button>
+                                    </div>
+                                    <mat-menu #mFact="matMenu">
+                                        <button mat-menu-item (click)="openPaymentDialog(invoice)"
+                                            *ngIf="invoice.resteAPayer > 0">
+                                            <mat-icon>payments</mat-icon>
+                                            <span>Paiement</span>
+                                        </button>
+                                        <button mat-menu-item (click)="createAvoir(invoice)">
+                                            <mat-icon color="warn">assignment_return</mat-icon>
+                                            <span>Échanger / Avoir</span>
+                                        </button>
+                                    </mat-menu>
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
