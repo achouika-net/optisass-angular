@@ -45,6 +45,25 @@ export interface PaymentMethodStat {
 
 @Injectable()
 export class StatsService {
+  private readonly INVENTORY_PURCHASE_TYPES = [
+    'ACHAT VERRES OPTIQUES',
+    'ACHAT MONTURES OPTIQUES',
+    'ACHAT LENTILLES DE CONTACT',
+    'ACHAT ACCESSOIRES OPTIQUES',
+    'ACHAT_STOCK',
+  ];
+
+  private readonly OPERATIONAL_PURCHASE_TYPES = [
+    'ELECTRICITE',
+    'INTERNET',
+    'ASSURANCE',
+    'FRAIS BANCAIRES',
+    'AUTRES CHARGES',
+    'REGLEMENT CONSOMMATION EAU',
+    'REGLEMENT SALAIRS OPTIQUES',
+    'LOYER',
+  ];
+
   private readonly ACTIVE_STATUSES = [
     'VALIDE',
     'VALIDEE',
@@ -604,6 +623,7 @@ export class StatsService {
         select: {
           id: true,
           totalHT: true,
+          totalTTC: true,
           type: true,
           lignes: true,
           ficheId: true,
@@ -612,8 +632,9 @@ export class StatsService {
 
       let revenue = 0;
       revenueDocs.forEach((d) => {
-        if (d.type === 'AVOIR') revenue -= d.totalHT || 0;
-        else revenue += d.totalHT || 0;
+        const val = d.totalHT || d.totalTTC || 0;
+        if (d.type === 'AVOIR') revenue -= val;
+        else revenue += val;
       });
 
       // 1. Primary COGS from MouvementStock
@@ -639,16 +660,31 @@ export class StatsService {
           where: {
             ficheId: { in: ficheIds },
           },
-          _sum: { montantHT: true },
+          _sum: { montantTTC: true },
         });
-        rawCogs += linkedBls?._sum?.montantHT || 0;
+        rawCogs += linkedBls?._sum?.montantTTC || 0;
       }
 
-      // 3. Fallback COGS for items with no movements a été supprimé car il créait
-      // un bottleneck majeur de performances avec une requête BDD par ligne de facture.
-      // Les BLs et Mouvements de stocks sont désormais censés être la source de vérité.
+      // 3. Global COGS Fallback (if movements are missing)
+      if (rawCogs === 0) {
+        const inventoryPurchaseTypes = [
+          'ACHAT VERRES OPTIQUES',
+          'ACHAT MONTURES OPTIQUES',
+          'ACHAT LENTILLES DE CONTACT',
+          'ACHAT ACCESSOIRES OPTIQUES',
+          'ACHAT_STOCK',
+        ];
+        const globalCogsAgg = await this.prisma.factureFournisseur.aggregate({
+          where: {
+            dateEmission: { gte: start, lte: end },
+            type: { in: inventoryPurchaseTypes },
+            ...(tenantId ? { centreId: tenantId } : {}),
+          },
+          _sum: { montantTTC: true },
+        });
+        rawCogs = globalCogsAgg._sum.montantTTC || 0;
+      }
 
-      const cogs = -1 * rawCogs;
 
       // --- EXPENSES ---
       // 1. Direct expenses from Depense table
@@ -681,22 +717,22 @@ export class StatsService {
                 type: {
                   notIn: [
                     'ACHAT VERRES OPTIQUES',
-                    'ACHAT MONTURES',
+                    'ACHAT MONTURES OPTIQUES',
                     'ACHAT LENTILLES DE CONTACT',
-                    'ACHAT ACCESSOIRES',
-                    'ACHAT STOCK',
+                    'ACHAT ACCESSOIRES OPTIQUES',
+                    'ACHAT_STOCK',
                   ],
                 },
               },
             ],
             ...(tenantId ? { centreId: tenantId } : {}),
           },
-          _sum: { montantHT: true },
+          _sum: { montantTTC: true },
         });
 
       const totalExpenses =
         (expensesAgg._sum.montant || 0) +
-        (purchaseExpensesAgg._sum.montantHT || 0);
+        (purchaseExpensesAgg._sum.montantTTC || 0);
 
       // Expense breakdown combine Depense and FactureFournisseur
       const expenseBreakdown = await this.prisma.depense.groupBy({
@@ -713,23 +749,41 @@ export class StatsService {
         where: {
           dateEmission: { gte: start, lte: end },
           OR: [
-            { type: { in: operationalPurchaseTypes } },
+            { type: { in: this.OPERATIONAL_PURCHASE_TYPES } },
             {
               type: {
-                notIn: [
-                  'ACHAT VERRES OPTIQUES',
-                  'ACHAT MONTURES',
-                  'ACHAT LENTILLES DE CONTACT',
-                  'ACHAT ACCESSOIRES',
-                  'ACHAT STOCK',
-                ],
+                notIn: this.INVENTORY_PURCHASE_TYPES,
               },
             },
           ],
           ...(tenantId ? { centreId: tenantId } : {}),
         },
-        _sum: { montantHT: true },
+        _sum: { montantTTC: true },
       });
+
+      // COGS breakdown manually from FactureFournisseur docs to be 100% sure
+      const inventoryPurchases = await this.prisma.factureFournisseur.findMany({
+        where: {
+          dateEmission: { gte: start, lte: end },
+          type: { in: this.INVENTORY_PURCHASE_TYPES },
+          ...(tenantId ? { centreId: tenantId } : {}),
+        },
+        select: { type: true, montantTTC: true },
+      });
+
+      const cogsMap = new Map<string, number>();
+      inventoryPurchases.forEach((p) => {
+        const type = p.type || 'AUTRES STOCKS';
+        cogsMap.set(type, (cogsMap.get(type) || 0) + (p.montantTTC || 0));
+      });
+
+      const formattedCogsBreakdown = Array.from(cogsMap.entries())
+        .map(([category, amount]) => ({
+          category,
+          amount,
+          percentage: rawCogs > 0 ? (amount / rawCogs) * 100 : 0,
+        }))
+        .sort((a, b) => b.amount - a.amount);
 
       const combinedBreakdownMap = new Map<string, number>();
       expenseBreakdown.forEach((e) =>
@@ -743,7 +797,7 @@ export class StatsService {
         combinedBreakdownMap.set(
           p.type || 'AUTRES PURCHASES',
           (combinedBreakdownMap.get(p.type || 'AUTRES PURCHASES') || 0) +
-          (p._sum.montantHT || 0),
+          (p._sum.montantTTC || 0),
         ),
       );
 
@@ -764,6 +818,7 @@ export class StatsService {
         grossProfit: revenue - rawCogs,
         netProfit,
         expensesBreakdown: formattedBreakdown,
+        cogsBreakdown: formattedCogsBreakdown,
         analysis: {
           grossMarginRate: revenue ? ((revenue - rawCogs) / revenue) * 100 : 0,
           marginRate: revenue ? (netProfit / revenue) * 100 : 0,
@@ -814,91 +869,88 @@ export class StatsService {
       } else {
         end = new Date(3000, 0, 1);
       }
+      const inventoryPurchaseTypes = this.INVENTORY_PURCHASE_TYPES;
+      const operationalPurchaseTypes = this.OPERATIONAL_PURCHASE_TYPES;
 
-      const revenueQuery = Prisma.sql`
-                SELECT TO_CHAR(DATE_TRUNC('month', "dateEmission"), 'YYYY-MM') as month,
-                       SUM(CASE WHEN "type" = 'AVOIR' THEN -"totalHT" ELSE "totalHT" END) as revenue
-                FROM "Facture"
-                WHERE "dateEmission" >= ${start} AND "dateEmission" <= ${end}
-                AND (
-                    ( ("numero" LIKE 'FAC%' OR "type" = 'FACTURE' OR "type" = 'BON_COMMANDE') AND "statut" IN ('VALIDE', 'VALIDEE', 'VALIDÉ', 'VALIDÉE', 'PAYEE', 'PAYÉ', 'PAYÉE', 'SOLDEE', 'SOLDÉ', 'SOLDÉE', 'ENCAISSE', 'ENCAISSÉ', 'ENCAISSÉE', 'PARTIEL') )
-                    OR "type" = 'AVOIR'
-                )
-                ${tenantId ? Prisma.sql`AND "centreId" = ${tenantId}` : Prisma.sql``}
-                GROUP BY 1
-                ORDER BY 1
-            `;
-      const revenueRes = await this.prisma.$queryRaw<any[]>(revenueQuery);
+      const monthsMap = new Map<string, { revenue: number; cogs: number; expenses: number }>();
 
-      const cogsQuery = Prisma.sql`
-                SELECT TO_CHAR(DATE_TRUNC('month', f."dateEmission"), 'YYYY-MM') as month,
-                       SUM(m."quantite" * COALESCE(m."prixAchatUnitaire", 0)) as total_cost
-                FROM "MouvementStock" m
-                JOIN "Facture" f ON m."factureId" = f."id"
-                WHERE f."dateEmission" >= ${start} AND f."dateEmission" <= ${end}
-                AND (f."numero" LIKE 'FAC%' OR f."type" = 'FACTURE' OR f."type" = 'BON_COMMANDE')
-                AND f."statut" IN ('VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL')
-                ${tenantId ? Prisma.sql`AND f."centreId" = ${tenantId}` : Prisma.sql``}
-                GROUP BY 1
-                ORDER BY 1
-            `;
-      const cogsRes = await this.prisma.$queryRaw<any[]>(cogsQuery);
+      const getMonthKey = (date: Date) => {
+        if (!date || isNaN(date.getTime())) return null;
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      };
 
-      const expensesQuery = Prisma.sql`
-                SELECT TO_CHAR(DATE_TRUNC('month', "date"), 'YYYY-MM') as month,
-                       SUM("montant") as expense
-                FROM "Depense"
-                WHERE "date" >= ${start} AND "date" <= ${end}
-                AND "statut" IN ('VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE')
-                ${tenantId ? Prisma.sql`AND "centreId" = ${tenantId}` : Prisma.sql``}
-                GROUP BY 1
-                ORDER BY 1
-            `;
-      const expensesRes = await this.prisma.$queryRaw<any[]>(expensesQuery);
-
-      const purchaseExpensesQuery = Prisma.sql`
-                SELECT TO_CHAR(DATE_TRUNC('month', "dateEmission"), 'YYYY-MM') as month,
-                       SUM("montantHT") as expense
-                FROM "FactureFournisseur"
-                WHERE "dateEmission" >= ${start} AND "dateEmission" <= ${end}
-                AND (
-                    "type" IN ('ELECTRICITE', 'INTERNET', 'ASSURANCE', 'FRAIS BANCAIRES', 'AUTRES CHARGES', 'REGLEMENT CONSOMMATION EAU', 'REGLEMENT SALAIRS OPTIQUES', 'LOYER')
-                    OR "type" NOT IN ('ACHAT VERRES OPTIQUES', 'ACHAT MONTURES', 'ACHAT LENTILLES DE CONTACT', 'ACHAT ACCESSOIRES', 'ACHAT STOCK')
-                )
-                ${tenantId ? Prisma.sql`AND "centreId" = ${tenantId}` : Prisma.sql``}
-                GROUP BY 1
-            `;
-      const pExpensesRes = await this.prisma.$queryRaw<any[]>(
-        purchaseExpensesQuery,
-      );
-
-      const months = new Set<string>();
-      revenueRes.forEach((r: any) => months.add(r.month));
-      cogsRes.forEach((c: any) => months.add(c.month));
-      expensesRes.forEach((e: any) => months.add(e.month));
-      pExpensesRes.forEach((pe: any) => months.add(pe.month));
-
-      const sortedMonths = Array.from(months).sort();
-
-      return sortedMonths.map((month) => {
-        const r = revenueRes.find((x: any) => x.month === month);
-        const c = cogsRes.find((x: any) => x.month === month);
-        const e = expensesRes.find((x: any) => x.month === month);
-        const pe = pExpensesRes.find((x: any) => x.month === month);
-
-        const revenue = r ? parseFloat(r.revenue || 0) : 0;
-        const rawCogs = Math.abs(parseFloat(c?.total_cost || 0));
-        const expenses =
-          parseFloat(e?.expense || 0) + parseFloat(pe?.expense || 0);
-
-        return {
-          month,
-          revenue,
-          cogs: rawCogs,
-          expenses,
-          netProfit: revenue - rawCogs - expenses,
-        };
+      // 1. Revenue
+      const factures = await this.prisma.facture.findMany({
+        where: {
+          dateEmission: { gte: start, lte: end },
+          OR: [
+            { type: { in: ['FACTURE', 'BON_COMMANDE'] }, statut: { in: this.ACTIVE_STATUSES } },
+            { type: 'AVOIR' },
+          ],
+          ...(tenantId ? { centreId: tenantId } : {}),
+        },
+        select: { dateEmission: true, totalHT: true, totalTTC: true, type: true },
       });
+
+      factures.forEach((f) => {
+        const key = getMonthKey(f.dateEmission);
+        if (!key) return;
+        if (!monthsMap.has(key)) monthsMap.set(key, { revenue: 0, cogs: 0, expenses: 0 });
+        const val = f.totalHT || f.totalTTC || 0;
+        const entry = monthsMap.get(key)!;
+        if (f.type === 'AVOIR') entry.revenue -= val;
+        else entry.revenue += val;
+      });
+
+      // 2. Expenses (Depense + Operational Purchases)
+      const depenses = await this.prisma.depense.findMany({
+        where: {
+          date: { gte: start, lte: end },
+          statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
+          ...(tenantId ? { centreId: tenantId } : {}),
+        },
+      });
+      depenses.forEach((d) => {
+        const key = getMonthKey(d.date);
+        if (!key) return;
+        if (!monthsMap.has(key)) monthsMap.set(key, { revenue: 0, cogs: 0, expenses: 0 });
+        monthsMap.get(key)!.expenses += d.montant || 0;
+      });
+
+      const ff = await this.prisma.factureFournisseur.findMany({
+        where: {
+          dateEmission: { gte: start, lte: end },
+          ...(tenantId ? { centreId: tenantId } : {}),
+        },
+      });
+
+      ff.forEach((f) => {
+        const key = getMonthKey(f.dateEmission);
+        if (!key) return;
+        if (!monthsMap.has(key)) monthsMap.set(key, { revenue: 0, cogs: 0, expenses: 0 });
+        const entry = monthsMap.get(key)!;
+
+        const isInventory = this.INVENTORY_PURCHASE_TYPES.includes(f.type || '');
+        if (isInventory) {
+          entry.cogs += f.montantTTC || 0;
+        } else {
+          entry.expenses += f.montantTTC || 0;
+        }
+      });
+
+      const sortedResult = Array.from(monthsMap.entries())
+        .map(([month, vals]) => ({
+          month,
+          revenue: vals.revenue,
+          // We combine COGS and Expenses into a single "expenses" series for the chart 
+          // to satisfy the user request and ensure visibility.
+          expenses: vals.cogs + vals.expenses,
+          cogs: vals.cogs, // Still sent if frontend needs it separately
+          netProfit: vals.revenue - vals.cogs - vals.expenses,
+        }))
+        .sort((a, b) => a.month.localeCompare(b.month));
+
+      return sortedResult;
     } catch (error) {
       console.error('[Stats-Profit] Evolution Error:', error);
       throw error;

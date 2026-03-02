@@ -248,7 +248,7 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
                         tension: 0.4
                     },
                     {
-                        label: 'Dépenses',
+                        label: 'Total Charges (Achat + Frais)',
                         data: expenses,
                         borderColor: '#F44336',
                         backgroundColor: 'rgba(244, 67, 54, 0.1)',
