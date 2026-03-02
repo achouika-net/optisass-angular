@@ -765,7 +765,10 @@ export class DataImportComponent implements OnInit {
                 // Try saved default first
                 const savedValue = savedMapping[field.value] || '';
                 // If saved value is valid (still exists in current CSV headers), use it
-                const resolvedSaved = savedValue && (this.csvHeaders.includes(savedValue) || savedValue === '') ? savedValue : '';
+                // Accept saved value always when headers aren't loaded yet.
+                // Once headers are loaded, only accept if the column still exists.
+                const headersLoaded = this.csvHeaders.length > 0;
+                const resolvedSaved = savedValue && (!headersLoaded || this.csvHeaders.includes(savedValue) || savedValue === '') ? savedValue : '';
                 const bestMatch = resolvedSaved || this.findBestMatch(field.value, field.label, this.csvHeaders, synonyms[field.value] || []);
 
                 if (!this.mappingForm.contains(field.value)) {
