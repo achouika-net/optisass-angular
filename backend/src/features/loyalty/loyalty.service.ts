@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class LoyaltyService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async getPointsHistory(clientId: string) {
     return this.prisma.pointsHistory.findMany({
@@ -89,6 +89,8 @@ export class LoyaltyService {
 
     if (points <= 0) return;
 
+    const typeLabel = facture.type === 'FACTURE' ? 'facture' : 'bon de commande';
+
     return this.prisma.$transaction([
       this.prisma.client.update({
         where: { id: facture.clientId },
@@ -100,7 +102,7 @@ export class LoyaltyService {
           factureId: facture.id,
           points: points,
           type: 'EARN',
-          description: `Achat facture ${facture.numero}`,
+          description: `Achat ${typeLabel} ${facture.numero}`,
         },
       }),
     ]);
