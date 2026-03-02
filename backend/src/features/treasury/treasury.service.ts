@@ -3,6 +3,29 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class TreasuryService {
+  private readonly INVENTORY_PURCHASE_TYPES = [
+    'ACHAT VERRES OPTIQUES',
+    'ACHAT MONTURES OPTIQUES',
+    'ACHAT LENTILLES DE CONTACT',
+    'ACHAT ACCESSOIRES OPTIQUES',
+    'ACHAT_STOCK',
+  ];
+
+  private readonly OPERATIONAL_PURCHASE_TYPES = [
+    'ELECTRICITE',
+    'INTERNET',
+    'ASSURANCE',
+    'FRAIS BANCAIRES',
+    'AUTRES CHARGES',
+    'REGLEMENT CONSOMMATION EAU',
+    'REGLEMENT SALAIRS OPTIQUES',
+    'LOYER',
+  ];
+
+  private readonly ACTIVE_STATUSES = [
+    'VALIDE', 'VALIDEE', 'VALIDÉ', 'VALIDÉE', 'PAYEE', 'PAYÉ', 'PAYÉE', 'SOLDEE', 'SOLDÉ', 'SOLDÉE', 'ENCAISSE', 'ENCAISSÉ', 'ENCAISSÉE', 'PARTIEL'
+  ];
+
   constructor(private prisma: PrismaService) { }
 
   async getMonthlySummary(
@@ -31,21 +54,19 @@ export class TreasuryService {
           : new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
     }
 
-    // Use a more consolidated approach to reduce database round-trips and connection pool saturation
     const results = await Promise.all([
-      // 0. Direct Expenses: Grouped by category for both total and breakdown
+      // 0. Direct Expenses
       this.prisma.depense.groupBy({
         by: ['categorie'],
         where: {
           date: { gte: startDate, lte: endDate },
           centreId: centreId,
           echeanceId: null,
-          // Factures only (no longer filtering by isBL since BLs are separate)
         } as any,
         _sum: { montant: true },
       }),
 
-      // 1. Scheduled Payments (Echeances): Fetch all for the month to process in memory
+      // 1. Scheduled Payments (Echeances)
       this.prisma.echeancePaiement.findMany({
         where: {
           dateEcheance: { gte: startDate, lte: endDate },
@@ -75,7 +96,7 @@ export class TreasuryService {
         },
       }),
 
-      // 2. Incoming Payments (Paiement): Fetch all for the month to process in memory
+      // 2. Incoming Payments (Paiement)
       this.prisma.paiement.findMany({
         where: {
           date: { gte: startDate, lte: endDate },
@@ -122,26 +143,22 @@ export class TreasuryService {
     const incomingPendingAvoir = (results[4] as any)._sum.montant || 0;
     const config = results[5] as any;
 
-    console.log(
-      `[TREASURY-SUMMARY] Month: ${month}, Year: ${year}, DateRange: ${startDate.toISOString()} -> ${endDate.toISOString()}`,
-    );
-    console.log(
-      `[TREASURY-SUMMARY] Counts: Expenses=${directExpenseCategories.length}, Echeances=${monthlyEcheances.length}, Paiements=${monthlyPaiements.length}`,
-    );
-
     const monthlyThreshold = config?.monthlyThreshold || 50000;
 
-    // --- Processing Results in Memory ---
     const combinedCategoriesMap = new Map<string, number>();
+    const inventoryTypes = this.INVENTORY_PURCHASE_TYPES;
+    const operationalTypes = this.OPERATIONAL_PURCHASE_TYPES;
+    const allValidTypes = [...inventoryTypes, ...operationalTypes];
 
-    // 1. Process Direct Expenses
+    // 1. Process Direct Expenses (Depense table)
     let totalDirectExpenses = 0;
     directExpenseCategories.forEach((c) => {
       const amount = Number(c._sum.montant || 0);
       totalDirectExpenses += amount;
+      const cat = c.categorie || 'AUTRES FRAIS';
       combinedCategoriesMap.set(
-        c.categorie,
-        (combinedCategoriesMap.get(c.categorie) || 0) + amount,
+        cat,
+        (combinedCategoriesMap.get(cat) || 0) + amount,
       );
     });
 
@@ -149,19 +166,31 @@ export class TreasuryService {
     let totalScheduled = 0;
     let totalScheduledCashed = 0;
     let totalOutgoingPending = 0;
+
     monthlyEcheances.forEach((e) => {
+      // Filter by type to match Profit dashboard
+      const type = e.factureFournisseur?.type;
+      const isInventory = inventoryTypes.includes(type);
+      const isOperational = operationalTypes.includes(type);
+
+      // If it's a supplier invoice, it MUST be one of our defined types to be counted
+      // (to stay consistent with getRealProfit 2.32M)
+      if (e.factureFournisseur && !isInventory && !isOperational) return;
+
       const amount = Number(e.montant || 0);
       totalScheduled += amount;
 
-      const cat = e.depense?.categorie || e.factureFournisseur?.type || 'AUTRE';
+      const cat = e.depense?.categorie || (isInventory ? 'ACHAT STOCK' : (type || 'AUTRE'));
       combinedCategoriesMap.set(
         cat,
         (combinedCategoriesMap.get(cat) || 0) + amount,
       );
 
+      const isCashed = ['ENCAISSE', 'DECAISSE', 'PAYE', 'PAYÉ', 'PAYEE', 'PAYÉE', 'SOLDE'].includes(e.statut?.toUpperCase());
+
       if (e.statut === 'EN_ATTENTE') {
         totalOutgoingPending += amount;
-      } else if (e.statut === 'ENCAISSE') {
+      } else if (isCashed) {
         totalScheduledCashed += amount;
       }
     });
@@ -175,39 +204,26 @@ export class TreasuryService {
     let incomingCard = 0;
     let countCard = 0;
 
-    if (monthlyPaiements.length > 0) {
-      console.log(
-        `[TREASURY-SUMMARY] First 3 payments sample:`,
-        JSON.stringify(monthlyPaiements.slice(0, 3), null, 2),
-      );
-    }
+    const cashedStatuses = ['ENCAISSE', 'DECAISSE', 'DECAISSEMENT', 'PAYE', 'PAYÉ', 'PAYEE', 'PAYÉE', 'SOLDE', 'ENCAISSÉ'];
 
     monthlyPaiements.forEach((p) => {
       const amount = Number(p.montant || 0);
       const isAvoir = p.facture?.type === 'AVOIR';
-      const isCashed = [
-        'ENCAISSE',
-        'DECAISSE',
-        'DECAISSEMENT',
-        'PAYE',
-      ].includes(p.statut);
+      const isCashed = cashedStatuses.includes(p.statut?.toUpperCase());
 
       // Harmonize modes
       const mode = (p.mode || '').toUpperCase();
       const isCashMode =
-        mode === 'ESPECES' || mode === 'LIQUIDE' || mode === 'CASH';
+        ['ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES'].includes(mode);
       const isCardMode =
-        mode === 'CARTE' || mode === 'CARTE BANCAIRE' || mode === 'CB';
+        ['CARTE', 'CARTE BANCAIRE', 'CB', 'TPE'].includes(mode);
 
       if (isAvoir) {
         incomingAvoir += amount;
         if (isCashed) {
           incomingCashedAvoir += amount;
           if (isCashMode) incomingCash -= amount;
-          if (isCardMode) {
-            incomingCard -= amount;
-            countCard++;
-          }
+          if (isCardMode) incomingCard -= amount;
         }
       } else {
         incomingStandard += amount;
@@ -222,14 +238,10 @@ export class TreasuryService {
       }
     });
 
-    console.log(
-      `[TREASURY-SUMMARY] Results: IncomingStandard=${incomingStandard}, IncomingAvoir=${incomingAvoir}, CashedStandard=${incomingCashedStandard}, CashedAvoir=${incomingCashedAvoir}`,
-    );
-
     const totalExpenses = totalDirectExpenses + totalScheduled;
     const totalIncoming = incomingStandard - incomingAvoir;
     const totalIncomingCashed = incomingCashedStandard - incomingCashedAvoir;
-    const totalExpensesCashed = totalDirectExpenses + totalScheduledCashed; // All direct expenses are considered cashed
+    const totalExpensesCashed = totalDirectExpenses + totalScheduledCashed;
 
     const balance = totalIncoming - totalExpenses;
     const balanceReal = totalIncomingCashed - totalExpensesCashed;
@@ -240,7 +252,6 @@ export class TreasuryService {
 
     const alerts = await this.getPendingAlerts(centreId);
 
-    // Calculate count for pieces in vault (EN_ATTENTE)
     const countChequeCoffre = monthlyPaiements.filter(
       (p) => p.statut === 'EN_ATTENTE' && ['CHEQUE', 'LCN'].includes(p.mode),
     ).length;
