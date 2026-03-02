@@ -134,6 +134,34 @@ export class TreasuryService {
 
       // 5. Configuration
       this.prisma.financeConfig.findFirst(),
+
+      // 6. Total Invoices for the period (Alignment with Stats)
+      this.prisma.factureFournisseur.aggregate({
+        where: {
+          dateEmission: { gte: startDate, lte: endDate },
+          ...(centreId ? { centreId } : {}),
+        },
+        _sum: { montantTTC: true },
+      }),
+
+      // 7. Total Direct Expenses for the period (Alignment with Stats)
+      this.prisma.depense.aggregate({
+        where: {
+          date: { gte: startDate, lte: endDate },
+          ...(centreId ? { centreId } : {}),
+        },
+        _sum: { montant: true },
+      }),
+
+      // 8. Invoice Breakdown by Type
+      this.prisma.factureFournisseur.groupBy({
+        by: ['type'],
+        where: {
+          dateEmission: { gte: startDate, lte: endDate },
+          ...(centreId ? { centreId } : {}),
+        },
+        _sum: { montantTTC: true },
+      }),
     ]);
 
     const directExpenseCategories = results[0] as any[];
@@ -142,19 +170,35 @@ export class TreasuryService {
     const incomingPendingStandard = (results[3] as any)._sum.montant || 0;
     const incomingPendingAvoir = (results[4] as any)._sum.montant || 0;
     const config = results[5] as any;
+    const totalInvoicesTTC = (results[6] as any)._sum.montantTTC || 0;
+    const totalDirectExpensesValue = (results[7] as any)._sum.montant || 0;
+    const invoiceBreakdown = results[8] as any[];
 
     const monthlyThreshold = config?.monthlyThreshold || 50000;
 
-    const combinedCategoriesMap = new Map<string, number>();
     const inventoryTypes = this.INVENTORY_PURCHASE_TYPES;
     const operationalTypes = this.OPERATIONAL_PURCHASE_TYPES;
-    const allValidTypes = [...inventoryTypes, ...operationalTypes];
+    const combinedCategoriesMap = new Map<string, number>();
 
-    // 1. Process Direct Expenses (Depense table)
-    let totalDirectExpenses = 0;
+    // 1. Process Invoice Categories (Alignment with Stats)
+    invoiceBreakdown.forEach((b) => {
+      const type = b.type || 'AUTRE';
+      const isInventory = inventoryTypes.includes(type);
+      const isOperational = operationalTypes.includes(type);
+
+      // We count all supplier invoices to be consistent with getRealProfit 
+      // which uses the same "all for operational + all for inventory" logic.
+      const amount = Number(b._sum.montantTTC || 0);
+      const cat = isInventory ? 'ACHAT STOCK' : type;
+      combinedCategoriesMap.set(
+        cat,
+        (combinedCategoriesMap.get(cat) || 0) + amount,
+      );
+    });
+
+    // 2. Process Direct Expense Categories
     directExpenseCategories.forEach((c) => {
       const amount = Number(c._sum.montant || 0);
-      totalDirectExpenses += amount;
       const cat = c.categorie || 'AUTRES FRAIS';
       combinedCategoriesMap.set(
         cat,
@@ -162,30 +206,22 @@ export class TreasuryService {
       );
     });
 
-    // 2. Process Scheduled Payments (Echeances)
-    let totalScheduled = 0;
+    // Total Expenses is strictly Invoice-based (Accrual) for header consistency
+    const totalExpenses = totalInvoicesTTC + totalDirectExpensesValue;
+
+    // 3. Process Scheduled Payments (Echeances) - FOR CASH FLOW ONLY
     let totalScheduledCashed = 0;
     let totalOutgoingPending = 0;
 
     monthlyEcheances.forEach((e) => {
-      // Filter by type to match Profit dashboard
       const type = e.factureFournisseur?.type;
       const isInventory = inventoryTypes.includes(type);
       const isOperational = operationalTypes.includes(type);
 
-      // If it's a supplier invoice, it MUST be one of our defined types to be counted
-      // (to stay consistent with getRealProfit 2.32M)
+      // Only count installments related to valid invoice/expense types
       if (e.factureFournisseur && !isInventory && !isOperational) return;
 
       const amount = Number(e.montant || 0);
-      totalScheduled += amount;
-
-      const cat = e.depense?.categorie || (isInventory ? 'ACHAT STOCK' : (type || 'AUTRE'));
-      combinedCategoriesMap.set(
-        cat,
-        (combinedCategoriesMap.get(cat) || 0) + amount,
-      );
-
       const isCashed = ['ENCAISSE', 'DECAISSE', 'PAYE', 'PAYÉ', 'PAYEE', 'PAYÉE', 'SOLDE'].includes(e.statut?.toUpperCase());
 
       if (e.statut === 'EN_ATTENTE') {
@@ -238,10 +274,11 @@ export class TreasuryService {
       }
     });
 
-    const totalExpenses = totalDirectExpenses + totalScheduled;
     const totalIncoming = incomingStandard - incomingAvoir;
     const totalIncomingCashed = incomingCashedStandard - incomingCashedAvoir;
-    const totalExpensesCashed = totalDirectExpenses + totalScheduledCashed;
+
+    // totalExpensesCashed includes paid installments + paid direct expenses
+    const totalExpensesCashed = totalScheduledCashed + totalDirectExpensesValue;
 
     const balance = totalIncoming - totalExpenses;
     const balanceReal = totalIncomingCashed - totalExpensesCashed;
@@ -265,7 +302,7 @@ export class TreasuryService {
       totalIncomingCashed,
       balance,
       balanceReal,
-      totalScheduled,
+      totalScheduled: totalInvoicesTTC + totalDirectExpensesValue, // Unified planned total
       totalIncomingPending: incomingPendingStandard - incomingPendingAvoir,
       totalOutgoingPending,
       monthlyThreshold,
