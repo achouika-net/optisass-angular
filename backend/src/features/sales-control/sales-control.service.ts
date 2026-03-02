@@ -100,7 +100,7 @@ export class SalesControlService {
     return this.prisma.facture.findMany({
       where: {
         centreId,
-        type: 'FACTURE',
+        type: { in: ['FACTURE', 'DEVIS'] },
         statut: { notIn: ['ANNULEE', 'ARCHIVE'] },
         ...(start || end ? { dateEmission: { gte: start, lte: end } } : {}),
       },
@@ -112,7 +112,7 @@ export class SalesControlService {
           select: { id: true, numero: true, type: true, statut: true },
         },
       },
-      orderBy: [{ fiche: { numero: 'desc' } }, { dateEmission: 'desc' }],
+      orderBy: [{ dateEmission: 'desc' }],
       take: take || 10,
     });
   }
@@ -141,7 +141,7 @@ export class SalesControlService {
         fiche: true,
         parentFacture: { select: { id: true, numero: true } },
       },
-      orderBy: [{ fiche: { numero: 'desc' } }, { dateEmission: 'desc' }],
+      orderBy: [{ dateEmission: 'desc' }],
       take: take || 10,
     });
   }
@@ -230,7 +230,7 @@ export class SalesControlService {
       this.prisma.facture.findMany({
         where: {
           centreId,
-          type: 'FACTURE',
+          type: { in: ['FACTURE', 'DEVIS'] },
           statut: { notIn: ['ANNULEE', 'ARCHIVE'] },
           ...dateFilter,
         },
