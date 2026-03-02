@@ -763,7 +763,7 @@ export class ImportsService {
 
       // 2. Pre-fetch ALL possible existing Fiches to prevent N+1 queries latency
       log(`Pre-fetching existing Fiches to avoid N+1 latency...`);
-      const ficheQueries: { clientId: string; numero: string }[] = [];
+      const ficheQueries: { clientId: string; numero: number }[] = [];
       const ficheLookupMap = new Map<string, any>();
 
       for (const [key, rows] of groupedFiches) {
@@ -796,9 +796,10 @@ export class ImportsService {
           }
         });
 
-        const fNum = pm.fiche_id ? String(pm.fiche_id) : pm.numero ? String(pm.numero) : null;
-        if (cId && fNum) {
-          ficheQueries.push({ clientId: cId, numero: fNum });
+        const rawFNum = pm.fiche_id || pm.numero || pm.numero_fiche;
+        const fNumInt = rawFNum ? parseInt(String(rawFNum).split(/[^0-9]/)[0], 10) : NaN;
+        if (cId && !isNaN(fNumInt)) {
+          ficheQueries.push({ clientId: cId, numero: fNumInt });
         }
       }
 
@@ -812,7 +813,7 @@ export class ImportsService {
           const existing = await this.prisma.fiche.findMany({
             where: { OR: chunk as any }
           });
-          existing.forEach(ex => ficheLookupMap.set(`${ex.clientId}_${ex.numero}`, ex));
+          existing.forEach(ex => ficheLookupMap.set(`${ex.clientId}_${Number(ex.numero)}`, ex));
         }
         log(`Found ${ficheLookupMap.size} existing Fiches in the database.`);
       }
@@ -1367,7 +1368,7 @@ export class ImportsService {
           // Match by: clientId + numero (if provided), else clientId + dateCreation date
           let existingFiche: any = null;
           if (ficheNumero && clientId) {
-            existingFiche = ficheLookupMap.get(`${clientId}_${ficheNumero}`);
+            existingFiche = ficheLookupMap.get(`${clientId}_${Number(ficheNumero)}`);
           }
 
           if (existingFiche) {
