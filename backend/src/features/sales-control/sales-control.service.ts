@@ -219,16 +219,17 @@ export class SalesControlService {
       factureMetrics,
       bcMetrics,
       avoirMetrics,
+      devisCount,
       withPayments,
       withoutPayments,
       valid,
       avoirs,
       paymentAgg,
     ] = await Promise.all([
-      // Factures Metrics (Tab 3 - Exclusive with Tab 1)
+      // Factures Metrics (Tab 3)
       this.prisma.facture.aggregate({
         _sum: { totalTTC: true, resteAPayer: true },
-        _count: true,
+        _count: { _all: true },
         where: {
           centreId,
           type: 'FACTURE',
@@ -236,10 +237,10 @@ export class SalesControlService {
           ...dateFilter,
         },
       }),
-      // BC Metrics (Tab 1 - Exclusive with Tab 3)
+      // BC Metrics (Tab 1)
       this.prisma.facture.aggregate({
         _sum: { totalTTC: true, resteAPayer: true },
-        _count: true,
+        _count: { _all: true },
         where: {
           centreId,
           type: 'BON_COMMANDE',
@@ -250,11 +251,22 @@ export class SalesControlService {
       // Avoirs Metrics
       this.prisma.facture.aggregate({
         _sum: { totalTTC: true, resteAPayer: true },
-        _count: true,
+        _count: { _all: true },
         where: {
           centreId,
           type: 'AVOIR',
           statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
+          ...dateFilter,
+        },
+      }),
+      // Devis Count (Tab 2) - Simplified count for badge
+      this.prisma.facture.count({
+        where: {
+          centreId,
+          statut: { notIn: ['ARCHIVE', 'ANNULEE', 'VENTE_EN_INSTANCE'] },
+          paiements: { none: {} },
+          type: { notIn: ['BON_COMMANDE', 'BON_COMM'] },
+          numero: { not: { startsWith: 'BC' } },
           ...dateFilter,
         },
       }),
@@ -264,7 +276,7 @@ export class SalesControlService {
       this.getBrouillonWithoutPayments(userId, centreId, startDate, endDate, 10),
       this.getValidInvoices(userId, centreId, startDate, endDate, 10),
       this.getAvoirs(userId, centreId, startDate, endDate, 10),
-      // Payments Breakdown (Period-based) - Fetch and group in memory to avoid Prisma relation groupBy bugs
+      // Payments Breakdown
       this.prisma.paiement.findMany({
         where: {
           ...paymentDateFilter,
@@ -278,10 +290,9 @@ export class SalesControlService {
     const totalAvoirs = avoirMetrics._sum.totalTTC || 0;
     const totalBC = bcMetrics._sum.totalTTC || 0;
 
-    // CA Global = Factures + BC - Avoirs (to match user expectation of "Chiffre d'Affaires Global")
+    // CA Global = Factures + BC - Avoirs
     const totalAmount = totalFactures + totalBC - totalAvoirs;
 
-    // Reste accurately tracks the left-overs exclusively from invoices considered as Sales (Factures + BC)
     const totalFacturesReste = factureMetrics._sum.resteAPayer || 0;
     const totalBMReste = bcMetrics._sum.resteAPayer || 0;
     const totalAvoirsReste = avoirMetrics._sum.resteAPayer || 0;
@@ -305,9 +316,10 @@ export class SalesControlService {
       {
         vendorId: 'all',
         vendorName: 'Tous les vendeurs',
-        countValid: factureMetrics._count,
-        countWithPayment: bcMetrics._count,
-        countAvoir: avoirMetrics._count,
+        countValid: factureMetrics._count._all,
+        countWithPayment: bcMetrics._count._all,
+        countWithoutPayment: devisCount,
+        countAvoir: avoirMetrics._count._all,
         totalAmount,
         totalFactures,
         totalAvoirs,

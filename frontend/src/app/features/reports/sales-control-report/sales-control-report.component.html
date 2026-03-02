@@ -193,7 +193,7 @@
             <ng-template mat-tab-label>
                 <mat-icon>shopping_cart</mat-icon>
                 <span>Bons de Commande</span>
-                <span class="tab-badge" *ngIf="invoicesWithPayment.length > 0">{{ invoicesWithPayment.length }}</span>
+                <span class="tab-badge" *ngIf="metrics.countWithPayment > 0">{{ metrics.countWithPayment }}</span>
             </ng-template>
 
             <div class="tab-content">
@@ -291,7 +291,7 @@
             <ng-template mat-tab-label>
                 <mat-icon>verified</mat-icon>
                 <span>Factures</span>
-                <span class="tab-badge ok" *ngIf="invoicesValid.length > 0">{{ invoicesValid.length }}</span>
+                <span class="tab-badge ok" *ngIf="metrics.countValid > 0">{{ metrics.countValid }}</span>
             </ng-template>
 
             <div class="tab-content">
@@ -363,6 +363,8 @@
             <ng-template mat-tab-label>
                 <mat-icon>inventory_2</mat-icon>
                 <span>Devis (Instance)</span>
+                <span class="tab-badge" style="background: #64748b;" *ngIf="metrics.countWithoutPayment > 0">{{
+                    metrics.countWithoutPayment }}</span>
             </ng-template>
             <div class="tab-content">
                 <div class="modern-table-container">
@@ -406,7 +408,7 @@
             <ng-template mat-tab-label>
                 <mat-icon>assignment_return</mat-icon>
                 <span>Avoirs</span>
-                <span class="tab-badge warn" *ngIf="invoicesAvoir.length > 0">{{ invoicesAvoir.length }}</span>
+                <span class="tab-badge warn" *ngIf="metrics.countAvoir > 0">{{ metrics.countAvoir }}</span>
             </ng-template>
             <div class="tab-content">
                 <div class="modern-table-container">

@@ -10,7 +10,7 @@ export class FichesService {
     private prisma: PrismaService,
     private facturesService: FacturesService,
     private loyaltyService: LoyaltyService,
-  ) {}
+  ) { }
 
   async create(data: Prisma.FicheCreateInput) {
     try {
@@ -321,12 +321,57 @@ export class FichesService {
   }
   private unpackContent(fiche: any) {
     if (!fiche) return fiche;
-    const content = fiche.content || {};
-    // Merge content properties to top level
+    let content = fiche.content || {};
+
+    // LEGACY MAPPING: If content is flat (from Excel), map to structured objects
+    if (content.OD_Sph1 !== undefined || content.Verre1D !== undefined) {
+      const mappedOrdonnance = {
+        od: {
+          sphere: content.OD_Sph1,
+          cylindre: content.OD_Cyl1,
+          axe: content.OD_Axe1,
+          addition: content.OD_Add1,
+        },
+        og: {
+          sphere: content.OG_Sph1,
+          cylindre: content.OG_Cyl1,
+          axe: content.OG_Axe1,
+          addition: content.OG_Add1,
+        },
+        prescripteur: content.Medecin || content.Prescripteur,
+      };
+
+      const mappedVerres = {
+        differentODOG: true,
+        marqueOD: content.Verre1D,
+        marqueOG: content.Verre1G,
+        prixOD: content.PrixV1D,
+        prixOG: content.PrixV1G,
+      };
+
+      const mappedMonture = {
+        marque: content.MarqueM1 || content.Marque,
+        modele: content.RefM1 || content.Modele,
+        prix: content.PrixM1,
+      };
+
+      content = {
+        ...content,
+        ordonnance: content.ordonnance || mappedOrdonnance,
+        verres: content.verres || mappedVerres,
+        monture: content.monture || mappedMonture,
+      };
+    }
+
+    // Merge content properties to top level for legacy support
     return {
       ...fiche,
       ...content,
-      content: undefined, // Optional: hide raw content, or keep it
+      ordonnance: content.ordonnance || fiche.ordonnance,
+      monture: content.monture || fiche.monture,
+      verres: content.verres || fiche.verres,
+      montage: content.montage || fiche.montage,
+      content: undefined,
     };
   }
 }

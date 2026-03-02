@@ -110,6 +110,10 @@ export class SalesControlReportComponent implements OnInit {
         totalBC: 0,
         totalPaid: 0,
         totalReste: 0,
+        countValid: 0,
+        countWithPayment: 0,
+        countWithoutPayment: 0,
+        countAvoir: 0,
         paymentBreakdown: [] as { methode: string, total: number }[]
     };
 
@@ -287,10 +291,18 @@ export class SalesControlReportComponent implements OnInit {
                 totalBC: stats.totalBC || 0,
                 totalPaid: stats.totalEncaissePeriod || 0,
                 totalReste: stats.totalReste || 0,
+                countValid: stats.countValid || 0,
+                countWithPayment: stats.countWithPayment || 0,
+                countWithoutPayment: stats.countWithoutPayment || 0,
+                countAvoir: stats.countAvoir || 0,
                 paymentBreakdown: stats.payments || []
             };
         } else {
-            this.metrics = { totalCA: 0, totalFactures: 0, totalAvoirs: 0, totalBC: 0, totalPaid: 0, totalReste: 0, paymentBreakdown: [] };
+            this.metrics = {
+                totalCA: 0, totalFactures: 0, totalAvoirs: 0, totalBC: 0, totalPaid: 0, totalReste: 0,
+                countValid: 0, countWithPayment: 0, countWithoutPayment: 0, countAvoir: 0,
+                paymentBreakdown: []
+            };
         }
     }
 
