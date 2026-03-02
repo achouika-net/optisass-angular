@@ -226,27 +226,25 @@ export class SalesControlService {
       avoirs,
       paymentAgg,
     ] = await Promise.all([
-      // Factures Metrics (Tab 3)
-      this.prisma.facture.aggregate({
-        _sum: { totalTTC: true, resteAPayer: true },
-        _count: { _all: true },
+      // Valid Factures to extract ficheIds (We need the factures metrics too now since we replaced its aggregate)
+      this.prisma.facture.findMany({
         where: {
           centreId,
           type: 'FACTURE',
           statut: { notIn: ['ANNULEE', 'ARCHIVE'] },
           ...dateFilter,
         },
+        select: { totalTTC: true, resteAPayer: true, ficheId: true },
       }),
-      // BC Metrics (Tab 1)
-      this.prisma.facture.aggregate({
-        _sum: { totalTTC: true, resteAPayer: true },
-        _count: { _all: true },
+      // Raw BCs to filter against Factures
+      this.prisma.facture.findMany({
         where: {
           centreId,
           type: 'BON_COMMANDE',
           statut: { notIn: ['ANNULEE', 'ARCHIVE'] },
           ...dateFilter,
         },
+        select: { totalTTC: true, resteAPayer: true, ficheId: true },
       }),
       // Avoirs Metrics
       this.prisma.facture.aggregate({
@@ -286,15 +284,23 @@ export class SalesControlService {
       }),
     ]);
 
-    const totalFactures = factureMetrics._sum.totalTTC || 0;
+    // Filter out BCs that share a ficheId with a valid facture
+    const facturesFicheIds = new Set(
+      factureMetrics.map((f: any) => f.ficheId).filter((id: string | null) => id)
+    );
+    const validStandaloneBCs = bcMetrics.filter(
+      (bc: any) => !bc.ficheId || !facturesFicheIds.has(bc.ficheId)
+    );
+
+    const totalFactures = factureMetrics.reduce((sum: number, f: any) => sum + (f.totalTTC || 0), 0);
     const totalAvoirs = avoirMetrics._sum.totalTTC || 0;
-    const totalBC = bcMetrics._sum.totalTTC || 0;
+    const totalBC = validStandaloneBCs.reduce((sum: number, bc: any) => sum + (bc.totalTTC || 0), 0);
 
     // CA Global = Factures + BC - Avoirs
     const totalAmount = totalFactures + totalBC - totalAvoirs;
 
-    const totalFacturesReste = factureMetrics._sum.resteAPayer || 0;
-    const totalBMReste = bcMetrics._sum.resteAPayer || 0;
+    const totalFacturesReste = factureMetrics.reduce((sum: number, f: any) => sum + (f.resteAPayer || 0), 0);
+    const totalBMReste = validStandaloneBCs.reduce((sum: number, bc: any) => sum + (bc.resteAPayer || 0), 0);
     const totalAvoirsReste = avoirMetrics._sum.resteAPayer || 0;
     const totalReste = totalFacturesReste + totalBMReste - totalAvoirsReste;
 
@@ -316,8 +322,8 @@ export class SalesControlService {
       {
         vendorId: 'all',
         vendorName: 'Tous les vendeurs',
-        countValid: factureMetrics._count._all,
-        countWithPayment: bcMetrics._count._all,
+        countValid: factureMetrics.length,
+        countWithPayment: validStandaloneBCs.length,
         countWithoutPayment: devisCount,
         countAvoir: avoirMetrics._count._all,
         totalAmount,

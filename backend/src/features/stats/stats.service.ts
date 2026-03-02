@@ -204,13 +204,6 @@ export class StatsService {
       },
       select: {
         lignes: true,
-        totalTTC: true,
-        fiche: {
-          select: {
-            type: true,
-            content: true,
-          },
-        },
       },
     });
 
@@ -218,31 +211,14 @@ export class StatsService {
 
     factures.forEach((f) => {
       const lines = (f.lignes as any[]) || [];
-      if (lines.length > 0) {
-        lines.forEach((l) => {
-          const type = l.typeArticle || 'NON_DÉFINI';
-          const existing = distribution.get(type) || { count: 0, value: 0 };
-          distribution.set(type, {
-            count: existing.count + (l.quantite || 0),
-            value: existing.value + (l.quantite || 0) * (l.prixUnitaireHT || 0),
-          });
-        });
-      } else if (f.fiche) {
-        // Fallback to Fiche type (Common in imported data)
-        let type = f.fiche.type || 'AUTRE';
-        const content = f.fiche.content as any;
-
-        // Refine type based on TypeDossier in legacy content
-        if (content?.TypeDossier === 'L') type = 'Lentilles';
-        else if (content?.TypeDossier === 'M') type = 'Monture';
-        else if (content?.TypeDossier === 'P') type = 'Produit';
-
+      lines.forEach((l) => {
+        const type = l.typeArticle || 'NON_DÉFINI';
         const existing = distribution.get(type) || { count: 0, value: 0 };
         distribution.set(type, {
-          count: existing.count + 1,
-          value: existing.value + (f.totalTTC || 0),
+          count: existing.count + (l.quantite || 0),
+          value: existing.value + (l.quantite || 0) * (l.prixUnitaireHT || 0),
         });
-      }
+      });
     });
 
     return Array.from(distribution.entries())
