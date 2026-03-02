@@ -26,7 +26,7 @@ export class FacturesService implements OnModuleInit {
     private productsService: ProductsService,
     private commissionService: CommissionService,
     private stockAvailabilityService: StockAvailabilityService,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     try {
@@ -492,7 +492,7 @@ export class FacturesService implements OnModuleInit {
               : 'réservé à la source';
           throw new BadRequestException(
             `Impossible de valider la facture : le produit "${product.designation}" est ${detail} (Transfert en cours). ` +
-              `Veuillez d'abord confirmer la réception du produit pour alimenter le stock local.`,
+            `Veuillez d'abord confirmer la réception du produit pour alimenter le stock local.`,
           );
         }
       }
@@ -510,7 +510,7 @@ export class FacturesService implements OnModuleInit {
     where?: Prisma.FactureWhereInput;
     orderBy?: Prisma.FactureOrderByWithRelationInput;
   }) {
-    const { skip, take = 50, cursor, where, orderBy } = params;
+    const { skip, take = 10, cursor, where, orderBy } = params;
     const factures = await this.prisma.facture.findMany({
       skip,
       take,
@@ -759,7 +759,7 @@ export class FacturesService implements OnModuleInit {
         const amountChanged =
           data.totalTTC !== undefined &&
           Math.abs((data.totalTTC || 0) - (currentFacture?.totalTTC || 0)) >
-            0.1;
+          0.1;
 
         // Trigger fiscal flow if:
         // 1. Status is becoming VALIDE

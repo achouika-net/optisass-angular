@@ -21,23 +21,13 @@ export class SalesControlService {
     const start = startDate ? new Date(startDate) : undefined;
     const end = endDate ? new Date(endDate) : undefined;
 
-    // "Bons de commande" actually means any document that has generated payments but is NOT technically a closed Official Sale yet.
-    // We broadly accept any document with payments, but we exclude official FACTURE types from this specific query to avoid double counting them here and in Tab 2, UNLESS the user wants them here.
-    // Actually, Tab 1 is meant for 'Vente en instance' (BCs). If a legacy DEVIS has a payment, it's effectively a BC.
+    // A "Bon de Commande" (BC) is a draft sale with payments or a document explicitly marked as BC.
+    // We must exclude documents that are already considered "Official Sales" (Factures) in Tab 3 to avoid double counting.
     return this.prisma.facture.findMany({
       where: {
         centreId,
         statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
-        // Include explicit BCs, AND any document that has payments but isn't a final FACTURE/BL/AVOIR
-        OR: [
-          { statut: 'VENTE_EN_INSTANCE' },
-          { numero: { startsWith: 'BC' } },
-          { type: { in: ['BON_COMMANDE', 'BON_COMM'] } },
-          {
-            paiements: { some: {} },
-            type: { notIn: ['FACTURE', 'BL', 'AVOIR'] },
-          },
-        ],
+        type: 'BON_COMMANDE',
         ...(start || end ? { dateEmission: { gte: start, lte: end } } : {}),
       },
       include: {
@@ -45,8 +35,8 @@ export class SalesControlService {
         paiements: true,
         fiche: true,
       },
-      orderBy: { dateEmission: 'desc' },
-      take,
+      orderBy: [{ fiche: { numero: 'desc' } }, { dateEmission: 'desc' }],
+      take: take || 10,
     });
   }
 
@@ -73,8 +63,8 @@ export class SalesControlService {
         client: { select: { nom: true, prenom: true, raisonSociale: true } },
         fiche: true,
       },
-      orderBy: { dateEmission: 'desc' },
-      take,
+      orderBy: [{ fiche: { numero: 'desc' } }, { dateEmission: 'desc' }],
+      take: take || 10,
     });
 
     return results.filter((f) => {
@@ -110,14 +100,8 @@ export class SalesControlService {
     return this.prisma.facture.findMany({
       where: {
         centreId,
-        type: { not: 'AVOIR' },
-        statut: { notIn: ['VENTE_EN_INSTANCE', 'ANNULEE', 'ARCHIVE'] },
-        // "Vente avec facture" stored as DEVIS, OR classic FAC/FACTURE documents
-        OR: [
-          { numero: { startsWith: 'FAC' } },
-          { type: 'FACTURE' },
-          { type: 'DEVIS' }, // imported "vente avec facture" stored as DEVIS
-        ],
+        type: 'FACTURE',
+        statut: { notIn: ['ANNULEE', 'ARCHIVE'] },
         ...(start || end ? { dateEmission: { gte: start, lte: end } } : {}),
       },
       include: {
@@ -128,8 +112,8 @@ export class SalesControlService {
           select: { id: true, numero: true, type: true, statut: true },
         },
       },
-      orderBy: { dateEmission: 'desc' },
-      take,
+      orderBy: [{ fiche: { numero: 'desc' } }, { dateEmission: 'desc' }],
+      take: take || 10,
     });
   }
 
@@ -157,8 +141,8 @@ export class SalesControlService {
         fiche: true,
         parentFacture: { select: { id: true, numero: true } },
       },
-      orderBy: { numero: 'desc' },
-      take,
+      orderBy: [{ fiche: { numero: 'desc' } }, { dateEmission: 'desc' }],
+      take: take || 10,
     });
   }
 
@@ -241,38 +225,25 @@ export class SalesControlService {
       avoirs,
       paymentAgg,
     ] = await Promise.all([
-      // Factures Metrics (Aligning perfectly with Tab 2 - getValidInvoices)
+      // Factures Metrics (Tab 3 - Exclusive with Tab 1)
       this.prisma.facture.aggregate({
         _sum: { totalTTC: true, resteAPayer: true },
         _count: true,
         where: {
           centreId,
-          type: { not: 'AVOIR' },
-          statut: { notIn: ['VENTE_EN_INSTANCE', 'ANNULEE', 'ARCHIVE'] },
-          OR: [
-            { numero: { startsWith: 'FAC' } },
-            { type: 'FACTURE' },
-            { type: 'DEVIS' },
-          ],
+          type: 'FACTURE',
+          statut: { notIn: ['ANNULEE', 'ARCHIVE'] },
           ...dateFilter,
         },
       }),
-      // BC Metrics (Aligning perfectly with Tab 1 - getBrouillonWithPayments)
+      // BC Metrics (Tab 1 - Exclusive with Tab 3)
       this.prisma.facture.aggregate({
         _sum: { totalTTC: true, resteAPayer: true },
         _count: true,
         where: {
           centreId,
-          statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
-          OR: [
-            { statut: 'VENTE_EN_INSTANCE' },
-            { numero: { startsWith: 'BC' } },
-            { type: { in: ['BON_COMMANDE', 'BON_COMM'] } },
-            {
-              paiements: { some: {} },
-              type: { notIn: ['FACTURE', 'BL', 'AVOIR'] },
-            },
-          ],
+          type: 'BON_COMMANDE',
+          statut: { notIn: ['ANNULEE', 'ARCHIVE'] },
           ...dateFilter,
         },
       }),
@@ -288,11 +259,11 @@ export class SalesControlService {
         },
       }),
 
-      // Limited lists for the tabs
-      this.getBrouillonWithPayments(userId, centreId, startDate, endDate),
-      this.getBrouillonWithoutPayments(userId, centreId, startDate, endDate),
-      this.getValidInvoices(userId, centreId, startDate, endDate),
-      this.getAvoirs(userId, centreId, startDate, endDate),
+      // Limited lists for the tabs (pagination)
+      this.getBrouillonWithPayments(userId, centreId, startDate, endDate, 10),
+      this.getBrouillonWithoutPayments(userId, centreId, startDate, endDate, 10),
+      this.getValidInvoices(userId, centreId, startDate, endDate, 10),
+      this.getAvoirs(userId, centreId, startDate, endDate, 10),
       // Payments Breakdown (Period-based) - Fetch and group in memory to avoid Prisma relation groupBy bugs
       this.prisma.paiement.findMany({
         where: {

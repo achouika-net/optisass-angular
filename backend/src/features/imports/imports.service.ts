@@ -2788,7 +2788,7 @@ export class ImportsService {
 
       const [allFiches, allFactures, allClients] = await Promise.all([
         this.prisma.fiche.findMany({
-          select: { id: true, numero: true, clientId: true, facture: { select: { id: true } } },
+          select: { id: true, numero: true, clientId: true, facture: { select: { id: true } }, content: true },
         }),
         this.prisma.facture.findMany({
           select: { id: true, ficheId: true, clientId: true, totalTTC: true, resteAPayer: true, type: true, statut: true, numero: true },
@@ -2799,8 +2799,12 @@ export class ImportsService {
       ]);
 
       // Build lookup Maps
-      const ficheByNumero = new Map<number, any>();
-      for (const f of allFiches) ficheByNumero.set(f.numero, f);
+      const ficheByCompteur = new Map<number, any>();
+      for (const f of allFiches) {
+        const content = typeof f.content === 'string' ? JSON.parse(f.content) : f.content;
+        const compteur = content?.Compteur;
+        if (compteur) ficheByCompteur.set(Number(compteur), f);
+      }
 
       const factureByFicheId = new Map<string, any>();
       const factureByNumero = new Map<string, any>();
@@ -2845,8 +2849,11 @@ export class ImportsService {
 
         // --- Resolve Fiche ---
         if (ficheNumeroRaw) {
-          const ficheNum = parseInt(String(ficheNumeroRaw).replace(/[^0-9]/g, ''));
-          if (!isNaN(ficheNum)) fiche = ficheByNumero.get(ficheNum) || null;
+          const parts = String(ficheNumeroRaw).split(/[^0-9]/).filter(p => p.length > 0);
+          if (parts.length > 0) {
+            const ficheNum = parseInt(parts[0]);
+            if (!isNaN(ficheNum)) fiche = ficheByCompteur.get(ficheNum) || null;
+          }
         }
 
         // --- Resolve Facture ---
