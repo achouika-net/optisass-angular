@@ -101,7 +101,7 @@ export class SalesControlService {
       where: {
         centreId,
         type: { in: ['FACTURE', 'DEVIS'] },
-        statut: { notIn: ['ANNULEE', 'ARCHIVE'] },
+        statut: { notIn: ['ARCHIVE'] },
         ...(start || end ? { dateEmission: { gte: start, lte: end } } : {}),
       },
       include: {
@@ -231,7 +231,7 @@ export class SalesControlService {
         where: {
           centreId,
           type: { in: ['FACTURE', 'DEVIS'] },
-          statut: { notIn: ['ANNULEE', 'ARCHIVE'] },
+          statut: { notIn: ['ARCHIVE'] },
           ...dateFilter,
         },
         select: { totalTTC: true, resteAPayer: true, ficheId: true },
@@ -241,7 +241,7 @@ export class SalesControlService {
         where: {
           centreId,
           type: 'BON_COMMANDE',
-          statut: { notIn: ['ANNULEE', 'ARCHIVE'] },
+          statut: { notIn: ['ARCHIVE'] },
           ...dateFilter,
         },
         select: { totalTTC: true, resteAPayer: true, ficheId: true },
@@ -253,7 +253,7 @@ export class SalesControlService {
         where: {
           centreId,
           type: 'AVOIR',
-          statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
+          statut: { notIn: ['ARCHIVE'] },
           ...dateFilter,
         },
       }),
@@ -261,7 +261,7 @@ export class SalesControlService {
       this.prisma.facture.count({
         where: {
           centreId,
-          statut: { notIn: ['ARCHIVE', 'ANNULEE', 'VENTE_EN_INSTANCE'] },
+          statut: { notIn: ['ARCHIVE', 'VENTE_EN_INSTANCE'] },
           paiements: { none: {} },
           type: { notIn: ['BON_COMMANDE', 'BON_COMM'] },
           numero: { not: { startsWith: 'BC' } },
