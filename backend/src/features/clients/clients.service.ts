@@ -55,7 +55,6 @@ export class ClientsService {
     return this.prisma.client.findMany({
       where: whereClause,
       orderBy: { dateCreation: 'desc' },
-      take: 10,
       include: {
         centre: true, // Optional: verification
       },
