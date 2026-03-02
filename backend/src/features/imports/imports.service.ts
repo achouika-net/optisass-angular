@@ -2802,9 +2802,8 @@ export class ImportsService {
       // Build lookup Maps
       const ficheByCompteur = new Map<number, any>();
       for (const f of allFiches) {
-        const content = typeof f.content === 'string' ? JSON.parse(f.content) : f.content;
-        const compteur = content?.Compteur;
-        if (compteur) ficheByCompteur.set(Number(compteur), f);
+        // fiche.numero is the imported Compteur value (Int field)
+        if (f.numero) ficheByCompteur.set(Number(f.numero), f);
       }
 
       const factureByFicheId = new Map<string, any>();
