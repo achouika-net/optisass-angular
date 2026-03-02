@@ -115,7 +115,7 @@ export class BonLivraisonService {
         }
 
         const skip = page && limit ? (Number(page) - 1) * Number(limit) : undefined;
-        const take = limit ? Number(limit) : undefined;
+        const take = limit ? Number(limit) : 10;
 
         const [data, total] = await Promise.all([
             this.prisma.bonLivraison.findMany({

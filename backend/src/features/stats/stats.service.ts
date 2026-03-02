@@ -86,7 +86,7 @@ export class StatsService {
         where: {
           centreId: centreId || undefined,
           statut: { in: this.ACTIVE_STATUSES },
-          type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR'] },
+          type: { in: ['FACTURE', 'BON_COMMANDE', 'AVOIR'] },
         },
         _min: { dateEmission: true },
         _max: { dateEmission: true },
@@ -100,13 +100,14 @@ export class StatsService {
         dateEmission: { gte: start, lte: end },
         centreId: centreId || undefined,
         statut: { in: this.ACTIVE_STATUSES },
-        type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR'] },
+        type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR', 'DEVIS'] },
         OR: [
           { type: 'FACTURE' },
           { type: 'BON_COMMANDE' },
           { type: 'BON_COMM' },
           { numero: { startsWith: 'FAC' } },
           { type: 'AVOIR' },
+          { type: 'DEVIS' },
         ],
       },
       select: {
@@ -180,7 +181,7 @@ export class StatsService {
         dateEmission: { gte: start, lte: end },
         centreId: centreId || undefined,
         statut: { in: this.ACTIVE_STATUSES },
-        type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM'] }, // Exclude Avoirs from distribution counts
+        type: { in: ['FACTURE', 'BON_COMMANDE'] }, // Exclude Avoirs from distribution counts
       },
       select: {
         lignes: true,
@@ -228,13 +229,7 @@ export class StatsService {
     const totalDevis = await this.prisma.facture.count({
       where: {
         ...whereClause,
-        OR: [
-          { type: 'DEVIS' },
-          { type: 'BON_COMMANDE' },
-          { type: 'BON_COMM' },
-          { type: 'FACTURE' },
-          { numero: { startsWith: 'FAC' } },
-        ],
+        type: { in: ['FACTURE', 'BON_COMMANDE'] },
       },
     });
 
@@ -242,13 +237,7 @@ export class StatsService {
     const validatedFactures = await this.prisma.facture.count({
       where: {
         ...whereClause,
-        OR: [
-          { type: 'DEVIS' },
-          { type: 'BON_COMMANDE' },
-          { type: 'BON_COMM' },
-          { type: 'FACTURE' },
-          { numero: { startsWith: 'FAC' } },
-        ],
+        type: { in: ['FACTURE', 'BON_COMMANDE'] },
         paiements: { some: {} },
       },
     });
@@ -360,13 +349,14 @@ export class StatsService {
         dateEmission: { gte: start, lte: end },
         centreId: centreId || undefined,
         statut: { in: this.ACTIVE_STATUSES },
-        type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR'] },
+        type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR', 'DEVIS'] },
         OR: [
           { type: 'FACTURE' },
           { type: 'BON_COMMANDE' },
           { type: 'BON_COMM' },
           { numero: { startsWith: 'FAC' } },
           { type: 'AVOIR' },
+          { type: 'DEVIS' },
         ],
       },
       select: {
@@ -487,14 +477,7 @@ export class StatsService {
           centreId: centreId || undefined,
           ...(start || end ? { dateEmission: { gte: start, lte: end } } : {}),
           statut: { in: this.ACTIVE_STATUSES },
-          type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR'] },
-          OR: [
-            { type: 'FACTURE' },
-            { type: 'BON_COMMANDE' },
-            { type: 'BON_COMM' },
-            { numero: { startsWith: 'FAC' } },
-            { type: 'AVOIR' },
-          ],
+          type: { in: ['FACTURE', 'BON_COMMANDE', 'AVOIR'] },
         },
         select: { totalTTC: true, type: true },
       }),
@@ -613,14 +596,7 @@ export class StatsService {
         where: {
           dateEmission: { gte: start, lte: end },
           OR: [
-            {
-              OR: [
-                { numero: { startsWith: 'FAC' } },
-                { type: 'FACTURE' },
-                { type: 'BON_COMMANDE' },
-              ],
-              statut: { in: this.ACTIVE_STATUSES },
-            },
+            { type: { in: ['FACTURE', 'BON_COMMANDE'] }, statut: { in: this.ACTIVE_STATUSES } },
             { type: 'AVOIR' },
           ],
           ...(tenantId ? { centreId: tenantId } : {}),
