@@ -421,9 +421,10 @@ export class DataImportComponent implements OnInit {
             { value: 'notes', label: 'Notes' }
         ],
         paiements_clients: [
+            { value: 'codeClient', label: 'Code Client (Reconnaissance)' },
+            { value: 'nomClient', label: 'Nom Client (Si code absent)' },
+            { value: 'fiche', label: 'N° Fiche / Dossier (Compteur)' },
             { value: 'numeroFacture', label: 'N° Facture' },
-            { value: 'fiche', label: 'N° Fiche / Dossier' },
-            { value: 'codeClient', label: 'Code Client' },
             { value: 'datePaiement', label: 'Date Paiement' },
             { value: 'montant', label: 'Montant Payé' },
             { value: 'modePaiement', label: 'Mode Paiement (Espèces/Chèque/Carte/Virement)' },
@@ -610,7 +611,7 @@ export class DataImportComponent implements OnInit {
         // AI-like Mapping Dictionary — French & English synonyms for every field
         const synonyms: { [key: string]: string[] } = {
             // ─── CLIENT ───────────────────────────────────────────────────────
-            codeClient: ['code', 'codeclient', 'id client', 'identifiant', 'ref client', 'numero client', 'client id', 'client code', 'no client'],
+            codeClient: ['code client', 'code', 'codeclient', 'id client', 'identifiant', 'ref client', 'numero client', 'client id', 'client code', 'no client', 'client', 'compteur'],
             titre: ['titre', 'civilite', 'civility', 'salutation', 'mr', 'mme', 'title'],
             nom: ['nom', 'name', 'last name', 'lastname', 'surname', 'family name', 'nom client', 'client name'],
             prenom: ['prenom', 'first name', 'firstname', 'given name', 'givenname', 'prénom'],
@@ -726,7 +727,7 @@ export class DataImportComponent implements OnInit {
             numeroFacture: ['numero facture', 'num facture', 'n° facture', 'invoice no', 'invoice number', 'facture', 'ref facture', 'nfacture', 'reference'],
             referenceInterne: ['reference interne', 'npiece', 'n° piece', 'no piece', 'piece', 'piece jointe', 'n° jnl'],
             fiche: ['fiche', 'dossier', 'num fiche', 'numero fiche', 'n° fiche', 'no fiche', 'compteur', 'n° dossier'],
-            nomClient: ['nom client', 'client', 'client name', 'customer', 'customer name', 'nom'],
+            nomClient: ['nom client', 'client name', 'customer', 'customer name', 'nom'],
             type: ['type', 'type facture', 'invoice type', 'document type'],
             dateEmission: ['date facture', 'date emission', 'invoice date', 'date', 'date document', 'date creation', 'date virement'],
             dateEcheance: ['echeance', 'date echeance', 'due date', 'date limite', 'date paiement'],
@@ -743,7 +744,7 @@ export class DataImportComponent implements OnInit {
             telephoneClient: ['telephone client', 'tel client', 'phone customer', 'tel'],
 
             // ─── PAIEMENTS ────────────────────────────────────────────────────
-            datePaiement: ['date paiement', 'date reglement', 'payment date', 'date versement', 'date', 'date encaissement'],
+            datePaiement: ['date paiement', 'date reglement', 'payment date', 'date versement', 'date encaissement', 'date cb', 'date', 'date livraison', 'date retrait'],
             montant: ['montant', 'amount', 'montant paye', 'paid amount', 'reglement', 'versement', 'paiement'],
             modePaiement: ['mode paiement', 'mode reglement', 'payment method', 'moyen paiement', 'mode', 'type paiement', 'especes', 'cheque', 'virement'],
             reference: ['reference', 'ref', 'num cheque', 'numero cheque', 'num virement', 'transaction id', 'ref paiement'],
