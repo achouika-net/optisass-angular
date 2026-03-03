@@ -11,6 +11,7 @@ export class ImportsService {
     private loyaltyService: LoyaltyService,
   ) { }
 
+  // Normalize invoice number (Triggering re-compilation)
   private normalizeInvoiceNum(num: any): string {
     if (num === undefined || num === null || num === '') return '';
     const sn = String(num).replace(/\s+/g, ' ').trim().toUpperCase();
@@ -1314,21 +1315,21 @@ export class ImportsService {
           const shouldCreateInvoice = !avecFactureIsFaux &&
             (isValide || isDefinitive || totalPaye > 0 || hasInvoiceNum);
 
-          let docType = 'DEVIS';
-          let docStatut = 'BROUILLON';
+          // [CORRECTED] Only treat as FACTURE if it has the official pattern (/) or is explicitly marked.
+          // Otherwise, it's a BON_COMM (Vente en instance).
+          let docType = 'BON_COMM';
+          let docStatut = 'VENTE_EN_INSTANCE';
 
-          if (isValide) {
-            if (isDefinitive) {
-              docType = 'FACTURE';
-              docStatut = 'VALIDE';
-            } else {
-              docType = 'BON_COMMANDE';
-              docStatut = 'VALIDE';
-            }
-          } else if (totalPaye > 0 || isDefinitive) {
-            docType = 'BON_COMMANDE';
+          if (isDefinitive || (pm.numero && String(pm.numero).includes('/'))) {
+            docType = 'FACTURE';
             docStatut = 'VALIDE';
+          } else if (!isValide && totalPaye === 0 && !hasInvoiceNum && totalAmount === 0) {
+            docType = 'DEVIS';
+            docStatut = 'BROUILLON';
           }
+
+          // But if it's explicitly not a facture based on [avecFacture] check
+          // (shouldCreateInvoice already handles avecFactureIsFaux)
 
           // Pre-generate IDs
           const ficheId = crypto.randomUUID();
@@ -1402,6 +1403,7 @@ export class ImportsService {
                 : pm.numero_fiche
                   ? String(pm.numero_fiche)
                   : null;
+
             if (
               !invoiceNumero ||
               invoiceNumero === 'nofid' ||
@@ -1409,9 +1411,17 @@ export class ImportsService {
               invoiceNumero === 'undefined'
             ) {
               invoiceNumero = `IMP-${docType}-${Date.now()}-${groupIndex}`;
-            }
-            if (docType === 'FACTURE' && !invoiceNumero.startsWith('FAC-')) {
-              invoiceNumero = `FAC-${invoiceNumero}`;
+            } else {
+              // Standardize prefixes based on type
+              if (docType === 'FACTURE') {
+                if (/^\d+$/.test(invoiceNumero)) {
+                  invoiceNumero = `FAC-${invoiceNumero}`;
+                }
+              } else if (docType === 'BON_COMM') {
+                if (!invoiceNumero.startsWith('BC-')) {
+                  invoiceNumero = `BC-${invoiceNumero}`;
+                }
+              }
             }
 
             const resteAPayer = Math.max(0, totalAmount - totalPaye);
