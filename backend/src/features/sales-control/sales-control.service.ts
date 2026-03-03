@@ -27,7 +27,7 @@ export class SalesControlService {
       where: {
         centreId,
         statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
-        type: 'BON_COMMANDE',
+        type: { in: ['BON_COMMANDE', 'BON_COMM'] },
         ...(start || end ? { dateEmission: { gte: start, lte: end } } : {}),
       },
       include: {
@@ -100,8 +100,7 @@ export class SalesControlService {
     return this.prisma.facture.findMany({
       where: {
         centreId,
-        type: { in: ['FACTURE', 'DEVIS'] },
-        statut: { notIn: ['ARCHIVE'] },
+        type: 'FACTURE',
         ...(start || end ? { dateEmission: { gte: start, lte: end } } : {}),
       },
       include: {
@@ -230,8 +229,7 @@ export class SalesControlService {
       this.prisma.facture.findMany({
         where: {
           centreId,
-          type: { in: ['FACTURE', 'DEVIS'] },
-          statut: { notIn: ['ARCHIVE'] },
+          type: 'FACTURE',
           ...dateFilter,
         },
         select: { totalTTC: true, resteAPayer: true, ficheId: true },
@@ -240,7 +238,7 @@ export class SalesControlService {
       this.prisma.facture.findMany({
         where: {
           centreId,
-          type: 'BON_COMMANDE',
+          type: { in: ['BON_COMMANDE', 'BON_COMM'] },
           statut: { notIn: ['ARCHIVE'] },
           ...dateFilter,
         },

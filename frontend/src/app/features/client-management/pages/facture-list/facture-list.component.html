@@ -21,7 +21,7 @@
     </div>
 
     <mat-tab-group (selectedTabChange)="onTabChange($event)">
-        <mat-tab label="Ventes validées">
+        <mat-tab label="Facture">
             <ng-template matTabContent>
                 <ng-container *ngTemplateOutlet="listTable"></ng-container>
             </ng-template>
@@ -31,7 +31,7 @@
                 <ng-container *ngTemplateOutlet="listTable"></ng-container>
             </ng-template>
         </mat-tab>
-        <mat-tab label="Devis sans paiement">
+        <mat-tab label="Devis">
             <ng-template matTabContent>
                 <ng-container *ngTemplateOutlet="listTable"></ng-container>
             </ng-template>
@@ -55,11 +55,12 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr *ngFor="let facture of filteredDataSource">
+                    <tr *ngFor="let facture of pagedDataSource">
                         <td>{{ facture.numero }}</td>
                         <td>
                             <span class="badge" [ngClass]="'badge-' + facture.type.toLowerCase()">
-                                {{ facture.type }}
+                                {{ (facture.type === 'BON_COMM' || facture.type === 'BON_COMMANDE') ? 'BC' :
+                                facture.type }}
                             </span>
                         </td>
                         <td>{{ facture.dateEmission | date:'dd/MM/yyyy' }}</td>
@@ -77,9 +78,12 @@
                             </span>
                         </td>
                         <td>
-                            <span [class.text-success]="facture.numero.startsWith('FAC')"
-                                [class.text-danger]="!facture.numero.startsWith('FAC')">
-                                {{ facture.numero.startsWith('FAC') ? 'vrai' : 'faux' }}
+                            <span
+                                [class.text-success]="facture.statut === 'VALIDE' || facture.statut === 'PAYEE' || facture.statut === 'VALIDEE' || facture.statut === 'PARTIEL' || facture.statut === 'VENTE_EN_INSTANCE'"
+                                [class.text-danger]="facture.statut === 'BROUILLON' || facture.statut === 'ANNULEE'">
+                                {{ (facture.statut === 'VALIDE' || facture.statut === 'PAYEE' || facture.statut ===
+                                'VALIDEE' || facture.statut === 'PARTIEL' || facture.statut === 'VENTE_EN_INSTANCE') ?
+                                'vrai' : 'faux' }}
                             </span>
                         </td>
                         <td>
@@ -118,6 +122,10 @@
                     </tr>
                 </tbody>
             </table>
+
+            <mat-paginator [length]="totalCount" [pageSize]="pageSize" [pageSizeOptions]="[5, 10, 25, 50, 100]"
+                (page)="onPageChange($event)" aria-label="Sélectionner la page">
+            </mat-paginator>
 
             <!-- Empty State -->
             <div class="empty-state" *ngIf="!filteredDataSource || filteredDataSource.length === 0">

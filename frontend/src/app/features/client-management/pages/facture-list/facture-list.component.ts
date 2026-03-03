@@ -8,6 +8,8 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
+import { ViewChild } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FactureService } from '../../services/facture.service';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -28,16 +30,23 @@ import { Router } from '@angular/router';
         MatMenuModule,
         MatDividerModule,
         MatSnackBarModule,
-        MatTabsModule
+        MatTabsModule,
+        MatPaginatorModule
     ],
     templateUrl: './facture-list.component.html',
     styleUrls: ['./facture-list.component.scss']
 })
 export class FactureListComponent implements OnInit {
     @Input() clientId: string | null = null;
+    @ViewChild(MatPaginator) paginator!: MatPaginator;
+
     dataSource: any[] = [];
     filteredDataSource: any[] = [];
+    pagedDataSource: any[] = [];
     activeReportTab = 'VALIDATED';
+    totalCount = 0;
+    pageSize = 10;
+    pageIndex = 0;
 
     constructor(
         private factureService: FactureService,
@@ -92,34 +101,43 @@ export class FactureListComponent implements OnInit {
 
     applyFilter() {
         switch (this.activeReportTab) {
-            case 'DEVIS_SANS_PAIEMENT':
+            case 'DEVIS':
                 this.filteredDataSource = this.dataSource.filter(f =>
-                    f.type === 'DEVIS' &&
-                    (f.statut === 'DEVIS_SANS_PAIEMENT' || f.statut === 'DEVIS_EN_COURS' || f.statut === 'BROUILLON') &&
-                    (!f.paiements || f.paiements.length === 0)
+                    f.type === 'DEVIS'
                 );
                 break;
             case 'VENTE_EN_INSTANCE':
                 this.filteredDataSource = this.dataSource.filter(f =>
-                    f.statut === 'VENTE_EN_INSTANCE' ||
-                    f.type === 'BON_COMMANDE' ||
-                    f.type === 'BON_COMM' ||
-                    (f.type === 'DEVIS' && f.paiements && f.paiements.length > 0)
+                    f.type === 'BON_COMMANDE' || f.type === 'BON_COMM'
                 );
                 break;
-            case 'VALIDATED':
+            case 'VALIDATED': // This is the "Facture" tab
                 this.filteredDataSource = this.dataSource.filter(f =>
-                    (f.type === 'FACTURE' || f.type === 'BON_COMMANDE' || f.type === 'BON_COMM') &&
-                    (f.statut === 'VALIDE' || f.statut === 'PAYEE' || f.statut === 'PARTIEL' || f.statut === 'VALIDEE')
+                    f.type === 'FACTURE'
                 );
                 break;
             default:
                 this.filteredDataSource = this.dataSource;
         }
+        this.totalCount = this.filteredDataSource.length;
+        this.pageIndex = 0;
+        this.updatePagedData();
+    }
+
+    updatePagedData() {
+        const start = this.pageIndex * this.pageSize;
+        const end = start + this.pageSize;
+        this.pagedDataSource = this.filteredDataSource.slice(start, end);
+    }
+
+    onPageChange(event: any) {
+        this.pageSize = event.pageSize;
+        this.pageIndex = event.pageIndex;
+        this.updatePagedData();
     }
 
     onTabChange(event: any) {
-        const tabs = ['VALIDATED', 'VENTE_EN_INSTANCE', 'DEVIS_SANS_PAIEMENT'];
+        const tabs = ['VALIDATED', 'VENTE_EN_INSTANCE', 'DEVIS'];
         this.activeReportTab = tabs[event.index];
         this.applyFilter();
     }
