@@ -6,6 +6,10 @@ const crypto = require('crypto');
 
 @Injectable()
 export class ImportsService {
+  private ioEmitterClient: any = null;
+  private socketPath = '/tmp/golden-cluster.sock';
+  private invoiceNumbersForChunk: Set<string> | null = null;
+
   constructor(
     private prisma: PrismaService,
     private loyaltyService: LoyaltyService,
@@ -35,7 +39,9 @@ export class ImportsService {
   private isRowEmpty(row: any, mapping: any): boolean {
     if (!row) return true;
     // Check if ANY of the mapped fields have data
-    const mappedValues = Object.values(mapping).filter(v => v !== undefined && v !== null && v !== '');
+    const mappedValues = Object.values(mapping).filter(
+      (v) => v !== undefined && v !== null && v !== '',
+    );
     if (mappedValues.length === 0) return false; // If nothing is mapped, don't skip as 'empty' (it might fail later, but not here)
 
     const hasData = mappedValues.some((csvHeader) => {
@@ -176,16 +182,69 @@ export class ImportsService {
     }
     // ----------------------------------------------------
 
+    // --- BULK PRE-FETCH TO AVOID N+1 ---
+    const codes = new Set<string>();
+    const names = new Set<string>();
+    const phones = new Set<string>();
+
+    data.forEach((row) => {
+      const code = row[mapping.codeClient];
+      const nom = row[mapping.nom];
+      const tel = row[mapping.telephone];
+      if (code) codes.add(String(code).trim());
+      if (nom) names.add(String(nom).trim());
+      if (tel) phones.add(String(tel).trim());
+    });
+
+    const allExistingClients: any[] = [];
+    const codesArray = Array.from(codes);
+    const namesArray = Array.from(names);
+    const QUERY_CHUNK_SIZE = 500;
+
+    for (
+      let i = 0;
+      i < Math.max(codesArray.length, namesArray.length);
+      i += QUERY_CHUNK_SIZE
+    ) {
+      const codesChunk = codesArray.slice(i, i + QUERY_CHUNK_SIZE);
+      const namesChunk = namesArray.slice(i, i + QUERY_CHUNK_SIZE);
+      const chunk = await this.prisma.client.findMany({
+        where: {
+          OR: [
+            { codeClient: { in: codesChunk } },
+            { nom: { in: namesChunk, mode: 'insensitive' } },
+          ],
+        },
+      });
+      allExistingClients.push(...chunk);
+    }
+
+    const clientByCode = new Map(
+      allExistingClients
+        .filter((c) => c.codeClient)
+        .map((c) => [String(c.codeClient).trim(), c]),
+    );
+    const clientByNameTel = new Map(
+      allExistingClients
+        .filter((c) => c.nom && c.telephone)
+        .map((c) => [
+          `${String(c.nom).toLowerCase().trim()}_${String(c.telephone).trim()}`,
+          c,
+        ]),
+    );
+
+    const clientsToCreate: any[] = [];
+    const clientsToUpdate: { id: string; data: any }[] = [];
+
     for (const [index, row] of data.entries()) {
       try {
         const clientData: any = {
-          typeClient: 'PARTICULIER', // Default
-          dateCreation: new Date(), // Default Value
+          typeClient: 'PARTICULIER',
+          dateCreation: new Date(),
           statut: 'ACTIF',
-          centreId: centreId, // Assign default center
+          centreId: centreId,
         };
 
-        // Link to Family Group if detected
         const rowTel = row[mapping.telephone];
         if (rowTel && phoneGroups.has(rowTel)) {
           clientData.groupeId = phoneGroups.get(rowTel);
@@ -194,31 +253,23 @@ export class ImportsService {
         for (const [dbField, csvHeader] of Object.entries(mapping)) {
           if (csvHeader && row[csvHeader as string] !== undefined) {
             let value = row[csvHeader as string];
-
-            // 1. Handle Dates
             if (dbField === 'dateCreation' || dbField === 'dateNaissance') {
               const parsed = this.parseDate(value);
               value =
                 dbField === 'dateCreation' ? parsed || new Date() : parsed;
-            }
-            // 2. Handle Booleans
-            else if (dbField === 'tvaAssujetti') {
+            } else if (dbField === 'tvaAssujetti') {
               value =
                 value === 'true' ||
                 value === true ||
                 value === 1 ||
                 value === '1';
-            }
-            // 3. Handle Integers
-            else if (dbField === 'pointsFidelite') {
+            } else if (dbField === 'pointsFidelite') {
               value =
                 value !== null && value !== undefined
                   ? parseInt(String(value), 10) || 0
                   : 0;
-            }
-            // 4. Handle JSON fields (Skipped here, handled in post-process)
-            else if (
-              [
+            } else if (
+              ![
                 'couvertureSociale',
                 'numCouvertureSociale',
                 'groupeFamille',
@@ -227,33 +278,21 @@ export class ImportsService {
                 'convention',
               ].includes(dbField)
             ) {
-              // Keep as is for post-processing
-            }
-            // 5. Default: Force String & Trim for all other fields (Nom, Tel, Code, etc.)
-            else {
               value =
                 value !== null && value !== undefined
                   ? String(value).trim() || null
                   : null;
             }
-
-            // Assign normalized value
             clientData[dbField] = value;
-            if (value === null || value === '') {
-              // console.log(`[ImportDebug] Field ${dbField} is empty for row ${index+1}`);
-            }
           }
         }
 
-        // Post-process specific fields (Aggregation & Nullification)
-        // This ensures Json? fields are valid objects or null (strings NOT allowed)
         const assurance = clientData.couvertureSociale
           ? String(clientData.couvertureSociale).trim()
           : null;
         const numero = clientData.numCouvertureSociale
           ? String(clientData.numCouvertureSociale).trim()
           : null;
-
         if (assurance || numero) {
           clientData.couvertureSociale = {
             assurance: assurance || null,
@@ -262,46 +301,29 @@ export class ImportsService {
         } else {
           clientData.couvertureSociale = null;
         }
-
-        // IMPORTANT: Always cleanup synthetic fields before Prisma
         delete clientData.numCouvertureSociale;
 
-        // Business Logic
         if (!clientData.raisonSociale && !clientData.identifiantFiscal) {
           clientData.typeClient = 'particulier';
         } else if (clientData.raisonSociale) {
           clientData.typeClient = 'societe';
         }
 
-        // Check for existing client (Smart Update)
         let existingClient: any = null;
-
         if (clientData.codeClient) {
-          // EXCLUSIVE MATCH BY CODE: If code exists, it's our ONLY identifier
-          existingClient = await this.prisma.client.findFirst({
-            where: { codeClient: clientData.codeClient },
-          });
+          existingClient = clientByCode.get(String(clientData.codeClient));
         } else if (clientData.nom && clientData.telephone) {
-          // FALLBACK: Only search by Name + Phone IF no code is provided
-          existingClient = await this.prisma.client.findFirst({
-            where: {
-              nom: { equals: clientData.nom, mode: 'insensitive' },
-              telephone: clientData.telephone,
-            },
-          });
+          const key = `${String(clientData.nom).toLowerCase().trim()}_${String(clientData.telephone).trim()}`;
+          existingClient = clientByNameTel.get(key);
         }
 
         if (existingClient) {
-          // Smart Update: Only fill missing fields
           const updateData: any = {};
           let hasUpdates = false;
-
-          // Also link to center if missing
           if (!existingClient.centreId && centreId) {
             updateData.centreId = centreId;
             hasUpdates = true;
           }
-
           for (const key of Object.keys(clientData)) {
             if (
               (existingClient[key] === null ||
@@ -313,40 +335,43 @@ export class ImportsService {
               hasUpdates = true;
             }
           }
-
           if (hasUpdates) {
-            await this.prisma.client.update({
-              where: { id: existingClient.id },
-              data: updateData,
-            });
-            results.updated++;
-            results.success++; // Count update as a success row
+            clientsToUpdate.push({ id: existingClient.id, data: updateData });
           } else {
-            // IT'S A DUPLICATE - BUT A SUCCESS (Data is already correct)
             results.success++;
-            this.logToFile(
-              `Row ${index + 1}: Informative - Duplicate client found with no new info. Counting as success.`,
-            );
           }
         } else {
-          await this.prisma.client.create({ data: clientData });
-          results.success++;
+          clientsToCreate.push(clientData);
         }
       } catch (error) {
-        console.error(`Row ${index} error:`, error);
+        results.failed++;
+        results.errors.push(`Row ${index + 1}: ${error.message}`);
+      }
+    }
 
-        // P2002 is Unique constraint failed
-        if (error.code === 'P2002') {
-          // Log which field caused the duplicate
-          const field = error.meta?.target;
-          console.warn(
-            `Row ${index} skipped due to unique constraint on: ${field}`,
-          );
-          results.skipped++;
-        } else {
-          results.failed++;
-          results.errors.push(`Row ${index + 1}: ${error.message}`);
-        }
+    // --- EXECUTE BULK OPS ---
+    if (clientsToCreate.length > 0) {
+      await this.prisma.client.createMany({
+        data: clientsToCreate,
+        skipDuplicates: true,
+      });
+      results.success += clientsToCreate.length;
+    }
+
+    if (clientsToUpdate.length > 0) {
+      const UPDATE_BATCH_SIZE = 15;
+      for (let i = 0; i < clientsToUpdate.length; i += UPDATE_BATCH_SIZE) {
+        const batch = clientsToUpdate.slice(i, i + UPDATE_BATCH_SIZE);
+        await Promise.all(
+          batch.map((upd) =>
+            this.prisma.client.update({
+              where: { id: upd.id },
+              data: upd.data,
+            }),
+          ),
+        );
+        results.updated += batch.length;
+        results.success += batch.length;
       }
     }
 
@@ -532,21 +557,38 @@ export class ImportsService {
         } codes, ${names.size} names)`,
       );
 
-      // Build targeted query
-      const allClients = await this.prisma.client.findMany({
-        where: {
-          OR: [
-            { codeClient: { in: Array.from(codes) } },
-            {
-              AND: [
-                { nom: { in: Array.from(names) } },
-                { telephone: { in: Array.from(phones) } },
-              ],
-            },
-          ],
-        },
-        select: { id: true, codeClient: true, nom: true, telephone: true },
-      });
+      // Build targeted query with chunking to avoid pool exhaustion
+      const allClients: any[] = [];
+      const codesArray = Array.from(codes);
+      const namesArray = Array.from(names);
+      const phonesArray = Array.from(phones);
+
+      const QUERY_CHUNK_SIZE = 500;
+      for (
+        let i = 0;
+        i < Math.max(codesArray.length, namesArray.length);
+        i += QUERY_CHUNK_SIZE
+      ) {
+        const codesChunk = codesArray.slice(i, i + QUERY_CHUNK_SIZE);
+        const namesChunk = namesArray.slice(i, i + QUERY_CHUNK_SIZE);
+        const phonesChunk = phonesArray.slice(i, i + QUERY_CHUNK_SIZE);
+
+        const chunkClients = await this.prisma.client.findMany({
+          where: {
+            OR: [
+              { codeClient: { in: codesChunk } },
+              {
+                AND: [
+                  { nom: { in: namesChunk, mode: 'insensitive' } },
+                  { telephone: { in: phonesChunk } },
+                ],
+              },
+            ],
+          },
+          select: { id: true, codeClient: true, nom: true, telephone: true },
+        });
+        allClients.push(...chunkClients);
+      }
 
       log(`Found ${allClients.length} potential client matches for this batch`);
 
@@ -555,9 +597,9 @@ export class ImportsService {
       const identityMap = new Map();
 
       allClients.forEach((c) => {
-        if (c.codeClient) codeMap.set(String(c.codeClient), c.id);
+        if (c.codeClient) codeMap.set(String(c.codeClient).trim(), c.id);
         if (c.nom && c.telephone) {
-          const key = `${String(c.nom).toLowerCase().trim()}_${String(c.telephone).trim()} `;
+          const key = `${String(c.nom).toLowerCase().trim()}_${String(c.telephone).trim()}`;
           identityMap.set(key, c.id);
         }
       });
@@ -582,7 +624,7 @@ export class ImportsService {
           ? String(mappedRow.telephone).trim()
           : '';
 
-        const identKey = nom && tel ? `${nom}_${tel} ` : null;
+        const identKey = nom && tel ? `${nom}_${tel}` : null;
 
         let isMissing = false;
         if (code && !processedCodes.has(code)) {
@@ -613,7 +655,7 @@ export class ImportsService {
           if (code) codeMap.set(code, clientTmpId);
           if (identKey) identityMap.set(identKey, clientTmpId);
           if (nom && !identKey) {
-            const fallbackKey = `name_${nom} `;
+            const fallbackKey = `name_${nom}`;
             if (!identityMap.has(fallbackKey))
               identityMap.set(fallbackKey, clientTmpId);
           }
@@ -691,28 +733,44 @@ export class ImportsService {
           skipDuplicates: true,
         });
 
-        // Re-fetch ALL possible matches to update IDs
-        const newClients = await this.prisma.client.findMany({
-          where: {
-            OR: [
-              { codeClient: { in: Array.from(processedCodes) } },
-              {
-                AND: [
-                  { nom: { in: Array.from(names) } },
-                  { telephone: { in: Array.from(phones) } },
-                ],
-              },
-              { nom: { in: Array.from(names) } }, // Aggressive fetch
-              { telephone: { in: Array.from(phones) } },
-            ],
-          },
-          select: { id: true, codeClient: true, nom: true, telephone: true },
-        });
+        // Re-fetch ALL possible matches to update IDs (with chunking)
+        const newClients: any[] = [];
+        const procCodesArray = Array.from(processedCodes);
+        const namesArrayRefetch = Array.from(names);
+        const phonesArrayRefetch = Array.from(phones);
+
+        for (
+          let i = 0;
+          i < Math.max(procCodesArray.length, namesArrayRefetch.length);
+          i += QUERY_CHUNK_SIZE
+        ) {
+          const codesChunk = procCodesArray.slice(i, i + QUERY_CHUNK_SIZE);
+          const namesChunk = namesArrayRefetch.slice(i, i + QUERY_CHUNK_SIZE);
+          const phonesChunk = phonesArrayRefetch.slice(i, i + QUERY_CHUNK_SIZE);
+
+          const clientsChunk = await this.prisma.client.findMany({
+            where: {
+              OR: [
+                { codeClient: { in: codesChunk } },
+                {
+                  AND: [
+                    { nom: { in: namesChunk } },
+                    { telephone: { in: phonesChunk } },
+                  ],
+                },
+                { nom: { in: namesChunk } }, // Aggressive fetch
+                { telephone: { in: phonesChunk } },
+              ],
+            },
+            select: { id: true, codeClient: true, nom: true, telephone: true },
+          });
+          newClients.push(...clientsChunk);
+        }
 
         newClients.forEach((c) => {
-          if (c.codeClient) codeMap.set(String(c.codeClient), c.id);
+          if (c.codeClient) codeMap.set(String(c.codeClient).trim(), c.id);
           if (c.nom && c.telephone) {
-            const key = `${String(c.nom).toLowerCase().trim()}_${String(c.telephone).trim()} `;
+            const key = `${String(c.nom).toLowerCase().trim()}_${String(c.telephone).trim()}`;
             identityMap.set(key, c.id);
           }
           // Secondary backups: match by name only or tel only if no full identity
@@ -721,7 +779,7 @@ export class ImportsService {
             if (!identityMap.has(nameKey)) identityMap.set(nameKey, c.id);
           }
           if (c.telephone) {
-            const telKey = `tel_${String(c.telephone).trim()} `;
+            const telKey = `tel_${String(c.telephone).trim()}`;
             if (!identityMap.has(telKey)) identityMap.set(telKey, c.id);
           }
         });
@@ -730,32 +788,35 @@ export class ImportsService {
 
       // (arrays declared above, before try block)
 
-      // 1. Group data by Fiche ID + Date
+      // 1. Group data by Fiche ID (Universal Key)
       const groupedFiches = new Map<string, any[]>();
       data.forEach((row, idx) => {
+        // Use fiche_id from mapping, or fallback to raw "Fiche" if user renamed it in excel
         const fid =
           row[mapping.fiche_id] ||
-          (row[mapping.numero] ? String(row[mapping.numero]) : null);
+          row[mapping.numero] ||
+          row['Fiche'] ||
+          row['fiche'] ||
+          null;
 
-        // Grouping by Date as well to separate historical visits
+        // Grouping by Date as well to separate historical visits if same ID reused (rare)
         const dateVal =
           row[mapping.dateCreation] || row[mapping.date_ordonnance];
         let dateStr = 'nodate';
         if (dateVal) {
           const d = new Date(dateVal);
           if (!isNaN(d.getTime())) {
-            dateStr = d.toISOString().split('T')[0]; // Just YYYY-MM-DD to group same-day rows
+            dateStr = d.toISOString().split('T')[0];
           }
         }
 
-        // Extract client identity for fallback key
-        // [MODIFIED] logic: If we have a valid FID, we GROUP by it.
-        // If NO FID, we force unique rows (ROW_idx) to avoid accidental merging of different people.
         let key = '';
-        if (fid && fid !== 'nofid') {
-          key = `FID_${fid}_${dateStr} `; // Group by ID + Date
+        if (fid && fid !== '0' && fid !== 0) {
+          // [FIX] Group strictly by Fiche ID. Remove "NOFID" merging that caused row loss.
+          key = `FID_${fid}`;
         } else {
-          key = `ROW_${idx}_${fid || 'nofid'} `; // Force unique if no ID
+          // If no Fiche ID, every row is a unique Fiche to prevent data loss
+          key = `UNIQUE_${idx}`;
         }
 
         if (!groupedFiches.has(key)) groupedFiches.set(key, []);
@@ -782,9 +843,16 @@ export class ImportsService {
         if (sharedMapped.codeClient) {
           cId = codeMap.get(String(sharedMapped.codeClient));
         } else if (sharedMapped.nom || sharedMapped.telephone) {
-          const nomStr = sharedMapped.nom ? String(sharedMapped.nom).toLowerCase().trim() : '';
-          const telStr = sharedMapped.telephone ? String(sharedMapped.telephone).trim() : '';
-          const identKey = nomStr && telStr ? `${nomStr}_${telStr} ` : nomStr || `tel_${telStr} `;
+          const nomStr = sharedMapped.nom
+            ? String(sharedMapped.nom).toLowerCase().trim()
+            : '';
+          const telStr = sharedMapped.telephone
+            ? String(sharedMapped.telephone).trim()
+            : '';
+          const identKey =
+            nomStr && telStr
+              ? `${nomStr}_${telStr}`
+              : nomStr || `tel_${telStr}`;
           cId = identityMap.get(identKey);
         }
 
@@ -794,7 +862,12 @@ export class ImportsService {
             if (mapping[k] !== undefined && mapping[k] !== null) {
               let v = r[mapping[k]];
               if (typeof v === 'string' && !v.trim()) v = '';
-              if (v !== undefined && v !== null && v !== '' && (pm[k] === undefined || pm[k] === null || pm[k] === '')) {
+              if (
+                v !== undefined &&
+                v !== null &&
+                v !== '' &&
+                (pm[k] === undefined || pm[k] === null || pm[k] === '')
+              ) {
                 pm[k] = v;
               }
             }
@@ -802,23 +875,30 @@ export class ImportsService {
         });
 
         const rawFNum = pm.fiche_id || pm.numero || pm.numero_fiche;
-        const fNumInt = rawFNum ? parseInt(String(rawFNum).split(/[^0-9]/)[0], 10) : NaN;
+        const fNumInt = rawFNum
+          ? parseInt(String(rawFNum).split(/[^0-9]/)[0], 10)
+          : NaN;
         if (cId && !isNaN(fNumInt)) {
           ficheQueries.push({ clientId: cId, numero: fNumInt });
         }
       }
 
       if (ficheQueries.length > 0) {
-        log(`Executing pre-fetch query for ${ficheQueries.length} possible existing Fiches...`);
+        log(
+          `Executing pre-fetch query for ${ficheQueries.length} possible existing Fiches...`,
+        );
         // Chunk the OR query to avoid Prisma limits (e.g. max 2000 expressions) if needed
         const chunkSize = 1500;
         for (let i = 0; i < ficheQueries.length; i += chunkSize) {
           const chunk = ficheQueries.slice(i, i + chunkSize);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
+
           const existing = await this.prisma.fiche.findMany({
-            where: { OR: chunk as any }
+            where: { OR: chunk as any },
+            select: { id: true, numero: true, clientId: true }, // DO NOT LOAD CONTENT HERE
           });
-          existing.forEach(ex => ficheLookupMap.set(`${ex.clientId}_${Number(ex.numero)}`, ex));
+          existing.forEach((ex) =>
+            ficheLookupMap.set(`${ex.clientId}_${Number(ex.numero)}`, ex),
+          );
         }
         log(`Found ${ficheLookupMap.size} existing Fiches in the database.`);
       }
@@ -847,8 +927,8 @@ export class ImportsService {
               : '';
             const identKey =
               nomStr && telStr
-                ? `${nomStr}_${telStr} `
-                : nomStr || `tel_${telStr} `;
+                ? `${nomStr}_${telStr}`
+                : nomStr || `tel_${telStr}`;
             clientId = identityMap.get(identKey);
           }
 
@@ -1292,47 +1372,50 @@ export class ImportsService {
           const totalAmount = parseNum(pm.montantTotal) || 0;
 
           // --- LOGICAL MAPPING FOR DOCUMENT TYPE ---
-          const isValide =
-            String(pm.valide || '')
-              .toLowerCase()
-              .trim() === 'true' || pm.valide === true;
-          const isDefinitive =
-            String(pm.facture || '')
-              .trim()
-              .toLowerCase() === 'oui';
+          const rawValide = String(pm.valide ?? '').toLowerCase().trim();
+          const rawFacture = String(pm.facture ?? '').toLowerCase().trim();
+
+          const isFauxValide = ['faux', 'false', 'non', 'no', '0'].includes(rawValide) || pm.valide === false;
+
+          // Default to true. Only DEVIS if explicitly FALSE.
+          const isValide = !isFauxValide;
+
+          const isFacture =
+            ['vrai', 'true', 'oui', 'yes', '1'].includes(rawFacture) || pm.facture === true;
+
           const hasInvoiceNum = !!(pm.numero || pm.fiche_id || pm.numero_fiche);
 
-          // [avecFacture] VRAI = create invoice, FAUX = skip invoice (notes acompte on fiche only)
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-          const avecFactureRaw = pm.avecFacture !== undefined ? pm.avecFacture : pm.facture;
-          const avecFactureStr = String(avecFactureRaw || '').toLowerCase().trim();
-          // Explicit FAUX / false / non / no means: skip invoice creation
-          const avecFactureIsFaux = ['faux', 'false', 'non', 'no', '0', 'n'].includes(avecFactureStr);
+          // Rule 1: Valide = VRAI
+          //   - Facture = VRAI -> Fact-xxx (FACTURE)
+          //   - Facture = FAUX -> BC-xxx  (BON_COMM)
+          // Rule 2: Valide = FAUX
+          //   - Gives DEVIS (no Facture/BC record created in Facture table)
 
-          // Determine if we REALLY want to create an invoice record now
-          // We only create it if it's Validated, Invoiced, has a Payment, or has an Explicit Number
-          // BUT: avecFacture=FAUX overrides everything — no facture for this fiche
-          const shouldCreateInvoice = !avecFactureIsFaux &&
-            (isValide || isDefinitive || totalPaye > 0 || hasInvoiceNum);
+          let docType = 'DEVIS';
+          let docStatut = 'BROUILLON';
+          let finalPrefix = ''; // No prefix for devis
 
-          // [CORRECTED] Only treat as FACTURE if it has the official pattern (/) or is explicitly marked.
-          // Otherwise, it's a BON_COMM (Vente en instance).
-          let docType = 'BON_COMM';
-          let docStatut = 'VENTE_EN_INSTANCE';
-
-          if (isDefinitive || (pm.numero && String(pm.numero).includes('/'))) {
-            docType = 'FACTURE';
-            docStatut = 'VALIDE';
-          } else if (!isValide && totalPaye === 0 && !hasInvoiceNum && totalAmount === 0) {
-            docType = 'DEVIS';
-            docStatut = 'BROUILLON';
+          if (isValide) {
+            if (isFacture) {
+              docType = 'FACTURE';
+              docStatut = 'VALIDE';
+              finalPrefix = 'Fact-';
+            } else {
+              docType = 'BON_COMM';
+              docStatut = 'VENTE_EN_INSTANCE';
+              finalPrefix = 'BC-';
+            }
           }
 
-          // But if it's explicitly not a facture based on [avecFacture] check
-          // (shouldCreateInvoice already handles avecFactureIsFaux)
+          // We only create an invoice record if it's Valide! Devis stay in Fiche only.
+          const shouldCreateInvoice = isValide;
 
           // Pre-generate IDs
           const ficheId = crypto.randomUUID();
+
+          if (!this.invoiceNumbersForChunk) {
+            this.invoiceNumbersForChunk = new Set<string>();
+          }
 
           // ROBUST NUMERO PARSING FOR FICHE
           // e.g. "158/2019" -> 100158 (if we want uniqueness) or just 158?
@@ -1373,23 +1456,21 @@ export class ImportsService {
           // Match by: clientId + numero (if provided), else clientId + dateCreation date
           let existingFiche: any = null;
           if (ficheNumero && clientId) {
-            existingFiche = ficheLookupMap.get(`${clientId}_${Number(ficheNumero)}`);
+            existingFiche = ficheLookupMap.get(
+              `${clientId}_${Number(ficheNumero)}`,
+            );
           }
 
           if (existingFiche) {
             // Reuse the existing fiche ID so the linked Facture upsert still points to it
-            // Only update facturesToCreate, we bypass updating the Fiche itself synchronously to save time
-            // since this is an import of a blank/fresh environment usually.
-            // If strictly needed, we can batch update later, but for Fiches, skipping duplicate creation is the main goal.
-
-            // Update facturesToCreate to use existing fiche ID
-            const pendingFacture = facturesToCreate.find(
-              (f) => f.ficheId === ficheId,
-            );
-            if (pendingFacture) pendingFacture.ficheId = existingFiche.id;
+            ficheObject.id = existingFiche.id;
             results.updated++;
           } else {
             fichesToCreate.push(ficheObject);
+            // Add new fiche to the lookup map so subsequent rows in the *same* import batch find it
+            if (ficheNumero && clientId) {
+              ficheLookupMap.set(`${clientId}_${Number(ficheNumero)}`, ficheObject);
+            }
           }
           // ─────────────────────────────────────────────────────────────
 
@@ -1412,15 +1493,15 @@ export class ImportsService {
             ) {
               invoiceNumero = `IMP-${docType}-${Date.now()}-${groupIndex}`;
             } else {
-              // Standardize prefixes based on type
-              if (docType === 'FACTURE') {
-                if (/^\d+$/.test(invoiceNumero)) {
-                  invoiceNumero = `FAC-${invoiceNumero}`;
-                }
-              } else if (docType === 'BON_COMM') {
-                if (!invoiceNumero.startsWith('BC-')) {
-                  invoiceNumero = `BC-${invoiceNumero}`;
-                }
+              // Standardize prefixes based on user's request for reconciliation
+              // Force clean numeric part based on the Fiche Number if available, else clean the raw string
+              const numPart = ficheNumero
+                ? String(ficheNumero)
+                : String(invoiceNumero).replace(/[^0-9]/g, '');
+
+              // Apply the calculated prefix ONLY if docType isn't DEVIS
+              if (docType !== 'DEVIS') {
+                invoiceNumero = `${finalPrefix}${numPart || invoiceNumero}`;
               }
             }
 
@@ -1428,173 +1509,192 @@ export class ImportsService {
             const finalStatut =
               resteAPayer <= 0 && docType === 'FACTURE' ? 'PAYEE' : docStatut;
 
-            facturesToCreate.push({
-              id: factureId,
-              numero: invoiceNumero,
-              type: docType,
-              statut: finalStatut,
-              clientId: clientId,
-              ficheId: ficheId,
-              centreId: centreId || null,
-              dateEmission: parseDate(pm.dateCreation) || new Date(),
-              totalHT: totalAmount / 1.2,
-              totalTVA: totalAmount - totalAmount / 1.2,
-              totalTTC: totalAmount,
-              resteAPayer: resteAPayer,
-              _acompte: totalPaye, // Temporary field for post-bulk payment creation
-              lignes: (() => {
-                const lines: any[] = [];
-                const addLine = (desc: string, qte: number, price: number) => {
-                  if (price > 0 || desc) {
-                    lines.push({
-                      description: desc || 'Article',
-                      qte: qte || 1,
-                      prixUnitaireTTC: price || 0,
-                      remise: 0,
-                      totalTTC: (qte || 1) * (price || 0),
+            if (!this.invoiceNumbersForChunk.has(invoiceNumero)) {
+              this.invoiceNumbersForChunk.add(invoiceNumero);
+              facturesToCreate.push({
+                id: factureId,
+                numero: invoiceNumero,
+                type: docType,
+                statut: finalStatut,
+                clientId: clientId,
+                ficheId: ficheObject.id, // CRITICAL FIX: Use the potentially reassigned ID
+                centreId: centreId || null,
+                dateEmission: parseDate(pm.dateCreation) || new Date(),
+                totalHT: totalAmount / 1.2,
+                totalTVA: totalAmount - totalAmount / 1.2,
+                totalTTC: totalAmount,
+                resteAPayer: resteAPayer,
+                _acompte: totalPaye, // Temporary field for post-bulk payment creation
+                lignes: (() => {
+                  const lines: any[] = [];
+                  const addLine = (desc: string, qte: number, price: number) => {
+                    if (price > 0 || desc) {
+                      lines.push({
+                        description: desc || 'Article',
+                        qte: qte || 1,
+                        prixUnitaireTTC: price || 0,
+                        remise: 0,
+                        totalTTC: (qte || 1) * (price || 0),
+                      });
+                    }
+                  };
+
+                  // DEBUG LOGGING (Temporary)
+                  // if (f.numero.endsWith('50') || f.numero === 'FAC-81/2024') {
+                  //     console.log(`🔍 GENERATING LINES FOR ${f.numero}`);
+                  //     console.log('   Content Monture:', JSON.stringify(content.monture));
+                  //     console.log('   Content Verres:', JSON.stringify(content.verres));
+                  // }
+
+                  // 1. Monture
+                  if (content.monture && content.monture.marque) {
+                    const desc =
+                      `Monture ${content.monture.marque} ${content.monture.reference || ''}`.trim();
+                    addLine(desc, 1, content.monture.prixMonture);
+                  }
+
+                  // 2. Verres
+                  if (content.verres) {
+                    const prixVerres =
+                      (content.verres.prixOD || 0) + (content.verres.prixOG || 0);
+                    // Relax condition: even if price is 0, if marque exists, add it
+                    if (prixVerres > 0 || content.verres.marque) {
+                      const desc =
+                        `Verres ${content.verres.type} ${content.verres.marque || ''}`.trim();
+                      addLine(desc, 1, prixVerres);
+                    }
+                  }
+
+                  // 3. Lentilles
+                  if (content.lentilles) {
+                    const prixLentilles =
+                      (content.lentilles.od?.prix || 0) +
+                      (content.lentilles.og?.prix || 0);
+                    if (
+                      prixLentilles > 0 ||
+                      content.lentilles.od?.marque ||
+                      content.lentilles.og?.marque
+                    ) {
+                      addLine('Lentilles de contact', 1, prixLentilles);
+                    }
+                  }
+
+                  // 4. Produits
+                  if (content.produits && Array.isArray(content.produits)) {
+                    content.produits.forEach((p: any) => {
+                      addLine(p.designation, p.quantite, p.prixUnitaire);
                     });
                   }
-                };
 
-                // DEBUG LOGGING (Temporary)
-                // if (f.numero.endsWith('50') || f.numero === 'FAC-81/2024') {
-                //     console.log(`🔍 GENERATING LINES FOR ${f.numero}`);
-                //     console.log('   Content Monture:', JSON.stringify(content.monture));
-                //     console.log('   Content Verres:', JSON.stringify(content.verres));
-                // }
-
-                // 1. Monture
-                if (content.monture && content.monture.marque) {
-                  const desc =
-                    `Monture ${content.monture.marque} ${content.monture.reference || ''}`.trim();
-                  addLine(desc, 1, content.monture.prixMonture);
-                }
-
-                // 2. Verres
-                if (content.verres) {
-                  const prixVerres =
-                    (content.verres.prixOD || 0) + (content.verres.prixOG || 0);
-                  // Relax condition: even if price is 0, if marque exists, add it
-                  if (prixVerres > 0 || content.verres.marque) {
-                    const desc =
-                      `Verres ${content.verres.type} ${content.verres.marque || ''}`.trim();
-                    addLine(desc, 1, prixVerres);
+                  // 5. Autres Equipements
+                  if (content.equipements && Array.isArray(content.equipements)) {
+                    content.equipements.forEach((eq: any, idx: number) => {
+                      if (eq.monture) {
+                        const desc =
+                          `Equipement ${idx + 2} - Monture ${eq.monture.marque || ''}`.trim();
+                        addLine(desc, 1, eq.monture.prixMonture);
+                      }
+                      if (eq.verres) {
+                        const prixV =
+                          (eq.verres.prixOD || 0) + (eq.verres.prixOG || 0);
+                        const desc =
+                          `Equipement ${idx + 2} - Verres ${eq.verres.marque || ''}`.trim();
+                        addLine(desc, 1, prixV);
+                      }
+                    });
                   }
-                }
 
-                // 3. Lentilles
-                if (content.lentilles) {
-                  const prixLentilles =
-                    (content.lentilles.od?.prix || 0) +
-                    (content.lentilles.og?.prix || 0);
-                  if (
-                    prixLentilles > 0 ||
-                    content.lentilles.od?.marque ||
-                    content.lentilles.og?.marque
-                  ) {
-                    addLine('Lentilles de contact', 1, prixLentilles);
+                  // Fallback: If no lines but total > 0, add a global line
+                  const currentTotal = lines.reduce(
+                    (acc, l) => acc + l.totalTTC,
+                    0,
+                  );
+                  if (lines.length === 0 && totalAmount > 0) {
+                    addLine('Import Global - Détail manquant', 1, totalAmount);
                   }
-                }
 
-                // 4. Produits
-                if (content.produits && Array.isArray(content.produits)) {
-                  content.produits.forEach((p: any) => {
-                    addLine(p.designation, p.quantite, p.prixUnitaire);
-                  });
-                }
-
-                // 5. Autres Equipements
-                if (content.equipements && Array.isArray(content.equipements)) {
-                  content.equipements.forEach((eq: any, idx: number) => {
-                    if (eq.monture) {
-                      const desc =
-                        `Equipement ${idx + 2} - Monture ${eq.monture.marque || ''}`.trim();
-                      addLine(desc, 1, eq.monture.prixMonture);
-                    }
-                    if (eq.verres) {
-                      const prixV =
-                        (eq.verres.prixOD || 0) + (eq.verres.prixOG || 0);
-                      const desc =
-                        `Equipement ${idx + 2} - Verres ${eq.verres.marque || ''}`.trim();
-                      addLine(desc, 1, prixV);
-                    }
-                  });
-                }
-
-                // Fallback: If no lines but total > 0, add a global line
-                const currentTotal = lines.reduce(
-                  (acc, l) => acc + l.totalTTC,
-                  0,
-                );
-                if (lines.length === 0 && totalAmount > 0) {
-                  addLine('Import Global - Détail manquant', 1, totalAmount);
-                }
-
-                return lines;
-              })(),
-              proprietes: {},
-            });
-          }
-
+                  return lines;
+                })(),
+                proprietes: {},
+              });
+            }
+          } // End of if (shouldCreateInvoice)
           results.success++;
-        } catch (error) {
+        } catch (error: any) {
           results.failed++;
           if (results.errors.length < 100)
             results.errors.push(`Groupe ${key}: ${error.message} `);
         }
-      }
-    } catch (globalError) {
+      } // End of outer group iteration
+    } catch (globalError: any) {
       console.error('CRITICAL IMPORT ERROR:', globalError);
       results.failed = data.length;
       results.errors.push(`Erreur Critique: ${globalError.message} `);
     }
+    console.log(
+      `🚀 Bulk inserting ${fichesToCreate.length} fiches and ${facturesToCreate.length} factures...`,
+    );
+    // Increased chunk size for faster throughput
+    const CHUNK_SIZE = 5000;
+    for (let i = 0; i < fichesToCreate.length; i += CHUNK_SIZE) {
+      const ficheChunk = fichesToCreate.slice(i, i + CHUNK_SIZE);
 
-    // Bulk insert OUTSIDE global catch — failures here are non-fatal to fiche creation
-    if (fichesToCreate.length > 0) {
-      console.log(
-        `🚀 Bulk inserting ${fichesToCreate.length} fiches and ${facturesToCreate.length} factures...`,
-      );
-      for (let i = 0; i < fichesToCreate.length; i += 5000) {
-        const ficheChunk = fichesToCreate.slice(i, i + 5000);
-        const factureChunk = facturesToCreate.slice(i, i + 5000);
+      try {
+        await this.prisma.fiche.createMany({
+          data: ficheChunk,
+          skipDuplicates: true,
+        });
+      } catch (ficheErr) {
+        console.error('Fiche chunk insert error:', (ficheErr as Error).message);
+      }
+    }
 
-        try {
-          await this.prisma.fiche.createMany({
-            data: ficheChunk,
-            skipDuplicates: true,
-          });
-        } catch (ficheErr) {
-          console.error('Fiche chunk insert error:', (ficheErr as Error).message);
-        }
+    // Insert Factures via lightning-fast bulk insert
+    if (facturesToCreate.length > 0) {
+      console.log(`🚀 Bulk inserting ${facturesToCreate.length} factures...`);
+      try {
+        await this.prisma.facture.createMany({
+          data: facturesToCreate.map(({ _acompte, ...rest }) => rest),
+          skipDuplicates: true,
+        });
 
-        // DIRECT UPSERT LOOP: Force update to fix empty lines even if record exists
-        // OPTIMIZATION: Process in parallel batches of 50 to drastically reduce DB latency
-        const UPSERT_BATCH_SIZE = 50;
-        for (let j = 0; j < factureChunk.length; j += UPSERT_BATCH_SIZE) {
-          const concurrentChunk = factureChunk.slice(j, j + UPSERT_BATCH_SIZE);
-          await Promise.all(
-            concurrentChunk.map(async (f) => {
-              try {
-                // Exclude ID and _acompte from update data to avoid Prisma errors
-                const { id, _acompte, ...updateData } = f;
-
-                const upserted = await this.prisma.facture.upsert({
-                  where: { numero: f.numero },
-                  update: updateData,
-                  create: { ...updateData, id: f.id },
-                });
-                // Award Fidelio points automatically after import
-                try {
-                  await this.loyaltyService.awardPointsForPurchase(upserted.id);
-                } catch { /* Points error is non-blocking */ }
-              } catch (singleErr) {
-                console.error(
-                  `❌ Upsert FAILED for facture ${f.numero}: ${(singleErr as Error).message}`,
-                );
-              }
-            }),
+        // Fire Loyalty Points Asynchronously in background without blocking
+        setTimeout(() => {
+          const BATCH_SIZE = 10;
+          let i = 0;
+          const processBatch = async () => {
+            if (i >= facturesToCreate.length) return;
+            const batch = facturesToCreate.slice(i, i + BATCH_SIZE);
+            await Promise.all(
+              batch.map((f) =>
+                this.loyaltyService
+                  .awardPointsForPurchase(f.id)
+                  .catch((e) => console.warn(`Loyalty err ${f.id}`, e)),
+              ),
+            );
+            i += BATCH_SIZE;
+            // Schedule next batch, don't block
+            setTimeout(processBatch, 20);
+          };
+          processBatch().catch((e) =>
+            console.error('Bulk loyalty loop err:', e),
           );
-        }
+        }, 100);
+      } catch (factureErr: any) {
+        console.error(
+          '❌ Facture chunk insert error:',
+          factureErr.message,
+        );
+        try {
+          const fs = require('fs');
+          fs.writeFileSync('facture-error-dump.json', JSON.stringify({
+            message: factureErr.message,
+            name: factureErr.name,
+            code: factureErr.code,
+            meta: factureErr.meta,
+            firstFacture: facturesToCreate[0]
+          }, null, 2));
+        } catch (e) { }
       }
     }
 
@@ -1625,7 +1725,10 @@ export class ImportsService {
         });
         console.log(`✅ Bulk created ${paymentsToCreate.length} acomptes.`);
       } catch (err) {
-        console.error('❌ Error creating acompte payments in bulk:', (err as Error).message);
+        console.error(
+          '❌ Error creating acompte payments in bulk:',
+          (err as Error).message,
+        );
       }
     }
 
@@ -1939,7 +2042,9 @@ export class ImportsService {
     // --- OPTIMIZATION: Pre-fetch Suppliers and Clients ---
     const [allSuppliers, allClients] = await Promise.all([
       this.prisma.fournisseur.findMany(),
-      this.prisma.client.findMany({ select: { id: true, codeClient: true, nom: true, telephone: true } }),
+      this.prisma.client.findMany({
+        select: { id: true, codeClient: true, nom: true, telephone: true },
+      }),
     ]);
 
     const supplierMap = new Map<string, any>();
@@ -1956,7 +2061,13 @@ export class ImportsService {
       clientIdentityMap.set(`${nom}|${c.telephone?.trim()}`, c.id);
     });
 
-    const results = { success: 0, updated: 0, skipped: 0, failed: 0, errors: [] as string[] };
+    const results = {
+      success: 0,
+      updated: 0,
+      skipped: 0,
+      failed: 0,
+      errors: [] as string[],
+    };
 
     let lastSupplier: any = null;
     let lastDateEmission: Date | null = null;
@@ -1968,36 +2079,51 @@ export class ImportsService {
     // No longer tracking session invoices for merging as per user request (strict 1:1)
 
     // --- DIAGNOSTIC: Log session start with UNIQUE ID ---
-    console.log(`[IMPORT-FF-STRICT-1:1] STARTING BATCH AT ${new Date().toISOString()}`);
-    console.log(`[IMPORT-FF-STRICT-1:1] Current results.updated: ${results.updated}`);
+    console.log(
+      `[IMPORT-FF-STRICT-1:1] STARTING BATCH AT ${new Date().toISOString()}`,
+    );
+    console.log(
+      `[IMPORT-FF-STRICT-1:1] Current results.updated: ${results.updated}`,
+    );
     // --- END DIAGNOSTIC ---
 
     // --- ORIGINAL DIAGNOSTICS ---
     console.log(`[IMPORT-FF] Starting import of ${data.length} rows`);
     console.log('[IMPORT-FF] Mapping received:', JSON.stringify(mapping));
     if (data.length > 0) {
-      console.log('[IMPORT-FF] First row preview:', JSON.stringify(data[0]).slice(0, 500));
+      console.log(
+        '[IMPORT-FF] First row preview:',
+        JSON.stringify(data[0]).slice(0, 500),
+      );
     }
     // --- END DIAGNOSTIC ---
 
     for (let index = 0; index < data.length; index++) {
       if (index % 100 === 0) {
-        console.log(`[IMPORT-FF] Processing row ${index}... Current results: ${JSON.stringify(results)}`);
+        console.log(
+          `[IMPORT-FF] Processing row ${index}... Current results: ${JSON.stringify(results)}`,
+        );
       }
       const row = data[index];
       try {
-        let nomFournisseur = row[mapping.nomFournisseur] || row[mapping.fournisseur] || row[mapping.nom];
-        let codeFournisseur = row[mapping.codeFournisseur];
+        const nomFournisseur =
+          row[mapping.nomFournisseur] ||
+          row[mapping.fournisseur] ||
+          row[mapping.nom];
+        const codeFournisseur = row[mapping.codeFournisseur];
 
         // Only use columns specifically mapped to invoice number/facture for the primary ID.
         // nPiece should be referenceInterne, not the primary invoice number.
         let numeroFacture = this.normalizeInvoiceNum(
-          row[mapping.numeroFacture] ||
-          row[mapping.facture]
+          row[mapping.numeroFacture] || row[mapping.facture],
         );
 
-        let referenceInterne = row[mapping.referenceInterne] || row[mapping.facture] || (numeroFacture || '');
-        let dateEmissionInput = row[mapping.dateEmission];
+        const referenceInterne =
+          row[mapping.referenceInterne] ||
+          row[mapping.facture] ||
+          numeroFacture ||
+          '';
+        const dateEmissionInput = row[mapping.dateEmission];
 
         if (this.isRowEmpty(row, mapping)) {
           console.log(`[IMPORT-FF] Row ${index} skipped: EMPTY`);
@@ -2008,7 +2134,10 @@ export class ImportsService {
         // Only skip header if it truly looks like one and it's at the very top (index 0)
         // For index 1 and 2, we only skip if it also lacks an invoice number AND supplier info
         if (this.isHeaderRow(row, mapping, index)) {
-          if (index === 0 || (!numeroFacture && !nomFournisseur && !codeFournisseur)) {
+          if (
+            index === 0 ||
+            (!numeroFacture && !nomFournisseur && !codeFournisseur)
+          ) {
             console.log(`[IMPORT-FF] Row ${index} skipped: HEADER DETECTED`);
             results.skipped++;
             continue;
@@ -2017,10 +2146,14 @@ export class ImportsService {
 
         let supplier: any = null;
         if (codeFournisseur || nomFournisseur) {
-          supplier = supplierMap.get(String(codeFournisseur || '').toUpperCase()) ||
+          supplier =
+            supplierMap.get(String(codeFournisseur || '').toUpperCase()) ||
             supplierMap.get(String(nomFournisseur || '').toUpperCase());
           if (!supplier) {
-            supplier = await this.findOrCreateFournisseur((nomFournisseur || codeFournisseur) as string, index);
+            supplier = await this.findOrCreateFournisseur(
+              (nomFournisseur || codeFournisseur) as string,
+              index,
+            );
             if (supplier) supplierMap.set(supplier.nom.toUpperCase(), supplier);
           }
         }
@@ -2032,7 +2165,10 @@ export class ImportsService {
 
         // Final fallback to prevent global failure
         if (!supplier) {
-          supplier = await this.findOrCreateFournisseur('FOURNISSEUR INCONNU', index);
+          supplier = await this.findOrCreateFournisseur(
+            'FOURNISSEUR INCONNU',
+            index,
+          );
           if (supplier) supplierMap.set(supplier.nom.toUpperCase(), supplier);
         }
 
@@ -2047,20 +2183,31 @@ export class ImportsService {
         // As per user request: empty invoice number MUST be a standalone expense.
         // We do not carry over the number from the previous row anymore.
 
-        const dateEmission = this.parseDate(dateEmissionInput) || (numeroFacture === lastNum ? lastDateEmission : null) || new Date();
+        const dateEmission =
+          this.parseDate(dateEmissionInput) ||
+          (numeroFacture === lastNum ? lastDateEmission : null) ||
+          new Date();
         const dateEcheance = this.parseDate(row[mapping.dateEcheance]);
         const montantHT = this.parseAmount(row[mapping.montantHT]);
         const montantTVA = this.parseAmount(row[mapping.montantTVA]);
         let montantTTC = this.parseAmount(row[mapping.montantTTC]);
-        if (!montantTTC && (montantHT || montantTVA)) montantTTC = (montantHT || 0) + (montantTVA || 0);
+        if (!montantTTC && (montantHT || montantTVA))
+          montantTTC = (montantHT || 0) + (montantTVA || 0);
 
         let isBL = false;
         if (isBLOverride !== undefined && isBLOverride !== null) {
-          isBL = isBLOverride === true || isBLOverride === 'true' || isBLOverride === 1;
+          isBL =
+            isBLOverride === true ||
+            isBLOverride === 'true' ||
+            isBLOverride === 1;
         } else {
           const blVal = row[mapping.isBL];
           if (blVal !== undefined) {
-            isBL = blVal === true || blVal === 'true' || blVal === 1 || String(blVal).toUpperCase() === 'BL';
+            isBL =
+              blVal === true ||
+              blVal === 'true' ||
+              blVal === 1 ||
+              String(blVal).toUpperCase() === 'BL';
           } else if (numeroFacture === lastNum) {
             isBL = lastIsBL;
           }
@@ -2076,8 +2223,11 @@ export class ImportsService {
         // If it's a BL import, we MUST use FactureFournisseur table even if numeroFacture is missing.
         // We will fallback to referenceInterne or a generated ID to satisfy the unique constraint.
         if (!numeroFacture && isBL) {
-          numeroFacture = referenceInterne || `BL-AUTO-${index}-${new Date().getTime()}`;
-          console.log(`[IMPORT-FF] Row ${index}: Missing numeroFacture for BL. Using fallback: ${numeroFacture}`);
+          numeroFacture =
+            referenceInterne || `BL-AUTO-${index}-${new Date().getTime()}`;
+          console.log(
+            `[IMPORT-FF] Row ${index}: Missing numeroFacture for BL. Using fallback: ${numeroFacture}`,
+          );
         }
 
         if (!numeroFacture) {
@@ -2089,30 +2239,33 @@ export class ImportsService {
                 dateEcheance: dateEmission,
                 type: row[mapping.modePaiement] || 'ESPECES',
                 statut: 'EN_ATTENTE',
-              }
+              },
             });
 
             await (this.prisma.depense as any).create({
               data: {
                 date: dateEmission,
                 montant: montantTTC,
-                categorie: this.inferExpenseCategory(referenceInterne || supplier.nom),
+                categorie: this.inferExpenseCategory(
+                  referenceInterne || supplier.nom,
+                ),
                 description: `Achat sans facture (Fournisseur: ${supplier.nom})`,
                 modePaiement: row[mapping.modePaiement] || 'ESPECES',
                 statut: 'A_PAYER',
                 fournisseurId: supplier.id,
                 centreId: (centreId as any) || null,
                 echeanceId: echeance.id,
-              }
+              },
             });
             results.success++;
           } else {
-            console.log(`[IMPORT-FF] Row ${index} skipped: missing both invoice number and valid amount.`);
+            console.log(
+              `[IMPORT-FF] Row ${index} skipped: missing both invoice number and valid amount.`,
+            );
             results.skipped++;
           }
           continue;
         }
-
 
         // --- UNIQUE CONSTRAINT WORKAROUND (1:1 MAPPING - v2) ---
         // Every row MUST be a separate record. If the number exists in DB, add suffix.
@@ -2140,7 +2293,9 @@ export class ImportsService {
           finalNum = `${numeroFacture}_${dupIndex++}`;
         }
         if (finalNum !== numeroFacture) {
-          console.log(`[STRICT-1:1-v2] Adjusted duplicate: ${numeroFacture} -> ${finalNum} (Supplier: ${supplier.id})`);
+          console.log(
+            `[STRICT-1:1-v2] Adjusted duplicate: ${numeroFacture} -> ${finalNum} (Supplier: ${supplier.id})`,
+          );
         }
         numeroFacture = finalNum;
 
@@ -2163,9 +2318,9 @@ export class ImportsService {
             if (!isNaN(fNumParsed)) {
               const fiche = await this.prisma.fiche.findFirst({
                 where: { numero: fNumParsed },
-                include: { client: true }
+                include: { client: true },
               });
-              const f = (fiche as any);
+              const f = fiche as any;
               if (f && f.client) {
                 ficheId = f.id;
                 clientId = f.clientId;
@@ -2183,25 +2338,36 @@ export class ImportsService {
                   OR: [
                     { id: String(clientInput) },
                     { codeClient: String(clientInput) },
-                    { nom: { contains: String(clientInput), mode: 'insensitive' } }
-                  ]
-                }
+                    {
+                      nom: {
+                        contains: String(clientInput),
+                        mode: 'insensitive',
+                      },
+                    },
+                  ],
+                },
               });
               if (client) {
                 const c = client as any;
                 clientId = c.id;
                 // Find the Fiche with the CLOSEST dateCreation to BL dateEmission
                 const clientFiches = await this.prisma.fiche.findMany({
-                  where: { clientId: c.id }
+                  where: { clientId: c.id },
                 });
 
                 if (c && clientFiches.length > 0) {
-                  const c = (client as any);
+                  const c = client as any;
                   let closestFiche = clientFiches[0];
-                  let minDiff = Math.abs(new Date(clientFiches[0].dateCreation).getTime() - dateEmission.getTime());
+                  let minDiff = Math.abs(
+                    new Date(clientFiches[0].dateCreation).getTime() -
+                    dateEmission.getTime(),
+                  );
 
-                  for (const f of (clientFiches as any[])) {
-                    const diff = Math.abs(new Date(f.dateCreation).getTime() - dateEmission.getTime());
+                  for (const f of clientFiches as any[]) {
+                    const diff = Math.abs(
+                      new Date(f.dateCreation).getTime() -
+                      dateEmission.getTime(),
+                    );
                     if (diff < minDiff) {
                       minDiff = diff;
                       closestFiche = f;
@@ -2218,16 +2384,24 @@ export class ImportsService {
             const cNom = row[mapping.nomClient] || row[mapping.nom];
             const cTel = row[mapping.telephoneClient] || row[mapping.telephone];
 
-            if (cCode) clientId = clientCodeMap.get(String(cCode).trim()) || null;
-            if (!clientId && cNom && cTel) clientId = clientIdentityMap.get(`${String(cNom).trim().toUpperCase()}|${String(cTel).trim()}`) || null;
+            if (cCode)
+              clientId = clientCodeMap.get(String(cCode).trim()) || null;
+            if (!clientId && cNom && cTel)
+              clientId =
+                clientIdentityMap.get(
+                  `${String(cNom).trim().toUpperCase()}|${String(cTel).trim()}`,
+                ) || null;
 
             if (clientId && !ficheId) {
               const bestFiche: any = await this.prisma.fiche.findFirst({
-                where: { clientId: clientId ?? undefined, dateCreation: { lte: dateEmission } },
+                where: {
+                  clientId: clientId ?? undefined,
+                  dateCreation: { lte: dateEmission },
+                },
                 orderBy: { dateCreation: 'desc' },
               });
               if (bestFiche) {
-                ficheId = (bestFiche as any).id;
+                ficheId = bestFiche.id;
               }
             }
           }
@@ -2292,7 +2466,6 @@ export class ImportsService {
             });
           }
           results.success++;
-
         }
       } catch (error) {
         results.failed++;
@@ -2303,33 +2476,61 @@ export class ImportsService {
   }
 
   async importPaiementsFournisseurs(data: any[], mapping: any) {
-    const [allSuppliers] = await Promise.all([this.prisma.fournisseur.findMany()]);
+    const [allSuppliers] = await Promise.all([
+      this.prisma.fournisseur.findMany(),
+    ]);
     const supplierMap = new Map<string, any>();
     allSuppliers.forEach((s: any) => {
       if (s.nom) supplierMap.set(s.nom.toUpperCase(), s);
       if (s.ice) supplierMap.set(s.ice.toUpperCase(), s);
     });
 
-    const results = { success: 0, updated: 0, skipped: 0, failed: 0, errors: [] as string[] };
+    const results = {
+      success: 0,
+      updated: 0,
+      skipped: 0,
+      failed: 0,
+      errors: [] as string[],
+    };
 
     for (let index = 0; index < data.length; index++) {
       const row = data[index];
       try {
-        if (this.isRowEmpty(row, mapping) || this.isHeaderRow(row, mapping, index)) continue;
+        if (
+          this.isRowEmpty(row, mapping) ||
+          this.isHeaderRow(row, mapping, index)
+        )
+          continue;
 
-        const nomFournisseur = row[mapping.nomFournisseur] || row[mapping.fournisseur] || row[mapping.nom];
+        const nomFournisseur =
+          row[mapping.nomFournisseur] ||
+          row[mapping.fournisseur] ||
+          row[mapping.nom];
         const codeFournisseur = row[mapping.codeFournisseur];
-        const numeroFacture = this.normalizeInvoiceNum(row[mapping.numeroFacture] || row[mapping.npiece] || row[mapping.facture]);
+        const numeroFacture = this.normalizeInvoiceNum(
+          row[mapping.numeroFacture] ||
+          row[mapping.npiece] ||
+          row[mapping.facture],
+        );
         const referenceReglement = row[mapping.reference];
-        const dateReglement = this.parseDate(row[mapping.datePaiement]) || new Date();
-        const montant = this.parseAmount(row[mapping.montant] || row[mapping.montantTTC]);
+        const dateReglement =
+          this.parseDate(row[mapping.datePaiement]) || new Date();
+        const montant = this.parseAmount(
+          row[mapping.montant] || row[mapping.montantTTC],
+        );
 
         if (montant === 0) continue;
 
-        let supplier = supplierMap.get(String(codeFournisseur || '').toUpperCase()) ||
+        let supplier =
+          supplierMap.get(String(codeFournisseur || '').toUpperCase()) ||
           supplierMap.get(String(nomFournisseur || '').toUpperCase());
         if (!supplier) {
-          supplier = await this.findOrCreateFournisseur((nomFournisseur || codeFournisseur || 'FOURNISSEUR_INCONNU') as string, index);
+          supplier = await this.findOrCreateFournisseur(
+            (nomFournisseur ||
+              codeFournisseur ||
+              'FOURNISSEUR_INCONNU') as string,
+            index,
+          );
           if (supplier) supplierMap.set(supplier.nom.toUpperCase(), supplier);
         }
 
@@ -2347,16 +2548,33 @@ export class ImportsService {
         let bl;
         if (numeroFacture && numeroFacture.length > 0) {
           // STRICT-1:1-v2 RECONCILIATION:
-          // Search for EXACT match OR any version with suffix (e.g. "FA-100_1") 
+          // Search for EXACT match OR any version with suffix (e.g. "FA-100_1")
           // created by the strict 1:1 import logic.
           facture = await this.prisma.factureFournisseur.findFirst({
             where: {
               fournisseurId: supplier.id,
               OR: [
-                { numeroFacture: { equals: numeroFacture, mode: 'insensitive' } },
-                { numeroFacture: { startsWith: numeroFacture + '_', mode: 'insensitive' } },
-                { referenceInterne: { equals: numeroFacture, mode: 'insensitive' } },
-                { referenceInterne: { startsWith: `AUTO-CREATED (nPiece: ${numeroFacture}`, mode: 'insensitive' } },
+                {
+                  numeroFacture: { equals: numeroFacture, mode: 'insensitive' },
+                },
+                {
+                  numeroFacture: {
+                    startsWith: numeroFacture + '_',
+                    mode: 'insensitive',
+                  },
+                },
+                {
+                  referenceInterne: {
+                    equals: numeroFacture,
+                    mode: 'insensitive',
+                  },
+                },
+                {
+                  referenceInterne: {
+                    startsWith: `AUTO-CREATED (nPiece: ${numeroFacture}`,
+                    mode: 'insensitive',
+                  },
+                },
               ],
             },
             // CRITICAL: Prioritize invoices that still have pending installments
@@ -2371,7 +2589,12 @@ export class ImportsService {
                 fournisseurId: supplier.id,
                 OR: [
                   { numeroBL: { equals: numeroFacture, mode: 'insensitive' } },
-                  { numeroBL: { startsWith: numeroFacture + '_', mode: 'insensitive' } },
+                  {
+                    numeroBL: {
+                      startsWith: numeroFacture + '_',
+                      mode: 'insensitive',
+                    },
+                  },
                 ],
               },
               orderBy: {
@@ -2387,9 +2610,9 @@ export class ImportsService {
             where: {
               fournisseurId: supplier.id,
               montantTTC: montant,
-              statut: { in: ['A_PAYER', 'PARTIELLE'] }
+              statut: { in: ['A_PAYER', 'PARTIELLE'] },
             },
-            orderBy: { dateEmission: 'asc' }
+            orderBy: { dateEmission: 'asc' },
           });
         }
 
@@ -2399,12 +2622,15 @@ export class ImportsService {
             where: {
               fournisseurId: supplier.id,
               montant: montant,
-              statut: { in: ['A_PAYER', 'NON_PAYEE', 'PARTIELLE'] }
-            }
+              statut: { in: ['A_PAYER', 'NON_PAYEE', 'PARTIELLE'] },
+            },
           });
         }
 
-        const safeRef = referenceReglement && String(referenceReglement).trim().length > 0 ? String(referenceReglement).trim() : null;
+        const safeRef =
+          referenceReglement && String(referenceReglement).trim().length > 0
+            ? String(referenceReglement).trim()
+            : null;
 
         if (!facture && !bl && !depense) {
           if (numeroFacture) {
@@ -2419,7 +2645,8 @@ export class ImportsService {
                 statut: 'PAYEE',
                 fournisseurId: supplier.id,
                 type: 'ACHAT_STOCK',
-                centreId: supplier.centreId || (await this.getDefaultCentreId()),
+                centreId:
+                  supplier.centreId || (await this.getDefaultCentreId()),
                 referenceInterne: `AUTO-CREATED (nPiece: ${numeroFacture})`,
               },
             });
@@ -2435,7 +2662,7 @@ export class ImportsService {
                 statut: 'PAYEE',
                 type: row[mapping.modePaiement] || 'PAIEMENT',
                 remarque: `AUTO-CREATED FROM UNMATCHED PAYMENT (nPiece: ${numeroFacture})`,
-              }
+              },
             });
             results.success++;
             continue;
@@ -2461,7 +2688,8 @@ export class ImportsService {
                 description: `Paiement sans facture: ${safeRef || 'Sans Ref'}`,
                 modePaiement: row[mapping.modePaiement] || 'ESPECES',
                 statut: 'PAYEE',
-                centreId: supplier.centreId || (await this.getDefaultCentreId()),
+                centreId:
+                  supplier.centreId || (await this.getDefaultCentreId()),
                 fournisseurId: supplier.id,
                 echeanceId: newEcheance.id,
               },
@@ -2475,15 +2703,18 @@ export class ImportsService {
         const idempotencyWhere: any = {
           montant,
           dateEncaissement: dateReglement,
-          statut: { in: ['PAYEE', 'ENCAISSE'] as any[] }
+          statut: { in: ['PAYEE', 'ENCAISSE'] as any[] },
         };
         if (facture) idempotencyWhere.factureFournisseurId = facture.id;
-        if (depense && depense.echeanceId) idempotencyWhere.id = depense.echeanceId;
+        if (depense && depense.echeanceId)
+          idempotencyWhere.id = depense.echeanceId;
 
         // If reference is provided, use it for strict deduplication
         if (safeRef) {
           idempotencyWhere.reference = safeRef;
-          const existing = await this.prisma.echeancePaiement.findFirst({ where: idempotencyWhere });
+          const existing = await this.prisma.echeancePaiement.findFirst({
+            where: idempotencyWhere,
+          });
           if (existing) {
             results.skipped++;
             continue;
@@ -2492,7 +2723,9 @@ export class ImportsService {
           // If no reference, we allow multiple identical payments to be safe (legit multi-payments on same day)
           // UNLESS the user is re-running the exact same import, but we lack row-level tracking.
           // To prevent infinite duplicates, we check if EXACTLY such a payment exists (most likely already imported)
-          const existing = await this.prisma.echeancePaiement.findFirst({ where: idempotencyWhere });
+          const existing = await this.prisma.echeancePaiement.findFirst({
+            where: idempotencyWhere,
+          });
           if (existing) {
             // If it's a second run, we might want to skip, but how to distinguish from legit second payment?
             // For now, let's skip to avoid obvious duplicates on re-import.
@@ -2507,7 +2740,7 @@ export class ImportsService {
           // Reconcile with the placeholder EcheancePaiement created by importFacturesFournisseurs
           const pending = await this.prisma.echeancePaiement.findFirst({
             where: { factureFournisseurId: facture.id, statut: 'EN_ATTENTE' },
-            orderBy: { dateEcheance: 'asc' }
+            orderBy: { dateEcheance: 'asc' },
           });
 
           if (pending) {
@@ -2521,8 +2754,8 @@ export class ImportsService {
                 montant,
                 dateEncaissement: dateReglement,
                 statut: { in: ['PAYEE', 'ENCAISSE'] as any[] },
-                reference: safeRef
-              }
+                reference: safeRef,
+              },
             });
 
             if (existingAdd) {
@@ -2539,8 +2772,8 @@ export class ImportsService {
                 reference: safeRef,
                 statut: 'PAYEE',
                 type: row[mapping.modePaiement] || 'PAIEMENT',
-                remarque: `ADDITIONAL PAYMENT (nPiece: ${numeroFacture})`
-              }
+                remarque: `ADDITIONAL PAYMENT (nPiece: ${numeroFacture})`,
+              },
             });
           }
         } else if (depense) {
@@ -2556,8 +2789,8 @@ export class ImportsService {
               dateEncaissement: dateReglement,
               reference: safeRef,
               statut: 'PAYEE',
-              type: row[mapping.modePaiement] || 'PAIEMENT'
-            }
+              type: row[mapping.modePaiement] || 'PAIEMENT',
+            },
           });
         }
 
@@ -2565,25 +2798,28 @@ export class ImportsService {
         if (facture) {
           const agg = await this.prisma.echeancePaiement.aggregate({
             where: { factureFournisseurId: facture.id, statut: 'PAYEE' },
-            _sum: { montant: true }
+            _sum: { montant: true },
           });
           const paid = agg._sum.montant || 0;
 
           // Auto-adjust total for auto-created invoices to avoid "Overpaid" warnings
-          const isAutoCreated = facture.referenceInterne?.includes('AUTO-CREATED');
-          const targetTotal = isAutoCreated ? Math.max(facture.montantTTC, paid) : facture.montantTTC;
+          const isAutoCreated =
+            facture.referenceInterne?.includes('AUTO-CREATED');
+          const targetTotal = isAutoCreated
+            ? Math.max(facture.montantTTC, paid)
+            : facture.montantTTC;
 
           await this.prisma.factureFournisseur.update({
             where: { id: facture.id },
             data: {
               statut: paid >= targetTotal ? 'PAYEE' : 'PARTIELLE',
-              montantTTC: isAutoCreated ? targetTotal : undefined
-            }
+              montantTTC: isAutoCreated ? targetTotal : undefined,
+            },
           });
         } else if (depense) {
           await this.prisma.depense.update({
             where: { id: depense.id },
-            data: { statut: 'PAYEE' }
+            data: { statut: 'PAYEE' },
           });
         }
 
@@ -2596,7 +2832,6 @@ export class ImportsService {
     return results;
   }
 
-
   async importFacturesVentes(data: any[], mapping: any, centreId?: string) {
     const results = {
       success: 0,
@@ -2605,16 +2840,116 @@ export class ImportsService {
       failed: 0,
       errors: [] as string[],
     };
+
+    // Bulk pre-fetch clients
+    const codes = new Set<string>();
+    const names = new Set<string>();
+    data.forEach((row) => {
+      if (row[mapping.codeClient])
+        codes.add(String(row[mapping.codeClient]).trim());
+      if (row[mapping.nomClient])
+        names.add(String(row[mapping.nomClient]).trim());
+    });
+    const allClients = await this.prisma.client.findMany({
+      where: {
+        OR: [
+          { codeClient: { in: Array.from(codes) } },
+          { nom: { in: Array.from(names) } },
+        ],
+      },
+      select: { id: true, codeClient: true, nom: true },
+    });
+    const clientByCode = new Map(
+      allClients.filter((c) => c.codeClient).map((c) => [c.codeClient, c]),
+    );
+    const clientByName = new Map(
+      allClients
+        .filter((c) => c.nom)
+        .map((c) => [c.nom!.toLowerCase().trim(), c]),
+    );
+
+    // Bulk pre-fetch existing factures and fiches
+    const factureNums = data
+      .filter((row) => row[mapping.numero])
+      .map((row) => String(row[mapping.numero]).trim());
+    const ficheNums = data
+      .map((row) =>
+        Number(row['Fiche'] || row['fiche'] || row[mapping.fiche_id]),
+      )
+      .filter((n) => !isNaN(n));
+
+    const existingFactures: any[] = [];
+    for (let i = 0; i < factureNums.length; i += 500) {
+      const chunk = factureNums.slice(i, i + 500);
+      const facturesChunk = await this.prisma.facture.findMany({
+        where: {
+          OR: [
+            { numero: { in: chunk } },
+            { numero: { in: chunk.map((n) => `FAC-${n}`) } },
+            { numero: { in: chunk.map((n) => `Fact-${n}`) } },
+            { numero: { in: chunk.map((n) => `BC-${n}`) } },
+            {
+              numero: {
+                in: chunk.map((n) =>
+                  n.startsWith('FAC-') ? n.replace(/^FAC-/, '') : n,
+                ),
+              },
+            },
+            {
+              numero: {
+                in: chunk.map((n) =>
+                  n.startsWith('Fact-') ? n.replace(/^Fact-/, '') : n,
+                ),
+              },
+            },
+            {
+              numero: {
+                in: chunk.map((n) =>
+                  n.startsWith('BC-') ? n.replace(/^BC-/, '') : n,
+                ),
+              },
+            },
+          ],
+        },
+      });
+      existingFactures.push(...facturesChunk);
+    }
+    const factureLookupMap = new Map();
+    existingFactures.forEach((f) => {
+      factureLookupMap.set(f.numero, f);
+      if (f.numero.startsWith('FAC-'))
+        factureLookupMap.set(f.numero.replace(/^FAC-/, ''), f);
+      else factureLookupMap.set(`FAC-${f.numero}`, f);
+    });
+
+    const existingFiches = await this.prisma.fiche.findMany({
+      where: { numero: { in: ficheNums } },
+      select: {
+        id: true,
+        numero: true,
+        clientId: true,
+        facture: {
+          select: {
+            id: true,
+            numero: true,
+            totalTTC: true,
+            resteAPayer: true,
+            clientId: true,
+          },
+        },
+      },
+    });
+    const ficheLookupMap = new Map();
+    existingFiches.forEach((f) => {
+      if (f.numero) ficheLookupMap.set(Number(f.numero), f);
+    });
+
+    const facturesToCreate: any[] = [];
+    const facturesToUpdate: { id: string; data: any }[] = [];
+
     for (let index = 0; index < data.length; index++) {
       const row = data[index];
       try {
-        const codeClient = row[mapping.codeClient]
-          ? String(row[mapping.codeClient]).trim()
-          : null;
-        const nomClient = row[mapping.nomClient]
-          ? String(row[mapping.nomClient]).trim()
-          : null;
-
         if (
           this.isRowEmpty(row, mapping) ||
           (index === 0 && this.isHeaderRow(row, mapping, index))
@@ -2623,125 +2958,63 @@ export class ImportsService {
           continue;
         }
 
-        if (!codeClient && !nomClient) {
-          const hasAmount = !!row[mapping.totalTTC];
-          if (!hasAmount) {
-            results.skipped++;
-            continue;
-          }
-          results.skipped++;
-          results.errors.push(`Row ${index + 1}: Missing client code or name`);
-          continue;
-        }
-        let client: any = null;
-        if (codeClient)
-          client = await this.prisma.client.findFirst({
-            where: { codeClient },
-          });
-        if (!client && nomClient)
-          client = await this.prisma.client.findFirst({
-            where: { nom: nomClient },
-          });
-        if (!client) {
-          results.skipped++;
-          results.errors.push(`Row ${index + 1}: Client not found`);
-          continue;
-        }
-        let typeRaw = row[mapping.type];
-        if (typeof typeRaw === 'boolean')
-          typeRaw = typeRaw ? 'FACTURE' : 'DEVIS'; // Handle weird booleans
-        const type = String(typeRaw || 'FACTURE')
-          .trim()
-          .toUpperCase();
+        const codeClient = row[mapping.codeClient]
+          ? String(row[mapping.codeClient]).trim()
+          : null;
+        const nomClient = row[mapping.nomClient]
+          ? String(row[mapping.nomClient]).trim()
+          : null;
+        const numero =
+          row[mapping.numero] || row['Fiche'] || row['fiche']
+            ? String(row[mapping.numero] || row['Fiche'] || row['fiche']).trim()
+            : null;
 
-        let statutRaw = row[mapping.statut];
-        if (typeof statutRaw === 'boolean')
-          statutRaw = statutRaw ? 'VALIDEE' : 'BROUILLON';
-        const statut = String(statutRaw || 'BROUILLON')
-          .trim()
-          .toUpperCase();
-        const dateEmission =
-          this.parseDate(row[mapping.dateEmission]) || new Date();
-        const dateEcheance = this.parseDate(row[mapping.dateEcheance]);
-        const totalHT = parseFloat(row[mapping.totalHT]) || 0;
-        const totalTVA = parseFloat(row[mapping.totalTVA]) || 0;
-
-        // PRIORITY: Trust totalTTC from Excel. If it matches 9.4M while HT+TVA(20%) matches 10.6M, 
-        // using totalTTC directly preserves the user's expected turnover.
-        let totalTTC = parseFloat(row[mapping.totalTTC]);
-        if (isNaN(totalTTC)) {
-          totalTTC = totalHT + totalTVA;
-        }
-        let numero = row[mapping.numero];
         if (!numero) {
-          const prefix =
-            type === 'DEVIS' ? 'DEV' : type === 'BON_COMMANDE' ? 'BC' : 'FAC';
-          const count = await this.prisma.facture.count({ where: { type } });
-          numero = `${prefix} -${(count + 1).toString().padStart(6, '0')} `;
+          results.failed++;
+          results.errors.push(`Row ${index + 1}: Numero manquant`);
+          continue;
         }
 
-        let ficheId: string | null = null;
-        const ficheNumStr = row[mapping.fiche] || row['Fiche'];
-        if (ficheNumStr) {
-          // ROBUST PARSING: "98/2015" -> 98
-          const parts = String(ficheNumStr)
-            .split(/[^0-9]/)
-            .filter((p) => p.length > 0);
-          if (parts.length > 0) {
-            const ficheNum = parseInt(parts[0]);
-            if (!isNaN(ficheNum)) {
-              const fiche = await this.prisma.fiche.findFirst({
-                where: { numero: ficheNum },
-                include: { facture: true },
-              });
-              if (fiche) {
-                ficheId = fiche.id;
-                // If the fiche already has an invoice (e.g. from Fiche Import), reuse it
-                if (fiche.facture) {
-                  const alreadyPaid =
-                    fiche.facture.totalTTC - fiche.facture.resteAPayer;
+        let client: any = null;
+        if (codeClient) client = clientByCode.get(codeClient) || null;
+        if (!client && nomClient)
+          client = clientByName.get(nomClient.toLowerCase().trim()) || null;
 
-                  // Check if the generated numero is already used by a DIFFERENT facture
-                  // to avoid unique constraint violation on update
-                  const numeroConflict =
-                    fiche.facture.numero !== numero
-                      ? await this.prisma.facture.findFirst({
-                        where: { numero, NOT: { id: fiche.facture.id } },
-                      })
-                      : null;
+        const inputFicheNum = Number(
+          row['Fiche'] || row['fiche'] || row[mapping.fiche_id],
+        );
+        let existingFacture = factureLookupMap.get(numero);
+        let linkedFiche: any = null;
 
-                  await this.prisma.facture.update({
-                    where: { id: fiche.facture.id },
-                    data: {
-                      // Only update numero if it won't cause a conflict
-                      ...(numeroConflict ? {} : { numero }),
-                      type,
-                      dateEmission,
-                      dateEcheance,
-                      statut,
-                      totalHT,
-                      totalTVA,
-                      totalTTC,
-                      resteAPayer: Math.max(0, totalTTC - alreadyPaid),
-                      centreId: centreId || null,
-                    },
-                  });
-                  results.updated++;
-                  continue;
-                }
-              }
-            }
+        if (!existingFacture && !isNaN(inputFicheNum)) {
+          linkedFiche = ficheLookupMap.get(inputFicheNum);
+          if (linkedFiche && linkedFiche.facture) {
+            existingFacture = linkedFiche.facture;
           }
         }
 
-        const factureData = {
+        let clientId = client ? client.id : null;
+
+        // Fallback: If no client found in excel mapping, use existing Facture or Fiche's client!
+        if (!clientId && existingFacture) clientId = existingFacture.clientId;
+        if (!clientId && linkedFiche) clientId = linkedFiche.clientId;
+
+        if (!clientId) {
+          results.skipped++;
+          results.errors.push(`Row ${index + 1}: Client introuvable`);
+          continue;
+        }
+
+        const totalTTC = parseFloat(String(row[mapping.totalTTC] || 0)) || 0;
+        const totalHT = totalTTC / 1.2;
+        const totalTVA = totalTTC - totalHT;
+
+        const factureData: any = {
           numero,
-          type,
-          dateEmission,
-          dateEcheance,
-          statut,
-          clientId: client.id,
-          ficheId,
+          type: 'FACTURE',
+          statut: 'PAYEE',
+          dateEmission: this.parseDate(row[mapping.dateEmission]) || new Date(),
+          clientId,
           totalHT,
           totalTVA,
           totalTTC,
@@ -2750,45 +3023,55 @@ export class ImportsService {
           centreId: centreId || null,
         };
 
-        // MATCHING LOGIC: Be prefix-agnostic
-        const existingFacture = await this.prisma.facture.findFirst({
-          where: {
-            OR: [
-              { numero: numero },
-              { numero: `FAC-${numero}` },
-              { numero: numero.replace(/^FAC-/, '') },
-            ],
-          },
-        });
-
         if (existingFacture) {
-          // Update maintaining paid balance if it had any
           const alreadyPaid =
             existingFacture.totalTTC - existingFacture.resteAPayer;
-          await this.prisma.facture.update({
-            where: { id: existingFacture.id },
+          facturesToUpdate.push({
+            id: existingFacture.id,
             data: {
               ...factureData,
               resteAPayer: Math.max(0, totalTTC - alreadyPaid),
-            } as any,
+            },
           });
-          results.updated++;
         } else {
-          await this.prisma.facture.create({ data: factureData as any });
-          results.success++;
+          facturesToCreate.push(factureData);
         }
       } catch (error) {
         results.failed++;
-        results.errors.push(`Row ${index + 1}: ${error.message} `);
+        results.errors.push(`Row ${index + 1}: ${error.message}`);
       }
     }
+
+    if (facturesToCreate.length > 0) {
+      await this.prisma.facture.createMany({
+        data: facturesToCreate,
+        skipDuplicates: true,
+      });
+      results.success += facturesToCreate.length;
+    }
+
+    if (facturesToUpdate.length > 0) {
+      const BATCH_SIZE = 15;
+      for (let i = 0; i < facturesToUpdate.length; i += BATCH_SIZE) {
+        const batch = facturesToUpdate.slice(i, i + BATCH_SIZE);
+        await Promise.all(
+          batch.map((upd) =>
+            this.prisma.facture.update({
+              where: { id: upd.id },
+              data: upd.data,
+            }),
+          ),
+        );
+        results.updated += batch.length;
+        results.success += batch.length;
+      }
+    }
+
     return results;
   }
 
   async importPaiementsClients(data: any[], mapping: any) {
     console.log('[ImportLog] PaiementsClients — OPTIMIZED BULK MODE');
-    console.log(`[ImportLog] Total rows to process: ${data.length}`);
-
     const results = {
       success: 0,
       updated: 0,
@@ -2798,68 +3081,69 @@ export class ImportsService {
     };
 
     try {
-      // ════════════════════════════════════════════════
-      // PHASE 1: BULK PRE-LOAD — 3 DB queries total
-      // instead of N x 5 queries (N = 16182)
-      // ════════════════════════════════════════════════
-      console.log('[ImportLog] Phase 1: Pre-loading all fiches, factures, clients...');
       const t0 = Date.now();
-
       const [allFiches, allFactures, allClients] = await Promise.all([
         this.prisma.fiche.findMany({
-          select: { id: true, numero: true, clientId: true, facture: { select: { id: true } }, content: true },
+          select: { id: true, numero: true, clientId: true },
         }),
         this.prisma.facture.findMany({
-          select: { id: true, ficheId: true, clientId: true, totalTTC: true, resteAPayer: true, type: true, statut: true, numero: true },
+          select: {
+            id: true,
+            ficheId: true,
+            clientId: true,
+            totalTTC: true,
+            resteAPayer: true,
+            numero: true,
+            type: true,
+          },
         }),
         this.prisma.client.findMany({
           select: { id: true, codeClient: true, nom: true, telephone: true },
         }),
       ]);
 
-      // Build lookup Maps
-      const ficheByCompteur = new Map<number, any>();
-      for (const f of allFiches) {
-        // fiche.numero is the imported Compteur value (Int field)
+      const ficheByCompteur = new Map();
+      allFiches.forEach((f) => {
         if (f.numero) ficheByCompteur.set(Number(f.numero), f);
-      }
+      });
 
-      const factureByFicheId = new Map<string, any>();
-      const factureByNumero = new Map<string, any>();
-      for (const f of allFactures) {
+      const factureByFicheId = new Map();
+      const factureByNumero = new Map();
+      allFactures.forEach((f) => {
         if (f.ficheId) factureByFicheId.set(f.ficheId, f);
         if (f.numero) factureByNumero.set(f.numero.trim(), f);
-      }
+      });
 
-      const clientByCode = new Map<string, any>();
-      const clientByNomLower = new Map<string, any>();
-      for (const c of allClients) {
+      const clientByCode = new Map();
+      const clientByNomLower = new Map();
+      allClients.forEach((c) => {
         if (c.codeClient) clientByCode.set(c.codeClient.trim(), c);
         if (c.nom) clientByNomLower.set(c.nom.toLowerCase().trim(), c);
-      }
-
-      console.log(`[ImportLog] Pre-load done in ${Date.now() - t0}ms. Fiches: ${allFiches.length}, Factures: ${allFactures.length}, Clients: ${allClients.length}`);
-
-      // ════════════════════════════════════════════════
-      // PHASE 2: PROCESS ROWS IN MEMORY — no DB queries
-      // ════════════════════════════════════════════════
-      console.log('[ImportLog] Phase 2: Processing rows in memory...');
+      });
 
       const paymentsToCreate: any[] = [];
-      const factureUpdates = new Map<string, { totalPaid: number; totalTTC: number; type: string }>();
+      const factureUpdates = new Map();
 
       for (let index = 0; index < data.length; index++) {
         const row = data[index];
-
-        if (this.isRowEmpty(row, mapping) || (index === 0 && this.isHeaderRow(row, mapping, index))) {
+        if (
+          this.isRowEmpty(row, mapping) ||
+          (index === 0 && this.isHeaderRow(row, mapping, index))
+        ) {
           results.skipped++;
           continue;
         }
 
         const ficheNumeroRaw = row[mapping.fiche] || row['Fiche'];
-        const codeClient = row[mapping.codeClient] ? String(row[mapping.codeClient]).trim() : null;
-        const nomClientRaw = row[mapping.nomClient] ? String(row[mapping.nomClient]).trim() : null;
-        const numeroFactureRaw = row[mapping.numeroFacture] ? String(row[mapping.numeroFacture]).trim() : null;
+        const codeClient = row[mapping.codeClient]
+          ? String(row[mapping.codeClient]).trim()
+          : null;
+        const nomClientRaw = row[mapping.nomClient]
+          ? String(row[mapping.nomClient]).trim()
+          : null;
+        const numeroFactureRaw = row[mapping.numeroFacture]
+          ? String(row[mapping.numeroFacture]).trim()
+          : null;
 
         let fiche: any = null;
         let facture: any = null;
@@ -2867,7 +3151,9 @@ export class ImportsService {
 
         // --- Resolve Fiche ---
         if (ficheNumeroRaw) {
-          const parts = String(ficheNumeroRaw).split(/[^0-9]/).filter(p => p.length > 0);
+          const parts = String(ficheNumeroRaw)
+            .split(/[^0-9]/)
+            .filter((p) => p.length > 0);
           if (parts.length > 0) {
             const ficheNum = parseInt(parts[0]);
             if (!isNaN(ficheNum)) fiche = ficheByCompteur.get(ficheNum) || null;
@@ -2875,7 +3161,7 @@ export class ImportsService {
         }
 
         // --- Resolve Facture ---
-        if (fiche?.facture?.id) {
+        if (fiche) {
           facture = factureByFicheId.get(fiche.id) || null;
         }
         if (!facture && numeroFactureRaw) {
@@ -2884,24 +3170,29 @@ export class ImportsService {
 
         // --- Resolve Client ---
         if (fiche?.clientId) {
-          client = allClients.find(c => c.id === fiche.clientId) || null;
+          client = allClients.find((c) => c.id === fiche.clientId) || null;
         }
         if (!client && codeClient) {
           client = clientByCode.get(codeClient) || null;
         }
         if (!client && nomClientRaw) {
-          client = clientByNomLower.get(nomClientRaw.toLowerCase()) || null;
+          const normNom = nomClientRaw.toLowerCase().trim();
+          client = clientByNomLower.get(normNom) || null;
         }
 
         if (!client) {
           results.skipped++;
-          results.errors.push(`Row ${index + 1}: Client non trouvé (code: ${codeClient}, nom: ${nomClientRaw})`);
+          results.errors.push(
+            `Row ${index + 1}: Client non trouvé (code: ${codeClient}, nom: ${nomClientRaw})`,
+          );
           continue;
         }
 
         if (!facture) {
           results.skipped++;
-          results.errors.push(`Row ${index + 1}: Facture non trouvée pour client ${client.nom} (Fiche: ${ficheNumeroRaw}, Num: ${numeroFactureRaw})`);
+          results.errors.push(
+            `Row ${index + 1}: Facture non trouvée pour client ${client.nom} (Fiche: ${ficheNumeroRaw}, Num: ${numeroFactureRaw})`,
+          );
           continue;
         }
 
@@ -2911,10 +3202,17 @@ export class ImportsService {
           continue;
         }
 
-        const datePaiement = this.parseDate(row[mapping.datePaiement]) || new Date();
-        const modeSource = row[mapping.modePaiement] ? String(row[mapping.modePaiement]).trim().toUpperCase() : 'ESPECES';
-        const reference = row[mapping.reference] ? String(row[mapping.reference]).substring(0, 100) : null;
-        const notes = row[mapping.notes] ? String(row[mapping.notes]).substring(0, 500) : null;
+        const datePaiement =
+          this.parseDate(row[mapping.datePaiement]) || new Date();
+        const modeSource = row[mapping.modePaiement]
+          ? String(row[mapping.modePaiement]).trim().toUpperCase()
+          : 'ESPECES';
+        const reference = row[mapping.reference]
+          ? String(row[mapping.reference]).substring(0, 100)
+          : null;
+        const notes = row[mapping.notes]
+          ? String(row[mapping.notes]).substring(0, 500)
+          : null;
 
         paymentsToCreate.push({
           factureId: facture.id,
@@ -2928,7 +3226,11 @@ export class ImportsService {
 
         // Accumulate payment totals per invoice for balance update
         if (!factureUpdates.has(facture.id)) {
-          factureUpdates.set(facture.id, { totalPaid: 0, totalTTC: Number(facture.totalTTC || 0), type: facture.type });
+          factureUpdates.set(facture.id, {
+            totalPaid: 0,
+            totalTTC: Number(facture.totalTTC || 0),
+            type: facture.type,
+          });
         }
         factureUpdates.get(facture.id)!.totalPaid += montant;
         results.success++;
@@ -2937,14 +3239,21 @@ export class ImportsService {
       // ════════════════════════════════════════════════
       // PHASE 3: BULK INSERT payments (batches of 500)
       // ════════════════════════════════════════════════
-      console.log(`[ImportLog] Phase 3: Bulk inserting ${paymentsToCreate.length} payments...`);
+      console.log(
+        `[ImportLog] Phase 3: Bulk inserting ${paymentsToCreate.length} payments...`,
+      );
       const t1 = Date.now();
       const BATCH_SIZE = 500;
 
       for (let i = 0; i < paymentsToCreate.length; i += BATCH_SIZE) {
         const batch = paymentsToCreate.slice(i, i + BATCH_SIZE);
-        await this.prisma.paiement.createMany({ data: batch, skipDuplicates: true });
-        console.log(`[ImportLog] Inserted batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(paymentsToCreate.length / BATCH_SIZE)}`);
+        await this.prisma.paiement.createMany({
+          data: batch,
+          skipDuplicates: true,
+        });
+        console.log(
+          `[ImportLog] Inserted batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(paymentsToCreate.length / BATCH_SIZE)}`,
+        );
       }
 
       console.log(`[ImportLog] Bulk insert done in ${Date.now() - t1}ms`);
@@ -2952,7 +3261,9 @@ export class ImportsService {
       // ════════════════════════════════════════════════
       // PHASE 4: BULK UPDATE invoice balances (batches)
       // ════════════════════════════════════════════════
-      console.log(`[ImportLog] Phase 4: Updating ${factureUpdates.size} invoice balances...`);
+      console.log(
+        `[ImportLog] Phase 4: Updating ${factureUpdates.size} invoice balances...`,
+      );
       const t2 = Date.now();
 
       const updatePromises: Promise<any>[] = [];
@@ -2963,8 +3274,12 @@ export class ImportsService {
         updatePromises.push(
           this.prisma.facture.update({
             where: { id: factureId },
-            data: { resteAPayer, statut, ...(info.type === 'DEVIS' ? { type: newType } : {}) },
-          })
+            data: {
+              resteAPayer,
+              statut,
+              ...(info.type === 'DEVIS' ? { type: newType } : {}),
+            },
+          }),
         );
         // Run in batches to avoid overwhelming the connection pool
         if (updatePromises.length >= 100) {
@@ -2975,7 +3290,6 @@ export class ImportsService {
 
       console.log(`[ImportLog] Balance updates done in ${Date.now() - t2}ms`);
       console.log(`[ImportLog] TOTAL IMPORT TIME: ${Date.now() - t0}ms`);
-
     } catch (globalError) {
       console.error('CRITICAL IMPORT ERROR (PaiementsClients):', globalError);
       results.failed = data.length;
@@ -2996,7 +3310,10 @@ export class ImportsService {
     for (let index = 0; index < data.length; index++) {
       const row = data[index];
       try {
-        if (this.isRowEmpty(row, mapping) || this.isHeaderRow(row, mapping, index)) {
+        if (
+          this.isRowEmpty(row, mapping) ||
+          this.isHeaderRow(row, mapping, index)
+        ) {
           results.skipped++;
           continue;
         }

@@ -112,6 +112,11 @@
                 <div class="stat-info">
                     <p class="stat-label">Total Produits</p>
                     <h2 class="stat-value">{{ summary.totalProducts | number }}</h2>
+                    <div class="stat-details" *ngIf="summary.productsStats">
+                        <span *ngFor="let key of getObjectKeys(summary.productsStats)" class="stat-badge" [title]="key">
+                            {{ summary.productsStats[key] }} {{ key }}
+                        </span>
+                    </div>
                 </div>
             </mat-card-content>
         </mat-card>
@@ -124,6 +129,17 @@
                 <div class="stat-info">
                     <p class="stat-label">Total Clients</p>
                     <h2 class="stat-value">{{ summary.totalClients | number }}</h2>
+                    <div class="stat-details" *ngIf="summary.fichesStats">
+                        <span class="stat-badge" title="Montures">
+                            {{ summary.fichesStats.monture }} M
+                        </span>
+                        <span class="stat-badge" title="Lentilles">
+                            {{ summary.fichesStats.lentilles }} L
+                        </span>
+                        <span class="stat-badge" title="Produits">
+                            {{ summary.fichesStats.produit }} P
+                        </span>
+                    </div>
                 </div>
             </mat-card-content>
         </mat-card>

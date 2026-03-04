@@ -519,4 +519,8 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit, OnDestroy 
             if (chart) chart.destroy();
         });
     }
+
+    getObjectKeys(obj: any): string[] {
+        return obj ? Object.keys(obj) : [];
+    }
 }

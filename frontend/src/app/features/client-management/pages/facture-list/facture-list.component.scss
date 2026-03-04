@@ -1,5 +1,21 @@
 @use '../../../../../styles/modern-table' as *;
 
+.modern-table-container {
+    margin-top: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+
+    mat-paginator {
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
 .facture-list-container {
     padding: 24px;
     max-width: 1400px;
