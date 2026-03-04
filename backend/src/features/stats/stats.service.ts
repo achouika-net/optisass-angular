@@ -79,6 +79,8 @@ export class StatsService {
     'ENCAISSÉ',
     'ENCAISSÉE',
     'PARTIEL',
+    'BROUILLON',
+    'ANNULEE'
   ];
 
   constructor(private prisma: PrismaService) { }
@@ -104,8 +106,8 @@ export class StatsService {
       const range = await this.prisma.facture.aggregate({
         where: {
           centreId: centreId || undefined,
-          statut: { in: this.ACTIVE_STATUSES },
-          type: { in: ['FACTURE', 'BON_COMMANDE', 'AVOIR'] },
+          statut: { notIn: ['ARCHIVE'] },
+          type: { in: ['FACTURE', 'BON_COMMANDE', 'AVOIR', 'DEVIS'] },
         },
         _min: { dateEmission: true },
         _max: { dateEmission: true },
@@ -118,16 +120,8 @@ export class StatsService {
       where: {
         dateEmission: { gte: start, lte: end },
         centreId: centreId || undefined,
-        statut: { in: this.ACTIVE_STATUSES },
+        statut: { notIn: ['ARCHIVE'] },
         type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR', 'DEVIS'] },
-        OR: [
-          { type: 'FACTURE' },
-          { type: 'BON_COMMANDE' },
-          { type: 'BON_COMM' },
-          { numero: { startsWith: 'FAC' } },
-          { type: 'AVOIR' },
-          { type: 'DEVIS' },
-        ],
       },
       select: {
         dateEmission: true,
@@ -199,11 +193,12 @@ export class StatsService {
       where: {
         dateEmission: { gte: start, lte: end },
         centreId: centreId || undefined,
-        statut: { in: this.ACTIVE_STATUSES },
-        type: { in: ['FACTURE', 'BON_COMMANDE'] }, // Exclude Avoirs from distribution counts
+        statut: { notIn: ['ARCHIVE'] },
+        type: { in: ['FACTURE', 'BON_COMMANDE', 'DEVIS'] }, // Exclude Avoirs from distribution counts
       },
       select: {
         lignes: true,
+        fiche: { select: { type: true } }
       },
     });
 
@@ -211,14 +206,24 @@ export class StatsService {
 
     factures.forEach((f) => {
       const lines = (f.lignes as any[]) || [];
-      lines.forEach((l) => {
-        const type = l.typeArticle || 'NON_DÉFINI';
+      if (lines.length > 0) {
+        lines.forEach((l) => {
+          const type = l.typeArticle || 'NON_DÉFINI';
+          const existing = distribution.get(type) || { count: 0, value: 0 };
+          distribution.set(type, {
+            count: existing.count + (l.quantite || 0),
+            value: existing.value + (l.quantite || 0) * (l.prixUnitaireHT || 0),
+          });
+        });
+      } else if (f.fiche && f.fiche.type) {
+        // Fallback for imported fiches without lines
+        const type = f.fiche.type.toUpperCase();
         const existing = distribution.get(type) || { count: 0, value: 0 };
         distribution.set(type, {
-          count: existing.count + (l.quantite || 0),
-          value: existing.value + (l.quantite || 0) * (l.prixUnitaireHT || 0),
+          count: existing.count + 1,
+          value: existing.value + 0, // We don't have per-product value here, just count
         });
-      });
+      }
     });
 
     return Array.from(distribution.entries())
@@ -241,14 +246,14 @@ export class StatsService {
     const whereClause = {
       dateEmission: { gte: start, lte: end },
       ...(centreId ? { centreId } : {}),
-      statut: { notIn: ['ANNULEE', 'ARCHIVE'] },
+      statut: { notIn: ['ARCHIVE'] },
     };
 
     // Total ventes (toutes catégories confondues)
     const totalDevis = await this.prisma.facture.count({
       where: {
         ...whereClause,
-        type: { in: ['FACTURE', 'BON_COMMANDE'] },
+        type: { in: ['FACTURE', 'BON_COMMANDE', 'DEVIS'] },
       },
     });
 
@@ -256,7 +261,7 @@ export class StatsService {
     const validatedFactures = await this.prisma.facture.count({
       where: {
         ...whereClause,
-        type: { in: ['FACTURE', 'BON_COMMANDE'] },
+        type: { in: ['FACTURE', 'BON_COMMANDE', 'DEVIS'] },
         paiements: { some: {} },
       },
     });
@@ -367,16 +372,8 @@ export class StatsService {
       where: {
         dateEmission: { gte: start, lte: end },
         centreId: centreId || undefined,
-        statut: { in: this.ACTIVE_STATUSES },
+        statut: { notIn: ['ARCHIVE'] },
         type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR', 'DEVIS'] },
-        OR: [
-          { type: 'FACTURE' },
-          { type: 'BON_COMMANDE' },
-          { type: 'BON_COMM' },
-          { numero: { startsWith: 'FAC' } },
-          { type: 'AVOIR' },
-          { type: 'DEVIS' },
-        ],
       },
       select: {
         clientId: true,
@@ -480,6 +477,7 @@ export class StatsService {
       totalClients,
       activeWarehouses,
       fichesBreakdown,
+      productsBreakdown,
     ] = await Promise.all([
       this.prisma.product.count({
         where: centreId
@@ -497,6 +495,15 @@ export class StatsService {
         where: {
           client: centreId ? { centreId } : {},
         },
+        _count: { _all: true },
+      }),
+      this.prisma.product.groupBy({
+        by: ['typeArticle'],
+        where: centreId
+          ? {
+            entrepot: { centreId },
+          }
+          : {},
         _count: { _all: true },
       }),
     ]);
@@ -523,6 +530,12 @@ export class StatsService {
       else if (type === 'produit') fichesStats.produit = count;
     });
 
+    const productsStats: any = {};
+    productsBreakdown.forEach((group: any) => {
+      const type = group.typeArticle || 'NON_DÉFINI';
+      productsStats[type] = group._count?._all || 0;
+    });
+
     return {
       totalProducts,
       totalClients,
@@ -533,6 +546,7 @@ export class StatsService {
       activeWarehouses,
       conversionRate: conversionMetrics.conversionToFacture,
       fichesStats,
+      productsStats,
     };
   }
 
@@ -575,10 +589,8 @@ export class StatsService {
       const revenueDocs = await this.prisma.facture.findMany({
         where: {
           dateEmission: { gte: start, lte: end },
-          OR: [
-            { type: { in: ['FACTURE', 'BON_COMMANDE'] }, statut: { in: this.ACTIVE_STATUSES } },
-            { type: 'AVOIR' },
-          ],
+          statut: { notIn: ['ARCHIVE'] },
+          type: { in: ['FACTURE', 'BON_COMMANDE', 'DEVIS', 'AVOIR'] },
           ...(tenantId ? { centreId: tenantId } : {}),
         },
         select: {
@@ -593,7 +605,7 @@ export class StatsService {
 
       let revenue = 0;
       revenueDocs.forEach((d) => {
-        const val = d.totalHT || d.totalTTC || 0;
+        const val = d.totalTTC || d.totalHT || 0;
         if (d.type === 'AVOIR') revenue -= val;
         else revenue += val;
       });
@@ -605,7 +617,7 @@ export class StatsService {
                 JOIN "Facture" f ON m."factureId" = f."id"
                 WHERE f."dateEmission" >= ${start}
                 AND f."dateEmission" <= ${end}
-                AND ( (f."numero" LIKE 'FAC%' OR f."type" = 'FACTURE' OR f."type" = 'BON_COMMANDE') AND f."statut" IN ('VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE', 'PARTIEL') )
+                AND ( (f."numero" LIKE 'FAC%' OR f."type" IN ('FACTURE', 'BON_COMMANDE', 'DEVIS')) AND f."statut" != 'ARCHIVE' )
                 ${tenantId ? Prisma.sql`AND f."centreId" = ${tenantId}` : Prisma.sql``}
             `;
       const cogsResult = await this.prisma.$queryRaw<any[]>(cogsQuery);
@@ -844,10 +856,8 @@ export class StatsService {
       const factures = await this.prisma.facture.findMany({
         where: {
           dateEmission: { gte: start, lte: end },
-          OR: [
-            { type: { in: ['FACTURE', 'BON_COMMANDE'] }, statut: { in: this.ACTIVE_STATUSES } },
-            { type: 'AVOIR' },
-          ],
+          statut: { notIn: ['ARCHIVE'] },
+          type: { in: ['FACTURE', 'BON_COMMANDE', 'DEVIS', 'AVOIR'] },
           ...(tenantId ? { centreId: tenantId } : {}),
         },
         select: { dateEmission: true, totalHT: true, totalTTC: true, type: true },
@@ -857,7 +867,7 @@ export class StatsService {
         const key = getMonthKey(f.dateEmission);
         if (!key) return;
         if (!monthsMap.has(key)) monthsMap.set(key, { revenue: 0, cogs: 0, expenses: 0 });
-        const val = f.totalHT || f.totalTTC || 0;
+        const val = f.totalTTC || f.totalHT || 0;
         const entry = monthsMap.get(key)!;
         if (f.type === 'AVOIR') entry.revenue -= val;
         else entry.revenue += val;

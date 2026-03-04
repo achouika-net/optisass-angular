@@ -524,8 +524,8 @@ export class FacturesService implements OnModuleInit {
       },
     });
 
-    // [AUTO-REPAIR] Transition DEVIS with payments to BON_COMM
-    // This fixes legacy Devis that missed the real-time transition trigger
+    // [DISABLED] Destructive auto-repair renaming cancelled as it was overwriting imported numbers.
+    /*
     const needsRepair = factures.filter(
       (f) =>
         f.type === 'DEVIS' &&
@@ -553,6 +553,7 @@ export class FacturesService implements OnModuleInit {
         f.numero = newNumero;
       }
     }
+    */
 
     return factures;
   }

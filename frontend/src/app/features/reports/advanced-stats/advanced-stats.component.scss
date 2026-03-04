@@ -106,6 +106,30 @@
                 font-size: 1.8rem;
                 font-weight: 600;
             }
+
+            .stat-details {
+                margin-top: 0.5rem;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.4rem;
+
+                .stat-badge {
+                    font-size: 0.75rem;
+                    padding: 0.1rem 0.5rem;
+                    border-radius: 999px;
+                    background: rgba(255, 255, 255, 0.4);
+                    border: 1px solid rgba(0, 0, 0, 0.05);
+                    font-weight: 500;
+                    white-space: nowrap;
+                    transition: all 0.2s ease;
+                    cursor: default;
+
+                    &:hover {
+                        background: rgba(255, 255, 255, 0.7);
+                        transform: translateY(-1px);
+                    }
+                }
+            }
         }
 
         &.blue {

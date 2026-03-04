@@ -57,6 +57,7 @@ export interface StatsSummary {
         lentilles: number;
         produit: number;
     };
+    productsStats?: { [key: string]: number };
 }
 
 @Injectable({

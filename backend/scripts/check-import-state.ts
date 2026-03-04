@@ -3,47 +3,63 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-    const [factures, depenses, echeances, fournisseurs] = await Promise.all([
-        prisma.factureFournisseur.count(),
-        prisma.depense.count(),
-        prisma.echeancePaiement.count(),
-        prisma.fournisseur.count()
-    ]);
+    console.log("--- DB DIAGNOSIS AFTER IMPORT ---");
 
-    console.log('--- Current Counts ---');
-    console.log('FactureFournisseur:', factures);
-    console.log('Depense:', depenses);
-    console.log('EcheancePaiement:', echeances);
-    console.log('Fournisseur:', fournisseurs);
+    const ficheCount = await prisma.fiche.count();
+    const factureCount = await prisma.facture.count();
 
-    // Check how many debts are still unpaid or partially paid
-    const unpaidFactures = await prisma.factureFournisseur.count({
-        where: { statut: { in: ['A_PAYER', 'PARTIELLE'] } }
-    });
-    const unpaidDepenses = await prisma.depense.count({
-        where: { statut: { in: ['A_PAYER', 'PARTIELLE', 'EN_ATTENTE'] } }
-    });
+    console.log(`Total Fiches: ${ficheCount}`);
+    console.log(`Total Factures: ${factureCount}`);
 
-    console.log('\n--- Unpaid Debts ---');
-    console.log('Unpaid/Partial Invoices:', unpaidFactures);
-    console.log('Unpaid/Partial Expenses:', unpaidDepenses);
+    if (ficheCount > 0 && factureCount === 0) {
+        console.log("Fiches present but Factures are missing. Let's look at Fiche statuses and type.");
 
-    // Check if any "FOURNISSEUR INCONNU" exists
-    const unknownFournisseurs = await prisma.fournisseur.findMany({
-        where: { nom: { contains: 'INCONNU', mode: 'insensitive' } }
-    });
-    console.log('\n--- Unknown Suppliers Found ---');
-    unknownFournisseurs.forEach(f => console.log(`- ${f.nom} (ID: ${f.id})`));
+        const types = await prisma.fiche.groupBy({
+            by: ['type'],
+            _count: { type: true }
+        });
+        console.log("Types of Fiches:", types);
 
-    // Check for some problematic suppliers mentioned in screenshot
-    const suppliersToCheck = ['TEST', 'TOP LENS', 'MULTILENS'];
-    const specificSuppliers = await prisma.fournisseur.findMany({
-        where: { nom: { in: suppliersToCheck, mode: 'insensitive' } }
-    });
-    console.log('\n--- Target Supplier Checks ---');
-    specificSuppliers.forEach(f => console.log(`- Found: ${f.nom}`));
+        const recentFiches = await prisma.fiche.findMany({
+            orderBy: { dateCreation: 'desc' },
+            take: 20
+        });
+        console.log("Recent Fiches Sample:");
+        recentFiches.forEach(f => {
+            // Log properties extracted from JSON if they exist to debug logic 
+            const hasAmount = f.montantTotal;
+            const content: any = typeof f.content === 'object' ? f.content : {};
+            console.log(` - Fiche ${f.numero}: type ${f.type}, statut ${f.statut}, Valide (JSON)? ${content?.valide}, Facture (JSON)? ${content?.facture}`);
+        });
+    } else {
+        const recentFactures = await prisma.facture.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 10
+        });
+        console.log("Factures found:", recentFactures.length, ". Expected roughly: 13000");
 
-    process.exit(0);
+        const recentFiches = await prisma.fiche.findMany({
+            orderBy: { dateCreation: 'desc' },
+            take: 10
+        });
+        console.log("Looking at top 10 fiches to see their type and if they should be Factures but weren't:");
+        recentFiches.forEach(f => {
+            const content: any = typeof f.content === 'object' ? f.content : {};
+            const isFauxValide = ['faux', 'false', 'non', 'no', '0'].includes(String(content?.valide ?? '').toLowerCase().trim());
+            const isValide = !isFauxValide;
+            const isFacture = ['vrai', 'true', 'oui', 'yes', '1'].includes(String(content?.facture ?? '').toLowerCase().trim());
+
+            console.log(` - Fiche ${f.numero}: DBtype: ${f.type}, DBstatut: ${f.statut}, JSON[valide]: ${content?.valide}, JSON[facture]: ${content?.facture} -> Code calculated isValide=${isValide}, isFacture=${isFacture}`);
+        });
+
+    }
 }
 
-main();
+main()
+    .catch((e) => {
+        console.error(e);
+        process.exit(1);
+    })
+    .finally(async () => {
+        await prisma.$disconnect();
+    });
