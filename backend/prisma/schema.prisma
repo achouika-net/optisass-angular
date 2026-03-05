@@ -110,6 +110,9 @@ model Facture {
 
   @@index([centreId])
   @@index([vendeurId])
+  @@index([dateEmission])
+  @@index([type])
+  @@index([statut])
 }
 
 model Paiement {
