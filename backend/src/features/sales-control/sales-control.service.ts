@@ -193,7 +193,14 @@ export class SalesControlService {
     centreId?: string,
     startDate?: string,
     endDate?: string,
-  ) {
+  ): Promise<{
+    withPayments: any[];
+    withoutPayments: any[];
+    valid: any[];
+    avoirs: any[];
+    stats: any[];
+    payments: any[];
+  }> {
     if (!centreId) {
       return {
         withPayments: [],
@@ -214,10 +221,24 @@ export class SalesControlService {
     const paymentDateFilter =
       start || end ? { date: { gte: start, lte: end } } : {};
 
+    // First, get the ficheIds of all real Factures in this period to avoid double counting BCs
+    const facturesWithFiche = await this.prisma.facture.findMany({
+      where: {
+        centreId,
+        type: 'FACTURE',
+        ficheId: { not: null },
+        ...dateFilter,
+      },
+      select: { ficheId: true },
+    });
+    const factureFicheIds = facturesWithFiche
+      .map((f) => f.ficheId)
+      .filter((id): id is string => !!id);
+
     const [
-      factureMetrics,
-      bcMetrics,
-      avoirMetrics,
+      factureAgg,
+      bcAgg,
+      avoirAgg,
       devisCount,
       withPayments,
       withoutPayments,
@@ -225,24 +246,27 @@ export class SalesControlService {
       avoirs,
       paymentAgg,
     ] = await Promise.all([
-      // Valid Factures to extract ficheIds (We need the factures metrics too now since we replaced its aggregate)
-      this.prisma.facture.findMany({
+      // Factures Metrics
+      this.prisma.facture.aggregate({
+        _sum: { totalTTC: true, resteAPayer: true },
+        _count: { _all: true },
         where: {
           centreId,
           type: 'FACTURE',
           ...dateFilter,
         },
-        select: { totalTTC: true, resteAPayer: true, ficheId: true },
       }),
-      // Raw BCs to filter against Factures
-      this.prisma.facture.findMany({
+      // BC Metrics (Excluding those with a corresponding Facture)
+      this.prisma.facture.aggregate({
+        _sum: { totalTTC: true, resteAPayer: true },
+        _count: { _all: true },
         where: {
           centreId,
           type: { in: ['BON_COMMANDE', 'BON_COMM'] },
-          statut: { notIn: ['ARCHIVE'] },
+          statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
+          ficheId: { notIn: factureFicheIds },
           ...dateFilter,
         },
-        select: { totalTTC: true, resteAPayer: true, ficheId: true },
       }),
       // Avoirs Metrics
       this.prisma.facture.aggregate({
@@ -251,17 +275,17 @@ export class SalesControlService {
         where: {
           centreId,
           type: 'AVOIR',
-          statut: { notIn: ['ARCHIVE'] },
+          statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
           ...dateFilter,
         },
       }),
-      // Devis Count (Tab 2) - Simplified count for badge
+      // Devis Count (Tab 2)
       this.prisma.facture.count({
         where: {
           centreId,
-          statut: { notIn: ['ARCHIVE', 'VENTE_EN_INSTANCE'] },
+          statut: { notIn: ['ARCHIVE', 'ANNULEE', 'VENTE_EN_INSTANCE'] },
           paiements: { none: {} },
-          type: { notIn: ['BON_COMMANDE', 'BON_COMM'] },
+          type: { notIn: ['BON_COMMANDE', 'BON_COMM', 'FACTURE', 'AVOIR'] },
           numero: { not: { startsWith: 'BC' } },
           ...dateFilter,
         },
@@ -272,58 +296,46 @@ export class SalesControlService {
       this.getBrouillonWithoutPayments(userId, centreId, startDate, endDate, 10),
       this.getValidInvoices(userId, centreId, startDate, endDate, 10),
       this.getAvoirs(userId, centreId, startDate, endDate, 10),
-      // Payments Breakdown
-      this.prisma.paiement.findMany({
+
+      // Payments Breakdown (Aggregated by mode)
+      this.prisma.paiement.groupBy({
+        by: ['mode'],
+        _sum: { montant: true },
         where: {
-          ...paymentDateFilter,
+          date: paymentDateFilter.date,
           facture: { centreId },
+          statut: { not: 'ANNULE' },
         },
-        select: { mode: true, montant: true },
       }),
     ]);
 
-    // Filter out BCs that share a ficheId with a valid facture
-    const facturesFicheIds = new Set(
-      factureMetrics.map((f: any) => f.ficheId).filter((id: string | null) => id)
-    );
-    const validStandaloneBCs = bcMetrics.filter(
-      (bc: any) => !bc.ficheId || !facturesFicheIds.has(bc.ficheId)
-    );
-
-    const totalFactures = factureMetrics.reduce((sum: number, f: any) => sum + (f.totalTTC || 0), 0);
-    const totalAvoirs = avoirMetrics._sum.totalTTC || 0;
-    const totalBC = validStandaloneBCs.reduce((sum: number, bc: any) => sum + (bc.totalTTC || 0), 0);
+    const totalFactures = factureAgg._sum.totalTTC || 0;
+    const totalAvoirs = avoirAgg._sum.totalTTC || 0;
+    const totalBC = bcAgg._sum.totalTTC || 0;
 
     // CA Global = Factures + BC - Avoirs
     const totalAmount = totalFactures + totalBC - totalAvoirs;
 
-    const totalFacturesReste = factureMetrics.reduce((sum: number, f: any) => sum + (f.resteAPayer || 0), 0);
-    const totalBMReste = validStandaloneBCs.reduce((sum: number, bc: any) => sum + (bc.resteAPayer || 0), 0);
-    const totalAvoirsReste = avoirMetrics._sum.resteAPayer || 0;
+    const totalFacturesReste = factureAgg._sum.resteAPayer || 0;
+    const totalBMReste = bcAgg._sum.resteAPayer || 0;
+    const totalAvoirsReste = avoirAgg._sum.resteAPayer || 0;
     const totalReste = totalFacturesReste + totalBMReste - totalAvoirsReste;
 
-    const paymentMap = new Map<string, number>();
-    for (const p of paymentAgg as { mode: string; montant: number }[]) {
-      const m = p.mode || 'AUTRE';
-      paymentMap.set(m, (paymentMap.get(m) || 0) + p.montant);
-    }
+    const payments = paymentAgg.map((p) => ({
+      methode: p.mode || 'AUTRE',
+      total: p._sum.montant || 0,
+    }));
 
-    const payments = Array.from(paymentMap.entries()).map(
-      ([methode, total]) => ({
-        methode,
-        total,
-      }),
-    );
     const totalEncaissePeriod = payments.reduce((sum, p) => sum + p.total, 0);
 
     const stats = [
       {
         vendorId: 'all',
         vendorName: 'Tous les vendeurs',
-        countValid: factureMetrics.length,
-        countWithPayment: validStandaloneBCs.length,
+        countValid: factureAgg._count._all,
+        countWithPayment: bcAgg._count._all,
         countWithoutPayment: devisCount,
-        countAvoir: avoirMetrics._count._all,
+        countAvoir: avoirAgg._count._all,
         totalAmount,
         totalFactures,
         totalAvoirs,

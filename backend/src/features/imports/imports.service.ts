@@ -362,20 +362,71 @@ export class ImportsService {
       const UPDATE_BATCH_SIZE = 15;
       for (let i = 0; i < clientsToUpdate.length; i += UPDATE_BATCH_SIZE) {
         const batch = clientsToUpdate.slice(i, i + UPDATE_BATCH_SIZE);
-        await Promise.all(
-          batch.map((upd) =>
-            this.prisma.client.update({
+        const updatePromises = batch.map((upd) =>
+          this.prisma.client
+            .update({
               where: { id: upd.id },
               data: upd.data,
+            })
+            .then(() => {
+              results.updated++;
+              results.success++;
+            })
+            .catch((err) => {
+              console.error(`Update failed for client ID ${upd.id}:`, err.message);
+              results.failed++;
+              results.errors.push(`Client ID ${upd.id}: ${err.message}`);
             }),
-          ),
         );
-        results.updated += batch.length;
-        results.success += batch.length;
+        await Promise.all(updatePromises);
       }
     }
 
     return results;
+  }
+
+  private robustParseFicheNumber(val: any): number | null {
+    if (val === undefined || val === null || val === '') return null;
+    const str = String(val).trim();
+    if (!str) return null;
+
+    const parts = str.split(/[^0-9]/).filter((p) => p.length > 0);
+    if (parts.length === 0) return null;
+
+    let seq = parseInt(parts[0]);
+    let year = 0;
+
+    if (parts.length > 1) {
+      const p1 = parseInt(parts[0]);
+      const p2 = parseInt(parts[1]);
+
+      // Heuristic for Year detection (e.g. 123/2024 or 2024/123 or 123/24)
+      if (p1 >= 1900 && p1 < 2100) {
+        year = p1 % 100;
+        seq = p2;
+      } else if (p2 >= 1900 && p2 < 2100) {
+        year = p2 % 100;
+        seq = p1;
+      } else if (p1 >= 20 && p1 < 50 && p2 > 50) {
+        // e.g. 24/532 -> Year is 24, Seq is 532
+        year = p1;
+        seq = p2;
+      } else if (p2 >= 20 && p2 < 50) {
+        // e.g. 532/24 -> Year is 24, Seq is 532
+        year = p2;
+        seq = p1;
+      } else {
+        // Standard fallback: parts[1] is year
+        year = p2 % 100;
+        seq = p1;
+      }
+    }
+
+    if (year > 0) {
+      // Encode as YY-NNNNNN
+      return year * 1000000 + (seq % 1000000);
+    }
+    return seq;
   }
 
   private parseAmount(v: any): number {
@@ -1418,19 +1469,7 @@ export class ImportsService {
           }
 
           // ROBUST NUMERO PARSING FOR FICHE
-          // e.g. "158/2019" -> 100158 (if we want uniqueness) or just 158?
-          // Let's stick to the same logic as Sales Import: Extract first valid number.
-          let ficheNumero: number | undefined;
-          const rawFicheNum = pm.numero || pm.fiche_id || pm.numero_fiche;
-          if (rawFicheNum) {
-            const parts = String(rawFicheNum)
-              .split(/[^0-9]/)
-              .filter((p) => p.length > 0);
-            if (parts.length > 0) {
-              const parsed = parseInt(parts[0]);
-              if (!isNaN(parsed)) ficheNumero = parsed;
-            }
-          }
+          const ficheNumero = this.robustParseFicheNumber(pm.numero || pm.fiche_id || pm.numero_fiche);
 
           // Use the parsed number if available, otherwise let the DB auto-increment (by not providing it?)
           // Prisma createMany doesn't support omitting auto-increment fields easily if we mix them?
@@ -1493,15 +1532,14 @@ export class ImportsService {
             ) {
               invoiceNumero = `IMP-${docType}-${Date.now()}-${groupIndex}`;
             } else {
-              // Standardize prefixes based on user's request for reconciliation
-              // Force clean numeric part based on the Fiche Number if available, else clean the raw string
-              const numPart = ficheNumero
-                ? String(ficheNumero)
-                : String(invoiceNumero).replace(/[^0-9]/g, '');
+              // PRESERVE the full number string (e.g. 123/2024) to ensure uniqueness in the String-type Facture table
+              let cleanNum = String(invoiceNumero).trim();
 
               // Apply the calculated prefix ONLY if docType isn't DEVIS
-              if (docType !== 'DEVIS') {
-                invoiceNumero = `${finalPrefix}${numPart || invoiceNumero}`;
+              if (docType !== 'DEVIS' && !cleanNum.startsWith(finalPrefix)) {
+                invoiceNumero = `${finalPrefix}${cleanNum}`;
+              } else {
+                invoiceNumero = cleanNum;
               }
             }
 
@@ -1654,7 +1692,7 @@ export class ImportsService {
       console.log(`🚀 Bulk inserting ${facturesToCreate.length} factures...`);
       try {
         await this.prisma.facture.createMany({
-          data: facturesToCreate.map(({ _acompte, ...rest }) => rest),
+          data: facturesToCreate.map(({ _acompte, ...rest }: any) => rest),
           skipDuplicates: true,
         });
 
@@ -2870,12 +2908,15 @@ export class ImportsService {
 
     // Bulk pre-fetch existing factures and fiches
     const factureNums = data
-      .filter((row) => row[mapping.numero])
-      .map((row) => String(row[mapping.numero]).trim());
-    const ficheNums = data
-      .map((row) =>
-        Number(row['Fiche'] || row['fiche'] || row[mapping.fiche_id]),
-      )
+      .filter((row) => row[mapping.numero] || row['Fiche'] || row['fiche'] || row[mapping.fiche_id])
+      .map((row) => String(row[mapping.numero] || row['Fiche'] || row['fiche'] || row[mapping.fiche_id]).trim());
+
+    const ficheNums: number[] = data
+      .map((row) => {
+        const val = row['Fiche'] || row['fiche'] || row[mapping.fiche_id];
+        if (!val) return NaN;
+        return this.robustParseFicheNumber(val) || NaN;
+      })
       .filter((n) => !isNaN(n));
 
     const existingFactures: any[] = [];
@@ -2885,27 +2926,12 @@ export class ImportsService {
         where: {
           OR: [
             { numero: { in: chunk } },
-            { numero: { in: chunk.map((n) => `FAC-${n}`) } },
             { numero: { in: chunk.map((n) => `Fact-${n}`) } },
             { numero: { in: chunk.map((n) => `BC-${n}`) } },
             {
               numero: {
                 in: chunk.map((n) =>
-                  n.startsWith('FAC-') ? n.replace(/^FAC-/, '') : n,
-                ),
-              },
-            },
-            {
-              numero: {
-                in: chunk.map((n) =>
-                  n.startsWith('Fact-') ? n.replace(/^Fact-/, '') : n,
-                ),
-              },
-            },
-            {
-              numero: {
-                in: chunk.map((n) =>
-                  n.startsWith('BC-') ? n.replace(/^BC-/, '') : n,
+                  n.startsWith('Fact-') ? n.replace(/^Fact-/, '') : n.startsWith('BC-') ? n.replace(/^BC-/, '') : n,
                 ),
               },
             },
@@ -2916,10 +2942,31 @@ export class ImportsService {
     }
     const factureLookupMap = new Map();
     existingFactures.forEach((f) => {
+      // 1. Direct match
       factureLookupMap.set(f.numero, f);
-      if (f.numero.startsWith('FAC-'))
-        factureLookupMap.set(f.numero.replace(/^FAC-/, ''), f);
-      else factureLookupMap.set(`FAC-${f.numero}`, f);
+
+      // 2. Simple numeric part normalization
+      const simpleNum = f.numero.replace(/^(Fact-|BC-|FAC-)/, '');
+      if (!factureLookupMap.has(simpleNum)) factureLookupMap.set(simpleNum, f);
+
+      const parts = simpleNum.split(/[^0-9]/).filter(p => p.length > 0);
+      if (parts.length > 0) {
+        const pureNum = parts[0];
+        const year = parts.length > 1 ? parts[1] : null;
+
+        if (!factureLookupMap.has(pureNum)) factureLookupMap.set(pureNum, f);
+
+        // Match with Year if available (precise across years)
+        if (year) {
+          factureLookupMap.set(`${year}_${pureNum}`, f);
+          const shortYear = year.length === 4 ? year.substring(2) : year;
+          factureLookupMap.set(`${shortYear}_${pureNum}`, f);
+        }
+
+        // Map with prefixes too
+        if (!factureLookupMap.has(`Fact-${pureNum}`)) factureLookupMap.set(`Fact-${pureNum}`, f);
+        if (!factureLookupMap.has(`BC-${pureNum}`)) factureLookupMap.set(`BC-${pureNum}`, f);
+      }
     });
 
     const existingFiches = await this.prisma.fiche.findMany({
@@ -2939,6 +2986,22 @@ export class ImportsService {
         },
       },
     });
+
+    existingFiches.forEach((f) => {
+      if (f.numero) {
+        const numStr = String(f.numero);
+        // Map the Fiche number directly to its linked Facture
+        if (f.facture && !factureLookupMap.has(numStr)) {
+          factureLookupMap.set(numStr, f.facture);
+        }
+        // Also map the robustly parsed fiche number to its facture
+        const robustFicheNum = this.robustParseFicheNumber(f.numero);
+        if (robustFicheNum && f.facture && !factureLookupMap.has(robustFicheNum)) {
+          factureLookupMap.set(robustFicheNum, f.facture);
+        }
+      }
+    });
+
     const ficheLookupMap = new Map();
     existingFiches.forEach((f) => {
       if (f.numero) ficheLookupMap.set(Number(f.numero), f);
@@ -2980,9 +3043,10 @@ export class ImportsService {
         if (!client && nomClient)
           client = clientByName.get(nomClient.toLowerCase().trim()) || null;
 
-        const inputFicheNum = Number(
-          row['Fiche'] || row['fiche'] || row[mapping.fiche_id],
-        );
+        // ROBUST NUMERO PARSING
+        const rawFicheRef = row['Fiche'] || row['fiche'] || row[mapping.fiche_id];
+        const inputFicheNum = this.robustParseFicheNumber(rawFicheRef) || NaN;
+
         let existingFacture = factureLookupMap.get(numero);
         let linkedFiche: any = null;
 
@@ -2991,6 +3055,27 @@ export class ImportsService {
           if (linkedFiche && linkedFiche.facture) {
             existingFacture = linkedFiche.facture;
           }
+        }
+
+        // IMPROVED MATCHING: Try exact string, prefixed strings, and encoded num
+        if (!existingFacture) {
+          // Extract first numeric part (consistent with importFiches)
+          let numericPartStr = '';
+          const parts = numero.split(/[^0-9]/).filter((p) => p.length > 0);
+          if (parts.length > 0) {
+            numericPartStr = parts[0];
+          }
+          const dateEmissionForYear = this.parseDate(row[mapping.dateEmission]) || new Date();
+          const yearSuffix = dateEmissionForYear.getFullYear().toString().substring(2);
+
+          existingFacture =
+            factureLookupMap.get(`Fact-${numero}`) ||
+            factureLookupMap.get(`BC-${numero}`) ||
+            factureLookupMap.get(numericPartStr) ||
+            factureLookupMap.get(`Fact-${numericPartStr}`) ||
+            factureLookupMap.get(`BC-${numericPartStr}`) ||
+            factureLookupMap.get(`${yearSuffix}_${numericPartStr}`) ||
+            factureLookupMap.get(inputFicheNum); // Check robustly parsed fiche number directly
         }
 
         let clientId = client ? client.id : null;
@@ -3009,32 +3094,26 @@ export class ImportsService {
         const totalHT = totalTTC / 1.2;
         const totalTVA = totalTTC - totalHT;
 
-        const factureData: any = {
-          numero,
-          type: 'FACTURE',
-          statut: 'PAYEE',
-          dateEmission: this.parseDate(row[mapping.dateEmission]) || new Date(),
-          clientId,
-          totalHT,
-          totalTVA,
-          totalTTC,
-          resteAPayer: totalTTC,
-          lignes: [],
-          centreId: centreId || null,
-        };
+        // RESTORE THE FACT- PREFIX LOGIC
+        let invoiceNumero = numero;
+        if (!invoiceNumero.startsWith('Fact-') && !invoiceNumero.startsWith('BC-')) {
+          invoiceNumero = `Fact-${invoiceNumero}`;
+        }
 
         if (existingFacture) {
-          const alreadyPaid =
-            existingFacture.totalTTC - existingFacture.resteAPayer;
+          // STRICT UPDATE: ONLY update the numero field.
+          // The user specifically asked not to touch amounts, types, or lines.
           facturesToUpdate.push({
             id: existingFacture.id,
             data: {
-              ...factureData,
-              resteAPayer: Math.max(0, totalTTC - alreadyPaid),
+              numero: invoiceNumero,
             },
           });
+          results.success++;
         } else {
-          facturesToCreate.push(factureData);
+          // User said "changer et non pas ajouter". We log a warning if not found.
+          results.failed++;
+          results.errors.push(`Row ${index + 1}: Aucun document correspondant trouvé pour le Dossier ${rawFicheRef || numero}`);
         }
       } catch (error) {
         results.failed++;
@@ -3051,19 +3130,23 @@ export class ImportsService {
     }
 
     if (facturesToUpdate.length > 0) {
-      const BATCH_SIZE = 15;
+      const BATCH_SIZE = 10;
       for (let i = 0; i < facturesToUpdate.length; i += BATCH_SIZE) {
         const batch = facturesToUpdate.slice(i, i + BATCH_SIZE);
-        await Promise.all(
-          batch.map((upd) =>
-            this.prisma.facture.update({
+        // Process sequentially to avoid DB connection exhaustion
+        for (const upd of batch) {
+          try {
+            await this.prisma.facture.update({
               where: { id: upd.id },
               data: upd.data,
-            }),
-          ),
-        );
-        results.updated += batch.length;
-        results.success += batch.length;
+            });
+            results.updated++;
+            results.success++;
+          } catch (updErr) {
+            console.error(`Row Update Fail: ${upd.id}`, updErr);
+            results.failed++;
+          }
+        }
       }
     }
 
