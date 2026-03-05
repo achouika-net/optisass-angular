@@ -1,0 +1,41 @@
+{
+  "message": "\nInvalid `this.prisma.facture.createMany()` invocation in\n/app/src/features/imports/imports.service.ts:1695:35\n\n  1692 if (facturesToCreate.length > 0) {\n  1693   console.log(`🚀 Bulk inserting ${facturesToCreate.length} factures...`);\n  1694   try {\n→ 1695     await this.prisma.facture.createMany(\nForeign key constraint violated on the constraint: `Facture_ficheId_fkey`",
+  "name": "PrismaClientKnownRequestError",
+  "code": "P2003",
+  "meta": {
+    "modelName": "Facture",
+    "constraint": "Facture_ficheId_fkey"
+  },
+  "firstFacture": {
+    "id": "43885968-f044-441f-82ae-f8b244f85a17",
+    "numero": "BC-3215",
+    "type": "BON_COMM",
+    "statut": "VENTE_EN_INSTANCE",
+    "clientId": "f4f410ce-4c1d-41ef-9ff1-6060fcdd55ee",
+    "ficheId": "3071b0e6-5aed-45a1-b10b-54c2901c7708",
+    "centreId": "6df7de62-498e-4784-b22f-7bbccc7fea36",
+    "dateEmission": "2015-01-21T00:00:00.000Z",
+    "totalHT": 575,
+    "totalTVA": 115,
+    "totalTTC": 690,
+    "resteAPayer": 0,
+    "_acompte": 690,
+    "lignes": [
+      {
+        "description": "Lentilles de contact",
+        "qte": 1,
+        "prixUnitaireTTC": 800,
+        "remise": 0,
+        "totalTTC": 800
+      },
+      {
+        "description": "OPTIFREE/355ML",
+        "qte": 1,
+        "prixUnitaireTTC": 120,
+        "remise": 0,
+        "totalTTC": 120
+      }
+    ],
+    "proprietes": {}
+  }
+}

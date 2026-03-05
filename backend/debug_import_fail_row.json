@@ -1,28 +1,27 @@
 {
-  "row": 700,
+  "row": 267,
   "productData": {
-    "typeArticle": "MON",
+    "typeArticle": "",
     "statut": "ACTIF",
-    "entrepotId": "244c6e7d-bd55-4d54-bef4-966a52de7e21",
+    "entrepotId": "9a2a989a-a3cc-4fa4-952c-f317375dd59a",
     "utilisateurCreation": "IMPORT_SYSTEM",
-    "seuilAlerte": 0,
-    "codeInterne": "1987",
-    "codeBarres": "919871000000",
-    "referenceFournisseur": "ABLENS",
-    "marque": "OLIVITO",
-    "modele": "OL 450-13  52-17 COL04",
-    "couleur": "MARON",
-    "famille": "Mixte",
-    "sousFamille": "Acétate",
-    "fournisseurPrincipal": "ABLENS",
-    "prixAchatHT": 216,
-    "prixVenteHT": 750,
-    "prixVenteTTC": 750,
-    "quantiteActuelle": 0,
+    "seuilAlerte": 599,
+    "codeInterne": "",
+    "codeBarres": "",
+    "marque": "",
+    "modele": "",
+    "couleur": "",
+    "famille": "",
+    "sousFamille": "",
+    "fournisseurPrincipal": "",
+    "prixAchatHT": 1165728.920455805,
+    "prixVenteHT": 0,
+    "prixVenteTTC": 0,
+    "quantiteActuelle": 599,
+    "photo": "",
     "specificData": {
-      "cerclage": "Cerclée"
-    },
-    "designation": "OLIVITO OL 450-13  52-17 COL04"
+      "cerclage": ""
+    }
   },
-  "error": "\nInvalid `this.prisma.product.create()` invocation in\n/app/src/features/imports/imports.service.ts:161:43\n\n  158     productData.codeBarres = productData.codeInterne;\n  159 }\n  160 \n→ 161 await this.prisma.product.create(\nUnique constraint failed on the fields: (`codeBarres`,`entrepotId`)"
+  "error": "Designation is required (Marque/Modèle missing?)"
 }

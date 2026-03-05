@@ -70,6 +70,11 @@ model Fiche {
   supplierInvoices     FactureFournisseur[]
   bonsLivraison        BonLivraison[]
   client               Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([dateCreation])
+  @@index([statut])
+  @@index([type])
 }
 
 model Facture {
@@ -317,6 +322,9 @@ model PointsHistory {
   createdAt   DateTime @default(now())
   client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   facture     Facture? @relation(fields: [factureId], references: [id])
+
+  @@index([clientId])
+  @@index([factureId])
 }
 
 model LoyaltyConfig {

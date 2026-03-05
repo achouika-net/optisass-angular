@@ -945,10 +945,10 @@ export class ImportsService {
 
           const existing = await this.prisma.fiche.findMany({
             where: { OR: chunk as any },
-            select: { id: true, numero: true, clientId: true }, // DO NOT LOAD CONTENT HERE
+            select: { id: true, numero: true, clientId: true },
           });
           existing.forEach((ex) =>
-            ficheLookupMap.set(`${ex.clientId}_${Number(ex.numero)}`, ex),
+            ficheLookupMap.set(`${ex.clientId}_${String(ex.numero).trim()}`, ex),
           );
         }
         log(`Found ${ficheLookupMap.size} existing Fiches in the database.`);
@@ -1452,7 +1452,7 @@ export class ImportsService {
               docStatut = 'VALIDE';
               finalPrefix = 'Fact-';
             } else {
-              docType = 'BON_COMM';
+              docType = 'BON_COMMANDE';
               docStatut = 'VENTE_EN_INSTANCE';
               finalPrefix = 'BC-';
             }
@@ -1496,7 +1496,7 @@ export class ImportsService {
           let existingFiche: any = null;
           if (ficheNumero && clientId) {
             existingFiche = ficheLookupMap.get(
-              `${clientId}_${Number(ficheNumero)}`,
+              `${clientId}_${String(ficheNumero).trim()}`,
             );
           }
 
@@ -1508,7 +1508,7 @@ export class ImportsService {
             fichesToCreate.push(ficheObject);
             // Add new fiche to the lookup map so subsequent rows in the *same* import batch find it
             if (ficheNumero && clientId) {
-              ficheLookupMap.set(`${clientId}_${Number(ficheNumero)}`, ficheObject);
+              ficheLookupMap.set(`${clientId}_${String(ficheNumero).trim()}`, ficheObject);
             }
           }
           // ─────────────────────────────────────────────────────────────
@@ -1670,70 +1670,55 @@ export class ImportsService {
       results.errors.push(`Erreur Critique: ${globalError.message} `);
     }
     console.log(
-      `🚀 Bulk inserting ${fichesToCreate.length} fiches and ${facturesToCreate.length} factures...`,
+      `🚀 Sequential bulk inserting ${fichesToCreate.length} fiches then ${facturesToCreate.length} factures...`,
     );
-    // Increased chunk size for faster throughput
+
+    // 1. Insert Fiches FIRST and WAIT for completion
     const CHUNK_SIZE = 5000;
     for (let i = 0; i < fichesToCreate.length; i += CHUNK_SIZE) {
       const ficheChunk = fichesToCreate.slice(i, i + CHUNK_SIZE);
-
       try {
-        await this.prisma.fiche.createMany({
+        const result = await this.prisma.fiche.createMany({
           data: ficheChunk,
           skipDuplicates: true,
         });
-      } catch (ficheErr) {
-        console.error('Fiche chunk insert error:', (ficheErr as Error).message);
+        console.log(`   [Fiches] Chunk ${i / CHUNK_SIZE + 1}: Requested ${ficheChunk.length}, Persisted ${result.count}`);
+      } catch (ficheErr: any) {
+        console.error('❌ Fiche chunk insert error:', ficheErr.message);
       }
     }
 
-    // Insert Factures via lightning-fast bulk insert
+    // 2. Insert Factures ONLY after all Fiches are done
     if (facturesToCreate.length > 0) {
-      console.log(`🚀 Bulk inserting ${facturesToCreate.length} factures...`);
-      try {
-        await this.prisma.facture.createMany({
-          data: facturesToCreate.map(({ _acompte, ...rest }: any) => rest),
-          skipDuplicates: true,
-        });
-
-        // Fire Loyalty Points Asynchronously in background without blocking
-        setTimeout(() => {
-          const BATCH_SIZE = 10;
-          let i = 0;
-          const processBatch = async () => {
-            if (i >= facturesToCreate.length) return;
-            const batch = facturesToCreate.slice(i, i + BATCH_SIZE);
-            await Promise.all(
-              batch.map((f) =>
-                this.loyaltyService
-                  .awardPointsForPurchase(f.id)
-                  .catch((e) => console.warn(`Loyalty err ${f.id}`, e)),
-              ),
-            );
-            i += BATCH_SIZE;
-            // Schedule next batch, don't block
-            setTimeout(processBatch, 20);
-          };
-          processBatch().catch((e) =>
-            console.error('Bulk loyalty loop err:', e),
-          );
-        }, 100);
-      } catch (factureErr: any) {
-        console.error(
-          '❌ Facture chunk insert error:',
-          factureErr.message,
-        );
+      console.log(`🚀 Inserting ${facturesToCreate.length} factures...`);
+      for (let i = 0; i < facturesToCreate.length; i += CHUNK_SIZE) {
+        const factureChunk = facturesToCreate.slice(i, i + CHUNK_SIZE);
         try {
-          const fs = require('fs');
-          fs.writeFileSync('facture-error-dump.json', JSON.stringify({
-            message: factureErr.message,
-            name: factureErr.name,
-            code: factureErr.code,
-            meta: factureErr.meta,
-            firstFacture: facturesToCreate[0]
-          }, null, 2));
-        } catch (e) { }
+          const result = await this.prisma.facture.createMany({
+            data: factureChunk.map(({ _acompte, ...rest }: any) => rest),
+            skipDuplicates: true,
+          });
+          console.log(`   [Factures] Chunk ${i / CHUNK_SIZE + 1}: Requested ${factureChunk.length}, Persisted ${result.count}`);
+        } catch (factureErr: any) {
+          console.error('❌ Facture chunk insert error:', factureErr.message);
+          // Log specific error for debugging
+          try {
+            const fs = require('fs');
+            fs.writeFileSync('facture-error-dump.json', JSON.stringify({
+              message: factureErr.message,
+              code: factureErr.code,
+              meta: factureErr.meta,
+              sample: factureChunk[0]
+            }, null, 2));
+          } catch (e) { }
+        }
       }
+
+      // NOTE: Loyalty points are NOT awarded during bulk import to prevent DB saturation.
+      // With thousands of invoices, awarding points individually would issue tens of thousands
+      // of transactions, overwhelming the connection pool.
+      // Loyalty points should be awarded individually when invoices are created one-by-one in normal use.
+      console.log(`✅ Skipping loyalty points for bulk import (${facturesToCreate.length} factures).`);
     }
 
     // --- NEW: Process acompte into Paiement records for all created factures ---
