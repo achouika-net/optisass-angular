@@ -211,7 +211,8 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <ng-container *ngFor="let group of getLimitedGroups(groupedWithPayment)">
+                            <ng-container
+                                *ngFor="let group of getPaginatedGroups(groupedWithPayment, bcPageIndex, bcPageSize)">
                                 <tr class="group-header">
                                     <td colspan="7">
                                         <div class="header-content">
@@ -220,7 +221,7 @@
                                         </div>
                                     </td>
                                 </tr>
-                                <tr *ngFor="let invoice of group.invoices | slice:0:10" class="data-row">
+                                <tr *ngFor="let invoice of group.invoices" class="data-row">
                                     <td>
                                         <div style="display: flex; align-items: center; gap: 8px;">
                                             <span
@@ -283,6 +284,12 @@
                         </tbody>
                     </table>
                 </div>
+                <div class="border-t border-gray-100 mt-4">
+                    <mat-paginator [length]="invoicesWithPayment.length" [pageSize]="bcPageSize"
+                        [pageIndex]="bcPageIndex" [pageSizeOptions]="pageSizeOptions"
+                        (page)="onPageChange($event, 'bc')" showFirstLastButtons aria-label="Sélectionner la page">
+                    </mat-paginator>
+                </div>
             </div>
         </mat-tab>
 
@@ -309,7 +316,8 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let invoice of invoicesValid | slice:0:10" class="data-row">
+                            <tr *ngFor="let invoice of invoicesValid | slice:(facturesPageIndex * facturesPageSize):((facturesPageIndex + 1) * facturesPageSize)"
+                                class="data-row">
                                 <td class="font-bold">{{ invoice.numero }}</td>
                                 <td>{{ getClientName(invoice) }}</td>
                                 <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
@@ -345,6 +353,13 @@
                         </tbody>
                     </table>
                 </div>
+                <div class="border-t border-gray-100 mt-4">
+                    <mat-paginator [length]="invoicesValid.length" [pageSize]="facturesPageSize"
+                        [pageIndex]="facturesPageIndex" [pageSizeOptions]="pageSizeOptions"
+                        (page)="onPageChange($event, 'factures')" showFirstLastButtons
+                        aria-label="Sélectionner la page">
+                    </mat-paginator>
+                </div>
             </div>
         </mat-tab>
 
@@ -369,7 +384,8 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let invoice of invoicesWithoutPayment | slice:0:10" class="data-row">
+                            <tr *ngFor="let invoice of invoicesWithoutPayment | slice:(devisPageIndex * devisPageSize):((devisPageIndex + 1) * devisPageSize)"
+                                class="data-row">
                                 <td>{{ invoice.numero }}</td>
                                 <td>{{ getClientName(invoice) }}</td>
                                 <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
@@ -389,6 +405,12 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+                <div class="border-t border-gray-100 mt-4">
+                    <mat-paginator [length]="invoicesWithoutPayment.length" [pageSize]="devisPageSize"
+                        [pageIndex]="devisPageIndex" [pageSizeOptions]="pageSizeOptions"
+                        (page)="onPageChange($event, 'devis')" showFirstLastButtons aria-label="Sélectionner la page">
+                    </mat-paginator>
                 </div>
             </div>
         </mat-tab>
@@ -414,7 +436,8 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let invoice of invoicesAvoir | slice:0:10" class="data-row">
+                            <tr *ngFor="let invoice of invoicesAvoir | slice:(avoirsPageIndex * avoirsPageSize):((avoirsPageIndex + 1) * avoirsPageSize)"
+                                class="data-row">
                                 <td class="font-bold text-danger">{{ invoice.numero }}</td>
                                 <td>{{ invoice.parentFacture?.numero || '-' }}</td>
                                 <td>{{ getClientName(invoice) }}</td>
@@ -428,6 +451,12 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+                <div class="border-t border-gray-100 mt-4">
+                    <mat-paginator [length]="invoicesAvoir.length" [pageSize]="avoirsPageSize"
+                        [pageIndex]="avoirsPageIndex" [pageSizeOptions]="pageSizeOptions"
+                        (page)="onPageChange($event, 'avoirs')" showFirstLastButtons aria-label="Sélectionner la page">
+                    </mat-paginator>
                 </div>
             </div>
         </mat-tab>

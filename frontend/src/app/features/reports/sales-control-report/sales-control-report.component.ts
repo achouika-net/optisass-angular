@@ -11,6 +11,7 @@ import { SalesControlService, BrouillonInvoice, VendorStatistics } from '../serv
 import { RouterModule, Router } from '@angular/router';
 import { Subject, switchMap, tap } from 'rxjs';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { PaymentDialogComponent } from '../../client-management/dialogs/payment-dialog/payment-dialog.component';
 import { PaiementService } from '../../client-management/services/paiement.service';
 import { FactureService } from '../../client-management/services/facture.service';
@@ -62,7 +63,8 @@ interface MonthlyGroup {
         MatDialogModule,
         MatMenuModule,
         MatDividerModule,
-        MatTooltipModule
+        MatTooltipModule,
+        MatPaginatorModule
     ],
     templateUrl: './sales-control-report.component.html',
     styleUrls: ['./sales-control-report.component.scss']
@@ -126,6 +128,38 @@ export class SalesControlReportComponent implements OnInit {
     columnsValid = ['numero', 'client', 'dateEmission', 'totalTTC', 'resteAPayer', 'statut'];
     columnsAvoir = ['numero', 'client', 'dateEmission', 'totalTTC', 'resteAPayer', 'type'];
     columnsStats = ['vendorName', 'countWithPayment', 'countWithoutPayment', 'countValid', 'countAvoir', 'totalAmount'];
+
+    // Pagination state
+    bcPageSize = 10;
+    bcPageIndex = 0;
+
+    facturesPageSize = 10;
+    facturesPageIndex = 0;
+
+    devisPageSize = 10;
+    devisPageIndex = 0;
+
+    avoirsPageSize = 10;
+    avoirsPageIndex = 0;
+
+    pageSizeOptions = [10, 25, 50, 100];
+
+    onPageChange(event: PageEvent, tab: 'bc' | 'factures' | 'devis' | 'avoirs') {
+        if (tab === 'bc') {
+            this.bcPageSize = event.pageSize;
+            this.bcPageIndex = event.pageIndex;
+        } else if (tab === 'factures') {
+            this.facturesPageSize = event.pageSize;
+            this.facturesPageIndex = event.pageIndex;
+        } else if (tab === 'devis') {
+            this.devisPageSize = event.pageSize;
+            this.devisPageIndex = event.pageIndex;
+        } else if (tab === 'avoirs') {
+            this.avoirsPageSize = event.pageSize;
+            this.avoirsPageIndex = event.pageIndex;
+        }
+        this.cdr.markForCheck();
+    }
 
     loading = false;
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
@@ -280,25 +314,40 @@ export class SalesControlReportComponent implements OnInit {
         return Object.values(groups).sort((a, b) => b.dateSort - a.dateSort);
     }
 
-    getLimitedGroups(groups: MonthlyGroup[], limit: number = 10): MonthlyGroup[] {
-        let count = 0;
+    getPaginatedGroups(groups: MonthlyGroup[], pageIndex: number, pageSize: number): MonthlyGroup[] {
+        let currentItemIndex = 0;
+        const startIndex = pageIndex * pageSize;
+        const endIndex = startIndex + pageSize;
+
         const result: MonthlyGroup[] = [];
 
         for (const group of groups) {
-            if (count >= limit) break;
+            const groupStart = currentItemIndex;
+            const groupEnd = currentItemIndex + group.invoices.length;
 
-            const remaining = limit - count;
-            if (group.invoices.length <= remaining) {
-                result.push({ ...group });
-                count += group.invoices.length;
-            } else {
-                result.push({
-                    ...group,
-                    invoices: group.invoices.slice(0, remaining)
-                });
-                count += remaining;
+            // If the group ends before our page starts, skip it
+            if (groupEnd <= startIndex) {
+                currentItemIndex = groupEnd;
+                continue;
             }
+
+            // If the group starts after our page ends, we're done
+            if (groupStart >= endIndex) {
+                break;
+            }
+
+            // This group overlaps with our page!
+            const sliceStart = Math.max(0, startIndex - groupStart);
+            const sliceEnd = Math.min(group.invoices.length, endIndex - groupStart);
+
+            result.push({
+                ...group,
+                invoices: group.invoices.slice(sliceStart, sliceEnd)
+            });
+
+            currentItemIndex = groupEnd;
         }
+
         return result;
     }
 
