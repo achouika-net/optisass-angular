@@ -226,4 +226,86 @@ export class ExpenseListComponent implements OnInit {
       default: return '';
     }
   }
+
+  printTable() {
+    if (!this.expenses || this.expenses.length === 0) {
+      this.snackBar.open('Aucune donnée à imprimer', 'Fermer', { duration: 3000 });
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      this.snackBar.open('Veuillez autoriser les pop-ups pour imprimer', 'Fermer', { duration: 3000 });
+      return;
+    }
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>État des Dépenses & Achats</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+            h1 { text-align: center; color: #1e3a8a; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+            th { background-color: #f3f4f6; font-weight: bold; }
+            td.amount { text-align: right; font-weight: bold; color: #dc2626; }
+            .footer { margin-top: 30px; text-align: right; font-size: 0.9em; color: #666; }
+            @media print {
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>État des Dépenses & Achats</h1>
+          <p><strong>Période sélectionnée :</strong> ${this.periods.find(p => p.value === this.selectedPeriod())?.label || this.selectedPeriod()}</p>
+          <p><strong>Date d'impression :</strong> ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Catégorie</th>
+                <th>Description</th>
+                <th>Centre</th>
+                <th>Mode</th>
+                <th style="text-align: right;">Montant</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${this.expenses.map(e => `
+                <tr>
+                  <td>${new Date(e.date).toLocaleDateString('fr-FR')}</td>
+                  <td>${e.categorie || '-'}</td>
+                  <td>${e.description || '-'}</td>
+                  <td>${e.centre?.nom || '-'}</td>
+                  <td>${e.modePaiement || '-'}</td>
+                  <td class="amount">-${Number(e.montant).toFixed(2)} DH</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th colspan="5" style="text-align: right; font-size: 1.1em;">Total</th>
+                <th class="amount" style="font-size: 1.1em;">
+                  -${this.expenses.reduce((sum, e) => sum + Number(e.montant), 0).toFixed(2)} DH
+                </th>
+              </tr>
+            </tfoot>
+          </table>
+          
+          <div class="footer">
+            Document généré par Optisaas
+          </div>
+          <script>
+            window.onload = function() { window.print(); window.close(); }
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  }
 }

@@ -1,9 +1,14 @@
 <div class="container">
     <div class="header">
         <h1 class="text-2xl font-bold">Dépenses & Achats</h1>
-        <button mat-raised-button color="primary" (click)="openExpenseDialog()">
-            <mat-icon>add</mat-icon> Nouvelle Dépense
-        </button>
+        <div class="header-actions" style="display: flex; gap: 10px;">
+            <button mat-stroked-button color="primary" (click)="printTable()">
+                <mat-icon>print</mat-icon> Imprimer l'état
+            </button>
+            <button mat-raised-button color="primary" (click)="openExpenseDialog()">
+                <mat-icon>add</mat-icon> Nouvelle Dépense
+            </button>
+        </div>
     </div>
 
     <mat-card class="mb-6 !shadow-none !border !border-gray-100">
