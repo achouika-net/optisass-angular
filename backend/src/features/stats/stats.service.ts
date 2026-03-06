@@ -215,6 +215,13 @@ export class StatsService {
 
           // Use typeArticle if set, otherwise infer from fiche type or description
           let type = l.typeArticle;
+          if (!type && l.description) {
+            const desc = String(l.description).toLowerCase();
+            if (desc.includes('verre') || desc.includes('verres')) type = 'VERRE';
+            else if (desc.includes('monture')) type = 'MONTURE';
+            else if (desc.includes('lentille')) type = 'LENTILLES';
+            else if (desc.includes('produit') || desc.includes('accessoire')) type = 'ACCESSOIRE';
+          }
           if (!type && f.fiche?.type) {
             // Map fiche type to article category
             const ficheType = f.fiche.type.toLowerCase();
