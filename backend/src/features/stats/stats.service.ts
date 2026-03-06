@@ -208,20 +208,38 @@ export class StatsService {
       const lines = (f.lignes as any[]) || [];
       if (lines.length > 0) {
         lines.forEach((l) => {
-          const type = l.typeArticle || 'NON_DÉFINI';
+          // Support both imported lines (qte, prixUnitaireTTC) and regular lines (quantite, prixUnitaireHT)
+          const qty = l.qte ?? l.quantite ?? 0;
+          const price = l.prixUnitaireHT ?? l.prixUnitaireTTC ?? 0;
+          const lineTotal = l.totalHT ?? l.totalTTC ?? (qty * price);
+
+          // Use typeArticle if set, otherwise infer from fiche type or description
+          let type = l.typeArticle;
+          if (!type && f.fiche?.type) {
+            // Map fiche type to article category
+            const ficheType = f.fiche.type.toLowerCase();
+            if (ficheType === 'monture') type = 'MONTURE';
+            else if (ficheType === 'lentilles') type = 'LENTILLES';
+          }
+          if (!type) type = 'NON_DÉFINI';
+
           const existing = distribution.get(type) || { count: 0, value: 0 };
           distribution.set(type, {
-            count: existing.count + (l.quantite || 0),
-            value: existing.value + (l.quantite || 0) * (l.prixUnitaireHT || 0),
+            count: existing.count + qty,
+            value: existing.value + lineTotal,
           });
         });
       } else if (f.fiche && f.fiche.type) {
-        // Fallback for imported fiches without lines
-        const type = f.fiche.type.toUpperCase();
+        // Fallback for fiches without any lines — count by fiche type
+        const ficheType = f.fiche.type.toLowerCase();
+        let type = 'NON_DÉFINI';
+        if (ficheType === 'monture') type = 'MONTURE';
+        else if (ficheType === 'lentilles') type = 'LENTILLES';
+
         const existing = distribution.get(type) || { count: 0, value: 0 };
         distribution.set(type, {
           count: existing.count + 1,
-          value: existing.value + 0, // We don't have per-product value here, just count
+          value: existing.value,
         });
       }
     });
