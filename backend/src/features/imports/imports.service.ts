@@ -1565,7 +1565,7 @@ export class ImportsService {
                 _acompte: totalPaye, // Temporary field for post-bulk payment creation
                 lignes: (() => {
                   const lines: any[] = [];
-                  const addLine = (desc: string, qte: number, price: number) => {
+                  const addLine = (desc: string, qte: number, price: number, typeArticle?: string) => {
                     if (price > 0 || desc) {
                       lines.push({
                         description: desc || 'Article',
@@ -1573,6 +1573,7 @@ export class ImportsService {
                         prixUnitaireTTC: price || 0,
                         remise: 0,
                         totalTTC: (qte || 1) * (price || 0),
+                        ...(typeArticle ? { typeArticle } : {}),
                       });
                     }
                   };
@@ -1588,7 +1589,7 @@ export class ImportsService {
                   if (content.monture && content.monture.marque) {
                     const desc =
                       `Monture ${content.monture.marque} ${content.monture.reference || ''}`.trim();
-                    addLine(desc, 1, content.monture.prixMonture);
+                    addLine(desc, 1, content.monture.prixMonture, 'MONTURE');
                   }
 
                   // 2. Verres
@@ -1599,7 +1600,7 @@ export class ImportsService {
                     if (prixVerres > 0 || content.verres.marque) {
                       const desc =
                         `Verres ${content.verres.type} ${content.verres.marque || ''}`.trim();
-                      addLine(desc, 1, prixVerres);
+                      addLine(desc, 1, prixVerres, 'VERRE');
                     }
                   }
 
@@ -1613,14 +1614,14 @@ export class ImportsService {
                       content.lentilles.od?.marque ||
                       content.lentilles.og?.marque
                     ) {
-                      addLine('Lentilles de contact', 1, prixLentilles);
+                      addLine('Lentilles de contact', 1, prixLentilles, 'LENTILLES');
                     }
                   }
 
                   // 4. Produits
                   if (content.produits && Array.isArray(content.produits)) {
                     content.produits.forEach((p: any) => {
-                      addLine(p.designation, p.quantite, p.prixUnitaire);
+                      addLine(p.designation, p.quantite, p.prixUnitaire, 'ACCESSOIRE');
                     });
                   }
 
@@ -1630,14 +1631,14 @@ export class ImportsService {
                       if (eq.monture) {
                         const desc =
                           `Equipement ${idx + 2} - Monture ${eq.monture.marque || ''}`.trim();
-                        addLine(desc, 1, eq.monture.prixMonture);
+                        addLine(desc, 1, eq.monture.prixMonture, 'MONTURE');
                       }
                       if (eq.verres) {
                         const prixV =
                           (eq.verres.prixOD || 0) + (eq.verres.prixOG || 0);
                         const desc =
                           `Equipement ${idx + 2} - Verres ${eq.verres.marque || ''}`.trim();
-                        addLine(desc, 1, prixV);
+                        addLine(desc, 1, prixV, 'VERRE');
                       }
                     });
                   }
