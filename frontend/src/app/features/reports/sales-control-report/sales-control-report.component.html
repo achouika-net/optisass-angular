@@ -211,7 +211,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <ng-container *ngFor="let group of groupedWithPayment">
+                            <ng-container *ngFor="let group of getLimitedGroups(groupedWithPayment)">
                                 <tr class="group-header">
                                     <td colspan="7">
                                         <div class="header-content">

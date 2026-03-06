@@ -280,6 +280,28 @@ export class SalesControlReportComponent implements OnInit {
         return Object.values(groups).sort((a, b) => b.dateSort - a.dateSort);
     }
 
+    getLimitedGroups(groups: MonthlyGroup[], limit: number = 10): MonthlyGroup[] {
+        let count = 0;
+        const result: MonthlyGroup[] = [];
+
+        for (const group of groups) {
+            if (count >= limit) break;
+
+            const remaining = limit - count;
+            if (group.invoices.length <= remaining) {
+                result.push({ ...group });
+                count += group.invoices.length;
+            } else {
+                result.push({
+                    ...group,
+                    invoices: group.invoices.slice(0, remaining)
+                });
+                count += remaining;
+            }
+        }
+        return result;
+    }
+
     calculateMetrics() {
         console.log('[REPORT-DEBUG] Statistics received:', this.statistics);
         const stats = this.statistics.find(s => s.vendorId === 'all');
