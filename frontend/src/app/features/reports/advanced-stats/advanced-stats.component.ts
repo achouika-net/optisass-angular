@@ -233,10 +233,20 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit, OnDestroy 
             let type = item.type;
 
             // Normalisation spécifique demandée
-            if (['monture', 'Monture', 'MONTURE_OPTIQUE'].includes(type)) {
-                type = 'Monture';
+            if (['monture', 'Monture', 'MONTURE', 'MONTURE_OPTIQUE'].includes(type)) {
+                type = 'Montures';
+            } else if (['lentille', 'lentilles', 'LENTILLE', 'LENTILLES'].includes(type) || type.toUpperCase().includes('LENTILLE')) {
+                type = 'Lentilles';
+            } else if (['verre', 'verres', 'VERRE', 'VERRES'].includes(type) || type.toUpperCase().includes('VERRE')) {
+                type = 'Verres';
+            } else if (['produit', 'accessoire', 'ACCESSOIRE'].includes(type) || type.toUpperCase().includes('ACCESSOIRE')) {
+                type = 'Accessoires';
+            } else if (type === 'NON_DÉFINI') {
+                type = 'Non Défini';
+            } else {
+                // Capitalize first letter
+                type = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
             }
-            // On garde les autres types tels quels (ex: MONTURE_SOLAIRE, ACCESSOIRE)
 
             if (!aggregated[type]) {
                 aggregated[type] = 0;
