@@ -1017,7 +1017,14 @@ export class InvoiceFormDialogComponent implements OnInit {
                     });
                 }
 
-                const stockTypes = ['ACHAT_VERRE_OPTIQUE', 'ACHAT_MONTURES_OPTIQUE', 'ACHAT_MONTURES_SOLAIRE', 'ACHAT_LENTILLES', 'ACHAT_PRODUITS', 'ACHAT_STOCK'];
+                const stockTypes = [
+                    'ACHAT_STOCK',
+                    'ACHAT_VERRE_OPTIQUE',
+                    'ACHAT_MONTURE_OPTIQUE', 'ACHAT_MONTURES_OPTIQUE',
+                    'ACHAT_MONTURE_SOLAIRE', 'ACHAT_MONTURES_SOLAIRE',
+                    'ACHAT_LENTILLE', 'ACHAT_LENTILLES',
+                    'ACHAT_PRODUIT', 'ACHAT_PRODUITS'
+                ];
                 if (stockTypes.includes(res.type)) {
                     const feedStock = confirm('Document enregistré. Souhaitez-vous maintenant alimenter le stock avec les articles de ce document ?');
                     if (feedStock) {
