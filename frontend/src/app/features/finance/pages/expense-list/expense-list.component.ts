@@ -244,10 +244,11 @@ export class ExpenseListComponent implements OnInit {
         <head>
           <title>État des Dépenses & Achats</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
-            h1 { text-align: center; color: #1e3a8a; margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+            body { font-family: Arial, sans-serif; padding: 20px; color: #333; font-size: 14px; line-height: 1.4; }
+            h1 { text-align: center; color: #1e3a8a; margin-bottom: 20px; font-size: 22px; }
+            p { margin: 5px 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+            th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
             th { background-color: #f3f4f6; font-weight: bold; }
             td.amount { text-align: right; font-weight: bold; color: #dc2626; }
             .footer { margin-top: 30px; text-align: right; font-size: 0.9em; color: #666; }
