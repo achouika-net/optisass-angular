@@ -116,12 +116,19 @@ body {
     margin: 0 auto !important;
     background: white !important;
     z-index: 9999999;
-    font-size: 12px !important;
+    font-size: 10px !important;
   }
 
   /* Force child visibility */
   body.is-printing-report>.print-isolated * {
     visibility: visible !important;
+  }
+
+  /* Title Sizing */
+  body.is-printing-report>.print-isolated h1,
+  body.is-printing-report>.print-isolated h2 {
+    font-size: 14px !important;
+    margin-bottom: 15px !important;
   }
 
   /* Clean up headers/filters summary if any */
@@ -135,13 +142,13 @@ body {
     border-collapse: collapse !important;
     margin: 0 auto !important;
     color: black !important;
-    font-size: 12px !important;
+    font-size: 10px !important;
   }
 
   .print-table th,
   .print-table td {
     border: 1px solid #000 !important;
-    padding: 6px 8px !important;
+    padding: 4px 6px !important;
     text-align: left !important;
   }
 
