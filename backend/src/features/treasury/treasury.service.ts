@@ -189,7 +189,15 @@ export class TreasuryService {
       // We count all supplier invoices to be consistent with getRealProfit 
       // which uses the same "all for operational + all for inventory" logic.
       const amount = Number(b._sum.montantTTC || 0);
-      const cat = isInventory ? 'ACHAT STOCK' : type;
+      let cat = type;
+      if (isInventory) {
+        if (type === 'ACHAT MONTURES OPTIQUES') cat = 'ACHAT MONTURES';
+        else if (type === 'ACHAT VERRES OPTIQUES') cat = 'ACHAT VERRES';
+        else if (type === 'ACHAT LENTILLES DE CONTACT') cat = 'ACHAT LENTILLES';
+        else if (type === 'ACHAT ACCESSOIRES OPTIQUES') cat = 'ACHAT ACCESSOIRES';
+        else cat = 'ACHAT STOCK (Divers)';
+      }
+
       combinedCategoriesMap.set(
         cat,
         (combinedCategoriesMap.get(cat) || 0) + amount,
