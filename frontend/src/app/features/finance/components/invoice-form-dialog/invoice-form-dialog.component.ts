@@ -212,7 +212,7 @@ export class InvoiceFormDialogComponent implements OnInit {
                 statut: [data?.invoice?.statut || 'EN_ATTENTE']
             }),
             directPayment: this.fb.group({
-                paidImmediately: [!(data?.invoice) && (data as any)?.isBL],
+                paidImmediately: [false],
                 modePaiement: ['ESPECES'],
                 dateEcheance: [''],
                 banque: ['']
