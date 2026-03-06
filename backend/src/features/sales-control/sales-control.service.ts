@@ -36,7 +36,6 @@ export class SalesControlService {
         fiche: true,
       },
       orderBy: [{ fiche: { numero: 'desc' } }, { dateEmission: 'desc' }],
-      take: take || 10,
     });
   }
 
@@ -64,7 +63,6 @@ export class SalesControlService {
         fiche: true,
       },
       orderBy: [{ fiche: { numero: 'desc' } }, { dateEmission: 'desc' }],
-      take: take || 10,
     });
 
     return results.filter((f) => {
@@ -112,7 +110,6 @@ export class SalesControlService {
         },
       },
       orderBy: [{ dateEmission: 'desc' }],
-      take: take || 10,
     });
   }
 
@@ -141,7 +138,6 @@ export class SalesControlService {
         parentFacture: { select: { id: true, numero: true } },
       },
       orderBy: [{ dateEmission: 'desc' }],
-      take: take || 10,
     });
   }
 
@@ -292,10 +288,10 @@ export class SalesControlService {
       }),
 
       // Limited lists for the tabs (pagination)
-      this.getBrouillonWithPayments(userId, centreId, startDate, endDate, 10),
-      this.getBrouillonWithoutPayments(userId, centreId, startDate, endDate, 10),
-      this.getValidInvoices(userId, centreId, startDate, endDate, 10),
-      this.getAvoirs(userId, centreId, startDate, endDate, 10),
+      this.getBrouillonWithPayments(userId, centreId, startDate, endDate),
+      this.getBrouillonWithoutPayments(userId, centreId, startDate, endDate),
+      this.getValidInvoices(userId, centreId, startDate, endDate),
+      this.getAvoirs(userId, centreId, startDate, endDate),
 
       // Payments Breakdown (Aggregated by mode)
       this.prisma.paiement.groupBy({
