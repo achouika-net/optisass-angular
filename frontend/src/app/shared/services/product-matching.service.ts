@@ -340,7 +340,7 @@ export class ProductMatchingService {
     return this.#findProductByManufacturerRef(ref).pipe(
       map((product) => {
         if (product) {
-          return this.#createMatchResult('manufacturerRef', 90, product);
+          return this.#createMatchResult('manufacturerRef' as any, 90, product);
         }
         return createNoMatchResult();
       }),
@@ -390,7 +390,7 @@ export class ProductMatchingService {
     const confidence = scoreToConfidence(score);
 
     return {
-      method: 'fuzzyDesignation',
+      method: 'fuzzyDesignation' as any,
       confidence,
       score,
       matchedProductId: null,

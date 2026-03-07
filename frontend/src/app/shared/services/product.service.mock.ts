@@ -45,7 +45,7 @@ interface SearchBody {
   order?: 'asc' | 'desc';
 }
 
-export const MOCK_FRAMES: IFrame[] = [
+export const MOCK_FRAMES: any[] = [
   {
     id: '1',
     internalCode: 'MON0001',
@@ -216,7 +216,7 @@ export const MOCK_FRAMES: IFrame[] = [
   },
 ];
 
-export const MOCK_LENSES: ILens[] = [
+export const MOCK_LENSES: any[] = [
   {
     id: '4',
     internalCode: 'VER0001',
@@ -333,7 +333,7 @@ export const MOCK_LENSES: ILens[] = [
   },
 ];
 
-export const MOCK_CONTACT_LENSES: IContactLens[] = [
+export const MOCK_CONTACT_LENSES: any[] = [
   {
     id: '6',
     internalCode: 'LEN0001',
@@ -442,7 +442,7 @@ export const MOCK_CONTACT_LENSES: IContactLens[] = [
   },
 ];
 
-export const MOCK_ACCESSORIES: IAccessory[] = [
+export const MOCK_ACCESSORIES: any[] = [
   {
     id: '8',
     internalCode: 'ACC0001',
@@ -561,7 +561,7 @@ export const MOCK_ACCESSORIES: IAccessory[] = [
   },
 ];
 
-const mockProducts: Product[] = [
+const mockProducts: any[] = [
   ...MOCK_FRAMES,
   ...MOCK_LENSES,
   ...MOCK_CONTACT_LENSES,
@@ -649,9 +649,9 @@ export function mockSearchProducts(body: SearchBody): Observable<PaginatedApiRes
     if (outOfStock === false && p.totalQuantity === 0) return false;
 
     if (familyId && p.familyId !== familyId) return false;
-    if (subFamilyId && p.subFamilyId !== subFamilyId) return false;
+    if (subFamilyId && (p as any).subFamilyId !== subFamilyId) return false;
     if (modelId && p.modelId !== modelId) return false;
-    if (supplierId && !p.supplierIds.includes(supplierId)) return false;
+    if (supplierId && !(p as any).supplierIds.includes(supplierId)) return false;
     if (lowStock === true && p.totalQuantity > p.alertThreshold) return false;
     if (lowStock === false && p.totalQuantity <= p.alertThreshold) return false;
 
@@ -720,7 +720,7 @@ export function mockSearchProducts(body: SearchBody): Observable<PaginatedApiRes
       total,
     },
     links: { first: '', last: '', prev: null, next: null },
-  }).pipe(delay(200));
+  } as PaginatedApiResponse<Product>).pipe(delay(200));
 }
 
 /**
@@ -728,7 +728,7 @@ export function mockSearchProducts(body: SearchBody): Observable<PaginatedApiRes
  */
 export function mockGetProduct(id: string): Observable<Product> {
   const product = mockProducts.find((p) => p.id === id);
-  return of(product!).pipe(delay(100));
+  return of(product as Product).pipe(delay(100));
 }
 
 /**
@@ -740,16 +740,16 @@ export function mockCreateProduct(request: ProductCreateRequest): Observable<Pro
     id: String(nextId++),
     internalCode: generateInternalCode(request.productType),
     barcode: generateBarcode(),
-    suppliers: request.supplierIds.map((id) => ({ id, name: `Fournisseur ${id}` })),
+    suppliers: (request as any).supplierIds.map((id: string) => ({ id, name: `Fournisseur ${id}` })),
     totalQuantity: 0,
     stockByWarehouse: [],
     status: 'DISPONIBLE' as const,
     createdAt: new Date(),
     updatedAt: null,
-  } as Product;
+  } as any;
 
   mockProducts.push(newProduct);
-  return of(newProduct).pipe(delay(200));
+  return of(newProduct as Product).pipe(delay(200));
 }
 
 /**
@@ -762,9 +762,9 @@ export function mockUpdateProduct(id: string, request: ProductUpdateRequest): Ob
       ...mockProducts[index],
       ...request,
       updatedAt: new Date(),
-    } as Product;
+    } as any;
     mockProducts[index] = updated;
-    return of(updated).pipe(delay(200));
+    return of(updated as Product).pipe(delay(200));
   }
   return of(null as unknown as Product);
 }
@@ -789,5 +789,5 @@ export function mockSearchProductByDesignation(designation: string): Observable<
   const product = mockProducts.find(
     (p) => p.designation.toLowerCase() === designation.toLowerCase(),
   );
-  return of(product ?? null).pipe(delay(100));
+  return of((product ?? null) as Product | null).pipe(delay(100));
 }
