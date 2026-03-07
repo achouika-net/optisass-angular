@@ -1,0 +1,28 @@
+/// Mixins pour badges
+/// Utilisés pour status badges, tags, labels
+
+/// Badge de base
+/// @param {string} $variant - 'primary', 'secondary', 'tertiary', 'error'
+@mixin badge-base($variant: 'secondary') {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 4px;
+  white-space: nowrap;
+
+  @if $variant == 'primary' {
+    background-color: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+  } @else if $variant == 'secondary' {
+    background-color: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+  } @else if $variant == 'tertiary' {
+    background-color: var(--mat-sys-tertiary-container);
+    color: var(--mat-sys-on-tertiary-container);
+  } @else if $variant == 'error' {
+    background-color: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+  }
+}

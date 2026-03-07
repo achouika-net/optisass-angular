@@ -1,0 +1,69 @@
+@if (matchResult()) {
+  <div class="inline-flex items-center gap-1">
+    <!-- Indicateur principal avec mat-chip -->
+    <mat-chip
+      [class]="chipClass()"
+      [matTooltip]="
+        ('stock.entry.matching.method.' + method() | translate) +
+        ' - ' +
+        score() +
+        '% (' +
+        ('stock.entry.matching.confidence.' + confidence() | translate) +
+        ')'
+      "
+      [matMenuTriggerFor]="matchMenu"
+    >
+      <mat-icon matChipAvatar>{{ iconName() }}</mat-icon>
+      @if (hasMatch()) {
+        {{ score() }}%
+      }
+    </mat-chip>
+
+    <!-- Menu contextuel -->
+    <mat-menu #matchMenu="matMenu">
+      <!-- Info sur le match -->
+      <div class="px-4 py-2 border-b">
+        <div class="text-sm font-medium">
+          {{ 'stock.entry.matching.result' | translate }}
+        </div>
+        <div class="text-xs text-gray-500 mt-1">
+          {{ 'stock.entry.matching.method.' + method() | translate }}
+          <span class="mx-1">-</span>
+          {{ score() }}%
+        </div>
+      </div>
+
+      <!-- Actions -->
+      @if (hasMatch()) {
+        <button mat-menu-item (click)="onClearMatch()">
+          <mat-icon>link_off</mat-icon>
+          {{ 'stock.entry.matching.actions.clear' | translate }}
+        </button>
+      }
+
+      <button mat-menu-item (click)="onRetryMatch()">
+        <mat-icon>refresh</mat-icon>
+        {{ 'stock.entry.matching.actions.retry' | translate }}
+      </button>
+
+      <!-- Suggestions -->
+      @if (hasSuggestions()) {
+        <mat-divider />
+        <div class="px-4 py-2 text-xs text-gray-500 uppercase">
+          {{ 'stock.entry.matching.suggestions' | translate }}
+        </div>
+        @for (suggestion of suggestions(); track suggestion.productId) {
+          <button
+            mat-menu-item
+            (click)="onSuggestionSelect(suggestion)"
+            [matTooltip]="suggestion.reason"
+          >
+            <mat-icon>arrow_forward</mat-icon>
+            <span class="truncate max-w-[200px]">{{ suggestion.reason }}</span>
+            <span class="ml-auto text-xs text-gray-400">{{ suggestion.score }}%</span>
+          </button>
+        }
+      }
+    </mat-menu>
+  </div>
+}

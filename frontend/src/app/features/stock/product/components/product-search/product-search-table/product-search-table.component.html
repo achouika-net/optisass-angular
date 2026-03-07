@@ -1,0 +1,134 @@
+@if (products()?.data?.length) {
+  <mat-card>
+    <mat-card-content>
+      <table
+        mat-table
+        [appResponsiveTable]="products()?.data"
+        [dataSource]="products()?.data"
+        matSort
+        [matSortActive]="sort()?.active"
+        [matSortDirection]="sort()?.direction"
+        (matSortChange)="sortChange($event)"
+      >
+        <ng-container matColumnDef="internalCode">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>
+            {{ 'stock.table.internalCode' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let element">
+            {{ element.internalCode }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="designation">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>
+            {{ 'stock.table.designation' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let element">
+            {{ element.designation }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="productType">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>
+            {{ 'stock.table.productType' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let element">
+            {{ getProductTypeLabel | wrapFn: element.productType | translate }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="brand">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="brandId">
+            {{ 'stock.table.brand' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let element">
+            {{ (brands() | getElementFromResource: element.brandId : 'code')?.label ?? '-' }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="totalQuantity">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>
+            {{ 'stock.table.quantity' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let element">
+            <span
+              [class.text-error]="isOutOfStock | wrapFn: element"
+              [class.text-warning]="isLowStock | wrapFn: element"
+            >
+              {{ element.totalQuantity }}
+            </span>
+            @if (isOutOfStock | wrapFn: element) {
+              <mat-icon
+                class="text-error ml-1 align-middle"
+                [matTooltip]="'stock.table.outOfStock' | translate"
+              >
+                error
+              </mat-icon>
+            } @else if (isLowStock | wrapFn: element) {
+              <mat-icon
+                class="text-warning ml-1 align-middle"
+                [matTooltip]="'stock.table.lowStock' | translate"
+              >
+                warning
+              </mat-icon>
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>
+            {{ 'stock.table.status' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let element">
+            {{ getStatusLabel | wrapFn: element.status | translate }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="action">
+          <th mat-header-cell *matHeaderCellDef class="text-center">
+            {{ 'commun.actions' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let element">
+            <div class="flex gap-3 justify-center">
+              <button
+                mat-icon-button
+                class="text-primary"
+                [routerLink]="[element.id]"
+                [relativeTo]="route"
+                [matTooltip]="'commun.view' | translate"
+              >
+                <mat-icon>visibility</mat-icon>
+              </button>
+              <button
+                mat-icon-button
+                class="text-error"
+                (click)="$event.stopPropagation(); deleteProduct(element.id)"
+                [matTooltip]="'commun.delete' | translate"
+              >
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedColumns()"
+          [routerLink]="[row.id]"
+          [relativeTo]="route"
+        ></tr>
+      </table>
+      @if (showPaginator()) {
+        <mat-paginator
+          [length]="products()?.meta?.total"
+          [pageSize]="page().pageSize"
+          [pageIndex]="page().pageIndex"
+          (page)="changePage($event)"
+        />
+      }
+    </mat-card-content>
+  </mat-card>
+} @else {
+  <app-no-data-search />
+}

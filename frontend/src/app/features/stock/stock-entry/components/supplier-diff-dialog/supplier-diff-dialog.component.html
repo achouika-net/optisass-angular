@@ -1,0 +1,76 @@
+<h2 mat-dialog-title>{{ 'stock.entry.supplierDiff.title' | translate }}</h2>
+
+<mat-dialog-content>
+  <div class="mb-4 p-3 bg-blue-50 rounded-lg">
+    <div class="flex items-center gap-2">
+      <mat-icon class="text-blue-600">info</mat-icon>
+      <p class="text-sm text-blue-700">
+        {{
+          'stock.entry.supplierDiff.matchedBy'
+            | translate
+              : { field: ('stock.entry.supplierInfo.' + matchedBy | translate), name: supplierName }
+        }}
+      </p>
+    </div>
+  </div>
+
+  <p class="mb-4 text-sm text-on-surface-variant">
+    {{ 'stock.entry.supplierDiff.description' | translate }}
+  </p>
+
+  <div class="space-y-3">
+    @for (diff of diffs(); track diff.field) {
+      <div
+        class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors"
+        [class.border-primary]="diff.accepted"
+        [class.bg-primary-50]="diff.accepted"
+        [class.border-outline-variant]="!diff.accepted"
+        tabindex="0"
+        role="checkbox"
+        [attr.aria-checked]="diff.accepted"
+        (click)="toggleField(diff.field)"
+        (keydown.enter)="toggleField(diff.field)"
+        (keydown.space)="toggleField(diff.field); $event.preventDefault()"
+      >
+        <mat-checkbox
+          [checked]="diff.accepted"
+          (click)="$event.stopPropagation()"
+          (change)="toggleField(diff.field)"
+        />
+        <div class="flex-1 min-w-0">
+          <p class="font-medium text-sm">{{ diff.labelKey | translate }}</p>
+          <div class="grid grid-cols-2 gap-4 mt-2 text-sm">
+            <div>
+              <span class="text-on-surface-variant"
+                >{{ 'stock.entry.supplierDiff.current' | translate }}:</span
+              >
+              <p class="mt-1 truncate" [title]="diff.currentValue ?? ''">
+                {{ diff.currentValue || '-' }}
+              </p>
+            </div>
+            <div>
+              <span class="text-on-surface-variant"
+                >{{ 'stock.entry.supplierDiff.ocr' | translate }}:</span
+              >
+              <p class="mt-1 text-primary font-medium truncate" [title]="diff.ocrValue ?? ''">
+                {{ diff.ocrValue || '-' }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="ignoreAll()">
+    {{ 'stock.entry.supplierDiff.ignoreAll' | translate }}
+  </button>
+  <button mat-button type="button" (click)="acceptAll()" [disabled]="allAccepted()">
+    {{ 'stock.entry.supplierDiff.acceptAll' | translate }}
+  </button>
+  <button mat-flat-button color="primary" type="button" (click)="confirm()">
+    {{ 'commun.confirm' | translate }} ({{ acceptedCount() }})
+  </button>
+</mat-dialog-actions>

@@ -1,0 +1,56 @@
+<h2 mat-dialog-title>{{ 'commun.takePhoto' | translate }}</h2>
+
+<mat-dialog-content class="!p-0">
+  <div class="relative min-h-[300px] bg-black flex items-center justify-center">
+    @if (isLoading()) {
+      <div class="absolute inset-0 flex flex-col items-center justify-center gap-4 text-white z-10">
+        <mat-spinner diameter="48" />
+        <span>{{ 'commun.cameraLoading' | translate }}</span>
+      </div>
+    }
+
+    @if (hasError()) {
+      <div class="flex flex-col items-center gap-4 text-white p-8 text-center">
+        <mat-icon class="!text-5xl !w-12 !h-12 text-error">videocam_off</mat-icon>
+        <span>{{ 'commun.cameraAccessDenied' | translate }}</span>
+      </div>
+    } @else if (capturedImage()) {
+      <img [src]="capturedImage()" alt="Captured" class="max-w-full max-h-[400px]" />
+    } @else {
+      <video
+        #videoElement
+        autoplay
+        playsinline
+        muted
+        class="max-w-full max-h-[400px]"
+        [class.invisible]="isLoading()"
+      ></video>
+    }
+
+    <canvas #canvasElement hidden></canvas>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="!px-4 !py-3">
+  <button mat-button (click)="cancel()">
+    {{ 'commun.cancel' | translate }}
+  </button>
+
+  @if (!capturedImage() && !hasError() && !isLoading()) {
+    <button mat-flat-button color="primary" (click)="capturePhoto()">
+      <mat-icon>photo_camera</mat-icon>
+      {{ 'commun.capture' | translate }}
+    </button>
+  }
+
+  @if (capturedImage()) {
+    <button mat-stroked-button (click)="retakePhoto()">
+      <mat-icon>refresh</mat-icon>
+      {{ 'commun.retake' | translate }}
+    </button>
+    <button mat-flat-button color="primary" (click)="confirmPhoto()">
+      <mat-icon>check</mat-icon>
+      {{ 'commun.confirm' | translate }}
+    </button>
+  }
+</mat-dialog-actions>

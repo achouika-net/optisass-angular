@@ -1,0 +1,72 @@
+<mat-card>
+  <mat-card-content>
+    <form (submit)="$event.preventDefault(); save()">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <!-- Status -->
+        <div class="md:col-span-2">
+          <mat-radio-group [field]="warehouseForm.active" class="flex gap-4">
+            <mat-label class="mr-4">{{ 'commun.status' | translate }}</mat-label>
+            <mat-radio-button [value]="true">
+              {{ 'commun.actif' | translate }}
+            </mat-radio-button>
+            <mat-radio-button [value]="false">
+              {{ 'commun.inactif' | translate }}
+            </mat-radio-button>
+          </mat-radio-group>
+        </div>
+
+        <!-- Name -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'warehouse.name' | translate }}</mat-label>
+          <input matInput [field]="warehouseForm.name" />
+          @if (warehouseForm.name().touched() && warehouseForm.name().invalid()) {
+            <mat-error app-field-error [errors]="warehouseForm.name().errors()" fieldname="name" />
+          }
+        </mat-form-field>
+
+        <!-- Type -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'warehouse.type' | translate }}</mat-label>
+          <mat-select [field]="warehouseForm.type">
+            @for (type of warehouseTypes(); track type) {
+              <mat-option [value]="type">
+                {{ 'warehouse.types.' + type | translate }}
+              </mat-option>
+            }
+          </mat-select>
+          @if (warehouseForm.type().touched() && warehouseForm.type().invalid()) {
+            <mat-error app-field-error [errors]="warehouseForm.type().errors()" fieldname="type" />
+          }
+        </mat-form-field>
+
+        <!-- Capacity -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'warehouse.capacity' | translate }}</mat-label>
+          <input matInput type="number" [field]="warehouseForm.capacity" />
+          <span matTextSuffix>m²</span>
+          @if (warehouseForm.capacity().touched() && warehouseForm.capacity().invalid()) {
+            <mat-error app-field-error [errors]="warehouseForm.capacity().errors()" />
+          }
+        </mat-form-field>
+
+        <!-- Address fields (participent au grid parent) -->
+        <app-address-fields [(address)]="warehouseForm.address" />
+      </div>
+
+      <!-- Buttons -->
+      <div class="mt-6 flex justify-center gap-4">
+        <button mat-button type="button" (click)="cancel()">
+          {{ 'commun.cancel' | translate }}
+        </button>
+        <button
+          mat-flat-button
+          class="tertiary"
+          type="submit"
+          [disabled]="warehouseForm().invalid()"
+        >
+          {{ 'commun.save' | translate }}
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>

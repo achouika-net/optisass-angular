@@ -1,0 +1,52 @@
+<h2 mat-dialog-title>{{ 'stock.entry.supplierDialog.createTitle' | translate }}</h2>
+
+<mat-dialog-content>
+  <div class="form-grid">
+    <!-- Name (required) -->
+    <mat-form-field appFieldControlLabel class="col-span-full">
+      <mat-label>{{ 'stock.entry.supplierDialog.name' | translate }}</mat-label>
+      <input matInput [formField]="formState.name" cdkFocusInitial />
+      @if (formState.name().touched() && formState.name().invalid()) {
+        <mat-error app-field-error [errors]="formState.name().errors()" fieldname="name" />
+      }
+    </mat-form-field>
+
+    <!-- Address section -->
+    <div class="col-span-full">
+      <p class="text-sm font-medium text-on-surface-variant mb-2">
+        {{ 'stock.entry.supplierDialog.addressSection' | translate }}
+      </p>
+      <app-address-fields [(address)]="formState.address" [inheritParentLayout]="false" />
+    </div>
+
+    <!-- Contact section -->
+    <div class="col-span-full mt-4">
+      <p class="text-sm font-medium text-on-surface-variant mb-2">
+        {{ 'stock.entry.supplierDialog.contactSection' | translate }}
+      </p>
+    </div>
+
+    <!-- Email -->
+    <mat-form-field appFieldControlLabel>
+      <mat-label>{{ 'stock.entry.supplierDialog.email' | translate }}</mat-label>
+      <input matInput type="email" [formField]="formState.email" />
+      <mat-icon matPrefix>email</mat-icon>
+    </mat-form-field>
+
+    <!-- Phone -->
+    <mat-form-field appFieldControlLabel>
+      <mat-label>{{ 'stock.entry.supplierDialog.phone' | translate }}</mat-label>
+      <input matInput type="tel" [formField]="formState.phone" />
+      <mat-icon matPrefix>phone</mat-icon>
+    </mat-form-field>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">
+    {{ 'commun.cancel' | translate }}
+  </button>
+  <button mat-flat-button color="primary" type="button" (click)="confirm()" [disabled]="!isValid()">
+    {{ 'stock.entry.supplierDialog.create' | translate }}
+  </button>
+</mat-dialog-actions>

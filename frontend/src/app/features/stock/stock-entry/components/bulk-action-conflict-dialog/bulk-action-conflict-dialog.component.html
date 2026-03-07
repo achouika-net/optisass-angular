@@ -1,0 +1,77 @@
+<h2 mat-dialog-title class="flex items-center gap-2">
+  <mat-icon class="text-amber-500">warning</mat-icon>
+  {{ 'stock.entry.conflict.title' | translate }}
+</h2>
+
+<mat-dialog-content>
+  <p class="mb-4">
+    {{
+      'stock.entry.conflict.description'
+        | translate
+          : {
+              selected: data.selectedCount,
+              conflicting: data.conflictingProducts.length,
+            }
+    }}
+  </p>
+
+  <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+    <p class="font-medium text-amber-800 mb-2">
+      {{ 'stock.entry.conflict.productsLabel' | translate }}
+    </p>
+    <ul class="text-sm text-amber-700 space-y-1">
+      @for (product of data.conflictingProducts; track product.rowId) {
+        <li class="flex items-start gap-2">
+          <mat-icon class="text-base size-4 mt-0.5">inventory_2</mat-icon>
+          <span>
+            {{ product.designation || ('stock.entry.unnamed' | translate) }}
+            <span class="text-amber-600">
+              ({{ formatAllocations(product.allocations) }} {{ 'stock.entry.units' | translate }})
+            </span>
+          </span>
+        </li>
+      }
+    </ul>
+  </div>
+
+  <p class="text-sm text-on-surface-variant mb-4">
+    {{ 'stock.entry.conflict.question' | translate }}
+  </p>
+
+  <div class="space-y-3 text-sm">
+    <div class="flex items-start gap-3 p-3 bg-surface-container-low rounded-lg">
+      <mat-icon class="text-primary">swap_horiz</mat-icon>
+      <div>
+        <p class="font-medium">{{ 'stock.entry.conflict.overwrite' | translate }}</p>
+        <p class="text-on-surface-variant">
+          {{
+            'stock.entry.conflict.overwriteDesc'
+              | translate: { warehouse: data.targetWarehouseName }
+          }}
+        </p>
+      </div>
+    </div>
+
+    <div class="flex items-start gap-3 p-3 bg-surface-container-low rounded-lg">
+      <mat-icon class="text-secondary">block</mat-icon>
+      <div>
+        <p class="font-medium">{{ 'stock.entry.conflict.exclude' | translate }}</p>
+        <p class="text-on-surface-variant">
+          {{ 'stock.entry.conflict.excludeDesc' | translate }}
+        </p>
+      </div>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">
+    {{ 'commun.cancel' | translate }}
+  </button>
+  <button mat-stroked-button type="button" (click)="exclude()">
+    {{ 'stock.entry.conflict.exclude' | translate }}
+  </button>
+  <button mat-flat-button color="primary" type="button" (click)="overwrite()">
+    {{ 'stock.entry.conflict.overwrite' | translate }}
+  </button>
+</mat-dialog-actions>
