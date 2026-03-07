@@ -31,6 +31,12 @@
       ],
       "@app/config": [
         "app/config/index.ts"
+      ],
+      "@app/core/*": [
+        "app/core/*"
+      ],
+      "@app/validators": [
+        "app/shared/validators/index.ts"
       ]
     },
     "module": "ESNext",

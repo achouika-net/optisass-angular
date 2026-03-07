@@ -217,7 +217,7 @@ const MOCK_PRICING_MODES: IResource[] = [
   { id: 'pm-3', code: 'fixedPrice', label: 'stock.pricingModes.fixedPrice', order: 3 },
 ];
 
-export const MOCK_RESOURCES: ResourceMap = {
+export const MOCK_RESOURCES: any = {
   productTypes: MOCK_PRODUCT_TYPES,
   productStatuses: MOCK_PRODUCT_STATUSES,
   frameSubTypes: MOCK_FRAME_SUB_TYPES,
