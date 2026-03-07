@@ -1,0 +1,28 @@
+<div
+  class="flex items-center justify-center overflow-hidden rounded-full bg-gray-200 transition-transform duration-200 hover:scale-105"
+  [style.width.px]="size()"
+  [style.height.px]="size()"
+  [style.min-width.px]="size()"
+  [style.min-height.px]="size()"
+>
+  @if (imageBase64()) {
+    <img
+      [ngSrc]="'data:image/png;base64,' + imageBase64()"
+      [alt]="'Avatar'"
+      [width]="size()"
+      [height]="size()"
+      loading="lazy"
+      decoding="async"
+      class="h-full w-full object-cover"
+    />
+  } @else {
+    <mat-icon
+      class="text-gray-500"
+      [style.font-size.px]="size() * 0.6"
+      [style.width.px]="size() * 0.6"
+      [style.height.px]="size() * 0.6"
+    >
+      person
+    </mat-icon>
+  }
+</div>

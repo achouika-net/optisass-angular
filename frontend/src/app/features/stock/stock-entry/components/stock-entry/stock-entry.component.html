@@ -1,0 +1,100 @@
+<!-- Actions Buttons (OCR, Camera, Search) -->
+<app-actions-buttons [actionButtons]="actionButtons()" (action)="onAction($event)" />
+
+<!-- Header sticky -->
+<app-stock-entry-header
+  class="block"
+  [suppliers]="suppliers()"
+  [supplierField]="entryForm.supplier"
+  [documentNumberField]="entryForm.documentNumber"
+  [documentDateField]="entryForm.documentDate"
+  [documentTypeField]="entryForm.documentType"
+  [totalHT]="totalHT()"
+  (newSupplierClick)="openNewSupplierDialog()"
+/>
+
+<!-- Tabs (si fournisseur sélectionné ou OCR) -->
+@if (showSupplierInfoCard()) {
+  <app-stock-entry-tabs
+    class="block"
+    [totalProducts]="totalProducts()"
+    [incompleteCount]="incompleteProducts().length"
+    [initialTabIndex]="initialTabIndex()"
+  >
+    <!-- Tab Fournisseur -->
+    <ng-container supplierTab>
+      <app-supplier-info [supplierField]="entryForm.supplier" />
+    </ng-container>
+
+    <!-- Tab Produits -->
+    <ng-container productsTab>
+      <!-- Bannière erreurs -->
+      @if (incompleteProducts().length > 0) {
+        <div class="warning-banner mb-4">
+          <mat-icon>warning</mat-icon>
+          <span>{{
+            'stock.entry.validation.incompleteProducts'
+              | translate: { count: incompleteProducts().length }
+          }}</span>
+        </div>
+      }
+
+      <!-- Bouton Nouveau produit -->
+      <div class="flex justify-end mb-4">
+        <button mat-stroked-button (click)="addProduct()">
+          <mat-icon>add</mat-icon>
+          {{ 'stock.entry.newProduct' | translate }}
+        </button>
+      </div>
+
+      <!-- Table produits -->
+      <app-stock-entry-table
+        class="block overflow-x-hidden [&_.mat-mdc-table]:table-fixed [&_.mat-mdc-table]:w-full"
+        [products]="products()"
+        [selectedRowIds]="selectedRowIds()"
+        [warehouses]="warehouses()"
+        [getProductFields]="getProductFieldsFn"
+        (selectionChange)="toggleSelection($event)"
+        (selectAllChange)="selectAll($event)"
+        (expandChange)="toggleExpand($event)"
+        (splitClick)="openSplitDialog($event)"
+        (deleteClick)="removeProduct($event)"
+        (matchSuggestionSelect)="onMatchSuggestionSelect($event)"
+        (matchClear)="clearMatchResult($event)"
+        (matchRetry)="onMatchRetry($event)"
+        (nextErrorClick)="goToNextError()"
+      />
+
+      <!-- Actions finales -->
+      <div class="flex justify-center gap-4 mt-6">
+        <button matButton type="button" (click)="onCancel()">
+          {{ 'commun.cancel' | translate }}
+        </button>
+        <button
+          matButton="filled"
+          class="tertiary"
+          type="button"
+          [disabled]="!isFormValid() || store.isSubmitting()"
+          (click)="onSubmit()"
+        >
+          @if (store.isSubmitting()) {
+            <mat-spinner diameter="20" />
+          }
+          {{ 'stock.entry.validate' | translate }}
+        </button>
+      </div>
+    </ng-container>
+  </app-stock-entry-tabs>
+}
+
+<!-- Barre bulk actions (sticky bottom) -->
+@if (selectedCount() > 0) {
+  <app-stock-entry-actions
+    [selectedCount]="selectedCount()"
+    [selectedRowIds]="selectedRowIds()"
+    [products]="products()"
+    [warehouses]="warehouses()"
+    [getProductFields]="getProductFieldsFn"
+    (deleteSelected)="deleteSelectedProducts()"
+  />
+}

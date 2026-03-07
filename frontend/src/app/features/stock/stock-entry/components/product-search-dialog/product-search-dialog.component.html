@@ -1,0 +1,103 @@
+<h2 mat-dialog-title>{{ 'stock.entry.dialog.searchTitle' | translate }}</h2>
+
+<mat-dialog-content>
+  <div class="flex gap-3 mb-4">
+    <mat-form-field appFieldControlLabel class="flex-1">
+      <mat-label>{{ 'stock.entry.dialog.searchLabel' | translate }}</mat-label>
+      <input matInput [field]="searchForm.search" cdkFocusInitial />
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+
+    <mat-form-field appFieldControlLabel class="w-48">
+      <mat-label>{{ 'stock.entry.productType' | translate }}</mat-label>
+      <mat-select [field]="searchForm.productType">
+        <mat-option [value]="null">{{ 'commun.all' | translate }}</mat-option>
+        @for (type of productTypes(); track type.code) {
+          <mat-option [value]="type.code">{{ type.label | translate }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  @if (isLoading()) {
+    <div class="flex justify-center py-8">
+      <mat-spinner diameter="40" />
+    </div>
+  } @else if (noResults()) {
+    <div class="flex flex-col items-center py-8 gap-1 text-on-surface-variant">
+      <mat-icon class="scale-150">search_off</mat-icon>
+      <p>{{ 'stock.entry.dialog.noResults' | translate }}</p>
+
+      <button matButton="filled" class="tertiary gap-1" (click)="createNew()">
+        <mat-icon>add</mat-icon>
+        {{ 'stock.entry.dialog.createProduct' | translate }}
+      </button>
+    </div>
+  } @else if (products().length > 0) {
+    <table mat-table [dataSource]="products()" class="w-full">
+      <ng-container matColumnDef="designation">
+        <th mat-header-cell *matHeaderCellDef>{{ 'stock.entry.designation' | translate }}</th>
+        <td mat-cell *matCellDef="let product">{{ product.designation }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="productType">
+        <th mat-header-cell *matHeaderCellDef>{{ 'stock.entry.productType' | translate }}</th>
+        <td mat-cell *matCellDef="let product">
+          {{ getProductTypeLabel(product.productType) | translate }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="brand">
+        <th mat-header-cell *matHeaderCellDef>{{ 'stock.entry.brand' | translate }}</th>
+        <td mat-cell *matCellDef="let product">{{ getBrandLabel(product) }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="quantity">
+        <th mat-header-cell *matHeaderCellDef class="w-20 text-center">
+          {{ 'stock.entry.quantity' | translate }}
+        </th>
+        <td mat-cell *matCellDef="let product" class="text-center">
+          {{ product.totalQuantity }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef class="w-16"></th>
+        <td mat-cell *matCellDef="let product">
+          <button
+            mat-icon-button
+            class="text-primary"
+            (click)="$event.stopPropagation(); selectProduct(product)"
+          >
+            <mat-icon>add_circle</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr
+        mat-row
+        *matRowDef="let row; columns: displayedColumns"
+        class="cursor-pointer hover:bg-gray-50"
+        (click)="selectProduct(row)"
+      ></tr>
+    </table>
+  } @else if (!hasSearched()) {
+    <div class="size-full text-center py-12 text-on-surface-variant">
+      <mat-icon class="scale-150">inventory_2</mat-icon>
+      <p>{{ 'stock.entry.dialog.searchHint' | translate }}</p>
+    </div>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">
+    {{ 'commun.cancel' | translate }}
+  </button>
+  @if (hasSearched() && !isLoading()) {
+    <button matButton="outlined" class="gap-1" (click)="createNew()">
+      <mat-icon>add</mat-icon>
+      {{ 'stock.entry.dialog.createProduct' | translate }}
+    </button>
+  }
+</mat-dialog-actions>

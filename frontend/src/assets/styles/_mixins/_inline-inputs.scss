@@ -1,0 +1,39 @@
+/// Mixins pour inputs inline éditables
+/// Utilisés dans les tables pour édition inline
+
+/// Input inline éditable
+/// @param {string} $width - 'narrow' (5rem), 'medium' (8rem), 'wide' (12rem)
+@mixin inline-input($width: 'narrow') {
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background: var(--mat-sys-surface);
+  transition: border-color 0.15s ease;
+
+  @if $width == 'narrow' {
+    max-width: 5rem;
+    text-align: right;
+  } @else if $width == 'medium' {
+    max-width: 8rem;
+    text-align: right;
+  } @else if $width == 'wide' {
+    max-width: 12rem;
+    text-align: left;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--mat-sys-primary);
+  }
+
+  &:hover:not(:focus) {
+    border-color: var(--mat-sys-outline);
+  }
+
+  &.input-error {
+    border-color: var(--mat-sys-error);
+    background-color: rgb(254 242 242 / 50%);
+  }
+}

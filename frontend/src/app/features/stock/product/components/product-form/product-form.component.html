@@ -1,0 +1,804 @@
+<form (submit)="$event.preventDefault(); submit()">
+  <!-- Create mode: Stepper -->
+  @if (!isEditMode()) {
+    <mat-stepper linear [selectedIndex]="currentStep()" (selectionChange)="setStep($event)">
+      <!-- Step 1: Identification -->
+      <mat-step [completed]="isStep1Valid()">
+        <ng-template matStepLabel>{{ 'stock.form.identificationPanel' | translate }}</ng-template>
+        <div class="pt-6">
+          <ng-container *ngTemplateOutlet="identificationFields" />
+        </div>
+        <div class="mt-4 flex justify-end">
+          <button
+            matButton="filled"
+            type="button"
+            class="tertiary"
+            matStepperNext
+            [disabled]="!isStep1Valid()"
+          >
+            {{ 'commun.next' | translate }}
+          </button>
+        </div>
+      </mat-step>
+
+      <!-- Step 2: Characteristics -->
+      <mat-step [completed]="isStep2Valid()">
+        <ng-template matStepLabel>{{ 'stock.form.characteristicsPanel' | translate }}</ng-template>
+        <div class="pt-6">
+          <ng-container *ngTemplateOutlet="characteristicsFields" />
+        </div>
+        <div class="mt-4 flex justify-between">
+          <button matButton type="button" matStepperPrevious>
+            {{ 'commun.previous' | translate }}
+          </button>
+          <button
+            matButton="filled"
+            type="button"
+            class="tertiary"
+            matStepperNext
+            [disabled]="!isStep2Valid()"
+          >
+            {{ 'commun.next' | translate }}
+          </button>
+        </div>
+      </mat-step>
+
+      <!-- Step 3: Pricing -->
+      <mat-step>
+        <ng-template matStepLabel>{{ 'stock.form.pricingPanel' | translate }}</ng-template>
+        <div class="pt-6">
+          <ng-container *ngTemplateOutlet="pricingFields" />
+        </div>
+
+        <h4 class="mt-6 mb-2 font-medium flex items-center">
+          <mat-icon class="mr-2">qr_code_2</mat-icon>
+          {{ 'stock.form.supplierCodesPanel' | translate }}
+        </h4>
+        <ng-container *ngTemplateOutlet="supplierCodesFields" />
+
+        <div class="mt-4 flex justify-between">
+          <button matButton type="button" matStepperPrevious>
+            {{ 'commun.previous' | translate }}
+          </button>
+          <div class="flex gap-2">
+            <button matButton type="button" (click)="onCancel()">
+              {{ 'commun.cancel' | translate }}
+            </button>
+            <button matButton="filled" type="submit" class="tertiary" [disabled]="form().invalid()">
+              {{ 'commun.save' | translate }}
+            </button>
+          </div>
+        </div>
+      </mat-step>
+    </mat-stepper>
+  }
+
+  <!-- Edit mode: Accordion -->
+  @if (isEditMode()) {
+    <mat-accordion multi>
+      <!-- Panel 1: Identification -->
+      <mat-expansion-panel expanded>
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <mat-icon class="mr-2">badge</mat-icon>
+            {{ 'stock.form.identificationPanel' | translate }}
+          </mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="pt-4">
+          <ng-container *ngTemplateOutlet="identificationFields" />
+        </div>
+      </mat-expansion-panel>
+
+      <!-- Panel 2: Characteristics -->
+      @if (selectedProductType()) {
+        <mat-expansion-panel expanded>
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              <mat-icon class="mr-2">tune</mat-icon>
+              {{ 'stock.form.characteristicsPanel' | translate }}
+            </mat-panel-title>
+          </mat-expansion-panel-header>
+          <div class="pt-4">
+            <ng-container *ngTemplateOutlet="characteristicsFields" />
+          </div>
+        </mat-expansion-panel>
+      }
+
+      <!-- Panel 3: Pricing -->
+      <mat-expansion-panel expanded>
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <mat-icon class="mr-2">payments</mat-icon>
+            {{ 'stock.form.pricingPanel' | translate }}
+          </mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="pt-4">
+          <ng-container *ngTemplateOutlet="pricingFields" />
+        </div>
+      </mat-expansion-panel>
+
+      <!-- Panel 4: Supplier Codes -->
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <mat-icon class="mr-2">qr_code_2</mat-icon>
+            {{ 'stock.form.supplierCodesPanel' | translate }}
+          </mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="pt-4">
+          <ng-container *ngTemplateOutlet="supplierCodesFields" />
+        </div>
+      </mat-expansion-panel>
+    </mat-accordion>
+
+    <div class="flex justify-center gap-4 mt-6">
+      <button matButton type="button" (click)="onCancel()">
+        {{ 'commun.cancel' | translate }}
+      </button>
+      <button matButton="filled" type="submit" class="tertiary" [disabled]="form().invalid()">
+        {{ 'commun.save' | translate }}
+      </button>
+    </div>
+  }
+</form>
+
+<!-- Template: Identification fields (Type + Info) -->
+<ng-template #identificationFields>
+  <div class="form-grid">
+    <!-- Product type -->
+    <mat-form-field appFieldControlLabel>
+      <mat-label>{{ 'stock.form.productType' | translate }}</mat-label>
+      <mat-select [formField]="form.productType">
+        @for (type of productTypes(); track type.code) {
+          <mat-option [value]="type.code">{{ type.label | translate }}</mat-option>
+        }
+      </mat-select>
+      @if (form.productType().touched() && form.productType().invalid()) {
+        <mat-error app-field-error [errors]="form.productType().errors()" />
+      }
+    </mat-form-field>
+
+    <!-- Suppliers (multi-select) -->
+    <mat-form-field appFieldControlLabel>
+      <mat-label>{{ 'stock.form.suppliers' | translate }}</mat-label>
+      <mat-select [field]="form.supplierIds" multiple>
+        @for (supplier of suppliers(); track supplier.code) {
+          <mat-option [value]="supplier.code">{{ supplier.name }}</mat-option>
+        }
+      </mat-select>
+      @if (form.supplierIds().touched() && form.supplierIds().invalid()) {
+        <mat-error app-field-error [errors]="form.supplierIds().errors()" />
+      }
+    </mat-form-field>
+
+    @if (showBrandModelDesignation()) {
+      <!-- Designation -->
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.designation' | translate }}</mat-label>
+        <input matInput [field]="form.designation" />
+      </mat-form-field>
+
+      <!-- Brand -->
+      <app-resource-autocomplete
+        [formField]="form.brandId"
+        [options]="brands()"
+        [showAllOption]="false"
+        [placeholder]="'stock.form.brand' | translate"
+        (selectionChange)="onBrandChange()"
+      />
+
+      <!-- Model/Reference -->
+      <app-resource-autocomplete
+        [formField]="form.modelId"
+        [options]="filteredModels()"
+        [showAllOption]="false"
+        [placeholder]="'stock.form.modelReference' | translate"
+      />
+    }
+
+    <!-- Family -->
+    <app-resource-autocomplete
+      [formField]="form.familyId"
+      [options]="families()"
+      [placeholder]="'stock.form.family' | translate"
+      (selectionChange)="onFamilyChange()"
+    />
+
+    <!-- Sub-family -->
+    <app-resource-autocomplete
+      [formField]="form.subFamilyId"
+      [options]="filteredSubFamilies()"
+      [placeholder]="'stock.form.subFamily' | translate"
+    />
+
+    <!-- Color -->
+    <app-resource-autocomplete
+      [formField]="form.color"
+      [options]="colors()"
+      [placeholder]="'stock.form.color' | translate"
+    />
+
+    <!-- Manufacturer Reference -->
+    <mat-form-field appFieldControlLabel>
+      <mat-label>{{ 'stock.form.manufacturerRef' | translate }}</mat-label>
+      <input matInput [field]="form.manufacturerRef" />
+    </mat-form-field>
+  </div>
+
+  <!-- Main photo (hidden for lenses) -->
+  @if (showMainPhoto()) {
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-4 mt-4">
+      <div class="flex flex-col items-center gap-2">
+        <span class="text-sm text-on-surface-variant">{{ 'stock.form.photo' | translate }}</span>
+        <app-photo-upload [field]="form.photo" />
+      </div>
+    </div>
+  }
+</ng-template>
+
+<!-- Template: Characteristics fields -->
+<ng-template #characteristicsFields>
+  <!-- Frame fields -->
+  @if (showFrameFields()) {
+    <div class="form-grid">
+      <!-- Frame Sub-Type (Required) -->
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.frameSubType' | translate }}</mat-label>
+        <mat-select [formField]="form.frameSubType">
+          @for (subType of frameSubTypes(); track subType.code) {
+            <mat-option [value]="subType.code">{{ subType.label | translate }}</mat-option>
+          }
+        </mat-select>
+        @if (form.frameSubType().touched() && form.frameSubType().invalid()) {
+          <mat-error app-field-error [errors]="form.frameSubType().errors()" />
+        }
+      </mat-form-field>
+
+      <app-resource-autocomplete
+        [formField]="form.frameGender"
+        [options]="genders()"
+        valueKey="code"
+        [placeholder]="'stock.form.frameGender' | translate"
+      />
+
+      <app-resource-autocomplete
+        [formField]="form.frameShape"
+        [options]="frameShapes()"
+        valueKey="code"
+        [showAllOption]="false"
+        [placeholder]="'stock.form.frameShape' | translate"
+      />
+
+      <app-resource-autocomplete
+        [formField]="form.frameMaterial"
+        [options]="frameMaterials()"
+        valueKey="code"
+        [showAllOption]="false"
+        [placeholder]="'stock.form.frameMaterial' | translate"
+      />
+
+      <app-resource-autocomplete
+        [formField]="form.frameType"
+        [options]="frameTypes()"
+        valueKey="code"
+        [showAllOption]="false"
+        [placeholder]="'stock.form.frameType' | translate"
+      />
+
+      <app-resource-autocomplete
+        [formField]="form.frameHingeType"
+        [options]="hingeTypes()"
+        valueKey="code"
+        [placeholder]="'stock.form.frameHingeType' | translate"
+      />
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.frameEyeSize' | translate }}</mat-label>
+        <input matInput type="number" [field]="form.frameEyeSize" />
+        <span matTextSuffix>mm</span>
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.frameBridge' | translate }}</mat-label>
+        <input matInput type="number" [field]="form.frameBridge" />
+        <span matTextSuffix>mm</span>
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.frameTemple' | translate }}</mat-label>
+        <input matInput type="number" [field]="form.frameTemple" />
+        <span matTextSuffix>mm</span>
+      </mat-form-field>
+
+      <app-resource-autocomplete
+        [formField]="form.frameColor"
+        [options]="colors()"
+        valueKey="code"
+        [placeholder]="'stock.form.frameColor' | translate"
+      />
+
+      <app-resource-autocomplete
+        [formField]="form.frameTempleColor"
+        [options]="colors()"
+        valueKey="code"
+        [placeholder]="'stock.form.frameTempleColor' | translate"
+      />
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.frameFinish' | translate }}</mat-label>
+        <input matInput [field]="form.frameFinish" />
+      </mat-form-field>
+    </div>
+
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-4 mt-4">
+      <div class="flex flex-col items-center gap-2">
+        <span class="text-sm text-on-surface-variant">{{
+          'stock.form.frameFrontPhoto' | translate
+        }}</span>
+        <app-photo-upload [field]="form.frameFrontPhoto" />
+      </div>
+      <div class="flex flex-col items-center gap-2">
+        <span class="text-sm text-on-surface-variant">{{
+          'stock.form.frameSidePhoto' | translate
+        }}</span>
+        <app-photo-upload [field]="form.frameSidePhoto" />
+      </div>
+    </div>
+
+    <!-- Safety-specific fields (only when frameSubType === 'safety') -->
+    @if (showSafetyFields()) {
+      <h4 class="mt-4 mb-2 font-medium">{{ 'stock.form.safetySection' | translate }}</h4>
+      <div class="form-grid">
+        <app-resource-autocomplete
+          [formField]="form.safetySafetyStandard"
+          [options]="safetyStandards()"
+          valueKey="code"
+          [placeholder]="'stock.form.safetySafetyStandard' | translate"
+        />
+
+        <app-resource-autocomplete
+          [formField]="form.safetySafetyRating"
+          [options]="safetyRatings()"
+          valueKey="code"
+          [placeholder]="'stock.form.safetySafetyRating' | translate"
+        />
+
+        <app-resource-autocomplete
+          [formField]="form.safetyProtectionType"
+          [options]="protectionTypes()"
+          valueKey="code"
+          [placeholder]="'stock.form.safetyProtectionType' | translate"
+        />
+
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'stock.form.safetyLensIncluded' | translate }}</mat-label>
+          <mat-select [field]="form.safetyLensIncluded">
+            <mat-option [value]="true">{{ 'commun.yes' | translate }}</mat-option>
+            <mat-option [value]="false">{{ 'commun.no' | translate }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'stock.form.safetyPrescriptionCapable' | translate }}</mat-label>
+          <mat-select [field]="form.safetyPrescriptionCapable">
+            <mat-option [value]="true">{{ 'commun.yes' | translate }}</mat-option>
+            <mat-option [value]="false">{{ 'commun.no' | translate }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    }
+  }
+
+  <!-- Clip-on fields -->
+  @if (showClipOnFields()) {
+    <div class="form-grid">
+      <app-resource-autocomplete
+        [formField]="form.clipOnClipType"
+        [options]="clipOnTypes()"
+        valueKey="code"
+        [showAllOption]="false"
+        [placeholder]="'stock.form.clipOnClipType' | translate"
+      />
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.clipOnPolarized' | translate }}</mat-label>
+        <mat-select [field]="form.clipOnPolarized">
+          <mat-option [value]="true">{{ 'commun.yes' | translate }}</mat-option>
+          <mat-option [value]="false">{{ 'commun.no' | translate }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.clipOnMirrorCoating' | translate }}</mat-label>
+        <mat-select [field]="form.clipOnMirrorCoating">
+          <mat-option [value]="true">{{ 'commun.yes' | translate }}</mat-option>
+          <mat-option [value]="false">{{ 'commun.no' | translate }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <app-resource-autocomplete
+        [formField]="form.clipOnTint"
+        [options]="lensTints()"
+        valueKey="code"
+        [placeholder]="'stock.form.clipOnTint' | translate"
+      />
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.clipOnCompatibleFrameSize' | translate }}</mat-label>
+        <input matInput [field]="form.clipOnCompatibleFrameSize" />
+      </mat-form-field>
+    </div>
+  }
+
+  <!-- Lens fields -->
+  @if (showLensFields()) {
+    <div class="form-grid">
+      <app-resource-autocomplete
+        [formField]="form.lensType"
+        [options]="lensTypes()"
+        valueKey="code"
+        [showAllOption]="false"
+        [placeholder]="'stock.form.lensType' | translate"
+      />
+
+      <app-resource-autocomplete
+        [formField]="form.lensMaterial"
+        [options]="lensMaterials()"
+        valueKey="code"
+        [showAllOption]="false"
+        [placeholder]="'stock.form.lensMaterial' | translate"
+      />
+
+      <app-resource-autocomplete
+        [formField]="form.lensRefractiveIndex"
+        [options]="lensIndices()"
+        valueKey="code"
+        [showAllOption]="false"
+        [placeholder]="'stock.form.lensRefractiveIndex' | translate"
+      />
+
+      <app-resource-autocomplete
+        [formField]="form.lensTint"
+        [options]="lensTints()"
+        valueKey="code"
+        [placeholder]="'stock.form.lensTint' | translate"
+      />
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.lensFilters' | translate }}</mat-label>
+        <mat-select [field]="form.lensFilters" multiple>
+          @for (filter of lensFilters(); track filter.code) {
+            <mat-option [value]="filter.code">{{ filter.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.lensTreatments' | translate }}</mat-label>
+        <mat-select [field]="form.lensTreatments" multiple>
+          @for (treatment of lensTreatments(); track treatment.code) {
+            <mat-option [value]="treatment.code">{{ treatment.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <app-resource-autocomplete
+        [formField]="form.lensManufacturerId"
+        [options]="manufacturers()"
+        [placeholder]="'stock.form.lensManufacturer' | translate"
+      />
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.lensOpticalFamily' | translate }}</mat-label>
+        <input matInput [field]="form.lensOpticalFamily" />
+      </mat-form-field>
+    </div>
+
+    <h4 class="mt-4 mb-2 font-medium">{{ 'stock.form.opticalParameters' | translate }}</h4>
+    <div class="form-grid-compact">
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.lensSpherePower' | translate }}</mat-label>
+        <input matInput type="number" step="0.25" [field]="form.lensSpherePower" />
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.lensCylinderPower' | translate }}</mat-label>
+        <input matInput type="number" step="0.25" [field]="form.lensCylinderPower" />
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.lensAxis' | translate }}</mat-label>
+        <input matInput type="number" [field]="form.lensAxis" />
+        <span matTextSuffix>°</span>
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.lensAddition' | translate }}</mat-label>
+        <input matInput type="number" step="0.25" [field]="form.lensAddition" />
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.lensDiameter' | translate }}</mat-label>
+        <input matInput type="number" [field]="form.lensDiameter" />
+        <span matTextSuffix>mm</span>
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.lensBaseCurve' | translate }}</mat-label>
+        <input matInput type="number" step="0.1" [field]="form.lensBaseCurve" />
+      </mat-form-field>
+    </div>
+  }
+
+  <!-- Contact Lens fields -->
+  @if (showContactLensFields()) {
+    <div class="form-grid">
+      <app-resource-autocomplete
+        [formField]="form.contactLensType"
+        [options]="contactLensTypes()"
+        valueKey="code"
+        [showAllOption]="false"
+        [placeholder]="'stock.form.contactLensType' | translate"
+      />
+
+      <app-resource-autocomplete
+        [formField]="form.contactLensUsage"
+        [options]="contactLensUsages()"
+        valueKey="code"
+        [showAllOption]="false"
+        [placeholder]="'stock.form.contactLensUsage' | translate"
+      />
+
+      <app-resource-autocomplete
+        [formField]="form.contactLensLaboratoryId"
+        [options]="laboratories()"
+        [placeholder]="'stock.form.contactLensLaboratory' | translate"
+      />
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.contactLensCommercialModel' | translate }}</mat-label>
+        <input matInput [field]="form.contactLensCommercialModel" />
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.contactLensBaseCurve' | translate }}</mat-label>
+        <input matInput type="number" step="0.1" [field]="form.contactLensBaseCurve" />
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.contactLensDiameter' | translate }}</mat-label>
+        <input matInput type="number" step="0.1" [field]="form.contactLensDiameter" />
+        <span matTextSuffix>mm</span>
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.contactLensQuantityPerBox' | translate }}</mat-label>
+        <input matInput type="number" [field]="form.contactLensQuantityPerBox" />
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.contactLensPricePerBox' | translate }}</mat-label>
+        <input matInput type="number" step="0.01" [field]="form.contactLensPricePerBox" />
+        <span matTextSuffix>MAD</span>
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.contactLensPricePerUnit' | translate }}</mat-label>
+        <input matInput type="number" step="0.01" [field]="form.contactLensPricePerUnit" />
+        <span matTextSuffix>MAD</span>
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.contactLensExpirationDate' | translate }}</mat-label>
+        <input matInput type="date" [field]="form.contactLensExpirationDate" />
+      </mat-form-field>
+    </div>
+
+    <h4 class="mt-4 mb-2 font-medium">{{ 'stock.form.opticalParameters' | translate }}</h4>
+    <div class="form-grid-compact">
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.contactLensSpherePower' | translate }}</mat-label>
+        <input matInput type="number" step="0.25" [field]="form.contactLensSpherePower" />
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.contactLensCylinder' | translate }}</mat-label>
+        <input matInput type="number" step="0.25" [field]="form.contactLensCylinder" />
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.contactLensAxis' | translate }}</mat-label>
+        <input matInput type="number" [field]="form.contactLensAxis" />
+        <span matTextSuffix>°</span>
+      </mat-form-field>
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.contactLensAddition' | translate }}</mat-label>
+        <input matInput type="number" step="0.25" [field]="form.contactLensAddition" />
+      </mat-form-field>
+    </div>
+  }
+
+  <!-- Accessory fields -->
+  @if (showAccessoryFields()) {
+    <div class="form-grid">
+      <app-resource-autocomplete
+        [formField]="form.accessoryCategory"
+        [options]="accessoryCategories()"
+        valueKey="code"
+        [showAllOption]="false"
+        [placeholder]="'stock.form.accessoryCategory' | translate"
+      />
+
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.accessorySubCategory' | translate }}</mat-label>
+        <input matInput [field]="form.accessorySubCategory" />
+      </mat-form-field>
+    </div>
+  }
+
+  <!-- Message if no type selected -->
+  @if (!selectedProductType()) {
+    <p class="text-gray-500 text-center py-4">
+      {{ 'stock.form.selectProductTypeFirst' | translate }}
+    </p>
+  }
+</ng-template>
+
+<!-- Template: Pricing fields -->
+<ng-template #pricingFields>
+  <div class="form-grid">
+    @if (!isEditMode()) {
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.purchasePriceExclTax' | translate }}</mat-label>
+        <input matInput type="number" step="0.01" [field]="form.purchasePriceExclTax" />
+        <span matTextSuffix>MAD</span>
+      </mat-form-field>
+    }
+
+    <mat-form-field appFieldControlLabel>
+      <mat-label>{{ 'stock.form.pricingMode' | translate }}</mat-label>
+      <mat-select [field]="form.pricingMode">
+        @for (mode of pricingModes(); track mode.code) {
+          <mat-option [value]="mode.code">{{ mode.label | translate }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    @if (showCoefficient()) {
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.coefficient' | translate }}</mat-label>
+        <input matInput type="number" step="0.1" [field]="form.coefficient" />
+      </mat-form-field>
+    }
+
+    @if (showFixedAmount()) {
+      <mat-form-field appFieldControlLabel>
+        <mat-label>{{ 'stock.form.fixedAmount' | translate }}</mat-label>
+        <input matInput type="number" step="0.01" [field]="form.fixedAmount" />
+        <span matTextSuffix>MAD</span>
+      </mat-form-field>
+    }
+
+    @if (showFixedPrice()) {
+      <mat-form-field appFieldControlLabel [class.form-field-warning]="fixedPriceWarning()">
+        <mat-label>{{ 'stock.form.fixedPrice' | translate }}</mat-label>
+        <input matInput type="number" step="0.01" [field]="form.fixedPrice" />
+        <span matTextSuffix>MAD</span>
+        <mat-hint [class.text-warning]="fixedPriceWarning()">
+          @if (fixedPriceWarning()) {
+            <mat-icon class="text-sm align-middle mr-1">warning</mat-icon>
+            {{ 'stock.form.fixedPriceWarning' | translate }}
+          }
+        </mat-hint>
+      </mat-form-field>
+    }
+
+    <mat-form-field appFieldControlLabel>
+      <mat-label>{{ 'stock.form.tvaRate' | translate }}</mat-label>
+      <mat-select [field]="form.tvaRate">
+        @for (rate of tvaRates(); track rate.code) {
+          <mat-option [value]="+rate.code">{{ rate.label }}</mat-option>
+        }
+      </mat-select>
+      @if (form.tvaRate().touched() && form.tvaRate().invalid()) {
+        <mat-error app-field-error [errors]="form.tvaRate().errors()" />
+      }
+    </mat-form-field>
+
+    <mat-form-field appFieldControlLabel>
+      <mat-label>{{ 'stock.form.alertThreshold' | translate }}</mat-label>
+      <input matInput type="number" [field]="form.alertThreshold" />
+      @if (form.alertThreshold().touched() && form.alertThreshold().invalid()) {
+        <mat-error app-field-error [errors]="form.alertThreshold().errors()" />
+      }
+    </mat-form-field>
+  </div>
+</ng-template>
+
+<!-- Template: Supplier codes fields -->
+<ng-template #supplierCodesFields>
+  <div class="flex justify-end mb-4">
+    <button matButton type="button" (click)="addSupplierCode()">
+      <mat-icon>add</mat-icon>
+      {{ 'stock.form.addSupplierCode' | translate }}
+    </button>
+  </div>
+
+  @if (supplierCodes().length > 0) {
+    <table mat-table [dataSource]="supplierCodes()" class="w-full">
+      <!-- Supplier column -->
+      <ng-container matColumnDef="supplier">
+        <th mat-header-cell *matHeaderCellDef>
+          {{ 'stock.form.supplierCodeSupplier' | translate }}
+        </th>
+        <td mat-cell *matCellDef="let code; let i = index">
+          <mat-form-field class="w-full" subscriptSizing="dynamic">
+            <mat-select
+              [value]="code.supplierId"
+              (selectionChange)="updateSupplierCode(i, 'supplierId', $event.value)"
+            >
+              @for (supplier of suppliers(); track supplier.code) {
+                <mat-option [value]="supplier.code">{{ supplier.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </td>
+      </ng-container>
+
+      <!-- Code column -->
+      <ng-container matColumnDef="code">
+        <th mat-header-cell *matHeaderCellDef>{{ 'stock.form.supplierCode' | translate }}</th>
+        <td mat-cell *matCellDef="let code; let i = index">
+          <mat-form-field class="w-full" subscriptSizing="dynamic">
+            <input
+              matInput
+              [value]="code.code"
+              (input)="updateSupplierCode(i, 'code', $any($event.target).value)"
+            />
+          </mat-form-field>
+        </td>
+      </ng-container>
+
+      <!-- Last price column (readonly) -->
+      <ng-container matColumnDef="lastPrice">
+        <th mat-header-cell *matHeaderCellDef>
+          {{ 'stock.form.supplierCodeLastPrice' | translate }}
+        </th>
+        <td mat-cell *matCellDef="let code">
+          {{ code.lastPurchasePrice ? code.lastPurchasePrice + ' MAD' : '-' }}
+        </td>
+      </ng-container>
+
+      <!-- Last date column (readonly) -->
+      <ng-container matColumnDef="lastDate">
+        <th mat-header-cell *matHeaderCellDef>
+          {{ 'stock.form.supplierCodeLastDate' | translate }}
+        </th>
+        <td mat-cell *matCellDef="let code">
+          {{ code.lastPurchaseDate ?? '-' }}
+        </td>
+      </ng-container>
+
+      <!-- Actions column -->
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef class="w-16"></th>
+        <td mat-cell *matCellDef="let code; let i = index">
+          <button
+            matButton
+            type="button"
+            (click)="removeSupplierCode(i)"
+            matTooltip="{{ 'commun.delete' | translate }}"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="supplierCodesColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: supplierCodesColumns"></tr>
+    </table>
+  } @else {
+    <p class="text-gray-500 text-center py-4">{{ 'stock.form.noSupplierCodes' | translate }}</p>
+  }
+</ng-template>

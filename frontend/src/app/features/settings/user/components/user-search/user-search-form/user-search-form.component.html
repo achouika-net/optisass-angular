@@ -1,0 +1,56 @@
+<mat-card>
+  <mat-card-content>
+    <form (submit)="$event.preventDefault(); search()">
+      <div class="search-form-grid">
+        <!-- Last Name -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'commun.lastName' | translate }}</mat-label>
+          <input matInput [field]="searchForm().last_name" />
+        </mat-form-field>
+
+        <!-- First Name -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'commun.firstName' | translate }}</mat-label>
+          <input matInput [field]="searchForm().first_name" />
+        </mat-form-field>
+
+        <!-- Role -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'commun.role' | translate }}</mat-label>
+          <mat-select [field]="searchForm().role_id">
+            <mat-option [value]="-1">{{ 'commun.all' | translate }}</mat-option>
+            @for (role of roles(); track role.id) {
+              <mat-option [value]="role.id">{{ role.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Status -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'commun.status' | translate }}</mat-label>
+          <mat-select [field]="searchForm().actif">
+            @for (state of states(); track state.code) {
+              <mat-option [value]="state.code">
+                {{ 'commun.' + state.label | translate }}
+              </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+      <div class="flex flex-1 items-center justify-end gap-2.5">
+        <button matButton class="tertiary" (click)="search()" type="submit">
+          {{ 'commun.search' | translate }}
+        </button>
+        <button
+          matIconButton
+          class="text-primary"
+          [matTooltip]="'commun.reset' | translate"
+          (click)="resetSearchForm()"
+          type="button"
+        >
+          <mat-icon>autorenew</mat-icon>
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>

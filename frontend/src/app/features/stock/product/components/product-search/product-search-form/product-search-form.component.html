@@ -1,0 +1,229 @@
+<!-- Filtres principaux -->
+<mat-card>
+  <mat-card-content>
+    <form (submit)="$event.preventDefault(); search()">
+      <div class="search-form-grid">
+        <!-- Recherche texte -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'stock.search.placeholder' | translate }}</mat-label>
+          <input matInput [field]="searchForm.search" />
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+
+        <!-- Type produit (multi-select) -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'stock.search.productType' | translate }}</mat-label>
+          <mat-select [field]="searchForm.productTypes" multiple>
+            @for (type of productTypes(); track type.code) {
+              <mat-option [value]="type.code">{{ type.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Statut -->
+        <app-resource-autocomplete
+          [formField]="searchForm.status"
+          [options]="productStatuses()"
+          valueKey="code"
+          [placeholder]="'stock.search.status' | translate"
+        />
+
+        <!-- Marque -->
+        <app-resource-autocomplete
+          [formField]="searchForm.brandId"
+          [options]="brands()"
+          [placeholder]="'stock.search.brand' | translate"
+        />
+
+        <!-- Rupture -->
+        <mat-form-field appFieldControlLabel>
+          <mat-label>{{ 'stock.search.outOfStock' | translate }}</mat-label>
+          <mat-select [field]="searchForm.outOfStock">
+            @for (option of booleanOptions; track option.value) {
+              <mat-option [value]="option.value">{{ option.label | translate }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="flex flex-1 items-center justify-end gap-2.5">
+        <button matButton class="tertiary" (click)="search()" type="submit">
+          {{ 'commun.search' | translate }}
+        </button>
+        <button
+          mat-icon-button
+          class="text-primary"
+          [matTooltip]="'commun.reset' | translate"
+          (click)="resetSearchForm()"
+          type="button"
+        >
+          <mat-icon>autorenew</mat-icon>
+        </button>
+        <button
+          mat-icon-button
+          class="text-primary"
+          [matTooltip]="
+            (showAdvancedFilters() ? 'stock.search.hideAdvanced' : 'stock.search.showAdvanced')
+              | translate
+          "
+          (click)="toggleAdvancedFilters()"
+          type="button"
+        >
+          <mat-icon>{{ showAdvancedFilters() ? 'filter_alt_off' : 'filter_alt' }}</mat-icon>
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>
+
+<!-- Filtres avancés -->
+@if (showAdvancedFilters()) {
+  <div class="search-criteria-card-grid mt-4">
+    <!-- Filtres communs -->
+    <mat-card class="search-criteria-card-span-2">
+      <mat-card-content>
+        <h3 class="search-criteria-card-title">{{ 'stock.search.commonFilters' | translate }}</h3>
+        <div class="form-grid">
+          <app-resource-autocomplete
+            [formField]="searchForm.familyId"
+            [options]="families()"
+            [placeholder]="'stock.search.family' | translate"
+          />
+          <app-resource-autocomplete
+            [formField]="searchForm.subFamilyId"
+            [options]="filteredSubFamilies()"
+            [placeholder]="'stock.search.subFamily' | translate"
+          />
+          <app-resource-autocomplete
+            [formField]="searchForm.modelId"
+            [options]="filteredModels()"
+            [placeholder]="'stock.search.model' | translate"
+          />
+          <app-resource-autocomplete
+            [formField]="searchForm.supplierId"
+            [options]="suppliers()"
+            labelKey="name"
+            [placeholder]="'stock.search.supplier' | translate"
+          />
+          <mat-form-field appFieldControlLabel>
+            <mat-label>{{ 'stock.search.lowStock' | translate }}</mat-label>
+            <mat-select [field]="searchForm.lowStock">
+              @for (option of booleanOptions; track option.value) {
+                <mat-option [value]="option.value">{{ option.label | translate }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Filtres Montures -->
+    @if (showFrameFilters()) {
+      <mat-card>
+        <mat-card-content>
+          <h3 class="search-criteria-card-title">{{ 'stock.search.frameFilters' | translate }}</h3>
+          <div class="flex flex-col gap-1">
+            <app-resource-autocomplete
+              [formField]="searchForm.frameShape"
+              [options]="frameShapes()"
+              valueKey="code"
+              [placeholder]="'stock.search.frameShape' | translate"
+            />
+            <app-resource-autocomplete
+              [formField]="searchForm.frameMaterial"
+              [options]="frameMaterials()"
+              valueKey="code"
+              [placeholder]="'stock.search.frameMaterial' | translate"
+            />
+            <app-resource-autocomplete
+              [formField]="searchForm.frameColor"
+              [options]="colors()"
+              [placeholder]="'stock.search.frameColor' | translate"
+            />
+            <app-resource-autocomplete
+              [formField]="searchForm.frameGender"
+              [options]="genders()"
+              valueKey="code"
+              [placeholder]="'stock.search.frameGender' | translate"
+            />
+          </div>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    <!-- Filtres Verres -->
+    @if (showLensFilters()) {
+      <mat-card>
+        <mat-card-content>
+          <h3 class="search-criteria-card-title">{{ 'stock.search.lensFilters' | translate }}</h3>
+          <div class="flex flex-col gap-1">
+            <app-resource-autocomplete
+              [formField]="searchForm.lensIndex"
+              [options]="lensIndices()"
+              valueKey="code"
+              [placeholder]="'stock.search.lensIndex' | translate"
+            />
+            <app-resource-autocomplete
+              [formField]="searchForm.lensTreatment"
+              [options]="lensTreatments()"
+              valueKey="code"
+              [placeholder]="'stock.search.lensTreatment' | translate"
+            />
+            <mat-form-field appFieldControlLabel>
+              <mat-label>{{ 'stock.search.lensPhotochromic' | translate }}</mat-label>
+              <mat-select [field]="searchForm.lensPhotochromic">
+                @for (option of booleanOptions; track option.value) {
+                  <mat-option [value]="option.value">{{ option.label | translate }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    <!-- Filtres Lentilles -->
+    @if (showContactLensFilters()) {
+      <mat-card>
+        <mat-card-content>
+          <h3 class="search-criteria-card-title">
+            {{ 'stock.search.contactLensFilters' | translate }}
+          </h3>
+          <div class="flex flex-col gap-1">
+            <app-resource-autocomplete
+              [formField]="searchForm.contactLensUsage"
+              [options]="contactLensUsages()"
+              valueKey="code"
+              [placeholder]="'stock.search.contactLensUsage' | translate"
+            />
+            <app-resource-autocomplete
+              [formField]="searchForm.contactLensType"
+              [options]="contactLensTypes()"
+              valueKey="code"
+              [placeholder]="'stock.search.contactLensType' | translate"
+            />
+          </div>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    <!-- Filtres Accessoires -->
+    @if (showAccessoryFilters()) {
+      <mat-card>
+        <mat-card-content>
+          <h3 class="search-criteria-card-title">
+            {{ 'stock.search.accessoryFilters' | translate }}
+          </h3>
+          <div class="flex flex-col gap-1">
+            <app-resource-autocomplete
+              [formField]="searchForm.accessoryCategory"
+              [options]="accessoryCategories()"
+              valueKey="code"
+              [placeholder]="'stock.search.accessoryCategory' | translate"
+            />
+          </div>
+        </mat-card-content>
+      </mat-card>
+    }
+  </div>
+}

@@ -1,0 +1,23 @@
+// Mode standalone (défaut) - layout interne
+:host.standalone-layout {
+  display: block;
+
+  .address-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+// Mode inherit parent layout - transparent au grid parent
+:host:not(.standalone-layout) {
+  display: contents;
+
+  .address-row {
+    display: contents;
+  }
+}

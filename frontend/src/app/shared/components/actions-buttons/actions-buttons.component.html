@@ -1,0 +1,70 @@
+@if (showActionBar()) {
+  <mat-card class="mb-2 hidden md:block">
+    <mat-card-content
+      class="flex flex-wrap justify-between gap-1.5 overflow-x-auto overflow-y-hidden"
+    >
+      <div class="flex justify-start gap-x-2">
+        <ng-container *ngTemplateOutlet="buttonsByDirection; context: { buttons: leftButtons() }" />
+      </div>
+      <div class="flex justify-end gap-x-2">
+        <ng-container
+          *ngTemplateOutlet="buttonsByDirection; context: { buttons: rightButtons() }"
+        />
+      </div>
+    </mat-card-content>
+  </mat-card>
+  <div class="fixed right-3 bottom-[4.25rem] z-[1000] md:hidden">
+    <button
+      mat-fab
+      class="transition duration-150 ease-in-out"
+      [class.rotate-90]="isOpen()"
+      [class]="isOpen() ? 'error' : 'primary'"
+      (click)="openCloseListButtons()"
+    >
+      <mat-icon>{{ isOpen() ? 'close' : 'more_vert' }}</mat-icon>
+    </button>
+    <div
+      class="absolute right-0 bottom-14 mb-2.5 w-max flex-col gap-2 transition-all duration-[125ms] ease-in"
+      [class.opacity-100]="isOpen()"
+      [class.opacity-0]="!isOpen()"
+      [class.flex]="isOpen()"
+      [class.hidden]="!isOpen()"
+    >
+      <ng-container *ngTemplateOutlet="buttonsByDirection; context: { buttons: actionButtons() }" />
+    </div>
+  </div>
+  <ng-template let-buttons="buttons" #buttonsByDirection>
+    @for (button of buttons; track $index) {
+      @if (button.display || !button.hasOwnProperty('display')) {
+        <div
+          [matTooltipDisabled]="!button.tooltip"
+          [matTooltip]="button.tooltip | translate"
+          class="relative"
+        >
+          <button
+            matButton="filled"
+            [attr.data-subitem]="$index + 1"
+            [style.background-color]="!button.disabled ? button.customColor : null"
+            class="w-full {{ button.color || defaultButtonColor() }}"
+            [disabled]="button.disabled"
+            (click)="emitAction(button.action)"
+          >
+            @if (button.icon) {
+              <mat-icon>
+                {{ button.icon }}
+              </mat-icon>
+            }
+            {{ button.label | translate }}
+          </button>
+          @if (button.badge) {
+            <span
+              class="bg-tertiary absolute -top-1.5 -right-1.5 ml-auto grid size-5 place-items-center rounded-full text-sm font-medium text-white"
+            >
+              {{ button.badge }}
+            </span>
+          }
+        </div>
+      }
+    }
+  </ng-template>
+}

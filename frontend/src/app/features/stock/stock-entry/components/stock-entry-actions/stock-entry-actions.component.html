@@ -1,0 +1,41 @@
+<div class="bulk-actions-bar">
+  <!-- Compteur sélection (badge style) -->
+  <div class="bulk-selection-count">
+    <mat-icon>check_circle</mat-icon>
+    <span>{{ selectedCount() }}</span>
+  </div>
+
+  <div class="bulk-divider"></div>
+
+  <!-- Entrepôt -->
+  <mat-form-field class="bulk-select" appearance="outline">
+    <mat-label>{{ 'stock.entry.warehouse' | translate }}</mat-label>
+    <mat-select #warehouseSelect (selectionChange)="applyWarehouse($event.value)">
+      @for (wh of warehouses(); track wh.id) {
+        <mat-option [value]="wh.id">{{ wh.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <!-- TVA -->
+  <mat-form-field class="bulk-select" appearance="outline">
+    <mat-label>{{ 'stock.entry.tvaRate' | translate }}</mat-label>
+    <mat-select #tvaSelect (selectionChange)="applyTva($event.value)">
+      @for (rate of tvaRates(); track rate.code) {
+        <mat-option [value]="+rate.code">{{ rate.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <div class="bulk-divider"></div>
+
+  <!-- Bouton Supprimer -->
+  <button
+    mat-icon-button
+    (click)="deleteSelected.emit()"
+    [matTooltip]="'commun.delete' | translate"
+    class="text-error"
+  >
+    <mat-icon>delete</mat-icon>
+  </button>
+</div>
