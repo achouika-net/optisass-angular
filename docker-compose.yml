@@ -10,6 +10,7 @@ services:
       - "5435:5432"
     volumes:
       - pgdata_fresh:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
 
   backend:
     build:
