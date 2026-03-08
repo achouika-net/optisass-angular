@@ -16,8 +16,9 @@ export class GroupsService {
         return this.http.post<Groupe>(this.apiUrl, groupe);
     }
 
-    findAll(): Observable<Groupe[]> {
-        return this.http.get<Groupe[]>(this.apiUrl);
+    findAll(type?: string): Observable<Groupe[]> {
+        const url = type ? `${this.apiUrl}?type=${type}` : this.apiUrl;
+        return this.http.get<Groupe[]>(url);
     }
 
     findOne(id: string): Observable<Groupe> {

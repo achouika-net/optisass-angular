@@ -5,7 +5,7 @@ import { UpdateGroupeDto } from './dto/update-groupe.dto';
 
 @Injectable()
 export class GroupsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(createGroupeDto: CreateGroupeDto) {
     return this.prisma.groupe.create({
@@ -16,8 +16,9 @@ export class GroupsService {
     });
   }
 
-  async findAll() {
+  async findAll(type?: string) {
     return this.prisma.groupe.findMany({
+      where: type ? { type } : undefined,
       include: {
         centres: {
           include: {
@@ -56,7 +57,7 @@ export class GroupsService {
           centres: true,
         },
       });
-    } catch (error) {
+    } catch {
       throw new NotFoundException(`Groupe with ID ${id} not found`);
     }
   }
@@ -67,7 +68,7 @@ export class GroupsService {
         where: { id },
       });
       return { message: `Groupe with ID ${id} deleted successfully` };
-    } catch (error) {
+    } catch {
       throw new NotFoundException(`Groupe with ID ${id} not found`);
     }
   }

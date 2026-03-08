@@ -19,4 +19,8 @@ export class CreateGroupeDto {
   @IsOptional()
   @IsEmail()
   email?: string;
+
+  @IsOptional()
+  @IsString()
+  type?: string;
 }

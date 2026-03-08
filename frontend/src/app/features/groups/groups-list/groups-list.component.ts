@@ -62,7 +62,7 @@ export class GroupsListComponent implements OnInit {
 
     loadGroupes(): void {
         this.loading = true;
-        this.groupsService.findAll().subscribe({
+        this.groupsService.findAll('WORK').subscribe({
             next: (data) => {
                 this.allGroupes = data;
                 this.applyFilter(); // Apply current filters if any

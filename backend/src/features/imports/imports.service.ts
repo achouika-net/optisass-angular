@@ -174,6 +174,7 @@ export class ImportsService {
             data: {
               nom: `Famille ${familyName}`,
               description: `Groupe créé automatiquement par import (Tél: ${tel})`,
+              type: 'FAMILY',
             },
           });
         }
