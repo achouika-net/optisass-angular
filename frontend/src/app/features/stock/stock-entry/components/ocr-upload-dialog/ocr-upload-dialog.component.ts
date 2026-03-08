@@ -117,7 +117,7 @@ export class OcrUploadDialogComponent implements OnInit {
       const validation = this.#parser.validate(result.data);
 
       if (!validation.isValid) {
-        const errorMessages = validation.errors.map((e) => e.message).join(', ');
+        const errorMessages = validation.errors.map((e: any) => e.message).join(', ');
         this.#toastr.warning(
           this.#translate.instant('stock.entry.ocr.validationWarnings', { errors: errorMessages }),
         );
@@ -169,7 +169,7 @@ export class OcrUploadDialogComponent implements OnInit {
     }
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = (e: any) => {
       if (!this.#isDestroyed) {
         this.previewUrl.set(e.target?.result as string);
       }

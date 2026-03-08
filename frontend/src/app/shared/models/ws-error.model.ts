@@ -17,3 +17,5 @@ export class WsErrorClass implements IWsError {
     this.messageToShow = null;
   }
 }
+
+

@@ -21,10 +21,12 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
 import { SupplierInvoiceListComponent } from '../supplier-invoice-list/supplier-invoice-list.component';
-
+import { Subject, of, Observable } from 'rxjs';
+import { takeUntil, tap, switchMap, catchError, map } from 'rxjs/operators';
 import { FinanceService } from '../../services/finance.service';
 import { Supplier } from '../../models/finance.models';
 import { InvoiceFormDialogComponent } from '../../components/invoice-form-dialog/invoice-form-dialog.component';
@@ -54,6 +56,7 @@ import { ExpenseFormDialogComponent } from '../../components/expense-form-dialog
         MatDividerModule,
         MatDialogModule,
         MatTabsModule,
+        MatPaginatorModule,
         RouterModule,
         SupplierInvoiceListComponent
     ],
@@ -61,7 +64,7 @@ import { ExpenseFormDialogComponent } from '../../components/expense-form-dialog
     styles: [`
     .container { 
       width: 100%;
-      max-width: 1200px; 
+      max-width: 98%; 
       margin: 0 auto; 
       padding: 24px;
       box-sizing: border-box;
@@ -98,7 +101,14 @@ export class OutgoingPaymentListComponent implements OnInit {
     }
 
     loading = false;
+    private destroy$ = new Subject<void>();
+    private loadRequestId = 0; // Cancel-token for race condition prevention
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
+
+    // Pagination
+    totalRecords = 0;
+    pageSize = 10;
+    pageIndex = 0;
 
     // Subtotals
     subtotals = {
@@ -155,24 +165,125 @@ export class OutgoingPaymentListComponent implements OnInit {
             this.filters.centreId = center.id;
         }
 
-        // Initialize filters and trigger the first load
-        // Initialize filters and trigger the first load
         this.applyPredefinedPeriod('ALL', false);
 
-        // Listen to tab query param
-        this.route.queryParamMap.subscribe(params => {
+        // Initial load
+        this.loadPayments();
+
+        this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
             const tab = params.get('tab');
-            if (tab === 'FACTURES') this.activeTab = 'FACTURES';
-            else if (tab === 'BL') this.activeTab = 'BL';
+            if (tab === 'OUTGOING') this.activeTab = 'OUTGOING';
             else if (tab === 'INCOMING') this.activeTab = 'INCOMING';
             else if (tab === 'UNPAID_CLIENTS') this.activeTab = 'UNPAID_CLIENTS';
-            else this.activeTab = 'OUTGOING';
+            else if (tab === 'FACTURES') this.activeTab = 'FACTURES';
+            else if (tab === 'BL') this.activeTab = 'BL';
 
             if (['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(this.activeTab)) {
+                this.pageIndex = 0;
                 this.loadPayments();
             }
         });
     }
+
+    ngOnDestroy() {
+        this.destroy$.next();
+        this.destroy$.complete();
+    }
+
+    loadPayments() {
+        const requestId = ++this.loadRequestId; // Each call gets a unique ID
+        this.loading = true;
+        console.log(`[RESTORE-UI] Loading ${this.activeTab} data... (request #${requestId})`);
+
+        const formatDate = (d: any) => {
+            if (!d) return '';
+            const dt = new Date(d);
+            if (isNaN(dt.getTime())) return '';
+            const year = dt.getFullYear();
+            const month = String(dt.getMonth() + 1).padStart(2, '0');
+            const day = String(dt.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        const params = {
+            ...this.filters,
+            startDate: formatDate(this.filters.startDate),
+            endDate: formatDate(this.filters.endDate),
+            page: this.pageIndex + 1,
+            limit: this.pageSize,
+            _t: Date.now()
+        };
+
+        let request$: Observable<any>;
+        if (this.activeTab === 'OUTGOING') {
+            request$ = this.financeService.getConsolidatedOutgoings(params);
+        } else if (this.activeTab === 'INCOMING') {
+            request$ = this.financeService.getConsolidatedIncomings(params);
+        } else if (this.activeTab === 'UNPAID_CLIENTS') {
+            request$ = this.financeService.getConsolidatedUnpaid(params);
+        } else {
+            request$ = of({ data: [], total: 0, subtotals: { totalTTC: 0, totalReste: 0 } });
+        }
+
+        request$.pipe(
+            takeUntil(this.destroy$),
+            catchError((err: any) => {
+                this.handleError(err);
+                return of(null);
+            })
+        ).subscribe({
+            next: (res: any) => {
+                // Ignore stale responses from older requests
+                if (requestId !== this.loadRequestId) {
+                    console.log(`[RESTORE-UI] Ignoring stale response for request #${requestId} (latest is #${this.loadRequestId})`);
+                    return;
+                }
+                console.log(`[RESTORE-UI] Result received for #${requestId}. Total:`, res?.total);
+                if (res) {
+                    this.processResults(res);
+                }
+                this.loading = false;
+            },
+            error: (err: any) => {
+                if (requestId !== this.loadRequestId) return;
+                console.error(`[RESTORE-UI] CRITICAL ERROR:`, err);
+                this.loading = false;
+            }
+        });
+    }
+
+    private handleError(err: any) {
+        console.error('[PAYMENTS-LOAD] Error:', err);
+        this.snackBar.open('Erreur lors du chargement des données', 'Fermer', { duration: 3000 });
+        this.loading = false;
+    }
+
+    private processResults(res: any) {
+        console.log(`[PAYMENTS-PROC] Processing ${res.data?.length || 0} rows...`);
+        this.payments = res.data || [];
+        this.totalRecords = res.total || 0;
+
+        // Use global subtotals from backend
+        this.subtotals.count = res.total || 0;
+
+        // For OUTGOING, we use totalAccrual for the "Total TTC" card to match Treasury Dashboard
+        if (this.activeTab === 'OUTGOING' && res.subtotals?.totalAccrual !== undefined) {
+            this.subtotals.totalTTC = res.subtotals.totalAccrual;
+        } else {
+            this.subtotals.totalTTC = res.subtotals?.totalTTC || 0;
+        }
+
+        // Total HT from backend (global)
+        this.subtotals.totalHT = res.subtotals?.totalHT || 0;
+
+        // For UNPAID_CLIENTS, we use totalReste from backend (the 517k)
+        this.subtotals.totalReste = res.subtotals?.totalReste || 0;
+
+        // Note: calculatePageSubtotals is no longer called here to avoid overwriting global totals
+        console.log(`[PAYMENTS-PROC] Subtotals mapped:`, this.subtotals);
+        console.log(`[PAYMENTS-PROC] Finished processing.`);
+    }
+
 
 
     loadSuppliers() {
@@ -183,7 +294,7 @@ export class OutgoingPaymentListComponent implements OnInit {
         // We can get centers from the store or a service. 
         // For now, let's inject AuthService or use the store if available.
         // Actually, let's just add it to financeService if not there.
-        this.http.get<any[]>(`${this.financeService['apiUrl']}/centres`).subscribe(data => this.centers = data);
+        this.http.get<any[]>(`${this.financeService['apiUrl']}/centers`).subscribe(data => this.centers = data);
     }
 
     onTabChange(event: any) {
@@ -193,90 +304,47 @@ export class OutgoingPaymentListComponent implements OnInit {
         else if (index === 2) this.activeTab = 'UNPAID_CLIENTS';
 
         if (['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(this.activeTab)) {
+            this.pageIndex = 0;
             this.loadPayments();
         }
     }
 
-    loadPayments() {
-        this.loading = true;
-        console.log(`[PAYMENTS-LOAD] Loading ${this.activeTab} payments with filters:`, this.filters);
-
-        const formatDate = (d: any) => {
-            if (!d) return '';
-            const dt = new Date(d);
-            if (isNaN(dt.getTime())) return '';
-            const year = dt.getFullYear();
-            const month = (dt.getMonth() + 1).toString().padStart(2, '0');
-            const day = dt.getDate().toString().padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        };
-
-        const params = {
-            ...this.filters,
-            startDate: formatDate(this.filters.startDate),
-            endDate: formatDate(this.filters.endDate)
-        };
-
-        let request;
-        if (this.activeTab === 'OUTGOING') {
-            request = this.financeService.getConsolidatedOutgoings(params);
-        } else if (this.activeTab === 'INCOMING') {
-            request = this.financeService.getConsolidatedIncomings(params);
-        } else {
-            request = this.financeService.getUnpaidClientInvoices(params);
-        }
-
-        request.subscribe({
-            next: (data) => {
-                console.log(`[PAYMENTS-LOAD] Received ${data.length} records for ${this.activeTab}`);
-
-                if (this.activeTab === 'UNPAID_CLIENTS') {
-                    // Map raw Factures to Table Model
-                    this.payments = data.map((f: any) => ({
-                        id: f.id,
-                        date: f.createdAt,
-                        source: 'FACTURE_CLIENT',
-                        libelle: `Reste Facture ${f.numero}`,
-                        type: f.type,
-                        client: f.client,
-                        montant: f.totalTTC,
-                        resteAPayer: f.resteAPayer,
-                        statut: f.statut,
-                        numero: f.numero
-                    }));
-                } else {
-                    this.payments = data;
-                }
-
-                this.calculateSubtotals();
-                this.loading = false;
-            },
-            error: (err) => {
-                console.error('[PAYMENTS-LOAD] Error loading data:', err);
-                this.snackBar.open('Erreur lors du chargement des données', 'Fermer', { duration: 3000 });
-                this.loading = false;
-            }
-        });
+    onPageChange(event: PageEvent) {
+        this.pageIndex = event.pageIndex;
+        this.pageSize = event.pageSize;
+        this.loadPayments();
     }
 
-    calculateSubtotals() {
-        this.subtotals = {
-            totalTTC: 0,
-            totalHT: 0,
-            totalReste: 0,
-            count: this.payments.length
-        };
+    calculatePageSubtotals() {
+        // This only calculates for the visible page
+        // For Total TTC we use the globally provided backend total
+        this.subtotals.totalHT = 0;
+        this.subtotals.totalReste = 0;
 
         this.payments.forEach(p => {
-            // Use original sign to calculate Net Total (Income - Refunds)
-            const ttc = (p.totalTTC !== undefined ? p.totalTTC : p.montant) || 0;
             const ht = p.totalHT || p.montantHT || 0;
             const reste = p.resteAPayer || 0;
-
-            this.subtotals.totalTTC += ttc;
             this.subtotals.totalHT += ht;
             this.subtotals.totalReste += reste;
         });
+    }
+
+    calculateSubtotals(fullSet: boolean = false) {
+        if (fullSet) {
+            this.subtotals.totalTTC = 0;
+            this.subtotals.totalHT = 0;
+            this.subtotals.totalReste = 0;
+            this.payments.forEach(p => {
+                const ttc = (p.totalTTC !== undefined ? p.totalTTC : p.montant) || 0;
+                const ht = p.totalHT || p.montantHT || 0;
+                const reste = p.resteAPayer || 0;
+                this.subtotals.totalTTC += ttc;
+                this.subtotals.totalHT += ht;
+                this.subtotals.totalReste += reste;
+            });
+        } else {
+            this.calculatePageSubtotals();
+        }
     }
 
     private filterTimeout: any;
@@ -320,6 +388,7 @@ export class OutgoingPaymentListComponent implements OnInit {
             case 'ALL':
                 this.filters.startDate = '';
                 this.filters.endDate = '';
+                this.pageIndex = 0;
                 this.loadPayments();
                 return;
         }
@@ -474,7 +543,10 @@ export class OutgoingPaymentListComponent implements OnInit {
     }
 
     getSourceClass(source: string): string {
-        return source === 'FACTURE' ? 'bg-purple-100 text-purple-800' : 'bg-cyan-100 text-cyan-800';
+        const s = (source || '').toUpperCase();
+        if (s.includes('FACTURE')) return 'bg-purple-100 text-purple-800';
+        if (s.includes('DEPENSE')) return 'bg-cyan-100 text-cyan-800';
+        return 'bg-gray-100 text-gray-800';
     }
 
     trackByPayment(index: number, item: any): string {

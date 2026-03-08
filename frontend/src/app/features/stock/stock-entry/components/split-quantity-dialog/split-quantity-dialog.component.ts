@@ -5,7 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { TranslateModule } from '@ngx-translate/core';
 import { ISplitDialogData, ISplitDialogResult, IWarehouseAllocation } from '../../models';
 
@@ -20,7 +20,7 @@ interface IAllocationRow {
   templateUrl: './split-quantity-dialog.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    FieldControlLabelDirective,
+    ControlLabelDirective,
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,

@@ -1,10 +1,10 @@
 import {
-  FrameSubType,
   IProductPhoto,
   ISupplierProductCode,
   PricingMode,
   ProductType,
 } from '@optisaas/opti-saas-lib';
+import { FrameSubType } from './index';
 
 interface IBaseProductRequest {
   designation: string | null;

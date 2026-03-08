@@ -70,3 +70,17 @@ export const extractDeepestModuleFromUrl = (
 
   return null;
 };
+
+/**
+ * Filters menu items by user authorizations.
+ * @param items Menu items to filter
+ * @param authorizations User authorizations
+ * @returns Filtered menu items
+ */
+export const filterMenuByAuthorizations = (
+  items: MenuItem[],
+  authorizations: any[]
+): MenuItem[] => {
+  // TODO: implement authorization filtering
+  return items;
+};

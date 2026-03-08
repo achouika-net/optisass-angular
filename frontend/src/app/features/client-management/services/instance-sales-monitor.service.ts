@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 import { BehaviorSubject, Observable, interval, of, forkJoin } from 'rxjs';
 import { startWith, switchMap, tap, map, catchError, take } from 'rxjs/operators';
 import { FactureService } from './facture.service';
@@ -39,7 +39,8 @@ export class InstanceSalesMonitorService {
         private financeService: FinanceService,
         private snackBar: MatSnackBar,
         private router: Router,
-        private store: Store
+        private store: Store,
+        private ngZone: NgZone
     ) { }
 
 
@@ -49,18 +50,31 @@ export class InstanceSalesMonitorService {
         this.isPolling = true;
         console.log('🔄 Starting Transfer & Instance Monitor polling...');
 
-        // Poll every 15 seconds for better responsiveness on transfers
-        interval(15 * 1000).pipe(
-            startWith(0),
-            switchMap(() => forkJoin({
-                sales: this.checkInstanceSales(),
-                transfers: this.checkPendingTransfers(),
-                finance: this.checkFinanceAlerts()
-            }))
-
-        ).subscribe({
-            next: (data) => console.log('✅ Monitor Cycle Complete:', data),
-            error: (err) => console.error('❌ Monitor Cycle Error:', err)
+        this.ngZone.runOutsideAngular(() => {
+            // Poll every 60 seconds (1 minute) for background monitoring
+            interval(60 * 1000).pipe(
+                startWith(0),
+                switchMap(() => {
+                    // Fetch all products once per cycle to avoid N*M requests inside checkInstanceSales
+                    return this.productService.findAll({ global: true }).pipe(
+                        switchMap(allProducts => forkJoin({
+                            sales: this.checkInstanceSales(allProducts),
+                            transfers: this.checkPendingTransfers(allProducts),
+                            finance: this.checkFinanceAlerts()
+                        })),
+                        catchError(err => {
+                            console.error('❌ Monitor Cycle Error:', err);
+                            return of(null);
+                        })
+                    );
+                })
+            ).subscribe({
+                next: (data) => {
+                    if (data) {
+                        console.log('✅ Monitor Cycle Complete');
+                    }
+                }
+            });
         });
     }
 
@@ -69,33 +83,36 @@ export class InstanceSalesMonitorService {
         console.log('⏸️ Stopped Monitor polling');
     }
 
-    private checkPendingTransfers(): Observable<any> {
-        console.log('🔍 Checking pending transfers (Incoming/Outgoing)...');
+    private checkPendingTransfers(products: any[]): Observable<any> {
         return this.store.select(UserCurrentCentreSelector).pipe(
             take(1),
-            switchMap((center: any) => {
-                if (!center) return of([]);
-                return this.productService.findAll({ global: true }).pipe(
-                    map(products => {
-                        // 1. Pending SHIPMENTS (Outgoing from THIS center)
-                        const shipments = products.filter(p =>
-                            p.entrepot?.centreId === center.id &&
-                            p.specificData?.pendingOutgoing?.some((t: any) => t.status !== 'SHIPPED')
-                        );
-                        this.pendingShipmentCount$.next(shipments.length);
-                        this.showShipmentNotifications(shipments);
+            map((center: any) => {
+                if (!center) return { shipments: [], receptions: [] };
 
-                        // 2. Waiting RECEPTIONS (Incoming to THIS center)
-                        const receptions = products.filter(p =>
-                            p.entrepot?.centreId === center.id &&
-                            p.specificData?.pendingIncoming &&
-                            p.specificData.pendingIncoming.status === 'SHIPPED'
-                        );
-                        this.waitingReceptionCount$.next(receptions.length);
-
-                        return { shipments, receptions };
-                    })
+                // 1. Pending SHIPMENTS (Outgoing from THIS center)
+                const shipments = products.filter(p =>
+                    p.entrepot?.centreId === center.id &&
+                    p.specificData?.pendingOutgoing?.some((t: any) => t.status !== 'SHIPPED')
                 );
+
+                // Run count updates back inside Angular zone for proper UI updates
+                this.ngZone.run(() => {
+                    this.pendingShipmentCount$.next(shipments.length);
+                    this.showShipmentNotifications(shipments);
+                });
+
+                // 2. Waiting RECEPTIONS (Incoming to THIS center)
+                const receptions = products.filter(p =>
+                    p.entrepot?.centreId === center.id &&
+                    p.specificData?.pendingIncoming &&
+                    p.specificData.pendingIncoming.status === 'SHIPPED'
+                );
+
+                this.ngZone.run(() => {
+                    this.waitingReceptionCount$.next(receptions.length);
+                });
+
+                return { shipments, receptions };
             }),
             catchError(err => {
                 console.error('❌ Error checking transfers:', err);
@@ -105,7 +122,6 @@ export class InstanceSalesMonitorService {
     }
 
     private checkFinanceAlerts(): Observable<any> {
-        console.log('🔍 Checking Finance Alerts (Funding/Portfolio)...');
         return this.store.select(UserCurrentCentreSelector).pipe(
             take(1),
             switchMap((center: any) => {
@@ -115,9 +131,11 @@ export class InstanceSalesMonitorService {
                     portfolio: this.financeService.getPendingTreasuryAlerts(centreId)
                 }).pipe(
                     tap(({ funding, portfolio }) => {
-                        this.fundingRequestCount$.next(funding);
-                        const portCount = (portfolio.client?.length || 0) + (portfolio.supplier?.length || 0);
-                        this.portfolioCount$.next(portCount);
+                        this.ngZone.run(() => {
+                            this.fundingRequestCount$.next(funding);
+                            const portCount = (portfolio.client?.length || 0) + (portfolio.supplier?.length || 0);
+                            this.portfolioCount$.next(portCount);
+                        });
                     }),
                     catchError(err => {
                         console.error('❌ Error checking finance alerts:', err);
@@ -133,35 +151,36 @@ export class InstanceSalesMonitorService {
         shipments.forEach(p => {
             const transferId = `${p.id}_ship`;
             if (!this.notifiedShipments.has(transferId)) {
-                const snackBarRef = this.snackBar.open(
-                    `📦 Nouveau transfert demandé pour ${p.designation}`,
-                    'EXPÉDIER',
-                    { duration: 15000, panelClass: 'shipping-snack' }
-                );
-                snackBarRef.onAction().subscribe(() => {
-                    this.router.navigate(['/p/stock/transfers']);
+                this.ngZone.run(() => {
+                    const snackBarRef = this.snackBar.open(
+                        `📦 Nouveau transfert demandé pour ${p.designation}`,
+                        'EXPÉDIER',
+                        { duration: 15000, panelClass: 'shipping-snack' }
+                    );
+                    snackBarRef.onAction().subscribe(() => {
+                        this.router.navigate(['/p/stock/transfers']);
+                    });
                 });
                 this.notifiedShipments.add(transferId);
             }
         });
     }
 
-    private checkInstanceSales(): Observable<InstanceSale[]> {
-        console.log('🔍 Checking instance sales status (All BON_COMM documents)...');
+    private checkInstanceSales(allProducts: any[]): Observable<InstanceSale[]> {
         return this.factureService.findAll({ type: 'BON_COMM' }).pipe(
             switchMap(factures => {
-                // Filter out cancelled ones just in case
                 const activeFactures = factures.filter(f => f.statut !== 'ANNULEE');
                 if (activeFactures.length === 0) return of([]);
-                const checks = activeFactures.map(f => this.checkSaleStatus(f));
+                const checks = activeFactures.map(f => this.checkSaleStatus(f, allProducts));
                 return forkJoin(checks);
             }),
-
             tap(sales => {
-                this.instanceSales$.next(sales);
-                const readyCount = sales.filter(s => s.status === 'READY').length;
-                this.readyToValidateCount$.next(readyCount);
-                this.showNotificationIfReady(sales);
+                this.ngZone.run(() => {
+                    this.instanceSales$.next(sales);
+                    const readyCount = sales.filter(s => s.status === 'READY').length;
+                    this.readyToValidateCount$.next(readyCount);
+                    this.showNotificationIfReady(sales);
+                });
             }),
             catchError(err => {
                 console.error('❌ Error checking instance sales:', err);
@@ -170,7 +189,7 @@ export class InstanceSalesMonitorService {
         );
     }
 
-    private checkSaleStatus(facture: any): Observable<InstanceSale> {
+    private checkSaleStatus(facture: any, allProducts: any[]): Observable<InstanceSale> {
         const lines = (facture.lignes as any[]) || [];
         const items = lines.filter(l => l.productId || l.description);
 
@@ -178,72 +197,56 @@ export class InstanceSalesMonitorService {
 
         return this.store.select(UserCurrentCentreSelector).pipe(
             take(1),
-            switchMap(center => {
-                const checks = items.map(item => {
-                    let check$ = item.productId ?
-                        this.productService.findOne(item.productId).pipe(catchError(() => of(null))) :
-                        of(null);
+            map(center => {
+                const products = items.map(item => {
+                    let product = null;
+                    if (item.productId) {
+                        product = allProducts.find(p => p.id === item.productId);
+                    }
 
-                    return check$.pipe(
-                        switchMap(product => {
-                            if (product && product.entrepot?.centreId === center.id) {
-                                return of(product);
-                            }
-                            return this.productService.findAll({ global: true }).pipe(
-                                map(allProducts => {
-                                    const match = allProducts.find(p =>
-                                        p.entrepot?.centreId === center.id &&
-                                        (p.designation === item.description || p.codeInterne === item.reference || p.codeBarres === item.reference)
-                                    );
-                                    return match || product;
-                                }),
-                                catchError(() => of(product))
-                            );
-                        })
-                    );
+                    if (!product || product.entrepot?.centreId !== center.id) {
+                        const match = allProducts.find(p =>
+                            p.entrepot?.centreId === center.id &&
+                            (p.designation === item.description || p.codeInterne === item.reference || p.codeBarres === item.reference)
+                        );
+                        return match || product;
+                    }
+                    return product;
                 });
 
-                return forkJoin(checks).pipe(
-                    map(products => {
-                        const validProducts = products.filter(p => p !== null);
-                        if (validProducts.length === 0) return ({ facture, status: 'UNKNOWN' }) as InstanceSale;
+                const validProducts = products.filter(p => p !== null);
+                if (validProducts.length === 0) return ({ facture, status: 'UNKNOWN' }) as InstanceSale;
 
-                        const allReceived = validProducts.every(p =>
-                            (p.entrepot?.centreId === center.id && (p.quantiteActuelle > 0 || p.statut === 'DISPONIBLE'))
-                        );
-
-                        // Check if any product has the 'lastTransferReception' tag in its specificData
-                        // This indicates it was received via an inter-center transfer
-                        const wasTransferred = validProducts.some(p => p.specificData?.lastTransferReception);
-
-
-                        const someInTransit = validProducts.some(p =>
-                            p.statut === 'EN_TRANSIT' ||
-                            p.specificData?.pendingIncoming?.status === 'SHIPPED' ||
-                            (p.entrepot?.centreId !== center.id && p.statut === 'RESERVE')
-                        );
-
-                        const cancelled = validProducts.some(p =>
-                            p.entrepot?.centreId !== center.id &&
-                            !p.specificData?.pendingOutgoing &&
-                            p.quantiteActuelle > 0
-                        );
-
-                        let status: 'IN_TRANSIT' | 'READY' | 'CANCELLED' | 'UNKNOWN';
-                        if (allReceived) status = 'READY';
-                        else if (someInTransit) status = 'IN_TRANSIT';
-                        else if (cancelled) status = 'CANCELLED';
-                        else status = 'UNKNOWN';
-
-                        return ({ facture, status, products: validProducts, wasTransferred }) as InstanceSale;
-                    })
+                const allReceived = validProducts.every(p =>
+                    (p.entrepot?.centreId === center.id && (p.quantiteActuelle > 0 || p.statut === 'DISPONIBLE'))
                 );
+
+                const wasTransferred = validProducts.some(p => p.specificData?.lastTransferReception);
+
+                const someInTransit = validProducts.some(p =>
+                    p.statut === 'EN_TRANSIT' ||
+                    p.specificData?.pendingIncoming?.status === 'SHIPPED' ||
+                    (p.entrepot?.centreId !== center.id && p.statut === 'RESERVE')
+                );
+
+                const cancelled = validProducts.some(p =>
+                    p.entrepot?.centreId !== center.id &&
+                    !p.specificData?.pendingOutgoing &&
+                    p.quantiteActuelle > 0
+                );
+
+                let status: 'IN_TRANSIT' | 'READY' | 'CANCELLED' | 'UNKNOWN';
+                if (allReceived) status = 'READY';
+                else if (someInTransit) status = 'IN_TRANSIT';
+                else if (cancelled) status = 'CANCELLED';
+                else status = 'UNKNOWN';
+
+                return ({ facture, status, products: validProducts, wasTransferred }) as InstanceSale;
             })
         ) as Observable<InstanceSale>;
     }
 
     private showNotificationIfReady(sales: InstanceSale[]): void {
-        // Only notify if status is READY AND it was a resulting transfer (wasTransferred = true)
         const newlyReady = sales.filter(s => s.status === 'READY' && s.wasTransferred && !this.notifiedSales.has(s.facture.id));
         newlyReady.forEach(sale => {
             const snackBarRef = this.snackBar.open(
@@ -262,11 +265,13 @@ export class InstanceSalesMonitorService {
     getWaitingReceptionCount(): Observable<number> { return this.waitingReceptionCount$.asObservable(); }
 
     refreshNow(): void {
-        forkJoin({
-            sales: this.checkInstanceSales(),
-            transfers: this.checkPendingTransfers(),
-            finance: this.checkFinanceAlerts()
-        }).subscribe();
+        this.productService.findAll({ global: true }).pipe(
+            switchMap(allProducts => forkJoin({
+                sales: this.checkInstanceSales(allProducts),
+                transfers: this.checkPendingTransfers(allProducts),
+                finance: this.checkFinanceAlerts()
+            }))
+        ).subscribe();
     }
 
     getFundingRequestCount(): Observable<number> { return this.fundingRequestCount$.asObservable(); }

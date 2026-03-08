@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Observable, of, BehaviorSubject, firstValueFrom, throwError } from 'rxjs';
 import { FormBuilder, FormGroup, AbstractControl, ReactiveFormsModule, Validators, FormArray, FormControl } from '@angular/forms';
@@ -317,7 +317,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         private factureService: FactureService,
         private productService: ProductService,
         private snackBar: MatSnackBar,
-        private store: Store
+        private store: Store,
+        private ngZone: NgZone
     ) {
         this.ficheForm = this.initForm();
     }
@@ -396,15 +397,17 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             }
         });
 
-        // POLLING: Check reception status every 5 seconds if waiting
-        timer(5000, 5000).pipe(
-            takeUntil(this.destroy$)
-        ).subscribe(() => {
-            const isInstance = (this.linkedFactureSubject.value?.statut === 'VENTE_EN_INSTANCE');
-            if (isInstance && !this.receptionComplete && this.currentFiche) {
-                console.log('🔄 [POLLING] Checking reception status...');
-                this.checkReceptionForInstance(this.currentFiche);
-            }
+        // POLLING: Check reception status every 30 seconds if waiting
+        this.ngZone.runOutsideAngular(() => {
+            timer(30000, 30000).pipe(
+                takeUntil(this.destroy$)
+            ).subscribe(() => {
+                const isInstance = (this.linkedFactureSubject.value?.statut === 'VENTE_EN_INSTANCE');
+                if (isInstance && !this.receptionComplete && this.currentFiche) {
+                    console.log('🔄 [POLLING] Checking reception status...');
+                    this.checkReceptionForInstance(this.currentFiche);
+                }
+            });
         });
     }
 

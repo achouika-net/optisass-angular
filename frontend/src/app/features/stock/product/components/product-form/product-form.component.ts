@@ -25,7 +25,7 @@ import {
   PhotoUploadComponent,
   ResourceAutocompleteComponent,
 } from '@app/components';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { FrameSubType, PricingMode, ProductType, resetTypeSpecificFields } from '@app/models';
 import { createProductSchemaHelpers, productSchema } from '@app/validators';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -47,7 +47,7 @@ import { ProductStore } from '../../product.store';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     NgTemplateOutlet,
-    Field,
+
     FormField,
     TranslateModule,
     MatButtonModule,
@@ -60,7 +60,7 @@ import { ProductStore } from '../../product.store';
     MatTooltipModule,
     MatStepperModule,
     MatTableModule,
-    FieldControlLabelDirective,
+    ControlLabelDirective,
     FieldErrorComponent,
     PhotoUploadComponent,
     ResourceAutocompleteComponent,
@@ -76,7 +76,8 @@ export class ProductFormComponent {
 
   readonly #formModel = signal<IProductForm>(getDefaultProductForm());
 
-  readonly form = form(this.#formModel, (fieldPath) => {
+  readonly form: any = form(this.#formModel, (fp) => {
+    const fieldPath = fp as any;
     // Use shared product schema
     const helpers = createProductSchemaHelpers(fieldPath);
     productSchema(fieldPath, helpers);
@@ -322,7 +323,7 @@ export class ProductFormComponent {
   removeSupplierCode(index: number): void {
     this.#formModel.update((current) => ({
       ...current,
-      supplierCodes: current.supplierCodes.filter((_, i) => i !== index),
+      supplierCodes: current.supplierCodes.filter((_: any, i: number) => i !== index),
     }));
   }
 
@@ -339,7 +340,7 @@ export class ProductFormComponent {
   ): void {
     this.#formModel.update((current) => ({
       ...current,
-      supplierCodes: current.supplierCodes.map((sc, i) =>
+      supplierCodes: current.supplierCodes.map((sc: any, i: number) =>
         i === index ? { ...sc, [field]: value } : sc,
       ),
     }));
@@ -356,3 +357,4 @@ export class ProductFormComponent {
     return supplier?.name ?? '';
   }
 }
+

@@ -148,10 +148,9 @@
                     <ng-container matColumnDef="source">
                         <th mat-header-cell *matHeaderCellDef>Source</th>
                         <td mat-cell *matCellDef="let p">
-                            <span class="px-2 py-1 rounded text-xs font-medium" [ngClass]="getSourceClass(p.source)">
-                                {{ p.source === 'FACTURE' ? 'Facture' : (p.source === 'FACTURE_CLIENT' ? 'Facture
-                                Client' :
-                                'Dépense') }}
+                            <span class="px-2 py-1 rounded text-xs font-medium"
+                                [ngClass]="getSourceClass(p.sourceRaw || p.source)">
+                                {{ p.source }}
                             </span>
                         </td>
                     </ng-container>
@@ -267,6 +266,11 @@
                     </tr>
                 </table>
             </div>
+
+            <mat-paginator [length]="totalRecords" [pageSize]="pageSize" [pageSizeOptions]="[10, 25, 50, 100]"
+                [pageIndex]="pageIndex" (page)="onPageChange($event)" aria-label="Sélectionner la page"
+                class="!bg-transparent border-t border-gray-100">
+            </mat-paginator>
 
             <mat-card-footer *ngIf="loading">
                 <mat-progress-bar mode="indeterminate"></mat-progress-bar>

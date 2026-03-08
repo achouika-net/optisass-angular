@@ -188,23 +188,30 @@ export class FinanceService {
         return this.http.post<any>(`${this.apiUrl}/treasury/config`, { monthlyThreshold: threshold });
     }
 
-    getConsolidatedOutgoings(filters: any): Observable<any[]> {
-        return this.http.get<any[]>(`${this.apiUrl}/treasury/consolidated-outgoings`, { params: filters });
+    getConsolidatedOutgoings(filters: any): Observable<{ data: any[], total: number, subtotals: { totalTTC: number } }> {
+        return this.http.get<{ data: any[], total: number, subtotals: { totalTTC: number } }>(`${this.apiUrl}/treasury/consolidated-outgoings`, { params: filters });
     }
 
-    getConsolidatedIncomings(filters: any): Observable<any[]> {
-        return this.http.get<any[]>(`${this.apiUrl}/treasury/consolidated-incomings`, { params: filters });
+    getConsolidatedIncomings(filters: any): Observable<{ data: any[], total: number, subtotals: { totalTTC: number } }> {
+        return this.http.get<{ data: any[], total: number, subtotals: { totalTTC: number } }>(`${this.apiUrl}/treasury/consolidated-incomings`, { params: filters });
     }
 
     getUnpaidClientInvoices(filters?: any): Observable<any[]> {
         let params = new HttpParams().set('unpaid', 'true');
-        if (filters?.startDate) params = params.set('startDate', filters.startDate); // Use createdAt filters if backend supports?
-        // Note: FacturesController.findAll doesn't explicitely handle startDate/endDate yet in my recent edit.
-        // It relies on generic filters? No, I only added clientId, type, statut.
-        // If I want date filtering, I need to add it to backend too.
-        // For now, let's just fetch unpaid to show the list.
-
+        if (filters?.startDate) params = params.set('startDate', filters.startDate);
         return this.http.get<any[]>(`${this.apiUrl}/factures`, { params });
+    }
+
+    getConsolidatedUnpaid(filters: any): Observable<{ data: any[], total: number, subtotals: { totalTTC: number, totalReste: number } }> {
+        let params = new HttpParams();
+        if (filters.centreId) params = params.set('centreId', filters.centreId);
+        if (filters.clientId) params = params.set('clientId', filters.clientId);
+        if (filters.startDate) params = params.set('startDate', filters.startDate);
+        if (filters.endDate) params = params.set('endDate', filters.endDate);
+        if (filters.page) params = params.set('page', (filters.page + 1).toString()); // Backend is 1-indexed
+        if (filters.limit) params = params.set('limit', filters.limit.toString());
+
+        return this.http.get<{ data: any[], total: number, subtotals: { totalTTC: number, totalReste: number } }>(`${this.apiUrl}/treasury/consolidated-unpaid-final`, { params });
     }
 
     validatePayment(id: string, statut: string = 'ENCAISSE'): Observable<any> {

@@ -1,0 +1,646 @@
+﻿node.exe : [1m[33m[baseline-browser-mapping] The data in this 
+module is over two months old.  To ensure accurate Baseline data, 
+please update: `npm i baseline-browser-mapping@latest -D`[39m[22m
+Au caractère Ligne:1 : 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~
+    + CategoryInfo          : NotSpecified: ([1m[33m[basel...t -D 
+   `[39m[22m:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[baseline-browser-mapping] The data in this module is over two 
+months old.  To ensure accurate Baseline data, please update: `npm 
+i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two 
+months old.  To ensure accurate Baseline data, please update: `npm 
+i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two 
+months old.  To ensure accurate Baseline data, please update: `npm 
+i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two 
+months old.  To ensure accurate Baseline data, please update: `npm 
+i baseline-browser-mapping@latest -D`
+Application bundle generation failed. [27.583 seconds] - 2026-03-06T10:08:56.727Z
+
+[1m[31m[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: 
+Module '"@app/helpers"' has no exported member 
+'findMenuItemByUrl'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/core/guards/permission.guard.ts:9:9:
+[37m      9 Ôöé import { [32mfindMenuItemByUrl[37m, 
+userHasAccessToItem } from '@app/helpers';
+        ÔòÁ          [32m~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"@app/helpers"' has no exported member 'userHasAccessToItem'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/core/guards/permission.guard.ts:9:28:
+[37m      9 Ôöé import { findMenuItemByUrl, 
+[32muserHasAccessToItem[37m } from '@app/helpers';
+        ÔòÁ                             [32m~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"../interceptors/jwt.interceptor"' has no exported member 
+'cancelAllPendingRequests'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/core/store/auth.store.ts:38:30:
+[37m      38 Ôöé ...efreshTokenSubject, 
+[32mcancelAllPendingRequests[37m } from '../interce...
+         ÔòÁ                        
+[32m~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"@app/models"' has no exported member 'WsErrorClass'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/core/store/auth/auth.effects.ts:6:45:
+[37m      6 Ôöé ...rrentUser, IJwtTokens, IWsError, 
+[32mWsErrorClass[37m } from '@app/models';
+        ÔòÁ                                     
+[32m~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"@app/models"' has no exported member 'WsErrorClass'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/core/store/auth/auth.reducer.ts:8:2:
+[37m      8 Ôöé   [32mWsErrorClass[37m,
+        ÔòÁ   [32m~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2724: 
+'"@app/config"' has no exported member named 
+'USER_OPTIONS_API_URL'. Did you mean 'SETTINGS_API_URL'?[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/features/authentication/services/auth.service.ts:9:2:
+[37m      9 Ôöé   [32mUSER_OPTIONS_API_URL[37m,
+        ÔòÁ   [32m~~~~~~~~~~~~~~~~~~~~[0m
+
+  'SETTINGS_API_URL' is declared here.
+
+    src/app/config/api.config.ts:22:13:
+[37m      22 Ôöé export const [32mSETTINGS_API_URL[37m = 
+`${API_URL}/settings`;
+         ÔòÁ              [32m~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2724: 
+'"@app/config"' has no exported member named 'ME_API_URL'. Did you 
+mean 'API_URL'?[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/authentication/services/auth.service.ts:11:2:
+[37m      11 Ôöé   [32mME_API_URL[37m,
+         ÔòÁ   [32m~~~~~~~~~~[0m
+
+  'API_URL' is declared here.
+
+    src/app/config/api.config.ts:3:13:
+[37m      3 Ôöé export const [32mAPI_URL[37m = 
+`${environment.apiUrl}/api`;
+        ÔòÁ              [32m~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"@app/config"' has no exported member 'REFRESH_TOKEN_API_URL'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/features/authentication/services/auth.service.ts:12:2:
+[37m      12 Ôöé   [32mREFRESH_TOKEN_API_URL[37m,
+         ÔòÁ   [32m~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"@app/services"' has no exported member 'SupplierService'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/features/stock-new/product/components/product-search/pro
+duct-search-form/product-search-form.component.ts:24:9:
+[37m      24 Ôöé import { [32mSupplierService[37m } from 
+'@app/services';
+         ÔòÁ          [32m~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mNG1010: 'imports' 
+must be an array of components, directives, pipes, or NgModules.
+  Value could not be determined statically.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/stock-new/product/components/product-search/pro
+duct-search-form/product-search-form.component.ts:33:4:
+[37m      33 Ôöé     [32mField[37m,
+         ÔòÁ     [32m~~~~~[0m
+
+  Unknown reference.
+
+    src/app/features/stock-new/product/components/product-search/pro
+duct-search-form/product-search-form.component.ts:33:4:
+[37m      33 Ôöé     [32mField[37m,
+         ÔòÁ     [32m~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'Field' only 
+refers to a type, but is being used as a value here.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/features/stock-new/product/components/product-search/pro
+duct-search-form/product-search-form.component.ts:33:4:
+[37m      33 Ôöé     [32mField[37m,
+         ÔòÁ     [32m~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'getActiveSuppliers' does not exist on type 'unknown'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/features/stock-new/product/components/product-search/pro
+duct-search-form/product-search-form.component.ts:60:40:
+[37m      60 Ôöé     stream: () => 
+this.#supplierService.[32mgetActiveSuppliers[37m(),
+         ÔòÁ                                         
+[32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"@app/components"' has no exported member 
+'NoDataSearchComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/stock-new/product/components/product-search/pro
+duct-search-table/product-search-table.component.ts:21:9:
+[37m      21 Ôöé import { [32mNoDataSearchComponent[37m, 
+ConfirmationPopupComponent } from ...
+         ÔòÁ          [32m~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"@app/pipes"' has no exported member 
+'GetElementFromResourcePipe'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/stock-new/product/components/product-search/pro
+duct-search-table/product-search-table.component.ts:29:9:
+[37m      29 Ôöé import { [32mGetElementFromResourcePipe[37m, 
+WrapFnPipe } from '@app/pipes';
+         ÔòÁ          [32m~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mNG1010: 'imports' 
+must be an array of components, directives, pipes, or NgModules.
+  Value could not be determined statically.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/stock-new/product/components/product-search/pro
+duct-search-table/product-search-table.component.ts:56:4:
+[37m      56 Ôöé     [32mNoDataSearchComponent[37m,
+         ÔòÁ     [32m~~~~~~~~~~~~~~~~~~~~~[0m
+
+  Unknown reference.
+
+    src/app/features/stock-new/product/components/product-search/pro
+duct-search-table/product-search-table.component.ts:56:4:
+[37m      56 Ôöé     [32mNoDataSearchComponent[37m,
+         ÔòÁ     [32m~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mNG1010: 'imports' 
+must be an array of components, directives, pipes, or NgModules.
+  Value could not be determined statically.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/stock-new/product/components/product-search/pro
+duct-search-table/product-search-table.component.ts:60:4:
+[37m      60 Ôöé     [32mGetElementFromResourcePipe[37m,
+         ÔòÁ     [32m~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  Unknown reference.
+
+    src/app/features/stock-new/product/components/product-search/pro
+duct-search-table/product-search-table.component.ts:60:4:
+[37m      60 Ôöé     [32mGetElementFromResourcePipe[37m,
+         ÔòÁ     [32m~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"@app/types"' has no exported member 'TypedRoute'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/features/stock-new/product/product.routes.ts:1:9:
+[37m      1 Ôöé import { [32mTypedRoute[37m } from '@app/types';
+        ÔòÁ          [32m~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS7006: Parameter 
+'matchResult' implicitly has an 'any' type.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/stock-new/stock-entry/components/stock-entry/st
+ock-entry.component.ts:884:72:
+[37m      884 Ôöé ...uct(product.designation, 
+supplierId).subscribe(([32mmatchResult[37m) => {
+          ÔòÁ                                                    
+[32m~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"@app/models"' has no exported member 
+'categoryToFrameSubType'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/stock-new/stock-entry/models/stock-entry-form.m
+odel.ts:2:2:
+[37m      2 Ôöé   [32mcategoryToFrameSubType[37m,
+        ÔòÁ   [32m~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2307: Cannot find 
+module '../../../settings/warehouse/models' or its corresponding 
+type declarations.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/stock-new/stock-entry/models/stock-entry.model.
+ts:1:27:
+[37m      1 Ôöé import { IWarehouse } from 
+[32m'../../../settings/warehouse/models'[37m;
+        ÔòÁ                            
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"@app/services"' has no exported member 
+'ProductMatchingService'.[0m [1m[35m[plugin angular-compiler][0m
+
+    
+src/app/features/stock-new/stock-entry/stock-entry.store.ts:6:23:
+[37m      6 Ôöé import { ErrorService, 
+[32mProductMatchingService[37m } from '@app/services';
+        ÔòÁ                        [32m~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'matchProduct' does not exist on type 'unknown'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    
+src/app/features/stock-new/stock-entry/stock-entry.store.ts:80:33:
+[37m      80 Ôöé ...urn 
+this.#productMatching.[32mmatchProduct[37m(null, designation, 
+suppl...
+         ÔòÁ                              [32m~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'matchProduct' does not exist on type 'unknown'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    
+src/app/features/stock-new/stock-entry/stock-entry.store.ts:101:28:
+[37m      101 Ôöé       
+this.#productMatching.[32mmatchProduct[37m(null, 
+product.designatio...
+          ÔòÁ                             [32m~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2740: Type '{}' is 
+missing the following properties from type 'IProductMatchResult': 
+method, confidence, score, matchedProductId, and 3 more.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    
+src/app/features/stock-new/stock-entry/stock-entry.store.ts:103:71:
+[37m      103 Ôöé ...lt): IMatchProductsResult => ({ rowId: 
+product.rowId, [32mresult[37m })),
+          ÔòÁ                                                       
+   [32m~~~~~~[0m
+
+  The expected type comes from property 'result' which is declared 
+here on type 'IMatchProductsResult'
+
+    
+src/app/features/stock-new/stock-entry/stock-entry.store.ts:16:11:
+[37m      16 Ôöé   readonly [32mresult[37m: IProductMatchResult;
+         ÔòÁ            [32m~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"@app/helpers"' has no exported member 'findMenuItemByUrl'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/layout/breadcrumb/breadcrumb.component.ts:23:9:
+[37m      23 Ôöé import { [32mfindMenuItemByUrl[37m } from 
+'@app/helpers';
+         ÔòÁ          [32m~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"@app/helpers"' has no exported member 'userHasAccessToItem'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/layout/sidebar/sidebar.component.ts:22:9:
+[37m      22 Ôöé import { [32muserHasAccessToItem[37m } from 
+'@app/helpers';
+         ÔòÁ          [32m~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"@app/types"' has no exported member 'DirectionType'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/components/actions-buttons/actions-buttons.compon
+ent.ts:9:9:
+[37m      9 Ôöé import { [32mDirectionType[37m } from 
+'@app/types';
+        ÔòÁ          [32m~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mNG1010: 'imports' 
+must be an array of components, directives, pipes, or NgModules.
+  Value could not be determined statically.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/shared/components/address-fields/address-fields.componen
+t.ts:27:4:
+[37m      27 Ôöé     [32mField[37m,
+         ÔòÁ     [32m~~~~~[0m
+
+  Unknown reference.
+
+    src/app/shared/components/address-fields/address-fields.componen
+t.ts:27:4:
+[37m      27 Ôöé     [32mField[37m,
+         ÔòÁ     [32m~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'Field' only 
+refers to a type, but is being used as a value here.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/components/address-fields/address-fields.componen
+t.ts:27:4:
+[37m      27 Ôöé     [32mField[37m,
+         ÔòÁ     [32m~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'geoapifyApiKey' does not exist on type '{ production: boolean; 
+envName: string; defaultLanguage: string; appName: string; apiUrl: 
+string; websocketUrl: string; appVersion: string; n8nWebhookUrl: 
+string; }'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/components/address-fields/geoapify-address.servic
+e.ts:19:25:
+[37m      19 Ôöé     return !!environment.[32mgeoapifyApiKey[37m;
+         ÔòÁ                          [32m~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 
+'geoapifyApiKey' does not exist on type '{ production: boolean; 
+envName: string; defaultLanguage: string; appName: string; apiUrl: 
+string; websocketUrl: string; appVersion: string; n8nWebhookUrl: 
+string; }'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/components/address-fields/geoapify-address.servic
+e.ts:50:26:
+[37m      50 Ôöé       apiKey: 
+environment.[32mgeoapifyApiKey[37m,
+         ÔòÁ                           [32m~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"../types"' has no exported member 'DirectionType'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/models/actions-button.model.ts:1:9:
+[37m      1 Ôöé import { [32mDirectionType[37m } from '../types';
+        ÔòÁ          [32m~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2307: Cannot find 
+module './product.model' or its corresponding type 
+declarations.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/models/product-form.model.ts:8:7:
+[37m      8 Ôöé } from [32m'./product.model'[37m;
+        ÔòÁ        [32m~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2307: Cannot find 
+module './product.model' or its corresponding type 
+declarations.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/models/product-request.model.ts:7:7:
+[37m      7 Ôöé } from [32m'./product.model'[37m;
+        ÔòÁ        [32m~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2724: 
+'"@app/models"' has no exported member named 
+'IClientSearchRequest'. Did you mean 'ISupplierSearchRequest'?[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/services/client.service.ts:8:2:
+[37m      8 Ôöé   [32mIClientSearchRequest[37m,
+        ÔòÁ   [32m~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"@app/models"' has no exported member 'IClientSearchResponse'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/services/client.service.ts:9:2:
+[37m      9 Ôöé   [32mIClientSearchResponse[37m,
+        ÔòÁ   [32m~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2305: Module 
+'"../models"' has no exported member 'WsErrorClass'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/services/error.service.ts:5:19:
+[37m      5 Ôöé import { IWsError, [32mWsErrorClass[37m } from 
+'../models';
+        ÔòÁ                    [32m~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2353: Object 
+literal may only specify known properties, and 'frameSubType' does 
+not exist in type 'IFrame'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/shared/services/product.service.mock.ts:54:4:
+[37m      54 Ôöé     [32mframeSubType[37m: 'sun',
+         ÔòÁ     [32m~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2353: Object 
+literal may only specify known properties, and 'frameSubType' does 
+not exist in type 'IFrame'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/shared/services/product.service.mock.ts:112:4:
+[37m      112 Ôöé     [32mframeSubType[37m: 'sun',
+          ÔòÁ     [32m~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2353: Object 
+literal may only specify known properties, and 'frameSubType' does 
+not exist in type 'IFrame'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/shared/services/product.service.mock.ts:167:4:
+[37m      167 Ôöé     [32mframeSubType[37m: 'optical',
+          ÔòÁ     [32m~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2322: Type 
+'string' is not assignable to type 'number'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/shared/services/product.service.mock.ts:269:4:
+[37m      269 Ôöé     [32mrefractiveIndex[37m: '1.67',
+          ÔòÁ     [32m~~~~~~~~~~~~~~~[0m
+
+  The expected type comes from property 'refractiveIndex' which is 
+declared here on type 'ILens'
+
+    node_modules/@optisaas/opti-saas-lib/dist/index.d.ts:2003:4:
+[37m      2003 Ôöé     [32mrefractiveIndex[37m: number | null;
+           ÔòÁ     [32m~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2322: Type 
+'string' is not assignable to type 'number'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/shared/services/product.service.mock.ts:320:4:
+[37m      320 Ôöé     [32mrefractiveIndex[37m: '1.6',
+          ÔòÁ     [32m~~~~~~~~~~~~~~~[0m
+
+  The expected type comes from property 'refractiveIndex' which is 
+declared here on type 'ILens'
+
+    node_modules/@optisaas/opti-saas-lib/dist/index.d.ts:2003:4:
+[37m      2003 Ôöé     [32mrefractiveIndex[37m: number | null;
+           ÔòÁ     [32m~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2561: Object 
+literal may only specify known properties, but 'supplierIds' does 
+not exist in type 'IContactLens'. Did you mean to write 
+'supplierCodes'?[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/services/product.service.mock.ts:346:4:
+[37m      346 Ôöé     [32msupplierIds[37m: ['MAR'],
+          ÔòÁ     [32m~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2561: Object 
+literal may only specify known properties, but 'supplierIds' does 
+not exist in type 'IContactLens'. Did you mean to write 
+'supplierCodes'?[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/services/product.service.mock.ts:399:4:
+[37m      399 Ôöé     [32msupplierIds[37m: ['MAR'],
+          ÔòÁ     [32m~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2561: Object 
+literal may only specify known properties, but 'supplierIds' does 
+not exist in type 'IAccessory'. Did you mean to write 
+'supplierCodes'?[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/services/product.service.mock.ts:455:4:
+[37m      455 Ôöé     [32msupplierIds[37m: ['LUX'],
+          ÔòÁ     [32m~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2561: Object 
+literal may only specify known properties, but 'supplierIds' does 
+not exist in type 'IAccessory'. Did you mean to write 
+'supplierCodes'?[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/services/product.service.mock.ts:493:4:
+[37m      493 Ôöé     [32msupplierIds[37m: ['LUX'],
+          ÔòÁ     [32m~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2561: Object 
+literal may only specify known properties, but 'supplierIds' does 
+not exist in type 'IAccessory'. Did you mean to write 
+'supplierCodes'?[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/services/product.service.mock.ts:524:4:
+[37m      524 Ôöé     [32msupplierIds[37m: ['LUX', 'SAF'],
+          ÔòÁ     [32m~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2551: Property 
+'subFamilyId' does not exist on type 'Product'. Did you mean 
+'familyId'?
+  Property 'subFamilyId' does not exist on type 'IFrame'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/services/product.service.mock.ts:652:25:
+[37m      652 Ôöé     if (subFamilyId && p.[32msubFamilyId[37m 
+!== subFamilyId) return false;
+          ÔòÁ                          [32m~~~~~~~~~~~[0m
+
+  'familyId' is declared here.
+
+    node_modules/@optisaas/opti-saas-lib/dist/index.d.ts:1971:4:
+[37m      1971 Ôöé     [32mfamilyId[37m: string | null;
+           ÔòÁ     [32m~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2551: Property 
+'supplierIds' does not exist on type 'Product'. Did you mean 
+'supplierCodes'?
+  Property 'supplierIds' does not exist on type 'IFrame'.[0m 
+[1m[35m[plugin angular-compiler][0m
+
+    src/app/shared/services/product.service.mock.ts:654:25:
+[37m      654 Ôöé     if (supplierId && 
+!p.[32msupplierIds[37m.includes(supplierId)) return...
+          ÔòÁ                          [32m~~~~~~~~~~~[0m
+
+  'supplierCodes' is declared here.
+
+    node_modules/@optisaas/opti-saas-lib/dist/index.d.ts:1974:4:
+[37m      1974 Ôöé     [32msupplierCodes[37m: readonly 
+ISupplierProductCode[];
+           ÔòÁ     [32m~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2352: Conversion 
+of type '{ id: string; internalCode: string; barcode: string; 
+suppliers: { id: string; name: string; }[]; totalQuantity: number; 
+stockByWarehouse: undefined[]; status: "DISPONIBLE"; createdAt: 
+Date; ... 37 more ...; photo: any; } | { ...; } | { ...; } | { ...; 
+} | { ...; }' to type 'Product' may be a mistake because neither 
+type sufficiently overlaps with the other. If this was intentional, 
+convert the expression to 'unknown' first.
+  Object literal may only specify known properties, and 'suppliers' 
+does not exist in type 'IAccessory'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/shared/services/product.service.mock.ts:743:4:
+[37m      743 Ôöé     [32msuppliers[37m: 
+request.supplierIds.map((id) => ({ id, name: `Four...
+          ÔòÁ     [32m~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2353: Object 
+literal may only specify known properties, and 'frameSubTypes' does 
+not exist in type 'ResourceMap'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/shared/services/resource.service.mock.ts:223:2:
+[37m      223 Ôöé   [32mframeSubTypes[37m: MOCK_FRAME_SUB_TYPES,
+          ÔòÁ   [32m~~~~~~~~~~~~~[0m
+
+[39m[22m

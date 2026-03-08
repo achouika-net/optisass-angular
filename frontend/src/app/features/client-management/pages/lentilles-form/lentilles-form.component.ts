@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef, NgZone } from '@angular/core';
 import { CameraCaptureDialogComponent } from '../../../../shared/components/camera-capture/camera-capture-dialog.component';
 import { CommonModule } from '@angular/common';
 import { AdaptationModerneComponent } from './components/adaptation-moderne/adaptation-moderne.component';
@@ -122,7 +122,8 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
         private cdr: ChangeDetectorRef,
         private sanitizer: DomSanitizer,
         private productService: ProductService,
-        private store: Store
+        private store: Store,
+        private ngZone: NgZone
     ) {
         this.ficheForm = this.initForm();
     }
@@ -160,14 +161,16 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
             }
         });
 
-        // POLLING: Check reception status every 5 seconds if waiting
-        timer(5000, 5000).pipe(
-            takeUntil(this.destroy$)
-        ).subscribe(() => {
-            if ((this.isReserved || this.isTransit) && !this.receptionComplete && this.currentFiche) {
-                console.log('🔄 [POLLING] Checking reception status...');
-                this.checkReceptionForInstance(this.currentFiche);
-            }
+        // POLLING: Check reception status every 30 seconds if waiting
+        this.ngZone.runOutsideAngular(() => {
+            timer(30000, 30000).pipe(
+                takeUntil(this.destroy$)
+            ).subscribe(() => {
+                if ((this.isReserved || this.isTransit) && !this.receptionComplete && this.currentFiche) {
+                    console.log('🔄 [POLLING] Checking reception status...');
+                    this.checkReceptionForInstance(this.currentFiche);
+                }
+            });
         });
     }
 

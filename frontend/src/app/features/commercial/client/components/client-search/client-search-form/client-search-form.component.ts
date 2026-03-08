@@ -8,7 +8,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { Field, FieldTree } from '@angular/forms/signals';
+import { Field, FieldTree, FormField } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -17,7 +17,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { States } from '@app/config';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { IClientSearch, IResource } from '@app/models';
 import { TranslateModule } from '@ngx-translate/core';
 import { ClientStore } from '../../../client.store';
@@ -27,7 +27,7 @@ import { ClientStore } from '../../../client.store';
   templateUrl: './client-search-form.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    Field,
+
     TranslateModule,
     MatCardModule,
     MatFormFieldModule,
@@ -36,13 +36,14 @@ import { ClientStore } from '../../../client.store';
     MatButtonModule,
     MatIconModule,
     MatTooltipModule,
-    FieldControlLabelDirective,
+    ControlLabelDirective,
+    FormField,
   ],
 })
 export class ClientSearchFormComponent {
   #clientStore = inject(ClientStore);
 
-  readonly searchForm = input.required<FieldTree<IClientSearch>>();
+  readonly searchForm: any = input.required<FieldTree<IClientSearch>>();
   #searchValue: Signal<IClientSearch> = this.#clientStore.state.searchForm;
   states = signal<IResource[]>(States).asReadonly();
   clientTypes = signal<IResource[]>([]).asReadonly();

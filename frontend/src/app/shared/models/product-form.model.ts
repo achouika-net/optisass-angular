@@ -1,11 +1,11 @@
 import {
-  FrameSubType,
   IProductPhoto,
   ISupplierProductCode,
   PricingMode,
   Product,
   ProductType,
 } from '@optisaas/opti-saas-lib';
+import { FrameSubType } from './index';
 import {
   IAccessoryCreateRequest,
   IClipOnCreateRequest,
@@ -266,98 +266,99 @@ function toSupplierCodes(forms: ISupplierProductCodeForm[]): ISupplierProductCod
  * @param product The product to convert
  * @returns The form data
  */
-export function toProductForm(product: Product): IProductForm {
+export function toFormData(product: Product): IProductForm {
+  const p = product as any;
   const formData: IProductForm = {
     ...getDefaultProductForm(),
-    productType: product.productType,
-    designation: product.designation,
-    brandId: product.brandId,
-    modelId: product.modelId,
-    color: product.color,
-    supplierIds: product.supplierIds ?? [],
-    familyId: product.familyId,
-    subFamilyId: product.subFamilyId,
-    photo: product.photo?.url ?? null,
-    manufacturerRef: product.manufacturerRef,
-    supplierCodes: toSupplierCodesForms(product.supplierCodes),
-    purchasePriceExclTax: product.purchasePriceExclTax,
-    pricingMode: product.pricingMode,
-    coefficient: product.coefficient,
-    fixedAmount: product.fixedAmount,
-    fixedPrice: product.fixedPrice,
-    tvaRate: product.tvaRate,
-    alertThreshold: product.alertThreshold,
+    productType: p.productType ?? null,
+    designation: p.designation ?? null,
+    brandId: p.brandId ?? null,
+    modelId: p.modelId ?? null,
+    color: p.color ?? null,
+    supplierIds: p.supplierIds ?? [],
+    familyId: p.familyId ?? null,
+    subFamilyId: p.subFamilyId ?? null,
+    photo: p.photo?.url ?? null,
+    manufacturerRef: p.manufacturerRef ?? null,
+    supplierCodes: toSupplierCodesForms(p.supplierCodes),
+    purchasePriceExclTax: p.purchasePriceExclTax ?? null,
+    pricingMode: p.pricingMode ?? 'fixedPrice',
+    coefficient: p.coefficient ?? null,
+    fixedAmount: p.fixedAmount ?? null,
+    fixedPrice: p.fixedPrice ?? null,
+    tvaRate: p.tvaRate ?? 20,
+    alertThreshold: p.alertThreshold ?? null,
   };
 
-  if (product.productType === 'frame') {
-    formData.frameSubType = product.frameSubType;
-    formData.frameGender = product.gender;
-    formData.frameShape = product.shape;
-    formData.frameMaterial = product.material;
-    formData.frameType = product.frameType;
-    formData.frameHingeType = product.hingeType;
-    formData.frameEyeSize = product.eyeSize;
-    formData.frameBridge = product.bridge;
-    formData.frameTemple = product.temple;
-    formData.frameColor = product.frameColor;
-    formData.frameTempleColor = product.templeColor;
-    formData.frameFinish = product.frameFinish;
-    formData.frameFrontPhoto = product.frontPhoto?.url ?? null;
-    formData.frameSidePhoto = product.sidePhoto?.url ?? null;
-    if (product.frameSubType === 'safety') {
-      formData.safetySafetyStandard = product.safetyStandard;
-      formData.safetySafetyRating = product.safetyRating;
-      formData.safetyProtectionType = product.protectionType;
-      formData.safetyLensIncluded = product.lensIncluded;
-      formData.safetyPrescriptionCapable = product.prescriptionCapable;
+  if (p.productType === 'frame') {
+    formData.frameSubType = p.frameSubType;
+    formData.frameGender = p.gender;
+    formData.frameShape = p.shape;
+    formData.frameMaterial = p.material;
+    formData.frameType = p.frameType;
+    formData.frameHingeType = p.hingeType;
+    formData.frameEyeSize = p.eyeSize || p.caliber;
+    formData.frameBridge = p.bridge;
+    formData.frameTemple = p.temple;
+    formData.frameColor = p.frameColor;
+    formData.frameTempleColor = p.templeColor;
+    formData.frameFinish = p.frameFinish;
+    formData.frameFrontPhoto = p.frontPhoto?.url ?? null;
+    formData.frameSidePhoto = p.sidePhoto?.url ?? null;
+    if (p.frameSubType === 'safety') {
+      formData.safetySafetyStandard = p.safetyStandard;
+      formData.safetySafetyRating = p.safetyRating;
+      formData.safetyProtectionType = p.protectionType;
+      formData.safetyLensIncluded = p.lensIncluded;
+      formData.safetyPrescriptionCapable = p.prescriptionCapable;
     }
   }
 
-  if (product.productType === 'lens') {
-    formData.lensType = product.lensType;
-    formData.lensMaterial = product.material;
-    formData.lensRefractiveIndex = product.refractiveIndex;
-    formData.lensTint = product.tint;
-    formData.lensFilters = product.filters ?? [];
-    formData.lensTreatments = product.treatments ?? [];
-    formData.lensManufacturerId = product.manufacturerId;
-    formData.lensOpticalFamily = product.opticalFamily;
-    formData.lensSpherePower = product.spherePower;
-    formData.lensCylinderPower = product.cylinderPower;
-    formData.lensAxis = product.axis;
-    formData.lensAddition = product.addition;
-    formData.lensDiameter = product.diameter;
-    formData.lensBaseCurve = product.baseCurve;
+  if (p.productType === 'lens') {
+    formData.lensType = p.lensType;
+    formData.lensMaterial = p.material;
+    formData.lensRefractiveIndex = p.refractiveIndex?.toString() ?? null;
+    formData.lensTint = p.tint;
+    formData.lensFilters = p.filters ?? [];
+    formData.lensTreatments = p.treatments ?? [];
+    formData.lensManufacturerId = p.manufacturerId || p.manufacturer;
+    formData.lensOpticalFamily = p.opticalFamily;
+    formData.lensSpherePower = p.spherePower;
+    formData.lensCylinderPower = p.cylinderPower;
+    formData.lensAxis = p.axis;
+    formData.lensAddition = p.addition;
+    formData.lensDiameter = p.diameter;
+    formData.lensBaseCurve = p.baseCurve;
   }
 
-  if (product.productType === 'contact_lens') {
-    formData.contactLensType = product.contactLensType;
-    formData.contactLensUsage = product.usage;
-    formData.contactLensLaboratoryId = product.laboratoryId;
-    formData.contactLensCommercialModel = product.commercialModel;
-    formData.contactLensBaseCurve = product.baseCurve;
-    formData.contactLensDiameter = product.diameter;
-    formData.contactLensQuantityPerBox = product.quantityPerBox;
-    formData.contactLensPricePerBox = product.pricePerBox;
-    formData.contactLensPricePerUnit = product.pricePerUnit;
-    formData.contactLensExpirationDate = product.expirationDate;
-    formData.contactLensSpherePower = product.spherePower;
-    formData.contactLensCylinder = product.cylinder;
-    formData.contactLensAxis = product.axis;
-    formData.contactLensAddition = product.addition;
+  if (p.productType === 'contact_lens') {
+    formData.contactLensType = p.contactLensType;
+    formData.contactLensUsage = p.usage;
+    formData.contactLensLaboratoryId = p.laboratoryId;
+    formData.contactLensCommercialModel = p.commercialModel;
+    formData.contactLensBaseCurve = p.baseCurve;
+    formData.contactLensDiameter = p.diameter;
+    formData.contactLensQuantityPerBox = p.quantityPerBox;
+    formData.contactLensPricePerBox = p.pricePerBox;
+    formData.contactLensPricePerUnit = p.pricePerUnit;
+    formData.contactLensExpirationDate = p.expirationDate;
+    formData.contactLensSpherePower = p.spherePower;
+    formData.contactLensCylinder = p.cylinder;
+    formData.contactLensAxis = p.axis;
+    formData.contactLensAddition = p.addition;
   }
 
-  if (product.productType === 'clip_on') {
-    formData.clipOnClipType = product.clipType;
-    formData.clipOnPolarized = product.polarized;
-    formData.clipOnMirrorCoating = product.mirrorCoating;
-    formData.clipOnTint = product.tint;
-    formData.clipOnCompatibleFrameSize = product.compatibleFrameSize;
+  if (p.productType === 'clip_on') {
+    formData.clipOnClipType = p.clipType;
+    formData.clipOnPolarized = p.polarized;
+    formData.clipOnMirrorCoating = p.mirrorCoating;
+    formData.clipOnTint = p.tint;
+    formData.clipOnCompatibleFrameSize = p.compatibleFrameSize;
   }
 
-  if (product.productType === 'accessory') {
-    formData.accessoryCategory = product.category;
-    formData.accessorySubCategory = product.subCategory;
+  if (p.productType === 'accessory') {
+    formData.accessoryCategory = p.category;
+    formData.accessorySubCategory = p.subCategory;
   }
 
   return formData;

@@ -93,7 +93,7 @@ export class AuthEffects {
         this.#authService.getCurrentUser().pipe(
           map((user: ICurrentUser) => {
             void this.#router.navigate(['/p/clients']);
-            const currentCenter = user.centers.filter((c) => c.active)[0];
+            const currentCenter = user.centers.filter((c: any) => c.active)[0];
             this.#store.dispatch(GetCurrentUserSuccess({ user }));
             return SetCurrentCenter({ currentCenter });
           }),

@@ -1,122 +1,198 @@
 .stock-movements-container {
-    background-color: #f8f9fa;
+    background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+    min-height: 100vh;
+}
+
+// Glassmorphism Header
+.glass-header {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .header-left {
+        h2 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(45deg, #1e293b, #3b82f6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #64748b;
+            font-weight: 500;
+        }
+    }
+}
+
+// Intelligence Dashboard Cards
+.intel-card {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+    &:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 20px -8px rgba(0, 0, 0, 0.1);
+        border-color: #3b82f6;
+    }
+
+    .icon-box {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        mat-icon {
+            font-size: 24px;
+        }
+    }
+
+    .intel-info {
+        display: flex;
+        flex-direction: column;
+
+        .label {
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #94a3b8;
+            letter-spacing: 0.05em;
+        }
+
+        .value {
+            font-size: 20px;
+            font-weight: 800;
+            color: #1e293b;
+        }
+    }
 }
 
 .stock-tabs {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(8px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    overflow: hidden;
 
     ::ng-deep .mat-mdc-tab-header {
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        padding: 0 16px;
     }
 
     ::ng-deep .mat-mdc-tab {
-        height: 60px;
-        opacity: 0.7;
+        height: 64px;
+
+        .mdc-tab__text-label {
+            font-size: 15px;
+            font-weight: 600;
+            color: #64748b;
+        }
 
         &.mdc-tab--active {
-            opacity: 1;
-
             .mdc-tab__text-label {
-                color: #2563eb !important;
-                font-weight: 700;
+                color: #3b82f6 !important;
             }
         }
     }
 }
 
+// Premium Table Styles
 table.mat-mdc-table {
-    width: 100%;
+    background: transparent !important;
 
-    // Header Styling
     .mat-mdc-header-row {
-        background-color: #334155 !important; // Slate 700 - Dark Background
-        min-height: 48px;
+        background: #1e293b !important;
+        border-bottom: 2px solid #0f172a;
     }
 
     .mat-mdc-header-cell {
-        color: #ffffff !important; // White text
-        font-weight: 600;
-        font-size: 13px;
+        color: white !important;
+        font-weight: 700;
+        font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        border-bottom: none;
     }
 
-    // Row Styling
-    .mat-mdc-row:nth-child(even) {
-        background-color: #f8fafc;
+    .mat-mdc-row {
+        transition: background 0.2s;
+
+        &:hover {
+            background: rgba(59, 130, 246, 0.03) !important;
+        }
     }
 
-    .mat-mdc-row:hover {
-        background-color: #e2e8f0;
+    .mat-mdc-cell {
+        border-bottom: 1px solid #f1f5f9;
+        padding-top: 12px;
+        padding-bottom: 12px;
     }
 }
 
-.mat-column-actions {
-    width: 48px;
-    text-align: center;
+// Badge Styles
+.badge {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+
+    &.primary {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #dbeafe;
+    }
+
+    &.success {
+        background: #f0fdf4;
+        color: #15803d;
+        border: 1px solid #dcfce7;
+    }
+
+    &.warning {
+        background: #fffbeb;
+        color: #b45309;
+        border: 1px solid #fef3c7;
+    }
+
+    &.danger {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fee2e2;
+    }
 }
 
-.mat-column-quantite {
-    width: 80px;
-    text-align: center;
-}
-
-// Compact Form Field Styles for the Pricing Row
 .compact-field {
-    font-size: 14px;
-
-    // Target the MDC structure to reduce height
     ::ng-deep .mat-mdc-form-field-flex {
-        align-items: center;
-        padding-top: 0 !important;
-        padding-bottom: 0 !important;
-        height: 40px !important; // Force smaller height
+        background: white !important;
+        border-radius: 8px !important;
+        height: 44px !important;
     }
 
     ::ng-deep .mat-mdc-text-field-wrapper {
-        height: 40px !important;
-        padding-top: 0 !important;
-        padding-bottom: 0 !important;
-    }
-
-    ::ng-deep .mat-mdc-form-field-infix {
-        padding-top: 8px !important;
-        padding-bottom: 8px !important;
-        min-height: 40px !important;
-        border-top: 0 !important;
-    }
-
-    ::ng-deep .mat-mdc-form-field-subscript-wrapper {
-        display: none; // Hides the error/hint space completely for perfect vertical centering
-    }
-}
-
-.duplicate-warn {
-
-    ::ng-deep .mdc-notched-outline__leading,
-    ::ng-deep .mdc-notched-outline__notch,
-    ::ng-deep .mdc-notched-outline__trailing {
-        border-color: #ef4444 !important; // Red-500
-        border-width: 2px !important;
-    }
-
-    ::ng-deep .mat-mdc-form-field-label {
-        color: #ef4444 !important;
-    }
-}
-
-// OCR Mode Selector
-.ocr-mode-selector {
-    min-width: 80px;
-
-    ::ng-deep .mat-mdc-slide-toggle-label {
-        margin-bottom: 0px !important;
-    }
-
-    ::ng-deep .mdc-switch:enabled:checked .mdc-switch__track {
-        background-color: #9333ea !important; // Purple-600 for AI
+        height: 44px !important;
     }
 }

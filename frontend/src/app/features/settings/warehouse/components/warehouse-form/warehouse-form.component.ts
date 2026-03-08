@@ -7,7 +7,7 @@ import {
   input,
   signal,
 } from '@angular/core';
-import { Field, form, maxLength, min, required } from '@angular/forms/signals';
+import { Field, FormField, form, maxLength, min, required } from '@angular/forms/signals';
 import { AddressSchema } from '@app/validators';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -16,7 +16,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatSelectModule } from '@angular/material/select';
 import { AddressFieldsComponent, FieldErrorComponent } from '@app/components';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { createEmptyAddress, IAddress } from '@app/models';
 import { TranslateModule } from '@ngx-translate/core';
 import { IWarehouse, WAREHOUSE_TYPES, WarehouseType } from '../../models';
@@ -36,16 +36,17 @@ interface IWarehouseForm {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TranslateModule,
-    Field,
+
     MatButtonModule,
     MatCardModule,
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
     MatRadioModule,
-    FieldControlLabelDirective,
+    ControlLabelDirective,
     FieldErrorComponent,
     AddressFieldsComponent,
+    FormField,
   ],
 })
 export class WarehouseFormComponent {
@@ -122,3 +123,4 @@ export class WarehouseFormComponent {
     this.#warehouseStore.goToSearchPage();
   }
 }
+

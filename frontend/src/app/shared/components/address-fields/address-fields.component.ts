@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, model } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, model, viewChild } from '@angular/core';
 import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { Field, FieldTree } from '@angular/forms/signals';
+import { Field, FieldTree, FormField } from '@angular/forms/signals';
 import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -8,7 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FieldErrorComponent } from '@app/components';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { IAddress } from '@app/models';
 import { TranslateModule } from '@ngx-translate/core';
 import { debounceTime, distinctUntilChanged } from 'rxjs';
@@ -24,7 +24,7 @@ import { IAddressOption } from './geoapify-address.model';
     '[class.standalone-layout]': '!inheritParentLayout()',
   },
   imports: [
-    Field,
+
     MatFormFieldModule,
     MatInputModule,
     MatAutocompleteModule,
@@ -32,8 +32,9 @@ import { IAddressOption } from './geoapify-address.model';
     MatButtonModule,
     MatProgressSpinnerModule,
     TranslateModule,
-    FieldControlLabelDirective,
+    ControlLabelDirective,
     FieldErrorComponent,
+    FormField,
   ],
 })
 export class AddressFieldsComponent {
@@ -54,14 +55,14 @@ export class AddressFieldsComponent {
 
   // ===== COMPUTED FIELD ACCESSORS =====
 
-  readonly streetField = computed(() => this.address().street);
-  readonly streetLine2Field = computed(() => this.address().streetLine2);
-  readonly postcodeField = computed(() => this.address().postcode);
-  readonly cityField = computed(() => this.address().city);
+  readonly streetField = computed(() => (this.address() as any).street);
+  readonly streetLine2Field = computed(() => (this.address() as any).streetLine2);
+  readonly postcodeField = computed(() => (this.address() as any).postcode);
+  readonly cityField = computed(() => (this.address() as any).city);
 
   // ===== AUTOCOMPLETE =====
 
-  readonly #streetValue = computed(() => this.address().street().value() || '');
+  readonly #streetValue = computed(() => (this.address() as any).street().value() || '');
 
   readonly #debouncedStreetQuery = toSignal(
     toObservable(this.#streetValue).pipe(debounceTime(400), distinctUntilChanged()),
@@ -79,9 +80,9 @@ export class AddressFieldsComponent {
 
   // ===== COMPUTED FOR UI STATE =====
 
-  readonly isDisabled = computed(() => this.address().street().disabled());
-  readonly isReadonly = computed(() => this.address().street().readonly());
-  readonly isHidden = computed(() => this.address().street().hidden());
+  readonly isDisabled = computed(() => (this.address() as any).street().disabled());
+  readonly isReadonly = computed(() => (this.address() as any).street().readonly());
+  readonly isHidden = computed(() => (this.address() as any).street().hidden());
 
   // ===== EVENT HANDLERS =====
 
@@ -98,25 +99,27 @@ export class AddressFieldsComponent {
       : selectedAddress.street || selectedAddress.formatted;
 
     // Update all fields via FieldTree
-    this.address().street().value.set(street);
-    this.address().postcode().value.set(selectedAddress.postcode || null);
-    this.address().city().value.set(selectedAddress.city || null);
-    this.address().country().value.set(selectedAddress.country || null);
-    this.address().lat().value.set(selectedAddress.lat || null);
-    this.address().lon().value.set(selectedAddress.lon || null);
+    const addr = this.address() as any;
+    addr.street().value.set(street);
+    addr.postcode().value.set(selectedAddress.postcode || null);
+    addr.city().value.set(selectedAddress.city || null);
+    addr.country().value.set(selectedAddress.country || null);
+    addr.lat().value.set(selectedAddress.lat || null);
+    addr.lon().value.set(selectedAddress.lon || null);
   }
 
   /**
    * Clears all address fields
    */
   clear(): void {
-    this.address().street().value.set(null);
-    this.address().streetLine2().value.set(null);
-    this.address().postcode().value.set(null);
-    this.address().city().value.set(null);
-    this.address().country().value.set(null);
-    this.address().lat().value.set(null);
-    this.address().lon().value.set(null);
+    const addr = this.address() as any;
+    addr.street().value.set(null);
+    addr.streetLine2().value.set(null);
+    addr.postcode().value.set(null);
+    addr.city().value.set(null);
+    addr.country().value.set(null);
+    addr.lat().value.set(null);
+    addr.lon().value.set(null);
   }
 
   /**

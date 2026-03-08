@@ -149,6 +149,7 @@ model Paiement {
   @@index([mode])
   @@index([statut])
   @@index([factureId])
+  @@index([userId])
 }
 
 model Groupe {
@@ -413,7 +414,12 @@ model Depense {
   payroll              Payroll?
 
   @@index([date])
+  @@index([dateEcheance])
+  @@index([statut])
   @@index([centreId])
+  @@index([fournisseurId])
+  @@index([factureFournisseurId])
+  @@index([echeanceId])
 }
 
 model FactureFournisseur {
@@ -501,6 +507,8 @@ model EcheancePaiement {
 
   @@index([dateEcheance])
   @@index([statut])
+  @@index([factureFournisseurId])
+  @@index([bonLivraisonId])
 }
 
 model FinanceConfig {

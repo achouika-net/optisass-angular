@@ -90,4 +90,12 @@ export class ClientService {
       params,
     });
   }
+
+  /**
+   * Stub for getClientsStatistics
+   * @return Observable<any>
+   */
+  getClientsStatistics(): Observable<any> {
+    return this.#http.get<any>(`${CLIENTS_API_URL}/statistics`);
+  }
 }

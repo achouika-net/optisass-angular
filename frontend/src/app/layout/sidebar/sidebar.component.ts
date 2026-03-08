@@ -85,7 +85,7 @@ export class SidebarComponent implements OnInit {
         )
         .map((item) => {
           if (item.type === 'sub' && item.children) {
-            const filtered = item.children.filter((child) =>
+            const filtered = item.children.filter((child: any) =>
               this.hasAccess(child)
             );
             return filtered.length > 0 ? { ...item, children: filtered } : null;
@@ -103,7 +103,7 @@ export class SidebarComponent implements OnInit {
       if (item.type === 'link') return [item];
 
       if (item.type === 'sub' && item.children?.length) {
-        return item.children.filter((child) => this.hasAccess(child));
+        return (item.children || []).filter((child: any) => this.hasAccess(child));
       }
 
       return [];
@@ -132,9 +132,9 @@ export class SidebarComponent implements OnInit {
     this.monitor.startPolling();
 
     const opened = this.menuItems()
-      .filter((i) => i.type === 'sub')
-      .find((i) =>
-        i.children?.some((child) =>
+      .filter((i: any) => i.type === 'sub')
+      .find((i: any) =>
+        i.children?.some((child: any) =>
           this.router.url.startsWith(`/p/${child.route}`)
         )
       );

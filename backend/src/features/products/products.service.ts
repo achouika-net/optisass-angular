@@ -10,7 +10,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   private async generateNextTransferNumber(tx?: any): Promise<string> {
     const year = new Date().getFullYear();
@@ -1060,7 +1060,7 @@ export class ProductsService {
         throw error;
       throw new BadRequestException(
         error.message ||
-          'Une erreur est survenue lors de la mise à jour du stock',
+        'Une erreur est survenue lors de la mise à jour du stock',
       );
     }
   }
@@ -1365,15 +1365,15 @@ export class ProductsService {
       type: type
         ? (type as any)
         : {
-            in: [
-              'TRANSFERT_INIT',
-              'TRANSFERT_SORTIE',
-              'TRANSFERT_ENTREE',
-              'RECEPTION',
-              'TRANSFERT_ANNULE',
-              'EXPEDITION',
-            ],
-          },
+          in: [
+            'TRANSFERT_INIT',
+            'TRANSFERT_SORTIE',
+            'TRANSFERT_ENTREE',
+            'RECEPTION',
+            'TRANSFERT_ANNULE',
+            'EXPEDITION',
+          ],
+        },
     };
 
     if (startDate || endDate) {

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal, Signal } from '@angular/core';
-import { applyEach, Field, form, maxLength, pattern, required } from '@angular/forms/signals';
+import { applyEach, Field, FormField, form, maxLength, pattern, required } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDivider } from '@angular/material/divider';
@@ -10,7 +10,7 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatSelectModule } from '@angular/material/select';
 import { FieldErrorComponent, PhotoUploadComponent } from '@app/components';
 import { EMAIL_PATTERN, MOBILE_PATTERN } from '@app/config';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { IRole } from '@app/models';
 import { TranslateModule } from '@ngx-translate/core';
 import { UserStore } from '../../user.store';
@@ -42,7 +42,7 @@ interface IUserForm {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TranslateModule,
-    Field,
+
     MatButtonModule,
     MatCardModule,
     MatDivider,
@@ -51,10 +51,11 @@ interface IUserForm {
     MatSelectModule,
     MatRadioModule,
     MatIconModule,
-    FieldControlLabelDirective,
+    ControlLabelDirective,
     FieldErrorComponent,
     PhotoUploadComponent,
     UpperCasePipe,
+    FormField,
   ],
 })
 export class UserFormComponent {
@@ -113,3 +114,4 @@ export class UserFormComponent {
     // TODO: Implement save logic with userStore
   }
 }
+

@@ -2,3 +2,8 @@ export * from './error.service';
 export * from './resources.service';
 export * from './client.service';
 export * from './websockets.service';
+export * from './product.service';
+export * from './product-matching.service';
+export * from './supplier.service';
+export * from './resource.service';
+export * from './role.service';

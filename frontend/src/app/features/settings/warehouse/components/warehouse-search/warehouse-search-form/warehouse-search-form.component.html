@@ -4,12 +4,12 @@
       <div class="search-form-grid">
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'warehouse.name' | translate }}</mat-label>
-          <input matInput [field]="searchForm().name" />
+          <input matInput [formField]="searchForm().name" />
         </mat-form-field>
 
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'warehouse.type' | translate }}</mat-label>
-          <mat-select [field]="searchForm().type">
+          <mat-select [formField]="searchForm().type">
             <mat-option [value]="null">{{ 'commun.all' | translate }}</mat-option>
             @for (type of warehouseTypes(); track type) {
               <mat-option [value]="type">

@@ -10,7 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatRadioChange, MatRadioModule } from '@angular/material/radio';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { FieldErrorComponent, ResourceAutocompleteComponent } from '@app/components';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { createEmptySupplier, ISupplier } from '@app/models';
 import { TranslateModule } from '@ngx-translate/core';
 import { DocumentType } from '../../models';
@@ -21,7 +21,7 @@ import { DocumentType } from '../../models';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     DecimalPipe,
-    FieldControlLabelDirective,
+    ControlLabelDirective,
     FieldErrorComponent,
     FormField,
     MatButtonModule,
@@ -55,8 +55,8 @@ export class StockEntryHeaderComponent {
     })),
   );
 
-  readonly currentSupplierId = computed(() => this.supplierField()().value().id);
-  readonly documentType = computed(() => this.documentTypeField()().value());
+  readonly currentSupplierId = computed(() => (this.supplierField()() as any).value().id);
+  readonly documentType = computed(() => (this.documentTypeField()() as any).value());
 
   /**
    * Handles supplier selection from autocomplete.
@@ -65,12 +65,12 @@ export class StockEntryHeaderComponent {
    */
   onSupplierChange(supplierId: string | null): void {
     if (supplierId === null) {
-      this.supplierField()().value.set(createEmptySupplier());
+      (this.supplierField()() as any).value.set(createEmptySupplier());
       return;
     }
     const supplier = this.suppliers().find((s) => s.id === supplierId);
     if (supplier) {
-      this.supplierField()().value.set(supplier);
+      (this.supplierField()() as any).value.set(supplier);
     }
   }
 
@@ -81,6 +81,6 @@ export class StockEntryHeaderComponent {
    */
   onDocumentTypeChange(event: MatRadioChange): void {
     const type = event.value as DocumentType;
-    this.documentTypeField()().value.set(type);
+    (this.documentTypeField()() as any).value.set(type);
   }
 }

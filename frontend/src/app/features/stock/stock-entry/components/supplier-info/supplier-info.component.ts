@@ -4,7 +4,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { AddressFieldsComponent } from '@app/components';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { ISupplier } from '@app/models';
 import { TranslateModule } from '@ngx-translate/core';
 
@@ -14,7 +14,7 @@ import { TranslateModule } from '@ngx-translate/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     AddressFieldsComponent,
-    FieldControlLabelDirective,
+    ControlLabelDirective,
     FormField,
     MatFormFieldModule,
     MatIconModule,
@@ -23,5 +23,5 @@ import { TranslateModule } from '@ngx-translate/core';
   ],
 })
 export class SupplierInfoComponent {
-  readonly supplierField = input.required<FieldTree<ISupplier>>();
+  readonly supplierField = input.required<any>();
 }

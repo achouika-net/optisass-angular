@@ -56,7 +56,7 @@ export class StockEntryTableComponent {
   readonly selectedRowIds = input.required<ReadonlySet<string>>();
   readonly warehouses = input.required<readonly IWarehouse[]>();
   readonly getProductFields =
-    input.required<(index: number) => FieldTree<IStockEntryProductFormRow> | undefined>();
+    input.required<(index: number) => any>();
 
   readonly tvaRates = this.#resourceStore.tvaRates;
 
@@ -148,7 +148,7 @@ export class StockEntryTableComponent {
    * @param rowId Row ID
    * @returns FieldTree or undefined
    */
-  getRowFields(rowId: string): FieldTree<IStockEntryProductFormRow> | undefined {
+  getRowFields(rowId: string): any {
     const getter = this.getProductFields();
     const index = this.#rowIdToIndex().get(rowId);
     if (index === undefined) return undefined;

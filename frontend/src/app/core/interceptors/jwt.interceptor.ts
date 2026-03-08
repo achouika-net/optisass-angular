@@ -15,6 +15,7 @@ import { JwtTokensSelector, RefreshTokenInProgressSelector } from '../store/auth
 
 export const refreshTokenSubject = new BehaviorSubject<string | null>(null);
 const takeUntilSubject = new Subject<boolean>();
+export const cancelAllPendingRequests = (): void => { takeUntilSubject.next(true); };
 
 const PUBLIC_URLS = ['/login', '/refresh_token', '/password_reset', '/password_reset/verify'];
 

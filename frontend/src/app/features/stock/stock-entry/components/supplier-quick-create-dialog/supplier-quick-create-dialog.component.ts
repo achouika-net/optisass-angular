@@ -6,7 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { AddressFieldsComponent, FieldErrorComponent } from '@app/components';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { createEmptyAddress, createEmptySupplier, IAddress, ISupplier } from '@app/models';
 import { TranslateModule } from '@ngx-translate/core';
 
@@ -38,7 +38,7 @@ function getDefaultForm(): ISupplierQuickCreateForm {
     MatButtonModule,
     MatIconModule,
     TranslateModule,
-    FieldControlLabelDirective,
+    ControlLabelDirective,
     FieldErrorComponent,
     AddressFieldsComponent,
   ],
@@ -48,7 +48,7 @@ export class SupplierQuickCreateDialogComponent {
 
   readonly #formModel = signal<ISupplierQuickCreateForm>(getDefaultForm());
 
-  readonly formState = form(this.#formModel, (fp) => {
+  readonly formState = form(this.#formModel, (fp: any) => {
     required(fp.name);
     required(fp.address.street);
     required(fp.address.city);

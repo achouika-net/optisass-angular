@@ -3,7 +3,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatError, MatInput } from '@angular/material/input';
 import { MatButton } from '@angular/material/button';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { TranslateModule } from '@ngx-translate/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LoginFormGroup } from './models/login-form-group.model';
@@ -24,7 +24,7 @@ import { AuthService } from '../../services/auth.service';
     MatInput,
     MatButton,
     MatLabel,
-    FieldControlLabelDirective,
+    ControlLabelDirective,
     FormControlErrorComponent,
     MatError,
   ],

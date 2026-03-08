@@ -95,9 +95,9 @@ export class ProductAutocompleteComponent implements FormValueControl<ProductVal
 
   /** Signal Form for mat-form-field invalid state */
   readonly internalForm = form(this.#formValue, (s) => {
-    required(s, { when: () => this.required() && this.value() === null });
-    disabled(s, this.disabled);
-    debounce(s, 300);
+    required(s as any, { when: () => this.required() && this.value() === null });
+    disabled(s as any, this.disabled);
+    debounce(s as any, 300);
   });
 
   /** Whether input is focused */
@@ -120,7 +120,7 @@ export class ProductAutocompleteComponent implements FormValueControl<ProductVal
           data: [],
           meta: null,
           links: null,
-        } as unknown as PaginatedApiResponse<Product>);
+        } as unknown as PaginatedApiResponse<any>);
       }
       return this.#searchProducts(params.search, params.productTypes, params.supplierId);
     },
@@ -128,7 +128,7 @@ export class ProductAutocompleteComponent implements FormValueControl<ProductVal
 
   /** Filtered products from API */
   readonly filteredProducts = computed(() => {
-    const result = this.productsResource.value() as PaginatedApiResponse<Product> | undefined;
+    const result = this.productsResource.value() as PaginatedApiResponse<any> | undefined;
     return result?.data ?? [];
   });
 
@@ -260,15 +260,15 @@ export class ProductAutocompleteComponent implements FormValueControl<ProductVal
    * @param product The product
    * @returns Supplier names with overflow badge if needed
    */
-  getSuppliersDisplay(product: Product): string {
+  getSuppliersDisplay(product: any): string {
     const suppliers = product.suppliers;
     const max = this.maxSuppliersDisplay();
     if (suppliers.length <= max) {
-      return suppliers.map((s) => s.name).join(', ');
+      return suppliers.map((s: any) => s.name).join(', ');
     }
     const visible = suppliers
       .slice(0, max)
-      .map((s) => s.name)
+      .map((s: any) => s.name)
       .join(', ');
     return visible;
   }
@@ -278,7 +278,7 @@ export class ProductAutocompleteComponent implements FormValueControl<ProductVal
    * @param product The product
    * @returns Number of hidden suppliers or 0
    */
-  getSuppliersOverflowCount(product: Product): number {
+  getSuppliersOverflowCount(product: any): number {
     const suppliers = product.suppliers;
     const max = this.maxSuppliersDisplay();
     return Math.max(0, suppliers.length - max);
