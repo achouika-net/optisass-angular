@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   ValidationPipe,
+  Query,
 } from '@nestjs/common';
 import { GroupsService } from './groups.service';
 import { CreateGroupeDto } from './dto/create-groupe.dto';
@@ -14,7 +15,7 @@ import { UpdateGroupeDto } from './dto/update-groupe.dto';
 
 @Controller('groups')
 export class GroupsController {
-  constructor(private readonly groupsService: GroupsService) {}
+  constructor(private readonly groupsService: GroupsService) { }
 
   @Post()
   create(@Body(ValidationPipe) createGroupeDto: CreateGroupeDto) {
@@ -22,8 +23,8 @@ export class GroupsController {
   }
 
   @Get()
-  findAll() {
-    return this.groupsService.findAll();
+  findAll(@Query('type') type?: string) {
+    return this.groupsService.findAll(type);
   }
 
   @Get(':id')
