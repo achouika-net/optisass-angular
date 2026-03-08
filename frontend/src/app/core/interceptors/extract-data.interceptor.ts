@@ -10,7 +10,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 const noExtractTypes = ['blob', 'arraybuffer'];
-const noExtractUrl: string[] = ['/imports/upload', '/expenses', '/supplier-invoices', '/bon-livraison', '/factures']; // Don't extract data from these routes to preserve totalCount
+const noExtractUrl: string[] = ['/imports/upload', '/expenses', '/supplier-invoices', '/bon-livraison', '/factures', '/treasury/consolidated-']; // Don't extract data from these routes to preserve totalCount
 const allowUrl = (url: string): boolean => {
   return !noExtractUrl.some((blockedUrl) => url.includes(blockedUrl));
 };

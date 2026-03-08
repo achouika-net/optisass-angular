@@ -161,7 +161,7 @@
     <!-- Suppliers (multi-select) -->
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'stock.form.suppliers' | translate }}</mat-label>
-      <mat-select [field]="form.supplierIds" multiple>
+      <mat-select [formField]="form.supplierIds" multiple>
         @for (supplier of suppliers(); track supplier.code) {
           <mat-option [value]="supplier.code">{{ supplier.name }}</mat-option>
         }
@@ -175,7 +175,7 @@
       <!-- Designation -->
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.designation' | translate }}</mat-label>
-        <input matInput [field]="form.designation" />
+        <input matInput [formField]="form.designation" />
       </mat-form-field>
 
       <!-- Brand -->
@@ -221,7 +221,7 @@
     <!-- Manufacturer Reference -->
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'stock.form.manufacturerRef' | translate }}</mat-label>
-      <input matInput [field]="form.manufacturerRef" />
+      <input matInput [formField]="form.manufacturerRef" />
     </mat-form-field>
   </div>
 
@@ -230,7 +230,7 @@
     <div class="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-4 mt-4">
       <div class="flex flex-col items-center gap-2">
         <span class="text-sm text-on-surface-variant">{{ 'stock.form.photo' | translate }}</span>
-        <app-photo-upload [field]="form.photo" />
+        <app-photo-upload [formField]="form.photo" />
       </div>
     </div>
   }
@@ -294,19 +294,19 @@
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.frameEyeSize' | translate }}</mat-label>
-        <input matInput type="number" [field]="form.frameEyeSize" />
+        <input matInput type="number" [formField]="form.frameEyeSize" />
         <span matTextSuffix>mm</span>
       </mat-form-field>
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.frameBridge' | translate }}</mat-label>
-        <input matInput type="number" [field]="form.frameBridge" />
+        <input matInput type="number" [formField]="form.frameBridge" />
         <span matTextSuffix>mm</span>
       </mat-form-field>
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.frameTemple' | translate }}</mat-label>
-        <input matInput type="number" [field]="form.frameTemple" />
+        <input matInput type="number" [formField]="form.frameTemple" />
         <span matTextSuffix>mm</span>
       </mat-form-field>
 
@@ -326,7 +326,7 @@
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.frameFinish' | translate }}</mat-label>
-        <input matInput [field]="form.frameFinish" />
+        <input matInput [formField]="form.frameFinish" />
       </mat-form-field>
     </div>
 
@@ -335,13 +335,13 @@
         <span class="text-sm text-on-surface-variant">{{
           'stock.form.frameFrontPhoto' | translate
         }}</span>
-        <app-photo-upload [field]="form.frameFrontPhoto" />
+        <app-photo-upload [formField]="form.frameFrontPhoto" />
       </div>
       <div class="flex flex-col items-center gap-2">
         <span class="text-sm text-on-surface-variant">{{
           'stock.form.frameSidePhoto' | translate
         }}</span>
-        <app-photo-upload [field]="form.frameSidePhoto" />
+        <app-photo-upload [formField]="form.frameSidePhoto" />
       </div>
     </div>
 
@@ -372,7 +372,7 @@
 
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'stock.form.safetyLensIncluded' | translate }}</mat-label>
-          <mat-select [field]="form.safetyLensIncluded">
+          <mat-select [formField]="form.safetyLensIncluded">
             <mat-option [value]="true">{{ 'commun.yes' | translate }}</mat-option>
             <mat-option [value]="false">{{ 'commun.no' | translate }}</mat-option>
           </mat-select>
@@ -380,7 +380,7 @@
 
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'stock.form.safetyPrescriptionCapable' | translate }}</mat-label>
-          <mat-select [field]="form.safetyPrescriptionCapable">
+          <mat-select [formField]="form.safetyPrescriptionCapable">
             <mat-option [value]="true">{{ 'commun.yes' | translate }}</mat-option>
             <mat-option [value]="false">{{ 'commun.no' | translate }}</mat-option>
           </mat-select>
@@ -402,7 +402,7 @@
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.clipOnPolarized' | translate }}</mat-label>
-        <mat-select [field]="form.clipOnPolarized">
+        <mat-select [formField]="form.clipOnPolarized">
           <mat-option [value]="true">{{ 'commun.yes' | translate }}</mat-option>
           <mat-option [value]="false">{{ 'commun.no' | translate }}</mat-option>
         </mat-select>
@@ -410,7 +410,7 @@
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.clipOnMirrorCoating' | translate }}</mat-label>
-        <mat-select [field]="form.clipOnMirrorCoating">
+        <mat-select [formField]="form.clipOnMirrorCoating">
           <mat-option [value]="true">{{ 'commun.yes' | translate }}</mat-option>
           <mat-option [value]="false">{{ 'commun.no' | translate }}</mat-option>
         </mat-select>
@@ -425,7 +425,7 @@
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.clipOnCompatibleFrameSize' | translate }}</mat-label>
-        <input matInput [field]="form.clipOnCompatibleFrameSize" />
+        <input matInput [formField]="form.clipOnCompatibleFrameSize" />
       </mat-form-field>
     </div>
   }
@@ -466,7 +466,7 @@
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.lensFilters' | translate }}</mat-label>
-        <mat-select [field]="form.lensFilters" multiple>
+        <mat-select [formField]="form.lensFilters" multiple>
           @for (filter of lensFilters(); track filter.code) {
             <mat-option [value]="filter.code">{{ filter.label }}</mat-option>
           }
@@ -475,7 +475,7 @@
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.lensTreatments' | translate }}</mat-label>
-        <mat-select [field]="form.lensTreatments" multiple>
+        <mat-select [formField]="form.lensTreatments" multiple>
           @for (treatment of lensTreatments(); track treatment.code) {
             <mat-option [value]="treatment.code">{{ treatment.label }}</mat-option>
           }
@@ -490,7 +490,7 @@
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.lensOpticalFamily' | translate }}</mat-label>
-        <input matInput [field]="form.lensOpticalFamily" />
+        <input matInput [formField]="form.lensOpticalFamily" />
       </mat-form-field>
     </div>
 
@@ -498,34 +498,34 @@
     <div class="form-grid-compact">
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.lensSpherePower' | translate }}</mat-label>
-        <input matInput type="number" step="0.25" [field]="form.lensSpherePower" />
+        <input matInput type="number" step="0.25" [formField]="form.lensSpherePower" />
       </mat-form-field>
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.lensCylinderPower' | translate }}</mat-label>
-        <input matInput type="number" step="0.25" [field]="form.lensCylinderPower" />
+        <input matInput type="number" step="0.25" [formField]="form.lensCylinderPower" />
       </mat-form-field>
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.lensAxis' | translate }}</mat-label>
-        <input matInput type="number" [field]="form.lensAxis" />
+        <input matInput type="number" [formField]="form.lensAxis" />
         <span matTextSuffix>°</span>
       </mat-form-field>
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.lensAddition' | translate }}</mat-label>
-        <input matInput type="number" step="0.25" [field]="form.lensAddition" />
+        <input matInput type="number" step="0.25" [formField]="form.lensAddition" />
       </mat-form-field>
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.lensDiameter' | translate }}</mat-label>
-        <input matInput type="number" [field]="form.lensDiameter" />
+        <input matInput type="number" [formField]="form.lensDiameter" />
         <span matTextSuffix>mm</span>
       </mat-form-field>
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.lensBaseCurve' | translate }}</mat-label>
-        <input matInput type="number" step="0.1" [field]="form.lensBaseCurve" />
+        <input matInput type="number" step="0.1" [formField]="form.lensBaseCurve" />
       </mat-form-field>
     </div>
   }
@@ -557,40 +557,40 @@
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.contactLensCommercialModel' | translate }}</mat-label>
-        <input matInput [field]="form.contactLensCommercialModel" />
+        <input matInput [formField]="form.contactLensCommercialModel" />
       </mat-form-field>
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.contactLensBaseCurve' | translate }}</mat-label>
-        <input matInput type="number" step="0.1" [field]="form.contactLensBaseCurve" />
+        <input matInput type="number" step="0.1" [formField]="form.contactLensBaseCurve" />
       </mat-form-field>
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.contactLensDiameter' | translate }}</mat-label>
-        <input matInput type="number" step="0.1" [field]="form.contactLensDiameter" />
+        <input matInput type="number" step="0.1" [formField]="form.contactLensDiameter" />
         <span matTextSuffix>mm</span>
       </mat-form-field>
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.contactLensQuantityPerBox' | translate }}</mat-label>
-        <input matInput type="number" [field]="form.contactLensQuantityPerBox" />
+        <input matInput type="number" [formField]="form.contactLensQuantityPerBox" />
       </mat-form-field>
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.contactLensPricePerBox' | translate }}</mat-label>
-        <input matInput type="number" step="0.01" [field]="form.contactLensPricePerBox" />
+        <input matInput type="number" step="0.01" [formField]="form.contactLensPricePerBox" />
         <span matTextSuffix>MAD</span>
       </mat-form-field>
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.contactLensPricePerUnit' | translate }}</mat-label>
-        <input matInput type="number" step="0.01" [field]="form.contactLensPricePerUnit" />
+        <input matInput type="number" step="0.01" [formField]="form.contactLensPricePerUnit" />
         <span matTextSuffix>MAD</span>
       </mat-form-field>
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.contactLensExpirationDate' | translate }}</mat-label>
-        <input matInput type="date" [field]="form.contactLensExpirationDate" />
+        <input matInput type="date" [formField]="form.contactLensExpirationDate" />
       </mat-form-field>
     </div>
 
@@ -598,23 +598,23 @@
     <div class="form-grid-compact">
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.contactLensSpherePower' | translate }}</mat-label>
-        <input matInput type="number" step="0.25" [field]="form.contactLensSpherePower" />
+        <input matInput type="number" step="0.25" [formField]="form.contactLensSpherePower" />
       </mat-form-field>
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.contactLensCylinder' | translate }}</mat-label>
-        <input matInput type="number" step="0.25" [field]="form.contactLensCylinder" />
+        <input matInput type="number" step="0.25" [formField]="form.contactLensCylinder" />
       </mat-form-field>
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.contactLensAxis' | translate }}</mat-label>
-        <input matInput type="number" [field]="form.contactLensAxis" />
+        <input matInput type="number" [formField]="form.contactLensAxis" />
         <span matTextSuffix>°</span>
       </mat-form-field>
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.contactLensAddition' | translate }}</mat-label>
-        <input matInput type="number" step="0.25" [field]="form.contactLensAddition" />
+        <input matInput type="number" step="0.25" [formField]="form.contactLensAddition" />
       </mat-form-field>
     </div>
   }
@@ -632,7 +632,7 @@
 
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.accessorySubCategory' | translate }}</mat-label>
-        <input matInput [field]="form.accessorySubCategory" />
+        <input matInput [formField]="form.accessorySubCategory" />
       </mat-form-field>
     </div>
   }
@@ -651,14 +651,14 @@
     @if (!isEditMode()) {
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.purchasePriceExclTax' | translate }}</mat-label>
-        <input matInput type="number" step="0.01" [field]="form.purchasePriceExclTax" />
+        <input matInput type="number" step="0.01" [formField]="form.purchasePriceExclTax" />
         <span matTextSuffix>MAD</span>
       </mat-form-field>
     }
 
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'stock.form.pricingMode' | translate }}</mat-label>
-      <mat-select [field]="form.pricingMode">
+      <mat-select [formField]="form.pricingMode">
         @for (mode of pricingModes(); track mode.code) {
           <mat-option [value]="mode.code">{{ mode.label | translate }}</mat-option>
         }
@@ -668,14 +668,14 @@
     @if (showCoefficient()) {
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.coefficient' | translate }}</mat-label>
-        <input matInput type="number" step="0.1" [field]="form.coefficient" />
+        <input matInput type="number" step="0.1" [formField]="form.coefficient" />
       </mat-form-field>
     }
 
     @if (showFixedAmount()) {
       <mat-form-field appFieldControlLabel>
         <mat-label>{{ 'stock.form.fixedAmount' | translate }}</mat-label>
-        <input matInput type="number" step="0.01" [field]="form.fixedAmount" />
+        <input matInput type="number" step="0.01" [formField]="form.fixedAmount" />
         <span matTextSuffix>MAD</span>
       </mat-form-field>
     }
@@ -683,7 +683,7 @@
     @if (showFixedPrice()) {
       <mat-form-field appFieldControlLabel [class.form-field-warning]="fixedPriceWarning()">
         <mat-label>{{ 'stock.form.fixedPrice' | translate }}</mat-label>
-        <input matInput type="number" step="0.01" [field]="form.fixedPrice" />
+        <input matInput type="number" step="0.01" [formField]="form.fixedPrice" />
         <span matTextSuffix>MAD</span>
         <mat-hint [class.text-warning]="fixedPriceWarning()">
           @if (fixedPriceWarning()) {
@@ -696,7 +696,7 @@
 
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'stock.form.tvaRate' | translate }}</mat-label>
-      <mat-select [field]="form.tvaRate">
+      <mat-select [formField]="form.tvaRate">
         @for (rate of tvaRates(); track rate.code) {
           <mat-option [value]="+rate.code">{{ rate.label }}</mat-option>
         }
@@ -708,7 +708,7 @@
 
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'stock.form.alertThreshold' | translate }}</mat-label>
-      <input matInput type="number" [field]="form.alertThreshold" />
+      <input matInput type="number" [formField]="form.alertThreshold" />
       @if (form.alertThreshold().touched() && form.alertThreshold().invalid()) {
         <mat-error app-field-error [errors]="form.alertThreshold().errors()" />
       }

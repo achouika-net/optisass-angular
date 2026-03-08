@@ -5,3 +5,5 @@ export * from './local-storage-key.type';
 export * from './menu-item.type';
 export * from './recurring-event-scope.type';
 export * from './user-roles.type';
+export * from './direction.type';
+export type TypedRoute = any;

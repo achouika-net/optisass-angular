@@ -91,4 +91,12 @@ export class AuthService {
       queryParams: redirectUrl ? { redirectUrl } : undefined,
     });
   }
+
+  /**
+   * Stub for getUserOptions
+   * @return Observable<any>
+   */
+  getUserOptions(): Observable<any> {
+    return this.#http.get<any>(`${API_URL}/users/options`);
+  }
 }

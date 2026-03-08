@@ -13,7 +13,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTimepickerModule } from '@angular/material/timepicker';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { TranslatePipe } from '@ngx-translate/core';
 import { isSameDay, set } from 'date-fns';
 import { FormControlErrorComponent } from '../form-control-error/form-control-error.component';
@@ -31,7 +31,7 @@ import { FormControlErrorComponent } from '../form-control-error/form-control-er
     MatFormFieldModule,
     MatDatepickerModule,
     MatTimepickerModule,
-    FieldControlLabelDirective,
+    ControlLabelDirective,
     FormControlErrorComponent,
     FormsModule,
   ],

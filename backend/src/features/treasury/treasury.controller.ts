@@ -3,7 +3,27 @@ import { TreasuryService } from './treasury.service';
 
 @Controller('treasury')
 export class TreasuryController {
-  constructor(private readonly treasuryService: TreasuryService) {}
+  constructor(private readonly treasuryService: TreasuryService) { }
+
+  @Get('consolidated-unpaid-final')
+  getConsolidatedUnpaid(
+    @Query('clientId') clientId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('centreId') centreId?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    console.log(`[TREASURY-CONT] getConsolidatedUnpaid called. Params:`, { clientId, startDate, endDate, centreId, page, limit });
+    return this.treasuryService.getConsolidatedUnpaid({
+      clientId,
+      startDate,
+      endDate,
+      centreId,
+      page,
+      limit,
+    });
+  }
 
   @Get('summary')
   getMonthlySummary(
@@ -34,13 +54,17 @@ export class TreasuryController {
     @Query('endDate') endDate?: string,
     @Query('centreId') centreId?: string,
     @Query('mode') mode?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
     return this.treasuryService.getConsolidatedIncomings({
       clientId,
       startDate,
       endDate,
       centreId,
-      mode,
+      statut: mode,
+      page,
+      limit,
     });
   }
 
@@ -53,6 +77,8 @@ export class TreasuryController {
     @Query('source') source?: string,
     @Query('centreId') centreId?: string,
     @Query('mode') mode?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
     return this.treasuryService.getConsolidatedOutgoings({
       fournisseurId,
@@ -62,6 +88,8 @@ export class TreasuryController {
       source,
       centreId,
       mode,
+      page,
+      limit,
     });
   }
 

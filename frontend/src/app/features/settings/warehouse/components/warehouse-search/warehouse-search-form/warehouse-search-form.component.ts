@@ -7,7 +7,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { Field, FieldTree } from '@angular/forms/signals';
+import { Field, FieldTree, FormField } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -15,7 +15,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { TranslateModule } from '@ngx-translate/core';
 import { IWarehouseSearch, WAREHOUSE_TYPES } from '../../../models';
 import { WarehouseStore } from '../../../warehouse.store';
@@ -25,7 +25,7 @@ import { WarehouseStore } from '../../../warehouse.store';
   templateUrl: './warehouse-search-form.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    Field,
+
     TranslateModule,
     MatCardModule,
     MatFormFieldModule,
@@ -34,13 +34,14 @@ import { WarehouseStore } from '../../../warehouse.store';
     MatButtonModule,
     MatIconModule,
     MatTooltipModule,
-    FieldControlLabelDirective,
+    ControlLabelDirective,
+    FormField,
   ],
 })
 export class WarehouseSearchFormComponent {
   #warehouseStore = inject(WarehouseStore);
 
-  readonly searchForm = input.required<FieldTree<IWarehouseSearch>>();
+  readonly searchForm: any = input.required<FieldTree<IWarehouseSearch>>();
   #searchValue = this.#warehouseStore.state.searchForm;
   warehouseTypes = signal(WAREHOUSE_TYPES).asReadonly();
 

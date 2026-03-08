@@ -20,7 +20,7 @@ import {
 import { MatButton } from '@angular/material/button';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatError, MatInput } from '@angular/material/input';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { debounceTime, interval, tap } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -38,7 +38,7 @@ import { ActivatedRoute } from '@angular/router';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TranslateModule,
-    FieldControlLabelDirective,
+    ControlLabelDirective,
     FormControlErrorComponent,
     MatError,
     ReactiveFormsModule,

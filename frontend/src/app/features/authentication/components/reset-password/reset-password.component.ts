@@ -16,7 +16,7 @@ import {
 import { MatButton } from '@angular/material/button';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatError, MatInput } from '@angular/material/input';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { IResetPasswordConfirmRequest } from '@app/models';
 import { TranslateModule } from '@ngx-translate/core';
 import { IResetPasswordFormGroupModel } from './models/reset-password-form-group.model';
@@ -34,7 +34,7 @@ import { AuthenticationStore } from '../../authentication.store';
   imports: [
     TranslateModule,
     ReactiveFormsModule,
-    FieldControlLabelDirective,
+    ControlLabelDirective,
     MatFormField,
     MatInput,
     MatLabel,

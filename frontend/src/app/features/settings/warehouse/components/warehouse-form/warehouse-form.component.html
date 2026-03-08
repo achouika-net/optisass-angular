@@ -4,7 +4,7 @@
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <!-- Status -->
         <div class="md:col-span-2">
-          <mat-radio-group [field]="warehouseForm.active" class="flex gap-4">
+          <mat-radio-group [formField]="warehouseForm.active" class="flex gap-4">
             <mat-label class="mr-4">{{ 'commun.status' | translate }}</mat-label>
             <mat-radio-button [value]="true">
               {{ 'commun.actif' | translate }}
@@ -18,7 +18,7 @@
         <!-- Name -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'warehouse.name' | translate }}</mat-label>
-          <input matInput [field]="warehouseForm.name" />
+          <input matInput [formField]="warehouseForm.name" />
           @if (warehouseForm.name().touched() && warehouseForm.name().invalid()) {
             <mat-error app-field-error [errors]="warehouseForm.name().errors()" fieldname="name" />
           }
@@ -27,7 +27,7 @@
         <!-- Type -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'warehouse.type' | translate }}</mat-label>
-          <mat-select [field]="warehouseForm.type">
+          <mat-select [formField]="warehouseForm.type">
             @for (type of warehouseTypes(); track type) {
               <mat-option [value]="type">
                 {{ 'warehouse.types.' + type | translate }}
@@ -42,7 +42,7 @@
         <!-- Capacity -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'warehouse.capacity' | translate }}</mat-label>
-          <input matInput type="number" [field]="warehouseForm.capacity" />
+          <input matInput type="number" [formField]="warehouseForm.capacity" />
           <span matTextSuffix>m²</span>
           @if (warehouseForm.capacity().touched() && warehouseForm.capacity().invalid()) {
             <mat-error app-field-error [errors]="warehouseForm.capacity().errors()" />

@@ -47,7 +47,7 @@ export class TopbarActionsComponent {
 
   roleName = computed(() => {
     const roleId = this.userRole();
-    return roleId ? USER_ROLES[roleId] : '';
+    return roleId ? (USER_ROLES as any)[roleId] : '';
   });
 
   // Fetch all centers to ensure list is complete (bypass auth limitations)

@@ -6,7 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { FieldErrorComponent } from '@app/components';
 import { FrameSubType, PricingMode, ProductType } from '@app/models';
 import { ResourceStore } from '@app/core/store';
@@ -20,7 +20,7 @@ import { IStockEntryProductFormRow } from '../../models';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormField,
-    FieldControlLabelDirective,
+    ControlLabelDirective,
     FieldErrorComponent,
     MatButtonModule,
     MatCheckboxModule,
@@ -34,7 +34,7 @@ import { IStockEntryProductFormRow } from '../../models';
 export class StockEntryRowComponent {
   readonly #resourceStore = inject(ResourceStore);
 
-  readonly rowFields = input.required<FieldTree<IStockEntryProductFormRow>>();
+  readonly rowFields = input.required<any>();
   readonly warehouses = input.required<readonly IWarehouse[]>();
 
   readonly splitClick = output<void>();

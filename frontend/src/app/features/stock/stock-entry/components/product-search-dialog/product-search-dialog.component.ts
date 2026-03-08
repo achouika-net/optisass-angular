@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { debounce, Field, form } from '@angular/forms/signals';
+import { debounce, Field, form, FormField } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -10,7 +10,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { A11yModule } from '@angular/cdk/a11y';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { ResourceStore } from '@app/core/store';
 import { IProductSearch, Product, ProductType } from '@app/models';
 import { ProductService } from '@app/services';
@@ -28,7 +28,7 @@ interface ISearchForm {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     A11yModule,
-    Field,
+
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
@@ -38,7 +38,8 @@ interface ISearchForm {
     MatTableModule,
     MatProgressSpinnerModule,
     TranslateModule,
-    FieldControlLabelDirective,
+    ControlLabelDirective,
+    FormField,
   ],
 })
 export class ProductSearchDialogComponent {

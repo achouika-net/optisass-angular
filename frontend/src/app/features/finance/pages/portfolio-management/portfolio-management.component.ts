@@ -408,7 +408,8 @@ export class PortfolioManagementComponent implements OnInit {
       mode: this.modeFilter,
       statut: this.statusFilter,
       startDate,
-      endDate
+      endDate,
+      limit: 500 // Monthly view usually fits in 500
     };
 
     const request = this.activeTabId === 0
@@ -416,8 +417,8 @@ export class PortfolioManagementComponent implements OnInit {
       : this.financeService.getConsolidatedOutgoings(filters);
 
     request.subscribe({
-      next: (data) => {
-        this.items = data;
+      next: (res) => {
+        this.items = res.data;
         this.calculateTotals();
         this.loading = false;
       },

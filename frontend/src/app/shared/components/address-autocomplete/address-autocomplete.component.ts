@@ -29,7 +29,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import {
-  FieldControlLabelDirective,
+  ControlLabelDirective,
   MarkRequiredFormControlAsDirtyDirective,
 } from '@app/directives';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -48,7 +48,7 @@ import { MatOptionSelectionChange } from '@angular/material/core';
   templateUrl: './address-autocomplete.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    FieldControlLabelDirective,
+    ControlLabelDirective,
     TranslateModule,
     ReactiveFormsModule,
     MatAutocompleteModule,

@@ -297,8 +297,30 @@ export class StockEntryV2Component implements OnInit {
         });
 
         this.setupDuplicateCheck();
+        this.loadStats();
     }
 
+    loadStats() {
+        this.productService.getStockStatistics().subscribe((stats: StockStats) => {
+            this.stats$.next(stats);
+        });
+    }
+
+    getStockStatus(qty: number): { label: string, class: string } {
+        if (qty <= 0) return { label: 'Rupture', class: 'danger' };
+        if (qty < 10) return { label: 'Stock Faible', class: 'warning' };
+        if (qty > 100) return { label: 'Surstock', class: 'primary' };
+        return { label: 'Optimal', class: 'success' };
+    }
+
+    calculateMargin(buy: number, sell: number): number {
+        if (!buy || !sell) return 0;
+        return ((sell - buy) / sell) * 100;
+    }
+
+    getTotalBasketValue(): number {
+        return this.stagedProducts.reduce((acc, p) => acc + (p.prixAchat * p.quantite), 0);
+    }
     setupDuplicateCheck() {
         this.documentForm.valueChanges.pipe(
             debounceTime(500),

@@ -234,7 +234,7 @@ export function invoiceToFormData(
     documentNumber: invoice.invoiceNumber ?? '',
     documentDate: invoice.invoiceDate ?? new Date(),
     supplierName: invoice.supplier?.name ?? null,
-    products: invoice.lines.map((line) =>
+    products: invoice.lines.map((line: any) =>
       invoiceLineToProductRow(line, confidence, defaultWarehouseId),
     ),
   };

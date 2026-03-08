@@ -4,7 +4,7 @@
       <!-- Basic Information Section -->
       <div class="form-grid">
         <!-- Status Radio Buttons -->
-        <mat-radio-group [field]="form.actif">
+        <mat-radio-group [formField]="form.actif">
           <mat-label>
             {{ 'commun.status' | translate }}
           </mat-label>
@@ -18,12 +18,12 @@
         </mat-radio-group>
 
         <!-- Photo Upload - Spans full width on mobile, right side on desktop -->
-        <app-photo-upload [field]="form.photo" class="place-self-end" />
+        <app-photo-upload [formField]="form.photo" class="place-self-end" />
 
         <!-- Nom (Last Name) -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.lastName' | translate }}</mat-label>
-          <input matInput [field]="form.nom" />
+          <input matInput [formField]="form.nom" />
           @if (form.nom().touched() && form.nom().invalid()) {
           <mat-error app-field-error [errors]="form.nom().errors()" fieldname="lastName" />
           }
@@ -32,7 +32,7 @@
         <!-- Prénom (First Name) -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.firstName' | translate }}</mat-label>
-          <input matInput [field]="form.prenom" />
+          <input matInput [formField]="form.prenom" />
           @if (form.prenom().touched() && form.prenom().invalid()) {
           <mat-error app-field-error [errors]="form.prenom().errors()" fieldname="firstName" />
           }
@@ -41,7 +41,7 @@
         <!-- Civilité (Title) -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.civilite' | translate }}</mat-label>
-          <mat-select [field]="form.civilite_id">
+          <mat-select [formField]="form.civilite_id">
             @for (civilite of civilites(); track civilite.id) {
             <mat-option [value]="civilite.id">{{ civilite.libelle_complet }}</mat-option>
             }
@@ -54,7 +54,7 @@
         <!-- Téléphone (Phone) -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.mobile' | translate }}</mat-label>
-          <input matInput [field]="form.mobile" />
+          <input matInput [formField]="form.mobile" />
           @if (form.mobile().touched() && form.mobile().invalid()) {
           <mat-error app-field-error [errors]="form.mobile().errors()" pattern="phone" />
           }
@@ -63,7 +63,7 @@
         <!-- Email -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.email' | translate }}</mat-label>
-          <input matInput [field]="form.email" type="email" />
+          <input matInput [formField]="form.email" type="email" />
           @if (form.email().touched() && form.email().invalid()) {
           <mat-error app-field-error [errors]="form.email().errors()" pattern="email" />
           }
@@ -72,7 +72,7 @@
         <!-- Agrément (License/Agreement) -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.agrement' | translate }}</mat-label>
-          <input matInput [field]="form.agrement" />
+          <input matInput [formField]="form.agrement" />
         </mat-form-field>
       </div>
 
@@ -92,7 +92,7 @@
         <!-- Centre Select -->
         <mat-form-field appFieldControlLabel class="flex-1">
           <mat-label>{{ 'commun.center' | translate }}</mat-label>
-          <mat-select [field]="tenantRolefield.center_id">
+          <mat-select [formField]="tenantRolefield.center_id">
             @for (tenant of tenants(); track tenant.id) {
             <mat-option [value]="tenant.id">
               {{ tenant.name | uppercase }}
@@ -104,7 +104,7 @@
         <!-- Role Select -->
         <mat-form-field appFieldControlLabel class="flex-1">
           <mat-label>{{ 'commun.role' | translate }}</mat-label>
-          <mat-select [field]="tenantRolefield.role_id">
+          <mat-select [formField]="tenantRolefield.role_id">
             @for (role of roles(); track role.id) {
             <mat-option [value]="role.id">{{ role.name }}</mat-option>
             }

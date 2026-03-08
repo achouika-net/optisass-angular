@@ -120,22 +120,22 @@ export class StockEntryComponent {
   readonly #selectedRowIds = signal<Set<string>>(new Set());
 
   readonly entryForm = form(this.#formModel, (fp) => {
-    required(fp.documentNumber);
-    required(fp.supplier.name);
+    required(fp.documentNumber as any);
+    required(fp.supplier.name as any);
 
     applyEach(fp.products, (rowPath) => {
       // Stock entry required fields (all products - existing and new)
-      required(rowPath.purchasePriceExclTax);
-      min(rowPath.purchasePriceExclTax, 0);
+      required(rowPath.purchasePriceExclTax as any);
+      min(rowPath.purchasePriceExclTax as any, 0);
 
-      validate(rowPath.warehouseAllocations, validateWarehouseAllocations);
+      validate(rowPath.warehouseAllocations as any, validateWarehouseAllocations);
 
       // Product schema validators (new products only - helpers include isNewProduct check)
-      const helpers = createStockEntryProductSchemaHelpers(rowPath);
+      const helpers = createStockEntryProductSchemaHelpers(rowPath as any);
       productSchema(rowPath, helpers, { validateAlertThreshold: false, validateDesignation: true });
 
       // Disable modelId when no brand is selected
-      disabled(rowPath.modelId, ({ valueOf }) => !valueOf(rowPath.brandId));
+      disabled(rowPath.modelId as any, ({ valueOf }) => !valueOf(rowPath.brandId as any));
     });
   });
 
@@ -311,8 +311,8 @@ export class StockEntryComponent {
         const newAllocations =
           p.warehouseAllocations.length > 0
             ? p.warehouseAllocations.map((a, i) =>
-                i === 0 ? { ...a, quantity: a.quantity + additionalQuantity } : a,
-              )
+              i === 0 ? { ...a, quantity: a.quantity + additionalQuantity } : a,
+            )
             : this.#createDefaultAllocation(additionalQuantity);
         return { ...p, warehouseAllocations: newAllocations };
       }),
@@ -615,19 +615,19 @@ export class StockEntryComponent {
 
     const ocrSupplier: IOcrSupplierData | null = invoice.supplier
       ? {
-          name: invoice.supplier.name ?? null,
-          ice: invoice.supplier.ice ?? null,
-          fiscalId: invoice.supplier.fiscalId ?? null,
-          tradeRegister: invoice.supplier.tradeRegister ?? null,
-          cnss: invoice.supplier.cnss ?? null,
-          patente: invoice.supplier.patente ?? null,
-          address: invoice.supplier.address ?? null,
-          phone: invoice.supplier.phone ?? null,
-          email: invoice.supplier.email ?? null,
-          bank: invoice.supplier.bank ?? null,
-          rib: invoice.supplier.rib ?? null,
-          addressDetails: invoice.supplier.addressDetails,
-        }
+        name: invoice.supplier.name ?? null,
+        ice: invoice.supplier.ice ?? null,
+        fiscalId: invoice.supplier.fiscalId ?? null,
+        tradeRegister: invoice.supplier.tradeRegister ?? null,
+        cnss: invoice.supplier.cnss ?? null,
+        patente: invoice.supplier.patente ?? null,
+        address: invoice.supplier.address ?? null,
+        phone: invoice.supplier.phone ?? null,
+        email: invoice.supplier.email ?? null,
+        bank: invoice.supplier.bank ?? null,
+        rib: invoice.supplier.rib ?? null,
+        addressDetails: invoice.supplier.addressDetails,
+      }
       : null;
 
     // Update form model with OCR data

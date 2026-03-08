@@ -407,7 +407,7 @@ export class ProductMatchingService {
    * @param product The matched product
    * @returns Match result
    */
-  #createMatchResult(method: MatchMethod, score: number, product: Product): IProductMatchResult {
+  #createMatchResult(method: MatchMethod, score: number, product: any): IProductMatchResult {
     const confidence: MatchConfidence = scoreToConfidence(score);
 
     return {

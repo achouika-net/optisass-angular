@@ -5,7 +5,7 @@
         <!-- Type de client -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'client.clientType' | translate }}</mat-label>
-          <mat-select [field]="searchForm().clientTypeId">
+          <mat-select [formField]="searchForm().clientTypeId">
             <mat-option [value]="-1">{{ 'commun.all' | translate }}</mat-option>
             @for (type of clientTypes(); track type.code) {
               <mat-option [value]="type.code">{{ type.label }}</mat-option>
@@ -16,7 +16,7 @@
         <!-- Statut -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.status' | translate }}</mat-label>
-          <mat-select [field]="searchForm().active">
+          <mat-select [formField]="searchForm().active">
             @for (state of states(); track state.code) {
               <mat-option [value]="state.code">
                 {{ `commun.${state.label}` | translate }}
@@ -28,31 +28,31 @@
         <!-- Nom -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.lastName' | translate }}</mat-label>
-          <input matInput [field]="searchForm().lastName" />
+          <input matInput [formField]="searchForm().lastName" />
         </mat-form-field>
 
         <!-- Prénom -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.firstName' | translate }}</mat-label>
-          <input matInput [field]="searchForm().firstName" />
+          <input matInput [formField]="searchForm().firstName" />
         </mat-form-field>
 
         <!-- Téléphone -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.mobile' | translate }}</mat-label>
-          <input matInput [field]="searchForm().phone" />
+          <input matInput [formField]="searchForm().phone" />
         </mat-form-field>
 
         <!-- Pièce d'identité -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'client.idDocument' | translate }}</mat-label>
-          <input matInput [field]="searchForm().idDocument" />
+          <input matInput [formField]="searchForm().idDocument" />
         </mat-form-field>
 
         <!-- Groupe famille -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'client.familyGroup' | translate }}</mat-label>
-          <input matInput [field]="searchForm().familyGroup" />
+          <input matInput [formField]="searchForm().familyGroup" />
         </mat-form-field>
       </div>
       <div class="flex flex-1 items-center justify-end gap-2.5">

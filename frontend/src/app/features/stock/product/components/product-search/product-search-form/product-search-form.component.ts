@@ -19,7 +19,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { FILTER_ALL_YES_NO_OPTIONS } from '@app/config';
 import { ResourceStore } from '@app/core/store';
 import { ResourceAutocompleteComponent } from '@app/components';
-import { FieldControlLabelDirective } from '@app/directives';
+import { ControlLabelDirective } from '@app/directives';
 import { IProductSearch, ProductSearch, ProductType } from '@app/models';
 import { SupplierService } from '@app/services';
 import { TranslateModule } from '@ngx-translate/core';
@@ -30,7 +30,7 @@ import { ProductStore } from '../../../product.store';
   templateUrl: './product-search-form.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    Field,
+
     FormField,
     TranslateModule,
     MatCardModule,
@@ -40,7 +40,7 @@ import { ProductStore } from '../../../product.store';
     MatButtonModule,
     MatIconModule,
     MatTooltipModule,
-    FieldControlLabelDirective,
+    ControlLabelDirective,
     ResourceAutocompleteComponent,
   ],
 })
@@ -50,7 +50,8 @@ export class ProductSearchFormComponent {
   readonly #supplierService = inject(SupplierService);
 
   readonly #searchFormModel = signal<IProductSearch>(new ProductSearch());
-  readonly searchForm = form(this.#searchFormModel);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  readonly searchForm: any = form(this.#searchFormModel);
 
   readonly #searchValue = this.#productStore.state.searchForm;
   readonly showAdvancedFilters = signal(false);
@@ -60,7 +61,7 @@ export class ProductSearchFormComponent {
     stream: () => this.#supplierService.getActiveSuppliers(),
   });
 
-  readonly suppliers = computed(() => this.suppliersResource.value() ?? []);
+  readonly suppliers: any = computed(() => this.suppliersResource.value() ?? []);
 
   readonly productTypes = this.#resourceStore.productTypes;
   readonly productStatuses = this.#resourceStore.productStatuses;
@@ -78,7 +79,7 @@ export class ProductSearchFormComponent {
   readonly contactLensTypes = this.#resourceStore.contactLensTypes;
   readonly accessoryCategories = this.#resourceStore.accessoryCategories;
 
-  readonly selectedProductTypes = computed(() => this.searchForm.productTypes().value() ?? []);
+  readonly selectedProductTypes = computed(() => this.searchForm.productTypes?.()?.value?.() ?? []);
 
   readonly showFrameFilters = computed(() => {
     const types = this.selectedProductTypes();
@@ -170,27 +171,28 @@ export class ProductSearchFormComponent {
    */
   #resetTypeSpecificFilters(selectedTypes: ProductType[]): void {
     const hasFrame = selectedTypes.includes('frame');
+    const sf = this.searchForm as any;
 
     if (!hasFrame) {
-      this.searchForm.frameShape().value.set(null);
-      this.searchForm.frameMaterial().value.set(null);
-      this.searchForm.frameColor().value.set(null);
-      this.searchForm.frameGender().value.set(null);
+      sf.frameShape?.()?.value?.set(null);
+      sf.frameMaterial?.()?.value?.set(null);
+      sf.frameColor?.()?.value?.set(null);
+      sf.frameGender?.()?.value?.set(null);
     }
 
     if (!selectedTypes.includes('lens')) {
-      this.searchForm.lensIndex().value.set(null);
-      this.searchForm.lensTreatment().value.set(null);
-      this.searchForm.lensPhotochromic().value.set(null);
+      sf.lensIndex?.()?.value?.set(null);
+      sf.lensTreatment?.()?.value?.set(null);
+      sf.lensPhotochromic?.()?.value?.set(null);
     }
 
     if (!selectedTypes.includes('contact_lens')) {
-      this.searchForm.contactLensUsage().value.set(null);
-      this.searchForm.contactLensType().value.set(null);
+      sf.contactLensUsage?.()?.value?.set(null);
+      sf.contactLensType?.()?.value?.set(null);
     }
 
     if (!selectedTypes.includes('accessory')) {
-      this.searchForm.accessoryCategory().value.set(null);
+      sf.accessoryCategory?.()?.value?.set(null);
     }
   }
 }

@@ -6,14 +6,14 @@
         <!-- Recherche texte -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'stock.search.placeholder' | translate }}</mat-label>
-          <input matInput [field]="searchForm.search" />
+          <input matInput [formField]="searchForm.search" />
           <mat-icon matSuffix>search</mat-icon>
         </mat-form-field>
 
         <!-- Type produit (multi-select) -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'stock.search.productType' | translate }}</mat-label>
-          <mat-select [field]="searchForm.productTypes" multiple>
+          <mat-select [formField]="searchForm.productTypes" multiple>
             @for (type of productTypes(); track type.code) {
               <mat-option [value]="type.code">{{ type.label }}</mat-option>
             }
@@ -38,7 +38,7 @@
         <!-- Rupture -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'stock.search.outOfStock' | translate }}</mat-label>
-          <mat-select [field]="searchForm.outOfStock">
+          <mat-select [formField]="searchForm.outOfStock">
             @for (option of booleanOptions; track option.value) {
               <mat-option [value]="option.value">{{ option.label | translate }}</mat-option>
             }
@@ -107,7 +107,7 @@
           />
           <mat-form-field appFieldControlLabel>
             <mat-label>{{ 'stock.search.lowStock' | translate }}</mat-label>
-            <mat-select [field]="searchForm.lowStock">
+            <mat-select [formField]="searchForm.lowStock">
               @for (option of booleanOptions; track option.value) {
                 <mat-option [value]="option.value">{{ option.label | translate }}</mat-option>
               }
@@ -171,7 +171,7 @@
             />
             <mat-form-field appFieldControlLabel>
               <mat-label>{{ 'stock.search.lensPhotochromic' | translate }}</mat-label>
-              <mat-select [field]="searchForm.lensPhotochromic">
+              <mat-select [formField]="searchForm.lensPhotochromic">
                 @for (option of booleanOptions; track option.value) {
                   <mat-option [value]="option.value">{{ option.label | translate }}</mat-option>
                 }

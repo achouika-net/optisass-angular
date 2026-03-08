@@ -14,7 +14,7 @@ import { TranslateService } from '@ngx-translate/core';
 @Directive({
   selector: '[appFieldControlLabel]',
 })
-export class FieldControlLabelDirective implements AfterViewInit {
+export class ControlLabelDirective implements AfterViewInit {
   private readonly translate = inject(TranslateService);
   private readonly el = inject(ElementRef);
 
