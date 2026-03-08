@@ -17,8 +17,11 @@ export class GroupsService {
   }
 
   async findAll(type?: string) {
+    const where: any = {};
+    if (type) where.type = type;
+
     return this.prisma.groupe.findMany({
-      where: type ? { type } : undefined,
+      where,
       include: {
         centres: {
           include: {
