@@ -15,6 +15,7 @@ export interface Groupe {
     adresse?: string;
     telephone?: string;
     email?: string;
+    type?: string;
     centres?: Centre[];
     createdAt: Date;
     updatedAt: Date;
