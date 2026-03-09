@@ -1231,7 +1231,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     // --- Suivi Commande Logic ---
 
     get suiviStatut(): string {
-        return this.ficheForm.get('suiviCommande.statut')?.value || 'A_COMMANDER';
+        const val = this.ficheForm.get('suiviCommande.statut')?.value;
+        const validStates = ['A_COMMANDER', 'COMMANDE', 'RECU', 'LIVRE_CLIENT'];
+        return validStates.includes(val) ? val : 'A_COMMANDER';
     }
 
     setOrderStatus(statut: string): void {
@@ -1304,6 +1306,103 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         if (currentIndex > stepIndex) return 'completed';
         if (currentIndex === stepIndex) return 'active';
         return 'pending';
+    }
+
+    getProgressBarWidth(): string {
+        const status = this.suiviStatut;
+        if (status === 'A_COMMANDER') return '0%';
+        if (status === 'COMMANDE') return '33%';
+        if (status === 'RECU') return '66%';
+        if (status === 'LIVRE_CLIENT') return '100%';
+        return '0%';
+    }
+
+    getStepClass(stepStatus: string): string {
+        const state = this.getStepState(stepStatus);
+        if (state === 'completed') return 'bg-blue-500 text-white shadow-blue-200 border-2 border-blue-500';
+        if (state === 'active') return 'bg-blue-50 text-blue-600 border-2 border-blue-500 shadow-blue-100';
+        return 'bg-gray-50 text-gray-400 border-2 border-gray-200 shadow-none';
+    }
+
+    getStepTextClass(stepStatus: string): string {
+        const state = this.getStepState(stepStatus);
+        if (state === 'completed') return 'text-white';
+        if (state === 'active') return 'text-blue-600';
+        return 'text-gray-400';
+    }
+
+    getTextClass(stepStatus: string): string {
+        const state = this.getStepState(stepStatus);
+        const isCurrent = this.suiviStatut === stepStatus;
+
+        if (isCurrent) return 'text-blue-600';
+        if (state === 'completed') return 'text-gray-800';
+        return 'text-gray-400 font-medium';
+    }
+
+    getNextStatusIcon(): string {
+        const status = this.suiviStatut;
+        if (status === 'A_COMMANDER') return 'send';
+        if (status === 'COMMANDE') return 'task_alt';
+        if (status === 'RECU') return 'storefront';
+        return 'check_circle';
+    }
+
+    getNextStatusText(current: boolean = false): string {
+        const status = this.suiviStatut;
+        if (current) {
+            if (status === 'A_COMMANDER') return 'À COMMANDER';
+            if (status === 'COMMANDE') return 'EN COMMANDE';
+            if (status === 'RECU') return 'REÇU ATELIER';
+            if (status === 'LIVRE_CLIENT') return 'LIVRÉ CLIENT';
+        } else {
+            if (status === 'A_COMMANDER') return 'Marquer comme Commandé';
+            if (status === 'COMMANDE') return 'Marquer comme Reçu';
+            if (status === 'RECU') return 'Marquer comme Livré au Client';
+            if (status === 'LIVRE_CLIENT') return 'Terminé';
+        }
+        return '';
+    }
+
+    advanceOrderStatus(): void {
+        const status = this.suiviStatut;
+        if (status === 'A_COMMANDER') this.setOrderStatus('COMMANDE');
+        else if (status === 'COMMANDE') this.setOrderStatus('RECU');
+        else if (status === 'RECU') this.setOrderStatus('LIVRE_CLIENT');
+    }
+
+    getTimelineEvents(): any[] {
+        const group = this.ficheForm.get('suiviCommande');
+        if (!group) return [];
+
+        const events = [];
+        const created = this.currentFiche ? this.currentFiche.createdAt : null;
+        if (created) {
+            events.push({ date: created, description: 'Création de la fiche', type: 'create' });
+        }
+
+        if (group.get('dateCommande')?.value) {
+            events.push({ date: group.get('dateCommande').value, description: 'Commande envoyée au fournisseur', type: 'order' });
+        }
+
+        if (group.get('dateReception')?.value) {
+            events.push({ date: group.get('dateReception').value, description: 'Verres reçus à l\'atelier', type: 'receive' });
+        }
+
+        if (group.get('dateLivraison')?.value) {
+            events.push({ date: group.get('dateLivraison').value, description: 'Équipement livré au client', type: 'deliver' });
+        }
+
+        // Sort by date descending
+        return events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
+
+    getTimelineDotClass(type: string): string {
+        if (type === 'create') return 'bg-gray-400 ring-gray-100';
+        if (type === 'order') return 'bg-blue-400 ring-blue-50';
+        if (type === 'receive') return 'bg-green-400 ring-green-50';
+        if (type === 'deliver') return 'bg-purple-400 ring-purple-50';
+        return 'bg-blue-500 ring-blue-50';
     }
 
     closeSuggestions(): void {
