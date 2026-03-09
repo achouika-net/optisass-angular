@@ -51,6 +51,7 @@ export enum ModalitePaiement {
     VIREMENT = 'Virement',
     ESPECES = 'Espèces',
     TRAITE = 'Traite',
+    FIDELIO = 'Fidelio',
     AUTRE = 'Autre'
 }
 

@@ -213,6 +213,15 @@ export class FacturesService implements OnModuleInit {
       }
     }
 
+    // Auto-apply unused Fidelio rewards
+    if (facture.statut !== 'BROUILLON' && facture.statut !== 'ANNULEE') {
+      await this.applyPendingFidelioRewards(facture.id, this.prisma);
+      // Reload facture to return updated resteAPayer
+      facture = await this.prisma.facture.findUnique({
+        where: { id: facture.id },
+      }) as any;
+    }
+
     return facture;
   }
 
@@ -1298,6 +1307,82 @@ export class FacturesService implements OnModuleInit {
         return 'BC';
       default:
         return 'DOC';
+    }
+  }
+
+  // Helper: Auto-apply UNUSED Fidelio RewardRedemptions as payments
+  private async applyPendingFidelioRewards(factureId: string, tx: any) {
+    try {
+      const invoice = await tx.facture.findUnique({ where: { id: factureId } });
+      if (!invoice || invoice.resteAPayer <= 0) return;
+
+      const unusedRedemptions = await tx.rewardRedemption.findMany({
+        where: { clientId: invoice.clientId, isUsed: false },
+        orderBy: { redeemedAt: 'asc' }
+      });
+
+      if (unusedRedemptions.length === 0) return;
+
+      console.log(`🎁 [FIDELIO] Found ${unusedRedemptions.length} unused rewards for client ${invoice.clientId}. Facture ${invoice.numero} needs ${invoice.resteAPayer} MAD`);
+
+      let remainingReste = invoice.resteAPayer;
+
+      for (const redemption of unusedRedemptions) {
+        if (remainingReste <= 0) break;
+
+        const amountToApply = Math.min(redemption.madValue, remainingReste);
+
+        // 1. Create the payment
+        const newPaiement = await tx.paiement.create({
+          data: {
+            montant: amountToApply,
+            mode: 'FIDELIO', // New payment mode
+            statut: 'ENCAISSE',
+            reference: `Bonus Fidelio - ${redemption.pointsUsed} pts`,
+            notes: 'Paiement automatique via points de fidélité',
+            factureId: invoice.id,
+            date: new Date()
+          }
+        });
+
+        // 2. Mark reward as used
+        await tx.rewardRedemption.update({
+          where: { id: redemption.id },
+          data: {
+            isUsed: true,
+            paiementId: newPaiement.id
+          }
+        });
+
+        console.log(`✅ [FIDELIO] Applied ${amountToApply} MAD discount to facture ${invoice.numero} via payment ${newPaiement.id}`);
+
+        remainingReste -= amountToApply;
+      }
+
+      // 3. Update invoice rest to pay if changed
+      if (remainingReste < invoice.resteAPayer) {
+        const remainingRounded = Math.max(0, parseFloat(remainingReste.toFixed(2)));
+        let newStatut = invoice.statut;
+
+        if (remainingRounded <= 0 && invoice.statut !== 'PAYEE') {
+          newStatut = 'PAYEE';
+        } else if (remainingRounded > 0 && remainingRounded < invoice.totalTTC && invoice.statut !== 'PARTIEL') {
+          // Si c'est un BL ou DEVIS, on évite de changer en PARTIEL s'il y a d'autres logiques, mais typiquement:
+          if (invoice.type === 'FACTURE') newStatut = 'PARTIEL';
+        }
+
+        await tx.facture.update({
+          where: { id: factureId },
+          data: {
+            resteAPayer: remainingRounded,
+            statut: newStatut
+          }
+        });
+        console.log(`💰 [FIDELIO] Facture ${invoice.numero} updated. Reste à payer: ${remainingRounded} MAD. Statut: ${newStatut}`);
+      }
+
+    } catch (e) {
+      console.error('❌ [FIDELIO] Failed to auto-apply reward:', e);
     }
   }
 

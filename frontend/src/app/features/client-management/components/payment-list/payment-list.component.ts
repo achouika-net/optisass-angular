@@ -827,7 +827,8 @@ export class PaymentListComponent implements OnInit {
             'CARTE': 'Carte',
             'CHEQUE': 'Chèque',
             'VIREMENT': 'Virement',
-            'AUTRE': 'Autre'
+            'AUTRE': 'Autre',
+            'FIDELIO': 'Fidelio (Points)'
         };
         return modes[mode] || mode;
     }
