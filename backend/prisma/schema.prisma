@@ -144,6 +144,7 @@ model Paiement {
   facture             Facture              @relation(fields: [factureId], references: [id], onDelete: Cascade)
   operationCaisse     OperationCaisse?     @relation(fields: [operationCaisseId], references: [id])
   user                User?                @relation(fields: [userId], references: [id])
+  rewardRedemption    RewardRedemption?
 
   @@index([date])
   @@index([mode])
@@ -341,16 +342,19 @@ model LoyaltyConfig {
 }
 
 model RewardRedemption {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   clientId   String
   pointsUsed Int
   rewardType String
   madValue   Float
-  redeemedAt DateTime @default(now())
+  redeemedAt DateTime  @default(now())
   redeemedBy String?
   userId     String?
-  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  user       User?    @relation(fields: [userId], references: [id])
+  isUsed     Boolean   @default(false)
+  paiementId String?   @unique
+  client     Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user       User?     @relation(fields: [userId], references: [id])
+  paiement   Paiement? @relation(fields: [paiementId], references: [id])
 }
 
 model Fournisseur {

@@ -276,8 +276,8 @@ export class LoyaltyService {
     const madValue = Math.floor(pointsUsed * (config.pointsToMADRatio || 0.1));
 
     // Transaction: Create redemption, add history entry, reset points
-    const result = await this.prisma.$transaction([
-      this.prisma.rewardRedemption.create({
+    const result = await this.prisma.$transaction(async (tx) => {
+      const redemption = await tx.rewardRedemption.create({
         data: {
           clientId,
           pointsUsed,
@@ -285,22 +285,70 @@ export class LoyaltyService {
           madValue,
           redeemedBy,
         },
-      }),
-      this.prisma.pointsHistory.create({
+      });
+
+      await tx.pointsHistory.create({
         data: {
           clientId,
           points: -pointsUsed,
           type: 'SPEND',
           description: `Échange récompense: ${rewardType === 'DISCOUNT' ? 'Remise' : 'Bonus MAD'} (${madValue} MAD)`,
         },
-      }),
-      this.prisma.client.update({
+      });
+
+      await tx.client.update({
         where: { id: clientId },
         data: { pointsFidelite: 0 },
-      }),
-    ]);
+      });
 
-    return result[0]; // Return the redemption record
+      // --- NEW: Immediately attempt to apply this redemption to the oldest unpaid invoice ---
+      const oldestUnpaidInvoice = await tx.facture.findFirst({
+        where: {
+          clientId: clientId,
+          statut: { notIn: ['PAYEE', 'ANNULEE'] },
+          resteAPayer: { gt: 0 },
+        },
+        orderBy: { dateEmission: 'asc' },
+      });
+
+      if (oldestUnpaidInvoice && typeof oldestUnpaidInvoice.resteAPayer === 'number') {
+        const montantAReduire = Math.min(redemption.madValue, oldestUnpaidInvoice.resteAPayer);
+        const nouveauReste = oldestUnpaidInvoice.resteAPayer - montantAReduire;
+        const newStatut = nouveauReste <= 0.05 ? 'PAYEE' : 'PARTIEL';
+
+        const paiement = await tx.paiement.create({
+          data: {
+            factureId: oldestUnpaidInvoice.id,
+            montant: montantAReduire,
+            mode: 'FIDELIO',
+            date: new Date(),
+            reference: 'BONUS_FIDELIO',
+            notes: `Application immédiate prime de fidélité.`,
+          }
+        });
+
+        await tx.rewardRedemption.update({
+          where: { id: redemption.id },
+          data: {
+            isUsed: true,
+            paiementId: paiement.id
+          }
+        });
+
+        await tx.facture.update({
+          where: { id: oldestUnpaidInvoice.id },
+          data: {
+            resteAPayer: nouveauReste,
+            statut: oldestUnpaidInvoice.statut === 'BROUILLON' ? 'BROUILLON' : newStatut
+          }
+        });
+        console.log(`✅ [Loyalty] Applied ${montantAReduire} MAD Fidelio reward immediately to invoice ${oldestUnpaidInvoice.numero}`);
+      }
+
+      return redemption;
+    });
+
+    return result;
   }
 
   // NEW: Get redemption history
