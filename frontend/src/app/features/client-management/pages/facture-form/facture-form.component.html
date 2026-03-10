@@ -11,7 +11,7 @@
                     <span *ngIf="form.get('type')?.value === 'DEVIS'">DEVIS</span>
                     <span *ngIf="form.get('type')?.value === 'AVOIR'">AVOIR</span>
                     <span *ngIf="form.get('type')?.value === 'BL'">BON DE LIVRAISON</span>
-                    {{form.get('numero')?.value}}
+                    {{ formatNumero(form.get('numero')?.value) }}
                 </h2>
 
             </div>
@@ -64,21 +64,24 @@
 
         <!-- PRINT HEADER (Visible only when printing) -->
         <div class="print-header">
-            <div class="company-info">
-                <div class="logo-placeholder">
-                    <mat-icon>visibility</mat-icon>
-                    <span class="brand-name">OPTISASS</span>
-                </div>
-                <div class="details">
-                    <p class="company-name"><strong>OPTISASS - OPTICIEN LUNETIER</strong></p>
-                    <p>Adresse de l'établissement - Ville, Maroc</p>
-                    <p>Tél: +212 X XX XX XX XX / Email: contact@optisass.com</p>
-                    <p>ICE: 00XXXXXXXXXXXXX | IF: XXXXXXX | RC: XXXXXX</p>
+            <!-- Logo section -->
+            <div class="header-logo-row">
+                <div class="company-brand" *ngIf="companySettings">
+                    <img *ngIf="companySettings.logoUrl" [src]="companySettings.logoUrl" class="print-logo" alt="Logo">
+                    <div *ngIf="!companySettings.logoUrl" class="logo-placeholder">
+                        <mat-icon>visibility</mat-icon>
+                        <span class="brand-name">{{ companySettings.name }}</span>
+                    </div>
+                    <div class="optician-subtitle"
+                        *ngIf="companySettings.name === 'NOUVEAU REGARD' || !companySettings.logoUrl">
+                        Opticienne Optométriste
+                    </div>
                 </div>
             </div>
 
-            <div class="document-summary">
-                <div class="doc-title">
+            <!-- Gray Banner: Document Title & Main Info -->
+            <div class="document-banner">
+                <div class="doc-title-box">
                     <h1 *ngIf="form.get('type')?.value === 'FACTURE'">FACTURE</h1>
                     <h1 *ngIf="form.get('type')?.value === 'BON_COMM'">BON DE COMMANDE</h1>
                     <h1 *ngIf="form.get('type')?.value === 'DEVIS'">DEVIS</h1>
@@ -86,47 +89,31 @@
                     <h1 *ngIf="form.get('type')?.value === 'BL'">BON DE LIVRAISON</h1>
                 </div>
 
-                <div class="doc-details">
-                    <div class="detail-row">
+                <div class="doc-meta-box">
+                    <div class="meta-row">
                         <span class="label">Numéro:</span>
-                        <span class="value">{{ form.get('numero')?.value }}</span>
+                        <span class="value">{{ formatNumero(form.get('numero')?.value) }}</span>
                     </div>
-                    <div class="detail-row">
+                    <div class="meta-row">
                         <span class="label">Date:</span>
                         <span class="value">{{ form.get('dateEmission')?.value | date:'dd/MM/yyyy' }}</span>
                     </div>
                 </div>
             </div>
 
-            <div class="client-info" *ngIf="client">
-                <div class="client-box">
-                    <h3 class="box-title">Client:</h3>
-                    <p class="client-name"><strong>{{ client.nom }} {{ client.prenom }}</strong></p>
-                    <p *ngIf="client.adresse">{{ client.adresse }}</p>
-                    <p *ngIf="client.ville">{{ client.ville }}</p>
-                    <p *ngIf="client.telephone">Tél: {{ client.telephone }}</p>
-                    <p *ngIf="client.ice">ICE: {{ client.ice }}</p>
+            <!-- Client card: name + phone, left-aligned -->
+            <div class="client-section" *ngIf="client">
+                <div class="client-details">
+                    <p class="client-info-row"><strong>Client: {{ client.nom }} {{ client.prenom }}</strong></p>
+                    <p class="client-info-row" *ngIf="client.telephone"><strong>Tel: {{ client.telephone }}</strong></p>
                 </div>
             </div>
         </div>
 
         <mat-card class="content-card">
-            <div class="form-row triple">
-                <!-- Type -->
-                <mat-form-field appearance="outline">
-                    <mat-label>Type de Document</mat-label>
-                    <mat-select formControlName="type">
-                        <mat-option value="FACTURE">Facture</mat-option>
-                        <mat-option value="BON_COMM">Bon de commande</mat-option>
-                        <mat-option value="DEVIS">Devis</mat-option>
-                        <mat-option value="AVOIR">Avoir</mat-option>
-                        <mat-option value="BL">Bon de Livraison</mat-option>
-                        <mat-option value="PROFORMA">Proforma</mat-option>
-                    </mat-select>
-
-                </mat-form-field>
-
-                <!-- Statut -->
+            <!-- Form Metadata (Hidden on Print) -->
+            <div class="form-row triple no-print" [class.embedded]="embedded">
+                <!-- Status -->
                 <mat-form-field appearance="outline" *ngIf="!isViewMode">
                     <mat-label>Statut</mat-label>
                     <mat-select formControlName="statut">
@@ -136,7 +123,6 @@
                         <mat-option value="PAYEE">Payée</mat-option>
                         <mat-option value="PARTIEL">Partiel</mat-option>
                         <mat-option value="ANNULEE">Annulée</mat-option>
-
                     </mat-select>
                 </mat-form-field>
 
@@ -146,7 +132,18 @@
                     </span>
                 </div>
 
-                <!-- Date -->
+                <mat-form-field appearance="outline">
+                    <mat-label>Type de Document</mat-label>
+                    <mat-select formControlName="type" (selectionChange)="onTypeChange()">
+                        <mat-option value="FACTURE">Facture</mat-option>
+                        <mat-option value="BON_COMM">Bon de commande</mat-option>
+                        <mat-option value="DEVIS">Devis</mat-option>
+                        <mat-option value="AVOIR">Avoir</mat-option>
+                        <mat-option value="BL">Bon de Livraison</mat-option>
+                        <mat-option value="PROFORMA">Proforma</mat-option>
+                    </mat-select>
+                </mat-form-field>
+
                 <mat-form-field appearance="outline">
                     <mat-label>Date d'émission</mat-label>
                     <input matInput [matDatepicker]="picker" formControlName="dateEmission">
@@ -154,13 +151,10 @@
                     <mat-datepicker #picker></mat-datepicker>
                 </mat-form-field>
             </div>
+            <mat-divider style="margin: 20px 0" class="no-print"></mat-divider>
 
-
-
-            <mat-divider style="margin: 20px 0"></mat-divider>
-
-            <!-- Lines -->
-            <h3>Lignes du document</h3>
+            <!-- Lines (Title hidden in print to save space, table headers are enough) -->
+            <h3 class="no-print">Lignes du document</h3>
             <div class="lines-container" formArrayName="lignes">
                 <div class="line-header">
                     <div class="col-desc">Description</div>
@@ -213,7 +207,8 @@
 
                     <div class="montant-lettres" *ngIf="montantLettres">
                         <strong>Arrêter {{ form.get('type')?.value === 'DEVIS' ? 'le présent devis' :
-                            (form.get('type')?.value === 'FACTURE' ? 'la présente facture' : 'le présent document') }} à
+                            (form.get('type')?.value === 'FACTURE' ? 'la présente facture' : 'le présent document')
+                            }} à
                             la somme de :</strong><br>
                         {{ montantLettres }}
                     </div>
@@ -265,7 +260,8 @@
                             </span>
                             <span class="view-calc"
                                 *ngIf="form.get('proprietes.remiseGlobalType')?.value === 'PERCENT'">
-                                (-{{ (calculatedGlobalDiscount - (form.get('proprietes.pointsUtilises')?.value || 0)) |
+                                (-{{ (calculatedGlobalDiscount - (form.get('proprietes.pointsUtilises')?.value ||
+                                0)) |
                                 number:'1.2-2' }} DH)
                             </span>
                         </div>
@@ -286,26 +282,86 @@
                         <span>TVA (20%):</span>
                         <span>{{ totalTVA | number:'1.2-2' }} DH</span>
                     </div>
+
                     <div class="total-row main">
                         <span>Total TTC:</span>
                         <span>{{ totalTTC | number:'1.2-2' }} DH</span>
                     </div>
+
+                    <!-- CODE INPE barcode BELOW Total TTC (Reference Image) -->
+                    <div class="inpe-barcode-section">
+                        <svg id="inpe-barcode"></svg>
+                        <div class="inpe-mention">Code INPE</div>
+                    </div>
+
+                    <!-- Droit de Timbre & Net à Payer -->
+                    <div class="total-row secondary" *ngIf="droitTimbre > 0">
+                        <span>Droit de Timbre (0.25%):</span>
+                        <span>{{ droitTimbre | number:'1.2-2' }} DH</span>
+                    </div>
+                    <div class="total-row main no-border" *ngIf="droitTimbre > 0">
+                        <span>Net à Payer:</span>
+                        <span>{{ netAPayer | number:'1.2-2' }} DH</span>
+                    </div>
                 </div>
             </div>
 
+            <mat-divider style="margin: 15px 0" class="no-print"></mat-divider>
 
+            <!-- PRINT SIGNATURES -->
+            <div class="print-signatures">
+                <div class="signature-box" *ngIf="form.get('type')?.value === 'BON_COMM'">
+                    <p>Signature du Client</p>
+                    <div class="sig-line"></div>
+                </div>
+                <div class="signature-box">
+                    <p>Signature et Cachet du Magasin</p>
+                    <div class="sig-line"></div>
+                </div>
+            </div>
+
+            <!-- PRINT REGLEMENTS -->
+            <div class="print-reglements" *ngIf="paiements.length > 0">
+                <h3 class="reglements-title">Détail des Règlements</h3>
+                <div class="reglement-row" *ngFor="let p of paiements">
+                    <span class="bullet">•</span>
+                    <span> {{ p.montant | number:'1.2-2' }} DH</span>
+                    <span> le {{ p.date | date:'dd/MM/yyyy' }}</span>
+                    <span> en {{ getPaymentModeLabel(p.mode) }}</span>
+                    <span *ngIf="p.mode === 'CHEQUE' || p.mode === 'LCN' || p.mode === 'CARTE'"> (N° {{ p.reference
+                        || 'Non spécifié' }})</span>
+                </div>
+                <div class="reste-a-payer" *ngIf="resteAPayer > 0">
+                    <strong>Reste à Payer : {{ resteAPayer | number:'1.2-2' }} DH</strong>
+                </div>
+            </div>
+
+            <!-- LEGAL FOOTER (BOTTOM-MOST) -->
+            <div class="print-legal-footer" *ngIf="companySettings">
+                <mat-divider style="margin: 10px 0"></mat-divider>
+
+                <div class="bank-accounts-horizontal" *ngIf="companySettings.bankAccounts?.length">
+                    <span class="footer-title">INFORMATIONS BANCAIRES :</span>
+                    <span class="bank-item" *ngFor="let bank of companySettings.bankAccounts">
+                        <strong>{{ bank.bankName }}</strong>: {{ bank.rib }}
+                    </span>
+                </div>
+
+                <div class="company-fiscal-line">
+                    <span *ngIf="companySettings.rc">R.C: {{ companySettings.rc }}</span>
+                    <span *ngIf="companySettings.identifiantFiscal">IF: {{ companySettings.identifiantFiscal }}</span>
+                    <span *ngIf="companySettings.patente">Patente: {{ companySettings.patente }}</span>
+                    <span *ngIf="companySettings.cnss">CNSS: {{ companySettings.cnss }}</span>
+                    <span *ngIf="companySettings.ice">ICE: {{ companySettings.ice }}</span>
+                </div>
+
+                <div class="company-address-line" *ngIf="companySettings.address || companySettings.phone">
+                    <span *ngIf="companySettings.address">Adresse: {{ companySettings.address }}</span>
+                    <span *ngIf="companySettings.phone">Tél: {{ companySettings.phone }}</span>
+                    <span *ngIf="companySettings.email">Email: {{ companySettings.email }}</span>
+                </div>
+            </div>
         </mat-card>
 
-        <!-- PRINT SIGNATURES -->
-        <div class="print-signatures">
-            <div class="signature-box">
-                <p>Signature du Client</p>
-                <div class="sig-line"></div>
-            </div>
-            <div class="signature-box">
-                <p>Signature et Cachet du Magasin</p>
-                <div class="sig-line"></div>
-            </div>
-        </div>
     </form>
 </div>

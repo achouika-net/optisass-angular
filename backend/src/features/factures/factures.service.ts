@@ -1296,7 +1296,7 @@ export class FacturesService implements OnModuleInit {
   private getPrefix(type: string): string {
     switch (type) {
       case 'FACTURE':
-        return 'FAC';
+        return 'Fact';
       case 'DEVIS':
         return 'DEV';
       case 'AVOIR':

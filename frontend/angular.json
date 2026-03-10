@@ -58,6 +58,12 @@
             "styles": [
               "src/styles.css",
               "src/assets/styles/styles.scss"
+            ],
+            "scripts": [
+              "src/assets/jsbarcode.min.js"
+            ],
+            "allowedCommonJsDependencies": [
+              "jsbarcode"
             ]
           },
           "configurations": {

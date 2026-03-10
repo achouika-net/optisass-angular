@@ -94,7 +94,14 @@ body {
 @media print {
   @page {
     size: A4 portrait;
-    margin: 10mm;
+    margin: 0 !important;
+    /* Hides browser heaters (date/time) and footers (URL) */
+  }
+
+  body.is-printing-report {
+    padding: 15mm !important;
+    /* Internal padding to compensate for 0 margin */
+    background-color: white !important;
   }
 
   /* 1. SCORCHED EARTH - Hide ALL direct children of body when printing isolated report */
@@ -108,11 +115,11 @@ body {
   body.is-printing-report>.print-isolated {
     display: block !important;
     visibility: visible !important;
-    position: absolute !important;
-    left: 0;
-    top: 0;
+    position: relative !important;
+    /* Changed from absolute to allow parent padding */
     width: 100% !important;
-    max-width: 190mm !important;
+    max-width: 180mm !important;
+    /* Slightly reduced to ensure centering */
     margin: 0 auto !important;
     background: white !important;
     z-index: 9999999;

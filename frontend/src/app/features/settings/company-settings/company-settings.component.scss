@@ -1,0 +1,47 @@
+.logo-container {
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed #ccc;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #f8f9fa;
+
+    .logo-preview {
+        max-height: 100%;
+        max-width: 100%;
+        object-fit: contain;
+    }
+
+    .no-logo {
+        flex-direction: column;
+        color: #999;
+
+        mat-icon {
+            font-size: 48px;
+            height: 48px;
+            width: 48px;
+            margin-bottom: 8px;
+        }
+    }
+}
+
+.bank-row {
+    background-color: #fafafa;
+    border-left: 4px solid #3f51b5 !important;
+}
+
+mat-tab-group {
+    min-height: 400px;
+}
+
+.mat-mdc-card-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding-bottom: 16px !important;
+    margin-bottom: 16px;
+}
+
+.w-100 {
+    width: 100%;
+}

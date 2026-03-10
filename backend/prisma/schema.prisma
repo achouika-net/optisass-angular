@@ -757,3 +757,22 @@ model PayrollConfig {
   profExpensesRateLow   Float?   @default(35)
   profExpensesThreshold Float?   @default(78000)
 }
+
+model CompanySettings {
+  id          String   @id @default(uuid())
+  name        String?
+  logoUrl     String?  @db.Text
+  address     String?
+  phone       String?
+  email       String?
+  ice         String?
+  identifiantFiscal String?
+  rc          String?
+  patente     String?
+  cnss        String?
+  inpeCode    String?
+  bankAccounts Json?    // Array of { bankName, rib, iban, swift }
+  headerText  String?
+  footerText  String?
+  updatedAt   DateTime @updatedAt
+}

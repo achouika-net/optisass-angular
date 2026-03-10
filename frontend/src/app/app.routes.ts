@@ -64,6 +64,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/settings/marketing-config/marketing-config.component').then(m => m.MarketingConfigComponent),
       },
       {
+        path: 'settings/company',
+        loadComponent: () => import('./features/settings/company-settings/company-settings.component').then(m => m.CompanySettingsComponent),
+      },
+      {
         path: 'settings/import',
         loadComponent: () => import('./features/settings/pages/data-import/data-import.component').then(m => m.DataImportComponent),
       },
