@@ -247,4 +247,12 @@ export class FactureListComponent implements OnInit {
     printList() {
         window.print();
     }
+
+    formatNumero(facture: any): string {
+        if (!facture || !facture.numero) return '';
+        if (facture.type === 'FACTURE') {
+            return facture.numero.replace('BC-', 'Fact-');
+        }
+        return facture.numero;
+    }
 }

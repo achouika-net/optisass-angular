@@ -56,7 +56,7 @@
                 </thead>
                 <tbody>
                     <tr *ngFor="let facture of pagedDataSource">
-                        <td>{{ facture.numero }}</td>
+                        <td>{{ formatNumero(facture) }}</td>
                         <td>
                             <span class="badge" [ngClass]="'badge-' + facture.type.toLowerCase()">
                                 {{ (facture.type === 'BON_COMM' || facture.type === 'BON_COMMANDE') ? 'BC' :
@@ -162,7 +162,7 @@
         <tbody>
             <tr *ngFor="let row of filteredDataSource">
                 <td>{{ row.dateEmission | date:'dd/MM/yyyy' }}</td>
-                <td><strong>{{ row.numero }}</strong></td>
+                <td><strong>{{ formatNumero(row) }}</strong></td>
                 <td>{{ row.client?.nom }} {{ row.client?.prenom }}</td>
                 <td>{{ row.type }}</td>
                 <td>{{ row.statut }}</td>
