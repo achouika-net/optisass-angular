@@ -26,6 +26,11 @@ import { numberToFrench } from '../../../../utils/number-to-text';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector, UserSelector } from '../../../../core/store/auth/auth.selectors';
 import { Employee } from '../../../../shared/interfaces/employee.interface';
+import { CompanySettingsService } from '../../../../core/services/company-settings.service';
+import { CompanySettings } from '../../../../shared/interfaces/company-settings.interface';
+
+// JsBarcode is loaded as a global script via angular.json scripts[]
+declare const JsBarcode: (element: string | Element, value: string, options?: object) => void;
 
 @Component({
     selector: 'app-facture-form',
@@ -71,6 +76,8 @@ export class FactureFormComponent implements OnInit {
     totalHT = 0;
     totalTVA = 0;
     totalTTC = 0;
+    droitTimbre = 0;
+    netAPayer = 0;
     montantLettres = '';
     calculatedGlobalDiscount = 0;
 
@@ -84,6 +91,7 @@ export class FactureFormComponent implements OnInit {
 
     currentUser$: Observable<any> = this.store.select(UserSelector);
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
+    companySettings: CompanySettings | null = null;
 
     constructor(
         private fb: FormBuilder,
@@ -97,7 +105,8 @@ export class FactureFormComponent implements OnInit {
         private snackBar: MatSnackBar,
         private dialog: MatDialog,
         private store: Store,
-        private cdr: ChangeDetectorRef
+        private cdr: ChangeDetectorRef,
+        private companySettingsService: CompanySettingsService
     ) {
         // [FIX] Initialize centreId from current center
         this.centreId = this.currentCentre()?.id || null;
@@ -120,6 +129,7 @@ export class FactureFormComponent implements OnInit {
     }
 
     ngOnInit(): void {
+        this.loadCompanySettings();
         console.log('🚀 [FactureForm] ngOnInit | id:', this.id, '| factureId (input):', this.factureId, '| embedded:', this.embedded);
 
         // CRITICAL FIX: Check if we're loading an existing invoice FIRST
@@ -197,6 +207,34 @@ export class FactureFormComponent implements OnInit {
         }
     }
     // ... (rest of methods) - RESTORED
+    loadCompanySettings() {
+        this.companySettingsService.getSettings().subscribe({
+            next: (settings) => {
+                this.companySettings = settings;
+                // Generate barcode for screen view as well
+                setTimeout(() => this.generateBarcode(), 100);
+            },
+            error: (err) => console.error('Failed to load company settings', err)
+        });
+    }
+
+    generateBarcode() {
+        if (!this.companySettings?.inpeCode) return;
+        try {
+            const barcodeFn = (JsBarcode as any).default || JsBarcode;
+            (barcodeFn as any)('#inpe-barcode', this.companySettings.inpeCode, {
+                format: 'CODE128',
+                displayValue: true,
+                fontSize: 14,
+                width: 1.5,
+                height: 40,
+                margin: 0
+            });
+        } catch (e) {
+            console.error('Error generating barcode', e);
+        }
+    }
+
     updateViewMode() {
         // Check if we're in explicit view mode from route
         const isExplicitViewMode = this.route?.snapshot?.queryParamMap?.get('mode') === 'view';
@@ -315,6 +353,18 @@ export class FactureFormComponent implements OnInit {
         });
     }
 
+    onTypeChange() {
+        this.calculateTotals();
+    }
+
+    formatNumero(numero: string): string {
+        if (!numero) return '';
+        if (this.form.get('type')?.value === 'FACTURE') {
+            return numero.replace(/^BC-/, 'Fact-').replace(/^DEVIS-/, 'Fact-').replace(/^FAC-/, 'Fact-');
+        }
+        return numero;
+    }
+
     addLine() {
         this.lignes.push(this.createLigne());
     }
@@ -372,9 +422,8 @@ export class FactureFormComponent implements OnInit {
         this.totalHT = this.totalTTC / (1 + tvaRate);
         this.totalTVA = this.totalTTC - this.totalHT;
 
-        this.montantLettres = this.numberToText(this.totalTTC);
-
         this.calculatePaymentTotals();
+        this.montantLettres = this.numberToText(this.netAPayer > 0 ? this.netAPayer : this.totalTTC);
         this.updateStatutFromPayments();
     }
 
@@ -663,7 +712,13 @@ export class FactureFormComponent implements OnInit {
 
     calculatePaymentTotals() {
         this.montantPaye = this.paiements.reduce((sum, p) => sum + p.montant, 0);
-        this.resteAPayer = this.totalTTC - this.montantPaye;
+
+        // Timbre de 0.25% si au moins un paiement en ESPÈCES
+        const hasEspeces = this.paiements.some(p => p.mode === 'ESPECES');
+        this.droitTimbre = hasEspeces ? (this.totalTTC * 0.0025) : 0;
+        this.netAPayer = this.totalTTC + this.droitTimbre;
+
+        this.resteAPayer = this.netAPayer - this.montantPaye;
     }
 
     updateStatutFromPayments() {
@@ -679,7 +734,7 @@ export class FactureFormComponent implements OnInit {
             return;
         }
 
-        if (this.resteAPayer <= 0 && this.totalTTC > 0) {
+        if (this.resteAPayer <= 0 && this.netAPayer > 0) {
             this.form.patchValue({ statut: 'PAYEE' });
         } else if (this.montantPaye > 0) {
             // If user has manually set VALIDE, don't revert to PARTIEL
@@ -690,7 +745,7 @@ export class FactureFormComponent implements OnInit {
     }
 
     getPaymentStatusBadge(): { label: string; class: string } {
-        if (this.resteAPayer <= 0 && this.totalTTC > 0) {
+        if (this.resteAPayer <= 0 && this.netAPayer > 0) {
             return { label: 'PAYÉE', class: 'badge-paid' };
         } else if (this.montantPaye > 0) {
             return { label: 'PARTIEL', class: 'badge-partial' };
@@ -910,6 +965,9 @@ export class FactureFormComponent implements OnInit {
     }
 
     print() {
+        // Generate barcode on the original element before cloning to ensure it's captured
+        this.generateBarcode();
+
         // Force change detection
         this.cdr.detectChanges();
 

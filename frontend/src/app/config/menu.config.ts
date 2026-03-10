@@ -208,6 +208,12 @@ export const MENU: MenuItem[] = [
     route: 'settings',
     children: [
       {
+        label: "Paramètres de l'Entreprise",
+        icon: 'business',
+        type: 'subchild',
+        route: 'settings/company',
+      },
+      {
         label: 'Gestion des utilisateurs',
         icon: 'people',
         type: 'subchild',

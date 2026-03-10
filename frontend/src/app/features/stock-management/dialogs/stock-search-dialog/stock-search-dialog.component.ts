@@ -1,4 +1,6 @@
 import { Component, OnInit, ChangeDetectorRef, Inject } from '@angular/core';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
 import { MatDialogRef, MatDialog, MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -55,6 +57,8 @@ export class StockSearchDialogComponent implements OnInit {
     currentCenter: any;
     context: 'stock-management' | 'sales' = 'stock-management';
 
+    searchQuery$ = new Subject<string>();
+
     constructor(
         public dialogRef: MatDialogRef<StockSearchDialogComponent>,
         private productService: ProductService,
@@ -74,6 +78,16 @@ export class StockSearchDialogComponent implements OnInit {
         if (this.context === 'sales') {
             this.displayedColumns = this.displayedColumns.filter(col => col !== 'select');
         }
+
+        this.searchQuery$.pipe(
+            debounceTime(300),
+            distinctUntilChanged()
+        ).subscribe(query => {
+            this.searchQuery = query;
+            this.filterProducts();
+            this.cdr.detectChanges();
+        });
+
         this.loadWarehouses();
         this.loadProducts();
     }
@@ -469,4 +483,19 @@ export class StockSearchDialogComponent implements OnInit {
         });
     }
 
+    onRowDoubleClick(element: any): void {
+        // Double click to select or perform primary action
+        if (!this.isRemote(element) && element.quantiteActuelle > 0) {
+            this.selectProduct(element);
+        } else if (!this.isRemote(element) && element.quantiteActuelle <= 0 && element.specificData?.pendingIncoming) {
+            this.selectIncomingProduct(element);
+        } else if (this.hasActiveTransferToUs(element)) {
+            this.selectIncomingProduct(this.findLocalCounterpart(element));
+        } else {
+            // Default fallback is to select
+            this.selectProduct(element);
+        }
+    }
+
 }
+

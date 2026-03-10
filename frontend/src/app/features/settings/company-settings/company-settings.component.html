@@ -1,0 +1,184 @@
+<div class="container py-4">
+    <mat-card>
+        <mat-card-header>
+            <mat-card-title>Paramètres de la Société</mat-card-title>
+            <mat-card-subtitle>Configurez l'identité de votre entreprise pour les factures et
+                documents</mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+            <form [formGroup]="settingsForm" class="mt-4">
+                <mat-tab-group>
+                    <!-- Identité Section -->
+                    <mat-tab label="Identité">
+                        <div class="row mt-3">
+                            <div class="col-md-8">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <mat-form-field appearance="outline" class="w-100">
+                                            <mat-label>Nom de la société</mat-label>
+                                            <input matInput formControlName="name" placeholder="Ex: OptiSaas SARL">
+                                        </mat-form-field>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <mat-form-field appearance="outline" class="w-100">
+                                            <mat-label>Téléphone</mat-label>
+                                            <input matInput formControlName="phone">
+                                        </mat-form-field>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <mat-form-field appearance="outline" class="w-100">
+                                            <mat-label>E-mail</mat-label>
+                                            <input matInput formControlName="email" type="email">
+                                        </mat-form-field>
+                                    </div>
+                                </div>
+                                <mat-form-field appearance="outline" class="w-100">
+                                    <mat-label>Adresse</mat-label>
+                                    <textarea matInput formControlName="address" rows="2"></textarea>
+                                </mat-form-field>
+                            </div>
+
+                            <!-- Logo Preview -->
+                            <div class="col-md-4 text-center">
+                                <div class="logo-container mb-3">
+                                    <img *ngIf="logoPreview" [src]="logoPreview"
+                                        class="img-fluid logo-preview shadow-sm">
+                                    <div *ngIf="!logoPreview"
+                                        class="no-logo d-flex align-items-center justify-content-center border rounded">
+                                        <mat-icon>image</mat-icon>
+                                        <span>Pas de logo</span>
+                                    </div>
+                                </div>
+                                <button type="button" mat-stroked-button color="primary" (click)="logoInput.click()">
+                                    <mat-icon>upload</mat-icon> Changer le logo
+                                </button>
+                                <input #logoInput type="file" (change)="onLogoChange($event)" style="display: none"
+                                    accept="image/*">
+                            </div>
+                        </div>
+                    </mat-tab>
+
+                    <!-- Informations Fiscales -->
+                    <mat-tab label="Fiscalité">
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <mat-form-field appearance="outline" class="w-100">
+                                    <mat-label>ICE (Identifiant Commun de l'Entreprise)</mat-label>
+                                    <input matInput formControlName="ice">
+                                </mat-form-field>
+                            </div>
+                            <div class="col-md-6">
+                                <mat-form-field appearance="outline" class="w-100">
+                                    <mat-label>IF (Identifiant Fiscal)</mat-label>
+                                    <input matInput formControlName="identifiantFiscal">
+                                </mat-form-field>
+                            </div>
+                            <div class="col-md-6">
+                                <mat-form-field appearance="outline" class="w-100">
+                                    <mat-label>RC (Registre du Commerce)</mat-label>
+                                    <input matInput formControlName="rc">
+                                </mat-form-field>
+                            </div>
+                            <div class="col-md-3">
+                                <mat-form-field appearance="outline" class="w-100">
+                                    <mat-label>Patente</mat-label>
+                                    <input matInput formControlName="patente">
+                                </mat-form-field>
+                            </div>
+                            <div class="col-md-3">
+                                <mat-form-field appearance="outline" class="w-100">
+                                    <mat-label>CNSS</mat-label>
+                                    <input matInput formControlName="cnss">
+                                </mat-form-field>
+                            </div>
+                            <div class="col-md-6">
+                                <mat-form-field appearance="outline" class="w-100">
+                                    <mat-label>Code INPE (Code-barres facture)</mat-label>
+                                    <input matInput formControlName="inpeCode" placeholder="Ex: 000000000000">
+                                    <mat-hint>Ce code apparaîtra sous forme de code-barres sur la facture</mat-hint>
+                                </mat-form-field>
+                            </div>
+                        </div>
+                    </mat-tab>
+
+                    <!-- Comptes Bancaires -->
+                    <mat-tab label="Comptes Bancaires">
+                        <div formArrayName="bankAccounts" class="mt-3">
+                            <div *ngFor="let bank of bankAccounts.controls; let i=index" [formGroupName]="i"
+                                class="bank-row border p-3 rounded mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0">Compte #{{i + 1}}</h6>
+                                    <button type="button" mat-icon-button color="warn" (click)="removeBankAccount(i)"
+                                        *ngIf="bankAccounts.length > 1">
+                                        <mat-icon>delete</mat-icon>
+                                    </button>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <mat-form-field appearance="outline" class="w-100">
+                                            <mat-label>Nom de la banque</mat-label>
+                                            <input matInput formControlName="bankName">
+                                        </mat-form-field>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <mat-form-field appearance="outline" class="w-100">
+                                            <mat-label>RIB (24 chiffres)</mat-label>
+                                            <input matInput formControlName="rib">
+                                        </mat-form-field>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <mat-form-field appearance="outline" class="w-100">
+                                            <mat-label>IBAN</mat-label>
+                                            <input matInput formControlName="iban">
+                                        </mat-form-field>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <mat-form-field appearance="outline" class="w-100">
+                                            <mat-label>SWIFT / BIC</mat-label>
+                                            <input matInput formControlName="swift">
+                                        </mat-form-field>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" mat-button color="primary" (click)="addBankAccount()">
+                                <mat-icon>add</mat-icon> Ajouter un compte bancaire
+                            </button>
+                        </div>
+                    </mat-tab>
+
+                    <!-- Textes Documents -->
+                    <mat-tab label="Textes Documents">
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <p class="text-muted small mb-2">Ces textes apparaîtront sur vos factures, devis et
+                                    fiches.</p>
+                                <mat-form-field appearance="outline" class="w-100">
+                                    <mat-label>En-tête personnalisé (Facultatif)</mat-label>
+                                    <textarea matInput formControlName="headerText" rows="3"
+                                        placeholder="Informations additionnelles en haut de page"></textarea>
+                                </mat-form-field>
+                                <mat-form-field appearance="outline" class="w-100">
+                                    <mat-label>Pied de page personnalisé</mat-label>
+                                    <textarea matInput formControlName="footerText" rows="4"
+                                        placeholder="Ex: Conditions de vente, délais de livraison..."></textarea>
+                                </mat-form-field>
+                            </div>
+                        </div>
+                    </mat-tab>
+                </mat-tab-group>
+            </form>
+        </mat-card-content>
+
+        <mat-card-actions align="end" class="p-3">
+            <button mat-raised-button color="primary" (click)="saveSettings()"
+                [disabled]="loading || settingsForm.invalid">
+                <mat-icon *ngIf="!loading">save</mat-icon>
+                <span *ngIf="!loading">Enregistrer les modifications</span>
+                <span *ngIf="loading">Enregistrement...</span>
+            </button>
+        </mat-card-actions>
+    </mat-card>
+</div>

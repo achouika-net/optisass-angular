@@ -24,7 +24,7 @@
             <!-- Search Input -->
             <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Rechercher (Code, Marque, Désignation...)</mat-label>
-                <input matInput [(ngModel)]="searchQuery" (ngModelChange)="filterProducts()"
+                <input matInput [ngModel]="searchQuery" (ngModelChange)="searchQuery$.next($event)"
                     placeholder="Ex: Ray-Ban, 12345...">
                 <mat-icon matSuffix>search</mat-icon>
             </mat-form-field>
@@ -215,7 +215,8 @@
                 </ng-container>
 
                 <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
-                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns;" (dblclick)="onRowDoubleClick(row)"
+                    class="cursor-pointer hover:bg-gray-50 transition-colors"></tr>
             </table>
 
             <div *ngIf="!loading && filteredProducts.length === 0" class="no-data">

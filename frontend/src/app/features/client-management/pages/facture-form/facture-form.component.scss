@@ -471,15 +471,47 @@
     }
 }
 
-// Print specific styles
+// Print specifics (Hidden on Screen)
 .print-header,
-.print-signatures {
-    display: none;
+.document-banner,
+.print-signatures,
+.print-reglements,
+.print-legal-footer,
+.inpe-barcode-section {
+    display: none; // Default hidden on screen
 }
 
+// Print specific styles
 @media print {
 
-    // Hide ALL application UI elements
+    // Paper Size Settings
+    // Paper Size Settings & Browser Chrome Suppression
+    @page {
+        size: A4 portrait;
+        margin: 0 !important; // Hides browser headers (date/title) and footers (URL)
+    }
+
+    // Body with internal margins to compensate for margin: 0
+    body.is-printing-report {
+        padding: 15mm !important;
+        background: #fff !important;
+    }
+
+    // Body with internal margins to compensate for margin: 0
+    body.is-printing-report {
+        padding: 15mm !important;
+        background: #fff !important;
+        background-color: #fff !important;
+    }
+
+    // Isolate the report container
+    .print-isolated {
+        background: #fff !important;
+        background-color: #fff !important;
+        box-shadow: none !important;
+    }
+
+    /* Reset application UI */
     .no-print,
     app-header,
     app-sidebar,
@@ -491,123 +523,96 @@
     .mat-divider,
     .action-buttons,
     .back-button,
-    mat-icon[class*="action"],
-    .form-actions,
-    .payment-section button,
-    .mat-mdc-fab,
-    .mat-mdc-mini-fab {
+    mat-icon,
+    .form-actions {
         display: none !important;
     }
 
-    // Hide the blue navigation bar at the top
-    :host ::ng-deep {
+    /* Print Container */
+    .facture-form-container {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
 
-        app-header,
-        mat-toolbar,
-        .mat-toolbar,
-        .app-header,
-        .navigation,
-        .sidebar {
-            display: none !important;
+        // Remove card borders, shadows and margins for a clean print document
+        .content-card,
+        mat-card,
+        .mat-mdc-card,
+        .mdc-card {
+            box-shadow: none !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+            border-radius: 0 !important;
         }
     }
 
-    // Reset body and container styles for print
-    body,
-    html {
-        margin: 0 !important;
-        padding: 0 !important;
-        background: white !important;
-    }
-
-    .facture-form-container {
-        padding: 20px !important;
-        max-width: 100% !important;
-        margin: 0 !important;
-        background: white !important;
-    }
-
-    .content-card {
-        box-shadow: none !important;
-        border: none !important;
-        padding: 0 !important;
-        background: white !important;
-    }
-
-
+    /* Layout Components */
     .print-header {
         display: block !important;
-        margin-bottom: 20px;
+        margin-bottom: 10px; // Reduced from 20px
 
-        .company-info {
+        .header-logo-row {
             display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            border-bottom: 2px solid #1e293b;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
+            justify-content: flex-start;
+            margin-bottom: 5px; // Reduced from 10px
 
-            .logo-placeholder {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                color: #1e293b;
-
-                mat-icon {
-                    font-size: 40px;
-                    width: 40px;
-                    height: 40px;
+            .company-brand {
+                .print-logo {
+                    max-height: 100px; // Reduced even more to save vertical space
+                    width: auto;
+                    object-fit: contain;
                 }
 
                 .brand-name {
-                    font-size: 28px;
+                    font-size: 24px;
                     font-weight: 800;
-                    letter-spacing: 2px;
-                }
-            }
-
-            .details {
-                text-align: right;
-                font-size: 12px;
-                color: #475569;
-                line-height: 1.4;
-
-                p {
-                    margin: 2px 0;
+                    letter-spacing: -0.5px;
                 }
 
-                .company-name {
-                    font-size: 16px;
-                    color: #1e293b;
+                .optician-subtitle {
+                    font-size: 14px;
+                    font-style: italic;
+                    color: #475569;
+                    margin-top: -5px;
                 }
             }
         }
 
-        .document-summary {
+        .document-banner {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: #f1f5f9;
-            padding: 10px 20px;
-            border-radius: 6px;
-            margin-bottom: 20px;
+            background-color: transparent !important;
+            border-bottom: 2px solid #1e293b;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            padding: 4px 10px; // Tightened
+            border-radius: 4px;
+            margin-bottom: 5px; // Reduced
 
-            .doc-title h1 {
+            .doc-title-box h1 {
                 margin: 0;
-                font-size: 24px;
+                font-size: 18px;
+                font-weight: 800;
                 color: #1e293b;
-                letter-spacing: 1px;
+                text-transform: uppercase;
             }
 
-            .doc-details {
-                .detail-row {
-                    display: flex;
-                    gap: 10px;
-                    font-size: 14px;
+            .doc-meta-box {
+                text-align: right;
+
+                .meta-row {
+                    font-size: 13px;
+                    color: #475569;
+                    margin-bottom: 1px;
 
                     .label {
-                        font-weight: 600;
                         color: #64748b;
+                        margin-right: 5px;
+                        font-weight: 600;
                     }
 
                     .value {
@@ -618,104 +623,277 @@
             }
         }
 
-        .client-info {
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: flex-end;
+        .client-section {
+            display: block;
+            margin-bottom: 5px; // Compressed from 10px
+            text-align: left;
+            border-left: 2px solid #e2e8f0;
+            padding-left: 8px;
 
-            .client-box {
-                border: 1px solid #e2e8f0;
-                padding: 15px 20px;
-                border-radius: 8px;
-                min-width: 250px;
-
-                .box-title {
-                    margin: 0 0 8px 0;
-                    font-size: 12px;
-                    text-transform: uppercase;
-                    color: #64748b;
-                }
-
-                .client-name {
-                    font-size: 16px;
-                    margin-bottom: 5px;
-                }
-
-                p {
-                    margin: 2px 0;
-                    font-size: 13px;
-                    color: #334155;
-                }
+            .client-info-row {
+                margin: 0;
+                font-size: 11px; // Smaller font
+                color: #1e293b;
+                line-height: 1.2;
             }
         }
     }
 
+    /* Table Adjustments */
     .lines-container {
-        border-color: #cbd5e1 !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 6px;
+        overflow: hidden;
+        margin-bottom: 20px;
 
         .line-header {
-            background: #f1f5f9 !important;
-            color: #1e293b !important;
+            background-color: transparent !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
-        }
-
-        input {
-            border: none !important;
-            padding: 0 !important;
-            background: transparent !important;
-            box-shadow: none !important;
+            border-bottom: 2px solid #e2e8f0;
+            padding: 8px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
         }
 
         .line-row {
-            page-break-inside: avoid;
-        }
-    }
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 13px;
+            padding: 6px 10px;
 
-    .footer-section {
-        margin-top: 50px;
-        page-break-inside: avoid;
+            .col-total {
+                font-weight: 700;
+            }
 
-        .footer-left .nomenclature-section {
-            border-color: #cbd5e1 !important;
-            background: #f8fafc !important;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-        }
-
-        .footer-right {
-            .total-row.main {
-                background: #f1f5f9 !important;
-                padding: 10px !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+            input {
+                border: none !important;
+                background: transparent !important;
+                pointer-events: none;
+                padding: 0 !important;
             }
         }
     }
 
+    /* Totals section matching reference */
+    .footer-section {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 10px; // Reduced from 20px
+        page-break-inside: avoid;
+
+        .footer-left {
+            width: 55%;
+
+            .nomenclature-section {
+                background: transparent !important;
+                border: 1px solid #e2e8f0;
+                padding: 10px;
+                border-radius: 6px;
+                font-size: 12px;
+                margin-bottom: 15px;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .montant-lettres {
+                font-size: 12px;
+                font-style: italic;
+                color: #475569;
+                background: transparent !important; // Remove gray background
+                padding: 0;
+                border-radius: 0;
+            }
+        }
+
+        .footer-right {
+            width: 40%;
+
+            .total-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 3px 0;
+                font-size: 14px;
+                color: #475569;
+
+                &.main {
+                    background: transparent !important;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                    padding: 8px 0;
+                    border-bottom: 2px solid #1e293b;
+                    border-radius: 0;
+                    margin-top: 10px;
+                    font-size: 18px;
+                    font-weight: 800;
+                    color: #1e293b;
+                }
+
+                &.secondary {
+                    color: #64748b;
+                    font-size: 13px;
+                    margin-top: 4px;
+                }
+            }
+
+            .inpe-barcode-section {
+                display: block !important; // Restore visibility
+                text-align: center;
+                margin-top: 15px;
+                padding-top: 10px;
+                border-top: 1px dashed #e2e8f0;
+
+                svg {
+                    max-width: 180px;
+                    height: auto;
+                    display: block !important;
+                    margin: 0 auto;
+                }
+
+                .inpe-mention {
+                    font-size: 10px;
+                    color: #94a3b8;
+                    text-transform: uppercase;
+                    margin-top: 4px;
+                    letter-spacing: 1px;
+                }
+            }
+        }
+    }
+
+    /* Reglements section */
+    .print-reglements {
+        display: block !important;
+        margin-top: 5px; // Compressed from 20px
+        font-size: 9px; // Tighter font
+        color: #475569;
+        page-break-inside: avoid;
+
+        .reglements-title {
+            font-weight: 700;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 3px;
+            padding-bottom: 1px;
+            text-transform: uppercase;
+            color: #1e293b;
+            font-size: 10px;
+        }
+
+        .reglement-row {
+            margin-bottom: 1px;
+        }
+
+        .reste-a-payer {
+            margin-top: 4px;
+            font-weight: 700;
+            color: #1e293b;
+            padding-top: 2px;
+            border-top: 1px dashed #cbd5e1;
+            display: inline-block;
+        }
+    }
+
+    /* Signatures: Cachet left, Client right */
+    /* Signatures: Cachet left, Client right */
     .print-signatures {
         display: flex !important;
         justify-content: space-between;
-        margin-top: 80px;
+        margin-top: 8px; // Further compressed from 15px
         page-break-inside: avoid;
 
         .signature-box {
-            width: 250px;
+            width: 45%;
             text-align: center;
+            border-top: 1px dashed #e2e8f0; // Only top line instead of box
+            padding: 4px;
 
             p {
-                font-weight: 600;
-                font-size: 14px;
-                margin-bottom: 60px;
+                font-weight: 700;
+                font-size: 10px; // Smaller font
+                margin-bottom: 20px; // Compressed space for signature
+                color: #1e293b;
+                text-transform: uppercase;
             }
 
             .sig-line {
                 border-top: 1px dashed #cbd5e1;
+                height: 1px;
             }
         }
     }
 
-    .payment-section {
+    /* New Legal Footer (Professional Bottom Bar) */
+    .print-legal-footer {
+        display: block !important;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin-top: 0;
+        background-color: transparent !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        padding: 10px 0;
+        text-align: center;
+        font-size: 10px;
+        color: #64748b;
+        border-top: 1px solid #e2e8f0;
+        page-break-inside: avoid;
+        z-index: 9999;
+
+        .bank-accounts-horizontal {
+            margin-bottom: 6px;
+            font-weight: 700;
+            color: #1e293b;
+
+            .footer-title {
+                color: #94a3b8;
+                text-transform: uppercase;
+                margin-right: 10px;
+                font-size: 9px;
+                letter-spacing: 0.5px;
+            }
+
+            .bank-item {
+                margin-right: 12px;
+
+                &:after {
+                    content: " | ";
+                    color: #e2e8f0;
+                }
+
+                &:last-child:after {
+                    content: "";
+                }
+            }
+        }
+
+        .company-fiscal-line,
+        .company-address-line {
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+
+            span {
+                margin: 0 8px;
+
+                &:after {
+                    content: " • ";
+                    color: #cbd5e1;
+                }
+
+                &:last-child:after {
+                    content: "";
+                }
+            }
+        }
+    }
+
+    /* Hide redundant elements in print */
+    .payment-section,
+    .invoice-header,
+    .mat-divider {
         display: none !important;
     }
 }
