@@ -244,4 +244,12 @@ export class InstanceSalesDashboardComponent implements OnInit {
         const prenom = client.prenom || '';
         return prenom ? `${nom} ${prenom}` : nom || 'Client';
     }
+
+    formatNumero(facture: any): string {
+        if (!facture || !facture.numero) return '';
+        if (facture.type === 'FACTURE') {
+            return facture.numero.replace('BC-', 'Fact-');
+        }
+        return facture.numero;
+    }
 }
