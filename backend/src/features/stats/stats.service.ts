@@ -531,6 +531,11 @@ export class StatsService {
           : {},
         _count: { _all: true },
       }),
+      this.prisma.client.groupBy({
+        by: ['titre'],
+        where: centreId ? { centreId } : {},
+        _count: { _all: true },
+      }),
     ]);
 
     const conversionMetrics = await this.getConversionRate(
@@ -550,9 +555,9 @@ export class StatsService {
       const count = group._count._all;
       fichesStats.total += count;
       const type = group.type.toLowerCase();
-      if (type === 'monture') fichesStats.monture = count;
-      else if (type === 'lentilles') fichesStats.lentilles = count;
-      else if (type === 'produit') fichesStats.produit = count;
+      if (type === 'monture') fichesStats.monture += count;
+      else if (type === 'lentilles') fichesStats.lentilles += count;
+      else if (type === 'produit') fichesStats.produit += count;
     });
 
     const productsStats: any = {};

@@ -58,6 +58,11 @@ export interface StatsSummary {
         produit: number;
     };
     productsStats?: { [key: string]: number };
+    clientStats?: {
+        M: number;
+        F: number;
+        E: number;
+    };
 }
 
 @Injectable({
