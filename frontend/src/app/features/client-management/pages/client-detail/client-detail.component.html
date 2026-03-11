@@ -47,6 +47,13 @@
                 <mat-icon>more_vert</mat-icon>
             </button>
             <mat-menu #moreMenu="matMenu">
+                <button mat-menu-item (click)="toggleViewMode()" *ngIf="viewMode === 'operations'">
+                    <mat-icon>visibility</mat-icon> Visualiser client
+                </button>
+                <button mat-menu-item (click)="toggleViewMode()" *ngIf="viewMode === 'profile'" class="text-blue-600">
+                    <mat-icon color="primary">arrow_back</mat-icon> Retour aux opérations
+                </button>
+                <mat-divider></mat-divider>
                 <button mat-menu-item (click)="completeProfile()">
                     <mat-icon>edit</mat-icon> Modifier le profil
                 </button>
@@ -121,7 +128,7 @@
         <div class="content-section">
             <mat-tab-group class="client-tabs" animationDuration="0ms">
                 <!-- NEW: Onglet Fiches Médicales (Default) -->
-                <mat-tab label="Fiches Médicales">
+                <mat-tab label="Fiches Médicales" *ngIf="viewMode === 'operations'">
                     <div class="form-container">
                         <!-- Data Table -->
                         <div class="table-responsive">
@@ -238,14 +245,14 @@
                 </mat-tab>
 
                 <!-- Onglet Factures -->
-                <mat-tab label="Facturation">
+                <mat-tab label="Facturation" *ngIf="viewMode === 'operations'">
                     <div class="form-container">
                         <app-facture-list [clientId]="clientId"></app-facture-list>
                     </div>
                 </mat-tab>
 
                 <!-- Onglet BL Fournisseurs -->
-                <mat-tab label="BL Fournisseurs">
+                <mat-tab label="BL Fournisseurs" *ngIf="viewMode === 'operations'">
                     <div class="form-container">
                         <div class="flex justify-between items-center mb-6">
                             <div class="section-title !mt-0">Bons de Livraison Verre / Fournisseur</div>
@@ -327,7 +334,7 @@
                 </mat-tab>
 
                 <!-- Onglet Paiements -->
-                <mat-tab label="Paiements">
+                <mat-tab label="Paiements" *ngIf="viewMode === 'operations'">
                     <div class="form-container">
                         <app-payment-list [clientId]="clientId" [clientName]="clientDisplayName"
                             [clientCin]="clientCinValue" (paymentAdded)="loadStats()">
@@ -336,7 +343,7 @@
                 </mat-tab>
 
                 <!-- Onglet Fichiers (Attachments) -->
-                <mat-tab label="Fichiers">
+                <mat-tab label="Fichiers" *ngIf="viewMode === 'operations'">
                     <div class="form-container">
                         <div class="flex justify-between items-center mb-6">
                             <div class="section-title !mt-0">Documents & Pièces Jointes</div>
@@ -386,7 +393,7 @@
                 </mat-tab>
 
                 <!-- Onglet Identité Client -->
-                <mat-tab label="Identité Client">
+                <mat-tab label="Identité Client" *ngIf="viewMode === 'profile'">
                     <div class="form-container" *ngIf="client">
                         <ng-container *ngIf="clientParticulier">
                             <div class="form-row three-cols">
@@ -595,7 +602,7 @@
                 </mat-tab>
 
                 <!-- Onglet Dossier Médical (Particulier Only) -->
-                <mat-tab label="Dossier Médical" *ngIf="clientParticulier">
+                <mat-tab label="Dossier Médical" *ngIf="viewMode === 'profile' && clientParticulier">
                     <div class="form-container medical-container" *ngIf="clientParticulier?.dossierMedical as dossier">
                         <div class="medical-columns">
                             <!-- Col 1: Antecedents Visuels -->
@@ -725,7 +732,7 @@
                 </mat-tab>
 
                 <!-- Onglet Convention & Contacts (Professionnel Only) -->
-                <mat-tab label="Convention & Contacts" *ngIf="clientProfessionnel">
+                <mat-tab label="Convention & Contacts" *ngIf="viewMode === 'profile' && clientProfessionnel">
                     <div class="form-container">
                         <div class="section-title">CONVENTION</div>
                         <div class="form-row two-cols">
@@ -779,7 +786,7 @@
                 </mat-tab>
 
                 <!-- Onglet Notes (Particulier Only) -->
-                <mat-tab label="Notes" *ngIf="clientParticulier">
+                <mat-tab label="Notes" *ngIf="viewMode === 'profile' && clientParticulier">
                     <div class="form-container">
                         <mat-form-field appearance="outline" class="full-width notes-field">
                             <mat-label>Notes et observations</mat-label>
@@ -790,7 +797,7 @@
                 </mat-tab>
 
                 <!-- Onglet Fidélité -->
-                <mat-tab label="Fidélité Fidelio">
+                <mat-tab label="Fidélité Fidelio" *ngIf="viewMode === 'profile'">
                     <div class="form-container">
                         <div class="section-title">HISTORIQUE DES POINTS</div>
                         <div class="table-responsive">
@@ -842,7 +849,7 @@
                 </mat-tab>
 
                 <!-- Onglet Relations -->
-                <mat-tab label="Relations & Parrainage">
+                <mat-tab label="Relations & Parrainage" *ngIf="viewMode === 'profile'">
                     <div class="form-container">
                         <!-- Parrain -->
                         <div class="section-title">MON PARRAIN</div>
