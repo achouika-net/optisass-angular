@@ -63,7 +63,7 @@
                 <ng-container matColumnDef="numero">
                     <th mat-header-cell *matHeaderCellDef>Numéro</th>
                     <td mat-cell *matCellDef="let sale">
-                        <span class="numero-badge">{{ sale.facture.numero }}</span>
+                        <span class="numero-badge">{{ formatNumero(sale.facture) }}</span>
                     </td>
                 </ng-container>
 

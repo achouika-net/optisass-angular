@@ -231,15 +231,10 @@ export class FacturesService implements OnModuleInit {
     const prisma = tx || this.prisma;
 
     // Find last document starting with this prefix for current year
-    // We search for both "PFX-YEAR-" and "PFX -YEAR-" formats to be safe
     const lastDoc = await prisma.facture.findFirst({
       where: {
         numero: {
-          contains: `${prefix}`,
-        },
-        createdAt: {
-          gte: new Date(`${year}-01-01`),
-          lte: new Date(`${year}-12-31`),
+          startsWith: `${prefix}-${year}-`,
         },
       },
       orderBy: {
