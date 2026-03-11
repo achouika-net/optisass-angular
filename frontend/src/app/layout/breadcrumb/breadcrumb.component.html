@@ -9,17 +9,20 @@
   @if (!isMobile()) {
     <div class="flex flex-wrap items-center gap-2 text-sm text-gray-600">
       @if (previousUrl()) {
+        <!-- Bouton Retour masqué selon la demande utilisateur -->
         <button
           mat-button
           (click)="goBack()"
           class="text-primary flex cursor-pointer items-center gap-1"
+          style="display: none;"
         >
           <mat-icon>arrow_back</mat-icon>
           <span class="text-sm font-medium">Retour</span>
         </button>
         <mat-divider
-          class="mr-1 ml-0 hidden h-5 sm:inline-block"
+          class="mr-1 ml-0 h-5 sm:inline-block hidden"
           vertical
+          style="display: none !important;"
         ></mat-divider>
       }
 
