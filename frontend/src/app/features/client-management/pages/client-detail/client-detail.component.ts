@@ -76,9 +76,18 @@ export class ClientDetailComponent implements OnInit {
   fiches: FicheClient[] = [];
   loading = true;
   isEditMode = false;
+  viewMode: 'operations' | 'profile' = 'operations';
 
   // Attachments Support
   attachments = signal<Attachment[]>([]);
+
+  toggleViewMode(mode?: 'operations' | 'profile') {
+    if (mode) {
+      this.viewMode = mode;
+    } else {
+      this.viewMode = this.viewMode === 'operations' ? 'profile' : 'operations';
+    }
+  }
 
   get clientDisplayName(): string {
     if (!this.client) return '';
