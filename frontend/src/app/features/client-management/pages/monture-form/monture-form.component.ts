@@ -1303,6 +1303,11 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
         this.ficheForm.markAsDirty();
         this.snackBar.open('Casse déclarée. La commande a été remise en statut "À Commander".', 'OK', { duration: 5000 });
+        
+        if (!this.isEditMode) {
+            this.saveSuiviCommande();
+        }
+        
         this.cdr.markForCheck();
     }
 
@@ -1360,17 +1365,22 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     getNextStatusText(current: boolean = false): string {
         const status = this.suiviStatut;
         if (current) {
-            if (status === 'A_COMMANDER') return 'À COMMANDER';
-            if (status === 'COMMANDE') return 'EN COMMANDE';
-            if (status === 'RECU') return 'REÇU ATELIER';
-            if (status === 'LIVRE_CLIENT') return 'LIVRÉ CLIENT';
+            switch (status) {
+                case 'A_COMMANDER': return 'À COMMANDER';
+                case 'COMMANDE': return 'EN COMMANDE';
+                case 'RECU': return 'REÇU ATELIER';
+                case 'LIVRE_CLIENT': return 'LIVRÉ CLIENT';
+                default: return 'À COMMANDER';
+            }
         } else {
-            if (status === 'A_COMMANDER') return 'Marquer comme Commandé';
-            if (status === 'COMMANDE') return 'Marquer comme Reçu';
-            if (status === 'RECU') return 'Marquer comme Livré au Client';
-            if (status === 'LIVRE_CLIENT') return 'Terminé';
+            switch (status) {
+                case 'A_COMMANDER': return 'Marquer comme Commandé';
+                case 'COMMANDE': return 'Marquer comme Reçu';
+                case 'RECU': return 'Marquer comme Livré au Client';
+                case 'LIVRE_CLIENT': return 'Livraison Terminée';
+                default: return 'Marquer comme Commandé';
+            }
         }
-        return '';
     }
 
     advanceOrderStatus(): void {
@@ -1378,6 +1388,21 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         if (status === 'A_COMMANDER') this.setOrderStatus('COMMANDE');
         else if (status === 'COMMANDE') this.setOrderStatus('RECU');
         else if (status === 'RECU') this.setOrderStatus('LIVRE_CLIENT');
+
+        // Trigger safe save if we are just advancing status outside of full edit
+        if (!this.isEditMode) {
+            this.saveSuiviCommande();
+        }
+    }
+
+    private saveSuiviCommande(): void {
+        if (!this.ficheId || this.ficheId === 'new') return;
+        
+        const suiviData = this.ficheForm.get('suiviCommande')?.value;
+        this.ficheService.updateFiche(this.ficheId, { suiviCommande: suiviData } as any).subscribe({
+            next: () => this.snackBar.open('Suivi mis à jour', 'OK', { duration: 2000 }),
+            error: (err) => console.error('Error auto-saving suivi:', err)
+        });
     }
 
     getTimelineEvents(): any[] {
@@ -1497,8 +1522,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     addition: [null],
                     prisme: [null],
                     base: [null],
-                    ep: [null],
-                    frequenceCillement: ['normal']
+                    ep: [null]
                 }),
                 og: this.fb.group({
                     sphere: [null],
@@ -1507,8 +1531,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     addition: [null],
                     prisme: [null],
                     base: [null],
-                    ep: [null],
-                    frequenceCillement: ['normal']
+                    ep: [null]
                 }),
                 datePrescription: [new Date()],
                 prescripteur: [''],

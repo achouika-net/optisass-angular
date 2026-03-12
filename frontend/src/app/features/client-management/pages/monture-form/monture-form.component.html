@@ -212,29 +212,6 @@
                 </mat-form-field>
             </div>
 
-            <div class="form-row prescription-meta-row cillement-row">
-                <div class="form-group">
-                    <label>Fréquence Cillement</label>
-                    <div class="flex-row gap-4 cillement-toggles">
-                        <div formGroupName="od" class="flex-row items-center gap-2">
-                            <span class="text-xs text-gray-400 font-bold">OD</span>
-                            <mat-button-toggle-group formControlName="frequenceCillement" class="symmetric-toggle-mini">
-                                <mat-button-toggle value="rare" aria-label="Rare">Rare</mat-button-toggle>
-                                <mat-button-toggle value="normal" aria-label="Normal">Normal</mat-button-toggle>
-                                <mat-button-toggle value="frequent" aria-label="Fréquent">Fréquent</mat-button-toggle>
-                            </mat-button-toggle-group>
-                        </div>
-                        <div formGroupName="og" class="flex-row items-center gap-2">
-                            <span class="text-xs text-gray-400 font-bold">OG</span>
-                            <mat-button-toggle-group formControlName="frequenceCillement" class="symmetric-toggle-mini">
-                                <mat-button-toggle value="rare" aria-label="Rare">Rare</mat-button-toggle>
-                                <mat-button-toggle value="normal" aria-label="Normal">Normal</mat-button-toggle>
-                                <mat-button-toggle value="frequent" aria-label="Fréquent">Fréquent</mat-button-toggle>
-                            </mat-button-toggle-group>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <div class="eyes-container">
                 <!-- OEIL DROIT -->
@@ -1542,7 +1519,7 @@
 
                         <button type="button"
                             class="btn-primary w-full max-w-xs py-4 text-base font-bold shadow-lg hover:shadow-blue-500/30 transition-all hover:-translate-y-1 flex items-center justify-center gap-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
-                            (click)="advanceOrderStatus()" [disabled]="!isEditMode || suiviStatut === 'LIVRE_CLIENT'">
+                            (click)="advanceOrderStatus()" [disabled]="suiviStatut === 'LIVRE_CLIENT'">
                             <mat-icon>{{ getNextStatusIcon() }}</mat-icon>
                             <span>{{ getNextStatusText() }}</span>
                         </button>
@@ -1573,7 +1550,7 @@
                         </p>
                         <button type="button"
                             class="w-full py-3 bg-white text-red-600 border-2 border-red-500 rounded-xl font-bold hover:bg-red-50 hover:text-red-700 transition-colors flex items-center justify-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
-                            (click)="reportCasse()" [disabled]="!isEditMode">
+                            (click)="reportCasse()">
                             <mat-icon class="mr-2">warning</mat-icon> DÉCLARER UNE CASSE
                         </button>
 
@@ -1645,26 +1622,28 @@
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                             <!-- Date de Commande -->
-                            <div class="relative flex flex-col">
+                            <div class="flex flex-col">
                                 <label class="font-bold text-gray-700 flex items-center gap-2 mb-1.5 text-sm">
-                                    <mat-icon class="text-gray-400 text-sm w-4 h-4 mr-1">calendar_today</mat-icon> Date
-                                    de Commande
+                                    <mat-icon class="text-gray-400 text-sm w-4 h-4 mr-1">calendar_today</mat-icon> Date de Commande
                                 </label>
-                                <div class="relative flex items-center">
-                                    <input type="date" formControlName="dateCommande"
-                                        class="w-full min-w-0 box-border px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50/50 hover:border-blue-400 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all text-sm text-gray-700 font-medium">
-                                </div>
+                                <mat-form-field appearance="outline" class="datepicker-minimal">
+                                    <input matInput [matDatepicker]="pickerCmd" formControlName="dateCommande"
+                                        placeholder="JJ/MM/AAAA" class="text-sm">
+                                    <mat-datepicker-toggle matSuffix [for]="pickerCmd"></mat-datepicker-toggle>
+                                    <mat-datepicker #pickerCmd></mat-datepicker>
+                                </mat-form-field>
                             </div>
                             <!-- Date de Réception -->
-                            <div class="relative flex flex-col">
+                            <div class="flex flex-col">
                                 <label class="font-bold text-gray-700 flex items-center gap-2 mb-1.5 text-sm">
-                                    <mat-icon class="text-gray-400 text-sm w-4 h-4 mr-1">calendar_today</mat-icon> Date
-                                    de Réception
+                                    <mat-icon class="text-gray-400 text-sm w-4 h-4 mr-1">calendar_today</mat-icon> Date de Réception
                                 </label>
-                                <div class="relative flex items-center">
-                                    <input type="date" formControlName="dateReception"
-                                        class="w-full min-w-0 box-border px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50/50 hover:border-blue-400 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all text-sm text-gray-700 font-medium">
-                                </div>
+                                <mat-form-field appearance="outline" class="datepicker-minimal">
+                                    <input matInput [matDatepicker]="pickerRec" formControlName="dateReception"
+                                        placeholder="JJ/MM/AAAA" class="text-sm">
+                                    <mat-datepicker-toggle matSuffix [for]="pickerRec"></mat-datepicker-toggle>
+                                    <mat-datepicker #pickerRec></mat-datepicker>
+                                </mat-form-field>
                             </div>
                         </div>
 
@@ -1935,7 +1914,6 @@
                 </div>
             </div>
         </div>
-
 
         <div class="print-footer-sig">
             <div class="sig">Technicien / Monteur</div>
