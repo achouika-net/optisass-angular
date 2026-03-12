@@ -252,6 +252,14 @@
     }
 }
 
+.text-right {
+    text-align: right !important;
+}
+
+.text-center {
+    text-align: center !important;
+}
+
 ::ng-deep {
     .styled-tabs {
         .mat-mdc-tab-header {

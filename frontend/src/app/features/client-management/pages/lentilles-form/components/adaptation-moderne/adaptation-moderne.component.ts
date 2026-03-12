@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { OptilensService, AutoMeasures, ClinicalParams, LensSuggestion } from '../../../../../../core/services/optilens-measures.service';
 
 @Component({
@@ -26,7 +27,8 @@ import { OptilensService, AutoMeasures, ClinicalParams, LensSuggestion } from '.
         MatIconModule,
         MatProgressSpinnerModule,
         MatDatepickerModule,
-        MatNativeDateModule
+        MatNativeDateModule,
+        MatButtonToggleModule
     ],
     templateUrl: './adaptation-moderne.component.html',
     styleUrls: ['./adaptation-moderne.component.scss']
@@ -115,31 +117,6 @@ export class AdaptationModerneComponent implements OnInit {
      * Vérifie si des mesures existent
      */
     private hasMeasures(): boolean {
-        // Patch lines
-        // This code block seems to be misplaced as it refers to 'facture', 'lignes', 'paiements', 'form'
-        // which are not defined in this component ('AdaptationModerneComponent').
-        // It also contains a trailing comma '},' which is syntactically incorrect here.
-        // For the purpose of faithfully applying the change as requested, it's inserted,
-        // but it will likely cause compilation errors or runtime issues.
-        // this.lignes.clear();
-        // if (facture.lignes) {
-        //     (facture.lignes as any[]).forEach((l: any) => {
-        //         const lineGroup = this.createLigne();
-        //         lineGroup.patchValue(l);
-        //         this.lignes.push(lineGroup);
-        //     });
-        // }
-
-        // Load payments
-        // if (facture.paiements) {
-        //     this.paiements = facture.paiements as any[];
-        // }
-
-        // this.calculateTotals();
-        // this.calculatePaymentTotals();
-        // this.isViewMode = true;
-        // this.form.disable();
-        // },
         return !!(
             this.formGroup.get('hvid')?.value ||
             this.formGroup.get('but')?.value ||

@@ -132,15 +132,18 @@ export class SalesControlReportComponent implements OnInit {
     // Pagination state
     bcPageSize = 10;
     bcPageIndex = 0;
-
     facturesPageSize = 10;
     facturesPageIndex = 0;
-
     devisPageSize = 10;
     devisPageIndex = 0;
-
     avoirsPageSize = 10;
     avoirsPageIndex = 0;
+
+    // Paginated Data
+    paginatedBCGroups: MonthlyGroup[] = [];
+    paginatedFacturesGroups: MonthlyGroup[] = [];
+    paginatedDevisInvoices: BrouillonInvoice[] = [];
+    paginatedAvoirInvoices: BrouillonInvoice[] = [];
 
     pageSizeOptions = [10, 25, 50, 100];
 
@@ -158,12 +161,16 @@ export class SalesControlReportComponent implements OnInit {
             this.avoirsPageSize = event.pageSize;
             this.avoirsPageIndex = event.pageIndex;
         }
+        this.updatePaginatedData();
         this.cdr.markForCheck();
     }
 
     loading = false;
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
     private refresh$ = new Subject<{ start?: string, end?: string }>();
+
+    // Track currently selected invoice for the actions menu
+    selectedInvoice: any = null;
 
     constructor(
         private salesControlService: SalesControlService,
@@ -215,6 +222,7 @@ export class SalesControlReportComponent implements OnInit {
 
                 this.statistics = results.stats;
                 this.calculateMetrics();
+                this.updatePaginatedData();
 
                 this.loading = false;
                 this.cdr.markForCheck();
@@ -243,40 +251,16 @@ export class SalesControlReportComponent implements OnInit {
         this.refresh$.next(dates);
     }
 
-    private getDateRange(): { start?: string, end?: string } {
-        let start: Date | undefined;
-        let end: Date | undefined;
-
-        switch (this.filterType) {
-            case 'DAILY':
-                start = new Date(this.selectedDate); start.setHours(0, 0, 0, 0);
-                end = new Date(this.selectedDate); end.setHours(23, 59, 59, 999);
-                break;
-            case 'MONTHLY':
-                start = new Date(this.selectedYear, this.selectedMonth - 1, 1, 0, 0, 0, 0);
-                end = new Date(this.selectedYear, this.selectedMonth, 0, 23, 59, 59, 999);
-                break;
-            case 'YEARLY':
-                start = new Date(this.selectedYear, 0, 1, 0, 0, 0, 0);
-                end = new Date(this.selectedYear, 12, 0, 23, 59, 59, 999);
-                break;
-            case 'CUSTOM':
-                if (this.customStartDate) {
-                    start = new Date(this.customStartDate); start.setHours(0, 0, 0, 0);
-                }
-                if (this.customEndDate) {
-                    end = new Date(this.customEndDate); end.setHours(23, 59, 59, 999);
-                }
-                break;
-            case 'ALL':
-            default:
-                return {};
-        }
-
-        return {
-            start: start?.toISOString(),
-            end: end?.toISOString()
-        };
+    updatePaginatedData() {
+        this.paginatedBCGroups = this.getPaginatedGroups(this.groupedWithPayment, this.bcPageIndex, this.bcPageSize);
+        this.paginatedFacturesGroups = this.getPaginatedGroups(this.groupedValid, this.facturesPageIndex, this.facturesPageSize);
+        
+        // Paginate flat lists
+        const devisStart = this.devisPageIndex * this.devisPageSize;
+        this.paginatedDevisInvoices = this.invoicesWithoutPayment.slice(devisStart, devisStart + this.devisPageSize);
+        
+        const avoirStart = this.avoirsPageIndex * this.avoirsPageSize;
+        this.paginatedAvoirInvoices = this.invoicesAvoir.slice(avoirStart, avoirStart + this.avoirsPageSize);
     }
 
     groupInvoices(invoices: BrouillonInvoice[]): MonthlyGroup[] {
@@ -349,6 +333,47 @@ export class SalesControlReportComponent implements OnInit {
         }
 
         return result;
+    }
+
+    getDateRange(): { start?: string, end?: string } {
+        let start: Date;
+        let end: Date;
+
+        switch (this.filterType) {
+            case 'DAILY':
+                start = new Date(this.selectedDate);
+                start.setHours(0, 0, 0, 0);
+                end = new Date(this.selectedDate);
+                end.setHours(23, 59, 59, 999);
+                break;
+            case 'MONTHLY':
+                start = new Date(this.selectedYear, this.selectedMonth - 1, 1);
+                end = new Date(this.selectedYear, this.selectedMonth, 0, 23, 59, 59, 999);
+                break;
+            case 'YEARLY':
+                start = new Date(this.selectedYear, 0, 1);
+                end = new Date(this.selectedYear, 11, 31, 23, 59, 59, 999);
+                break;
+            case 'CUSTOM':
+                if (this.customStartDate && this.customEndDate) {
+                    start = new Date(this.customStartDate);
+                    start.setHours(0, 0, 0, 0);
+                    end = new Date(this.customEndDate);
+                    end.setHours(23, 59, 59, 999);
+                } else {
+                    return {};
+                }
+                break;
+            case 'ALL':
+                return {};
+            default:
+                return {};
+        }
+
+        return {
+            start: start.toISOString(),
+            end: end.toISOString()
+        };
     }
 
     calculateMetrics() {

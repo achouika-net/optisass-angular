@@ -279,6 +279,9 @@ export class ClientDetailComponent implements OnInit {
   }
 
   getVerresSummary(fiche: any): string {
+    if (fiche.type === TypeFiche.PRODUIT && fiche.produits) {
+      return fiche.produits.map((p: any) => `${p.designation} (${p.quantite})`).join('\n');
+    }
     if (!fiche.verres) return '-';
     const v = fiche.verres;
     if (v.differentODOG) {

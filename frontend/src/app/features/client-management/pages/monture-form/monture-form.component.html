@@ -195,27 +195,52 @@
             <div class="prescription-details-row">
                 <mat-form-field appearance="outline">
                     <mat-label>Date de prescription</mat-label>
-                    <input matInput [matDatepicker]="picker" formControlName="datePrescription">
+                    <input matInput [matDatepicker]="picker" formControlName="datePrescription" title="Date de prescription">
                     <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
                     <mat-datepicker #picker></mat-datepicker>
                 </mat-form-field>
                 <mat-form-field appearance="outline">
                     <mat-label>Prescripteur</mat-label>
-                    <input matInput formControlName="prescripteur" placeholder="Nom du médecin">
+                    <input matInput formControlName="prescripteur" placeholder="Nom du médecin" title="Prescripteur">
                     <mat-icon matSuffix>person_outline</mat-icon>
                 </mat-form-field>
                 <mat-form-field appearance="outline">
                     <mat-label>Date de Contrôle</mat-label>
-                    <input matInput [matDatepicker]="pickerControle" formControlName="dateControle">
-                    <mat-datepicker-toggle matSuffix [for]="pickerControle"></mat-datepicker-toggle>
+                    <input matInput [matDatepicker]="pickerControle" formControlName="dateControle" placeholder="JJ/MM/AAAA" title="Date de contrôle">
+                    <mat-datepicker-toggle matSuffix [for]="pickerControle" aria-label="Choisir la date de contrôle"></mat-datepicker-toggle>
                     <mat-datepicker #pickerControle></mat-datepicker>
                 </mat-form-field>
             </div>
+
+            <div class="form-row prescription-meta-row cillement-row">
+                <div class="form-group">
+                    <label>Fréquence Cillement</label>
+                    <div class="flex-row gap-4 cillement-toggles">
+                        <div formGroupName="od" class="flex-row items-center gap-2">
+                            <span class="text-xs text-gray-400 font-bold">OD</span>
+                            <mat-button-toggle-group formControlName="frequenceCillement" class="symmetric-toggle-mini">
+                                <mat-button-toggle value="rare" aria-label="Rare">Rare</mat-button-toggle>
+                                <mat-button-toggle value="normal" aria-label="Normal">Normal</mat-button-toggle>
+                                <mat-button-toggle value="frequent" aria-label="Fréquent">Fréquent</mat-button-toggle>
+                            </mat-button-toggle-group>
+                        </div>
+                        <div formGroupName="og" class="flex-row items-center gap-2">
+                            <span class="text-xs text-gray-400 font-bold">OG</span>
+                            <mat-button-toggle-group formControlName="frequenceCillement" class="symmetric-toggle-mini">
+                                <mat-button-toggle value="rare" aria-label="Rare">Rare</mat-button-toggle>
+                                <mat-button-toggle value="normal" aria-label="Normal">Normal</mat-button-toggle>
+                                <mat-button-toggle value="frequent" aria-label="Fréquent">Fréquent</mat-button-toggle>
+                            </mat-button-toggle-group>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="eyes-container">
                 <!-- OEIL DROIT -->
                 <div class="eye-card od-card" formGroupName="od">
                     <div class="eye-header">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                             <path
                                 d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z" />
                         </svg>
@@ -477,25 +502,25 @@
                                 <div class="grid grid-cols-5 gap-4 mb-4">
                                     <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Marque</mat-label>
-                                        <mat-select formControlName="marque" [disabled]="!isEditMode">
+                                        <mat-select formControlName="marque">
                                             <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b }}</mat-option>
                                         </mat-select>
                                     </mat-form-field>
                                     <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Matière</mat-label>
-                                        <mat-select formControlName="matiere" [disabled]="!isEditMode">
+                                        <mat-select formControlName="matiere">
                                             <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m }}</mat-option>
                                         </mat-select>
                                     </mat-form-field>
                                     <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Indice</mat-label>
-                                        <mat-select formControlName="indice" [disabled]="!isEditMode">
+                                        <mat-select formControlName="indice">
                                             <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i }}</mat-option>
                                         </mat-select>
                                     </mat-form-field>
                                     <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Traitement</mat-label>
-                                        <mat-select formControlName="traitement" multiple [disabled]="!isEditMode">
+                                        <mat-select formControlName="traitement" multiple>
                                             <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
                                                 }}</mat-option>
                                         </mat-select>
@@ -523,29 +548,28 @@
                                     <div class="grid grid-cols-1 gap-4 mb-4">
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Marque</mat-label>
-                                            <mat-select formControlName="marqueOD" [disabled]="!isEditMode">
+                                            <mat-select formControlName="marqueOD">
                                                 <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Matière</mat-label>
-                                            <mat-select formControlName="matiereOD" [disabled]="!isEditMode">
+                                            <mat-select formControlName="matiereOD">
                                                 <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Indice</mat-label>
-                                            <mat-select formControlName="indiceOD" [disabled]="!isEditMode">
+                                            <mat-select formControlName="indiceOD">
                                                 <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Traitement</mat-label>
-                                            <mat-select formControlName="traitementOD" multiple
-                                                [disabled]="!isEditMode">
+                                            <mat-select formControlName="traitementOD" multiple>
                                                 <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
                                                     }}</mat-option>
                                             </mat-select>
@@ -571,29 +595,28 @@
                                     <div class="grid grid-cols-1 gap-4 mb-4">
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Marque</mat-label>
-                                            <mat-select formControlName="marqueOG" [disabled]="!isEditMode">
+                                            <mat-select formControlName="marqueOG">
                                                 <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Matière</mat-label>
-                                            <mat-select formControlName="matiereOG" [disabled]="!isEditMode">
+                                            <mat-select formControlName="matiereOG">
                                                 <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Indice</mat-label>
-                                            <mat-select formControlName="indiceOG" [disabled]="!isEditMode">
+                                            <mat-select formControlName="indiceOG">
                                                 <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Traitement</mat-label>
-                                            <mat-select formControlName="traitementOG" multiple
-                                                [disabled]="!isEditMode">
+                                            <mat-select formControlName="traitementOG" multiple>
                                                 <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
                                                     }}</mat-option>
                                             </mat-select>

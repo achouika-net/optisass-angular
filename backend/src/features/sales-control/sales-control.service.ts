@@ -176,7 +176,7 @@ export class SalesControlService {
     return this.facturesService.update({
       where: { id },
       data: {
-        type: 'BON_COMMANDE' as any,
+        type: 'BON_COMM' as any,
         statut: 'VENTE_EN_INSTANCE',
         proprietes: { forceStockDecrement: true },
       },

@@ -7,16 +7,53 @@
             </div>
             <div class="title-section">
                 <h1>Fiche Lentilles</h1>
-                <p *ngIf="client" style="color: black; opacity: 0.9;">
-                    <span style="font-weight: bold; font-size: 1.1em;">{{ clientDisplayName }}</span>
-                    <span style="opacity: 0.8; font-size: 0.9em;">
-                        <span *ngIf="client.telephone"> • 📞 {{ client.telephone }}</span>
-                        <span *ngIf="client.ville"> • 📍 {{ client.ville }}</span>
+                <div class="flex items-center gap-2">
+                    <span class="status-badge" *ngIf="(linkedFacture$ | async) as facture" [ngClass]="facture.type">
+                        {{ facture.type === 'DEVIS' ? 'DEVIS' : (facture.type === 'BON_COMM' ? 'BON DE COMMANDE' : 'FACTURE') }} 
+                        #{{ facture.numero }}
                     </span>
-                </p>
+                    <p *ngIf="client" class="m-0" style="color: black; opacity: 0.9;">
+                        <span style="font-weight: bold; font-size: 1.1em;">{{ clientDisplayName }}</span>
+                        <span style="opacity: 0.8; font-size: 0.9em;">
+                            <span *ngIf="client.telephone"> • 📞 {{ client.telephone }}</span>
+                            <span *ngIf="client.ville"> • 📍 {{ client.ville }}</span>
+                        </span>
+                    </p>
+                </div>
             </div>
         </div>
+
+        <!-- Bannière de Statut / Rappels -->
+        <div class="status-reminder-banner" *ngIf="(linkedFacture$ | async) as facture">
+            <ng-container [ngSwitch]="facture.type">
+                <div class="reminder devis" *ngSwitchCase="'DEVIS'">
+                    <mat-icon>info_outline</mat-icon>
+                    <span>Vente en attente de validation.</span>
+                </div>
+                <div class="reminder bc" *ngSwitchCase="'BON_COMM'">
+                    <mat-icon>check_circle_outline</mat-icon>
+                    <span>Vente validée. Prêt pour la facturation.</span>
+                </div>
+                <div class="reminder facture" *ngSwitchCase="'FACTURE'">
+                    <mat-icon>task_alt</mat-icon>
+                    <span>Facture générée et validée.</span>
+                </div>
+            </ng-container>
+        </div>
+
         <div class="header-actions">
+            <!-- Actions basées sur le document lié -->
+            <ng-container *ngIf="(linkedFacture$ | async) as facture">
+                <button type="button" mat-raised-button color="accent" (click)="validerVente()" 
+                    *ngIf="facture.type === 'DEVIS'" [disabled]="loading">
+                    <mat-icon>check</mat-icon> Valider la vente (BC)
+                </button>
+                <button type="button" mat-raised-button class="btn-facture" (click)="transformerEnFacture()" 
+                    *ngIf="facture.type === 'BON_COMM'" [disabled]="loading">
+                    <mat-icon>receipt</mat-icon> Générer la Facture
+                </button>
+            </ng-container>
+
             <!-- View Mode: Dossier Client -->
             <button mat-stroked-button (click)="goBack()" *ngIf="!isEditMode">
                 <mat-icon>arrow_back</mat-icon> Dossier Client

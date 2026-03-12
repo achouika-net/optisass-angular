@@ -50,7 +50,7 @@ export class StockSearchDialogComponent implements OnInit {
     filteredProducts: any[] = [];
     selection = new SelectionModel<any>(true, []);
     loading = false;
-    displayedColumns: string[] = ['select', 'photo', 'designation', 'reference', 'marque', 'location', 'quantity', 'statut', 'actions'];
+    displayedColumns: string[] = ['select', 'photo', 'designation', 'type', 'reference', 'marque', 'location', 'quantity', 'statut', 'actions'];
 
     warehouses: any[] = [];
     selectedWarehouseId: string | undefined;
@@ -58,6 +58,16 @@ export class StockSearchDialogComponent implements OnInit {
     context: 'stock-management' | 'sales' = 'stock-management';
 
     searchQuery$ = new Subject<string>();
+
+    getShortType(typeArticle: string | undefined | null): string {
+        if (!typeArticle) return '-';
+        const type = typeArticle.toLowerCase();
+        if (type.includes('monture')) return 'Mon';
+        if (type.includes('solaire')) return 'Sol';
+        if (type.includes('lentille') || type.includes('verre')) return 'Len';
+        if (type.includes('accessoire')) return 'Acc';
+        return typeArticle.substring(0, 3).charAt(0).toUpperCase() + typeArticle.substring(1, 3);
+    }
 
     constructor(
         public dialogRef: MatDialogRef<StockSearchDialogComponent>,
@@ -74,9 +84,9 @@ export class StockSearchDialogComponent implements OnInit {
     }
 
     ngOnInit(): void {
-        // Remove select column in sales context
+        // Keep select column always to allow multiple additions in sales context
         if (this.context === 'sales') {
-            this.displayedColumns = this.displayedColumns.filter(col => col !== 'select');
+            // this.displayedColumns = this.displayedColumns.filter(col => col !== 'select');
         }
 
         this.searchQuery$.pipe(
@@ -101,6 +111,13 @@ export class StockSearchDialogComponent implements OnInit {
                     !w.nom?.toLowerCase().includes('defectueux') &&
                     w.nom?.toUpperCase() !== 'DÉFECTUEUX'
                 );
+
+                // Default to a warehouse of our center if none selected
+                if (!this.selectedWarehouseId && this.currentCenter?.id) {
+                    const localWh = this.warehouses.find(w => w.centreId === this.currentCenter.id);
+                    // if (localWh) this.selectedWarehouseId = localWh.id; // Optional: actually select it in dropdown
+                }
+                
                 this.cdr.detectChanges();
             },
             error: (err) => console.error('Error loading warehouses', err)
@@ -109,8 +126,16 @@ export class StockSearchDialogComponent implements OnInit {
 
     loadProducts(): void {
         this.loading = true;
-        // Always load ALL products (GLOBAL) to enable cross-warehouse search
-        this.productService.findAll({ global: true }).subscribe({
+        // Optimization: Default to the current center to reduce latency.
+        // If a specific warehouse is selected, use it. Otherwise, use global search only if necessary.
+        const filters: any = { global: false };
+        if (this.selectedWarehouseId) {
+            filters.entrepotId = this.selectedWarehouseId;
+        } else if (this.currentCenter?.id) {
+            filters.centreId = this.currentCenter.id;
+        }
+
+        this.productService.findAll(filters).subscribe({
             next: (products) => {
                 // FILTER: Hide products from defective warehouses
                 this.allProducts = products.filter(p =>
@@ -124,6 +149,25 @@ export class StockSearchDialogComponent implements OnInit {
             },
             error: (err) => {
                 console.error('Error loading products:', err);
+                this.loading = false;
+                this.cdr.detectChanges();
+            }
+        });
+    }
+
+    /**
+     * Optional: Load global stock if local results are insufficient
+     */
+    loadGlobalStock(): void {
+        this.loading = true;
+        this.productService.findAll({ global: true }).subscribe({
+            next: (products) => {
+                this.allProducts = products.filter(p =>
+                    !p.entrepot?.nom?.toLowerCase().includes('défectueux') &&
+                    !p.entrepot?.nom?.toLowerCase().includes('defectueux') &&
+                    p.entrepot?.nom?.toUpperCase() !== 'DÉFECTUEUX'
+                );
+                this.filterProducts();
                 this.loading = false;
                 this.cdr.detectChanges();
             }
@@ -145,7 +189,9 @@ export class StockSearchDialogComponent implements OnInit {
                 (p.codeInterne?.toLowerCase().includes(query)) ||
                 (p.codeBarres?.toLowerCase().includes(query)) ||
                 (p.marque?.toLowerCase().includes(query)) ||
-                (p.referenceFournisseur?.toLowerCase().includes(query))
+                (p.referenceFournisseur?.toLowerCase().includes(query)) ||
+                (p.typeArticle?.toLowerCase().includes(query)) ||
+                (this.getShortType(p.typeArticle).toLowerCase().includes(query))
             );
         }
 
@@ -451,6 +497,17 @@ export class StockSearchDialogComponent implements OnInit {
         const selected = this.selection.selected;
         if (selected.length === 0) return;
 
+        if (this.context === 'sales') {
+            // In sales context, this button adds everything to the sale.
+            // We need to handle auto-transfers for remote items if necessary.
+            this.dialogRef.close({
+                action: 'SELECT_MULTIPLE',
+                products: selected.map(p => this.findLocalCounterpart(p) || p)
+            });
+            return;
+        }
+
+        // Original bulk transfer logic for stock management
         // Verify if all selected items are remote
         const hasLocal = selected.some(p => !this.isRemote(p));
         if (hasLocal) {
