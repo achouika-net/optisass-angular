@@ -247,8 +247,12 @@ export class FicheProduitFormComponent implements OnInit, AfterViewInit {
     openStockSearch(): void {
         const dialogRef = this.dialog.open(StockSearchDialogComponent, {
             width: '95vw',
-            maxWidth: '1200px',
-            data: { context: 'sales' }
+            maxWidth: '1600px',
+            height: '85vh',
+            data: { 
+                context: 'sales',
+                initialTypeFilter: 'acc' 
+            }
         });
 
         dialogRef.afterClosed().subscribe(result => {

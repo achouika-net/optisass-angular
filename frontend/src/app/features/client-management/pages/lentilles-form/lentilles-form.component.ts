@@ -570,12 +570,12 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
     // --- Stock Search ---
     openStockSearch(target: 'od' | 'og') {
         const dialogRef = this.dialog.open(StockSearchDialogComponent, {
-            width: '1000px',
-            maxWidth: '100vw',
+            width: '95vw',
+            maxWidth: '1600px',
+            height: '85vh',
             data: {
-                type: 'LENTILLE',
-                hidePrices: false,
-                context: 'sales'
+                context: 'sales',
+                initialTypeFilter: 'len'
             }
         });
 

@@ -1068,12 +1068,19 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     }
 
     openStockSearch(index: number = -1, target: 'monture' | 'verres' | 'od' | 'og' = 'monture'): void {
+        let defaultFilter = '';
+        if (target === 'monture') defaultFilter = 'mon';
+        else if (target === 'verres' || target === 'od' || target === 'og') defaultFilter = 'verre';
+
         const dialogRef = this.dialog.open(StockSearchDialogComponent, {
-            width: '90vw',
-            maxWidth: '1200px',
-            height: '80vh',
+            width: '95vw',
+            maxWidth: '1600px',
+            height: '85vh',
             autoFocus: false,
-            data: { context: 'sales' }
+            data: { 
+                context: 'sales',
+                initialTypeFilter: defaultFilter 
+            }
         });
 
         dialogRef.afterClosed().subscribe(result => {
