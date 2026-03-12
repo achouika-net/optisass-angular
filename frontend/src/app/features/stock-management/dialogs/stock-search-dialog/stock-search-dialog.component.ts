@@ -77,10 +77,14 @@ export class StockSearchDialogComponent implements OnInit {
         private snackBar: MatSnackBar,
         private cdr: ChangeDetectorRef,
         private store: Store,
-        @Inject(MAT_DIALOG_DATA) public data?: { context?: 'stock-management' | 'sales' }
+        @Inject(MAT_DIALOG_DATA) public data?: { context?: 'stock-management' | 'sales', initialTypeFilter?: string }
     ) {
         this.currentCenter = this.store.selectSignal(UserCurrentCentreSelector)();
         this.context = data?.context || 'stock-management';
+        if (data?.initialTypeFilter) {
+            // Apply the initial filter as a search query
+            this.searchQuery = data.initialTypeFilter;
+        }
     }
 
     ngOnInit(): void {
