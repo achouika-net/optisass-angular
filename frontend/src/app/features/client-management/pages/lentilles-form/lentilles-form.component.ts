@@ -594,16 +594,20 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
 
         // Map product specificData to form
         const spec = product.specificData || {};
+        const currentAchs = group.getRawValue();
 
         group.patchValue({
-            marque: product.marque || '',
-            modele: product.modele || (product.modeleCommercial || ''),
-            rayon: spec.rayonCourbure || '',
-            diametre: spec.diametre || '',
-            sphere: spec.puissanceSph || '',
-            cylindre: spec.puissanceCyl || '',
-            axe: spec.axe || '',
-            addition: spec.addition || '',
+            marque: product.marque || currentAchs.marque || '',
+            modele: product.modele || product.modeleCommercial || currentAchs.modele || '',
+            rayon: spec.rayonCourbure || currentAchs.rayon || '',
+            diametre: spec.diametre || currentAchs.diametre || '',
+            
+            // Ne pas écraser la correction saisie si le stock ne l'a pas
+            sphere: spec.puissanceSph || currentAchs.sphere || '',
+            cylindre: spec.puissanceCyl || currentAchs.cylindre || '',
+            axe: spec.axe || currentAchs.axe || '',
+            addition: spec.addition || currentAchs.addition || '',
+            
             prix: product.prixVenteTTC || 0,
             productId: product.id,
             entrepotId: product.entrepotId,
