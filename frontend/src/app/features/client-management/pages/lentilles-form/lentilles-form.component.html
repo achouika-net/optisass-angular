@@ -76,7 +76,7 @@
             </button>
 
             <!-- Edit Mode: Enregistrer -->
-            <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="ficheForm.invalid || loading"
+            <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="loading"
                 *ngIf="isEditMode">
                 <mat-icon>save</mat-icon> {{ (ficheId && ficheId !== 'new') ? 'Mettre à jour' : 'Enregistrer' }}
             </button>
