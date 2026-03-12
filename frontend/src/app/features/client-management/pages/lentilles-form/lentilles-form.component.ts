@@ -579,9 +579,11 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
             }
         });
 
-        dialogRef.afterClosed().subscribe(product => {
-            if (product) {
-                this.fillProductDetails(product, target);
+        dialogRef.afterClosed().subscribe(result => {
+            if (result && (result.action === 'SELECT' || result.action === 'ORDER_AND_SELL') && result.product) {
+                this.fillProductDetails(result.product, target);
+            } else if (result && !result.action && result.id) {
+                this.fillProductDetails(result, target);
             }
         });
     }
