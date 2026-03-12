@@ -221,8 +221,8 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
                 od: this.fb.group({
                     marque: ['', Validators.required],
                     modele: [''],
-                    rayon: ['', Validators.required],
-                    diametre: ['', Validators.required],
+                    rayon: [''],
+                    diametre: [''],
                     sphere: [''],
                     cylindre: [''],
                     axe: [''],
@@ -243,8 +243,8 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
                 og: this.fb.group({
                     marque: ['', Validators.required],
                     modele: [''],
-                    rayon: ['', Validators.required],
-                    diametre: ['', Validators.required],
+                    rayon: [''],
+                    diametre: [''],
                     sphere: [''],
                     cylindre: [''],
                     axe: [''],
@@ -674,11 +674,13 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
     async onSubmit() {
         console.log('🚀 [DIAGNOSTIC] onSubmit starting for Lentilles...');
         if (this.ficheForm.invalid || !this.clientId || this.loading) {
-            console.log('⚠️ [DIAGNOSTIC] Form Invalid, No Client ID, or Loading', {
+            console.warn('⚠️ [DIAGNOSTIC] Form Invalid, No Client ID, or Loading', {
                 invalid: this.ficheForm.invalid,
                 clientId: this.clientId,
                 loading: this.loading
             });
+            this.ficheForm.markAllAsTouched();
+            this.snackBar.open('Veuillez remplir tous les champs obligatoires (en rouge)', 'Fermer', { duration: 4000 });
             return;
         }
         this.loading = true;
