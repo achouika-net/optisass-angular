@@ -35,7 +35,7 @@ import { Product, ProductStatus } from '../../../../shared/interfaces/product.in
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
 import { BehaviorSubject, forkJoin, Observable, of, Subject, timer } from 'rxjs';
-import { catchError, map, take, takeUntil, tap } from 'rxjs/operators';
+import { catchError, map, take, takeUntil, tap, switchMap } from 'rxjs/operators';
 
 interface PrescriptionFile {
     name: string;
@@ -105,10 +105,12 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
 
     // File Upload & OCR
     @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+    @ViewChild(FactureFormComponent) factureComponent?: FactureFormComponent;
 
     prescriptionFiles: PrescriptionFile[] = [];
     isProcessingOcr = false;
     viewingFile: PrescriptionFile | null = null;
+    initialLines: any[] = []; // To track changes for dirty check
 
     constructor(
         private fb: FormBuilder,
@@ -143,13 +145,18 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
                 this.loadFiche();
                 this.loadLinkedInvoice();
             } else {
+                // Initial state for new fiche
+                this.ficheId = 'new';
                 this.isEditMode = true;
                 this.ficheForm.enable();
+                this.ficheForm.reset(this.initForm().getRawValue());
                 // Default dates
                 this.ficheForm.patchValue({
                     ordonnance: { datePrescription: new Date() },
                     adaptation: { dateEssai: new Date() }
                 });
+                this.linkedFactureSubject.next(null);
+                this.cdr.markForCheck();
             }
         });
 
@@ -177,16 +184,6 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
     ngOnDestroy(): void {
         this.destroy$.next();
         this.destroy$.complete();
-    }
-
-    toggleEditMode(): void {
-        this.isEditMode = !this.isEditMode;
-        if (this.isEditMode) {
-            this.ficheForm.enable();
-            // Ensure derived/calculated fields are disabled if necessary
-        } else {
-            this.ficheForm.disable();
-        }
     }
 
     initForm(): FormGroup {
@@ -328,6 +325,7 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
 
                 this.ficheForm.patchValue(formPatch);
                 this.currentFiche = fiche;
+                this.initialLines = this.initialInvoiceLines; // Capture initial state
 
                 // Trigger check if invoice is already available
                 if (this.linkedFacture?.statut === 'VENTE_EN_INSTANCE') {
@@ -343,23 +341,86 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
     loadLinkedInvoice() {
         // Don't load invoice for new fiches
         if (!this.ficheId || this.ficheId === 'new') {
-            this.linkedFacture = { id: 'new' };
+            this.linkedFactureSubject.next(null);
             return;
         }
 
         // Only load invoices for this client to avoid loading entire database
         if (!this.clientId) return;
 
-        this.factureService.findAll({ clientId: this.clientId }).subscribe(factures => {
+        this.factureService.findAll({ ficheId: this.ficheId }).subscribe(factures => {
             const found = factures.find(f => f.ficheId === this.ficheId);
-            this.linkedFacture = found || { id: 'new' };
+            this.linkedFacture = found || null;
             if (found) {
+                console.log('🔗 [Lentille] Linked Facture found:', found.numero, '| Status:', found.statut);
                 this.linkedFactureSubject.next(found);
                 if (this.currentFiche) {
                     this.checkReceptionForInstance(this.currentFiche);
                 }
+            } else {
+                this.linkedFactureSubject.next(null);
             }
             this.cdr.markForCheck();
+        });
+    }
+
+    validerVente(): void {
+        const currentFacture = this.linkedFactureSubject.value;
+        if (!currentFacture || currentFacture.type !== 'DEVIS') return;
+
+        this.loading = true;
+        const lines = this.initialInvoiceLines;
+        const total = lines.reduce((acc, l) => acc + l.totalTTC, 0);
+
+        const updateData: any = {
+            type: 'BON_COMM',
+            statut: 'VALIDE',
+            lignes: lines,
+            totalTTC: total,
+            proprietes: {
+                ...(currentFacture.proprietes || {}),
+                nomenclature: this.nomenclatureString || '',
+                validatedAt: new Date()
+            }
+        };
+
+        this.factureService.update(currentFacture.id, updateData).subscribe({
+            next: (res) => {
+                this.loading = false;
+                this.snackBar.open('Vente validée : Devis transformé en Bon de Commande', 'Fermer', { duration: 5000 });
+                this.onInvoiceSaved(res);
+            },
+            error: (err) => {
+                this.loading = false;
+                this.snackBar.open('Erreur lors de la validation', 'Fermer', { duration: 3000 });
+            }
+        });
+    }
+
+    transformerEnFacture(): void {
+        const currentFacture = this.linkedFactureSubject.value;
+        if (!currentFacture || currentFacture.type !== 'BON_COMM') return;
+
+        this.loading = true;
+        const updateData: any = {
+            type: 'FACTURE',
+            statut: 'VALIDE',
+            proprietes: {
+                ...(currentFacture.proprietes || {}),
+                facturedAt: new Date()
+            }
+        };
+
+        this.factureService.update(currentFacture.id, updateData).subscribe({
+            next: (res) => {
+                this.loading = false;
+                this.snackBar.open('Facture générée avec succès', 'Fermer', { duration: 5000 });
+                this.onInvoiceSaved(res);
+            },
+            error: (err) => {
+                this.loading = false;
+                this.snackBar.open('Erreur lors de la génération de la facture', 'Fermer', { duration: 3000 });
+            }
         });
     }
 
@@ -494,6 +555,18 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
         }
     }
 
+    toggleEditMode(): void {
+        this.isEditMode = !this.isEditMode;
+        if (this.isEditMode) {
+            this.ficheForm.enable();
+        } else {
+            this.ficheForm.disable();
+            if (this.ficheId && this.ficheId !== 'new') {
+                this.loadFiche();
+            }
+        }
+    }
+
     // --- Stock Search ---
     openStockSearch(target: 'od' | 'og') {
         const dialogRef = this.dialog.open(StockSearchDialogComponent, {
@@ -540,90 +613,16 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
     }
 
-    async onPaymentAdded() {
-        console.log('💰 [EVENT] Payment Added - Checking for archiving decision...');
-
-        // 1. Detect if we have any valid products with stock
-        const invoiceLines = this.initialInvoiceLines;
-        const productsWithStock = invoiceLines.filter(l => l.productId && l.entrepotId);
-
-        if (productsWithStock.length === 0) {
-            console.log('ℹ️ No products with stock detected. No special alert needed.');
-            return;
-        }
-
-        // [FIX] Check if invoice is already validated - skip prompt if already VALIDE
-        try {
-            const factures = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId || '' }));
-            const currentFacture = factures.find(f => f.ficheId === this.ficheId);
-
-            if (currentFacture && (currentFacture.statut === 'VALIDE' || currentFacture.type === 'FACTURE')) {
-                console.log('✅ Invoice already validated. Skipping validation prompt.');
-                return;
-            }
-        } catch (e) {
-            console.error('Error checking invoice status:', e);
-        }
-
-        const warehouses = [...new Set(productsWithStock.map(p => p.entrepotNom || p.entrepotType))].join(' / ');
-        const message = `Vente effectuée depuis l'entrepôt : ${warehouses}.\n\nSouhaitez-vous VALIDER la vente ou la LAISSER EN INSTANCE ?`;
-
-        const choice = confirm(`${message}\n\nOK = Valider\nAnnuler = En Instance`);
-
-        if (choice) {
-            try {
-                this.loading = true;
-                const factures = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId || '' }));
-                const currentFacture = factures.find(f => f.ficheId === this.ficheId);
-
-                if (currentFacture) {
-                    console.log('📄 Converting Devis to official Facture:', currentFacture.numero);
-                    const lines = this.initialInvoiceLines;
-                    const total = lines.reduce((acc, l) => acc + l.totalTTC, 0);
-                    const tvaRate = 0.20;
-                    const totalHT = total / (1 + tvaRate);
-                    const tva = total - totalHT;
-
-                    const updateData: any = {
-                        type: 'FACTURE',
-                        statut: 'VALIDE',
-                        lignes: lines,
-                        totalTTC: total,
-                        totalHT: totalHT,
-                        totalTVA: tva,
-                        resteAPayer: Math.max(0, total - (currentFacture.totalTTC - currentFacture.resteAPayer)),
-                        proprietes: {
-                            ...(currentFacture.proprietes || {}),
-                            nomenclature: this.nomenclatureString || '',
-                            validatedAt: new Date()
-                        }
-                    };
-
-                    this.factureService.update(currentFacture.id, updateData).subscribe({
-                        next: (res) => {
-                            this.loading = false;
-                            this.snackBar.open('Vente validée et facture générée avec succès', 'Fermer', { duration: 5000 });
-                            this.onInvoiceSaved(res);
-                        },
-                        error: (err) => {
-                            this.loading = false;
-                            console.error('❌ Error validating sale:', err);
-                            alert("Erreur lors de la validation: " + (err.message || 'Erreur inconnue'));
-                        }
-                    });
-                } else {
-                    console.warn('⚠️ No associated quote found to validate.');
-                    this.loading = false;
-                }
-            } catch (e) {
-                console.error('Error fetching invoices for validation:', e);
-                this.loading = false;
-            }
+    onPaymentAdded(): void {
+        const currentFacture = this.linkedFactureSubject.value;
+        
+        // Auto-transform DEVIS to BON_COMM on first payment
+        if (currentFacture && currentFacture.type === 'DEVIS') {
+            console.log('💰 Payment added to Devis, auto-validating to BC...');
+            this.validerVente();
         } else {
-            // User might want to archive later or manually. 
-            // In MontureForm we call archiveFicheFacture(currentFacture) if they say "Archive"
-            // But here the confirm is "Validate" or "Stay as Devis".
-            // If they want to archive, they usually do it via a separate button or naturally.
+            this.loadLinkedInvoice();
+            this.snackBar.open('Paiement ajouté avec succès', 'Fermer', { duration: 3000 });
         }
     }
 
@@ -666,49 +665,153 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
     }
 
     // --- Submit ---
-    onSubmit(): void {
-        if (this.ficheForm.invalid) {
-            alert('Veuillez remplir tous les champs obligatoires.');
+    async onSubmit() {
+        console.log('🚀 [DIAGNOSTIC] onSubmit starting for Lentilles...');
+        if (this.ficheForm.invalid || !this.clientId || this.loading) {
+            console.log('⚠️ [DIAGNOSTIC] Form Invalid, No Client ID, or Loading', {
+                invalid: this.ficheForm.invalid,
+                clientId: this.clientId,
+                loading: this.loading
+            });
             return;
         }
-
         this.loading = true;
-        const formValue = this.ficheForm.value;
+        const formValue = this.ficheForm.getRawValue();
 
-        // Calculate total
+        // 1. Calculate Total
         const prixOD = parseFloat(formValue.lentilles.od.prix) || 0;
         const prixOG = parseFloat(formValue.lentilles.diffLentilles ? formValue.lentilles.og.prix : formValue.lentilles.od.prix) || 0;
-        const total = prixOD + prixOG; // Simplified
+        const montantTotal = prixOD + prixOG;
 
+        // 2. Prepare Fiche Data
         const payload: any = {
             clientId: this.clientId,
-            type: 'DEVIS', // Always starts as DEVIS
-            statut: 'DEVIS_EN_COURS', // Always starts as DEVIS_EN_COURS
-            montantTotal: total,
-            montantPaye: 0,
-            prescription: formValue.ordonnance,
+            type: TypeFiche.LENTILLES,
+            statut: this.currentFiche?.statut || StatutFiche.EN_COURS,
+            montantTotal,
+            montantPaye: this.currentFiche?.montantPaye || 0,
+            ordonnance: formValue.ordonnance, // Standardize name to match Monture if possible, though backend might expect prescription
+            prescription: formValue.ordonnance, // Fallback for backward compatibility
             lentilles: formValue.lentilles,
             adaptation: formValue.adaptation,
             suiviCommande: formValue.suiviCommande
         };
 
-        const request = (this.ficheId && this.ficheId !== 'new')
+        console.log('📤 Submitting lentilles data:', payload);
+
+        const operation = (this.ficheId && this.ficheId !== 'new')
             ? this.ficheService.updateFiche(this.ficheId, payload)
             : this.ficheService.createFicheLentilles(payload);
 
-        request.subscribe({
-            next: (fiche) => {
-                this.loading = false;
-                this.ficheId = fiche.id; // Update ID if creating
+        // 3. ASYNC Payment Check (Same as Monture)
+        let hasPayment = false;
+        if (this.ficheId && this.ficheId !== 'new' && this.clientId) {
+            try {
+                const allF = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId }));
+                const currentF = allF.find(f => f.ficheId === this.ficheId);
+                if (currentF) {
+                    const paid = (currentF.paiements as any[])?.reduce((acc, p) => acc + (p.montant || 0), 0) || 0;
+                    hasPayment = paid > 0 || currentF.statut === 'PARTIEL' || currentF.statut === 'PAYEE';
+                    console.log('✅ [DIAGNOSTIC] Async Payment Check Success:', { paid, status: currentF.statut, hasPayment });
+                }
+            } catch (e) {
+                console.error('❌ [DIAGNOSTIC] Async Payment Check Failed:', e);
+            }
+        }
+
+        let userForcedStatut: string | null = null;
+        let userForcedType: string | null = null;
+
+        // 4. Protection of existing official invoices
+        const existingInvoice = this.linkedFactureSubject.value;
+        const hasExistingOfficialInvoice = existingInvoice &&
+            (existingInvoice.type === 'FACTURE' ||
+                existingInvoice.statut === 'VALIDE' ||
+                existingInvoice.statut === 'PAYEE' ||
+                existingInvoice.statut === 'PARTIEL');
+
+        if (hasExistingOfficialInvoice) {
+            console.log('🛡️ [INVOICE PROTECTION] Existing official invoice detected. Skipping status override.');
+        } else if (hasPayment) {
+            console.log('💰 Payment detected -> Upgrading to BON_COMM');
+            userForcedType = 'BON_COMM';
+            userForcedStatut = 'VENTE_EN_INSTANCE';
+            this.snackBar.open('Acpte détecté : Vente passée en "Bon de Commande".', 'OK', { duration: 4000 });
+        }
+
+        operation.pipe(
+            switchMap(fiche => {
+                const isNew = !this.ficheId || this.ficheId === 'new';
+                this.ficheId = fiche.id;
                 this.isEditMode = false;
-                this.ficheForm.disable(); // Return to view mode
-                this.loadFiche(); // Reload to be sure
-                alert('Fiche enregistrée avec succès');
+                this.ficheForm.disable();
+
+                // 5. Sync with FactureComponent if it exists
+                if (this.factureComponent) {
+                    this.factureComponent.ficheIdInput = fiche.id;
+                    
+                    const freshLines = this.initialInvoiceLines;
+                    const freshNomenclature = this.nomenclatureString;
+
+                    if (freshNomenclature) {
+                        this.factureComponent.form.patchValue({ proprietes: { nomenclature: freshNomenclature } });
+                    }
+
+                    if (freshLines && freshLines.length > 0) {
+                        const fa = this.factureComponent.lignes;
+                        fa.clear();
+                        freshLines.forEach(l => {
+                            const group = this.factureComponent.createLigne();
+                            group.patchValue(l);
+                            fa.push(group);
+                        });
+                        this.factureComponent.calculateTotals();
+                    }
+
+                    if (userForcedStatut) {
+                        this.factureComponent.form.patchValue({ statut: userForcedStatut }, { emitEvent: false });
+                    }
+                    if (userForcedType) {
+                        this.factureComponent.form.patchValue({ type: userForcedType }, { emitEvent: false });
+                    }
+
+                    // Dirty check for invoice
+                    const currentLines = this.initialInvoiceLines;
+                    const linesChanged = JSON.stringify(currentLines) !== JSON.stringify(this.initialLines);
+                    const isNewInvoice = !this.factureComponent.id || this.factureComponent.id === 'new';
+
+                    if (!linesChanged && !isNewInvoice && !userForcedStatut && !userForcedType) {
+                        console.log('📋 [INVOICE SKIP] No changes to invoice lines or status.');
+                        return of({ fiche, isNew });
+                    }
+
+                    return this.factureComponent.saveAsObservable(true).pipe(
+                        map(() => ({ fiche, isNew })),
+                        catchError(err => {
+                            if (err.status === 409) return of({ fiche, isNew });
+                            throw err;
+                        })
+                    );
+                }
+                return of({ fiche, isNew });
+            })
+        ).subscribe({
+            next: ({ fiche, isNew }) => {
+                this.loading = false;
+                this.isEditMode = false;
+                this.ficheForm.disable();
+                this.snackBar.open('Fiche enregistrée avec succès', 'OK', { duration: 3000 });
+                if (isNew) {
+                    this.router.navigate(['/p/clients', this.clientId, 'fiche-lentilles', fiche.id]);
+                } else {
+                    this.loadFiche();
+                    this.loadLinkedInvoice();
+                }
             },
             error: (err) => {
                 console.error(err);
                 this.loading = false;
-                alert('Erreur lors de l\'enregistrement');
+                this.snackBar.open('Erreur lors de l\'enregistrement', 'Erreur', { duration: 3000 });
             }
         });
     }

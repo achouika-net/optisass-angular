@@ -16,6 +16,8 @@ export enum FactureType {
   AVOIR = 'AVOIR',
   BL = 'BL',
   BON_COMM = 'BON_COMM',
+  BON_COMMANDE = 'BON_COMMANDE',
+  BON_DE_COMMANDE = 'BON_DE_COMMANDE',
   PROFORMA = 'PROFORMA',
 }
 

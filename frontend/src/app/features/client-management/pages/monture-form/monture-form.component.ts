@@ -18,6 +18,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { ClientManagementService } from '../../services/client.service';
 import { Client, isClientParticulier, isClientProfessionnel } from '../../models/client.model';
 import { FicheService } from '../../services/fiche.service';
@@ -67,6 +68,7 @@ interface PrescriptionFile {
         MatDialogModule,
         MatSnackBarModule,
         MatTooltipModule,
+        MatButtonToggleModule,
         RouterModule,
         FactureFormComponent,
         PaymentListComponent
@@ -1488,7 +1490,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     addition: [null],
                     prisme: [null],
                     base: [null],
-                    ep: [null]
+                    ep: [null],
+                    frequenceCillement: ['normal']
                 }),
                 og: this.fb.group({
                     sphere: [null],
@@ -1497,7 +1500,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     addition: [null],
                     prisme: [null],
                     base: [null],
-                    ep: [null]
+                    ep: [null],
+                    frequenceCillement: ['normal']
                 }),
                 datePrescription: [new Date()],
                 prescripteur: [''],

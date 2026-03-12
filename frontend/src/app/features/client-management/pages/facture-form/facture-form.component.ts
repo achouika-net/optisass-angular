@@ -358,11 +358,7 @@ export class FactureFormComponent implements OnInit {
     }
 
     formatNumero(numero: string): string {
-        if (!numero) return '';
-        if (this.form.get('type')?.value === 'FACTURE') {
-            return numero.replace(/^BC-/, 'Fact-').replace(/^DEVIS-/, 'Fact-').replace(/^FAC-/, 'Fact-');
-        }
-        return numero;
+        return numero || '';
     }
 
     addLine() {
@@ -861,6 +857,7 @@ export class FactureFormComponent implements OnInit {
 
         this.checkStockAndProceed(() => {
             this.form.patchValue({
+                numero: null, // [FIX] Force NEW sequential official number
                 type: 'FACTURE',
                 statut: 'VALIDE'
             });
@@ -889,6 +886,7 @@ export class FactureFormComponent implements OnInit {
             if (isCurrentlyDevis) {
                 // Upgrade to BC
                 this.form.patchValue({
+                    numero: null, // [FIX] Force NEW sequential BC number
                     statut: 'VENTE_EN_INSTANCE',
                     type: 'BON_COMM'
                 });

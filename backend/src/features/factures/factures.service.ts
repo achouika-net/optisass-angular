@@ -82,8 +82,8 @@ export class FacturesService implements OnModuleInit {
     let numero = '';
 
     if (data.statut === 'BROUILLON' || data.statut === 'DEVIS_EN_COURS') {
-      // Temporary number for drafts/in-progress devis
-      numero = `Devis - ${new Date().getTime()} `;
+      // Use sequential numbering even for drafts/devis in progress
+      numero = await this.generateNextNumber(type);
     } else {
       numero = await this.generateNextNumber(type);
     }
@@ -698,24 +698,28 @@ export class FacturesService implements OnModuleInit {
 
         // [FIX] Robust Devis Check: Match any document that IS a devis/draft
         // EXCLUDE: Established BCs and Factures to prevent redundant transition logic
+        // Match any document that IS a devis/draft or has a draft number
         const num = (currentFacture?.numero || '').trim().toUpperCase();
         const isCurrentlyDevis =
           currentFacture &&
-          currentFacture.type !== 'BON_COMM' &&
-          currentFacture.type !== 'FACTURE' &&
           (currentFacture.type === 'DEVIS' ||
             currentFacture.statut === 'BROUILLON' ||
             num.startsWith('DEV') ||
             num.startsWith('BRO') ||
-            num.includes('DEVIS'));
+            num.includes('DEVIS')) &&
+          currentFacture.type !== 'FACTURE';
 
-        // [NEW] Transition DEVIS/BROUILLON -> Real Document (Number Regeneration)
-        // This covers "Passer Commande" or "Valider la vente"
+        // Target type is either what's being set now, or if not set, the current type
+        const effectiveType = data.type || currentFacture?.type;
+
+        // [TRANSITION] DEVIS/BROUILLON -> Real Document (Number Regeneration)
         if (
           isCurrentlyDevis &&
-          (data.type === 'BON_COMM' ||
-            data.type === 'FACTURE' ||
-            data.type === 'BL')
+          (effectiveType === 'BON_COMM' ||
+            effectiveType === 'BON_COMMANDE' ||
+            effectiveType === 'BON_DE_COMMANDE' ||
+            effectiveType === 'FACTURE' ||
+            effectiveType === 'BL')
         ) {
           const stockCheck = await this.checkStockAvailability(
             currentFacture.id,
@@ -736,12 +740,12 @@ export class FacturesService implements OnModuleInit {
             `📌 [TRANSITION] Document ${currentFacture.numero} becoming ${data.type}. Regenerating number.`,
           );
 
-          // Ensure the target type is set correctly (in case it wasn't explicitly provided but transition triggered)
-          const targetType = data.type;
+          // Ensure the target type is set correctly
+          const targetType = data.type || (data as any).type;
           data.numero = await this.generateNextNumber(targetType, tx);
 
-          // [FIX] If transitioning to BON_COMM, force the status to VENTE_EN_INSTANCE to prevent premature "VALIDE" (Facture) status
-          if (data.type === 'BON_COMM') {
+          // [FIX] Force status to VENTE_EN_INSTANCE for all BC types
+          if (targetType === 'BON_COMM' || targetType === 'BON_COMMANDE' || targetType === 'BON_DE_COMMANDE') {
             data.statut = 'VENTE_EN_INSTANCE';
           }
         }
@@ -753,9 +757,11 @@ export class FacturesService implements OnModuleInit {
 
         // Only block fiscal flow if the TARGET is BON_COMM (not if the current is BC)
         // This allows BC→FACTURE transitions to work properly
-        const isTargetingBC =
-          data.type === 'BON_COMM' ||
-          (data.numero && data.numero.startsWith('BC'));
+        // [FIX] Prioritize data.type over data.numero prefix to avoid stale numbers blocking transition
+        const isTargetingBC = data.type === 'BON_COMM' 
+            || data.type === 'BON_COMMANDE'
+            || data.type === 'BON_DE_COMMANDE'
+            || (data.type === undefined && data.numero && data.numero.startsWith('BC'));
 
         // First validation = Any document (BROUILLON, DEVIS, VENTE_EN_INSTANCE) that validates without an official number
         const isFirstValidation = !currentFacture?.numero?.startsWith('FAC');
@@ -1065,11 +1071,41 @@ export class FacturesService implements OnModuleInit {
         'vendeurId',
       ];
 
+      // [FIX] Check if facture exists before attempting update
+      const existingFacture = (await this.prisma.facture.findUnique({
+        where,
+      })) as any;
+      if (!existingFacture) {
+        throw new NotFoundException(
+          `Facture with ID ${where.id} not found. It may have been deleted.`,
+        );
+      }
+
       const cleanData: any = {};
       for (const field of allowedFields) {
         if (data[field] !== undefined) {
           cleanData[field] = data[field];
         }
+      }
+
+      // [NEW] Robust Number Regeneration Handle:
+      // Triggered if the frontend explicitly sends numero: null
+      // OR if the document type changed but the number prefix is still from the old type.
+      const targetType =
+        (cleanData.type || existingFacture.type) as string;
+      const currentNum = (cleanData.numero !== undefined
+        ? cleanData.numero
+        : existingFacture.numero) as string;
+      const expectedPrefix = this.getPrefix(targetType);
+
+      if (
+        cleanData.numero === null ||
+        (cleanData.type && currentNum && !currentNum.startsWith(expectedPrefix))
+      ) {
+        console.log(
+          `🔄 [REPAIR] Regenerating number. Type: ${targetType}, Expected Prefix: ${expectedPrefix}, Current: ${currentNum}`,
+        );
+        cleanData.numero = await this.generateNextNumber(targetType, tx);
       }
 
       // [NEW] Balance Cleanup: If cancelling, force resteAPayer to 0
@@ -1078,9 +1114,8 @@ export class FacturesService implements OnModuleInit {
       }
 
       // Guard: Verify products if status changes to VALIDE outside fiscal flow
-      let currentRecord: any = null;
+      const currentRecord = existingFacture;
       if (cleanData.statut === 'VALIDE' || cleanData.proprietes) {
-        currentRecord = await this.prisma.facture.findUnique({ where });
 
         // Merge properties if both exist
         if (currentRecord && cleanData.proprietes) {
@@ -1116,13 +1151,6 @@ export class FacturesService implements OnModuleInit {
         JSON.stringify(where, null, 2),
       );
 
-      // [FIX] Check if facture exists before attempting update
-      const existingFacture = await this.prisma.facture.findUnique({ where });
-      if (!existingFacture) {
-        throw new NotFoundException(
-          `Facture with ID ${where.id} not found. It may have been deleted.`,
-        );
-      }
 
       const updatedFacture = await this.prisma.facture.update({
         data: cleanData,
@@ -1293,12 +1321,13 @@ export class FacturesService implements OnModuleInit {
       case 'FACTURE':
         return 'Fact';
       case 'DEVIS':
-        return 'DEV';
+        return 'Devis';
       case 'AVOIR':
         return 'AVR';
       case 'BL':
         return 'BL';
       case 'BON_COMM':
+      case 'BON_COMMANDE':
         return 'BC';
       default:
         return 'DOC';

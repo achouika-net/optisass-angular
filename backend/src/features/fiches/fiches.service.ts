@@ -78,6 +78,8 @@ export class FichesService {
         montage: incomingContent.montage,
         suggestions: incomingContent.suggestions,
         equipements: incomingContent.equipements,
+        produits: incomingContent.produits,
+        notes: incomingContent.notes,
       };
 
       // 3. Create the fiche with explicit data mapping
@@ -233,6 +235,14 @@ export class FichesService {
         incomingContent.equipements !== undefined
           ? incomingContent.equipements
           : currentContent.equipements,
+      produits:
+        incomingContent.produits !== undefined
+          ? incomingContent.produits
+          : currentContent.produits,
+      notes:
+        incomingContent.notes !== undefined
+          ? incomingContent.notes
+          : currentContent.notes,
     };
 
     const updateData: any = {

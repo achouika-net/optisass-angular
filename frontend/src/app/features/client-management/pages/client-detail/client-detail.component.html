@@ -179,7 +179,7 @@
 
                                 <!-- Type Verre Column -->
                                 <ng-container matColumnDef="typeVerre">
-                                    <th mat-header-cell *matHeaderCellDef>Type Verre</th>
+                                    <th mat-header-cell *matHeaderCellDef>Type Verre / Produits</th>
                                     <td mat-cell *matCellDef="let fiche">
                                         <div *ngFor="let line of getVerresSummary(fiche).split('\n')"
                                             class="table-multiline">
@@ -190,7 +190,7 @@
 
                                 <!-- Correction Column (ex-Nomenclature) -->
                                 <ng-container matColumnDef="nomenclature">
-                                    <th mat-header-cell *matHeaderCellDef>Correction / Produits</th>
+                                    <th mat-header-cell *matHeaderCellDef>Correction</th>
                                     <td mat-cell *matCellDef="let fiche">
                                         <div *ngIf="fiche.type !== TypeFiche.PRODUIT">
                                             <div *ngFor="let line of getCorrectionSummary(fiche).split('\n')"
@@ -199,10 +199,8 @@
                                             </div>
                                         </div>
                                         <div *ngIf="fiche.type === TypeFiche.PRODUIT">
-                                            <div *ngFor="let line of getProductsSummary(fiche).split('\n')"
-                                                class="table-multiline font-medium text-green-700">
-                                                {{ line }}
-                                            </div>
+                                            <!-- Empty for product fiches as per user request -->
+                                            -
                                         </div>
                                     </td>
                                 </ng-container>

@@ -23,9 +23,9 @@
 
             <!-- Search Input -->
             <mat-form-field appearance="outline" class="flex-1">
-                <mat-label>Rechercher (Code, Marque, Désignation...)</mat-label>
+                <mat-label>Rechercher (Code, Marque, Désignation, Type...)</mat-label>
                 <input matInput [ngModel]="searchQuery" (ngModelChange)="searchQuery$.next($event)"
-                    placeholder="Ex: Ray-Ban, 12345...">
+                    placeholder="Ex: Ray-Ban, Mon, Sol...">
                 <mat-icon matSuffix>search</mat-icon>
             </mat-form-field>
         </div>
@@ -83,10 +83,17 @@
                 <ng-container matColumnDef="designation">
                     <th mat-header-cell *matHeaderCellDef> Désignation </th>
                     <td mat-cell *matCellDef="let element">
-                        <div class="flex flex-col">
-                            <span class="font-bold">{{ element.designation }}</span>
-                            <span class="text-xs text-gray-500">{{ element.typeArticle | titlecase }}</span>
-                        </div>
+                        <span class="font-bold">{{ element.designation }}</span>
+                    </td>
+                </ng-container>
+
+                <!-- Type Column -->
+                <ng-container matColumnDef="type">
+                    <th mat-header-cell *matHeaderCellDef> Type </th>
+                    <td mat-cell *matCellDef="let element">
+                        <span class="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-1 rounded">
+                            {{ getShortType(element.typeArticle) }}
+                        </span>
                     </td>
                 </ng-container>
 
@@ -226,11 +233,20 @@
         </div>
     </mat-dialog-content>
     <mat-dialog-actions align="end" class="gap-2">
+        <!-- Load Global Stock Button -->
+        <button mat-button color="accent" *ngIf="!loading && !selectedWarehouseId" (click)="loadGlobalStock()">
+            <mat-icon>public</mat-icon>
+            Rechercher dans tout le réseau
+        </button>
+
         <button mat-button (click)="dialogRef.close()">Fermer</button>
-        <button *ngIf="context === 'stock-management'" mat-raised-button color="primary"
+        
+        <!-- Context-aware Action Button -->
+        <button mat-raised-button color="primary"
             [disabled]="selection.selected.length === 0" (click)="requestBulkTransfer()">
-            <mat-icon>swap_horiz</mat-icon>
-            Transférer la sélection ({{ selection.selected.length }})
+            <mat-icon>{{ context === 'sales' ? 'add_shopping_cart' : 'swap_horiz' }}</mat-icon>
+            {{ context === 'sales' ? 'Ajouter à la vente' : 'Transférer la sélection' }} 
+            ({{ selection.selected.length }})
         </button>
     </mat-dialog-actions>
 </div>

@@ -422,3 +422,67 @@
         }
     }
 }
+
+// --- Clinical Fields Labels ---
+.clinical-field {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    label {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #64748b;
+        margin-bottom: 4px;
+    }
+}
+
+// SYMMETRIC TOGGLES - All buttons same width
+::ng-deep .symmetric-toggle-mini {
+    display: flex;
+    width: 100%;
+    height: 36px;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+    .mat-button-toggle {
+        flex: 1; // Equal width for all buttons
+        border: none;
+
+        &:not(:last-child) {
+            border-right: 1px solid #e2e8f0;
+        }
+    }
+
+    .mat-button-toggle-button {
+        width: 100%;
+        height: 36px;
+        padding: 0;
+    }
+
+    .mat-button-toggle-label-content {
+        line-height: 36px;
+        padding: 0 4px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #64748b;
+        text-align: center;
+    }
+
+    .mat-button-toggle-checked {
+        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
+
+        .mat-button-toggle-label-content {
+            color: white !important;
+            font-weight: 700 !important;
+        }
+    }
+
+    .mat-button-toggle:not(.mat-button-toggle-checked):hover {
+        background: #f1f5f9;
+        cursor: pointer;
+    }
+}

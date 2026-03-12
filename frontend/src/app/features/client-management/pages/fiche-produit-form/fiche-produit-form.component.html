@@ -1,89 +1,252 @@
-<div class="fiche-produit-container" *ngIf="!loading; else loadingTmp">
-    <mat-card class="header-card">
-        <mat-card-header>
-            <div mat-card-avatar class="header-icon">
-                <mat-icon color="primary">inventory_2</mat-icon>
+<div class="fiche-container" *ngIf="!loading; else loadingState">
+    <!-- Header -->
+    <div class="header">
+        <div class="client-info">
+            <div class="avatar-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                        d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                </svg>
             </div>
-            <mat-card-title>{{ ficheId ? 'Modifier la Fiche Produit' : 'Nouvelle Fiche Produit' }}</mat-card-title>
-            <mat-card-subtitle *ngIf="client">
-                Client: <strong>{{ clientDisplayName }}</strong>
-            </mat-card-subtitle>
-        </mat-card-header>
-    </mat-card>
+            <div class="client-details">
+                <h2>{{ clientDisplayName }}</h2>
+                <p *ngIf="client">
+                    <span class="opacity-75 uppercase text-xs font-bold">{{ client.typeClient }}</span>
+                    <ng-container *ngIf="client.telephone"> • 📞 {{ client.telephone }}</ng-container>
+                    <ng-container *ngIf="client.ville"> • 📍 {{ client.ville }}</ng-container>
+                </p>
+                <p *ngIf="!client" class="text-gray-400 italic">Chargement du client...</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <!-- View Mode: Dossier Client -->
+            <button type="button" class="btn-secondary" (click)="goBack()" *ngIf="!isEditMode">
+                <mat-icon>arrow_back</mat-icon> Dossier Client
+            </button>
+            <!-- New Mode: Annuler Creation -->
+            <button type="button" class="btn-secondary" (click)="goBack()"
+                *ngIf="isEditMode && (!ficheId || ficheId === 'new')">
+                Annuler
+            </button>
+            <!-- Edit Mode: Annuler Modification -->
+            <button type="button" class="btn-secondary" (click)="toggleEditMode()"
+                *ngIf="isEditMode && ficheId && ficheId !== 'new'">
+                Annuler modification
+            </button>
+            <!-- View Mode: Modifier -->
+            <button type="button" class="btn-primary" (click)="toggleEditMode()"
+                *ngIf="!isEditMode && ficheId && ficheId !== 'new'">
+                <mat-icon>edit</mat-icon> Modifier
+            </button>
+            <!-- Edit Mode: Enregistrer / Mettre à jour -->
+            <button type="button" class="btn-primary" (click)="onSubmit()" [disabled]="ficheForm.invalid || loading"
+                *ngIf="isEditMode">
+                <mat-icon>save</mat-icon> {{ (ficheId && ficheId !== 'new') ? 'Mettre à jour' : 'Enregistrer' }}
+            </button>
+        </div>
+    </div>
 
-    <form [formGroup]="ficheForm" (ngSubmit)="onSubmit()">
-        <mat-card class="form-card">
-            <mat-card-content>
-                <div class="flex-row">
-                    <mat-form-field appearance="outline" class="flex-grow">
-                        <mat-label>Date de livraison estimée</mat-label>
-                        <input matInput [matDatepicker]="picker" formControlName="dateLivraisonEstimee"
-                            placeholder="Choisissez une date">
-                        <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-                        <mat-datepicker #picker></mat-datepicker>
-                    </mat-form-field>
+    <!-- Tabs Navigation -->
+    <div class="tabs-nav">
+        <button type="button" class="tab-btn" [class.active]="activeTab === 0" (click)="setActiveTab(0)"
+            [disabled]="!isTabAccessible(0)" [class.disabled]="!isTabAccessible(0)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                    d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 13c-3 0-5.5-2.5-5.5-5.5S9 6.5 12 6.5s5.5 2.5 5.5 5.5-2.5 5.5-5.5 5.5z" />
+            </svg>
+            Produits
+        </button>
+        <button type="button" class="tab-btn" [class.active]="activeTab === 1" (click)="setActiveTab(1)"
+            [disabled]="!isTabAccessible(1)" [class.disabled]="!isTabAccessible(1)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                    d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
+            </svg>
+            Paiements
+        </button>
+        <button type="button" class="tab-btn" [class.active]="activeTab === 2" (click)="setActiveTab(2)"
+            [disabled]="!isTabAccessible(2)" [class.disabled]="!isTabAccessible(2)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                    d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
+            </svg>
+            Facturation
+        </button>
+
+        <!-- Dynamic User Badge (Vendeur) -->
+        <div class="vendeur-badge-container" *ngIf="currentUser$ | async as user">
+            <div class="vendeur-badge">
+                <div class="avatar">
+                    <mat-icon>person</mat-icon>
+                </div>
+                <div class="info">
+                    <span class="label">Vendeur</span>
+                    <span class="name">{{ fullname(user) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- Tab 0: Produits -->
+        <div *ngIf="activeTab === 0" class="tab-pane animate-fade-in">
+            <div class="tab-header">
+                <div class="icon-box">
+                    <mat-icon>inventory_2</mat-icon>
+                </div>
+                <div class="header-info">
+                    <h3>Produits & Services</h3>
+                    <p>Liste des articles sélectionnés pour ce client</p>
+                </div>
+            </div>
+
+            <!-- Validation Banner -->
+            <div *ngIf="(linkedFacture$ | async) as facture" class="mb-4">
+                <div *ngIf="facture.statut === 'DEVIS_EN_COURS' || facture.statut === 'BROUILLON'" class="status-banner warning">
+                    <mat-icon>info</mat-icon>
+                    <span>Vente en attente de validation. Accédez à l'onglet "Facturation" pour valider.</span>
+                </div>
+            </div>
+
+            <form [formGroup]="ficheForm">
+                <div class="form-row triple mb-6">
+                    <div class="form-group">
+                        <label>Date de livraison estimée</label>
+                        <mat-form-field appearance="outline">
+                            <input matInput [matDatepicker]="picker" formControlName="dateLivraisonEstimee">
+                            <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+                            <mat-datepicker #picker></mat-datepicker>
+                        </mat-form-field>
+                    </div>
                 </div>
 
-                <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>Notes / Observations</mat-label>
-                    <textarea matInput formControlName="notes" rows="3" placeholder="Ajouter des notes..."></textarea>
-                </mat-form-field>
-
-                <mat-divider class="my-4"></mat-divider>
-
-                <div class="products-header">
-                    <h3>Liste des produits</h3>
-                    <button type="button" mat-stroked-button color="primary" (click)="addProduct()">
-                        <mat-icon>add</mat-icon> Ajouter un produit
-                    </button>
-                </div>
-
-                <div formArrayName="orderItems" class="products-list">
-                    <div *ngFor="let item of orderItems.controls; let i = index" [formGroupName]="i"
-                        class="product-item">
-                        <div class="product-row">
-                            <mat-form-field appearance="outline" class="flex-grow">
-                                <mat-label>Désignation</mat-label>
-                                <input matInput formControlName="designation" placeholder="Ex: Produit de nettoyage">
-                            </mat-form-field>
-
-                            <mat-form-field appearance="outline" class="flex-grow">
-                                <mat-label>Référence</mat-label>
-                                <input matInput formControlName="reference" placeholder="Ex: REF123">
-                            </mat-form-field>
-
-                            <mat-form-field appearance="outline" class="small-width">
-                                <mat-label>Prix Unitaire (DH)</mat-label>
-                                <input matInput type="number" formControlName="prixUnitaire" placeholder="0">
-                            </mat-form-field>
-
-                            <mat-form-field appearance="outline" class="tiny-width">
-                                <mat-label>Qté</mat-label>
-                                <input matInput type="number" formControlName="quantite" placeholder="1">
-                            </mat-form-field>
-
-                            <button type="button" mat-icon-button color="warn" (click)="removeProduct(i)"
-                                matTooltip="Supprimer ce produit">
-                                <mat-icon>delete</mat-icon>
+                <div class="section-card">
+                    <div class="products-header">
+                        <h3><mat-icon class="header-icon-inline">inventory_2</mat-icon> Articles & Services sélectionnés</h3>
+                        <div class="header-actions" *ngIf="isEditMode">
+                            <button type="button" class="btn-secondary stock-btn" (click)="openStockSearch()">
+                                <mat-icon>search</mat-icon> Rechercher au stock
+                            </button>
+                            <button type="button" class="btn-primary add-btn" (click)="addProduct()">
+                                <mat-icon>add</mat-icon> Ajouter ligne
                             </button>
                         </div>
                     </div>
-                </div>
-            </mat-card-content>
 
-            <mat-card-actions align="end">
-                <button type="button" mat-button (click)="onCancel()">Annuler</button>
-                <button type="submit" mat-raised-button color="primary" [disabled]="ficheForm.invalid || saving">
-                    <mat-icon>save</mat-icon> {{ ficheId ? 'Mettre à jour' : 'Enregistrer' }}
-                </button>
-            </mat-card-actions>
-        </mat-card>
-    </form>
+                    <div class="products-list" formArrayName="orderItems">
+                        <div class="product-item" *ngFor="let item of orderItems.controls; let i=index" [formGroupName]="i">
+                            <div class="product-row">
+                                <mat-form-field appearance="outline" class="flex-grow">
+                                    <mat-label>Désignation</mat-label>
+                                    <input matInput formControlName="designation" placeholder="Désignation" readonly>
+                                </mat-form-field>
+
+                                <mat-form-field appearance="outline" class="tiny-width">
+                                    <mat-label>Qté</mat-label>
+                                    <input matInput type="number" formControlName="quantite" placeholder="Qté">
+                                </mat-form-field>
+
+                                <mat-form-field appearance="outline" class="small-width">
+                                    <mat-label>Prix HT</mat-label>
+                                    <input matInput type="number" formControlName="prixUnitaire" placeholder="Prix">
+                                    <span matSuffix>MAD</span>
+                                </mat-form-field>
+
+                                <div class="flex flex-col justify-center min-w-[120px] text-right ml-4">
+                                    <span class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Total Ligne</span>
+                                    <span class="font-bold text-lg text-indigo-600">
+                                        {{ (item.get('quantite')?.value || 0) * (item.get('prixUnitaire')?.value || 0) | number:'1.2-2' }} MAD
+                                    </span>
+                                </div>
+
+                                <button type="button" mat-icon-button color="warn" class="delete-btn ml-2" (click)="removeProduct(i)" *ngIf="isEditMode">
+                                    <mat-icon>delete_outline</mat-icon>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Empty State inside list -->
+                        <div *ngIf="orderItems.length === 0" class="loading-container">
+                            <mat-icon class="text-gray-300 text-5xl">shopping_cart</mat-icon>
+                            <p>Aucun article sélectionné. Utilisez le bouton "Rechercher au stock" ou "Ajouter ligne".</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-card mt-6">
+                    <h4><mat-icon>notes</mat-icon> Notes & Informations complémentaires</h4>
+                    <mat-form-field class="full-width" appearance="outline">
+                        <mat-label>Notes</mat-label>
+                        <textarea matInput formControlName="notes" rows="4" placeholder="Saisissez vos remarques ici..."></textarea>
+                    </mat-form-field>
+                </div>
+            </form>
+        </div>
+
+        <!-- Tab 1: Paiements -->
+        <div *ngIf="activeTab === 1" class="tab-pane animate-fade-in">
+            <div class="tab-header">
+                <div class="icon-box icon-box-success">
+                    <mat-icon>payments</mat-icon>
+                </div>
+                <div class="header-info">
+                    <h3>Suivi des Règlements</h3>
+                    <p>Historique et gestion des paiements pour cette fiche</p>
+                </div>
+            </div>
+            
+            <div class="section-card">
+                <h4><mat-icon>history</mat-icon> Historique des transactions</h4>
+                <app-payment-list *ngIf="ficheId && ficheId !== 'new'" [ficheId]="ficheId" (onPaymentUpdate)="refreshFacture()"></app-payment-list>
+                <div *ngIf="!ficheId || ficheId === 'new'" class="no-document">
+                    <mat-icon>info</mat-icon>
+                    <h3>Aucun paiement</h3>
+                    <p>Veuillez d'abord enregistrer la fiche pour gérer les paiements.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Facturation -->
+        <div *ngIf="activeTab === 2" class="tab-pane animate-fade-in">
+            <div class="tab-header">
+                <div class="icon-box icon-box-indigo">
+                    <mat-icon>receipt_long</mat-icon>
+                </div>
+                <div class="header-info">
+                    <h3>Facturation & Documents</h3>
+                    <p>Gérer les factures et devis liés à cette vente</p>
+                </div>
+                <!-- Inline Actions [UX CLEANUP] Redundant "Valider la vente" removed from header -->
+                <!-- <div class="header-actions-inline" *ngIf="(linkedFacture$ | async) as facture">
+                    <button type="button" class="btn-primary" (click)="validerVente()" 
+                        *ngIf="facture.type === 'DEVIS' && (facture.statut === 'DEVIS_EN_COURS' || facture.statut === 'BROUILLON')">
+                        <mat-icon>check_circle</mat-icon> Valider la vente
+                    </button>
+                    <button type="button" class="btn-secondary" (click)="transformerEnFacture()" 
+                        *ngIf="facture.type === 'BON_COMM' || facture.statut === 'VALIDE' || facture.statut === 'PARTIEL'">
+                        <mat-icon>description</mat-icon> Créer Facture
+                    </button>
+                </div> -->
+            </div>
+
+            <div class="facturation-container">
+                <app-facture-form 
+                    [factureId]="(linkedFacture$ | async)?.id" 
+                    [clientIdInput]="clientId" 
+                    [ficheIdInput]="ficheId" 
+                    [initialLines]="initialLines"
+                    [embedded]="true"
+                    [isReadonly]="!isEditMode">
+                </app-facture-form>
+            </div>
+        </div>
+    </div>
 </div>
 
-<ng-template #loadingTmp>
-    <div class="loading-container">
-        <mat-spinner diameter="40"></mat-spinner>
+<ng-template #loadingState>
+    <div class="loading-state">
+        <mat-spinner diameter="48"></mat-spinner>
         <p>Chargement de la fiche...</p>
     </div>
 </ng-template>

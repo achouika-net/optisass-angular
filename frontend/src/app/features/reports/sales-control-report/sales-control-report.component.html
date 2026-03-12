@@ -1,4 +1,57 @@
 <div class="sales-control-container">
+    <!-- Global Context Menus Moved to Top for better initialization -->
+    <mat-menu #bcMenu="matMenu">
+        <ng-template matMenuContent let-inv="invoice">
+            <button mat-menu-item (click)="openPaymentDialog(inv)" *ngIf="inv.resteAPayer > 0">
+                <mat-icon color="primary">payments</mat-icon>
+                <span>Paiement</span>
+            </button>
+            <button mat-menu-item (click)="validateInvoice(inv)">
+                <mat-icon style="color: #10b981;">check_circle</mat-icon>
+                <span>Facturer (BC → Facture)</span>
+            </button>
+            <button mat-menu-item (click)="viewFiche(inv)">
+                <mat-icon>visibility</mat-icon>
+                <span>Afficher Fiche</span>
+            </button>
+            <mat-divider></mat-divider>
+            <button mat-menu-item (click)="createAvoir(inv)">
+                <mat-icon color="warn">assignment_return</mat-icon>
+                <span>Annuler (Créer Avoir)</span>
+            </button>
+        </ng-template>
+    </mat-menu>
+
+    <mat-menu #factureMenu="matMenu">
+        <ng-template matMenuContent let-inv="invoice">
+            <button mat-menu-item (click)="openPaymentDialog(inv)" *ngIf="inv.resteAPayer > 0">
+                <mat-icon>payments</mat-icon>
+                <span>Paiement</span>
+            </button>
+            <button mat-menu-item (click)="viewDocument(inv)">
+                <mat-icon color="primary">visibility</mat-icon>
+                <span>Voir Facture</span>
+            </button>
+            <button mat-menu-item (click)="createAvoir(inv)">
+                <mat-icon color="warn">assignment_return</mat-icon>
+                <span>Échanger / Avoir</span>
+            </button>
+        </ng-template>
+    </mat-menu>
+
+    <mat-menu #devisMenu="matMenu">
+        <ng-template matMenuContent let-inv="invoice">
+            <button mat-menu-item (click)="viewDocument(inv)">
+                <mat-icon color="primary">visibility</mat-icon>
+                <span>Voir le document</span>
+            </button>
+            <button mat-menu-item (click)="archiveInvoice(inv)">
+                <mat-icon color="warn">archive</mat-icon>
+                <span>Archiver</span>
+            </button>
+        </ng-template>
+    </mat-menu>
+
     <div class="header">
         <h1>
             Contrôle des Ventes
@@ -204,15 +257,15 @@
                                 <th>Numéro</th>
                                 <th>Client</th>
                                 <th>Date Emission</th>
-                                <th>Total TTC</th>
-                                <th>Payé</th>
-                                <th>Reste</th>
+                                <th class="text-right">Total TTC</th>
+                                <th class="text-right">Payé</th>
+                                <th class="text-right">Reste</th>
                                 <th class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <ng-container
-                                *ngFor="let group of getPaginatedGroups(groupedWithPayment, bcPageIndex, bcPageSize)">
+                                *ngFor="let group of paginatedBCGroups">
                                 <tr class="group-header">
                                     <td colspan="7">
                                         <div class="header-content">
@@ -243,41 +296,20 @@
                                     <td class="price-cell remain">{{ invoice.resteAPayer | number:'1.2-2' }}</td>
                                     <td class="actions-cell">
                                         <div class="action-buttons">
-                                            <button mat-icon-button color="primary" (click)="viewDocument(invoice)"
-                                                matTooltip="Voir">
+                                            <button mat-icon-button color="primary" (click)="viewDocument(invoice)">
                                                 <mat-icon>description</mat-icon>
                                             </button>
-                                            <button mat-icon-button [matMenuTriggerFor]="menu">
+                                            <button mat-icon-button [matMenuTriggerFor]="bcMenu" [matMenuTriggerData]="{invoice: invoice}">
                                                 <mat-icon>more_vert</mat-icon>
                                             </button>
                                         </div>
-                                        <mat-menu #menu="matMenu">
-                                            <button mat-menu-item (click)="openPaymentDialog(invoice)"
-                                                *ngIf="invoice.resteAPayer > 0">
-                                                <mat-icon color="primary">payments</mat-icon>
-                                                <span>Paiement</span>
-                                            </button>
-                                            <button mat-menu-item (click)="validateInvoice(invoice)">
-                                                <mat-icon style="color: #10b981;">check_circle</mat-icon>
-                                                <span>Facturer (BC → Facture)</span>
-                                            </button>
-                                            <button mat-menu-item (click)="viewFiche(invoice)">
-                                                <mat-icon>visibility</mat-icon>
-                                                <span>Afficher Fiche</span>
-                                            </button>
-                                            <mat-divider></mat-divider>
-                                            <button mat-menu-item (click)="createAvoir(invoice)">
-                                                <mat-icon color="warn">assignment_return</mat-icon>
-                                                <span>Annuler (Créer Avoir)</span>
-                                            </button>
-                                        </mat-menu>
                                     </td>
                                 </tr>
                                 <tr class="group-footer">
                                     <td colspan="3" class="text-right">Total {{ group.month }}:</td>
-                                    <td class="price-cell">{{ group.totalTTC | number:'1.2-2' }}</td>
-                                    <td class="price-cell">{{ group.totalPaid | number:'1.2-2' }}</td>
-                                    <td class="price-cell">{{ group.totalReste | number:'1.2-2' }}</td>
+                                    <td class="price-cell text-right">{{ group.totalTTC | number:'1.2-2' }}</td>
+                                    <td class="price-cell text-right">{{ group.totalPaid | number:'1.2-2' }}</td>
+                                    <td class="price-cell text-right">{{ group.totalReste | number:'1.2-2' }}</td>
                                     <td></td>
                                 </tr>
                             </ng-container>
@@ -309,55 +341,62 @@
                                 <th>Numéro</th>
                                 <th>Client</th>
                                 <th>Date Emission</th>
-                                <th>Total TTC</th>
-                                <th>Reste</th>
-                                <th>Statut</th>
+                                <th class="text-right">Total TTC</th>
+                                <th class="text-right">Payé</th>
+                                <th class="text-right">Reste</th>
+                                <th class="text-center">Statut</th>
                                 <th class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let invoice of invoicesValid | slice:(facturesPageIndex * facturesPageSize):((facturesPageIndex + 1) * facturesPageSize)"
-                                class="data-row">
-                                <td class="font-bold">{{ invoice.numero }}</td>
-                                <td>{{ getClientName(invoice) }}</td>
-                                <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
-                                <td class="price-cell">{{ invoice.totalTTC | number:'1.2-2' }}</td>
-                                <td class="price-cell">{{ invoice.resteAPayer | number:'1.2-2' }}</td>
-                                <td>
-                                    <span class="status-badge" [ngClass]="invoice.statut?.toLowerCase()">
-                                        {{ invoice.statut }}
-                                    </span>
-                                </td>
-                                <td class="actions-cell">
-                                    <div class="action-buttons">
-                                        <button mat-icon-button color="primary" (click)="viewDocument(invoice)">
-                                            <mat-icon>visibility</mat-icon>
-                                        </button>
-                                        <button mat-icon-button [matMenuTriggerFor]="mFact">
-                                            <mat-icon>more_vert</mat-icon>
-                                        </button>
-                                    </div>
-                                    <mat-menu #mFact="matMenu">
-                                        <button mat-menu-item (click)="openPaymentDialog(invoice)"
-                                            *ngIf="invoice.resteAPayer > 0">
-                                            <mat-icon>payments</mat-icon>
-                                            <span>Paiement</span>
-                                        </button>
-                                        <button mat-menu-item (click)="createAvoir(invoice)">
-                                            <mat-icon color="warn">assignment_return</mat-icon>
-                                            <span>Échanger / Avoir</span>
-                                        </button>
-                                    </mat-menu>
-                                </td>
-                            </tr>
+                            <ng-container
+                                *ngFor="let group of paginatedFacturesGroups">
+                                <tr class="group-header">
+                                    <td colspan="8">
+                                        <div class="header-content">
+                                            <mat-icon>calendar_month</mat-icon>
+                                            {{ group.month }}
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr *ngFor="let invoice of group.invoices" class="data-row">
+                                    <td class="font-bold">{{ invoice.numero }}</td>
+                                    <td>{{ getClientName(invoice) }}</td>
+                                    <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
+                                    <td class="price-cell">{{ invoice.totalTTC | number:'1.2-2' }}</td>
+                                    <td class="price-cell paid">{{ getMontantPaye(invoice) | number:'1.2-2' }}</td>
+                                    <td class="price-cell remain">{{ invoice.resteAPayer | number:'1.2-2' }}</td>
+                                    <td class="text-center">
+                                        <span class="status-badge" [ngClass]="invoice.statut?.toLowerCase()">
+                                            {{ invoice.statut }}
+                                        </span>
+                                    </td>
+                                    <td class="actions-cell">
+                                        <div class="action-buttons">
+                                            <button mat-icon-button color="primary" (click)="viewDocument(invoice)">
+                                                <mat-icon>visibility</mat-icon>
+                                            </button>
+                                            <button mat-icon-button [matMenuTriggerFor]="factureMenu" [matMenuTriggerData]="{invoice: invoice}">
+                                                <mat-icon>more_vert</mat-icon>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="group-footer">
+                                    <td colspan="3" class="text-right">Total {{ group.month }}:</td>
+                                    <td class="price-cell text-right">{{ group.totalTTC | number:'1.2-2' }}</td>
+                                    <td class="price-cell text-right">{{ group.totalPaid | number:'1.2-2' }}</td>
+                                    <td class="price-cell text-right">{{ group.totalReste | number:'1.2-2' }}</td>
+                                    <td colspan="2"></td>
+                                </tr>
+                            </ng-container>
                         </tbody>
                     </table>
                 </div>
                 <div class="border-t border-gray-100 mt-4">
                     <mat-paginator [length]="invoicesValid.length" [pageSize]="facturesPageSize"
                         [pageIndex]="facturesPageIndex" [pageSizeOptions]="pageSizeOptions"
-                        (page)="onPageChange($event, 'factures')" showFirstLastButtons
-                        aria-label="Sélectionner la page">
+                        (page)="onPageChange($event, 'factures')" showFirstLastButtons aria-label="Sélectionner la page">
                     </mat-paginator>
                 </div>
             </div>
@@ -379,28 +418,26 @@
                                 <th>Numéro</th>
                                 <th>Client</th>
                                 <th>Date</th>
-                                <th>Total TTC</th>
-                                <th>Actions</th>
+                                <th class="text-right">Total TTC</th>
+                                <th class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let invoice of invoicesWithoutPayment | slice:(devisPageIndex * devisPageSize):((devisPageIndex + 1) * devisPageSize)"
+                            <tr *ngFor="let invoice of paginatedDevisInvoices"
                                 class="data-row">
                                 <td>{{ invoice.numero }}</td>
                                 <td>{{ getClientName(invoice) }}</td>
                                 <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
                                 <td class="price-cell">{{ invoice.totalTTC | number:'1.2-2' }}</td>
                                 <td class="actions-cell">
-                                    <button mat-button color="primary" (click)="validateInvoice(invoice)">
-                                        Valider BC
-                                    </button>
-                                    <button mat-icon-button [matMenuTriggerFor]="mDevis">
-                                        <mat-icon>more_vert</mat-icon>
-                                    </button>
-                                    <mat-menu #mDevis="matMenu">
-                                        <button mat-menu-item (click)="viewDocument(invoice)">Voir</button>
-                                        <button mat-menu-item (click)="archiveInvoice(invoice)">Archiver</button>
-                                    </mat-menu>
+                                    <div class="action-buttons">
+                                        <button mat-button color="primary" (click)="validateInvoice(invoice)">
+                                            Valider BC
+                                        </button>
+                                        <button mat-icon-button [matMenuTriggerFor]="devisMenu" [matMenuTriggerData]="{invoice: invoice}">
+                                            <mat-icon>more_vert</mat-icon>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
@@ -431,19 +468,19 @@
                                 <th>Facture Origine</th>
                                 <th>Client</th>
                                 <th>Date</th>
-                                <th>Montant</th>
-                                <th>Actions</th>
+                                <th class="text-right">Montant</th>
+                                <th class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let invoice of invoicesAvoir | slice:(avoirsPageIndex * avoirsPageSize):((avoirsPageIndex + 1) * avoirsPageSize)"
+                            <tr *ngFor="let invoice of paginatedAvoirInvoices"
                                 class="data-row">
                                 <td class="font-bold text-danger">{{ invoice.numero }}</td>
                                 <td>{{ invoice.parentFacture?.numero || '-' }}</td>
                                 <td>{{ getClientName(invoice) }}</td>
                                 <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
                                 <td class="price-cell text-danger">-{{ invoice.totalTTC | number:'1.2-2' }}</td>
-                                <td>
+                                <td class="actions-cell">
                                     <button mat-icon-button (click)="viewDocument(invoice)">
                                         <mat-icon>visibility</mat-icon>
                                     </button>

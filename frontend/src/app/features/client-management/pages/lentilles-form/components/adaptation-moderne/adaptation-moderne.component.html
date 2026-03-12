@@ -115,31 +115,31 @@
             </mat-card-header>
             <mat-card-content>
                 <div class="clinical-compact">
-                    <mat-form-field appearance="outline" class="clinical-field">
-                        <mat-label>Fréquence clignement</mat-label>
-                        <mat-select formControlName="blinkFreq">
-                            <mat-option value="lent">Lent</mat-option>
-                            <mat-option value="normal">Normal</mat-option>
-                            <mat-option value="frequent">Fréquent</mat-option>
-                        </mat-select>
-                    </mat-form-field>
+                    <div class="clinical-field">
+                        <label>Fréquence clignement</label>
+                        <mat-button-toggle-group formControlName="blinkFreq" class="symmetric-toggle-mini">
+                            <mat-button-toggle value="lent">Lent</mat-button-toggle>
+                            <mat-button-toggle value="normal">Normal</mat-button-toggle>
+                            <mat-button-toggle value="frequent">Fréquent</mat-button-toggle>
+                        </mat-button-toggle-group>
+                    </div>
 
-                    <mat-form-field appearance="outline" class="clinical-field">
-                        <mat-label>Amplitude clignement</mat-label>
-                        <mat-select formControlName="blinkAmp">
-                            <mat-option value="complet">Complet</mat-option>
-                            <mat-option value="incomplet">Incomplet</mat-option>
-                        </mat-select>
-                    </mat-form-field>
+                    <div class="clinical-field">
+                        <label>Amplitude clignement</label>
+                        <mat-button-toggle-group formControlName="blinkAmp" class="symmetric-toggle-mini">
+                            <mat-button-toggle value="complet">Complet</mat-button-toggle>
+                            <mat-button-toggle value="incomplet">Incomplet</mat-button-toggle>
+                        </mat-button-toggle-group>
+                    </div>
 
-                    <mat-form-field appearance="outline" class="clinical-field">
-                        <mat-label>Tonus palpébral</mat-label>
-                        <mat-select formControlName="tonus">
-                            <mat-option value="faible">Faible</mat-option>
-                            <mat-option value="normal">Normal</mat-option>
-                            <mat-option value="fort">Fort</mat-option>
-                        </mat-select>
-                    </mat-form-field>
+                    <div class="clinical-field">
+                        <label>Tonus palpébral</label>
+                        <mat-button-toggle-group formControlName="tonus" class="symmetric-toggle-mini">
+                            <mat-button-toggle value="faible">Faible</mat-button-toggle>
+                            <mat-button-toggle value="normal">Normal</mat-button-toggle>
+                            <mat-button-toggle value="fort">Fort</mat-button-toggle>
+                        </mat-button-toggle-group>
+                    </div>
 
                     <button mat-raised-button color="accent" (click)="generateSuggestion()" class="generate-btn">
                         <mat-icon>auto_awesome</mat-icon>
