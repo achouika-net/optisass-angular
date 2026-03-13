@@ -127,6 +127,7 @@ export interface FicheMonture extends FicheClientBase {
     montage?: any;  // Fiche montage: écarts, hauteurs, type de montage
     suggestions?: SuggestionIA[];  // AI suggestions for lenses
     equipements?: any[];  // Additional equipment
+    suiviCommande?: any;  // Order tracking data
 }
 
 // ============ Fiche Lentilles ============

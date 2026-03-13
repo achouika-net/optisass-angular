@@ -1249,23 +1249,44 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         const group = this.ficheForm.get('suiviCommande');
         if (!group) return;
 
+        const prevStatut = group.get('statut')?.value;
+        if (prevStatut === statut) return;
+
         group.patchValue({ statut });
 
         const now = new Date();
+        const journal = group.get('journal')?.value || [];
+        let description = '';
 
-        // Auto-fill dates based on status transition
+        // Auto-fill dates and prepare journal description
         if (statut === 'COMMANDE') {
+            description = 'Commande envoyée au fournisseur';
             if (!group.get('dateCommande')?.value) {
                 group.patchValue({ dateCommande: now });
             }
         } else if (statut === 'RECU') {
+            description = 'Verres reçus à l\'atelier';
             if (!group.get('dateReception')?.value) {
                 group.patchValue({ dateReception: now });
             }
         } else if (statut === 'LIVRE_CLIENT') {
+            description = 'Équipement livré au client';
             if (!group.get('dateLivraison')?.value) {
                 group.patchValue({ dateLivraison: now });
             }
+        } else if (statut === 'A_COMMANDER') {
+            description = 'Retour au statut À Commander';
+        }
+
+        // Add to journal if description exists
+        if (description) {
+            const entry = {
+                date: now,
+                statut: statut,
+                description: description,
+                type: statut.toLowerCase()
+            };
+            group.patchValue({ journal: [...journal, entry] });
         }
 
         // Mark form as dirty to enable save
@@ -1283,22 +1304,36 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         const group = this.ficheForm.get('suiviCommande');
         if (!group) return;
 
+        const now = new Date();
         const count = (group.get('casseCount')?.value || 0) + 1;
         const history = group.get('casseHistorique')?.value || [];
+        const journal = group.get('journal')?.value || [];
 
         const entry = {
-            date: new Date(),
+            date: now,
             oeil,
             raison,
-            user: 'Opticien' // In a real app, this would be the current user
+            user: 'Opticien'
+        };
+
+        const journalEntry = {
+            date: now,
+            statut: 'CASSE',
+            description: `Casse déclarée (${oeil}) : ${raison}`,
+            type: 'casse'
         };
 
         group.patchValue({
-            statut: 'A_COMMANDER', // Reset to order state
+            statut: 'A_COMMANDER',
             hasCasse: true,
             casseCount: count,
             casseHistorique: [...history, entry],
-            commentaire: (group.get('commentaire')?.value || '') + `\n[CASSE ${count}] ${oeil}: ${raison} (${entry.date.toLocaleDateString()})`
+            journal: [...journal, journalEntry],
+            // Reset dates for NEW process visualization but keep in journal
+            dateCommande: null,
+            dateReception: null,
+            dateLivraison: null,
+            commentaire: (group.get('commentaire')?.value || '') + `\n[CASSE ${count}] ${oeil}: ${raison} (${now.toLocaleDateString()})`
         });
 
         this.ficheForm.markAsDirty();
@@ -1406,36 +1441,69 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     }
 
     getTimelineEvents(): any[] {
-        const group = this.ficheForm.get('suiviCommande');
+        const group = this.ficheForm?.get('suiviCommande');
         if (!group) return [];
 
-        const events = [];
-        const created = this.currentFiche ? this.currentFiche.createdAt : null;
+        const journal = group.get('journal')?.value || [];
+        const legacyCasses = group.get('casseHistorique')?.value || [];
+        const created = this.currentFiche ? ((this.currentFiche as any).dateCreation || (this.currentFiche as any).createdAt) : null;
+        
+        const events: any[] = [];
+        
+        // 1. Creation
         if (created) {
             events.push({ date: created, description: 'Création de la fiche', type: 'create' });
         }
 
-        if (group.get('dateCommande')?.value) {
+        // 2. Journal entries
+        if (Array.isArray(journal)) {
+            journal.forEach((j: any) => {
+                if (j.type !== 'create') events.push(j);
+            });
+        }
+
+        // 3. Fallback for legacy dates (if not already in journal)
+        const journalTypes = events.map(e => String(e.type).toLowerCase());
+        
+        if (!journalTypes.includes('order') && !journalTypes.includes('commande') && group.get('dateCommande')?.value) {
             events.push({ date: group.get('dateCommande').value, description: 'Commande envoyée au fournisseur', type: 'order' });
         }
-
-        if (group.get('dateReception')?.value) {
+        if (!journalTypes.includes('receive') && !journalTypes.includes('recu') && group.get('dateReception')?.value) {
             events.push({ date: group.get('dateReception').value, description: 'Verres reçus à l\'atelier', type: 'receive' });
         }
-
-        if (group.get('dateLivraison')?.value) {
+        if (!journalTypes.includes('deliver') && !journalTypes.includes('livre_client') && group.get('dateLivraison')?.value) {
             events.push({ date: group.get('dateLivraison').value, description: 'Équipement livré au client', type: 'deliver' });
         }
 
-        // Sort by date descending
-        return events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        // 4. Fallback for legacy casses (if not already in journal)
+        if (Array.isArray(legacyCasses) && !journalTypes.includes('casse')) {
+            legacyCasses.forEach((c: any) => {
+                events.push({
+                    date: c.date,
+                    description: `Casse déclarée (${c.oeil}) : ${c.raison}`,
+                    type: 'casse'
+                });
+            });
+        }
+
+        // Filter out duplicates based on same date and description
+        const seen = new Set();
+        const uniqueEvents = events.filter(e => {
+            const key = `${new Date(e.date).getTime()}-${e.description}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+
+        return uniqueEvents.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
 
     getTimelineDotClass(type: string): string {
         if (type === 'create') return 'bg-gray-400 ring-gray-100';
-        if (type === 'order') return 'bg-blue-400 ring-blue-50';
-        if (type === 'receive') return 'bg-green-400 ring-green-50';
-        if (type === 'deliver') return 'bg-purple-400 ring-purple-50';
+        if (type === 'order' || type === 'commande') return 'bg-blue-400 ring-blue-50';
+        if (type === 'receive' || type === 'recu') return 'bg-green-400 ring-green-50';
+        if (type === 'deliver' || type === 'livre_client') return 'bg-purple-400 ring-purple-50';
+        if (type === 'casse') return 'bg-red-500 ring-red-100';
         return 'bg-blue-500 ring-blue-50';
     }
 
@@ -1567,7 +1635,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 commentaire: [''],
                 hasCasse: [false],
                 casseCount: [0],
-                casseHistorique: [[]]
+                casseHistorique: [[]],
+                journal: [[]]
             })
         });
     }
@@ -2107,10 +2176,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         // DEBUG: Log form structure when switching to Suivi Commande tab
         if (index === 5) {
             console.log('🔍 [DEBUG] Switching to Suivi Commande tab');
-            console.log('ficheForm exists:', !!this.ficheForm);
-            console.log('suiviCommande group exists:', !!this.ficheForm.get('suiviCommande'));
-            console.log('suiviCommande value:', this.ficheForm.get('suiviCommande')?.value);
-            console.log('All form controls:', Object.keys(this.ficheForm.controls));
+            this.cdr.detectChanges(); // Force re-evaluation of getters like getTimelineEvents
         }
 
         // Load payments when switching to Payment tab
@@ -2795,6 +2861,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             montage: formValue.montage,
             suggestions: this.suggestions,  // ✅ Add AI suggestions
             equipements: formValue.equipements || [],  // ✅ Add additional equipment
+            suiviCommande: formValue.suiviCommande,    // ✅ Add order tracking
             montantTotal,
             montantPaye: 0
         };
@@ -3519,6 +3586,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             montage: formValue.montage,
             suggestions: this.suggestions || [],
             equipements: formValue.equipements || [],
+            suiviCommande: formValue.suiviCommande,
             montantTotal,
             montantPaye: this.currentFiche?.montantPaye || 0
         };
