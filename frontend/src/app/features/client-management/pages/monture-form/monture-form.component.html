@@ -1414,7 +1414,7 @@
         <!-- Structural fix: Closing Tab 4 properly -->
     </div>
 
-    <div class="tab-content" *ngIf="activeTab === 5">
+    <div class="tab-content" [hidden]="activeTab !== 5">
         <!-- Error message if form group is missing -->
         <div *ngIf="!ficheForm.get('suiviCommande')"
             class="p-8 text-center bg-white rounded-xl shadow-sm border border-red-100">

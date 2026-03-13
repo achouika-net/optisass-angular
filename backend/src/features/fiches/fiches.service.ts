@@ -80,6 +80,7 @@ export class FichesService {
         equipements: incomingContent.equipements,
         produits: incomingContent.produits,
         notes: incomingContent.notes,
+        suiviCommande: incomingContent.suiviCommande,
       };
 
       // 3. Create the fiche with explicit data mapping
@@ -243,6 +244,10 @@ export class FichesService {
         incomingContent.notes !== undefined
           ? incomingContent.notes
           : currentContent.notes,
+      suiviCommande:
+        incomingContent.suiviCommande !== undefined
+          ? incomingContent.suiviCommande
+          : currentContent.suiviCommande,
     };
 
     const updateData: any = {
@@ -381,6 +386,7 @@ export class FichesService {
       monture: content.monture || fiche.monture,
       verres: content.verres || fiche.verres,
       montage: content.montage || fiche.montage,
+      suiviCommande: content.suiviCommande || fiche.suiviCommande,
       content: undefined,
     };
   }
