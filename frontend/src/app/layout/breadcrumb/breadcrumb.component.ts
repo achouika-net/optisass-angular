@@ -15,17 +15,15 @@ import {
   selectCurrentUrl,
   selectRouteData,
 } from '../../core/store/router/router.selector';
-import { MatButton } from '@angular/material/button';
 import { MENU } from '../../config/menu.config';
 import { NavigationHistoryService } from '../../core/navigation-history/navigation-history.service';
 import { Router, RouterLink } from '@angular/router';
-import { MatDivider } from '@angular/material/divider';
 import { findMenuItemByUrl } from '@app/helpers';
 import { Title } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-breadcrumb',
-  imports: [MatIconModule, RouterLink, MatDivider, MatButton],
+  imports: [MatIconModule, RouterLink],
   templateUrl: './breadcrumb.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

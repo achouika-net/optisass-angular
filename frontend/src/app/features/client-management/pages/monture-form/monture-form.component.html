@@ -20,8 +20,8 @@
             </div>
         </div>
         <div class="header-actions">
-            <!-- View Mode: Dossier Client -->
-            <button type="button" class="btn-secondary" (click)="goBack()" *ngIf="!isEditMode">
+            <!-- View Mode: Dossier Client (Hidden per user request) -->
+            <button type="button" class="btn-secondary" (click)="goBack()" *ngIf="false">
                 <mat-icon>arrow_back</mat-icon> Dossier Client
             </button>
             <!-- New Mode: Annuler Creation -->
@@ -1626,24 +1626,24 @@
                                 <label class="font-bold text-gray-700 flex items-center gap-2 mb-1.5 text-sm">
                                     <mat-icon class="text-gray-400 text-sm w-4 h-4 mr-1">calendar_today</mat-icon> Date de Commande
                                 </label>
-                                <mat-form-field appearance="outline" class="datepicker-minimal">
-                                    <input matInput [matDatepicker]="pickerCmd" formControlName="dateCommande"
-                                        placeholder="JJ/MM/AAAA" class="text-sm">
-                                    <mat-datepicker-toggle matSuffix [for]="pickerCmd"></mat-datepicker-toggle>
-                                    <mat-datepicker #pickerCmd></mat-datepicker>
-                                </mat-form-field>
+                                <div class="relative">
+                                    <input type="date" formControlName="dateCommande"
+                                        title="Date de Commande" placeholder="JJ/MM/AAAA"
+                                        class="w-full min-w-0 box-border px-4 py-2.5 pr-10 rounded-xl border border-gray-200 bg-gray-50/50 hover:border-blue-400 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all text-sm text-gray-700 font-medium h-[44px]">
+                                    <mat-icon class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-lg">calendar_today</mat-icon>
+                                </div>
                             </div>
                             <!-- Date de Réception -->
                             <div class="flex flex-col">
                                 <label class="font-bold text-gray-700 flex items-center gap-2 mb-1.5 text-sm">
                                     <mat-icon class="text-gray-400 text-sm w-4 h-4 mr-1">calendar_today</mat-icon> Date de Réception
                                 </label>
-                                <mat-form-field appearance="outline" class="datepicker-minimal">
-                                    <input matInput [matDatepicker]="pickerRec" formControlName="dateReception"
-                                        placeholder="JJ/MM/AAAA" class="text-sm">
-                                    <mat-datepicker-toggle matSuffix [for]="pickerRec"></mat-datepicker-toggle>
-                                    <mat-datepicker #pickerRec></mat-datepicker>
-                                </mat-form-field>
+                                <div class="relative">
+                                    <input type="date" formControlName="dateReception"
+                                        title="Date de Réception" placeholder="JJ/MM/AAAA"
+                                        class="w-full min-w-0 box-border px-4 py-2.5 pr-10 rounded-xl border border-gray-200 bg-gray-50/50 hover:border-blue-400 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all text-sm text-gray-700 font-medium h-[44px]">
+                                    <mat-icon class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-lg">calendar_today</mat-icon>
+                                </div>
                             </div>
                         </div>
 
