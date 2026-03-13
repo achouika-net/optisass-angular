@@ -2101,6 +2101,14 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             suiviCommande: fiche.suiviCommande,
             lentilles: fiche.lentilles // [NEW] Patch root lentilles if exists
         }, { emitEvent: false });
+        
+        // [NEW] Format dates for native type="date" inputs (YYYY-MM-DD)
+        if (fiche.suiviCommande) {
+            this.ficheForm.get('suiviCommande')?.patchValue({
+                dateCommande: this.toISODate(fiche.suiviCommande.dateCommande),
+                dateReception: this.toISODate(fiche.suiviCommande.dateReception)
+            }, { emitEvent: false });
+        }
 
         // Explicitly patch verres to ensure UI updates for differentODOG
         if (fiche.verres) {
@@ -2176,6 +2184,16 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         // DEBUG: Log form structure when switching to Suivi Commande tab
         if (index === 5) {
             console.log('🔍 [DEBUG] Switching to Suivi Commande tab');
+            
+            // Re-format dates just in case value changed but wasn't synced with native format
+            const suiv = this.ficheForm.get('suiviCommande');
+            if (suiv) {
+                suiv.patchValue({
+                    dateCommande: this.toISODate(suiv.get('dateCommande')?.value),
+                    dateReception: this.toISODate(suiv.get('dateReception')?.value)
+                }, { emitEvent: false });
+            }
+            
             this.cdr.detectChanges(); // Force re-evaluation of getters like getTimelineEvents
         }
 
@@ -4047,6 +4065,17 @@ export class MontureFormComponent implements OnInit, OnDestroy {
      */
     generateMontageSheet(): void {
         this.printFicheMontage();
+    }
+
+    private toISODate(date: any): string | null {
+        if (!date) return null;
+        try {
+            const d = new Date(date);
+            if (isNaN(d.getTime())) return null;
+            return d.toISOString().split('T')[0];
+        } catch {
+            return null;
+        }
     }
 }
 
