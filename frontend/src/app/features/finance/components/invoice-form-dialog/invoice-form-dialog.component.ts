@@ -1017,6 +1017,11 @@ export class InvoiceFormDialogComponent implements OnInit {
                     });
                 }
 
+                // [AUTOMATION] If BL is linked to a Fiche, update its tracking status to RECU
+                if (this.isBLMode && res.ficheId) {
+                    this.updateFicheTrackingFromBL(res);
+                }
+
                 const stockTypes = [
                     'ACHAT_STOCK',
                     'ACHAT_VERRE_OPTIQUE',
@@ -1175,6 +1180,39 @@ export class InvoiceFormDialogComponent implements OnInit {
         };
         this.attachmentFiles.push(attachmentFile);
         this.cdr.markForCheck();
+    }
+
+    private updateFicheTrackingFromBL(res: any): void {
+        const ficheId = res.ficheId;
+        const blNumber = res.numeroBL || res.numeroFacture;
+        
+        this.ficheService.getFicheById(ficheId).subscribe(fiche => {
+            if (!fiche) return;
+
+            const suivi = (fiche as any).suiviCommande || {};
+            const journal = suivi.journal || [];
+            const now = new Date();
+
+            const journalEntry = {
+                date: now,
+                statut: 'RECU',
+                description: `Verres reçus à l'atelier (BL: ${blNumber})`,
+                type: 'recu'
+            };
+
+            const updatedSuivi = {
+                ...suivi,
+                statut: 'RECU',
+                trackingNumber: blNumber,
+                dateReception: now,
+                journal: [...journal, journalEntry]
+            };
+
+            this.ficheService.updateFiche(ficheId, { suiviCommande: updatedSuivi } as any).subscribe({
+                next: () => console.log(`[BL-TRACKING] Fiche ${ficheId} updated to RECU with BL ${blNumber}`),
+                error: (err) => console.error(`[BL-TRACKING] Error updating fiche ${ficheId}:`, err)
+            });
+        });
     }
 
     private dataURLtoFile(dataurl: string, filename: string): File {
