@@ -1591,11 +1591,11 @@
                             <mat-icon class="text-gray-400">receipt_long</mat-icon> Détails Commande
                         </h4>
                         <div class="flex gap-2">
-                            <button type="button" mat-stroked-button color="primary" class="btn-action-small" (click)="printBC()" matTooltip="Imprimer le bon de commande">
+                            <button type="button" class="btn-print-secondary no-print" (click)="printBC()" matTooltip="Imprimer le bon de commande">
                                 <mat-icon>print</mat-icon> <span class="hidden sm:inline">Imprimer</span>
                             </button>
-                            <button type="button" mat-flat-button color="primary" class="btn-action-small" (click)="emailOrder()" [disabled]="loading" matTooltip="Envoyer par email au fournisseur">
-                                <mat-icon>{{ loading ? 'hourglass_empty' : 'email' }}</mat-icon> <span class="hidden sm:inline">Email</span>
+                            <button type="button" class="btn-email-stylish no-print" (click)="emailOrder()" [disabled]="loading" matTooltip="Envoyer par email au fournisseur">
+                                <mat-icon>{{ loading ? 'hourglass_empty' : 'email' }}</mat-icon> <span class="hidden sm:inline">Envoyer Email</span>
                             </button>
                         </div>
                     </div>
