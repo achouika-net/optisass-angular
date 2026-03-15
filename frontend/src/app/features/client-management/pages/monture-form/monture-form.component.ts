@@ -36,6 +36,10 @@ import { Product, ProductStatus } from '../../../../shared/interfaces/product.in
 import { forkJoin, timer, Subject } from 'rxjs';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector, UserSelector } from '../../../../core/store/auth/auth.selectors';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { OrderActionDialogComponent } from '../../../../shared/components/order-action-dialog/order-action-dialog.component';
+import { SupplierService } from '../../../../shared/services/supplier.service';
+import { ISupplier } from '../../../../shared/models/index';
 
 
 
@@ -71,7 +75,8 @@ interface PrescriptionFile {
         MatButtonToggleModule,
         RouterModule,
         FactureFormComponent,
-        PaymentListComponent
+        PaymentListComponent,
+        MatAutocompleteModule
     ],
     providers: [
         ClientManagementService,
@@ -123,6 +128,12 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
     // Enums pour les dropdowns
     typesEquipement = Object.values(TypeEquipement);
+
+    // Supplier autocomplete
+    fournisseurCtrl = new FormControl('');
+    filteredSuppliers$: Observable<ISupplier[]> = of([]);
+    private allSuppliers: ISupplier[] = [];
+    private supplierService: SupplierService;
 
     // Master Lists (From Database)
     lensMaterials: string[] = getLensMaterials();
@@ -320,8 +331,10 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         private productService: ProductService,
         private snackBar: MatSnackBar,
         private store: Store,
-        private ngZone: NgZone
+        private ngZone: NgZone,
+        supplierService: SupplierService
     ) {
+        this.supplierService = supplierService;
         this.ficheForm = this.initForm();
     }
 
@@ -337,6 +350,41 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         this.ficheForm.valueChanges.subscribe(() => {
             if (this.activeTab === 4) {
                 setTimeout(() => this.updateFrameCanvasVisualization(), 100);
+            }
+        });
+
+        // Initialize supplier autocomplete
+        this.supplierService.getActiveSuppliers().subscribe(suppliers => {
+            this.allSuppliers = suppliers;
+            this.cdr.markForCheck();
+        });
+
+        this.filteredSuppliers$ = this.fournisseurCtrl.valueChanges.pipe(
+            startWith(''),
+            debounceTime(200),
+            distinctUntilChanged(),
+            map(value => {
+                const name = typeof value === 'string' ? value : '';
+                if (!name) return this.allSuppliers;
+                const filterValue = name.toLowerCase();
+                return this.allSuppliers.filter(s => 
+                    s.name?.toLowerCase().includes(filterValue) || 
+                    s.code?.toLowerCase().includes(filterValue)
+                );
+            })
+        );
+
+        // Sync fournisseurCtrl with form
+        this.fournisseurCtrl.valueChanges.pipe(
+            debounceTime(200),
+            distinctUntilChanged()
+        ).subscribe((val: any) => {
+            // Enforce single string value
+            const finalValue = typeof val === 'string' ? val : (val?.name || '');
+            this.ficheForm.get('suiviCommande.fournisseur')?.setValue(finalValue, { emitEvent: false });
+            // Force change detection for the Suivi tab if active
+            if (this.activeTab === 5) {
+                this.cdr.detectChanges();
             }
         });
         this.route.paramMap.subscribe(params => {
@@ -1108,9 +1156,17 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
                 // AUTO-SUBMIT: Removed per user request - allows finishing other parts of the form
                 console.log('✅ [STOCKS] Product selected, auto-save disabled to allow further editing.');
-                // setTimeout(() => this.onSubmit(), 300);
+        // setTimeout(() => this.onSubmit(), 300);
             }
         });
+    }
+
+    onSupplierSelected(event: any): void {
+        const value = event.option.value;
+        this.fournisseurCtrl.setValue(value, { emitEvent: false });
+        this.ficheForm.get('suiviCommande.fournisseur')?.setValue(value);
+        this.ficheForm.get('suiviCommande.fournisseur')?.markAsDirty();
+        this.cdr.detectChanges();
     }
 
     fillProductDetails(product: any, index: number, target: 'monture' | 'verres' | 'od' | 'og' = 'monture', isPendingTransfer: boolean = false): void {
@@ -1258,14 +1314,19 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         const journal = group.get('journal')?.value || [];
         let description = '';
 
+        // Capture current values from the form to ensure they are available for the journal
+        const fournisseurName = group.get('fournisseur')?.value || 'Non spécifié';
+        const referenceCommande = group.get('referenceCommande')?.value || 'N/A';
+        const trackingNum = group.get('trackingNumber')?.value || 'N/A';
+
         // Auto-fill dates and prepare journal description
         if (statut === 'COMMANDE') {
-            description = 'Commande envoyée au fournisseur';
+            description = `Commande envoyée au fournisseur (${fournisseurName}) - BC: ${referenceCommande} / Suivi: ${trackingNum}`;
             if (!group.get('dateCommande')?.value) {
                 group.patchValue({ dateCommande: now });
             }
         } else if (statut === 'RECU') {
-            description = 'Verres reçus à l\'atelier';
+            description = `Verres reçus à l'atelier (BL: ${trackingNum})`;
             if (!group.get('dateReception')?.value) {
                 group.patchValue({ dateReception: now });
             }
@@ -1291,7 +1352,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
         // Mark form as dirty to enable save
         this.ficheForm.markAsDirty();
-        this.cdr.markForCheck();
+        // Force double detection for history timeline
+        this.cdr.detectChanges();
+        setTimeout(() => this.cdr.detectChanges(), 50);
     }
 
     reportCasse(): void {
@@ -1418,25 +1481,228 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         }
     }
 
-    advanceOrderStatus(): void {
+    async advanceOrderStatus(): Promise<void> {
         const status = this.suiviStatut;
-        if (status === 'A_COMMANDER') this.setOrderStatus('COMMANDE');
+        if (status === 'A_COMMANDER') {
+            // Generate BC number first if needed to avoid "N/A" in journal
+            try { await this.generateBCNumberIfNeeded(); } catch (e) { /* continue */ }
+            this.setOrderStatus('COMMANDE');
+            this.showOrderActions();
+        }
         else if (status === 'COMMANDE') this.setOrderStatus('RECU');
         else if (status === 'RECU') this.setOrderStatus('LIVRE_CLIENT');
 
         // Trigger safe save if we are just advancing status outside of full edit
         if (!this.isEditMode) {
-            this.saveSuiviCommande();
+            this.saveSuiviCommande().subscribe(() => {
+                // Ensure UI is refreshed after save
+                this.cdr.detectChanges();
+                setTimeout(() => this.cdr.detectChanges(), 100);
+            }); 
+        } else {
+            // Even in edit mode, refresh UI for the timeline animation
+            this.cdr.detectChanges();
         }
     }
 
-    private saveSuiviCommande(): void {
-        if (!this.ficheId || this.ficheId === 'new') return;
+    private saveSuiviCommande(): Observable<any> {
+        if (!this.ficheId || this.ficheId === 'new') {
+            return of(null); // Return an observable that immediately completes
+        }
         
         const suiviData = this.ficheForm.get('suiviCommande')?.value;
-        this.ficheService.updateFiche(this.ficheId, { suiviCommande: suiviData } as any).subscribe({
-            next: () => this.snackBar.open('Suivi mis à jour', 'OK', { duration: 2000 }),
-            error: (err) => console.error('Error auto-saving suivi:', err)
+        return this.ficheService.updateFiche(this.ficheId, { suiviCommande: suiviData } as any).pipe(
+            tap({
+                next: () => {
+                    this.snackBar.open('Suivi mis à jour', 'OK', { duration: 2000 });
+                    // Force UI refresh for history journal
+                    this.cdr.detectChanges();
+                },
+                error: (err) => console.error('Error auto-saving suivi:', err)
+            })
+        );
+    }
+
+    async printBC(): Promise<void> {
+        // Generate BC number first if needed (silent fail)
+        try { await this.generateBCNumberIfNeeded(); } catch (e) { /* continue */ }
+
+        const suivi   = this.ficheForm.get('suiviCommande')?.value || {};
+        const ord     = this.ficheForm.get('ordonnance')?.value || {};
+        const verres  = this.ficheForm.get('verres')?.value || {};
+        const montage = this.ficheForm.get('montage')?.value || {};
+
+        const bcNum   = suivi.referenceCommande || 'N/A';
+        const today   = new Date().toLocaleDateString('fr-FR');
+        const client  = this.clientDisplayName || 'Client';
+        const fournisseur = suivi.fournisseur || '-';
+
+        // Ordonnance rows
+        const od = ord.od || {};
+        const og = ord.og || {};
+
+        // Verres
+        const isDiff = verres.differentODOG;
+        const matiereRow = isDiff
+            ? `OD: ${verres.marqueOD || ''} ${verres.matiereOD || ''} ${verres.indiceOD || ''}<br>OG: ${verres.marqueOG || ''} ${verres.matiereOG || ''} ${verres.indiceOG || ''}`
+            : `${verres.marque || ''} ${verres.matiere || ''} ${verres.indice || ''}`;
+        const traitements = isDiff
+            ? ((verres.traitementOD || []).join(', ') || '-')
+            : ((verres.traitement || []).join(', ') || '-');
+        const diametre = montage.diametreEffectif || '-';
+
+        const logoUrl = `${window.location.origin}/assets/images/logo.png`;
+
+        const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>BC - ${bcNum}</title>
+  <style>
+    @page { size: A5; margin: 10mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #111; background: white; font-size: 9pt; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e293b; padding-bottom: 8px; margin-bottom: 12px; }
+    .logo-img { height: 38px; width: auto; object-fit: contain; }
+    .doc-info { text-align: right; }
+    .doc-info .title { font-size: 11pt; font-weight: 900; color: #1e293b; letter-spacing: 0.5px; }
+    .doc-info .bc { font-size: 9pt; font-weight: 700; color: #1e293b; }
+    .doc-info .date { font-size: 8pt; color: #64748b; }
+    .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .party-box { border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px 8px; }
+    .party-box h3 { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 4px; }
+    .party-box p { font-size: 9pt; font-weight: 700; color: #1e293b; }
+    .section-title { background: #1e293b; color: white; padding: 4px 8px; font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 10px 0 6px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+    th { background: #f8fafc; padding: 5px 8px; text-align: left; font-size: 7pt; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #e2e8f0; }
+    td { padding: 5px 8px; border-bottom: 1px solid #f1f5f9; }
+    tr:last-child td { border-bottom: none; }
+    .specs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
+    .spec-box { border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px 8px; }
+    .spec-box label { font-size: 7pt; text-transform: uppercase; color: #64748b; font-weight: 700; display: block; margin-bottom: 2px; }
+    .spec-box p { font-size: 9pt; font-weight: 700; color: #1e293b; }
+    .signatures { display: flex; justify-content: space-between; margin-top: 20px; padding-top: 10px; }
+    .sig-box { width: 45%; text-align: center; }
+    .sig-box .line { border-top: 1px solid #1e293b; padding-top: 4px; margin-top: 25px; font-size: 7pt; color: #64748b; }
+    @media print { @page { size: A5; margin: 10mm; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="${logoUrl}" class="logo-img" alt="Logo" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+    <span style="display:none;font-size:14pt;font-weight:900;color:#1e293b">OPTISASS</span>
+    <div class="doc-info">
+      <div class="title">BON DE COMMANDE</div>
+      <div class="bc">${bcNum}</div>
+      <div class="date">Date : ${today}</div>
+    </div>
+  </div>
+
+  <div class="parties">
+    <div class="party-box">
+      <h3>Client</h3>
+      <p>${client}</p>
+    </div>
+    <div class="party-box">
+      <h3>Fournisseur Verres</h3>
+      <p>${fournisseur}</p>
+    </div>
+  </div>
+
+  <div class="section-title">Prescription Ordonnance</div>
+  <table>
+    <thead><tr><th>Oeil</th><th>Sphère</th><th>Cylindre</th><th>Axe</th><th>Addition</th></tr></thead>
+    <tbody>
+      <tr><td><strong>OD</strong></td><td>${od.sphere || '-'}</td><td>${od.cylindre || '-'}</td><td>${od.axe || '-'}</td><td>${od.addition || '-'}</td></tr>
+      <tr><td><strong>OG</strong></td><td>${og.sphere || '-'}</td><td>${og.cylindre || '-'}</td><td>${og.axe || '-'}</td><td>${og.addition || '-'}</td></tr>
+    </tbody>
+  </table>
+
+  <div class="section-title">Caractéristiques des Verres</div>
+  <div class="specs-grid">
+    <div class="spec-box"><label>Verre(s)</label><p>${matiereRow}</p></div>
+    <div class="spec-box"><label>Traitements</label><p>${traitements}</p></div>
+    <div class="spec-box"><label>Diamètre Utile</label><p>${diametre}</p></div>
+  </div>
+
+  <div class="signatures">
+    <div class="sig-box"><div class="line">Opticien / Technicien</div></div>
+    <div class="sig-box"><div class="line">Cachet Établissement</div></div>
+  </div>
+
+  <script>window.onload = function(){ window.print(); }<\/script>
+</body>
+</html>`;
+
+        const win = window.open('', '_blank', 'width=600,height=800');
+        if (win) {
+            win.document.write(html);
+            win.document.close();
+        } else {
+            this.snackBar.open('Activez les popups pour imprimer', 'OK', { duration: 5000, verticalPosition: 'top' });
+        }
+    }
+
+    async generateBCNumberIfNeeded(): Promise<void> {
+        const bcData = this.ficheForm.get('suiviCommande')?.value;
+        if (!bcData?.referenceCommande) {
+            const dateStr = new Date().toLocaleDateString('fr-FR', { month: '2-digit', year: '2-digit' }).replace('/', '');
+            const randomId = Math.floor(1000 + Math.random() * 9000); // 4 digit random
+            const generatedBC = `BC-${dateStr}-${randomId}`;
+            this.ficheForm.get('suiviCommande.referenceCommande')?.setValue(generatedBC);
+            this.ficheForm.get('suiviCommande.referenceCommande')?.markAsDirty();
+            // Important: Wait for save
+            await firstValueFrom(this.saveSuiviCommande()); 
+            this.cdr.detectChanges();
+        }
+    }
+
+    emailOrder(): void {
+        const suivi = this.ficheForm.get('suiviCommande')?.value || {};
+        const fournisseur = suivi.fournisseur || '';
+
+        if (!fournisseur) {
+            this.snackBar.open('Veuillez d\'abord s\'lectionner un fournisseur', 'Fermer', {
+                duration: 4000, verticalPosition: 'top'
+            });
+            return;
+        }
+
+        const bcNum   = suivi.referenceCommande || 'N/A';
+        const client  = this.clientDisplayName || 'Client';
+        const ord     = this.ficheForm.get('ordonnance')?.value || {};
+        const od      = ord.od || {};
+        const og      = ord.og || {};
+        const verres  = this.ficheForm.get('verres')?.value || {};
+        const isDiff  = verres.differentODOG;
+        const matiere = isDiff
+            ? `OD: ${verres.marqueOD || ''} ${verres.matiereOD || ''} ${verres.indiceOD || ''} / OG: ${verres.marqueOG || ''} ${verres.matiereOG || ''} ${verres.indiceOG || ''}`
+            : `${verres.marque || ''} ${verres.matiere || ''} ${verres.indice || ''}`;
+
+        const subject = encodeURIComponent(`Bon de Commande Verres ${bcNum} - ${client}`);
+        const body = encodeURIComponent([
+            `Bonjour,`,
+            ``,
+            `Veuillez trouver ci-dessous notre bon de commande verres.`,
+            ``,
+            `N° BC      : ${bcNum}`,
+            `Client    : ${client}`,
+            `Fournisseur: ${fournisseur}`,
+            ``,
+            `ORDONNANCE`,
+            `OD : Sph ${od.sphere || '-'}  Cyl ${od.cylindre || '-'}  Axe ${od.axe || '-'}  Add ${od.addition || '-'}`,
+            `OG : Sph ${og.sphere || '-'}  Cyl ${og.cylindre || '-'}  Axe ${og.axe || '-'}  Add ${og.addition || '-'}`,
+            ``,
+            `VERRES : ${matiere}`,
+            ``,
+            `Cordialement,`,
+            `OPTISASS`,
+        ].join('\n'));
+
+        window.location.href = `mailto:?subject=${subject}&body=${body}`;
+
+        this.snackBar.open('📧 Votre client email est ouvert avec les détails de la commande.', 'OK', {
+            duration: 5000, verticalPosition: 'top'
         });
     }
 
@@ -2093,21 +2359,17 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         // Patch Form Values
         console.log('📦 [PATCH] Patching Montage Data:', fiche.montage);
         this.ficheForm.patchValue({
-            ordonnance: fiche.ordonnance,
-            monture: fiche.monture,
-            montage: fiche.montage,
-            suggestions: fiche.suggestions,
+            ordonnance: fiche.ordonnance || {},
+            monture: fiche.monture || {},
+            montage: fiche.montage || {},
+            suggestions: fiche.suggestions || [],
             dateLivraisonEstimee: fiche.dateLivraisonEstimee,
-            suiviCommande: fiche.suiviCommande,
-            lentilles: fiche.lentilles // [NEW] Patch root lentilles if exists
+            suiviCommande: fiche.suiviCommande || {},
+            lentilles: fiche.lentilles || {}
         }, { emitEvent: false });
-        
-        // [NEW] Format dates for native type="date" inputs (YYYY-MM-DD)
-        if (fiche.suiviCommande) {
-            this.ficheForm.get('suiviCommande')?.patchValue({
-                dateCommande: this.toISODate(fiche.suiviCommande.dateCommande),
-                dateReception: this.toISODate(fiche.suiviCommande.dateReception)
-            }, { emitEvent: false });
+
+        if (fiche.suiviCommande && fiche.suiviCommande.fournisseur) {
+            this.fournisseurCtrl.setValue(fiche.suiviCommande.fournisseur, { emitEvent: false });
         }
 
         // Explicitly patch verres to ensure UI updates for differentODOG
@@ -2184,16 +2446,6 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         // DEBUG: Log form structure when switching to Suivi Commande tab
         if (index === 5) {
             console.log('🔍 [DEBUG] Switching to Suivi Commande tab');
-            
-            // Re-format dates just in case value changed but wasn't synced with native format
-            const suiv = this.ficheForm.get('suiviCommande');
-            if (suiv) {
-                suiv.patchValue({
-                    dateCommande: this.toISODate(suiv.get('dateCommande')?.value),
-                    dateReception: this.toISODate(suiv.get('dateReception')?.value)
-                }, { emitEvent: false });
-            }
-            
             this.cdr.detectChanges(); // Force re-evaluation of getters like getTimelineEvents
         }
 
@@ -4067,15 +4319,28 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         this.printFicheMontage();
     }
 
-    private toISODate(date: any): string | null {
-        if (!date) return null;
-        try {
-            const d = new Date(date);
-            if (isNaN(d.getTime())) return null;
-            return d.toISOString().split('T')[0];
-        } catch {
-            return null;
-        }
+    /**
+     * Re-integrated Order Actions
+     */
+    public showOrderActions(): void {
+        const bcData = this.ficheForm.get('suiviCommande')?.value;
+        const dialogRef = this.dialog.open(OrderActionDialogComponent, {
+            width: 'auto',
+            minWidth: '400px',
+            maxWidth: '90vw',
+            data: {
+                bcNumber: bcData?.referenceCommande || 'N/A',
+                ficheId: this.ficheId,
+                clientName: this.client ? (isClientProfessionnel(this.client) ? this.client.raisonSociale : `${this.client.nom} ${this.client.prenom || ''}`) : 'Client',
+                supplierName: bcData?.fournisseur || 'Fournisseur'
+            }
+        });
+
+        dialogRef.afterClosed().subscribe(action => {
+            if (action === 'print') this.printBC();
+            if (action === 'email') this.emailOrder();
+        });
     }
+    // Duplicates removed
 }
 

@@ -122,8 +122,8 @@
                                                 Aucune fiche trouvée pour ce client
                                             </mat-option>
                                             <mat-option *ngFor="let f of availableFiches" [value]="f.id">
-                                                {{ f.type }} - {{ f.dateCreation | date:'dd/MM/yyyy' }}
-                                                ({{ f.statut }}) - {{ f.montantTotal | number:'1.0-0' }} DH
+                                                N° {{ f.numero }} - {{ f.type }} - {{ f.dateCreation | date:'dd/MM/yyyy' }}
+                                                ({{ f.statut }})
                                             </mat-option>
                                         </mat-select>
                                         <mat-hint *ngIf="availableFiches.length > 0">Sélectionnez le dossier

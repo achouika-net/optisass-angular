@@ -2,7 +2,7 @@
 
 // Main form styles
 .fiche-container {
-    max-width: 1600px;
+    max-width: 100%;
     margin: 0 auto;
     padding: 24px;
     background-color: #f8fafc;
@@ -186,65 +186,62 @@
         margin-left: auto;
         display: flex;
         align-items: center;
+        gap: 10px;
         padding-left: 16px;
         border-left: 1px solid #e2e8f0;
 
-        .vendeur-badge {
+        .fiche-num-badge, .vendeur-badge {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
+            background: white;
             padding: 4px 12px;
-            border-radius: 50px;
-            background: #f8fafc;
             border: 1px solid #e2e8f0;
-            transition: all 0.2s;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            white-space: nowrap;
 
-            &:hover {
-                background: #f1f5f9;
-                border-color: #cbd5e1;
-            }
-
-            .avatar {
-                width: 32px;
-                height: 32px;
-                border-radius: 50%;
-                background: #4f46e5;
-                color: white;
+            mat-icon {
+                font-size: 18px;
+                width: 18px;
+                height: 18px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                box-shadow: 0 4px 10px rgba(79, 70, 229, 0.4);
-                border: 2px solid white;
-
-                mat-icon {
-                    font-size: 18px;
-                    width: 18px;
-                    height: 18px;
-                }
             }
 
-
-            .info {
+            .badge-content {
                 display: flex;
                 flex-direction: column;
+                justify-content: center;
 
-                .label {
-                    font-size: 9px;
+                .badge-label {
+                    font-size: 8px;
                     font-weight: 700;
                     text-transform: uppercase;
                     letter-spacing: 0.5px;
-                    color: #64748b;
+                    color: #94a3b8;
                     line-height: 1;
-                    margin-bottom: 2px;
+                    margin-bottom: 1px;
                 }
 
-                .name {
-                    font-size: 13px;
+                .badge-value {
+                    font-size: 12px;
                     font-weight: 600;
                     color: #1e293b;
-                    line-height: 1;
+                    line-height: 1.1;
                 }
             }
+        }
+
+        .fiche-num-badge {
+            border-left: 3px solid #3b82f6;
+            mat-icon { color: #3b82f6; }
+        }
+
+        .vendeur-badge {
+            border-left: 3px solid #7c3aed;
+            mat-icon { color: #7c3aed; }
         }
     }
 }
@@ -600,44 +597,6 @@
     }
 }
 
-.header-select {
-    padding: 8px 32px 8px 16px; // Extra padding for arrow
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    cursor: pointer;
-    appearance: none; // Hide default arrow
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 8px center;
-    background-size: 20px;
-
-    &.main {
-        background-color: #2563eb;
-        color: white;
-
-        option {
-            color: #1e293b;
-            background: white;
-        }
-    }
-
-    &.added {
-        background-color: #4f46e5;
-        color: white;
-
-        option {
-            color: #1e293b;
-            background: white;
-        }
-    }
-
-    &:focus {
-        outline: 2px solid rgba(255, 255, 255, 0.5);
-    }
-}
-
 // Suggestions Panel
 .suggestions-panel {
     background: #fefce8;
@@ -807,6 +766,48 @@
     &:hover:not(:disabled) {
         background: #4338ca;
     }
+}
+
+// Action Buttons and Timeline Dots
+.btn-action-small {
+    padding: 0 12px !important;
+    height: 32px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+
+    mat-icon {
+        font-size: 18px !important;
+        width: 18px !important;
+        height: 18px !important;
+        margin-right: 4px;
+    }
+}
+
+// Timeline Dots
+.dot-creation {
+    background-color: #3b82f6 !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+}
+
+.dot-status {
+    background-color: #10b981 !important;
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+}
+
+.dot-email {
+    background-color: #8b5cf6 !important;
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15);
+}
+
+.dot-casse {
+    background-color: #ef4444 !important;
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
+}
+
+.dot-default {
+    background-color: #94a3b8 !important;
+    box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.15);
 }
 
 .btn-secondary {
@@ -2150,21 +2151,6 @@ input[type="date"] {
 }
 
 // Suivi Commande Badges
-.badge-red {
-    background-color: #fee2e2;
-    color: #b91c1c;
-    padding: 2px 8px;
-    border-radius: 9999px;
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.section-card {
-    &.border-l-4 {
-        border-left-width: 4px;
-    }
-}
-
 // SYMMETRIC TOGGLES - All buttons same width
 ::ng-deep .symmetric-toggle-mini {
     display: flex;
@@ -2214,30 +2200,151 @@ input[type="date"] {
     }
 }
 
-.flex-row {
+/* Sophisticated Premium Date Input */
+.premium-date-input {
     display: flex;
-}
-
-.items-center {
     align-items: center;
+    background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 0 16px;
+    height: 48px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+
+    &:hover {
+        border-color: #3b82f6;
+        background: #ffffff;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08);
+        transform: translateY(-1px);
+    }
+
+    .picker-icon {
+        color: #3b82f6;
+        margin-right: 12px;
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+    }
+
+    input {
+        background: transparent !important;
+        border: none !important;
+        outline: none !important;
+        width: 100%;
+        color: #1f2937;
+        font-weight: 500;
+        font-size: 14px;
+        cursor: pointer;
+        
+        &::placeholder {
+            color: #9ca3af;
+        }
+    }
+
+    /* Hide the default Material toggle but keep it functional */
+    ::ng-deep .mat-datepicker-toggle {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+        opacity: 0.5;
+        transition: opacity 0.2s;
+
+        &:hover {
+            opacity: 1;
+        }
+        
+        button {
+            width: 32px !important;
+            height: 32px !important;
+        }
+    }
 }
 
-.gap-2 {
-    gap: 8px;
+
+// Button Label visibility fix
+.btn-primary, .btn-secondary {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    
+    span, mat-icon {
+        display: inline-block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
 }
 
-.gap-4 {
-    gap: 16px;
+// Print styles
+@media print {
+    .fiche-container, 
+    .header, 
+    .tabs-nav, 
+    .tab-content, 
+    .header-actions,
+    mat-toolbar,
+    .btn-action-container {
+        display: none !important;
+    }
+
+    .print-bon-verre, .print-fiche-montage {
+        display: block !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background: white;
+    }
 }
 
-.text-xs {
-    font-size: 12px;
+// Fixed Premium Date Input Overlay Position
+::ng-deep .cdk-overlay-pane {
+    &.mat-datepicker-popup {
+        margin-top: 5px !important;
+        // Ensure it doesn't drift too far left on small screens
+        transform: translateZ(0); 
+    }
 }
 
-.text-gray-400 {
-    color: #94a3b8;
+// Fix History Timeline Dots & Line (Right Shift)
+// Shift the entire journal container
+::ng-deep .custom-scrollbar.grow.ml-4.pl-4 {
+    margin-left: 3.5rem !important;
+    padding-left: 1rem !important;
+    border-left: none !important; // remove intermediate border if any
 }
 
-.font-bold {
-    font-weight: 700;
+// Ensure dots are strictly aligned
+.timeline-event-dot {
+    margin-left: 5px;
 }
+
+// Fix Supplier Autocomplete Visual Anomaly (Checkmarks)
+::ng-deep .mat-mdc-autocomplete-panel {
+    border-radius: 12px !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+    margin-top: 4px;
+
+    .mat-mdc-option {
+        // Hide checkmarks if they appear (some Angular Material themes do this)
+        .mat-pseudo-checkbox {
+            display: none !important;
+        }
+        
+        &.mdc-list-item--selected:not(.mdc-list-item--disabled) {
+            background-color: #f3f4f6 !important;
+            .mdc-list-item__primary-text {
+                color: #2563eb !important;
+                font-weight: 600 !important;
+            }
+        }
+    }
+}
+
+
+// Custom styles for the searchable mat-select to match raw inputs

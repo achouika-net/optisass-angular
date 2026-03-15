@@ -92,6 +92,13 @@ export class FicheService {
     }
 
     /**
+     * Envoyer le bon de commande par email au fournisseur
+     */
+    sendOrderEmail(id: string): Observable<any> {
+        return this.http.post<any>(`${this.apiUrl}/${id}/email-order`, {});
+    }
+
+    /**
      * Obtenir les statistiques des fiches d'un client
      */
     getClientFichesStats(clientId: string): Observable<{
@@ -117,10 +124,17 @@ export class FicheService {
         );
     }
 
+    // --- Actions ---
+    emailOrder(id: string): Observable<any> {
+        return this.http.post(`${this.apiUrl}/${id}/email-order`, {});
+    }
+
     // --- Mappers ---
 
     private mapFrontendToBackendCreate(fiche: any): any {
         const { id, clientId, statut, type, montantTotal, montantPaye, dateCreation, dateLivraisonEstimee, ...content } = fiche;
+
+        console.log('📦 [FicheService] mapFrontendToBackendCreate - content keys:', Object.keys(content));
 
         return {
             clientId,
@@ -129,7 +143,18 @@ export class FicheService {
             montantTotal,
             montantPaye: montantPaye || 0,
             dateLivraisonEstimee,
-            content: content // Store the rest as JSON content
+            content: {
+                ...content,
+                // Ensure specific sections are preserved even if deeply nested in some models
+                ordonnance: fiche.ordonnance || fiche.prescription || content.ordonnance,
+                lentilles: fiche.lentilles || content.lentilles,
+                adaptation: fiche.adaptation || content.adaptation,
+                suiviCommande: fiche.suiviCommande || content.suiviCommande,
+                monture: fiche.monture || content.monture,
+                verres: fiche.verres || content.verres,
+                montage: fiche.montage || content.montage,
+                produits: fiche.produits || content.produits
+            }
         };
     }
 
@@ -143,13 +168,31 @@ export class FicheService {
         if (montantPaye !== undefined) payload.montantPaye = montantPaye;
         if (dateLivraisonEstimee !== undefined) payload.dateLivraisonEstimee = dateLivraisonEstimee;
 
-        // If there are content fields, we ideally need to merge them with existing content or replace.
-        // For simplicity with PUT, we might be replacing or needing to fetch first.
-        // Backend PUT usually replaces. If we want partial update of content, we need a smarter backend or fetch-merge-save.
-        // Assuming updates contains the specific fields we want to save into content.
-        if (Object.keys(content).length > 0) {
-            payload.content = content;
+        // Ensure we are sending the structured content
+        const structuredContent = {
+            ...content,
+            ordonnance: (updates as any).ordonnance || (updates as any).prescription || content.ordonnance,
+            lentilles: (updates as any).lentilles || content.lentilles,
+            adaptation: (updates as any).adaptation || content.adaptation,
+            suiviCommande: (updates as any).suiviCommande || content.suiviCommande,
+            monture: (updates as any).monture || content.monture,
+            verres: (updates as any).verres || content.verres,
+            montage: (updates as any).montage || content.montage,
+            produits: (updates as any).produits || content.produits
+        };
+
+        // Remove undefined keys to avoid overriding with nulls if not provided in partial update
+        Object.keys(structuredContent).forEach(key => {
+            if (structuredContent[key] === undefined) {
+                delete structuredContent[key];
+            }
+        });
+
+        if (Object.keys(structuredContent).length > 0) {
+            payload.content = structuredContent;
         }
+
+        console.log('📤 [FicheService] Final Update Payload:', JSON.stringify(payload, null, 2));
 
         return payload;
     }
