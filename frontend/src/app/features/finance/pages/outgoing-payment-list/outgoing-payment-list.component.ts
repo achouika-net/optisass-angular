@@ -31,6 +31,7 @@ import { FinanceService } from '../../services/finance.service';
 import { Supplier } from '../../models/finance.models';
 import { InvoiceFormDialogComponent } from '../../components/invoice-form-dialog/invoice-form-dialog.component';
 import { ExpenseFormDialogComponent } from '../../components/expense-form-dialog/expense-form-dialog.component';
+import { BcHistoryListComponent } from '../../components/bc-history-list/bc-history-list.component';
 
 @Component({
     selector: 'app-outgoing-payment-list',
@@ -58,7 +59,8 @@ import { ExpenseFormDialogComponent } from '../../components/expense-form-dialog
         MatTabsModule,
         MatPaginatorModule,
         RouterModule,
-        SupplierInvoiceListComponent
+        SupplierInvoiceListComponent,
+        BcHistoryListComponent
     ],
     templateUrl: './outgoing-payment-list.component.html',
     styles: [`
@@ -89,7 +91,7 @@ import { ExpenseFormDialogComponent } from '../../components/expense-form-dialog
 })
 export class OutgoingPaymentListComponent implements OnInit {
     payments: any[] = [];
-    activeTab: 'OUTGOING' | 'INCOMING' | 'UNPAID_CLIENTS' | 'FACTURES' | 'BL' = 'OUTGOING';
+    activeTab: 'OUTGOING' | 'INCOMING' | 'UNPAID_CLIENTS' | 'FACTURES' | 'BL' | 'BC_HISTORY' = 'OUTGOING';
 
     get displayedColumns(): string[] {
         if (this.activeTab === 'UNPAID_CLIENTS') {
@@ -175,8 +177,6 @@ export class OutgoingPaymentListComponent implements OnInit {
             if (tab === 'OUTGOING') this.activeTab = 'OUTGOING';
             else if (tab === 'INCOMING') this.activeTab = 'INCOMING';
             else if (tab === 'UNPAID_CLIENTS') this.activeTab = 'UNPAID_CLIENTS';
-            else if (tab === 'FACTURES') this.activeTab = 'FACTURES';
-            else if (tab === 'BL') this.activeTab = 'BL';
 
             if (['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(this.activeTab)) {
                 this.pageIndex = 0;
@@ -302,6 +302,9 @@ export class OutgoingPaymentListComponent implements OnInit {
         if (index === 0) this.activeTab = 'OUTGOING';
         else if (index === 1) this.activeTab = 'INCOMING';
         else if (index === 2) this.activeTab = 'UNPAID_CLIENTS';
+        else if (index === 3) this.activeTab = 'FACTURES';
+        else if (index === 4) this.activeTab = 'BL';
+        else if (index === 5) this.activeTab = 'BC_HISTORY';
 
         if (['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(this.activeTab)) {
             this.pageIndex = 0;

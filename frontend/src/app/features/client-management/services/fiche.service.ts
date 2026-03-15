@@ -25,6 +25,42 @@ export class FicheService {
     constructor(private http: HttpClient) { }
 
     /**
+     * Récupérer toutes les fiches (pour l'historique global)
+     */
+    getAllFiches(startDate?: string): Observable<FicheClient[]> {
+        let url = `${this.apiUrl}?all=true`;
+        if (startDate) url += `&startDate=${startDate}`;
+        return this.http.get<any[]>(url).pipe(
+            map(fiches => fiches.map(f => this.mapBackendToFrontend(f)))
+        );
+    }
+
+    /**
+     * Récupérer l'historique global des BC
+     */
+    getAllBcHistory(): Observable<any[]> {
+        return this.getAllFiches().pipe(
+            map(fiches => {
+                const allHistory: any[] = [];
+                fiches.forEach(fiche => {
+                    // Try top level first, then inside suiviCommande
+                    const bcHistorique = (fiche as any).bcHistorique || (fiche as any).suiviCommande?.bcHistorique || [];
+                    bcHistorique.forEach((bc: any) => {
+                        allHistory.push({
+                            ...bc,
+                            ficheId: fiche.id,
+                            clientName: `${(fiche as any).client?.prenom || ''} ${(fiche as any).client?.nom || ''}`.trim(),
+                            ficheType: fiche.type
+                        });
+                    });
+                });
+                // Sort by date descending
+                return allHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            })
+        );
+    }
+
+    /**
      * Récupérer toutes les fiches d'un client
      */
     getFichesByClient(clientId: string, startDate?: string): Observable<FicheClient[]> {

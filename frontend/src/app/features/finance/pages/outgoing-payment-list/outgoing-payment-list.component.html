@@ -287,4 +287,8 @@
         <app-supplier-invoice-list listMode="BL" [isSubComponent]="true"
             [showHeader]="true"></app-supplier-invoice-list>
     </div>
+
+    <div *ngIf="activeTab === 'BC_HISTORY'" class="mt-4">
+        <app-bc-history-list></app-bc-history-list>
+    </div>
 </div>

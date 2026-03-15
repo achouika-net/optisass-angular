@@ -3,6 +3,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { FacturesService } from '../factures/factures.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
+import { MailerService } from '../notifications/mailer.service';
+import { PdfService } from '../notifications/pdf.service';
 
 @Injectable()
 export class FichesService {
@@ -10,7 +12,87 @@ export class FichesService {
     private prisma: PrismaService,
     private facturesService: FacturesService,
     private loyaltyService: LoyaltyService,
+    private mailerService: MailerService,
+    private pdfService: PdfService,
   ) { }
+
+  async sendOrderEmail(id: string) {
+    const fiche = await this.prisma.fiche.findUnique({
+      where: { id },
+      include: { client: true },
+    });
+
+    if (!fiche) throw new BadRequestException('Fiche introuvable');
+
+    const content = (fiche.content as any) || {};
+    const suivi = content.suiviCommande || {};
+    
+    if (!suivi.fournisseur) {
+      throw new BadRequestException('Aucun fournisseur spécifié pour cette commande');
+    }
+
+    // 1. Find Supplier Email
+    const supplier = await this.prisma.fournisseur.findFirst({
+      where: { nom: suivi.fournisseur },
+    });
+
+    if (!supplier || !supplier.email) {
+      throw new BadRequestException(`Email introuvable pour le fournisseur: ${suivi.fournisseur}. Veuillez configurer son adresse email.`);
+    }
+
+    // 2. Prepare Data for PDF
+    let designation = '';
+    const ordonnance = content.ordonnance || {};
+
+    if (fiche.type === 'LENTILLES') {
+      const lentilles = content.lentilles || {};
+      designation = lentilles.diffLentilles
+        ? `Lentilles - OD: ${lentilles.od?.marque || ''} ${lentilles.od?.modele || ''}, OG: ${lentilles.og?.marque || ''} ${lentilles.og?.modele || ''}`
+        : `Lentilles - ${lentilles.od?.marque || ''} ${lentilles.od?.modele || ''}`;
+    } else {
+      // VERRES SEULEMENT (Demande utilisateur : "pour la designation pointe strictement sur les verre et non la monture")
+      const verres = content.verres || {};
+      
+      const verresDesc = verres.differentODOG
+        ? `Verres - OD: ${verres.marqueOD || ''} ${verres.matiereOD || ''}, OG: ${verres.marqueOG || ''} ${verres.matiereOG || ''}`
+        : `Verres - ${verres.marque || ''} ${verres.matiere || ''}`;
+      
+      designation = verresDesc;
+    }
+
+    const clientName = `${fiche.client.prenom || ''} ${fiche.client.nom || ''}`.trim();
+
+    const pdfBuffer = await this.pdfService.generatePurchaseOrder({
+      bcNumber: suivi.referenceCommande || `BC-${fiche.numero}`,
+      date: new Date(),
+      supplierName: supplier.nom,
+      clientName: clientName,
+      designation: designation,
+      prescription: {
+        od: {
+          sphere: ordonnance.od?.sphere || '0.00',
+          cylindre: ordonnance.od?.cylindre || '0.00',
+          axe: ordonnance.od?.axe || '0',
+        },
+        og: {
+          sphere: ordonnance.og?.sphere || '0.00',
+          cylindre: ordonnance.og?.cylindre || '0.00',
+          axe: ordonnance.og?.axe || '0',
+        },
+      },
+    });
+
+    // 3. Send Email
+    await this.mailerService.sendMailWithAttachment({
+      to: supplier.email,
+      subject: `Bon de Commande - ${suivi.referenceCommande || fiche.numero}`,
+      text: `Bonjour,\n\nVeuillez trouver ci-joint le bon de commande pour le client ${clientName}.\n\nCordialement,\nL'équipe Optique.`,
+      attachmentName: `Bon_de_Commande_${suivi.referenceCommande || fiche.numero}.pdf`,
+      attachmentBuffer: pdfBuffer,
+    });
+
+    return { success: true };
+  }
 
   async create(data: Prisma.FicheCreateInput) {
     try {
@@ -61,18 +143,14 @@ export class FichesService {
         this.validateRequiredFields(client);
       }
 
-      // Construct Content JSON from loose fields
       const looseData = data as any;
+      const incomingContent = looseData.content && typeof looseData.content === 'object' ? looseData.content : looseData;
 
-      // Fix: Frontend sends content nested in 'content' field via FicheService.createFicheMonture
-      // We must extract it correctly, falling back to looseData (flat) if not nested.
-      const incomingContent =
-        looseData.content && typeof looseData.content === 'object'
-          ? looseData.content
-          : looseData;
-
+      // Robust Content Mapping
       const content = {
-        ordonnance: incomingContent.ordonnance,
+        ordonnance: incomingContent.ordonnance || incomingContent.prescription,
+        lentilles: incomingContent.lentilles,
+        adaptation: incomingContent.adaptation,
         monture: incomingContent.monture,
         verres: incomingContent.verres,
         montage: incomingContent.montage,
@@ -83,14 +161,14 @@ export class FichesService {
         suiviCommande: incomingContent.suiviCommande,
       };
 
-      // 3. Create the fiche with explicit data mapping
-      // Using UncheckedCreateInput to allow scalar clientId
+      console.log(`💾 [Backend CREATE] Fiche Type: ${data.type} | Content keys:`, Object.keys(content));
+
       const createData: Prisma.FicheUncheckedCreateInput = {
         clientId: clientId,
         statut: data.statut,
         type: data.type,
         montantTotal: data.montantTotal,
-        montantPaye: data.montantPaye,
+        montantPaye: data.montantPaye || 0,
         dateLivraisonEstimee: data.dateLivraisonEstimee,
         content: content as any,
       };
@@ -176,6 +254,19 @@ export class FichesService {
     }
   }
 
+  async findAll(startDate?: string) {
+    const where: any = {};
+    if (startDate) {
+      where.dateCreation = { gte: new Date(startDate) };
+    }
+    const fiches = await this.prisma.fiche.findMany({
+      where,
+      include: { client: true },
+      orderBy: { dateCreation: 'desc' },
+    });
+    return fiches.map((f: any) => this.unpackContent(f));
+  }
+
   async findAllByClient(clientId: string, startDate?: string) {
     const where: any = { clientId };
     if (startDate) {
@@ -195,128 +286,42 @@ export class FichesService {
     return fiche ? this.unpackContent(fiche) : null;
   }
 
-  async update(id: string, data: Prisma.FicheUpdateInput) {
-    const looseData = data as any;
-    // Safe Merge Strategy: Fetch existing content first
-    const currentFiche = await this.prisma.fiche.findUnique({
+  async update(id: string, updateFicheDto: any) {
+    console.log(`\n🔄 [Backend UPDATE] Fiche ${id}`);
+    
+    const existingFiche = await this.prisma.fiche.findUnique({
       where: { id },
-      select: { content: true },
-    });
-    const currentContent = (currentFiche?.content as any) || {};
-
-    // Fix: Frontend sends content nested in 'content' field via FicheService.updateFiche
-    // We must extract it correctly, falling back to looseData (flat) if not nested.
-    const incomingContent =
-      looseData.content && typeof looseData.content === 'object'
-        ? looseData.content
-        : looseData;
-
-    const content = {
-      ordonnance:
-        incomingContent.ordonnance !== undefined
-          ? incomingContent.ordonnance
-          : currentContent.ordonnance,
-      monture:
-        incomingContent.monture !== undefined
-          ? incomingContent.monture
-          : currentContent.monture,
-      verres:
-        incomingContent.verres !== undefined
-          ? incomingContent.verres
-          : currentContent.verres,
-      montage:
-        incomingContent.montage !== undefined
-          ? incomingContent.montage
-          : currentContent.montage,
-      suggestions:
-        incomingContent.suggestions !== undefined
-          ? incomingContent.suggestions
-          : currentContent.suggestions,
-      equipements:
-        incomingContent.equipements !== undefined
-          ? incomingContent.equipements
-          : currentContent.equipements,
-      produits:
-        incomingContent.produits !== undefined
-          ? incomingContent.produits
-          : currentContent.produits,
-      notes:
-        incomingContent.notes !== undefined
-          ? incomingContent.notes
-          : currentContent.notes,
-      suiviCommande:
-        incomingContent.suiviCommande !== undefined
-          ? incomingContent.suiviCommande
-          : currentContent.suiviCommande,
-    };
-
-    const updateData: any = {
-      statut: data.statut,
-      type: data.type,
-      montantTotal: data.montantTotal,
-      montantPaye: data.montantPaye,
-      dateLivraisonEstimee: data.dateLivraisonEstimee,
-      content: content,
-    };
-    // Add optional fields if present
-    if ((data as any).clientId) updateData.clientId = (data as any).clientId;
-
-    const result = await this.prisma.fiche.update({
-      where: { id },
-      data: updateData,
     });
 
-    // AUTOMATIC INVOICE UPDATE REMOVED (prevent data loss)
-    /*
-        try {
-            const draftInvoice = await this.prisma.facture.findFirst({
-                where: { ficheId: id, statut: 'BROUILLON' }
-            });
-        
-            if (draftInvoice && draftInvoice.numero.startsWith('BRO-')) {
-                console.log('🔄 Updating Draft Invoice for Fiche:', draftInvoice.id);
-        
-                // Re-calculate lines based on new content logic (simplified mirror of Frontend or explicit map)
-                // For backend simplicity, we might just update the MAIN summary line, OR we need the frontend to send the lines.
-                // IF the frontend doesn't send "lines", we can't perfectly replicate the complex frontend logic here without duplicating it.
-                // HOWEVER, the user issue is "Generic Description". 
-                // Let's try to construct a BETTER description at least, or check if we can get lines from data?
-                // The `data` passed here is just Fiche structure, not Invoice lines. 
-        
-                // Better approach: Update the invoice TOTALS and a Summary Description.
-                // But the user wants "Detail". 
-                // Creating detailed lines in backend requires duplicating the `getInvoiceLines` logic from frontend.
-                // A quick win: Update the generic line with more info if possible, OR
-                // Rely on the Frontend to explicitely update the Invoice when saving the Fiche (which was the original plan with `generateInvoiceLines` syncing to `FactureComponent`).
-        
-                // WAITING: The user said "Modifier ne prend pas en charge". This suggests the Frontend sync failed.
-                // If I update it here, I fix the "Server side" draft.
-        
-                let newDescription = `Fiche ${result.type} du ${new Date(result.dateCreation).toLocaleDateString()}`;
-                if (looseData.monture?.marque) newDescription += ` - ${looseData.monture.marque}`;
-                if (looseData.monture?.reference) newDescription += ` (${looseData.monture.reference})`;
-        
-                await this.prisma.facture.update({
-                    where: { id: draftInvoice.id },
-                    data: {
-                        totalHT: result.montantTotal,
-                        totalTTC: result.montantTotal,
-                        resteAPayer: result.montantTotal,
-                        lignes: [
-                            {
-                                description: newDescription,
-                                qte: 1,
-                                prixUnitaireTTC: result.montantTotal,
-                                remise: 0,
-                                totalTTC: result.montantTotal
-                            }
-                        ]
-                    }
-                });
-            }
-            } */
+    if (!existingFiche) {
+      throw new Error(`Fiche with ID ${id} not found`);
+    }
 
-    return this.unpackContent(result);
+    const { content: incomingContent, ...topLevelUpdates } = updateFicheDto;
+
+    // Robust Merging Strategy: 
+    // 1. Take existing JSON content
+    // 2. Extract incoming content (either from 'content' key or from DTO itself)
+    // 3. Merge them using object spread for top-level keys within the content JSON
+    const currentContent = (existingFiche.content as any) || {};
+    const contentToMerge = (incomingContent && typeof incomingContent === 'object') ? incomingContent : {};
+
+    const mergedContent = {
+      ...currentContent,
+      ...contentToMerge
+    };
+
+    console.log(`💾 [Backend UPDATE] Merged content keys:`, Object.keys(mergedContent));
+
+    const updated = await this.prisma.fiche.update({
+      where: { id },
+      data: {
+        ...topLevelUpdates,
+        content: mergedContent,
+      },
+    });
+
+    return this.unpackContent(updated);
   }
 
   async remove(id: string) {
@@ -381,8 +386,10 @@ export class FichesService {
     // Merge content properties to top level for legacy support
     return {
       ...fiche,
-      ...content,
+      ...content, // Spread content back to top level
       ordonnance: content.ordonnance || fiche.ordonnance,
+      lentilles: content.lentilles || fiche.lentilles,
+      adaptation: content.adaptation || fiche.adaptation,
       monture: content.monture || fiche.monture,
       verres: content.verres || fiche.verres,
       montage: content.montage || fiche.montage,

@@ -2,6 +2,7 @@
 @use 'global-vars';
 @use 'themes/default-theme' as default;
 @use 'themes/custom-theme' as custom;
+@use 'legacy-styles';
 
 // Matriel Overrides - Must come after @use but BEFORE @include/CSS
 @forward './material-overrides/mat-card';
@@ -24,7 +25,7 @@
 // Note: The themes are applied via CSS classes (.default-theme, .custom-theme) 
 // defined in their respective files, so we don't include all-component-themes here.
 
-// Explicitly include CDK overlay styles if they aren't in core (rare but safe)
+// CDK Global Overlays
 .cdk-overlay-container {
   position: fixed;
   z-index: 9999;
@@ -45,7 +46,6 @@
   max-height: 100%;
 }
 
-// Ensure the backdrop doesn't block everything if misplaced
 .cdk-overlay-backdrop {
   position: absolute;
   top: 0;

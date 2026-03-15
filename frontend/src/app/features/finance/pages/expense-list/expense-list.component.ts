@@ -45,15 +45,37 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
   ],
   templateUrl: './expense-list.component.html',
   styles: [`
-    .container { padding: 20px; }
+    .container { padding: 20px; max-width: 100%; overflow-x: hidden; }
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    table { width: 100%; }
-    .actions { display: flex; gap: 8px; justify-content: flex-end; }
+    table { width: 100%; table-layout: fixed; border-radius: 8px; overflow: hidden; }
+    th.mat-header-cell { 
+        background-color: #3f51b5 !important; 
+        color: white !important; 
+        font-weight: 600;
+        padding: 12px 8px !important;
+    }
+    .mat-column-date { width: 100px; }
+    .mat-column-categorie { width: 130px; }
+    .mat-column-centre { width: 130px; }
+    .mat-column-modePaiement { width: 100px; text-align: center; }
+    .mat-column-montant { width: 120px; }
+    .mat-column-actions { width: 90px; }
+    .mat-column-description { 
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .mat-column-description:hover {
+        white-space: normal;
+        overflow: visible;
+        word-break: break-word;
+    }
+    .actions { display: flex; gap: 4px; justify-content: flex-end; }
     .montant-cell { font-weight: bold; }
     .chip-caisse { background-color: #e0f2f1; color: #00695c; }
     .chip-cheque { background-color: #fff3e0; color: #ef6c00; }
     .filters { display: flex; gap: 16px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
-    .filters mat-form-field { flex: 1; min-width: 200px; }
+    .filters mat-form-field { flex: 1; min-width: 150px; }
     ::ng-deep .dense-field .mat-mdc-form-field-subscript-wrapper { display: none; }
   `]
 })

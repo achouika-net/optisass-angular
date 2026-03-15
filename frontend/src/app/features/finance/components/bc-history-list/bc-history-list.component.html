@@ -1,0 +1,91 @@
+<div class="bc-history-container relative">
+  <!-- Loading Overlay -->
+  <div *ngIf="loading"
+      class="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-xl">
+      <div class="flex flex-col items-center gap-2">
+          <mat-progress-spinner mode="indeterminate" diameter="40" color="primary"></mat-progress-spinner>
+          <span class="text-sm font-medium text-gray-500">Chargement de l'historique...</span>
+      </div>
+  </div>
+
+  <div class="overflow-x-auto">
+      <table mat-table [dataSource]="history" class="mat-elevation-z0">
+
+          <!-- Date Column -->
+          <ng-container matColumnDef="date">
+              <th mat-header-cell *matHeaderCellDef>Date</th>
+              <td mat-cell *matCellDef="let bc">{{ bc.date | date:'dd/MM/yyyy HH:mm' }}</td>
+          </ng-container>
+
+          <!-- BC Number Column -->
+          <ng-container matColumnDef="numero">
+              <th mat-header-cell *matHeaderCellDef>BC N°</th>
+              <td mat-cell *matCellDef="let bc" class="font-bold text-blue-600">{{ bc.numero }}</td>
+          </ng-container>
+
+          <!-- Supplier Column -->
+          <ng-container matColumnDef="fournisseur">
+              <th mat-header-cell *matHeaderCellDef>Fournisseur</th>
+              <td mat-cell *matCellDef="let bc">
+                <div class="px-2">{{ getSupplierName(bc.fournisseur) }}</div>
+              </td>
+          </ng-container>
+
+          <!-- Client Column -->
+          <ng-container matColumnDef="client">
+              <th mat-header-cell *matHeaderCellDef>Client</th>
+              <td mat-cell *matCellDef="let bc">
+                <div class="flex flex-col">
+                  <span class="font-medium">{{ bc.clientDisplayName || bc.client || 'Client' }}</span>
+                  <span class="text-[10px] text-gray-400">Fiche: {{ bc.ficheNumero || 'N/A' }}</span>
+                </div>
+              </td>
+          </ng-container>
+
+          <!-- Motive Column -->
+          <ng-container matColumnDef="motive">
+              <th mat-header-cell *matHeaderCellDef>Motif</th>
+              <td mat-cell *matCellDef="let bc">
+                  <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                      [ngClass]="bc.motive === 'Casse' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'">
+                      {{ bc.motive || 'Standard' }}
+                  </span>
+              </td>
+          </ng-container>
+
+          <!-- Actions Column -->
+          <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef class="!text-right">Actions</th>
+              <td mat-cell *matCellDef="let bc">
+                  <div class="flex justify-end gap-2">
+                      <button mat-icon-button color="primary" matTooltip="Réimprimer le BC" (click)="reprintBC(bc)">
+                          <mat-icon>print</mat-icon>
+                      </button>
+                      <button mat-icon-button [matMenuTriggerFor]="menu">
+                          <mat-icon>more_vert</mat-icon>
+                      </button>
+                      <mat-menu #menu="matMenu" xPosition="before">
+                          <button mat-menu-item (click)="reprintBC(bc)">
+                              <mat-icon>print</mat-icon>
+                              <span>Imprimer</span>
+                          </button>
+                      </mat-menu>
+                  </div>
+              </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="hover:bg-gray-50 transition-colors"></tr>
+
+          <!-- No Data Row -->
+          <tr class="mat-row" *matNoDataRow>
+              <td class="mat-cell p-8 text-center" [attr.colspan]="displayedColumns.length">
+                  <div class="flex flex-col items-center gap-2 text-gray-400">
+                      <mat-icon class="text-4xl">history</mat-icon>
+                      <span>Aucun historique de Bon de Commande trouvé</span>
+                  </div>
+              </td>
+          </tr>
+      </table>
+  </div>
+</div>

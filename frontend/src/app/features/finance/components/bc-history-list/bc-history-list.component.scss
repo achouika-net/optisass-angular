@@ -1,0 +1,41 @@
+.bc-history-container {
+  min-height: 200px;
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+table {
+  width: 100%;
+  background: transparent !important;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+th.mat-mdc-header-cell {
+  background: #0c4891 !important;
+  color: white !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  padding: 16px !important;
+  border-bottom: none !important;
+}
+
+td.mat-mdc-cell {
+  padding: 16px !important;
+  color: #1e293b !important;
+  font-size: 13.5px !important;
+  border-bottom: 1px solid #f8fafc !important;
+}
+
+.motive-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 50px;
+  font-size: 10px;
+  font-weight: 800;
+}

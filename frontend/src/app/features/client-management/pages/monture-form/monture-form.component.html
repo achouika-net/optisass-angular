@@ -1761,7 +1761,8 @@
     <div class="print-fiche-montage" *ngIf="currentPrintType === 'FICHE_MONTAGE'">
         <div class="print-header-small">
             <div class="print-logo-container">
-                <img src="assets/images/logo.png" alt="OPTISASS Logo" class="print-logo">
+                <img *ngIf="companySettings?.logoUrl" [src]="companySettings.logoUrl" alt="Logo" class="print-logo">
+                <img *ngIf="!companySettings?.logoUrl" src="assets/images/logo.png" alt="OPTISASS Logo" class="print-logo">
             </div>
             <div class="company">
                 <strong>OPTISASS</strong><br>
@@ -1950,7 +1951,8 @@
     <div class="print-bon-verre" *ngIf="currentPrintType === 'BON_COMMANDE'">
         <div class="print-header-modern">
             <div class="print-logo-container">
-                <img src="assets/images/logo.png" alt="OPTISASS Logo" class="print-logo">
+                <img *ngIf="companySettings?.logoUrl" [src]="companySettings.logoUrl" alt="Logo" class="print-logo">
+                <img *ngIf="!companySettings?.logoUrl" src="assets/images/logo.png" alt="OPTISASS Logo" class="print-logo">
             </div>
             <h1>BON DE COMMANDE VERRES</h1>
             <div class="ref-box">Date: {{ dateToday | date:'dd/MM/yyyy' }}</div>

@@ -4,16 +4,24 @@
         <!-- Header -->
         <div class="header">
             <div class="title-section">
-                <h2 *ngIf="!id || id === 'new'">Nouveau Document</h2>
-                <h2 *ngIf="id && id !== 'new'">
-                    <span *ngIf="form.get('type')?.value === 'BON_COMM'">BON DE COMMANDE</span>
-                    <span *ngIf="form.get('type')?.value === 'FACTURE'">FACTURE</span>
-                    <span *ngIf="form.get('type')?.value === 'DEVIS'">DEVIS</span>
-                    <span *ngIf="form.get('type')?.value === 'AVOIR'">AVOIR</span>
-                    <span *ngIf="form.get('type')?.value === 'BL'">BON DE LIVRAISON</span>
-                    {{ formatNumero(form.get('numero')?.value) }}
+                <!-- Loading State -->
+                <h2 *ngIf="isLoading" class="flex items-center gap-3">
+                    <span class="loading-spinner"></span>
+                    Chargement du document...
                 </h2>
 
+                <!-- Loaded State -->
+                <ng-container *ngIf="!isLoading">
+                    <h2 *ngIf="!id || id === 'new'">Nouveau Document</h2>
+                    <h2 *ngIf="id && id !== 'new'">
+                        <span *ngIf="form.get('type')?.value === 'BON_COMM'">BON DE COMMANDE</span>
+                        <span *ngIf="form.get('type')?.value === 'FACTURE'">FACTURE</span>
+                        <span *ngIf="form.get('type')?.value === 'DEVIS'">DEVIS</span>
+                        <span *ngIf="form.get('type')?.value === 'AVOIR'">AVOIR</span>
+                        <span *ngIf="form.get('type')?.value === 'BL'">BON DE LIVRAISON</span>
+                        {{ formatNumero(form.get('numero')?.value) }}
+                    </h2>
+                </ng-container>
             </div>
             <div class="actions">
                 <button type="button" mat-stroked-button color="warn" routerLink="/p/clients"
