@@ -40,6 +40,8 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { OrderActionDialogComponent } from '../../../../shared/components/order-action-dialog/order-action-dialog.component';
 import { SupplierService } from '../../../../shared/services/supplier.service';
 import { ISupplier } from '../../../../shared/models/index';
+import { CompanySettingsService } from '../../../../core/services/company-settings.service';
+import { CompanySettings } from '../../../../shared/interfaces/company-settings.interface';
 
 
 
@@ -256,6 +258,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
     nomenclatureString: string | null = null;
     showFacture = false;
+    companySettings: CompanySettings | null = null;
 
     // Local storage for frame height in case form control fails
     private lastMeasFrameHeight: number | null = null;
@@ -332,6 +335,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         private snackBar: MatSnackBar,
         private store: Store,
         private ngZone: NgZone,
+        private companySettingsService: CompanySettingsService,
         supplierService: SupplierService
     ) {
         this.supplierService = supplierService;
@@ -339,6 +343,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     }
 
     ngOnInit(): void {
+        this.loadCompanySettings();
         // FIX: Ensure 'hauteurVerre' control exists in 'montage' group immediately
         // This ensures correct data binding when loading existing fiches
         const montageGroup = this.ficheForm.get('montage') as FormGroup;
@@ -461,9 +466,20 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         });
     }
 
+
     ngOnDestroy(): void {
         this.destroy$.next();
         this.destroy$.complete();
+    }
+
+    loadCompanySettings() {
+        this.companySettingsService.getSettings().subscribe({
+            next: (settings) => {
+                this.companySettings = settings;
+                this.cdr.markForCheck();
+            },
+            error: (err) => console.error('Failed to load company settings', err)
+        });
     }
 
     // New: Check if products in an INSTANCE sale are now received OR if transfer was cancelled
@@ -1524,123 +1540,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     }
 
     async printBC(): Promise<void> {
-        // Generate BC number first if needed (silent fail)
+        // Generate BC number first if needed
         try { await this.generateBCNumberIfNeeded(); } catch (e) { /* continue */ }
-
-        const suivi   = this.ficheForm.get('suiviCommande')?.value || {};
-        const ord     = this.ficheForm.get('ordonnance')?.value || {};
-        const verres  = this.ficheForm.get('verres')?.value || {};
-        const montage = this.ficheForm.get('montage')?.value || {};
-
-        const bcNum   = suivi.referenceCommande || 'N/A';
-        const today   = new Date().toLocaleDateString('fr-FR');
-        const client  = this.clientDisplayName || 'Client';
-        const fournisseur = suivi.fournisseur || '-';
-
-        // Ordonnance rows
-        const od = ord.od || {};
-        const og = ord.og || {};
-
-        // Verres
-        const isDiff = verres.differentODOG;
-        const matiereRow = isDiff
-            ? `OD: ${verres.marqueOD || ''} ${verres.matiereOD || ''} ${verres.indiceOD || ''}<br>OG: ${verres.marqueOG || ''} ${verres.matiereOG || ''} ${verres.indiceOG || ''}`
-            : `${verres.marque || ''} ${verres.matiere || ''} ${verres.indice || ''}`;
-        const traitements = isDiff
-            ? ((verres.traitementOD || []).join(', ') || '-')
-            : ((verres.traitement || []).join(', ') || '-');
-        const diametre = montage.diametreEffectif || '-';
-
-        const logoUrl = `${window.location.origin}/assets/images/logo.png`;
-
-        const html = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <title>BC - ${bcNum}</title>
-  <style>
-    @page { size: A5; margin: 10mm; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #111; background: white; font-size: 9pt; }
-    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e293b; padding-bottom: 8px; margin-bottom: 12px; }
-    .logo-img { height: 38px; width: auto; object-fit: contain; }
-    .doc-info { text-align: right; }
-    .doc-info .title { font-size: 11pt; font-weight: 900; color: #1e293b; letter-spacing: 0.5px; }
-    .doc-info .bc { font-size: 9pt; font-weight: 700; color: #1e293b; }
-    .doc-info .date { font-size: 8pt; color: #64748b; }
-    .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-    .party-box { border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px 8px; }
-    .party-box h3 { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 4px; }
-    .party-box p { font-size: 9pt; font-weight: 700; color: #1e293b; }
-    .section-title { background: #1e293b; color: white; padding: 4px 8px; font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 10px 0 6px 0; }
-    table { width: 100%; border-collapse: collapse; font-size: 8pt; }
-    th { background: #f8fafc; padding: 5px 8px; text-align: left; font-size: 7pt; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #e2e8f0; }
-    td { padding: 5px 8px; border-bottom: 1px solid #f1f5f9; }
-    tr:last-child td { border-bottom: none; }
-    .specs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
-    .spec-box { border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px 8px; }
-    .spec-box label { font-size: 7pt; text-transform: uppercase; color: #64748b; font-weight: 700; display: block; margin-bottom: 2px; }
-    .spec-box p { font-size: 9pt; font-weight: 700; color: #1e293b; }
-    .signatures { display: flex; justify-content: space-between; margin-top: 20px; padding-top: 10px; }
-    .sig-box { width: 45%; text-align: center; }
-    .sig-box .line { border-top: 1px solid #1e293b; padding-top: 4px; margin-top: 25px; font-size: 7pt; color: #64748b; }
-    @media print { @page { size: A5; margin: 10mm; } }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <img src="${logoUrl}" class="logo-img" alt="Logo" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-    <span style="display:none;font-size:14pt;font-weight:900;color:#1e293b">OPTISASS</span>
-    <div class="doc-info">
-      <div class="title">BON DE COMMANDE</div>
-      <div class="bc">${bcNum}</div>
-      <div class="date">Date : ${today}</div>
-    </div>
-  </div>
-
-  <div class="parties">
-    <div class="party-box">
-      <h3>Client</h3>
-      <p>${client}</p>
-    </div>
-    <div class="party-box">
-      <h3>Fournisseur Verres</h3>
-      <p>${fournisseur}</p>
-    </div>
-  </div>
-
-  <div class="section-title">Prescription Ordonnance</div>
-  <table>
-    <thead><tr><th>Oeil</th><th>Sphère</th><th>Cylindre</th><th>Axe</th><th>Addition</th></tr></thead>
-    <tbody>
-      <tr><td><strong>OD</strong></td><td>${od.sphere || '-'}</td><td>${od.cylindre || '-'}</td><td>${od.axe || '-'}</td><td>${od.addition || '-'}</td></tr>
-      <tr><td><strong>OG</strong></td><td>${og.sphere || '-'}</td><td>${og.cylindre || '-'}</td><td>${og.axe || '-'}</td><td>${og.addition || '-'}</td></tr>
-    </tbody>
-  </table>
-
-  <div class="section-title">Caractéristiques des Verres</div>
-  <div class="specs-grid">
-    <div class="spec-box"><label>Verre(s)</label><p>${matiereRow}</p></div>
-    <div class="spec-box"><label>Traitements</label><p>${traitements}</p></div>
-    <div class="spec-box"><label>Diamètre Utile</label><p>${diametre}</p></div>
-  </div>
-
-  <div class="signatures">
-    <div class="sig-box"><div class="line">Opticien / Technicien</div></div>
-    <div class="sig-box"><div class="line">Cachet Établissement</div></div>
-  </div>
-
-  <script>window.onload = function(){ window.print(); }<\/script>
-</body>
-</html>`;
-
-        const win = window.open('', '_blank', 'width=600,height=800');
-        if (win) {
-            win.document.write(html);
-            win.document.close();
-        } else {
-            this.snackBar.open('Activez les popups pour imprimer', 'OK', { duration: 5000, verticalPosition: 'top' });
-        }
+        this.printBonCommandeVerre();
     }
 
     async generateBCNumberIfNeeded(): Promise<void> {
@@ -4238,78 +4140,515 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
 
     /**
-     * Print Fiche Montage
+     * Print Fiche Montage - Refined Layout & Professional Billing Header
      */
     printFicheMontage(): void {
-        // Cache canvas data URL before starting the print process to prevent blackout
         this.canvasDataUrl = this.getFrameCanvasDataUrl();
 
-        this.currentPrintType = 'FICHE_MONTAGE';
-        this.cdr.detectChanges();
+        const ord = this.ficheForm.get('ordonnance')?.value || {};
+        const montage = this.ficheForm.get('montage')?.value || {};
+        const verres = this.ficheForm.get('verres')?.value || {};
+        const suivi = this.ficheForm.get('suiviCommande')?.value || {};
+        const ref = suivi.referenceCommande || 'N/A';
+        const client = this.clientDisplayName || 'Client';
+        const dateStr = new Date().toLocaleDateString('fr-FR');
+        const observations = this.ficheForm.get('observations')?.value;
 
-        // Wait for template to render
+        // Ordonnance rows
+        const od = ord.od || {};
+        const og = ord.og || {};
+
+        // Verres details
+        const isDiff = verres.differentODOG;
+        const matiereOD = isDiff ? (verres.matiereOD || '') : (verres.matiere || '');
+        const matiereOG = isDiff ? (verres.matiereOG || '') : (verres.matiere || '');
+        const indiceOD = isDiff ? (verres.indiceOD || '') : (verres.indice || '');
+        const indiceOG = isDiff ? (verres.indiceOG || '') : (verres.indice || '');
+        const marqueOD = isDiff ? (verres.marqueOD || '') : (verres.marque || '');
+        const marqueOG = isDiff ? (verres.marqueOG || '') : (verres.marque || '');
+        const traitOD = isDiff ? (verres.traitementOD || []) : (verres.traitement || []);
+
+        const recommendations = (this as any).selectedRecommendations || [];
+        const diamCommander = this.getDiametreACommander();
+        const diamAdvice = this.getRecommendedDiameter();
+
+        // Dynamic Logo and Company Name (Billing Style)
+        const logoUrl = this.companySettings?.logoUrl || `${window.location.origin}/assets/images/logo.png`;
+        const companyName = this.companySettings?.name || 'OPTISASS';
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Fiche Montage - ${ref}</title>
+                <style>
+                    @page { size: A4 portrait; margin: 0 !important; }
+                    body { 
+                        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+                        color: #1e293b; 
+                        padding: 12mm 15mm; 
+                        line-height: 1.3; 
+                        font-size: 8.5pt;
+                        margin: 0;
+                        -webkit-print-color-adjust: exact;
+                    }
+                    
+                    /* Professional Billing Header */
+                    .header { 
+                        display: flex; 
+                        justify-content: space-between; 
+                        align-items: start; 
+                        border-bottom: 2px solid #0f172a; 
+                        padding-bottom: 12px; 
+                        margin-bottom: 15px; 
+                    }
+                    .logo-box { display: flex; align-items: center; gap: 15px; }
+                    .logo-img { height: 60px; width: auto; }
+                    .company-info { text-align: right; }
+                    .company-info h1 { margin: 0; font-size: 16pt; font-weight: 900; color: #0f172a; text-transform: uppercase; }
+                    .doc-title { margin-top: 4px; font-size: 11pt; color: #3b82f6; font-weight: 800; letter-spacing: 1px; }
+                    .meta-info { font-size: 7.5pt; color: #64748b; margin-top: 4px; font-weight: 600; }
+
+                    /* Client Info */
+                    .client-section { 
+                        display: flex; 
+                        justify-content: space-between; 
+                        background: #f8fafc; 
+                        padding: 8px 12px; 
+                        border-radius: 4px; 
+                        margin-bottom: 15px; 
+                        border: 1px solid #e2e8f0;
+                    }
+                    .client-info strong { color: #0f172a; font-size: 10pt; }
+
+                    /* Tables Grid (Side-by-Side) */
+                    .tables-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px; }
+                    .section-title { 
+                        font-size: 8.5pt; 
+                        font-weight: 800; 
+                        margin-bottom: 8px; 
+                        color: #1e293b; 
+                        text-transform: uppercase; 
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                    }
+                    .title-dot { width: 6px; height: 6px; background: #3b82f6; border-radius: 50%; }
+                    
+                    table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 4px; border: 1px solid #000; }
+                    th { font-size: 7pt; font-weight: 800; padding: 6px; text-align: center; background: #f1f5f9; border: 1px solid #000; color: #475569; text-transform: uppercase; }
+                    td { padding: 6px; border: 1px solid #000; font-size: 9pt; font-weight: 700; text-align: center; }
+                    .eye-cell { background: #eff6ff; color: #2563eb; width: 35px; }
+
+                    /* Technical Specs Row */
+                    .tech-row { 
+                        display: grid; 
+                        grid-template-columns: 1.3fr 0.7fr; 
+                        border: 1.5px solid #0f172a; 
+                        border-radius: 6px;
+                        margin-bottom: 15px;
+                    }
+                    .tech-main { padding: 12px; border-right: 1px solid #e2e8f0; background: #fff; }
+                    .tech-diam { padding: 12px; text-align: center; background: #f8fafc; display: flex; flex-direction: column; justify-content: center; }
+                    
+                    .tech-title { font-size: 8pt; font-weight: 800; color: #8b5cf6; margin-bottom: 6px; text-transform: uppercase; }
+                    .tech-item { font-size: 8.5pt; line-height: 1.5; color: #334155; }
+                    .tech-val { font-size: 26pt; font-weight: 900; color: #0f172a; line-height: 1; }
+                    .tech-label { font-size: 7.5pt; font-weight: 800; color: #64748b; margin-bottom: 2px; }
+
+                    /* Observation */
+                    .obs-box { 
+                        padding: 8px; 
+                        border-left: 3px solid #cbd5e1; 
+                        background: #fbfcfd; 
+                        font-size: 8pt; 
+                        color: #475569; 
+                        margin-bottom: 12px; 
+                    }
+
+                    /* IA Recommendation Grid */
+                    .ia-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+                    .ia-card { 
+                        border: 1px solid #e2e8f0; 
+                        padding: 10px; 
+                        border-radius: 6px; 
+                        background: #fff;
+                        position: relative;
+                    }
+                    .ia-badge { 
+                        position: absolute; top: 10px; right: 10px; 
+                        font-size: 7pt; font-weight: 800; color: #2563eb; 
+                        background: #eff6ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #dbeafe;
+                    }
+                    .ia-title { font-size: 9pt; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+                    .ia-text { font-size: 8pt; color: #64748b; line-height: 1.4; }
+                    .ia-thick { font-size: 8.5pt; font-weight: 800; color: #0f172a; margin-top: 6px; }
+
+                    /* Preview Frame */
+                    .preview-box { 
+                        border: 1px solid #e2e8f0; 
+                        border-radius: 8px; 
+                        padding: 10px; 
+                        background: white; 
+                        text-align: center; 
+                        margin-bottom: 20px;
+                    }
+                    .preview-img { width: 80%; max-height: 180px; object-fit: contain; }
+
+                    /* Signature Block */
+                    .sig-row { 
+                        display: grid; 
+                        grid-template-columns: 1fr 1fr; 
+                        gap: 40px; 
+                        margin-top: 15px; 
+                        padding-top: 10px;
+                        border-top: 1px solid #e2e8f0;
+                    }
+                    .sig-box { text-align: center; }
+                    .sig-line { 
+                        margin-top: 40px; 
+                        border-top: 1.5px solid #0f172a; 
+                        padding-top: 5px; 
+                        font-size: 7.5pt; 
+                        font-weight: 800; 
+                        text-transform: uppercase; 
+                    }
+
+                    /* Advice Color Coding */
+                    .advice { font-size: 8.5pt; font-weight: 700; margin-bottom: 10px; text-align: center; padding: 5px; border-radius: 4px; }
+                    .advice-blue { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="logo-box">
+                        <img src="${logoUrl}" class="logo-img" alt="Logo">
+                    </div>
+                    <div class="company-info">
+                        <h1>${companyName}</h1>
+                        <div class="doc-title">FICHE DE MONTAGE TECHNIQUE</div>
+                        <div class="meta-info">REF: ${ref} | LE: ${dateStr}</div>
+                    </div>
+                </div>
+
+                <div class="client-section">
+                    <div class="client-info"><strong>CLIENT:</strong> ${client}</div>
+                    <div style="font-size: 8pt; color: #64748b; font-weight: 700;">MAGASIN: ${companyName}</div>
+                </div>
+
+                <div class="tables-grid">
+                    <div>
+                        <div class="section-title"><span class="title-dot"></span> Correction Ordonnance</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 30px">Oeil</th>
+                                    <th>Sphère</th>
+                                    <th>Cylindre</th>
+                                    <th>Axe</th>
+                                    <th>Add</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="eye-cell">OD</td>
+                                    <td>${od.sphere ? (parseFloat(od.sphere) >= 0 ? '+' : '') + parseFloat(od.sphere).toFixed(2) : '+0.00'}</td>
+                                    <td>${od.cylindre ? (parseFloat(od.cylindre) >= 0 ? '+' : '') + parseFloat(od.cylindre).toFixed(2) : '-'}</td>
+                                    <td>${od.axe ? od.axe + '°' : '-'}</td>
+                                    <td>${od.addition ? (parseFloat(od.addition) >= 0 ? '+' : '') + parseFloat(od.addition).toFixed(2) : '-'}</td>
+                                </tr>
+                                <tr>
+                                    <td class="eye-cell">OG</td>
+                                    <td>${og.sphere ? (parseFloat(og.sphere) >= 0 ? '+' : '') + parseFloat(og.sphere).toFixed(2) : '+0.00'}</td>
+                                    <td>${og.cylindre ? (parseFloat(og.cylindre) >= 0 ? '+' : '') + parseFloat(og.cylindre).toFixed(2) : '-'}</td>
+                                    <td>${og.axe ? og.axe + '°' : '-'}</td>
+                                    <td>${og.addition ? (parseFloat(og.addition) >= 0 ? '+' : '') + parseFloat(og.addition).toFixed(2) : '-'}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <div class="section-title"><span class="title-dot"></span> Paramètres Centrage</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 30px">Oeil</th>
+                                    <th>DP</th>
+                                    <th>HT (H)</th>
+                                    <th>Diam. Utile</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="eye-cell">OD</td>
+                                    <td>${montage.ecartPupillaireOD || '-'} mm</td>
+                                    <td>${montage.hauteurOD || '-'} mm</td>
+                                    <td>${(montage.diametreVerreOD || montage.diametreEffectif?.split('/')?.[0] || montage.diametreEffectif || '-')} mm</td>
+                                </tr>
+                                <tr>
+                                    <td class="eye-cell">OG</td>
+                                    <td>${montage.ecartPupillaireOG || '-'} mm</td>
+                                    <td>${montage.hauteurOG || '-'} mm</td>
+                                    <td>${(montage.diametreVerreOG || (montage.diametreEffectif?.includes('/') ? montage.diametreEffectif?.split('/')?.[1] : montage.diametreEffectif) || '-')} mm</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="tech-row">
+                    <div class="tech-main">
+                        <div class="tech-title">Types de Verres Sélectionnés</div>
+                        <div class="tech-item"><strong>OD:</strong> ${matiereOD} ${indiceOD} (${marqueOD})</div>
+                        <div class="tech-item"><strong>OG:</strong> ${matiereOG} ${indiceOG} (${marqueOG})</div>
+                        <div style="font-size: 7.5pt; color: #64748b; margin-top: 4px; font-weight: 600;">TRAITEMENTS: ${traitOD.join(', ') || 'STANDARDS'}</div>
+                    </div>
+                    <div class="tech-diam">
+                        <div class="tech-label">DIAMÈTRE UTILE</div>
+                        <div class="tech-val">${diamCommander}</div>
+                    </div>
+                </div>
+
+                ${diamAdvice ? `<div class="advice advice-blue">${diamAdvice}</div>` : ''}
+
+                <div class="preview-box">
+                    <div style="font-size: 8pt; font-weight: 800; color: #1e293b; margin-bottom: 5px; text-align: left; text-transform: uppercase;">Aperçu Configuration Monture</div>
+                    <img src="${this.canvasDataUrl}" class="preview-img">
+                </div>
+
+                <div class="section-title" style="margin-bottom: 10px;"><span class="title-dot" style="background: #8b5cf6;"></span> Préconisations IA (Optimisation Épaisseur)</div>
+                <div class="ia-grid">
+                    ${recommendations && recommendations.length > 0 ? recommendations.slice(0, 2).map((s: any) => `
+                        <div class="ia-card">
+                            <div class="ia-badge">${s.type === 'OG' ? 'OG' : 'OD'}</div>
+                            <div class="ia-title">${s.matiere} ${s.indice}</div>
+                            <div class="ia-text">${s.raison}</div>
+                            ${s.epaisseur ? `<div class="ia-thick">Estimation: ~${s.epaisseur}</div>` : ''}
+                        </div>
+                    `).join('') : `
+                        <div class="ia-card">
+                            <div class="ia-badge">OD</div>
+                            <div class="ia-text">Configuration patient: ${matiereOD} ${indiceOD}</div>
+                        </div>
+                        <div class="ia-card">
+                            <div class="ia-badge">OG</div>
+                            <div class="ia-text">Configuration patient: ${matiereOG} ${indiceOG}</div>
+                        </div>
+                    `}
+                </div>
+
+                ${observations ? `<div class="obs-box"><strong>NOTES:</strong> ${observations}</div>` : ''}
+
+                <div class="sig-row">
+                    <div class="sig-box"><div class="sig-line">Technicien / Monteur</div></div>
+                    <div class="sig-box"><div class="sig-line">Contrôle Final</div></div>
+                </div>
+            </body>
+            </html>
+        `);
+
+        printWindow.document.close();
         setTimeout(() => {
-            const printContent = document.querySelector('.print-fiche-montage');
-            if (!printContent) {
-                window.print();
-                this.currentPrintType = null;
-                this.cdr.detectChanges();
-                return;
-            }
-
-            // Clone and Isolate (Hierarchy Escape Strategy)
-            const clone = printContent.cloneNode(true) as HTMLElement;
-            clone.classList.add('print-isolated');
-
-            document.body.classList.add('is-printing-report');
-            document.body.appendChild(clone);
-
-            setTimeout(() => {
-                window.print();
-                document.body.classList.remove('is-printing-report');
-                if (document.body.contains(clone)) {
-                    document.body.removeChild(clone);
-                }
-                this.currentPrintType = null;
-                this.cdr.detectChanges();
-            }, 300);
-        }, 100);
+            printWindow.print();
+            printWindow.close();
+        }, 500);
     }
 
     /**
      * Print Bon de Commande Verre
      */
     printBonCommandeVerre(): void {
-        this.currentPrintType = 'BON_COMMANDE';
-        this.cdr.detectChanges();
+        const ord = this.ficheForm.get('ordonnance')?.value || {};
+        const verres = this.ficheForm.get('verres')?.value || {};
+        const suivi = this.ficheForm.get('suiviCommande')?.value || {};
+        const montage = this.ficheForm.get('montage')?.value || {};
+        const today = new Date().toLocaleDateString('fr-FR');
+        const ref = suivi.referenceCommande || 'N/A';
+        const client = this.clientDisplayName || 'Client';
 
-        // Wait for template to render
-        setTimeout(() => {
-            const printContent = document.querySelector('.print-bon-verre');
-            if (!printContent) {
-                window.print();
-                this.currentPrintType = null;
-                this.cdr.detectChanges();
-                return;
-            }
+        // Ordonnance rows
+        const od = ord.od || {};
+        const og = ord.og || {};
 
-            // Clone and Isolate (Hierarchy Escape Strategy)
-            const clone = printContent.cloneNode(true) as HTMLElement;
-            clone.classList.add('print-isolated');
+        // Verres details
+        const isDiff = verres.differentODOG;
+        const matiere = isDiff 
+            ? `OD: ${verres.matiereOD || ''} | OG: ${verres.matiereOG || ''}`
+            : (verres.matiere || '');
+        const indice = isDiff
+            ? `OD: ${verres.indiceOD || ''} | OG: ${verres.indiceOG || ''}`
+            : (verres.indice || '');
+        const traitements = isDiff
+            ? `OD: ${(verres.traitementOD || []).join(', ') || '-'} | OG: ${(verres.traitementOG || []).join(', ') || '-'}`
+            : ((verres.traitement || []).join(', ') || '-');
+        
+        const diametre = this.getDiametreACommander();
 
-            document.body.classList.add('is-printing-report');
-            document.body.appendChild(clone);
+        // Dynamic Logo and Company Name
+        const logoUrl = this.companySettings?.logoUrl || `${window.location.origin}/assets/images/logo.png`;
+        const companyName = this.companySettings?.name || 'OPTISASS';
 
-            setTimeout(() => {
-                window.print();
-                document.body.classList.remove('is-printing-report');
-                if (document.body.contains(clone)) {
-                    document.body.removeChild(clone);
-                }
-                this.currentPrintType = null;
-                this.cdr.detectChanges();
-            }, 300);
-        }, 100);
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            this.snackBar.open('Activez les popups pour imprimer', 'OK', { duration: 5000, verticalPosition: 'top' });
+            return;
+        }
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html lang="fr">
+            <head>
+                <meta charset="UTF-8">
+                <title>Bon de Commande Verres - ${ref}</title>
+                <style>
+                    @page { size: A4 portrait; margin: 0 !important; }
+                    body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; padding: 15mm; line-height: 1.5; font-size: 10pt; background: #fff; }
+                    
+                    /* Header Styles matching invoice/screenshot */
+                    .header { display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #0f172a; padding-bottom: 20px; margin-bottom: 30px; }
+                    .logo-box { display: flex; align-items: center; gap: 15px; }
+                    .logo-img { height: 75px; width: auto; object-fit: contain; }
+                    .company-info { text-align: right; }
+                    .company-info h1 { margin: 0; font-size: 22pt; font-weight: 950; color: #0f172a; text-transform: uppercase; letter-spacing: -0.5px; }
+                    .doc-title { margin-top: 5px; font-size: 16pt; color: #3b82f6; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
+                    
+                    /* Meta info cards */
+                    .meta-info { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 35px; }
+                    .info-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+                    .info-card label { display: block; font-size: 8.5pt; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+                    .info-card p { margin: 0; font-size: 13pt; font-weight: 800; color: #1e293b; }
+
+                    .section { margin-bottom: 35px; }
+                    .section-label { color: #94a3b8; font-size: 9pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
+                    
+                    /* Lens Characteristics Grid */
+                    .lens-specs { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; column-gap: 40px; }
+                    .spec-item { padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+                    .spec-item label { display: block; font-size: 8pt; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+                    .spec-item span { font-size: 10.5pt; font-weight: 600; color: #0f172a; }
+
+                    /* Technical Table */
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                    th { text-align: left; font-size: 8.5pt; text-transform: uppercase; color: #94a3b8; padding: 12px 10px; font-weight: 800; border-bottom: 2px solid #e2e8f0; }
+                    td { padding: 15px 10px; border-bottom: 1px solid #f1f5f9; font-size: 11pt; font-weight: 500; }
+                    .eye-row { font-weight: 900; color: #3b82f6; width: 60px; }
+                    .val-cell { text-align: center; }
+                    th.val-cell { text-align: center; }
+
+                    /* Footer & Cachet */
+                    .footer { text-align: center; margin-top: 60px; }
+                    .cachet-label { font-weight: 800; color: #475569; font-size: 10pt; margin-bottom: 15px; }
+                    .cachet-box { display: inline-block; width: 240px; height: 110px; border: 2px dashed #cbd5e1; border-radius: 16px; position: relative; display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 8pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+
+                    @media print {
+                        body { padding: 10mm 15mm; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="logo-box">
+                        <img src="${logoUrl}" class="logo-img" alt="Logo">
+                    </div>
+                    <div class="company-info">
+                        <h1>${companyName}</h1>
+                        <div class="doc-title">Bon de Commande Verres</div>
+                    </div>
+                </div>
+
+                <div class="meta-info">
+                    <div class="info-card">
+                        <label>Fournisseur</label>
+                        <p>${suivi.fournisseur || '-'}</p>
+                    </div>
+                    <div class="info-card">
+                        <label>Référence BC / Date</label>
+                        <p>${ref} — ${today}</p>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-label">Caractéristiques des Verres</div>
+                    <div class="lens-specs">
+                        <div class="spec-item">
+                            <label>Type de Verre</label>
+                            <span>${verres.type || '-'}</span>
+                        </div>
+                        <div class="spec-item">
+                            <label>Matière</label>
+                            <span>${matiere}</span>
+                        </div>
+                        <div class="spec-item">
+                            <label>Indice</label>
+                            <span>${indice}</span>
+                        </div>
+                        <div class="spec-item">
+                            <label>Diamètre Utile</label>
+                            <span>${diametre} mm</span>
+                        </div>
+                        <div class="spec-item" style="grid-column: span 2; border-bottom: none;">
+                            <label>Traitements</label>
+                            <span>${traitements}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-label">Prescription Technique</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">Oeil</th>
+                                <th class="val-cell">Sphère</th>
+                                <th class="val-cell">Cylindre</th>
+                                <th class="val-cell">Axe</th>
+                                <th class="val-cell">Addition</th>
+                                <th class="val-cell">Diamètre</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="eye-row">OD</td>
+                                <td class="val-cell">${od.sphere || '0.00'}</td>
+                                <td class="val-cell">${od.cylindre || '0.00'}</td>
+                                <td class="val-cell">${od.axe || '0'}°</td>
+                                <td class="val-cell">${od.addition || '0.00'}</td>
+                                <td class="val-cell">${diametre.split('/')?.[0] || diametre}</td>
+                            </tr>
+                            <tr>
+                                <td class="eye-row">OG</td>
+                                <td class="val-cell">${og.sphere || '0.00'}</td>
+                                <td class="val-cell">${og.cylindre || '0.00'}</td>
+                                <td class="val-cell">${og.axe || '0'}°</td>
+                                <td class="val-cell">${og.addition || '0.00'}</td>
+                                <td class="val-cell">${diametre.includes('/') ? diametre.split('/')?.[1] : diametre}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="footer">
+                    <p class="cachet-label">Cachet du Magasin</p>
+                    <div style="display: flex; justify-content: center;">
+                        <div class="cachet-box">Emplacement Cachet</div>
+                    </div>
+                </div>
+
+                <script>
+                    window.onload = function() {
+                        window.print();
+                        setTimeout(() => window.close(), 1000);
+                    }
+                <\/script>
+            </body>
+            </html>
+        `);
+
+        printWindow.document.close();
     }
 
     /**
