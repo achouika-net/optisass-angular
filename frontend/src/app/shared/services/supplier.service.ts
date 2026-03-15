@@ -1,82 +1,67 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { SUPPLIERS_API_URL } from '@app/config';
 import { PaginatedApiResponse, ISupplier, ISupplierSearchRequest } from '@app/models';
-import { delay, Observable, of } from 'rxjs';
-import { MOCK_SUPPLIERS } from './resource.service.mock';
-
-let nextSupplierId = 100;
-
-// TODO: Inject HttpClient when backend is ready
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 @Injectable({ providedIn: 'root' })
 export class SupplierService {
-  /**
-   * Retrieves all active suppliers.
-   * @returns Observable of active suppliers array
-   */
+  #http = inject(HttpClient);
+
   getActiveSuppliers(): Observable<ISupplier[]> {
-    // TODO: Uncomment when backend is ready
-    // return this.#http.get<ISupplier[]>(`${SUPPLIERS_API_URL}?active=true`);
-    return of(MOCK_SUPPLIERS.filter((s) => s.active));
+    return this.#http.get<any[]>(`${SUPPLIERS_API_URL}?active=true`).pipe(
+      map(suppliers => suppliers.map(s => ({ ...s, name: s.nom || s.name })))
+    );
   }
 
-  /**
-   * Searches suppliers with pagination.
-   * @param request The search request
-   * @returns Observable of paginated suppliers
-   */
   search(request: ISupplierSearchRequest): Observable<PaginatedApiResponse<ISupplier>> {
-    // TODO: Uncomment when backend is ready
-    // return this.#http.get<PaginatedApiResponse<Supplier>>(SUPPLIERS_API_URL, { params: request as unknown as Record<string, string> });
-    const filtered = MOCK_SUPPLIERS.filter((s) => {
-      if (request.query && !s.name.toLowerCase().includes(request.query.toLowerCase()))
-        return false;
-      if (request.active !== null && s.active !== request.active) return false;
-      return true;
-    });
-    return of({
-      data: filtered,
-      meta: {
-        current_page: 1,
-        from: 1,
-        last_page: 1,
-        path: SUPPLIERS_API_URL,
-        per_page: 10,
-        to: filtered.length,
-        total: filtered.length,
-      },
-      links: { first: '', last: '', prev: null, next: null },
-    });
+    let params = new HttpParams();
+    if (request.query) params = params.set('query', request.query);
+    if (request.active !== undefined && request.active !== null) {
+      params = params.set('active', String(request.active));
+    }
+    return this.#http.get<any[]>(SUPPLIERS_API_URL, { params }).pipe(
+      map(suppliers => {
+        const mapped = suppliers.map(s => ({ ...s, name: s.nom || s.name }));
+        return {
+          data: mapped,
+          meta: {
+            current_page: 1,
+            from: 1,
+            last_page: 1,
+            path: SUPPLIERS_API_URL,
+            per_page: mapped.length || 10,
+            to: mapped.length,
+            total: mapped.length,
+          },
+          links: { first: '', last: '', prev: null as string | null, next: null as string | null },
+        };
+      })
+    );
   }
 
-  /**
-   * Retrieves a supplier by ID.
-   * @param id The supplier ID
-   * @returns Observable of the supplier
-   */
   getById(id: string): Observable<ISupplier> {
-    // TODO: Uncomment when backend is ready
-    // return this.#http.get<ISupplier>(`${SUPPLIERS_API_URL}/${id}`);
-    const supplier = MOCK_SUPPLIERS.find((s) => s.id === id);
-    return of(supplier!);
+    return this.#http.get<any>(`${SUPPLIERS_API_URL}/${id}`).pipe(
+      map(s => ({ ...s, name: s.nom || s.name }))
+    );
   }
 
-  /**
-   * Creates a new supplier.
-   * If supplier.id is null, backend creates a new supplier.
-   * @param supplier The supplier data
-   * @returns Observable of the created supplier with assigned ID
-   */
-  create(supplier: ISupplier): Observable<ISupplier> {
-    // TODO: Replace mock with HTTP call when backend is ready
-    // return this.#http.post<ISupplier>(SUPPLIERS_API_URL, supplier);
-    const newSupplier: ISupplier = {
-      ...supplier,
-      id: String(nextSupplierId++),
-      code: `SUP${String(nextSupplierId).padStart(4, '0')}`,
-      createdAt: new Date(),
-      updatedAt: null,
-    };
-    return of(newSupplier).pipe(delay(200));
+  create(supplier: Partial<ISupplier>): Observable<ISupplier> {
+    const payload = { ...supplier, nom: supplier.name };
+    return this.#http.post<any>(SUPPLIERS_API_URL, payload).pipe(
+      map(s => ({ ...s, name: s.nom || s.name }))
+    );
+  }
+
+  update(id: string, supplier: Partial<ISupplier>): Observable<ISupplier> {
+    const payload = { ...supplier, nom: supplier.name };
+    return this.#http.put<any>(`${SUPPLIERS_API_URL}/${id}`, payload).pipe(
+      map(s => ({ ...s, name: s.nom || s.name }))
+    );
+  }
+
+  delete(id: string): Observable<void> {
+      return this.#http.delete<void>(`${SUPPLIERS_API_URL}/${id}`);
   }
 }

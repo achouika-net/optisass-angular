@@ -107,6 +107,7 @@ export class FicheProduitFormComponent implements OnInit, AfterViewInit {
     ) {
         this.ficheForm = this.fb.group({
             dateLivraisonEstimee: [new Date(), Validators.required],
+            fournisseur: [''], // ✅ Added fournisseur field
             notes: [''],
             orderItems: this.fb.array([])
         });
@@ -335,6 +336,7 @@ export class FicheProduitFormComponent implements OnInit, AfterViewInit {
                     this.currentFiche = ficheProduit;
                     this.ficheForm.patchValue({
                         dateLivraisonEstimee: ficheProduit.dateLivraisonEstimee ? new Date(ficheProduit.dateLivraisonEstimee) : new Date(),
+                        fournisseur: ficheProduit.fournisseur || '', // ✅ Patch fournisseur
                         notes: ficheProduit.notes || ''
                     });
 
@@ -631,6 +633,7 @@ export class FicheProduitFormComponent implements OnInit, AfterViewInit {
             type: TypeFiche.PRODUIT,
             statut: this.currentFiche?.statut || StatutFiche.EN_COURS,
             dateLivraisonEstimee: formValue.dateLivraisonEstimee,
+            fournisseur: formValue.fournisseur, // ✅ Add fournisseur to payload
             notes: formValue.notes,
             produits,
             montantTotal,

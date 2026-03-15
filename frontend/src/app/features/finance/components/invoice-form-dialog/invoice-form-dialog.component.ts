@@ -395,7 +395,7 @@ export class InvoiceFormDialogComponent implements OnInit {
 
         // If Type changes, reset or show/hide client fields handled in UI but we might want to clear them
         this.detailsGroup.get('type')?.valueChanges.subscribe(type => {
-            if (type !== 'ACHAT_VERRE_OPTIQUE') {
+            if (type !== 'ACHAT_VERRE_OPTIQUE' && type !== 'ACHAT_LENTILLES') {
                 // Should we clear? User might change back and forth. 
                 // Let's not clear immediately unless required.
             }
@@ -1185,6 +1185,10 @@ export class InvoiceFormDialogComponent implements OnInit {
     private updateFicheTrackingFromBL(res: any): void {
         const ficheId = res.ficheId;
         const blNumber = res.numeroBL || res.numeroFacture;
+        const type = res.type || '';
+        
+        // Determine label base on type
+        const itemLabel = type.includes('LENTILLE') ? 'Lentilles' : 'Verres';
         
         this.ficheService.getFicheById(ficheId).subscribe(fiche => {
             if (!fiche) return;
@@ -1196,7 +1200,7 @@ export class InvoiceFormDialogComponent implements OnInit {
             const journalEntry = {
                 date: now,
                 statut: 'RECU',
-                description: `Verres reçus à l'atelier (BL: ${blNumber})`,
+                description: `${itemLabel} reçu(s) à l'atelier (BL: ${blNumber})`,
                 type: 'recu'
             };
 

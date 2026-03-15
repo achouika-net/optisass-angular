@@ -1340,6 +1340,22 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             description = `Commande envoyée au fournisseur (${fournisseurName}) - BC: ${referenceCommande} / Suivi: ${trackingNum}`;
             if (!group.get('dateCommande')?.value) {
                 group.patchValue({ dateCommande: now });
+                
+                // Track BC in history to show in finance/bc-history
+                const history = group.get('bcHistorique')?.value || [];
+                const bcRecord = {
+                    date: now,
+                    numero: referenceCommande,
+                    fournisseur: fournisseurName,
+                    ficheId: this.ficheId,
+                    clientName: (this.client as any)?.nom ? `\${(this.client as any).nom} \${(this.client as any).prenom || ''}`.trim() : ((this.client as any)?.raisonSociale || 'Client'),
+                    motive: group.get('nextBcMotive')?.value || 'Commande Monture/Verres'
+                };
+                
+                group.patchValue({ 
+                    bcHistorique: [bcRecord, ...history],
+                    nextBcMotive: '' // Reset motive after use
+                });
             }
         } else if (statut === 'RECU') {
             description = `Verres reçus à l'atelier (BL: ${trackingNum})`;
@@ -1804,6 +1820,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 hasCasse: [false],
                 casseCount: [0],
                 casseHistorique: [[]],
+                nextBcMotive: [''],
+                bcHistorique: [[]],
                 journal: [[]]
             })
         });

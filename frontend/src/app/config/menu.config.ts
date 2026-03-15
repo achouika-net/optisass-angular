@@ -106,8 +106,7 @@ export const MENU: MenuItem[] = [
         label: 'Bon de livraison BL',
         icon: 'receipt_long',
         type: 'subchild',
-        route: 'gestion-depenses/payments',
-        queryParams: { tab: 'BL' }
+        route: 'gestion-depenses/bl-management'
       },
       {
         label: 'Dépenses Diverses',

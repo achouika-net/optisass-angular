@@ -71,6 +71,7 @@ export class FactureFormComponent implements OnInit {
     isViewMode = false;
     client: any = null;
     centreId: string | null = null;
+    isLoading = false;
 
     // Totals
     totalHT = 0;
@@ -140,6 +141,7 @@ export class FactureFormComponent implements OnInit {
 
         if (isLoadingExisting) {
             console.log('⏳ [FactureForm] Detected existing ID:', routeId, '. Waiting for loadFacture...');
+            this.isLoading = true; // [FIX] Show loading immediately for existing docs
         } else if (isCreationMode) {
             console.log('✨ [FactureForm] Mode: Creation (Definitive)');
             // Only set default type/statut if creating NEW invoice
@@ -180,30 +182,65 @@ export class FactureFormComponent implements OnInit {
         if (changes['isReadonly']) {
             this.updateViewMode();
         }
-        if (changes['factureId'] && this.factureId && this.factureId !== this.id) {
-            console.log('🔄 [FactureForm] factureId changed (input):', this.factureId, '| Old ID:', this.id);
-            // Reload if input ID changes
-            this.id = this.factureId;
-            if (this.id !== 'new') {
-                this.loadFacture(this.id);
+        
+        console.log(`📡 [FactureForm] ngOnChanges triggered. Current ID: ${this.id}, factureId Input: ${this.factureId}`);
+
+        if (changes['factureId']) {
+            const newVal = changes['factureId'].currentValue;
+            console.log('🔄 [FactureForm] factureId changed (input):', newVal, '| Old ID:', this.id);
+            
+            if (newVal && newVal !== 'new' && newVal !== this.id) {
+                console.log('✅ [FactureForm] Valid factureId received. Adopting ID and loading facture:', newVal);
+                this.id = newVal;
+                this.loadFacture(newVal);
+            } else if (newVal === 'new' && this.id !== 'new') {
+                console.log('✨ [FactureForm] factureId transitioned to NEW. Initializing defaults.');
+                this.id = 'new';
+                this.form.patchValue({
+                    type: 'DEVIS',
+                    statut: 'BROUILLON'
+                }, { emitEvent: false });
+                
+                if (this.initialLines && this.initialLines.length > 0) {
+                    this.lignes.clear();
+                    this.initialLines.forEach(l => {
+                        const group = this.createLigne();
+                        group.patchValue(l);
+                        this.lignes.push(group);
+                    });
+                    this.calculateTotals();
+                } else if (this.lignes.length === 0) {
+                    this.addLine();
+                }
+                this.updateViewMode();
             }
         }
+
         if (changes['nomenclature'] && this.nomenclature && this.embedded) {
             console.log('📝 [FactureForm] nomenclature changed (embedded)');
             this.form.get('proprietes')?.patchValue({ nomenclature: this.nomenclature });
         }
-        if (changes['initialLines'] && this.initialLines && (!this.id || this.id === 'new')) {
-            console.log('🛒 [FactureForm] initialLines received (creation mode)');
-            // Update lines from new initialLines if we are in creation mode
-            // But we should be careful not to overwrite manual edits if possible.
-            // For now, if initialLines updates (e.g. equipment changed), we replace.
-            this.lignes.clear();
-            this.initialLines.forEach(l => {
-                const group = this.createLigne();
-                group.patchValue(l);
-                this.lignes.push(group);
-            });
-            this.calculateTotals();
+
+        if (changes['initialLines']) {
+            console.log('🛒 [FactureForm] initialLines received. Current ID state:', this.id);
+            if (!this.id || this.id === 'new') {
+                console.log('🛒 [FactureForm] Applying initialLines in creation mode.');
+                this.lignes.clear();
+                if (this.initialLines && this.initialLines.length > 0) {
+                    this.initialLines.forEach(l => {
+                        const group = this.createLigne();
+                        group.patchValue(l);
+                        this.lignes.push(group);
+                    });
+                } else {
+                    // CRITICAL: Ensure at least one line exists to avoid completely blank lists
+                    console.log('🛒 [FactureForm] initialLines is empty. Adding default blank line.');
+                    this.addLine();
+                }
+                this.calculateTotals();
+            } else {
+                console.log('🛡️ [FactureForm] Ignoring initialLines because Document is an existing invoice:', this.id);
+            }
         }
     }
     // ... (rest of methods) - RESTORED
@@ -271,6 +308,11 @@ export class FactureFormComponent implements OnInit {
     handleEmbeddedInit() {
         this.id = this.factureId;
         console.log('🧩 [FactureForm] handleEmbeddedInit | id:', this.id, '| clientId:', this.clientIdInput);
+
+        // If embedded and no ID is provided, but it's not explicitly 'new', we might be waiting
+        if (this.embedded && !this.id) {
+            this.isLoading = true;
+        }
 
         if (this.clientIdInput) {
             this.form.patchValue({ clientId: this.clientIdInput });
@@ -425,10 +467,19 @@ export class FactureFormComponent implements OnInit {
 
     loadFacture(id: string) {
         console.log('📥 [FactureForm] Calling loadFacture for ID:', id);
+        this.isLoading = true;
         this.factureService.findOne(id).subscribe({
             next: (facture) => {
                 console.log('✅ [FactureForm] loadFacture SUCCESS | Numero:', facture.numero, '| ID:', facture.id, '| Status:', facture.statut);
                 this.id = facture.id; // CRITICAL FIX: Update internal ID to stop showing 'Nouveau Document'
+                this.isLoading = false;
+                
+                // [FIX] Sync ficheIdInput if missing but present in DB
+                if (facture.ficheId && !this.ficheIdInput) {
+                    this.ficheIdInput = facture.ficheId;
+                    console.log('🔗 [FactureForm] Synced ficheIdInput from DB:', this.ficheIdInput);
+                }
+
                 console.log('📋 Nomenclature from DB:', facture.proprietes?.nomenclature);
 
                 this.form.patchValue({

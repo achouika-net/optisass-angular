@@ -92,7 +92,7 @@
 
                                 <!-- SELECTION CLIENT & FICHE (Visible seulement pour Achat Verre Optique) -->
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-4 bg-blue-50/30 rounded-xl border border-blue-100"
-                                    *ngIf="detailsGroup.get('type')?.value === 'ACHAT_VERRE_OPTIQUE'">
+                                    *ngIf="detailsGroup.get('type')?.value === 'ACHAT_VERRE_OPTIQUE' || detailsGroup.get('type')?.value === 'ACHAT_LENTILLES'">
 
                                     <mat-form-field appearance="outline">
                                         <mat-label>Client (Rechercher par nom) *</mat-label>

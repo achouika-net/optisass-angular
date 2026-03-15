@@ -69,8 +69,8 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
     .montant-cell { font-weight: bold; text-align: right; color: #2c3e50; }
     .statut-chip { font-size: 11px; height: 26px; font-weight: 500; letter-spacing: 0.3px; }
     
-    tr.mat-mdc-header-row { background-color: #f8fafc; }
-    th.mat-mdc-header-cell { color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+    tr.mat-mdc-header-row { background-color: #0c4891 !important; }
+    th.mat-mdc-header-cell { color: white !important; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
     td.mat-mdc-cell { color: #334155; font-size: 13px; padding: 12px 8px !important; }
     
     .mat-mdc-card { border-radius: 12px; overflow: hidden; }

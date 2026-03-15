@@ -128,6 +128,7 @@ export interface FicheMonture extends FicheClientBase {
     suggestions?: SuggestionIA[];  // AI suggestions for lenses
     equipements?: any[];  // Additional equipment
     suiviCommande?: any;  // Order tracking data
+    lentilles?: any;      // ✅ Added for hybrid fiches (Monture + Lentilles)
 }
 
 // ============ Fiche Lentilles ============
@@ -213,6 +214,7 @@ export interface ProduitVendu {
 export interface FicheProduit extends FicheClientBase {
     type: TypeFiche.PRODUIT;
     produits: ProduitVendu[];
+    fournisseur?: string; // ✅ Added for Lens Sheet
 }
 
 // ============ Type Union ============

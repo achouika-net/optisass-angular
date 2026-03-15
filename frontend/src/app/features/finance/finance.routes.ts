@@ -43,6 +43,10 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/outgoing-payment-list/outgoing-payment-list.component').then(m => m.OutgoingPaymentListComponent)
     },
     {
+        path: 'bl-management',
+        loadComponent: () => import('./pages/bl-management-page/bl-management-page.component').then(m => m.BlManagementPageComponent)
+    },
+    {
         path: 'sales-control',
         loadComponent: () => import('../reports/sales-control-report/sales-control-report.component').then(m => m.SalesControlReportComponent)
     },
