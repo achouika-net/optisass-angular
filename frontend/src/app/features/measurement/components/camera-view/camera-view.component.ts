@@ -726,6 +726,7 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
             standardDiameterMm,
             diagonalPoints: { p1: this.diagonalP1, p2: this.diagonalP2 },
             pupils,
+            imageDataUrl: this.capturedImage?.src || undefined, // [NEW] Pass captured image back to parent
             timestamp: Date.now()
         };
     }

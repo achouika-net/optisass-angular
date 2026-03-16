@@ -33,7 +33,7 @@
                         <mat-card-subtitle>
                             {{ caisse.centre?.nom }} |
                             <span class="type-tag" [ngClass]="caisse.type">
-                                {{ caisse.type === 'PRINCIPALE' ? 'Principale' : 'Dépenses' }}
+                                {{ caisse.type === 'PRINCIPALE' ? 'Principale' : (caisse.type === 'MIXTE' ? 'Mixte' : 'Dépenses') }}
                             </span>
                         </mat-card-subtitle>
                     </mat-card-header>
@@ -52,10 +52,10 @@
 
                     <mat-card-actions align="end" class="actions-container">
                         <ng-container *ngIf="isManagementMode">
-                            <button mat-icon-button color="primary" (click)="editCaisse(caisse)" matTooltip="Modifier">
+                            <button mat-icon-button type="button" color="primary" (click)="editCaisse(caisse, $event)" matTooltip="Modifier">
                                 <mat-icon>edit</mat-icon>
                             </button>
-                            <button mat-icon-button color="warn" (click)="deleteCaisse(caisse)" matTooltip="Supprimer">
+                            <button mat-icon-button type="button" color="warn" (click)="deleteCaisse(caisse, $event)" matTooltip="Supprimer">
                                 <mat-icon>delete</mat-icon>
                             </button>
                         </ng-container>

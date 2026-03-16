@@ -1526,6 +1526,8 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
                 this.printBC();
             } else if (action === 'email') {
                 this.emailOrder();
+            } else if (action === 'whatsapp') {
+                this.whatsappOrder();
             }
         });
     }
@@ -1554,11 +1556,52 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
         });
     }
 
-        
+    /**
+     * Constructs a WhatsApp message and opens web.whatsapp.com
+     */
+    public whatsappOrder(): void {
+        const group = this.ficheForm.get('suiviCommande');
+        if (!group) return;
 
+        const bcNumber = group.get('referenceCommande')?.value || this.generateReference(group.get('dateCommande')?.value || new Date());
+        const supplierName = group.get('fournisseur')?.value || '-';
+        const clientName = this.client ? 
+            (isClientParticulier(this.client) ? `${this.client.prenom} ${this.client.nom}`.trim() : (this.client as any).nom || 'Client') : 
+            'Client';
 
+        const lentilles = this.ficheForm.get('lentilles')?.value;
+        const bothEyesGroup = this.ficheForm.get('diffLentilles');
+        const differentODOG = bothEyesGroup ? bothEyesGroup.value : false;
 
+        let detailsLentilles = '';
+        if (differentODOG) {
+           const od = this.ficheForm.get('od')?.value;
+           const og = this.ficheForm.get('og')?.value;
+           detailsLentilles = `*Lentilles*\nOD : Sph ${od?.Sph || '0.00'} | Cyl ${od?.Cyl || '0.00'} | Axe ${od?.Axe || '0'} | Add ${od?.Add || '0.00'}\nOG : Sph ${og?.Sph || '0.00'} | Cyl ${og?.Cyl || '0.00'} | Axe ${og?.Axe || '0'} | Add ${og?.Add || '0.00'}`;
+        } else {
+           const od = this.ficheForm.get('od')?.value; // Used as both if not separated
+           detailsLentilles = `*Lentilles*\nSph ${od?.Sph || '0.00'} | Cyl ${od?.Cyl || '0.00'} | Axe ${od?.Axe || '0'} | Add ${od?.Add || '0.00'}`;
+        }
 
+        const orderDetails = [
+            `*Bon de Commande ${bcNumber}*`,
+            `Client : ${clientName}`,
+            `Fournisseur : ${supplierName}`,
+            ``,
+            detailsLentilles,
+            `Marque : ${lentilles?.Marque || '-'}`,
+            `Type : ${lentilles?.Matiere || '-'}`
+        ].join('\n');
+
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(orderDetails)}`;
+        window.open(whatsappUrl, '_blank');
+    }
+
+    private generateReference(date: Date): string {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        return `BC-${year}${month}-XXX`; // Fallback format
+    }
 
     private addToJournal(description: string, detail?: string, type: string = 'info'): void {
         const group = this.ficheForm.get('suiviCommande');

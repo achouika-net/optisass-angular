@@ -28,11 +28,15 @@ export class FichesController {
 
   @Get()
   findAll(
-    @Query('clientId') clientId: string,
+    @Query('clientId') clientId?: string,
     @Query('startDate') startDate?: string,
+    @Query('all') all?: string,
   ) {
     if (clientId) {
       return this.fichesService.findAllByClient(clientId, startDate);
+    }
+    if (all === 'true') {
+      return this.fichesService.findAll(startDate);
     }
     return [];
   }
@@ -40,6 +44,11 @@ export class FichesController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.fichesService.findOne(id);
+  }
+
+  @Post(':id/email-order')
+  async emailOrder(@Param('id') id: string) {
+    return this.fichesService.sendOrderEmail(id);
   }
 
   @Put(':id')

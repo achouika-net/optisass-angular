@@ -37,6 +37,7 @@ import { AccountingModule } from './features/accounting/accounting.module';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
 import { ImportsModule } from './features/imports/imports.module';
 import { CompanySettingsModule } from './features/company-settings/company-settings.module';
+import { NotificationsModule } from './features/notifications/notifications.module';
 
 import { DiagController } from './diag.controller';
 

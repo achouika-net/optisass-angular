@@ -1,0 +1,36 @@
+<div class="dialog-container">
+  <div class="dialog-header">
+    <mat-icon class="header-icon">description</mat-icon>
+    <h2 mat-dialog-title>Bon de Commande Généré</h2>
+    <button mat-icon-button (click)="onClose()" class="close-button">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content class="dialog-content">
+    <div class="info-card">
+      <p><strong>Référence:</strong> {{ data.bcNumber }}</p>
+      <p><strong>Fournisseur:</strong> {{ data.supplierName }}</p>
+      <p><strong>Client:</strong> {{ data.clientName }}</p>
+    </div>
+    
+    <p class="instruction-text">
+      Que souhaitez-vous faire avec ce bon de commande ?
+    </p>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end" class="dialog-actions">
+    <button mat-stroked-button color="primary" (click)="onAction('print')">
+      <mat-icon>print</mat-icon>
+      Imprimer
+    </button>
+    <button mat-raised-button color="primary" (click)="onAction('email')">
+      <mat-icon>email</mat-icon>
+      Envoyer par Email
+    </button>
+    <button mat-raised-button color="accent" (click)="onAction('whatsapp')">
+      <mat-icon>chat</mat-icon>
+      Envoyer par WhatsApp
+    </button>
+  </mat-dialog-actions>
+</div>

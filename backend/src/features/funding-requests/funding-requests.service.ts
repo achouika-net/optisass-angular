@@ -66,14 +66,16 @@ export class FundingRequestsService {
         throw new BadRequestException('Cette demande a déjà été traitée');
       }
 
-      // 2. Find the Main Register (PRINCIPALE) for this center
-      const mainCaisse = await tx.caisse.findFirst({
+      // 2. Find the Main Register. Prioritize MIXTE if both are open.
+      const candidateCaisses = await tx.caisse.findMany({
         where: {
           centreId: request.journeeCaisse.centreId,
-          type: 'PRINCIPALE',
+          type: { in: ['PRINCIPALE', 'MIXTE'] },
           statut: 'ACTIVE',
         },
       });
+
+      const mainCaisse = candidateCaisses.find(c => c.type === 'MIXTE') || candidateCaisses[0];
 
       if (!mainCaisse) {
         throw new BadRequestException(

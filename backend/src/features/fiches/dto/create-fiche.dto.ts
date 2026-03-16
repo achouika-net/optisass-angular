@@ -53,6 +53,12 @@ export class CreateFicheDto {
   ordonnance?: any;
 
   @IsOptional()
+  lentilles?: any;
+
+  @IsOptional()
+  adaptation?: any;
+
+  @IsOptional()
   suggestions?: any;
 
   @IsOptional()

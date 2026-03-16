@@ -1575,55 +1575,6 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         }
     }
 
-    emailOrder(): void {
-        const suivi = this.ficheForm.get('suiviCommande')?.value || {};
-        const fournisseur = suivi.fournisseur || '';
-
-        if (!fournisseur) {
-            this.snackBar.open('Veuillez d\'abord s\'lectionner un fournisseur', 'Fermer', {
-                duration: 4000, verticalPosition: 'top'
-            });
-            return;
-        }
-
-        const bcNum   = suivi.referenceCommande || 'N/A';
-        const client  = this.clientDisplayName || 'Client';
-        const ord     = this.ficheForm.get('ordonnance')?.value || {};
-        const od      = ord.od || {};
-        const og      = ord.og || {};
-        const verres  = this.ficheForm.get('verres')?.value || {};
-        const isDiff  = verres.differentODOG;
-        const matiere = isDiff
-            ? `OD: ${verres.marqueOD || ''} ${verres.matiereOD || ''} ${verres.indiceOD || ''} / OG: ${verres.marqueOG || ''} ${verres.matiereOG || ''} ${verres.indiceOG || ''}`
-            : `${verres.marque || ''} ${verres.matiere || ''} ${verres.indice || ''}`;
-
-        const subject = encodeURIComponent(`Bon de Commande Verres ${bcNum} - ${client}`);
-        const body = encodeURIComponent([
-            `Bonjour,`,
-            ``,
-            `Veuillez trouver ci-dessous notre bon de commande verres.`,
-            ``,
-            `N° BC      : ${bcNum}`,
-            `Client    : ${client}`,
-            `Fournisseur: ${fournisseur}`,
-            ``,
-            `ORDONNANCE`,
-            `OD : Sph ${od.sphere || '-'}  Cyl ${od.cylindre || '-'}  Axe ${od.axe || '-'}  Add ${od.addition || '-'}`,
-            `OG : Sph ${og.sphere || '-'}  Cyl ${og.cylindre || '-'}  Axe ${og.axe || '-'}  Add ${og.addition || '-'}`,
-            ``,
-            `VERRES : ${matiere}`,
-            ``,
-            `Cordialement,`,
-            `OPTISASS`,
-        ].join('\n'));
-
-        window.location.href = `mailto:?subject=${subject}&body=${body}`;
-
-        this.snackBar.open('📧 Votre client email est ouvert avec les détails de la commande.', 'OK', {
-            duration: 5000, verticalPosition: 'top'
-        });
-    }
-
     getTimelineEvents(): any[] {
         const group = this.ficheForm?.get('suiviCommande');
         if (!group) return [];
@@ -4696,7 +4647,65 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         dialogRef.afterClosed().subscribe(action => {
             if (action === 'print') this.printBC();
             if (action === 'email') this.emailOrder();
+            if (action === 'whatsapp') this.whatsappOrder();
         });
+    }
+
+    public emailOrder(): void {
+        if (!this.ficheId) return;
+
+        this.ficheService.emailOrder(this.ficheId).subscribe({
+            next: () => {
+                this.snackBar.open('Bon de commande envoyé par email avec succès.', 'Fermer', {
+                    duration: 3000,
+                    panelClass: ['success-snackbar']
+                });
+            },
+            error: (error) => {
+                console.error('Error emailing order:', error);
+                const errorMsg = error.error?.message || 'Erreur lors de l\'envoi de l\'email.';
+                this.snackBar.open(errorMsg, 'Fermer', {
+                    duration: 5000,
+                    panelClass: ['error-snackbar']
+                });
+            }
+        });
+    }
+
+    public whatsappOrder(): void {
+        const bcData = this.ficheForm.get('suiviCommande')?.value;
+        const bcNumber = bcData?.referenceCommande || this.generateReference(bcData?.dateCommande || new Date());
+        let clientName = this.client ? (isClientProfessionnel(this.client) ? this.client.raisonSociale : `${this.client.nom} ${this.client.prenom || ''}`).trim() : 'Client';
+
+        // Reconstruct order details
+        const monture = this.ficheForm.get('monture')?.value;
+        const verres = this.ficheForm.get('verres')?.value;
+
+        const orderDetails = [
+            `*Bon de Commande ${bcNumber}*`,
+            `Client : ${clientName}`,
+            `Fournisseur : ${bcData?.fournisseur || '-'}`,
+            ``,
+            `*Monture*`,
+            `Marque : ${monture?.Marque || '-'}`,
+            `Modèle : ${monture?.Modele || '-'}`,
+            `Réf    : ${monture?.RefM1 || '-'}`,
+            ``,
+            `*Verres*`,
+            `OD : Sph ${verres?.OD_Sph1 || '0.00'} | Cyl ${verres?.OD_Cyl1 || '0.00'} | Axe ${verres?.OD_Axe1 || '0'} | Add ${verres?.OD_Add1 || '0.00'}`,
+            `OG : Sph ${verres?.OG_Sph1 || '0.00'} | Cyl ${verres?.OG_Cyl1 || '0.00'} | Axe ${verres?.OG_Axe1 || '0'} | Add ${verres?.OG_Add1 || '0.00'}`,
+            `Marque : ${verres?.Marque || '-'}`,
+            `Matière: ${verres?.Matiere || '-'}`
+        ].join('\n');
+
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(orderDetails)}`;
+        window.open(whatsappUrl, '_blank');
+    }
+
+    private generateReference(date: Date): string {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        return `BC-${year}${month}-XXX`; // Fallback format
     }
     // Duplicates removed
 }

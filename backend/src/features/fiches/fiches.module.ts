@@ -4,9 +4,10 @@ import { FichesController } from './fiches.controller';
 
 import { FacturesModule } from '../factures/factures.module';
 import { LoyaltyModule } from '../loyalty/loyalty.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [FacturesModule, LoyaltyModule],
+  imports: [FacturesModule, LoyaltyModule, NotificationsModule],
   controllers: [FichesController],
   providers: [FichesService],
 })

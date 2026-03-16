@@ -138,7 +138,7 @@ model Paiement {
   updatedAt           DateTime             @updatedAt
   dateEncaissement    DateTime?
   statut              String               @default("ENCAISSE")
-  operationCaisseId   String?
+  operationCaisseId   String?              @unique
   userId              String?
   demandeAlimentation DemandeAlimentation?
   facture             Facture              @relation(fields: [factureId], references: [id], onDelete: Cascade)

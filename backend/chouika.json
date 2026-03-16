@@ -1,0 +1,729 @@
+[
+  {
+    "ficheId": "9de0fbfb-128c-4543-b57e-874cb388f022",
+    "type": "monture",
+    "factures": [
+      {
+        "id": "7b089b53-8dec-4588-9d4f-79358ace2e76",
+        "numero": "BC-14388",
+        "type": "BON_COMMANDE",
+        "dateEmission": "2026-02-08T00:00:00.000Z",
+        "dateEcheance": null,
+        "statut": "PAYEE",
+        "clientId": "0d48b2c8-573a-40a2-acd6-f8f68701e6da",
+        "ficheId": "9de0fbfb-128c-4543-b57e-874cb388f022",
+        "totalHT": 1583.333333333333,
+        "totalTVA": 316.6666666666665,
+        "totalTTC": 1900,
+        "resteAPayer": 0,
+        "lignes": [
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 650,
+            "description": "Monture A/Z EYEWEAR/A-Z CASUAL 8200A  NOIR",
+            "prixUnitaireTTC": 650
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 200,
+            "description": "Verres Unifocal",
+            "prixUnitaireTTC": 200
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 650,
+            "description": "Equipement 2 - Monture A/Z EYEWEAR/A-Z CHIC 51951  DOREE NOIR",
+            "prixUnitaireTTC": 650
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 400,
+            "description": "Equipement 2 - Verres",
+            "prixUnitaireTTC": 400
+          }
+        ],
+        "proprietes": {},
+        "parentFactureId": null,
+        "montantLettres": null,
+        "notes": null,
+        "createdAt": "2026-03-05T22:23:40.599Z",
+        "updatedAt": "2026-03-11T01:33:10.016Z",
+        "centreId": "6df7de62-498e-4784-b22f-7bbccc7fea36",
+        "exportComptable": true,
+        "typeOperation": "COMPTABLE",
+        "vendeurId": null
+      }
+    ]
+  },
+  {
+    "ficheId": "aec3f2f3-b2ab-4ba1-821c-ae6e4f589ce1",
+    "type": "lentilles",
+    "factures": [
+      {
+        "id": "9bb02461-962f-4b50-89cb-e2e50f9e0ce0",
+        "numero": "BC-14389",
+        "type": "BON_COMMANDE",
+        "dateEmission": "2026-02-08T00:00:00.000Z",
+        "dateEcheance": null,
+        "statut": "PAYEE",
+        "clientId": "0d48b2c8-573a-40a2-acd6-f8f68701e6da",
+        "ficheId": "aec3f2f3-b2ab-4ba1-821c-ae6e4f589ce1",
+        "totalHT": 183.3333333333333,
+        "totalTVA": 36.66666666666666,
+        "totalTTC": 220,
+        "resteAPayer": 0,
+        "lignes": [
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 100,
+            "description": "Lentilles de contact",
+            "prixUnitaireTTC": 100
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 60,
+            "description": "DUA ELITE /120 ML",
+            "prixUnitaireTTC": 60
+          }
+        ],
+        "proprietes": {},
+        "parentFactureId": null,
+        "montantLettres": null,
+        "notes": null,
+        "createdAt": "2026-03-05T22:23:40.599Z",
+        "updatedAt": "2026-03-11T01:33:08.052Z",
+        "centreId": "6df7de62-498e-4784-b22f-7bbccc7fea36",
+        "exportComptable": true,
+        "typeOperation": "COMPTABLE",
+        "vendeurId": null
+      }
+    ]
+  },
+  {
+    "ficheId": "47ffb379-bc37-4ff1-8e30-a0be0cd1f1bd",
+    "type": "monture",
+    "factures": [
+      {
+        "id": "4aefc6e4-2089-4ace-9bbc-b8496599c153",
+        "numero": "BC-2026-004",
+        "type": "BON_COMM",
+        "dateEmission": "2026-03-09T02:15:18.839Z",
+        "dateEcheance": null,
+        "statut": "PAYEE",
+        "clientId": "0d48b2c8-573a-40a2-acd6-f8f68701e6da",
+        "ficheId": "47ffb379-bc37-4ff1-8e30-a0be0cd1f1bd",
+        "totalHT": 3458.333333333333,
+        "totalTVA": 691.6666666666665,
+        "totalTTC": 4150,
+        "resteAPayer": 0,
+        "lignes": [
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 2900,
+            "productId": "33253e11-0458-49a9-889b-6eac3ba42735",
+            "entrepotId": "9a2a989a-a3cc-4fa4-952c-f317375dd59a",
+            "description": "Monture AZOU 4686",
+            "entrepotNom": "Entrepôt Principal",
+            "entrepotType": "PRINCIPAL",
+            "prixUnitaireTTC": 2900
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 525,
+            "productId": null,
+            "entrepotId": null,
+            "description": "Verre OD Organique 1.60 1.60",
+            "entrepotNom": null,
+            "entrepotType": null,
+            "prixUnitaireTTC": 525
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 725,
+            "productId": null,
+            "entrepotId": null,
+            "description": "Verre OG Organique 1.67 1.67",
+            "entrepotNom": null,
+            "entrepotType": null,
+            "prixUnitaireTTC": 725
+          }
+        ],
+        "proprietes": {
+          "tvaRate": 0.2,
+          "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29",
+          "nomenclature": "Nomenclature: OD: +2.50 (-0.75) Add +2.75 / OG: +3.25 (-1.25) Add +2.75",
+          "pointsUtilises": 0,
+          "remiseGlobalType": "PERCENT",
+          "stockDecremented": true,
+          "remiseGlobalValue": 0,
+          "dateStockDecrement": "2026-03-09T02:17:45.768Z",
+          "forceStockDecrement": false
+        },
+        "parentFactureId": null,
+        "montantLettres": "Quatre mille cent cinquante Dirhams",
+        "notes": null,
+        "createdAt": "2026-03-09T02:17:12.333Z",
+        "updatedAt": "2026-03-11T01:33:04.080Z",
+        "centreId": "6df7de62-498e-4784-b22f-7bbccc7fea36",
+        "exportComptable": true,
+        "typeOperation": "COMPTABLE",
+        "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29"
+      }
+    ]
+  },
+  {
+    "ficheId": "375996f3-ffb5-4053-af28-b7fe7aa9a6a3",
+    "type": "MONTURE",
+    "factures": [
+      {
+        "id": "188117bf-54ab-4fdd-bba4-0a697b3f5f28",
+        "numero": "BC-2026-002",
+        "type": "BON_COMM",
+        "dateEmission": "2026-03-06T01:22:49.586Z",
+        "dateEcheance": null,
+        "statut": "PAYEE",
+        "clientId": "0d48b2c8-573a-40a2-acd6-f8f68701e6da",
+        "ficheId": "375996f3-ffb5-4053-af28-b7fe7aa9a6a3",
+        "totalHT": 1304.166666666667,
+        "totalTVA": 260.8333333333333,
+        "totalTTC": 1565,
+        "resteAPayer": 0,
+        "lignes": [
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 700,
+            "productId": "d434d8c8-84a2-43f4-88c5-c95eba36bb82",
+            "entrepotId": "9a2a989a-a3cc-4fa4-952c-f317375dd59a",
+            "description": "Monture ADYUO 4688",
+            "entrepotNom": "Entrepôt Principal",
+            "entrepotType": "PRINCIPAL",
+            "prixUnitaireTTC": 700
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 525,
+            "productId": null,
+            "entrepotId": null,
+            "description": "Verre OD Organique 1.60 1.60",
+            "entrepotNom": null,
+            "entrepotType": null,
+            "prixUnitaireTTC": 525
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 340,
+            "productId": null,
+            "entrepotId": null,
+            "description": "Verre OG Organique (CR-39) 1.50 (Standard)",
+            "entrepotNom": null,
+            "entrepotType": null,
+            "prixUnitaireTTC": 340
+          }
+        ],
+        "proprietes": {
+          "tvaRate": 0.2,
+          "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29",
+          "nomenclature": "Nomenclature: OD: +1.50 (-0.75) 100° Add +1.50 / OG: -2.00 Add +1.50",
+          "pointsUtilises": 0,
+          "lastSilentUpdate": "2026-03-06T02:17:02.844Z",
+          "remiseGlobalType": "PERCENT",
+          "stockDecremented": true,
+          "remiseGlobalValue": 0,
+          "dateStockDecrement": "2026-03-06T02:07:39.767Z",
+          "forceStockDecrement": false
+        },
+        "parentFactureId": null,
+        "montantLettres": "Mille cinq cent soixante-cinq Dirhams",
+        "notes": null,
+        "createdAt": "2026-03-06T01:24:53.820Z",
+        "updatedAt": "2026-03-11T01:33:06.052Z",
+        "centreId": "6df7de62-498e-4784-b22f-7bbccc7fea36",
+        "exportComptable": true,
+        "typeOperation": "COMPTABLE",
+        "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29"
+      }
+    ]
+  },
+  {
+    "ficheId": "1971d99a-48d8-4e10-89fd-55e9d872abc5",
+    "type": "monture",
+    "factures": [
+      {
+        "id": "f3b1c57b-c880-4630-b6e1-4ae9b588cc54",
+        "numero": "Fact-2026-002",
+        "type": "FACTURE",
+        "dateEmission": "2026-03-10T03:12:37.006Z",
+        "dateEcheance": null,
+        "statut": "PAYEE",
+        "clientId": "0d48b2c8-573a-40a2-acd6-f8f68701e6da",
+        "ficheId": "1971d99a-48d8-4e10-89fd-55e9d872abc5",
+        "totalHT": 2291.666666666667,
+        "totalTVA": 458.333333333333,
+        "totalTTC": 2750,
+        "resteAPayer": 0,
+        "lignes": [
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 900,
+            "productId": "d4319c62-7634-4ca9-ba95-b9604a758bf5",
+            "entrepotId": "9a2a989a-a3cc-4fa4-952c-f317375dd59a",
+            "description": "Monture EINAR'S 4683",
+            "entrepotNom": "Entrepôt Principal",
+            "entrepotType": "PRINCIPAL",
+            "prixUnitaireTTC": 900
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 825,
+            "productId": null,
+            "entrepotId": null,
+            "description": "Verre OD Organique 1.60 1.60",
+            "entrepotNom": null,
+            "entrepotType": null,
+            "prixUnitaireTTC": 825
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 1025,
+            "productId": null,
+            "entrepotId": null,
+            "description": "Verre OG Organique 1.67 1.67",
+            "entrepotNom": null,
+            "entrepotType": null,
+            "prixUnitaireTTC": 1025
+          }
+        ],
+        "proprietes": {
+          "tvaRate": 0.2,
+          "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29",
+          "forceFiscal": true,
+          "nomenclature": "Nomenclature: OD: +2.50 (-0.75) Add +2.75 / OG: +3.25 (-1.25) Add +2.75",
+          "pointsUtilises": 0,
+          "remiseGlobalType": "PERCENT",
+          "stockDecremented": true,
+          "remiseGlobalValue": 0,
+          "dateStockDecrement": "2026-03-10T03:35:42.652Z",
+          "forceStockDecrement": false
+        },
+        "parentFactureId": null,
+        "montantLettres": "Deux mille sept cent cinquante Dirhams",
+        "notes": null,
+        "createdAt": "2026-03-10T03:34:08.879Z",
+        "updatedAt": "2026-03-11T01:33:02.042Z",
+        "centreId": "6df7de62-498e-4784-b22f-7bbccc7fea36",
+        "exportComptable": true,
+        "typeOperation": "COMPTABLE",
+        "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29"
+      }
+    ]
+  },
+  {
+    "ficheId": "d6a027ae-125c-4eec-885e-9e8b06915e99",
+    "type": "produit",
+    "factures": [
+      {
+        "id": "56ba4cf2-568e-4946-bfd6-c1a2f3b21a05",
+        "numero": "Fact-2026-003",
+        "type": "FACTURE",
+        "dateEmission": "2026-03-12T05:12:00.286Z",
+        "dateEcheance": null,
+        "statut": "VALIDE",
+        "clientId": "0d48b2c8-573a-40a2-acd6-f8f68701e6da",
+        "ficheId": "d6a027ae-125c-4eec-885e-9e8b06915e99",
+        "totalHT": 125,
+        "totalTVA": 25,
+        "totalTTC": 150,
+        "resteAPayer": 150,
+        "lignes": [
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 100,
+            "productId": "e17c54c7-213c-4f8d-aa33-1788c3b5c84d",
+            "description": "AQUA SOFT 355ML",
+            "prixUnitaireTTC": 100
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 50,
+            "productId": "87b423df-7267-4935-91fc-900f25f5e5eb",
+            "description": "AQUASOFT 120ML",
+            "prixUnitaireTTC": 50
+          }
+        ],
+        "proprietes": {
+          "source": "Validation Directe",
+          "tvaRate": 0.2,
+          "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29",
+          "autoCreated": true,
+          "forceFiscal": true,
+          "nomenclature": "",
+          "pointsUtilises": 0,
+          "remiseGlobalType": "PERCENT",
+          "stockDecremented": true,
+          "ancienneReference": "BC-2026-006",
+          "remiseGlobalValue": 0,
+          "dateStockDecrement": "2026-03-12T05:12:00.868Z",
+          "forceStockDecrement": false
+        },
+        "parentFactureId": null,
+        "montantLettres": "Cent cinquante Dirhams",
+        "notes": null,
+        "createdAt": "2026-03-12T05:12:00.286Z",
+        "updatedAt": "2026-03-12T05:12:00.869Z",
+        "centreId": "6df7de62-498e-4784-b22f-7bbccc7fea36",
+        "exportComptable": true,
+        "typeOperation": "COMPTABLE",
+        "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29"
+      }
+    ]
+  },
+  {
+    "ficheId": "0db0ced2-8ef7-438c-9092-aff055b0ab83",
+    "type": "monture",
+    "factures": [
+      {
+        "id": "843aeb05-7b75-4bde-9586-357c51c47fa3",
+        "numero": "BC-2026-005",
+        "type": "BON_COMM",
+        "dateEmission": "2026-03-10T22:49:56.526Z",
+        "dateEcheance": null,
+        "statut": "VENTE_EN_INSTANCE",
+        "clientId": "0d48b2c8-573a-40a2-acd6-f8f68701e6da",
+        "ficheId": "0db0ced2-8ef7-438c-9092-aff055b0ab83",
+        "totalHT": 1470.833333333333,
+        "totalTVA": 294.1666666666665,
+        "totalTTC": 1765,
+        "resteAPayer": 1765,
+        "lignes": [
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 900,
+            "productId": "d4319c62-7634-4ca9-ba95-b9604a758bf5",
+            "entrepotId": "9a2a989a-a3cc-4fa4-952c-f317375dd59a",
+            "description": "Monture EINAR'S 4683",
+            "entrepotNom": "Entrepôt Principal",
+            "entrepotType": "PRINCIPAL",
+            "prixUnitaireTTC": 900
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 525,
+            "productId": null,
+            "entrepotId": null,
+            "description": "Verre OD Organique 1.60 1.60",
+            "entrepotNom": null,
+            "entrepotType": null,
+            "prixUnitaireTTC": 525
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 340,
+            "productId": null,
+            "entrepotId": null,
+            "description": "Verre OG Organique (CR-39) 1.50 (Standard)",
+            "entrepotNom": null,
+            "entrepotType": null,
+            "prixUnitaireTTC": 340
+          }
+        ],
+        "proprietes": {
+          "tvaRate": 0.2,
+          "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29",
+          "nomenclature": "Nomenclature: OD: +1.50 (-0.75) 100° Add +1.50 / OG: -2.00 Add +1.50",
+          "pointsUtilises": 0,
+          "remiseGlobalType": "PERCENT",
+          "stockDecremented": true,
+          "remiseGlobalValue": 0,
+          "dateStockDecrement": "2026-03-13T11:53:52.345Z",
+          "forceStockDecrement": false
+        },
+        "parentFactureId": null,
+        "montantLettres": "Mille sept cent soixante-cinq Dirhams",
+        "notes": null,
+        "createdAt": "2026-03-10T22:51:10.047Z",
+        "updatedAt": "2026-03-13T16:44:34.330Z",
+        "centreId": "6df7de62-498e-4784-b22f-7bbccc7fea36",
+        "exportComptable": true,
+        "typeOperation": "COMPTABLE",
+        "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29"
+      }
+    ]
+  },
+  {
+    "ficheId": "ad1d5ff1-ddc9-47b9-a07a-ebad48ab8e5b",
+    "type": "monture",
+    "factures": [
+      {
+        "id": "512eb5c1-f7eb-4754-a4c9-92c1e330790c",
+        "numero": "Fact-2026-001",
+        "type": "FACTURE",
+        "dateEmission": "2026-03-09T00:44:25.712Z",
+        "dateEcheance": null,
+        "statut": "VALIDE",
+        "clientId": "0d48b2c8-573a-40a2-acd6-f8f68701e6da",
+        "ficheId": "ad1d5ff1-ddc9-47b9-a07a-ebad48ab8e5b",
+        "totalHT": 5083.333333333334,
+        "totalTVA": 1016.666666666666,
+        "totalTTC": 6100,
+        "resteAPayer": 0,
+        "lignes": [
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 3700,
+            "productId": "d434d8c8-84a2-43f4-88c5-c95eba36bb82",
+            "entrepotId": "9a2a989a-a3cc-4fa4-952c-f317375dd59a",
+            "description": "Monture ADYUO 4688",
+            "entrepotNom": "Entrepôt Principal",
+            "entrepotType": "PRINCIPAL",
+            "prixUnitaireTTC": 3700
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 1200,
+            "productId": null,
+            "entrepotId": null,
+            "description": "Verre OD Organique 1.74 1.74",
+            "entrepotNom": null,
+            "entrepotType": null,
+            "prixUnitaireTTC": 1200
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 1200,
+            "productId": null,
+            "entrepotId": null,
+            "description": "Verre OG Organique 1.74 1.74",
+            "entrepotNom": null,
+            "entrepotType": null,
+            "prixUnitaireTTC": 1200
+          }
+        ],
+        "proprietes": {
+          "tvaRate": 0.2,
+          "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29",
+          "forceFiscal": true,
+          "nomenclature": "Nomenclature: OD: +1.50 (-0.75) 100° Add +1.50 / OG: -2.00 Add +1.50",
+          "pointsUtilises": 0,
+          "remiseGlobalType": "PERCENT",
+          "stockDecremented": true,
+          "remiseGlobalValue": 0,
+          "dateStockDecrement": "2026-03-09T00:48:07.250Z",
+          "forceStockDecrement": false
+        },
+        "parentFactureId": null,
+        "montantLettres": "Six mille cent Dirhams",
+        "notes": null,
+        "createdAt": "2026-03-09T00:47:03.370Z",
+        "updatedAt": "2026-03-11T00:19:35.196Z",
+        "centreId": "6df7de62-498e-4784-b22f-7bbccc7fea36",
+        "exportComptable": true,
+        "typeOperation": "COMPTABLE",
+        "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29"
+      }
+    ]
+  },
+  {
+    "ficheId": "67a495b4-02a1-4fa3-b03b-42324d231a43",
+    "type": "monture",
+    "factures": [
+      {
+        "id": "e4350ad9-2584-4786-a36a-bc15c24d8da3",
+        "numero": "BC-2026-003",
+        "type": "BON_COMM",
+        "dateEmission": "2026-03-09T00:52:34.130Z",
+        "dateEcheance": null,
+        "statut": "VENTE_EN_INSTANCE",
+        "clientId": "0d48b2c8-573a-40a2-acd6-f8f68701e6da",
+        "ficheId": "67a495b4-02a1-4fa3-b03b-42324d231a43",
+        "totalHT": 583.3333333333334,
+        "totalTVA": 116.6666666666666,
+        "totalTTC": 700,
+        "resteAPayer": 0,
+        "lignes": [
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 700,
+            "productId": "d434d8c8-84a2-43f4-88c5-c95eba36bb82",
+            "entrepotId": "9a2a989a-a3cc-4fa4-952c-f317375dd59a",
+            "description": "Monture ADYUO 4688",
+            "entrepotNom": "Entrepôt Principal",
+            "entrepotType": "PRINCIPAL",
+            "prixUnitaireTTC": 700
+          }
+        ],
+        "proprietes": {
+          "tvaRate": 0.2,
+          "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29",
+          "nomenclature": "Nomenclature: OD:  / OG: ",
+          "pointsUtilises": 0,
+          "remiseGlobalType": "PERCENT",
+          "stockDecremented": true,
+          "remiseGlobalValue": 0,
+          "dateStockDecrement": "2026-03-09T00:53:26.831Z",
+          "forceStockDecrement": false
+        },
+        "parentFactureId": null,
+        "montantLettres": "Sept cents Dirhams",
+        "notes": null,
+        "createdAt": "2026-03-09T00:53:09.507Z",
+        "updatedAt": "2026-03-11T00:19:35.196Z",
+        "centreId": "6df7de62-498e-4784-b22f-7bbccc7fea36",
+        "exportComptable": true,
+        "typeOperation": "COMPTABLE",
+        "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29"
+      }
+    ]
+  },
+  {
+    "ficheId": "0824078f-f201-4c58-862e-ce0b95cd6979",
+    "type": "lentilles",
+    "factures": [
+      {
+        "id": "d18278ee-0670-44e0-b385-6c67c8464c7d",
+        "numero": "Fact-2026-004",
+        "type": "FACTURE",
+        "dateEmission": "2026-03-13T05:27:17.798Z",
+        "dateEcheance": null,
+        "statut": "VALIDE",
+        "clientId": "0d48b2c8-573a-40a2-acd6-f8f68701e6da",
+        "ficheId": "0824078f-f201-4c58-862e-ce0b95cd6979",
+        "totalHT": 83.33333333333334,
+        "totalTVA": 16.66666666666666,
+        "totalTTC": 100,
+        "resteAPayer": 100,
+        "lignes": [
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 50,
+            "productId": "20ae0c8a-5406-4003-8c19-17044d479158",
+            "entrepotId": "9a2a989a-a3cc-4fa4-952c-f317375dd59a",
+            "description": "Lentille OD: CLEAR55 +5 - mensuelle",
+            "entrepotNom": "Entrepôt Principal",
+            "entrepotType": "PRINCIPAL",
+            "prixUnitaireTTC": 50
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 50,
+            "productId": "ff04db0e-6388-46b7-aa5a-8c476810fa3e",
+            "entrepotId": "9a2a989a-a3cc-4fa4-952c-f317375dd59a",
+            "description": "Lentille OG: CLEAR55 +1.50 - mensuelle",
+            "entrepotNom": "Entrepôt Principal",
+            "entrepotType": "PRINCIPAL",
+            "prixUnitaireTTC": 50
+          }
+        ],
+        "proprietes": {
+          "source": "Validation Directe",
+          "tvaRate": 0.2,
+          "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29",
+          "forceFiscal": true,
+          "nomenclature": "Lentilles mensuelle - ",
+          "pointsUtilises": 0,
+          "remiseGlobalType": "PERCENT",
+          "stockDecremented": true,
+          "ancienneReference": "BC-2026-007",
+          "remiseGlobalValue": 0,
+          "dateStockDecrement": "2026-03-13T05:27:18.206Z",
+          "forceStockDecrement": false
+        },
+        "parentFactureId": null,
+        "montantLettres": "Cent Dirhams",
+        "notes": null,
+        "createdAt": "2026-03-13T05:27:17.798Z",
+        "updatedAt": "2026-03-13T05:27:18.207Z",
+        "centreId": "6df7de62-498e-4784-b22f-7bbccc7fea36",
+        "exportComptable": true,
+        "typeOperation": "COMPTABLE",
+        "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29"
+      }
+    ]
+  },
+  {
+    "ficheId": "de871304-a5a9-4e8f-802f-abaaad864b9a",
+    "type": "lentilles",
+    "factures": [
+      {
+        "id": "5f066140-22b8-4adf-9b11-55ec273cb250",
+        "numero": "Devis-2026-001",
+        "type": "DEVIS",
+        "dateEmission": "2026-03-13T11:24:13.662Z",
+        "dateEcheance": null,
+        "statut": "BROUILLON",
+        "clientId": "0d48b2c8-573a-40a2-acd6-f8f68701e6da",
+        "ficheId": "de871304-a5a9-4e8f-802f-abaaad864b9a",
+        "totalHT": 83.33333333333334,
+        "totalTVA": 16.66666666666666,
+        "totalTTC": 100,
+        "resteAPayer": 100,
+        "lignes": [
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 50,
+            "productId": "729248c0-a611-4637-8f47-26f8e58dc74d",
+            "entrepotId": "9a2a989a-a3cc-4fa4-952c-f317375dd59a",
+            "description": "Lentille OD CLEAR55 -5.75 (mensuelle myopie)",
+            "entrepotNom": "Entrepôt Principal",
+            "entrepotType": "PRINCIPAL",
+            "prixUnitaireTTC": 50
+          },
+          {
+            "qte": 1,
+            "remise": 0,
+            "totalTTC": 50,
+            "productId": "729248c0-a611-4637-8f47-26f8e58dc74d",
+            "entrepotId": "9a2a989a-a3cc-4fa4-952c-f317375dd59a",
+            "description": "Lentille OG CLEAR55 -5.75 (mensuelle myopie)",
+            "entrepotNom": "Entrepôt Principal",
+            "entrepotType": "PRINCIPAL",
+            "prixUnitaireTTC": 50
+          }
+        ],
+        "proprietes": {
+          "tvaRate": 0.2,
+          "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29",
+          "nomenclature": "Lentilles mensuelle myopie - OD: CLEAR55 -5.75 (Sph +2.50 Cyl -0.75 Add +2.75) / OG: CLEAR55 -5.75 (Sph +3.25 Cyl -1.25 Add +2.75)",
+          "pointsUtilises": 0,
+          "remiseGlobalType": "PERCENT",
+          "remiseGlobalValue": 0
+        },
+        "parentFactureId": null,
+        "montantLettres": "Cent Dirhams",
+        "notes": null,
+        "createdAt": "2026-03-13T11:24:20.039Z",
+        "updatedAt": "2026-03-13T11:44:18.332Z",
+        "centreId": "6df7de62-498e-4784-b22f-7bbccc7fea36",
+        "exportComptable": true,
+        "typeOperation": "COMPTABLE",
+        "vendeurId": "d501dff4-0afa-429c-bf16-4c6a141ccf29"
+      }
+    ]
+  }
+]

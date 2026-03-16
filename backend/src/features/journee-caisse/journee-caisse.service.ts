@@ -366,10 +366,11 @@ export class JourneeCaisseService {
     const localAggregates = await this.prisma.operationCaisse.groupBy({
       by: ['type', 'typeOperation', 'moyenPaiement'],
       where: {
-        journeeCaisseId: id,
+        // If dateFilter is provided, aggregate across ALL sessions for this specific caisse
         ...(Object.keys(dateFilter).length > 0
-          ? { createdAt: dateFilter }
-          : {}),
+          ? { journeeCaisse: { caisseId: journee.caisseId } }
+          : { journeeCaisseId: id }),
+        ...(Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {}),
       },
       _sum: { montant: true },
       _count: { id: true },
@@ -397,31 +398,36 @@ export class JourneeCaisseService {
 
       if (type === 'ENCAISSEMENT') {
         if (typeOperation === 'COMPTABLE') {
-          if (moyenPaiement === 'ESPECES') {
+          if (moyenPaiement === 'ESPECES' || moyenPaiement === 'ESPECE') {
             stats.grossVentesEspeces += amount;
             stats.netVentesEspeces += amount;
           } else if (moyenPaiement === 'CARTE') {
             stats.grossVentesCarte += amount;
             stats.netVentesCarte += amount;
             stats.nbVentesCarte += count;
-          } else if (moyenPaiement === 'CHEQUE' || moyenPaiement === 'LCN') {
+          } else if (moyenPaiement === 'CHEQUE' || moyenPaiement === 'LCN' || moyenPaiement === 'CHÈQUE') {
             stats.grossVentesCheque += amount;
             stats.netVentesCheque += amount;
             stats.nbVentesCheque += count;
           }
-        } else if (typeOperation === 'INTERNE' && moyenPaiement === 'ESPECES') {
+        } else if (typeOperation === 'INTERNE' && (moyenPaiement === 'ESPECES' || moyenPaiement === 'ESPECE')) {
           stats.totalInterneIn += amount;
         }
       } else if (type === 'DECAISSEMENT') {
         stats.totalOutflows += amount;
-        if (moyenPaiement === 'ESPECES') {
+        if (moyenPaiement === 'ESPECES' || moyenPaiement === 'ESPECE') {
           stats.totalOutflowsCash += amount;
         }
 
         if (typeOperation === 'COMPTABLE') {
-          if (moyenPaiement === 'ESPECES') stats.netVentesEspeces -= amount;
+          if (moyenPaiement === 'ESPECES' || moyenPaiement === 'ESPECE')
+            stats.netVentesEspeces -= amount;
           else if (moyenPaiement === 'CARTE') stats.netVentesCarte -= amount;
-          else if (moyenPaiement === 'CHEQUE' || moyenPaiement === 'LCN')
+          else if (
+            moyenPaiement === 'CHEQUE' ||
+            moyenPaiement === 'LCN' ||
+            moyenPaiement === 'CHÈQUE'
+          )
             stats.netVentesCheque -= amount;
         }
       }
@@ -430,6 +436,7 @@ export class JourneeCaisseService {
     console.timeEnd('GetResume-Step2-LocalStats');
 
     const isDepenses = (journee.caisse as any).type === 'DEPENSES';
+    const isMixte = (journee.caisse as any).type === 'MIXTE';
 
     let centreVentesEspeces = 0;
     let centreVentesCarte = 0;
@@ -437,13 +444,15 @@ export class JourneeCaisseService {
     let centreNbVentesCarte = 0;
     let centreNbVentesCheque = 0;
 
-    // Global Center Stats
-    if (isDepenses) {
+    // Global Center Stats (For Depenses/Petty Cash AND Mixte registers to show context)
+    if (isDepenses || isMixte) {
       console.time('GetResume-Step3-GlobalStats');
       const openJournees = await this.prisma.journeeCaisse.findMany({
         where: {
           centreId: journee.centreId,
-          statut: 'OUVERTE',
+          // If a custom date filter is provided, we want to see stats across all sessions in that range,
+          // otherwise we default to context of currently open sessions.
+          ...(Object.keys(dateFilter).length > 0 ? {} : { statut: 'OUVERTE' }),
         },
         select: { id: true },
       });
@@ -472,17 +481,18 @@ export class JourneeCaisseService {
       globalStats.forEach((stat) => {
         const amount = stat._sum.montant || 0;
         const count = stat._count.id || 0;
-        if (stat.moyenPaiement === 'ESPECES') {
-          centreVentesEspeces = amount;
+        if (stat.moyenPaiement === 'ESPECES' || stat.moyenPaiement === 'ESPECE') {
+          centreVentesEspeces += amount;
         } else if (stat.moyenPaiement === 'CARTE') {
-          centreVentesCarte = amount;
-          centreNbVentesCarte = count;
+          centreVentesCarte += amount;
+          centreNbVentesCarte += count;
         } else if (
           stat.moyenPaiement === 'CHEQUE' ||
-          stat.moyenPaiement === 'LCN'
+          stat.moyenPaiement === 'LCN' ||
+          stat.moyenPaiement === 'CHÈQUE'
         ) {
-          centreVentesCheque = amount;
-          centreNbVentesCheque = count;
+          centreVentesCheque += amount;
+          centreNbVentesCheque += count;
         }
       });
     }
@@ -498,7 +508,7 @@ export class JourneeCaisseService {
         centre: (journee as any).centre,
       },
       fondInitial: journee.fondInitial || 0,
-      // Recettes Card (Center-wide if Petty Cash, Local if Main)
+      // Recettes Card (Center-wide for context if Petty Cash. For Mixed/Primary, show own receipts)
       totalRecettes: isDepenses
         ? centreVentesEspeces + centreVentesCarte + centreVentesCheque
         : stats.netVentesEspeces + stats.netVentesCarte + stats.netVentesCheque,

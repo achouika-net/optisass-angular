@@ -151,6 +151,7 @@
                 <mat-form-field appearance="outline" class="date-picker">
                     <mat-label>Du</mat-label>
                     <input matInput [matDatepicker]="startPicker" [(ngModel)]="startDate"
+                        placeholder="Date de début" aria-label="Date de début"
                         (dateChange)="onCustomDateChange()">
                     <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
                     <mat-datepicker #startPicker></mat-datepicker>
@@ -159,6 +160,7 @@
                 <mat-form-field appearance="outline" class="date-picker">
                     <mat-label>Au</mat-label>
                     <input matInput [matDatepicker]="endPicker" [(ngModel)]="endDate"
+                        placeholder="Date de fin" aria-label="Date de fin"
                         (dateChange)="onCustomDateChange()">
                     <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
                     <mat-datepicker #endPicker></mat-datepicker>
@@ -170,6 +172,46 @@
                 <mat-icon [class.spinning]="loading">refresh</mat-icon>
             </button>
         </div>
+
+        <!-- Advanced Filters -->
+        <div class="advanced-filters" *ngIf="operations.length > 0">
+            <mat-form-field appearance="outline" class="mini-filter">
+                <mat-label>Type</mat-label>
+                <mat-select [(ngModel)]="filterType" (selectionChange)="applyFilters()">
+                    <mat-option value="">Tous</mat-option>
+                    <mat-option value="ENCAISSEMENT">Encaissement</mat-option>
+                    <mat-option value="DECAISSEMENT">Décaissement</mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="mini-filter">
+                <mat-label>Moyen</mat-label>
+                <mat-select [(ngModel)]="filterMoyen" (selectionChange)="applyFilters()">
+                    <mat-option value="">Tous</mat-option>
+                    <mat-option *ngFor="let m of uniqueMoyens" [value]="m">{{ m }}</mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="mini-filter">
+                <mat-label>Motif</mat-label>
+                <mat-select [(ngModel)]="filterMotif" (selectionChange)="applyFilters()">
+                    <mat-option value="">Tous</mat-option>
+                    <mat-option *ngFor="let m of uniqueMotifs" [value]="m">{{ m }}</mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="mini-filter">
+                <mat-label>Utilisateur</mat-label>
+                <mat-select [(ngModel)]="filterUser" (selectionChange)="applyFilters()">
+                    <mat-option value="">Tous</mat-option>
+                    <mat-option *ngFor="let u of uniqueUsers" [value]="u">{{ u }}</mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <button mat-icon-button color="warn" (click)="clearFilters()" matTooltip="Effacer les filtres" *ngIf="filterType || filterMoyen || filterMotif || filterUser">
+                <mat-icon>clear</mat-icon>
+            </button>
+        </div>
     </div>
 
     <!-- Operations Table -->
@@ -179,7 +221,7 @@
         </mat-card-header>
 
         <mat-card-content>
-            <table mat-table [dataSource]="operations" class="full-width-table">
+            <table mat-table [dataSource]="dataSource" class="full-width-table">
                 <!-- Date Column -->
                 <ng-container matColumnDef="date">
                     <th mat-header-cell *matHeaderCellDef> Date Opération </th>
@@ -218,24 +260,19 @@
                 <!-- Reference Column -->
                 <ng-container matColumnDef="reference">
                     <th mat-header-cell *matHeaderCellDef> Référence </th>
-                    <td mat-cell *matCellDef="let op">
-                        <span *ngIf="op.facture?.numero">Fac: {{ op.facture?.numero }}</span>
-                        <span *ngIf="op.reference">{{ op.reference }}</span>
-                    </td>
+                    <td mat-cell *matCellDef="let op"> {{ cleanReference(op) }} </td>
                 </ng-container>
 
                 <!-- Motif Column -->
                 <ng-container matColumnDef="motif">
                     <th mat-header-cell *matHeaderCellDef> Motif </th>
-                    <td mat-cell *matCellDef="let op"> {{ op.motif || '-' }} </td>
+                    <td mat-cell *matCellDef="let op"> {{ cleanMotif(op.motif) }} </td>
                 </ng-container>
 
                 <!-- Utilisateur Column -->
                 <ng-container matColumnDef="utilisateur">
                     <th mat-header-cell *matHeaderCellDef> Utilisateur </th>
-                    <td mat-cell *matCellDef="let op">
-                        {{ op.user ? (op.user.prenom + ' ' + op.user.nom) : (op.utilisateur || '-') }}
-                    </td>
+                    <td mat-cell *matCellDef="let op"> {{ getUserName(op) }} </td>
                 </ng-container>
 
                 <!-- Actions Column -->
@@ -255,11 +292,14 @@
 
                 <!-- Empty State -->
                 <tr class="mat-row" *matNoDataRow>
-                    <td class="mat-cell" colspan="8" style="text-align: center; padding: 24px;">
+                    <td class="mat-cell" colspan="8" class="empty-state-cell">
                         Aucune opération enregistrée pour le moment
                     </td>
                 </tr>
             </table>
+
+            <mat-paginator [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons aria-label="Select page of operations">
+            </mat-paginator>
         </mat-card-content>
     </mat-card>
 </div>
@@ -272,8 +312,8 @@
 </ng-template>
 
 <ng-template #errorTpl>
-    <div class="error-container" style="text-align: center; padding: 40px;">
-        <mat-icon color="warn" style="font-size: 48px; width: 48px; height: 48px;">error_outline</mat-icon>
+    <div class="error-container">
+        <mat-icon color="warn" class="error-icon">error_outline</mat-icon>
         <h2>Impossible de charger la caisse</h2>
         <p>Veuillez rafraîchir la page ou contacter l'administrateur.</p>
         <button mat-flat-button color="primary" (click)="loadData()">RÉESSAYER</button>
