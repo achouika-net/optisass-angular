@@ -1,15 +1,18 @@
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatTableModule } from '@angular/material/table';
+import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
 import { FicheService } from '../../../client-management/services/fiche.service';
 import { CompanySettingsService } from '../../../../core/services/company-settings.service';
 import { take } from 'rxjs/operators';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-bc-history-list',
@@ -22,7 +25,10 @@ import { take } from 'rxjs/operators';
     MatMenuModule,
     MatTooltipModule,
     MatProgressSpinnerModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    FormsModule
   ],
   templateUrl: './bc-history-list.component.html',
   styleUrls: ['./bc-history-list.component.scss'],
@@ -31,8 +37,18 @@ import { take } from 'rxjs/operators';
 export class BcHistoryListComponent implements OnInit {
   displayedColumns: string[] = ['date', 'numero', 'fournisseur', 'client', 'motive', 'actions'];
   history: any[] = [];
+  dataSource = new MatTableDataSource<any>([]);
   loading = false;
   companySettings: any = null;
+
+  // Filters
+  filterSupplier = '';
+  filterClient = '';
+  filterMotive = '';
+
+  uniqueSuppliers: string[] = [];
+  uniqueClients: string[] = [];
+  uniqueMotives: string[] = [];
 
   constructor(
     private ficheService: FicheService,
@@ -42,6 +58,15 @@ export class BcHistoryListComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // Setup custom filter logic
+    this.dataSource.filterPredicate = (data: any, filter: string) => {
+      const searchTerms = JSON.parse(filter);
+      const matchSupplier = !searchTerms.supplier || this.getSupplierName(data.fournisseur) === searchTerms.supplier;
+      const matchClient = !searchTerms.client || data.clientDisplayName === searchTerms.client;
+      const matchMotive = !searchTerms.motive || this.cleanMotif(data.motive || '') === searchTerms.motive;
+      return matchSupplier && matchClient && matchMotive;
+    };
+
     this.loadHistory();
     this.loadCompanySettings();
   }
@@ -51,6 +76,8 @@ export class BcHistoryListComponent implements OnInit {
     this.ficheService.getAllBcHistory().subscribe({
       next: (data) => {
         this.history = data;
+        this.dataSource.data = data;
+        this.extractFilterOptions(data);
         this.loading = false;
         this.cdr.markForCheck();
       },
@@ -61,6 +88,64 @@ export class BcHistoryListComponent implements OnInit {
         this.cdr.markForCheck();
       }
     });
+  }
+
+  private extractFilterOptions(data: any[]): void {
+    const suppliers = new Set<string>();
+    const clients = new Set<string>();
+    const motives = new Set<string>();
+
+    data.forEach(item => {
+      if (item.fournisseur) suppliers.add(this.getSupplierName(item.fournisseur));
+      if (item.clientDisplayName) clients.add(item.clientDisplayName);
+      const cleanedMotif = this.cleanMotif(item.motive || '');
+      if (cleanedMotif) motives.add(cleanedMotif);
+    });
+
+    this.uniqueSuppliers = Array.from(suppliers).sort();
+    this.uniqueClients = Array.from(clients).sort();
+    this.uniqueMotives = Array.from(motives).sort();
+  }
+
+  applyFilters(): void {
+    this.dataSource.filter = JSON.stringify({
+      supplier: this.filterSupplier,
+      client: this.filterClient,
+      motive: this.filterMotive
+    });
+  }
+
+  clearFilters(): void {
+    this.filterSupplier = '';
+    this.filterClient = '';
+    this.filterMotive = '';
+    this.applyFilters();
+  }
+
+  cleanReference(numero: string): string {
+    if (!numero) return '-';
+    // Remove "Fac: ", "FAC ", "BC: ", "BC " prefixes
+    let clean = numero.replace(/^(Fac|BC):\s*/i, '').replace(/^(FAC|BC)\s+/i, '').trim();
+    
+    // De-duplicate pattern like "Fact-2/2026Fact-2/2026"
+    const half = clean.length / 2;
+    if (clean.length % 2 === 0 && clean.substring(0, half) === clean.substring(half)) {
+      clean = clean.substring(0, half);
+    }
+    return clean;
+  }
+
+  cleanMotif(motif: string): string {
+    if (!motif) return 'Standard';
+    let cleaned = motif.trim();
+    
+    if (cleaned.includes('Paiement:')) {
+        if (cleaned.includes('Fact-') || cleaned.toLowerCase().includes('facture')) return 'Paiement Facture';
+        if (cleaned.includes('BC-') || cleaned.toLowerCase().includes('bon de commande')) return 'Paiement BC';
+        if (cleaned.includes('BL-') || cleaned.toLowerCase().includes('bon de livraison')) return 'Paiement BL';
+        return 'Paiement Divers';
+    }
+    return cleaned;
   }
 
   loadCompanySettings(): void {
@@ -74,7 +159,7 @@ export class BcHistoryListComponent implements OnInit {
     if (typeof fournisseur === 'string') return fournisseur;
     if (fournisseur.name) return fournisseur.name;
     if (fournisseur.nom) return fournisseur.nom;
-    return JSON.stringify(fournisseur);
+    return '-';
   }
 
   reprintBC(bcRecord: any): void {
@@ -82,8 +167,8 @@ export class BcHistoryListComponent implements OnInit {
     const ord = bcRecord.ordonnance || {};
     const lentilles = bcRecord.lentilles || {};
     const today = new Date(bcRecord.date).toLocaleDateString('fr-FR');
-    const ref = bcRecord.numero || 'N/A';
-    const motive = bcRecord.motive || 'Standard';
+    const ref = this.cleanReference(bcRecord.numero || 'N/A');
+    const motive = this.cleanMotif(bcRecord.motive || 'Standard');
 
     // Dynamic Logo and Company Name
     const logoUrl = this.companySettings?.logoUrl || `${window.location.origin}/assets/images/logo.png`;
@@ -130,18 +215,18 @@ export class BcHistoryListComponent implements OnInit {
               <div class="logo-box"><img src="${logoUrl}" class="logo-img"></div>
               <div class="company-info">
                   <h1>${companyName}</h1>
-                  <div class="doc-title">Bon de Commande Lentilles</div>
+                  <div class="doc-title">Bon de Commande</div>
                   <div style="font-size: 8pt; color: #ef4444; font-weight: 800; margin-top: 5px;">(RÉIMPRESSION)</div>
               </div>
           </div>
           <div class="meta-info">
-              <div class="info-card"><label>Fournisseur</label><p>${bcRecord.fournisseur || '-'}</p></div>
+              <div class="info-card"><label>Fournisseur</label><p>${fournisseurName}</p></div>
               <div class="info-card">
                   <label>Référence BC / Date / Motif</label>
                   <p>${ref} — ${today} ${motive !== 'Standard' ? '<span class="motive-badge">' + motive + '</span>' : ''}</p>
               </div>
           </div>
-          <div class="section-label">Détails de la Commande (Historique)</div>
+          <div class="section-label">Détails de la Commande</div>
           <table>
               <thead><tr><th>Oeil</th><th>Produit (Marque / Modèle)</th><th>Sphère</th><th>Cyl / Axe</th><th>Rayon / Dia</th></tr></thead>
               <tbody>

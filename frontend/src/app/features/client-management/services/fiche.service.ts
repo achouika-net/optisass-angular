@@ -46,10 +46,14 @@ export class FicheService {
                     // Try top level first, then inside suiviCommande
                     const bcHistorique = (fiche as any).bcHistorique || (fiche as any).suiviCommande?.bcHistorique || [];
                     bcHistorique.forEach((bc: any) => {
+                        const clientData = (fiche as any).client || {};
+                        const displayName = clientData.raisonSociale ? clientData.raisonSociale : `${clientData.prenom || ''} ${clientData.nom || ''}`.trim();
+
                         allHistory.push({
                             ...bc,
                             ficheId: fiche.id,
-                            clientName: `${(fiche as any).client?.prenom || ''} ${(fiche as any).client?.nom || ''}`.trim(),
+                            clientDisplayName: displayName || 'Client',
+                            clientName: displayName, // Keep for backward compatibility if needed elsewhere
                             ficheType: fiche.type
                         });
                     });

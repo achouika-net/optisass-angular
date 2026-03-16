@@ -1,4 +1,46 @@
-<div class="bc-history-container relative">
+<div class="bc-history-container relative p-4 bg-gray-50/50 rounded-xl border border-gray-100">
+  <!-- Filters Bar -->
+  <div class="flex items-center gap-4 mb-6 p-4 bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+      <div class="flex items-center gap-2 text-gray-500 shrink-0">
+          <mat-icon class="text-blue-600">filter_list</mat-icon>
+          <span class="text-sm font-bold uppercase tracking-wider text-gray-400">Filtres</span>
+      </div>
+
+      <mat-form-field appearance="outline" class="w-[220px]" subscriptSizing="dynamic">
+          <mat-label>Fournisseur</mat-label>
+          <mat-select [(ngModel)]="filterSupplier" (selectionChange)="applyFilters()">
+              <mat-option value="">Tous les fournisseurs</mat-option>
+              <mat-option *ngFor="let s of uniqueSuppliers" [value]="s">{{ s }}</mat-option>
+          </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="w-[220px]" subscriptSizing="dynamic">
+          <mat-label>Client</mat-label>
+          <mat-select [(ngModel)]="filterClient" (selectionChange)="applyFilters()">
+              <mat-option value="">Tous les clients</mat-option>
+              <mat-option *ngFor="let c of uniqueClients" [value]="c">{{ c }}</mat-option>
+          </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="w-[200px]" subscriptSizing="dynamic">
+          <mat-label>Motif</mat-label>
+          <mat-select [(ngModel)]="filterMotive" (selectionChange)="applyFilters()">
+              <mat-option value="">Tous les motifs</mat-option>
+              <mat-option *ngFor="let m of uniqueMotives" [value]="m">{{ m }}</mat-option>
+          </mat-select>
+      </mat-form-field>
+
+      <button mat-stroked-button color="warn" class="!rounded-lg shrink-0" (click)="clearFilters()" *ngIf="filterSupplier || filterClient || filterMotive">
+          <mat-icon>clear_all</mat-icon>
+          Réinitialiser
+      </button>
+
+      <div class="ml-auto flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 shrink-0">
+        <span class="text-xs font-bold text-blue-400 uppercase">Documents</span>
+        <span class="text-lg font-black text-blue-700">{{ history.length }}</span>
+      </div>
+  </div>
+
   <!-- Loading Overlay -->
   <div *ngIf="loading"
       class="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-xl">
@@ -8,26 +50,36 @@
       </div>
   </div>
 
-  <div class="overflow-x-auto">
-      <table mat-table [dataSource]="history" class="mat-elevation-z0">
+  <div class="overflow-x-auto bg-white rounded-xl border border-gray-200 shadow-sm">
+      <table mat-table [dataSource]="dataSource" class="mat-elevation-z0 w-full">
 
           <!-- Date Column -->
           <ng-container matColumnDef="date">
               <th mat-header-cell *matHeaderCellDef>Date</th>
-              <td mat-cell *matCellDef="let bc">{{ bc.date | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td mat-cell *matCellDef="let bc" class="!py-4">
+                  <div class="flex flex-col">
+                      <span class="font-bold text-gray-700">{{ bc.date | date:'dd/MM/yyyy' }}</span>
+                      <span class="text-[10px] text-gray-400">{{ bc.date | date:'HH:mm' }}</span>
+                  </div>
+              </td>
           </ng-container>
 
           <!-- BC Number Column -->
           <ng-container matColumnDef="numero">
               <th mat-header-cell *matHeaderCellDef>BC N°</th>
-              <td mat-cell *matCellDef="let bc" class="font-bold text-blue-600">{{ bc.numero }}</td>
+              <td mat-cell *matCellDef="let bc">
+                  <div class="flex items-center gap-2">
+                      <mat-icon class="text-blue-500 !text-[18px] w-[18px] h-[18px]">assignment</mat-icon>
+                      <span class="font-black text-blue-600 tracking-tight">{{ cleanReference(bc.numero) }}</span>
+                  </div>
+              </td>
           </ng-container>
 
           <!-- Supplier Column -->
           <ng-container matColumnDef="fournisseur">
               <th mat-header-cell *matHeaderCellDef>Fournisseur</th>
               <td mat-cell *matCellDef="let bc">
-                <div class="px-2">{{ getSupplierName(bc.fournisseur) }}</div>
+                <span class="font-medium text-gray-600">{{ getSupplierName(bc.fournisseur) }}</span>
               </td>
           </ng-container>
 
@@ -36,8 +88,11 @@
               <th mat-header-cell *matHeaderCellDef>Client</th>
               <td mat-cell *matCellDef="let bc">
                 <div class="flex flex-col">
-                  <span class="font-medium">{{ bc.clientDisplayName || bc.client || 'Client' }}</span>
-                  <span class="text-[10px] text-gray-400">Fiche: {{ bc.ficheNumero || 'N/A' }}</span>
+                  <span class="font-bold text-gray-800">{{ bc.clientDisplayName || bc.client || 'Client' }}</span>
+                  <div class="flex items-center gap-1">
+                      <span class="text-[9px] font-bold uppercase text-gray-300">Fiche</span>
+                      <span class="text-[10px] font-bold text-gray-400">#{{ bc.ficheNumero || bc.ficheId?.substring(0,8) || 'N/A' }}</span>
+                  </div>
                 </div>
               </td>
           </ng-container>
@@ -46,28 +101,28 @@
           <ng-container matColumnDef="motive">
               <th mat-header-cell *matHeaderCellDef>Motif</th>
               <td mat-cell *matCellDef="let bc">
-                  <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                      [ngClass]="bc.motive === 'Casse' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'">
-                      {{ bc.motive || 'Standard' }}
+                  <span class="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border"
+                      [ngClass]="cleanMotif(bc.motive) === 'Casse' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-blue-50 text-blue-600 border-blue-100'">
+                      {{ cleanMotif(bc.motive) }}
                   </span>
               </td>
           </ng-container>
 
           <!-- Actions Column -->
           <ng-container matColumnDef="actions">
-              <th mat-header-cell *matHeaderCellDef class="!text-right">Actions</th>
+              <th mat-header-cell *matHeaderCellDef></th>
               <td mat-cell *matCellDef="let bc">
-                  <div class="flex justify-end gap-2">
-                      <button mat-icon-button color="primary" matTooltip="Réimprimer le BC" (click)="reprintBC(bc)">
-                          <mat-icon>print</mat-icon>
+                  <div class="flex justify-end gap-1">
+                      <button mat-icon-button color="primary" matTooltip="Réimprimer le BC" (click)="reprintBC(bc)" class="hover:bg-blue-50 transition-colors">
+                          <mat-icon class="!text-[20px]">print</mat-icon>
                       </button>
-                      <button mat-icon-button [matMenuTriggerFor]="menu">
-                          <mat-icon>more_vert</mat-icon>
+                      <button mat-icon-button [matMenuTriggerFor]="menu" class="hover:bg-gray-100 transition-colors">
+                          <mat-icon class="!text-[20px] text-gray-400">more_horiz</mat-icon>
                       </button>
-                      <mat-menu #menu="matMenu" xPosition="before">
+                      <mat-menu #menu="matMenu" xPosition="before" class="!rounded-xl !shadow-xl border border-gray-100">
                           <button mat-menu-item (click)="reprintBC(bc)">
-                              <mat-icon>print</mat-icon>
-                              <span>Imprimer</span>
+                              <mat-icon class="text-blue-600">print</mat-icon>
+                              <span class="font-medium">Imprimer le document</span>
                           </button>
                       </mat-menu>
                   </div>
@@ -75,14 +130,19 @@
           </ng-container>
 
           <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="hover:bg-gray-50 transition-colors"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="hover:bg-blue-50/30 transition-colors border-b border-gray-50"></tr>
 
           <!-- No Data Row -->
           <tr class="mat-row" *matNoDataRow>
-              <td class="mat-cell p-8 text-center" [attr.colspan]="displayedColumns.length">
-                  <div class="flex flex-col items-center gap-2 text-gray-400">
-                      <mat-icon class="text-4xl">history</mat-icon>
-                      <span>Aucun historique de Bon de Commande trouvé</span>
+              <td class="mat-cell p-12 text-center" [attr.colspan]="displayedColumns.length">
+                  <div class="flex flex-col items-center gap-3">
+                      <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-2">
+                          <mat-icon class="text-gray-200 !text-[32px] w-[32px] h-[32px]">history</mat-icon>
+                      </div>
+                      <span class="text-gray-400 font-bold uppercase tracking-widest text-xs">Aucun document trouvé</span>
+                      <button mat-button color="primary" class="!text-[10px] font-bold" (click)="clearFilters()" *ngIf="filterSupplier || filterClient || filterMotive">
+                          EFFACER LES FILTRES
+                      </button>
                   </div>
               </td>
           </tr>
