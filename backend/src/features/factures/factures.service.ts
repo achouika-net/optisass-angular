@@ -122,6 +122,8 @@ export class FacturesService implements OnModuleInit {
 
     let facture;
     try {
+      const invoiceCentreId = data.centreId || client.centreId;
+
       facture = await this.prisma.facture.create({
         data: {
           ...cleanData,
@@ -129,6 +131,7 @@ export class FacturesService implements OnModuleInit {
           statut: data.statut || 'BROUILLON',
           resteAPayer: data.totalTTC || 0,
           vendeurId: vendeurId || null,
+          centreId: invoiceCentreId,
         },
       });
     } catch (error) {
@@ -695,6 +698,16 @@ export class FacturesService implements OnModuleInit {
           where,
           include: { paiements: true, client: true },
         });
+
+        // [FIX] Inheritance of centreId from client if missing
+        if (!data.centreId && !currentFacture?.centreId && (data.clientId || currentFacture?.clientId)) {
+          const cid = data.clientId || currentFacture?.clientId;
+          const targetClient = await tx.client.findUnique({ where: { id: cid }, select: { centreId: true } });
+          if (targetClient?.centreId) {
+            data.centreId = targetClient.centreId;
+            console.log(`[FacturesService] Inheriting centreId ${targetClient.centreId} from client ${cid} during update of ${currentFacture?.numero || 'new document'}`);
+          }
+        }
 
         // [FIX] Robust Devis Check: Match any document that IS a devis/draft
         // EXCLUDE: Established BCs and Factures to prevent redundant transition logic

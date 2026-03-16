@@ -137,27 +137,36 @@ export class CaisseListComponent implements OnInit, OnDestroy {
         });
     }
 
-    editCaisse(caisse: Caisse): void {
-        this.store.select(TenantSelector)
-            .pipe(take(1))
-            .subscribe(centreId => {
-                const dialogRef = this.dialog.open(CaisseFormDialogComponent, {
-                    width: '500px',
-                    data: { caisse: caisse, centreId: centreId }
-                });
+    editCaisse(caisse: Caisse, event: Event): void {
+        console.log('Edit Caisse clicked:', caisse);
+        if (event) {
+            event.stopPropagation();
+        }
+        
+        const dialogRef = this.dialog.open(CaisseFormDialogComponent, {
+            width: '500px',
+            data: { caisse: caisse, centreId: caisse.centreId }
+        });
 
-                dialogRef.afterClosed().subscribe(result => {
-                    if (result) {
-                        this.loadCaisses();
-                    }
-                });
-            });
+        dialogRef.afterClosed().subscribe(result => {
+            console.log('Edit Caisse dialog closed with result:', result);
+            if (result) {
+                this.loadCaisses();
+            }
+        });
     }
 
-    deleteCaisse(caisse: Caisse): void {
+    deleteCaisse(caisse: Caisse, event: Event): void {
+        console.log('Delete Caisse clicked:', caisse);
+        if (event) {
+            event.stopPropagation();
+        }
+
         if (confirm(`Êtes-vous sûr de vouloir supprimer la caisse "${caisse.nom}" ?`)) {
+            console.log('Deletion confirmed for:', caisse.id);
             this.caisseService.delete(caisse.id).subscribe({
                 next: () => {
+                    console.log('Caisse deleted successfully');
                     this.loadCaisses();
                 },
                 error: (error) => {

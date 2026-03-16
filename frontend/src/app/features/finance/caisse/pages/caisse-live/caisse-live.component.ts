@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, ViewChild, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -12,6 +12,8 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
+import { MatTableDataSource } from '@angular/material/table';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatInputModule } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
@@ -40,7 +42,8 @@ import { switchMap, catchError, timeout, finalize } from 'rxjs/operators';
         MatDatepickerModule,
         MatNativeDateModule,
         MatInputModule,
-        FormsModule
+        FormsModule,
+        MatPaginatorModule
     ],
     templateUrl: './caisse-live.component.html',
     styleUrls: ['./caisse-live.component.scss'],
@@ -49,6 +52,12 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
     journeeId: string | null = null;
     resume: JourneeResume | null = null;
     operations: OperationCaisse[] = [];
+    dataSource = new MatTableDataSource<OperationCaisse>([]);
+    @ViewChild(MatPaginator) set paginator(mp: MatPaginator) {
+        if (mp) {
+            this.dataSource.paginator = mp;
+        }
+    }
     loading = true;
     errorLoading = false;
     refreshSubscription?: Subscription;
@@ -60,6 +69,16 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
 
     displayedColumns: string[] = ['date', 'type', 'montant', 'moyen', 'reference', 'motif', 'utilisateur', 'actions'];
     protected readonly OperationType = OperationType;
+
+    // Filters
+    filterType: string = '';
+    filterMoyen: string = '';
+    filterMotif: string = '';
+    filterUser: string = '';
+
+    uniqueMoyens: string[] = [];
+    uniqueMotifs: string[] = [];
+    uniqueUsers: string[] = [];
 
     constructor(
         private route: ActivatedRoute,
@@ -73,6 +92,16 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
     ) { }
 
     ngOnInit(): void {
+        // Setup custom filter logic
+        this.dataSource.filterPredicate = (data: OperationCaisse, filter: string) => {
+            const searchTerms = JSON.parse(filter);
+            const matchType = !searchTerms.type || data.type === searchTerms.type;
+            const matchMoyen = !searchTerms.moyen || data.moyenPaiement === searchTerms.moyen;
+            const matchMotif = !searchTerms.motif || this.cleanMotif(data.motif || '') === searchTerms.motif;
+            const matchUser = !searchTerms.user || this.getUserName(data) === searchTerms.user;
+            return matchType && matchMoyen && matchMotif && matchUser;
+        };
+
         this.route.params.subscribe((params) => {
             this.journeeId = params['id'];
             if (this.journeeId) {
@@ -89,9 +118,14 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
 
         switch (period) {
             case 'all':
-                this.startDate = null;
-                this.endDate = null;
-                this.activeFilterInfo = 'Toute la période (Session)';
+                // Instead of null which restricts to current session, use an infinite date range to fetch all caisse history
+                start.setFullYear(2000, 0, 1);
+                start.setHours(0, 0, 0, 0);
+                end.setFullYear(2099, 11, 31);
+                end.setHours(23, 59, 59, 999);
+                this.startDate = start;
+                this.endDate = end;
+                this.activeFilterInfo = 'Historique complet (Caisse)';
                 this.loadData();
                 return;
             case 'today':
@@ -133,6 +167,26 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
         }
     }
 
+    applyFilters(): void {
+        this.dataSource.filter = JSON.stringify({
+            type: this.filterType,
+            moyen: this.filterMoyen,
+            motif: this.filterMotif,
+            user: this.filterUser
+        });
+        if (this.dataSource.paginator) {
+            this.dataSource.paginator.firstPage();
+        }
+    }
+
+    clearFilters(): void {
+        this.filterType = '';
+        this.filterMoyen = '';
+        this.filterMotif = '';
+        this.filterUser = '';
+        this.applyFilters();
+    }
+
     ngOnDestroy(): void {
         if (this.refreshSubscription) {
             this.refreshSubscription.unsubscribe();
@@ -169,11 +223,81 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
                 })
             ).subscribe((res: any) => {
                 if (res.resume) this.resume = res.resume;
-                if (res.operations) this.operations = res.operations;
+                if (res.operations) {
+                    this.operations = res.operations;
+                    this.dataSource.data = this.operations;
+                    if (this.paginator && this.dataSource.paginator !== this.paginator) {
+                        this.dataSource.paginator = this.paginator;
+                    }
+                    this.extractFilterOptions(this.operations);
+                    this.applyFilters(); // Re-apply existing filters on data reload
+                }
                 this.cdr.markForCheck();
                 this.cdr.detectChanges();
             });
         });
+    }
+
+    private extractFilterOptions(ops: OperationCaisse[]): void {
+        const moyens = new Set<string>();
+        const motifs = new Set<string>();
+        const users = new Set<string>();
+
+        ops.forEach(op => {
+            if (op.moyenPaiement) moyens.add(op.moyenPaiement);
+            const cleanedMotif = this.cleanMotif(op.motif || '');
+            if (cleanedMotif && cleanedMotif !== '-') motifs.add(cleanedMotif);
+            const userName = this.getUserName(op);
+            if (userName && userName !== '-') users.add(userName);
+        });
+
+        this.uniqueMoyens = Array.from(moyens).sort();
+        this.uniqueMotifs = Array.from(motifs).sort();
+        this.uniqueUsers = Array.from(users).sort();
+    }
+
+    getUserName(op: any): string {
+        if (op.user && (op.user.prenom || op.user.nom)) {
+            return `${op.user.prenom || ''} ${op.user.nom || ''}`.trim();
+        }
+        if (op.utilisateur && op.utilisateur.trim() !== '') {
+            return op.utilisateur.trim();
+        }
+        return 'Système';
+    }
+
+    cleanMotif(motif: string): string {
+        if (!motif) return '-';
+        let cleaned = motif.trim();
+        
+        if (cleaned.includes('Paiement:')) {
+            if (cleaned.includes('Fact-') || cleaned.toLowerCase().includes('facture')) return 'Paiement Facture';
+            if (cleaned.includes('BC-') || cleaned.toLowerCase().includes('bon de commande')) return 'Paiement BC';
+            if (cleaned.includes('BL-') || cleaned.toLowerCase().includes('bon de livraison')) return 'Paiement BL';
+            return 'Paiement Divers';
+        }
+        return cleaned;
+    }
+
+    cleanReference(op: any): string {
+        let ref = '';
+        if (op.facture?.numero) {
+            ref = op.facture.numero;
+        } else if (op.reference) {
+            ref = op.reference;
+        }
+        if (!ref) return '-';
+
+        // Nettoyage des préfixes redondants "Fac: ", "FAC " uniquement s'ils sont des mots entiers ou au début
+        ref = ref.replace(/^Fac:\s*/i, '').replace(/\bFAC\b\s*/i, '').trim();
+
+        // Détection des doublons exacts accidentels ex: "Fact-2/2026Fact-2/2026"
+        const half = ref.length / 2;
+        if (ref.length % 2 === 0 && ref.substring(0, half) === ref.substring(half)) {
+            ref = ref.substring(0, half);
+        }
+
+        return ref;
     }
 
     private formatDateForApi(date: Date | null): string | undefined {

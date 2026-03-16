@@ -211,6 +211,27 @@
             }
         }
     }
+
+    .advanced-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-top: 16px;
+        align-items: center;
+
+        .mini-filter {
+            flex: 1;
+            min-width: 150px;
+
+            ::ng-deep .mat-mdc-form-field-wrapper {
+                padding-bottom: 0;
+            }
+        }
+
+        ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+            display: none;
+        }
+    }
 }
 
 @keyframes rotate {
@@ -282,5 +303,37 @@
     p {
         margin-top: 16px;
         color: #666;
+    }
+}
+
+.spinning { animation: spin 1s linear infinite; }
+
+.empty-state-cell {
+    text-align: center;
+    padding: 24px;
+    color: #64748b;
+    font-style: italic;
+}
+
+.error-container {
+    text-align: center;
+    padding: 40px;
+
+    .error-icon {
+        font-size: 48px;
+        width: 48px;
+        height: 48px;
+        margin-bottom: 16px;
+    }
+
+    h2 {
+        color: #1e293b;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    p {
+        color: #64748b;
+        margin-bottom: 24px;
     }
 }

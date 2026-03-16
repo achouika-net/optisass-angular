@@ -110,7 +110,7 @@ export class OperationCaisseService {
             data: {
               totalComptable: { increment: operation.montant },
               totalVentesEspeces:
-                operation.moyenPaiement === 'ESPECES'
+                (operation.moyenPaiement === 'ESPECES' || operation.moyenPaiement === 'ESPECE')
                   ? { increment: operation.montant }
                   : undefined,
               totalVentesCarte:
@@ -143,7 +143,7 @@ export class OperationCaisseService {
             data: {
               totalComptable: { decrement: operation.montant },
               totalVentesEspeces:
-                operation.moyenPaiement === 'ESPECES'
+                (operation.moyenPaiement === 'ESPECES' || operation.moyenPaiement === 'ESPECE')
                   ? { decrement: operation.montant }
                   : undefined,
               totalVentesCarte:
@@ -163,7 +163,7 @@ export class OperationCaisseService {
             where: { id: operation.journeeCaisseId },
             data: {
               totalDepenses:
-                operation.moyenPaiement === 'ESPECES'
+                (operation.moyenPaiement === 'ESPECES' || operation.moyenPaiement === 'ESPECE')
                   ? { increment: operation.montant }
                   : undefined,
               totalTransfertsDepenses:
@@ -184,7 +184,13 @@ export class OperationCaisseService {
       `[Caisse-Operation] findByJournee: ID=${journeeId}, start=${startDate}, end=${endDate}`,
     );
 
-    const conditions: any[] = [{ journeeCaisseId: journeeId }];
+    // 1. Get the caisse ID from the journee to allow cross-session fetching if date filter is used
+    const journee = await this.prisma.journeeCaisse.findUnique({
+      where: { id: journeeId },
+      select: { caisseId: true },
+    });
+
+    if (!journee) throw new NotFoundException('Journée introuvable');
 
     let hasFilter = false;
     const dateFilter: any = {};
@@ -205,11 +211,14 @@ export class OperationCaisseService {
       }
     }
 
-    if (hasFilter) {
-      conditions.push({ createdAt: dateFilter });
-    }
+    // If date filter is provided, we fetch across ALL sessions for this caisse
+    const where: any = {
+      ...(hasFilter
+        ? { journeeCaisse: { caisseId: journee.caisseId } }
+        : { journeeCaisseId: journeeId }),
+      ...(hasFilter ? { createdAt: dateFilter } : {}),
+    };
 
-    const where = { AND: conditions };
     console.log(
       '[Caisse-Operation] FINAL PRISMA WHERE:',
       JSON.stringify(where),

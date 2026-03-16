@@ -144,104 +144,97 @@ export class ExpensesService {
 
       // Handle Cash Register Operation (For all payment modes as requested)
       let targetCaisseTypes: string[] = [];
-      if (data.modePaiement === 'ESPECES') {
-        targetCaisseTypes = ['DEPENSES', 'PRINCIPALE', 'SECONDAIRE']; // Prefer Depenses
+      if (data.modePaiement === 'ESPECES' || data.modePaiement === 'ESPECE') {
+        targetCaisseTypes = ['DEPENSES', 'MIXTE', 'PRINCIPALE', 'SECONDAIRE']; // Prefer Depenses or Mixte
       } else if (
         data.modePaiement === 'VIREMENT' ||
-        data.modePaiement === 'CHEQUE'
+        data.modePaiement === 'CHEQUE' ||
+        data.modePaiement === 'CHÈQUE' ||
+        data.modePaiement === 'LCN'
       ) {
-        targetCaisseTypes = ['PRINCIPALE']; // Strictly Main for Bank Ops
+        targetCaisseTypes = ['MIXTE', 'PRINCIPALE']; // Prioritize Mixed for flexibility if present
       }
 
       if (targetCaisseTypes.length > 0) {
         // Find the appropriate cash register
-        const expenseCaisse = await tx.caisse.findFirst({
+        // Find an OPEN JourneeCaisse. Prioritize DEPENSES or MIXTE.
+        const openJournees = await tx.journeeCaisse.findMany({
           where: {
-            centreId: data.centreId,
-            type: { in: targetCaisseTypes },
-            statut: 'ACTIVE',
+            caisse: {
+              centreId: data.centreId,
+              type: { in: targetCaisseTypes },
+              statut: 'ACTIVE',
+            },
+            statut: 'OUVERTE',
           },
-          orderBy: { type: 'asc' }, // DEPENSES < PRINCIPALE < SECONDAIRE (Alphabetical usually, but effectively prioritizes Depenses if present)
+          include: { caisse: true },
+          orderBy: { createdAt: 'desc' },
         });
 
-        // For Check/Transfer, we might be lenient if no caisse found, but user asked for it.
-        // For Cash, it's critical.
+        // Strategy: Prefer DEPENSES or MIXTE registers for expenses
+        const openSession = openJournees.find(j => j.caisse.type === 'DEPENSES') || 
+                            openJournees.find(j => j.caisse.type === 'MIXTE') || 
+                            openJournees[0];
 
-        if (expenseCaisse) {
-          // Find the open session
-          const openSession = await tx.journeeCaisse.findFirst({
-            where: {
-              caisseId: expenseCaisse.id,
-              statut: 'OUVERTE',
-            },
-          });
-
-          if (openSession) {
-            // Check funds ONLY for Cash
-            let sufficientFunds = true;
-            if (data.modePaiement === 'ESPECES') {
-              const availableCash =
-                (openSession.fondInitial || 0) +
-                (openSession.totalInterne || 0) +
-                (openSession.totalVentesEspeces || 0) -
-                (openSession.totalDepenses || 0);
-              console.log(
-                `[ExpensesService] Checking funds for ${data.categorie}: Required=${data.montant}, Available=${availableCash} (Fond=${openSession.fondInitial}, Interne=${openSession.totalInterne}, Ventes=${openSession.totalVentesEspeces}, Depenses=${openSession.totalDepenses})`,
-              );
-              if (availableCash < data.montant) sufficientFunds = false;
-            }
-
-            if (!sufficientFunds) {
-              // Insufficient funds (Cash only) - create funding request
-              await tx.demandeAlimentation.create({
-                data: {
-                  montant: data.montant,
-                  depenseId: expense.id,
-                  journeeCaisseId: openSession.id,
-                  statut: 'EN_ATTENTE',
-                },
-              });
-
-              await tx.depense.update({
-                where: { id: expense.id },
-                data: { statut: 'EN_ATTENTE_ALIMENTATION' },
-              });
-            } else {
-              // Sufficient funds or Non-Cash - create operation
-              // For Non-Cash, this won't affect Solde Reel in JourneeCaisseService (verified)
-              await tx.operationCaisse.create({
-                data: {
-                  type: 'DECAISSEMENT',
-                  typeOperation: 'INTERNE', // Or COMPTABLE? Expenses usually INTERNE or COMPTABLE. Let's stick to INTERNE for now or match previous.
-                  // Actually, ExpensesService line 171 used 'INTERNE'.
-                  montant: data.montant,
-                  moyenPaiement: data.modePaiement,
-                  motif: `Dépense: ${data.categorie}`,
-                  reference: expense.id,
-                  utilisateur: data.creePar || 'Système',
-                  journeeCaisseId: openSession.id,
-                },
-              });
-
-              // Update session totals ONLY for Cash (ESPECES)
-              // Non-cash expenses (Checks, Transfers) should NOT affect the physical cash drawer total.
-              if (data.modePaiement === 'ESPECES') {
-                await tx.journeeCaisse.update({
-                  where: { id: openSession.id },
-                  data: {
-                    totalDepenses: { increment: data.montant },
-                  },
-                });
-              }
-            }
-          } else if (data.modePaiement === 'ESPECES') {
-            throw new BadRequestException(
-              'La caisse doit être ouverte pour enregistrer une dépense en espèces.',
+        if (openSession) {
+          console.log(`[ExpensesService] Linked to caisse session ${openSession.id} (${openSession.caisse.nom})`);
+          // Check funds ONLY for Cash
+          let sufficientFunds = true;
+          if (data.modePaiement === 'ESPECES') {
+            const availableCash =
+              (openSession.fondInitial || 0) +
+              (openSession.totalInterne || 0) +
+              (openSession.totalVentesEspeces || 0) -
+              (openSession.totalDepenses || 0);
+            console.log(
+              `[ExpensesService] Checking funds for ${data.categorie}: Required=${data.montant}, Available=${availableCash} (Fond=${openSession.fondInitial}, Interne=${openSession.totalInterne}, Ventes=${openSession.totalVentesEspeces}, Depenses=${openSession.totalDepenses})`,
             );
+            if (availableCash < data.montant) sufficientFunds = false;
           }
-        } else if (data.modePaiement === 'ESPECES') {
+
+          if (!sufficientFunds) {
+            // Insufficient funds (Cash only) - create funding request
+            await tx.demandeAlimentation.create({
+              data: {
+                montant: data.montant,
+                depenseId: expense.id,
+                journeeCaisseId: openSession.id,
+                statut: 'EN_ATTENTE',
+              },
+            });
+
+            await tx.depense.update({
+              where: { id: expense.id },
+              data: { statut: 'EN_ATTENTE_ALIMENTATION' },
+            });
+          } else {
+            // Sufficient funds or Non-Cash - create operation
+            await tx.operationCaisse.create({
+              data: {
+                type: 'DECAISSEMENT',
+                typeOperation: 'INTERNE',
+                montant: data.montant,
+                moyenPaiement: data.modePaiement,
+                motif: `Dépense: ${data.categorie}`,
+                reference: expense.id,
+                utilisateur: data.creePar || 'Système',
+                journeeCaisseId: openSession.id,
+              },
+            });
+
+            // Update session totals ONLY for Cash (ESPECES)
+            if (data.modePaiement === 'ESPECES' || data.modePaiement === 'ESPECE') {
+              await tx.journeeCaisse.update({
+                where: { id: openSession.id },
+                data: {
+                  totalDepenses: { increment: data.montant },
+                },
+              });
+            }
+          }
+        } else if (data.modePaiement === 'ESPECES' || data.modePaiement === 'ESPECE') {
           throw new BadRequestException(
-            'Aucune caisse active trouvée pour ce centre.',
+            'Aucune caisse ouverte appropriée (DEPENSES/MIXTE) trouvée pour ce centre.',
           );
         }
       }

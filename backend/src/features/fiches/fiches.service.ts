@@ -19,7 +19,7 @@ export class FichesService {
   async sendOrderEmail(id: string) {
     const fiche = await this.prisma.fiche.findUnique({
       where: { id },
-      include: { client: true },
+      include: { client: { include: { centre: true } } },
     });
 
     if (!fiche) throw new BadRequestException('Fiche introuvable');
@@ -82,11 +82,17 @@ export class FichesService {
       },
     });
 
+    const centreEmail = fiche.client?.centre?.email || undefined;
+    const centreName = fiche.client?.centre?.nom || undefined;
+
     // 3. Send Email
     await this.mailerService.sendMailWithAttachment({
       to: supplier.email,
+      cc: centreEmail,
+      replyTo: centreEmail,
+      fromName: centreName,
       subject: `Bon de Commande - ${suivi.referenceCommande || fiche.numero}`,
-      text: `Bonjour,\n\nVeuillez trouver ci-joint le bon de commande pour le client ${clientName}.\n\nCordialement,\nL'équipe Optique.`,
+      text: `Bonjour,\n\nVeuillez trouver ci-joint le bon de commande pour le client ${clientName}.\n\nCordialement,\n${centreName || "L'équipe Optique"}`,
       attachmentName: `Bon_de_Commande_${suivi.referenceCommande || fiche.numero}.pdf`,
       attachmentBuffer: pdfBuffer,
     });

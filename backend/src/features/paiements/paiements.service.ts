@@ -77,17 +77,20 @@ export class PaiementsService {
     });
 
     // 4. AUTOMATED CASH RECORDING (INTEGRATION CAISSE)
-    if (
-      createPaiementDto.mode === 'ESPECES' ||
-      createPaiementDto.mode === 'CARTE' ||
-      createPaiementDto.mode === 'CHEQUE'
-    ) {
+    const acceptedModes = ['ESPECES', 'ESPECE', 'CARTE', 'CHEQUE', 'CHÈQUE', 'VIREMENT', 'LCN'];
+    if (acceptedModes.includes(createPaiementDto.mode)) {
       try {
         await this.prisma.$transaction(async (tx) => {
           await this.handleCaisseIntegration(tx, paiement, facture, userId);
         });
       } catch (caisseError) {
-        console.error('Failed to link payment to Caisse', caisseError);
+        console.error('❌ [PAIEMENT CAISSE ERROR]', {
+          paiementId: paiement.id,
+          mode: paiement.mode,
+          montant: paiement.montant,
+          error: caisseError.message,
+          stack: caisseError.stack
+        });
         // We don't block the payment if caisse integration fails, but we log it
       }
     }
@@ -181,6 +184,41 @@ export class PaiementsService {
     facture: any,
     userId?: string,
   ) {
+    console.log(`[Caisse-Integration] Processing payment ${paiement.id} (${paiement.mode}, ${paiement.montant}DH) for Facture ${facture?.numero}`);
+
+    // ──────────────────────────────────────────────────────────
+    // ANTI-DOUBLON GUARD: If this payment is already linked to an
+    // OperationCaisse, abort immediately to prevent double-counting.
+    // ──────────────────────────────────────────────────────────
+    const existingPaiement = await tx.paiement.findUnique({
+      where: { id: paiement.id },
+      select: { operationCaisseId: true },
+    });
+    if (existingPaiement?.operationCaisseId) {
+      console.warn(
+        `[Caisse-Integration] ⚠️ DOUBLON DÉTECTÉ — paiement ${paiement.id} est déjà lié à l'opération ${existingPaiement.operationCaisseId}. Annulation.`,
+      );
+      return; // Idempotent: do nothing
+    }
+
+    let targetCentreId = facture?.centreId;
+
+    if (!targetCentreId && facture?.clientId) {
+      console.log(`[Caisse-Integration] Facture ${facture.id} missing centreId. Resolving from client...`);
+      const client = await tx.client.findUnique({
+        where: { id: facture.clientId },
+        select: { centreId: true }
+      });
+      targetCentreId = client?.centreId;
+    }
+
+    if (!targetCentreId) {
+      console.warn(
+        `[Caisse-Integration] Skipping: Facture ${facture?.id} has no centreId (Ref: ${facture?.numero})`,
+      );
+      return;
+    }
+
     const isRefund = paiement.montant < 0;
     let caisseType = 'PRINCIPALE';
 
@@ -188,9 +226,9 @@ export class PaiementsService {
       // Refunds MUST go through the expense register
       const expenseJournee = await tx.journeeCaisse.findFirst({
         where: {
-          centreId: facture.centreId!,
+          centreId: targetCentreId!,
           statut: 'OUVERTE',
-          caisse: { type: 'DEPENSES' },
+          caisse: { type: { in: ['DEPENSES', 'MIXTE'] } },
         },
       });
 
@@ -202,17 +240,20 @@ export class PaiementsService {
       caisseType = 'DEPENSES';
     }
 
-    // Find an OPEN JourneeCaisse for the appropriate caisse type in this centre
-    const openJournee = await tx.journeeCaisse.findFirst({
+    // Find an OPEN JourneeCaisse. Prioritize MIXTE if both are open.
+    const openSessions = await tx.journeeCaisse.findMany({
       where: {
-        centreId: facture.centreId!,
+        centreId: targetCentreId,
         statut: 'OUVERTE',
         caisse: {
-          type: caisseType,
+          OR: [{ type: caisseType }, { type: 'MIXTE' }],
         },
       },
       include: { caisse: true },
     });
+
+    // Strategy: If there's a MIXTE caisse open, prefer it. Otherwise take the first one found.
+    const openJournee = openSessions.find((j) => j.caisse.type === 'MIXTE') || openSessions[0];
 
     if (openJournee) {
       const absMontant = Math.abs(paiement.montant);
@@ -285,7 +326,7 @@ export class PaiementsService {
           data: {
             totalComptable: { increment: paiement.montant },
             totalVentesEspeces:
-              paiement.mode === 'ESPECES'
+              (paiement.mode === 'ESPECES' || paiement.mode === 'ESPECE')
                 ? { increment: paiement.montant }
                 : undefined,
             totalVentesCarte:
@@ -293,7 +334,7 @@ export class PaiementsService {
                 ? { increment: paiement.montant }
                 : undefined,
             totalVentesCheque:
-              paiement.mode === 'CHEQUE'
+              (paiement.mode === 'CHEQUE' || paiement.mode === 'CHÈQUE')
                 ? { increment: paiement.montant }
                 : undefined,
           },
@@ -433,7 +474,9 @@ export class PaiementsService {
                     : paiement.montant,
               },
               totalVentesEspeces:
-                newMode === 'ESPECES' ? { increment: newMontant } : undefined,
+                ['ESPECES', 'ESPECE'].includes(newMode)
+                  ? { increment: newMontant }
+                  : undefined,
               totalVentesCarte:
                 newMode === 'CARTE' ? { increment: newMontant } : undefined,
               totalVentesCheque:
@@ -577,8 +620,9 @@ export class PaiementsService {
           await tx.journeeCaisse.update({
             where: { id: op.journeeCaisseId },
             data: {
-              totalVentesEspeces:
-                p.mode === 'ESPECES' ? { increment: absMontant } : undefined,
+              totalVentesEspeces: ['ESPECES', 'ESPECE'].includes(p.mode)
+                ? { increment: absMontant }
+                : undefined,
               totalVentesCarte:
                 p.mode === 'CARTE' ? { increment: absMontant } : undefined,
               totalVentesCheque:
@@ -678,8 +722,11 @@ export class PaiementsService {
             where: { id: journee.id },
             data: {
               totalComptable: { increment: montant },
-              totalVentesEspeces:
-                payment.mode === 'ESPECES' ? { increment: montant } : undefined,
+              totalVentesEspeces: ['ESPECES', 'ESPECE'].includes(
+                payment.mode,
+              )
+                ? { increment: montant }
+                : undefined,
               totalVentesCarte:
                 payment.mode === 'CARTE' ? { increment: montant } : undefined,
               totalVentesCheque:
@@ -741,7 +788,7 @@ export class PaiementsService {
               data: {
                 totalComptable: { decrement: op.montant },
                 totalVentesEspeces:
-                  op.moyenPaiement === 'ESPECES'
+                  ['ESPECES', 'ESPECE'].includes(op.moyenPaiement)
                     ? { decrement: op.montant }
                     : undefined,
                 totalVentesCarte:
