@@ -193,7 +193,9 @@
             <!-- Evolution Line Chart -->
             <mat-card class="shadow-sm rounded-xl border border-gray-100">
                 <mat-card-header class="border-b border-gray-100 pb-2 mb-2">
-                    <mat-card-title class="text-gray-800 text-base">Évolution Mensuelle</mat-card-title>
+                    <mat-card-title class="text-gray-800 text-base">
+                        {{ filterType === 'MONTHLY' || filterType === 'DAILY' ? 'Évolution Quotidienne' : 'Évolution Mensuelle' }}
+                    </mat-card-title>
                 </mat-card-header>
                 <mat-card-content>
                     <div class="chart-container">

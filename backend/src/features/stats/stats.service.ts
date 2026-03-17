@@ -80,10 +80,10 @@ export class StatsService {
     'ENCAISSÉE',
     'PARTIEL',
     'BROUILLON',
-    'ANNULEE'
+    'ANNULEE',
   ];
 
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async getRevenueEvolution(
     period: 'daily' | 'monthly' | 'yearly',
@@ -834,53 +834,71 @@ export class StatsService {
   }
 
   async getProfitEvolution(
+    period: 'daily' | 'monthly' = 'monthly',
     startDate?: string,
     endDate?: string,
     centreId?: string,
   ) {
+    console.log(`[StatsService] getProfitEvolution called with: period=${period}, start=${startDate}, end=${endDate}`);
     try {
       const tenantId =
         centreId &&
-          centreId.trim() &&
-          centreId !== 'undefined' &&
-          centreId !== 'null' &&
-          centreId !== ''
+        centreId.trim() &&
+        centreId !== 'undefined' &&
+        centreId !== 'null' &&
+        centreId !== ''
           ? centreId
           : undefined;
 
-      let start: Date;
-      if (
-        startDate &&
-        startDate !== 'undefined' &&
-        startDate !== 'null' &&
-        startDate !== ''
-      ) {
-        start = new Date(startDate);
-      } else {
-        // All history for evolution
-        start = new Date(1970, 0, 1);
+      const isValidDate = (d: string | undefined | null): boolean =>
+        !!(d && d !== 'undefined' && d !== 'null' && d !== '');
+
+      let start = isValidDate(startDate) ? new Date(startDate!) : undefined;
+      let end = isValidDate(endDate) ? new Date(endDate!) : undefined;
+
+      // If no start or end, find the real bounds from data
+      if (!start || !end) {
+        const range = await this.prisma.facture.aggregate({
+          where: {
+            centreId: tenantId || undefined,
+            statut: { notIn: ['ARCHIVE'] },
+            type: { in: ['FACTURE', 'BON_COMMANDE', 'AVOIR', 'DEVIS'] },
+          },
+          _min: { dateEmission: true },
+          _max: { dateEmission: true },
+        });
+        
+        if (!start) {
+            start = range._min.dateEmission || new Date(new Date().getFullYear(), 0, 1);
+            start.setHours(0,0,0,0);
+        }
+        if (!end) {
+            end = range._max.dateEmission || new Date();
+            end.setHours(23,59,59,999);
+        }
       }
 
-      let end: Date;
-      if (
-        endDate &&
-        endDate !== 'undefined' &&
-        endDate !== 'null' &&
-        endDate !== ''
-      ) {
-        end = new Date(endDate);
-      } else {
-        end = new Date(3000, 0, 1);
-      }
-      const inventoryPurchaseTypes = this.INVENTORY_PURCHASE_TYPES;
-      const operationalPurchaseTypes = this.OPERATIONAL_PURCHASE_TYPES;
+      console.log(`[StatsService] Final range for evolution: ${start.toISOString()} to ${end.toISOString()}`);
 
       const monthsMap = new Map<string, { revenue: number; cogs: number; expenses: number }>();
 
-      const getMonthKey = (date: Date) => {
-        if (!date || isNaN(date.getTime())) return null;
+      const formatKey = (date: Date) => {
+        if (period === 'daily') {
+          return date.toISOString().split('T')[0];
+        }
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       };
+
+      // Fill Gaps
+      const current = new Date(start);
+      while (current <= end) {
+        monthsMap.set(formatKey(current), { revenue: 0, cogs: 0, expenses: 0 });
+        if (period === 'daily') {
+          current.setDate(current.getDate() + 1);
+        } else {
+          current.setMonth(current.getMonth() + 1);
+        }
+      }
 
       // 1. Revenue
       const factures = await this.prisma.facture.findMany({
@@ -894,9 +912,8 @@ export class StatsService {
       });
 
       factures.forEach((f) => {
-        const key = getMonthKey(f.dateEmission);
-        if (!key) return;
-        if (!monthsMap.has(key)) monthsMap.set(key, { revenue: 0, cogs: 0, expenses: 0 });
+        const key = formatKey(f.dateEmission);
+        if (!monthsMap.has(key)) return;
         const val = f.totalTTC || f.totalHT || 0;
         const entry = monthsMap.get(key)!;
         if (f.type === 'AVOIR') entry.revenue -= val;
@@ -912,9 +929,8 @@ export class StatsService {
         },
       });
       depenses.forEach((d) => {
-        const key = getMonthKey(d.date);
-        if (!key) return;
-        if (!monthsMap.has(key)) monthsMap.set(key, { revenue: 0, cogs: 0, expenses: 0 });
+        const key = formatKey(d.date);
+        if (!monthsMap.has(key)) return;
         monthsMap.get(key)!.expenses += d.montant || 0;
       });
 
@@ -926,9 +942,8 @@ export class StatsService {
       });
 
       ff.forEach((f) => {
-        const key = getMonthKey(f.dateEmission);
-        if (!key) return;
-        if (!monthsMap.has(key)) monthsMap.set(key, { revenue: 0, cogs: 0, expenses: 0 });
+        const key = formatKey(f.dateEmission);
+        if (!monthsMap.has(key)) return;
         const entry = monthsMap.get(key)!;
 
         const isInventory = this.INVENTORY_PURCHASE_TYPES.includes(f.type || '');
@@ -940,17 +955,16 @@ export class StatsService {
       });
 
       const sortedResult = Array.from(monthsMap.entries())
-        .map(([month, vals]) => ({
-          month,
+        .map(([label, vals]) => ({
+          month: label,
           revenue: vals.revenue,
-          // We combine COGS and Expenses into a single "expenses" series for the chart 
-          // to satisfy the user request and ensure visibility.
           expenses: vals.cogs + vals.expenses,
-          cogs: vals.cogs, // Still sent if frontend needs it separately
-          netProfit: vals.revenue - vals.cogs - vals.expenses,
+          cogs: vals.cogs,
+          netProfit: vals.revenue - (vals.cogs + vals.expenses),
         }))
         .sort((a, b) => a.month.localeCompare(b.month));
 
+      console.log(`[StatsService] getProfitEvolution returning ${sortedResult.length} data points`);
       return sortedResult;
     } catch (error) {
       console.error('[Stats-Profit] Evolution Error:', error);
