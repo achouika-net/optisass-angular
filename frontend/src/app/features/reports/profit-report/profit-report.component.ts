@@ -14,6 +14,7 @@ import { MatOptionModule } from '@angular/material/core';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Chart, registerables } from 'chart.js';
+import { forkJoin } from 'rxjs';
 import { StatsService } from '../services/stats.service';
 import { Store } from '@ngrx/store';
 import { TenantSelector } from '../../../core/store/auth/auth.selectors';
@@ -146,23 +147,31 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
         const start = dates.start || '';
         const end = dates.end || '';
 
-        console.log(`[ProfitReport] Loading data for period: ${this.activeFilterInfo}`, { start, end, centreId: this.centreId });
+        // Granularity logic
+        let period: 'daily' | 'monthly' = 'monthly';
+        if (this.filterType === 'MONTHLY' || this.filterType === 'DAILY') {
+            period = 'daily';
+        }
 
-        this.statsService.getRealProfit(start, end, this.centreId).subscribe({
+        console.log(`[ProfitReport] LOADING DATA: type=${this.filterType}, period=${period}`, { start, end });
+
+        forkJoin({
+            summary: this.statsService.getRealProfit(start, end, this.centreId),
+            evolution: this.statsService.getProfitEvolution(period, start, end, this.centreId)
+        }).subscribe({
             next: (res: any) => {
-                console.log('[ProfitReport] Data received:', res);
-                this.data = res;
+                console.log('[ProfitReport] DATA RECEIVED:', res);
+                this.data = res.summary;
                 this.loading = false;
                 this.cdref.detectChanges();
 
                 setTimeout(() => {
-                    this.createChart(res);
+                    this.createChart(res.summary);
+                    this.createEvolutionChart(res.evolution, period);
                 }, 500);
-
-                this.loadEvolutionData(start, end);
             },
             error: (err: any) => {
-                console.error('[ProfitReport] Error loading profit data:', err);
+                console.error('[ProfitReport] ERROR LOADING DATA:', err);
                 this.loading = false;
                 this.cdref.markForCheck();
             }
@@ -210,19 +219,15 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
         });
     }
 
-    loadEvolutionData(start: string, end: string): void {
-        this.statsService.getProfitEvolution(start, end, this.centreId).subscribe({
-            next: (data: any[]) => {
-                console.log('[ProfitReport] Evolution data received:', data);
-                setTimeout(() => {
-                    this.createEvolutionChart(data);
-                }, 300);
-            },
+    // Simplified loadEvolutionData - now integrated into loadData forkJoin
+    loadEvolutionData(period: 'daily' | 'monthly', start: string, end: string): void {
+        this.statsService.getProfitEvolution(period, start, end, this.centreId).subscribe({
+            next: (data: any[]) => this.createEvolutionChart(data, period),
             error: (err: any) => console.error('[ProfitReport] Error loading evolution:', err)
         });
     }
 
-    createEvolutionChart(data: any[]): void {
+    createEvolutionChart(data: any[], period: 'daily' | 'monthly' = 'monthly'): void {
         if (!this.evolutionChartCanvas?.nativeElement) return;
         const ctx = this.evolutionChartCanvas.nativeElement.getContext('2d');
         if (!ctx) return;
@@ -233,6 +238,8 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
         const revenue = data.map(d => d.revenue);
         const expenses = data.map(d => d.expenses);
         const netProfit = data.map(d => d.netProfit);
+
+        const chartTitle = period === 'daily' ? 'Évolution Quotidienne du Bénéfice' : 'Évolution Mensuelle du Bénéfice';
 
         this.evolutionChart = new Chart(ctx, {
             type: 'line',
@@ -248,7 +255,7 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
                         tension: 0.4
                     },
                     {
-                        label: 'Total Charges (Achat + Frais)',
+                        label: 'Total Charges',
                         data: expenses,
                         borderColor: '#F44336',
                         backgroundColor: 'rgba(244, 67, 54, 0.1)',
@@ -274,7 +281,7 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
                     intersect: false,
                 },
                 plugins: {
-                    title: { display: true, text: 'Évolution Mensuelle du Bénéfice' },
+                    title: { display: true, text: chartTitle },
                     tooltip: {
                         callbacks: {
                             label: (context) => {

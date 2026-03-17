@@ -144,8 +144,13 @@ export class StatsService {
         return this.http.get<any>(`${this.apiUrl}/profit`, { params });
     }
 
-    getProfitEvolution(startDate?: string, endDate?: string, centreId?: string): Observable<any[]> {
-        let params = new HttpParams();
+    getProfitEvolution(
+        period: 'daily' | 'monthly' = 'monthly',
+        startDate?: string,
+        endDate?: string,
+        centreId?: string
+    ): Observable<any[]> {
+        let params = new HttpParams().set('period', period);
         if (startDate) params = params.set('startDate', startDate);
         if (endDate) params = params.set('endDate', endDate);
         if (centreId) params = params.set('centreId', centreId);

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef, NgZone } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef, NgZone, Inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Observable, of, BehaviorSubject, firstValueFrom, throwError } from 'rxjs';
 import { FormBuilder, FormGroup, AbstractControl, ReactiveFormsModule, Validators, FormArray, FormControl } from '@angular/forms';
@@ -24,6 +24,7 @@ import { Client, isClientParticulier, isClientProfessionnel } from '../../models
 import { FicheService } from '../../services/fiche.service';
 import { FicheClient, FicheMontureCreate, TypeFiche, StatutFiche, TypeEquipement, SuggestionIA, TypeVerre } from '../../models/fiche-client.model';
 import { FactureService, Facture } from '../../services/facture.service';
+import { BcPrintService } from '../../services/bc-print.service';
 import { FactureFormComponent } from '../facture-form/facture-form.component';
 import { PaymentListComponent } from '../../components/payment-list/payment-list.component';
 import { catchError, debounceTime, distinctUntilChanged, startWith, map, switchMap, filter, take, tap, finalize, takeUntil } from 'rxjs/operators';
@@ -84,7 +85,8 @@ interface PrescriptionFile {
         ClientManagementService,
         FicheService,
         FactureService,
-        ProductService
+        ProductService,
+        BcPrintService
     ],
     templateUrl: './monture-form.component.html',
     styleUrls: ['./monture-form.component.scss'],
@@ -135,7 +137,6 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     fournisseurCtrl = new FormControl('');
     filteredSuppliers$: Observable<ISupplier[]> = of([]);
     private allSuppliers: ISupplier[] = [];
-    private supplierService: SupplierService;
 
     // Master Lists (From Database)
     lensMaterials: string[] = getLensMaterials();
@@ -336,9 +337,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         private store: Store,
         private ngZone: NgZone,
         private companySettingsService: CompanySettingsService,
-        supplierService: SupplierService
+        private bcPrintService: BcPrintService,
+        private supplierService: SupplierService
     ) {
-        this.supplierService = supplierService;
         this.ficheForm = this.initForm();
     }
 
@@ -387,6 +388,11 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             // Enforce single string value
             const finalValue = typeof val === 'string' ? val : (val?.name || '');
             this.ficheForm.get('suiviCommande.fournisseur')?.setValue(finalValue, { emitEvent: false });
+            
+            if (finalValue && finalValue.trim() !== '') {
+                // BC generation removed from here, now explicit in "Passer Commande"
+            }
+
             // Force change detection for the Suivi tab if active
             if (this.activeTab === 5) {
                 this.cdr.detectChanges();
@@ -1317,7 +1323,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         return validStates.includes(val) ? val : 'A_COMMANDER';
     }
 
-    setOrderStatus(statut: string): void {
+    async setOrderStatus(statut: string): Promise<void> {
         const group = this.ficheForm.get('suiviCommande');
         if (!group) return;
 
@@ -1337,7 +1343,11 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
         // Auto-fill dates and prepare journal description
         if (statut === 'COMMANDE') {
-            description = `Commande envoyée au fournisseur (${fournisseurName}) - BC: ${referenceCommande} / Suivi: ${trackingNum}`;
+            // [FIX] Generate BC number BEFORE creating journal entry so it's not "N/A"
+            const ref = await this.generateBCNumberIfNeeded();
+            const refreshedReference = ref || group.get('referenceCommande')?.value || 'N/A';
+            description = `Commande envoyée au fournisseur (${fournisseurName}) - BC: ${refreshedReference} / Suivi: ${trackingNum}`;
+            
             if (!group.get('dateCommande')?.value) {
                 group.patchValue({ dateCommande: now });
                 
@@ -1345,13 +1355,14 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 const history = group.get('bcHistorique')?.value || [];
                 const bcRecord = {
                     date: now,
-                    numero: referenceCommande,
+                    numero: refreshedReference,
                     fournisseur: fournisseurName,
                     ficheId: this.ficheId,
-                    clientName: (this.client as any)?.nom ? `\${(this.client as any).nom} \${(this.client as any).prenom || ''}`.trim() : ((this.client as any)?.raisonSociale || 'Client'),
+                    ficheNumero: (this.currentFiche as any)?.numero,
+                    clientName: (this.client as any)?.nom ? `${(this.client as any).nom} ${(this.client as any).prenom || ''}`.trim() : ((this.client as any)?.raisonSociale || 'Client'),
                     motive: group.get('nextBcMotive')?.value || 'Commande Monture/Verres'
                 };
-                
+
                 group.patchValue({ 
                     bcHistorique: [bcRecord, ...history],
                     nextBcMotive: '' // Reset motive after use
@@ -1384,6 +1395,17 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
         // Mark form as dirty to enable save
         this.ficheForm.markAsDirty();
+
+        // [CRITICAL] Immediate Persistence to prevent history loss
+        if (this.ficheId && this.ficheId !== 'new') {
+            try {
+                await this.saveSuiviCommande();
+                console.log('✅ [PERSISTENCE] Order status and journal persisted successfully');
+            } catch (err) {
+                console.error('❌ [PERSISTENCE] Failed to persist order status change:', err);
+            }
+        }
+
         // Force double detection for history timeline
         this.cdr.detectChanges();
         setTimeout(() => this.cdr.detectChanges(), 50);
@@ -1514,15 +1536,27 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     }
 
     async advanceOrderStatus(): Promise<void> {
-        const status = this.suiviStatut;
-        if (status === 'A_COMMANDER') {
+        const status = (this.currentFiche as any)?.statut || 'EN_COURS';
+        const suiviStatut = this.suiviStatut;
+
+        if (suiviStatut === 'A_COMMANDER' || status === 'EN_COURS') {
+            // [VALIDATION] Ensure fournisseur is selected
+            const fournisseur = this.ficheForm.get('suiviCommande.fournisseur')?.value;
+            if (!fournisseur || fournisseur.trim() === '') {
+                this.snackBar.open('Veuillez sélectionner un fournisseur avant de passer commande.', 'Fermer', {
+                    duration: 3000,
+                    panelClass: ['warning-snackbar']
+                });
+                return;
+            }
+
             // Generate BC number first if needed to avoid "N/A" in journal
             try { await this.generateBCNumberIfNeeded(); } catch (e) { /* continue */ }
-            this.setOrderStatus('COMMANDE');
+            await this.setOrderStatus('COMMANDE');
             this.showOrderActions();
         }
-        else if (status === 'COMMANDE') this.setOrderStatus('RECU');
-        else if (status === 'RECU') this.setOrderStatus('LIVRE_CLIENT');
+        else if (suiviStatut === 'COMMANDE') this.setOrderStatus('RECU');
+        else if (suiviStatut === 'RECU') this.setOrderStatus('LIVRE_CLIENT');
 
         // Trigger safe save if we are just advancing status outside of full edit
         if (!this.isEditMode) {
@@ -1557,23 +1591,69 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
     async printBC(): Promise<void> {
         // Generate BC number first if needed
-        try { await this.generateBCNumberIfNeeded(); } catch (e) { /* continue */ }
-        this.printBonCommandeVerre();
+        await this.generateBCNumberIfNeeded();
+
+        // [AUTOMATION] If status is still early, mark as COMMANDE to record in history/journal
+        const currentStatut = this.suiviStatut;
+        if (currentStatut === 'A_COMMANDER' || (this.currentFiche as any)?.statut === 'EN_COURS') {
+            await this.setOrderStatus('COMMANDE');
+        }
+        
+        const bcData = this.ficheForm.get('suiviCommande')?.value;
+        const printData = {
+            ...this.ficheForm.value,
+            clientDisplayName: this.client ? (isClientProfessionnel(this.client) ? this.client.raisonSociale : `${this.client.nom} ${this.client.prenom || ''}`).trim() : 'Client',
+            clientFicheNumero: (this.currentFiche as any)?.numero || 'N/A'
+        };
+
+        this.bcPrintService.printBonCommande(
+            printData, 
+            this.companySettings, 
+            null, // currentUser will be handled by service
+            bcData?.referenceCommande || 'N/A', 
+            bcData?.fournisseur || 'N/A'
+        );
     }
 
-    async generateBCNumberIfNeeded(): Promise<void> {
-        const bcData = this.ficheForm.get('suiviCommande')?.value;
-        if (!bcData?.referenceCommande) {
-            const dateStr = new Date().toLocaleDateString('fr-FR', { month: '2-digit', year: '2-digit' }).replace('/', '');
-            const randomId = Math.floor(1000 + Math.random() * 9000); // 4 digit random
-            const generatedBC = `BC-${dateStr}-${randomId}`;
+    async generateBCNumberIfNeeded(): Promise<string> {
+        const ctrl = this.ficheForm.get('suiviCommande.referenceCommande');
+        let currentRef = ctrl?.value;
+        
+        // [FIX] Robust check for missing, blank or "N/A" reference
+        if (!currentRef || currentRef === 'N/A' || String(currentRef).trim() === '') {
+            console.log('🔄 [BC-GEN] Generating BC Number...');
+            
+            // Get fiche number (e.g. 2403-001 or Int 123)
+            const rawFicheNum = (this.currentFiche as any)?.numero || '000';
+            const ficheNumStr = String(rawFicheNum); // Ensure string for next operations
+
+            // Extract the numeric part (001) if possible
+            const shortFicheNum = ficheNumStr.includes('-') ? ficheNumStr.split('-').pop() : ficheNumStr;
+            const randomId = Math.floor(100 + Math.random() * 900); // 3 digit random
+            const generatedBC = `BC-${shortFicheNum}-${randomId}`;
+            
+            console.log(`✅ [BC-GEN] Created: ${generatedBC} for Fiche ${ficheNumStr}`);
+            
             this.ficheForm.get('suiviCommande.referenceCommande')?.setValue(generatedBC);
             this.ficheForm.get('suiviCommande.referenceCommande')?.markAsDirty();
-            // Important: Wait for save
-            await firstValueFrom(this.saveSuiviCommande()); 
+            
+            // Save to DB if we have a valid fiche ID (persists even if not explicitly saved by user yet)
+            if (this.ficheId && this.ficheId !== 'new') {
+                try {
+                    await firstValueFrom(this.saveSuiviCommande());
+                    console.log('💾 [BC-GEN] Persisted to database');
+                } catch (e) {
+                    console.error('❌ [BC-GEN] Failed to persist:', e);
+                }
+            }
+            
             this.cdr.detectChanges();
+            return generatedBC;
         }
+        
+        return currentRef;
     }
+
 
     getTimelineEvents(): any[] {
         const group = this.ficheForm?.get('suiviCommande');
@@ -2317,6 +2397,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         // DEBUG: Log form structure when switching to Suivi Commande tab
         if (index === 5) {
             console.log('🔍 [DEBUG] Switching to Suivi Commande tab');
+            // BC generation removed from here, now explicit in "Passer Commande"
             this.cdr.detectChanges(); // Force re-evaluation of getters like getTimelineEvents
         }
 
@@ -4426,199 +4507,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         }, 500);
     }
 
-    /**
-     * Print Bon de Commande Verre
-     */
-    printBonCommandeVerre(): void {
-        const ord = this.ficheForm.get('ordonnance')?.value || {};
-        const verres = this.ficheForm.get('verres')?.value || {};
-        const suivi = this.ficheForm.get('suiviCommande')?.value || {};
-        const montage = this.ficheForm.get('montage')?.value || {};
-        const today = new Date().toLocaleDateString('fr-FR');
-        const ref = suivi.referenceCommande || 'N/A';
-        const client = this.clientDisplayName || 'Client';
 
-        // Ordonnance rows
-        const od = ord.od || {};
-        const og = ord.og || {};
 
-        // Verres details
-        const isDiff = verres.differentODOG;
-        const matiere = isDiff 
-            ? `OD: ${verres.matiereOD || ''} | OG: ${verres.matiereOG || ''}`
-            : (verres.matiere || '');
-        const indice = isDiff
-            ? `OD: ${verres.indiceOD || ''} | OG: ${verres.indiceOG || ''}`
-            : (verres.indice || '');
-        const traitements = isDiff
-            ? `OD: ${(verres.traitementOD || []).join(', ') || '-'} | OG: ${(verres.traitementOG || []).join(', ') || '-'}`
-            : ((verres.traitement || []).join(', ') || '-');
-        
-        const diametre = this.getDiametreACommander();
 
-        // Dynamic Logo and Company Name
-        const logoUrl = this.companySettings?.logoUrl || `${window.location.origin}/assets/images/logo.png`;
-        const companyName = this.companySettings?.name || 'OPTISASS';
-
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) {
-            this.snackBar.open('Activez les popups pour imprimer', 'OK', { duration: 5000, verticalPosition: 'top' });
-            return;
-        }
-
-        printWindow.document.write(`
-            <!DOCTYPE html>
-            <html lang="fr">
-            <head>
-                <meta charset="UTF-8">
-                <title>Bon de Commande Verres - ${ref}</title>
-                <style>
-                    @page { size: A4 portrait; margin: 0 !important; }
-                    body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; padding: 15mm; line-height: 1.5; font-size: 10pt; background: #fff; }
-                    
-                    /* Header Styles matching invoice/screenshot */
-                    .header { display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #0f172a; padding-bottom: 20px; margin-bottom: 30px; }
-                    .logo-box { display: flex; align-items: center; gap: 15px; }
-                    .logo-img { height: 75px; width: auto; object-fit: contain; }
-                    .company-info { text-align: right; }
-                    .company-info h1 { margin: 0; font-size: 22pt; font-weight: 950; color: #0f172a; text-transform: uppercase; letter-spacing: -0.5px; }
-                    .doc-title { margin-top: 5px; font-size: 16pt; color: #3b82f6; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
-                    
-                    /* Meta info cards */
-                    .meta-info { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 35px; }
-                    .info-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-                    .info-card label { display: block; font-size: 8.5pt; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-                    .info-card p { margin: 0; font-size: 13pt; font-weight: 800; color: #1e293b; }
-
-                    .section { margin-bottom: 35px; }
-                    .section-label { color: #94a3b8; font-size: 9pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
-                    
-                    /* Lens Characteristics Grid */
-                    .lens-specs { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; column-gap: 40px; }
-                    .spec-item { padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
-                    .spec-item label { display: block; font-size: 8pt; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
-                    .spec-item span { font-size: 10.5pt; font-weight: 600; color: #0f172a; }
-
-                    /* Technical Table */
-                    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                    th { text-align: left; font-size: 8.5pt; text-transform: uppercase; color: #94a3b8; padding: 12px 10px; font-weight: 800; border-bottom: 2px solid #e2e8f0; }
-                    td { padding: 15px 10px; border-bottom: 1px solid #f1f5f9; font-size: 11pt; font-weight: 500; }
-                    .eye-row { font-weight: 900; color: #3b82f6; width: 60px; }
-                    .val-cell { text-align: center; }
-                    th.val-cell { text-align: center; }
-
-                    /* Footer & Cachet */
-                    .footer { text-align: center; margin-top: 60px; }
-                    .cachet-label { font-weight: 800; color: #475569; font-size: 10pt; margin-bottom: 15px; }
-                    .cachet-box { display: inline-block; width: 240px; height: 110px; border: 2px dashed #cbd5e1; border-radius: 16px; position: relative; display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 8pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
-
-                    @media print {
-                        body { padding: 10mm 15mm; }
-                        .no-print { display: none; }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <div class="logo-box">
-                        <img src="${logoUrl}" class="logo-img" alt="Logo">
-                    </div>
-                    <div class="company-info">
-                        <h1>${companyName}</h1>
-                        <div class="doc-title">Bon de Commande Verres</div>
-                    </div>
-                </div>
-
-                <div class="meta-info">
-                    <div class="info-card">
-                        <label>Fournisseur</label>
-                        <p>${suivi.fournisseur || '-'}</p>
-                    </div>
-                    <div class="info-card">
-                        <label>Référence BC / Date</label>
-                        <p>${ref} — ${today}</p>
-                    </div>
-                </div>
-
-                <div class="section">
-                    <div class="section-label">Caractéristiques des Verres</div>
-                    <div class="lens-specs">
-                        <div class="spec-item">
-                            <label>Type de Verre</label>
-                            <span>${verres.type || '-'}</span>
-                        </div>
-                        <div class="spec-item">
-                            <label>Matière</label>
-                            <span>${matiere}</span>
-                        </div>
-                        <div class="spec-item">
-                            <label>Indice</label>
-                            <span>${indice}</span>
-                        </div>
-                        <div class="spec-item">
-                            <label>Diamètre Utile</label>
-                            <span>${diametre} mm</span>
-                        </div>
-                        <div class="spec-item" style="grid-column: span 2; border-bottom: none;">
-                            <label>Traitements</label>
-                            <span>${traitements}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="section">
-                    <div class="section-label">Prescription Technique</div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width: 80px;">Oeil</th>
-                                <th class="val-cell">Sphère</th>
-                                <th class="val-cell">Cylindre</th>
-                                <th class="val-cell">Axe</th>
-                                <th class="val-cell">Addition</th>
-                                <th class="val-cell">Diamètre</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td class="eye-row">OD</td>
-                                <td class="val-cell">${od.sphere || '0.00'}</td>
-                                <td class="val-cell">${od.cylindre || '0.00'}</td>
-                                <td class="val-cell">${od.axe || '0'}°</td>
-                                <td class="val-cell">${od.addition || '0.00'}</td>
-                                <td class="val-cell">${diametre.split('/')?.[0] || diametre}</td>
-                            </tr>
-                            <tr>
-                                <td class="eye-row">OG</td>
-                                <td class="val-cell">${og.sphere || '0.00'}</td>
-                                <td class="val-cell">${og.cylindre || '0.00'}</td>
-                                <td class="val-cell">${og.axe || '0'}°</td>
-                                <td class="val-cell">${og.addition || '0.00'}</td>
-                                <td class="val-cell">${diametre.includes('/') ? diametre.split('/')?.[1] : diametre}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="footer">
-                    <p class="cachet-label">Cachet du Magasin</p>
-                    <div style="display: flex; justify-content: center;">
-                        <div class="cachet-box">Emplacement Cachet</div>
-                    </div>
-                </div>
-
-                <script>
-                    window.onload = function() {
-                        window.print();
-                        setTimeout(() => window.close(), 1000);
-                    }
-                <\/script>
-            </body>
-            </html>
-        `);
-
-        printWindow.document.close();
-    }
 
     /**
      * Generate and download montage sheet PDF (placeholder)
@@ -4651,8 +4542,17 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         });
     }
 
-    public emailOrder(): void {
+    public async emailOrder(): Promise<void> {
         if (!this.ficheId) return;
+
+        // Ensure BC number is generated before emailing
+        await this.generateBCNumberIfNeeded();
+
+        // [AUTOMATION] If status is still early, mark as COMMANDE to record in history/journal
+        const currentStatut = this.suiviStatut;
+        if (currentStatut === 'A_COMMANDER' || (this.currentFiche as any)?.statut === 'EN_COURS') {
+            await this.setOrderStatus('COMMANDE');
+        }
 
         this.ficheService.emailOrder(this.ficheId).subscribe({
             next: () => {
@@ -4672,9 +4572,17 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         });
     }
 
-    public whatsappOrder(): void {
+    public async whatsappOrder(): Promise<void> {
+        // Ensure BC number is generated before sending WhatsApp
+        const bcNumber = await this.generateBCNumberIfNeeded();
+        
+        // [AUTOMATION] If status is still early, mark as COMMANDE to record in history/journal
+        const currentStatut = this.suiviStatut;
+        if (currentStatut === 'A_COMMANDER' || (this.currentFiche as any)?.statut === 'EN_COURS') {
+            await this.setOrderStatus('COMMANDE');
+        }
+
         const bcData = this.ficheForm.get('suiviCommande')?.value;
-        const bcNumber = bcData?.referenceCommande || this.generateReference(bcData?.dateCommande || new Date());
         let clientName = this.client ? (isClientProfessionnel(this.client) ? this.client.raisonSociale : `${this.client.nom} ${this.client.prenom || ''}`).trim() : 'Client';
 
         // Reconstruct order details
@@ -4687,15 +4595,14 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             `Fournisseur : ${bcData?.fournisseur || '-'}`,
             ``,
             `*Monture*`,
-            `Marque : ${monture?.Marque || '-'}`,
-            `Modèle : ${monture?.Modele || '-'}`,
-            `Réf    : ${monture?.RefM1 || '-'}`,
+            `Marque : ${monture?.Marca1 || monture?.marque || '-'}`,
+            `Réf    : ${monture?.reference || monture?.RefM1 || '-'}`,
             ``,
             `*Verres*`,
-            `OD : Sph ${verres?.OD_Sph1 || '0.00'} | Cyl ${verres?.OD_Cyl1 || '0.00'} | Axe ${verres?.OD_Axe1 || '0'} | Add ${verres?.OD_Add1 || '0.00'}`,
-            `OG : Sph ${verres?.OG_Sph1 || '0.00'} | Cyl ${verres?.OG_Cyl1 || '0.00'} | Axe ${verres?.OG_Axe1 || '0'} | Add ${verres?.OG_Add1 || '0.00'}`,
-            `Marque : ${verres?.Marque || '-'}`,
-            `Matière: ${verres?.Matiere || '-'}`
+            `OD : Sph ${verres?.od?.sphere || '0.00'} | Cyl ${verres?.od?.cylindre || '0.00'} | Axe ${verres?.od?.axe || '0'} | Add ${verres?.od?.addition || '0.00'}`,
+            `OG : Sph ${verres?.og?.sphere || '0.00'} | Cyl ${verres?.og?.cylindre || '0.00'} | Axe ${verres?.og?.axe || '0'} | Add ${verres?.og?.addition || '0.00'}`,
+            `Marque : ${verres?.marque || '-'}`,
+            `Matière: ${verres?.matiere || '-'}`
         ].join('\n');
 
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(orderDetails)}`;

@@ -43,17 +43,42 @@ export class FicheService {
             map(fiches => {
                 const allHistory: any[] = [];
                 fiches.forEach(fiche => {
-                    // Try top level first, then inside suiviCommande
-                    const bcHistorique = (fiche as any).bcHistorique || (fiche as any).suiviCommande?.bcHistorique || [];
-                    bcHistorique.forEach((bc: any) => {
-                        const clientData = (fiche as any).client || {};
-                        const displayName = clientData.raisonSociale ? clientData.raisonSociale : `${clientData.prenom || ''} ${clientData.nom || ''}`.trim();
+                    const clientData = (fiche as any).client || {};
+                    const displayName = clientData.raisonSociale ? clientData.raisonSociale : `${clientData.prenom || ''} ${clientData.nom || ''}`.trim();
+                    const ficheNumero = (fiche as any).numero;
+                    
+                    // 1. Get history from both possible locations
+                    const legacyHistory = (fiche as any).bcHistorique || [];
+                    const suiviHistory = (fiche as any).suiviCommande?.bcHistorique || [];
+                    
+                    // Combine and de-duplicate by date/number if necessary
+                    const combinedHistory = [...suiviHistory];
+                    legacyHistory.forEach((lh: any) => {
+                        if (!combinedHistory.find(sh => sh.date === lh.date && sh.numero === lh.numero)) {
+                            combinedHistory.push(lh);
+                        }
+                    });
 
+                    // 2. Add current BC if it exists but isn't in history yet (proactive display)
+                    const currentRef = (fiche as any).suiviCommande?.referenceCommande;
+                    if (currentRef && currentRef !== 'N/A' && !combinedHistory.find(h => h.numero === currentRef)) {
+                        combinedHistory.unshift({
+                            date: (fiche as any).suiviCommande.dateCommande || fiche.dateCreation,
+                            numero: currentRef,
+                            fournisseur: (fiche as any).suiviCommande.fournisseur || 'Non spécifié',
+                            motive: (fiche as any).suiviCommande.nextBcMotive || 'En cours',
+                            isCurrent: true
+                        });
+                    }
+
+                    // 3. Map to final display format
+                    combinedHistory.forEach((bc: any) => {
                         allHistory.push({
                             ...bc,
                             ficheId: fiche.id,
+                            ficheNumero: ficheNumero,
                             clientDisplayName: displayName || 'Client',
-                            clientName: displayName, // Keep for backward compatibility if needed elsewhere
+                            clientName: displayName,
                             ficheType: fiche.type
                         });
                     });
@@ -63,6 +88,7 @@ export class FicheService {
             })
         );
     }
+
 
     /**
      * Récupérer toutes les fiches d'un client
