@@ -91,8 +91,44 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
     ::ng-deep .dense-field .mat-mdc-form-field-subscript-wrapper { display: none; }
 
     /* Print Styles - OVERLAY STRATEGY */
-    .print-layout {
-      display: none;
+    .print-layout { display: none; }
+
+    @media print {
+      body.is-printing-report .container,
+      body.is-printing-report mat-sidenav-container,
+      body.is-printing-report app-header,
+      body.is-printing-report app-sidebar {
+        display: none !important;
+      }
+
+      .print-isolated {
+        display: block !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background: white;
+        padding: 10mm;
+      }
+      
+      .print-header { margin-bottom: 30px; border-bottom: 2px solid #0c4891; padding-bottom: 15px; }
+      .print-header h2 { margin: 0; color: #0c4891; }
+      
+      .print-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+      .print-table th, .print-table td { border: 1px solid #e2e8f0; padding: 10px 8px; font-size: 11px; text-align: left; }
+      .print-table th { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; color: #334155; font-weight: 600; text-transform: uppercase; }
+      
+      .sub-text { font-size: 9px; color: #64748b; display: block; margin-top: 2px; }
+      .text-right { text-align: right !important; }
+      .font-bold { font-weight: 700; }
+      .uppercase { text-transform: uppercase; }
+      .tracking-wider { letter-spacing: 0.05em; }
+      
+      .total-row { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; }
+      .paid-row { color: #15803d !important; -webkit-print-color-adjust: exact; }
+      .remaining-row { color: #c2410c !important; -webkit-print-color-adjust: exact; }
+      
+      footer-recap-cell { padding-top: 15px !important; }
     }
 
   `]
@@ -128,6 +164,13 @@ export class SupplierInvoiceListComponent implements OnInit {
     startDate: null as Date | null,
     endDate: null as Date | null
   };
+
+  stats = {
+    totalTTC: 0,
+    totalPaid: 0,
+    totalRemaining: 0
+  };
+  printDate = new Date();
 
   constructor(
     private financeService: FinanceService,
@@ -251,11 +294,17 @@ export class SupplierInvoiceListComponent implements OnInit {
         if (res && res.data !== undefined) {
           this.invoices = res.data || [];
           this.totalCount = Number(res.total);
+          if (res.stats) {
+            this.stats = res.stats;
+          } else {
+            this.stats = { totalTTC: 0, totalPaid: 0, totalRemaining: 0 };
+          }
         } else {
           this.invoices = Array.isArray(res) ? res : [];
           this.totalCount = this.invoices.length;
         }
         this.loading = false;
+        this.printDate = new Date();
         this.selection.clear();
         this.cdr.detectChanges();
       },
@@ -455,6 +504,20 @@ export class SupplierInvoiceListComponent implements OnInit {
     }
   }
 
+  formatType(type: string): string {
+    if (!type) return '-';
+    const t = type.toUpperCase();
+    if (t.includes('LENTILLE')) return 'LEN';
+    if (t.includes('VERRE') || t === 'VER') return 'VER';
+    if (t.includes('MONTURE')) return 'MON';
+    if (t.includes('SOLAIRE')) return 'SOL';
+    if (t.includes('ACCESSOIRE')) return 'ACC';
+    
+    // Fallback: remove ACHAT_ prefix and return first 3 chars
+    const cleaned = t.replace('ACHAT_', '');
+    return cleaned.substring(0, 3);
+  }
+
   formatClientName(client: any): string {
     if (!client) return '-';
     // Handle both cases: string (legacy) or object
@@ -476,7 +539,12 @@ export class SupplierInvoiceListComponent implements OnInit {
     return this.invoices.reduce((acc, inv) => acc + (inv.montantTTC || 0), 0);
   }
 
+  getToday(): Date {
+    return new Date();
+  }
+
   printList() {
+    this.printDate = new Date();
     this.cdr.detectChanges();
 
     // 1. Get the print layout element

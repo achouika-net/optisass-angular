@@ -62,10 +62,10 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
     errorLoading = false;
     refreshSubscription?: Subscription;
 
-    selectedPeriod: string = 'all';
+    selectedPeriod: string = 'today';
     startDate: Date | null = null;
     endDate: Date | null = null;
-    activeFilterInfo: string = 'Toute la session';
+    activeFilterInfo: string = 'Aujourd\'hui';
 
     displayedColumns: string[] = ['date', 'type', 'montant', 'moyen', 'reference', 'motif', 'utilisateur', 'actions'];
     protected readonly OperationType = OperationType;
@@ -105,7 +105,7 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
         this.route.params.subscribe((params) => {
             this.journeeId = params['id'];
             if (this.journeeId) {
-                this.setPeriod('all');
+                this.setPeriod('today');
                 this.startAutoRefresh();
             }
         });

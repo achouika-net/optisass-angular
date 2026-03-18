@@ -72,6 +72,15 @@
                                         </mat-autocomplete>
                                     </mat-form-field>
 
+                                    <mat-form-field appearance="outline" *ngIf="isBLMode">
+                                        <mat-label>Catégorie (Label tableau) *</mat-label>
+                                        <mat-select formControlName="categorieBL">
+                                            <mat-option *ngFor="let cat of blCategories" [value]="cat.value">
+                                                {{ cat.label }}
+                                            </mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+
                                     <mat-form-field appearance="outline">
                                         <mat-label>Date d'émission *</mat-label>
                                         <input matInput [matDatepicker]="pickerE" formControlName="dateEmission">

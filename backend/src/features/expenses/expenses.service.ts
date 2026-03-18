@@ -35,6 +35,7 @@ export class ExpensesService {
       // If we are paying an existing echeance or creating an immediate expense for a BL
       const factureFournisseurId = (createExpenseDto as any)
         .factureFournisseurId;
+      const bonLivraisonId = (createExpenseDto as any).bonLivraisonId;
 
       // NEW: If no echeanceId but linked to a BL, try to find a pending echeance or create one
       if (
@@ -62,6 +63,34 @@ export class ExpensesService {
               statut: 'ENCAISSE',
               banque: banque,
               factureFournisseurId: factureFournisseurId,
+              dateEncaissement: new Date(),
+            },
+          });
+          finalEcheanceId = newEch.id;
+        }
+      }
+
+      // NEW: Support for direct BL payment sync
+      if (!finalEcheanceId && bonLivraisonId && data.statut === 'VALIDEE') {
+        const pending = await tx.echeancePaiement.findFirst({
+          where: {
+            bonLivraisonId: bonLivraisonId,
+            statut: 'EN_ATTENTE',
+          },
+        });
+
+        if (pending) {
+          finalEcheanceId = pending.id;
+        } else {
+          const newEch = await tx.echeancePaiement.create({
+            data: {
+              type: data.modePaiement,
+              reference: reference || 'Paiement BL',
+              dateEcheance: new Date(),
+              montant: data.montant,
+              statut: 'ENCAISSE',
+              banque: banque,
+              bonLivraisonId: bonLivraisonId,
               dateEncaissement: new Date(),
             },
           });
@@ -126,6 +155,43 @@ export class ExpensesService {
         }
       }
 
+      // Sync BonLivraison status if linked
+      if (bonLivraisonId) {
+        const bl = await tx.bonLivraison.findUnique({
+          where: { id: bonLivraisonId },
+          include: { echeances: true },
+        });
+
+        if (bl) {
+          const activeEcheances = bl.echeances.filter(
+            (e) => e.statut !== 'ANNULE',
+          );
+          const totalPaidRaw = activeEcheances
+            .filter((e) => e.statut === 'ENCAISSE')
+            .reduce((sum, e) => sum + e.montant, 0);
+
+          const totalPaid = Math.round(totalPaidRaw * 100) / 100;
+          const roundedTotalTTC = Math.round(bl.montantTTC * 100) / 100;
+
+          let newStatus = 'EN_ATTENTE';
+          if (totalPaid >= roundedTotalTTC && roundedTotalTTC > 0) {
+            newStatus = 'PAYEE';
+          } else if (totalPaid > 0) {
+            newStatus = 'PARTIELLE';
+          } else {
+            const hasScheduled = activeEcheances.some(
+              (e) => e.type !== 'ESPECES' && e.statut === 'EN_ATTENTE',
+            );
+            newStatus = hasScheduled ? 'PARTIELLE' : 'EN_ATTENTE';
+          }
+
+          await tx.bonLivraison.update({
+            where: { id: bonLivraisonId },
+            data: { statut: newStatus },
+          });
+        }
+      }
+
       // Create the expense
       const expense = await tx.depense.create({
         data: {
@@ -139,6 +205,7 @@ export class ExpensesService {
           factureFournisseurId: finalEcheanceId
             ? null
             : factureFournisseurId || null,
+          bonLivraisonId: finalEcheanceId ? null : bonLivraisonId || null,
         },
       });
 

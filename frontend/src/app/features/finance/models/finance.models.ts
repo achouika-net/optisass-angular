@@ -151,6 +151,16 @@ export interface BonLivraison {
     createdAt?: string;
 }
 
+export interface BonLivraisonListResponse {
+    data: BonLivraison[];
+    total: number;
+    stats: {
+        totalTTC: number;
+        totalPaid: number;
+        totalRemaining: number;
+    };
+}
+
 export interface BonLivraisonDTO {
     numeroBL: string;
     dateEmission: string;

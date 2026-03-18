@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_URL } from '../../../config/api.config';
-import { Supplier, Expense, SupplierInvoice, ExpenseDTO, SupplierInvoiceDTO, FundingRequest, BonLivraison, BonLivraisonDTO } from '../models/finance.models';
+import { Supplier, Expense, SupplierInvoice, ExpenseDTO, SupplierInvoiceDTO, FundingRequest, BonLivraison, BonLivraisonDTO, BonLivraisonListResponse } from '../models/finance.models';
 
 @Injectable({
     providedIn: 'root'
@@ -124,7 +124,7 @@ export class FinanceService {
         endDate?: string;
         page?: number;
         limit?: number;
-    }): Observable<{ data: BonLivraison[], total: number }> {
+    }): Observable<BonLivraisonListResponse> {
         let params = new HttpParams();
         if (filters?.fournisseurId) params = params.set('fournisseurId', filters.fournisseurId);
         if (filters?.statut) params = params.set('statut', filters.statut);
@@ -137,7 +137,7 @@ export class FinanceService {
         if (filters?.page) params = params.set('page', filters.page.toString());
         if (filters?.limit) params = params.set('limit', filters.limit.toString());
 
-        return this.http.get<{ data: BonLivraison[], total: number }>(`${this.apiUrl}/bon-livraison`, { params });
+        return this.http.get<BonLivraisonListResponse>(`${this.apiUrl}/bon-livraison`, { params });
     }
 
     createBonLivraison(bl: BonLivraisonDTO): Observable<BonLivraison> {
