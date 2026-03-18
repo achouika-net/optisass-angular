@@ -3,10 +3,10 @@ import {
     Get,
     Post,
     Body,
-    Patch,
     Param,
     Delete,
     Query,
+    Put,
 } from '@nestjs/common';
 import { BonLivraisonService } from './bon-livraison.service';
 import { CreateBonLivraisonDto } from './dto/create-bon-livraison.dto';
@@ -52,7 +52,7 @@ export class BonLivraisonController {
         return this.bonLivraisonService.findOne(id);
     }
 
-    @Patch(':id')
+    @Put(':id')
     update(
         @Param('id') id: string,
         @Body() updateDto: Partial<CreateBonLivraisonDto>,

@@ -136,6 +136,14 @@ export class InvoiceFormDialogComponent implements OnInit {
     paymentMethods = ['ESPECES', 'CHEQUE', 'LCN', 'VIREMENT', 'CARTE'];
     echeanceStatus = ['EN_ATTENTE', 'DEPOSE', 'ENCAISSE', 'REJETE', 'ANNULE'];
 
+    blCategories = [
+        { value: 'VERRE', label: 'VER' },
+        { value: 'LENTILLE', label: 'LEN' },
+        { value: 'MONTURE', label: 'MON' },
+        { value: 'SOLAIRE', label: 'SOL' },
+        { value: 'ACCESSOIRE', label: 'ACC' }
+    ];
+
     // Supplier Autocomplete
     supplierCtrl = new FormControl('');
     filteredSuppliers!: Observable<Supplier[]>;
@@ -393,11 +401,21 @@ export class InvoiceFormDialogComponent implements OnInit {
         // Setup Client Autocomplete Logic
         this.setupClientFilter();
 
-        // If Type changes, reset or show/hide client fields handled in UI but we might want to clear them
+        // If Type changes, sync category if in BL mode
         this.detailsGroup.get('type')?.valueChanges.subscribe(type => {
-            if (type !== 'ACHAT_VERRE_OPTIQUE' && type !== 'ACHAT_LENTILLES') {
-                // Should we clear? User might change back and forth. 
-                // Let's not clear immediately unless required.
+            if (this.isBLMode) {
+                const typeStr = type?.toString().toUpperCase() || '';
+                if (typeStr.includes('LENTILLE')) {
+                    this.detailsGroup.get('categorieBL')?.patchValue('LENTILLE');
+                } else if (typeStr.includes('VERRE')) {
+                    this.detailsGroup.get('categorieBL')?.patchValue('VERRE');
+                } else if (typeStr.includes('MONTURES_OPTIQUE')) {
+                    this.detailsGroup.get('categorieBL')?.patchValue('MONTURE');
+                } else if (typeStr.includes('MONTURES_SOLAIRE')) {
+                    this.detailsGroup.get('categorieBL')?.patchValue('SOLAIRE');
+                } else if (typeStr.includes('PRODUITS') || typeStr.includes('ACCESSOIRE')) {
+                    this.detailsGroup.get('categorieBL')?.patchValue('ACCESSOIRE');
+                }
             }
         });
 
@@ -704,9 +722,32 @@ export class InvoiceFormDialogComponent implements OnInit {
     autoUpdateStatus() {
         const totalTTC = this.detailsGroup.get('montantTTC')?.value || 0;
         const echeances = this.echeances.value as any[];
-        if (!echeances || echeances.length === 0) return;
-        const totalPaid = echeances.filter(e => e.statut === 'ENCAISSE').reduce((sum, e) => sum + (e.montant || 0), 0);
-        this.paymentGroup.get('statut')?.setValue(totalPaid >= totalTTC && totalTTC > 0 ? 'PAYEE' : 'PARTIELLE', { emitEvent: false });
+        
+        if (!echeances || echeances.length === 0) {
+            this.paymentGroup.get('statut')?.setValue('EN_ATTENTE', { emitEvent: false });
+            return;
+        }
+
+        const totalPaid = echeances
+            .filter(e => e.statut === 'ENCAISSE')
+            .reduce((sum, e) => sum + (e.montant || 0), 0);
+
+        let newStatus = 'EN_ATTENTE';
+        if (totalPaid >= totalTTC && totalTTC > 0) {
+            newStatus = 'PAYEE';
+        } else if (totalPaid > 0) {
+            newStatus = 'PARTIELLE';
+        } else {
+            // Check if there are scheduled future payments (cheques, LCN) that are not yet encaisse
+            // but signify the payment process has started/is committed.
+            const hasCommitted = echeances.some(e => 
+                (e.type === 'CHEQUE' || e.type === 'LCN' || e.type === 'VIREMENT') && 
+                e.statut !== 'ANNULE'
+            );
+            newStatus = hasCommitted ? 'PARTIELLE' : 'EN_ATTENTE';
+        }
+
+        this.paymentGroup.get('statut')?.setValue(newStatus, { emitEvent: false });
     }
 
     calculateFromHT() {

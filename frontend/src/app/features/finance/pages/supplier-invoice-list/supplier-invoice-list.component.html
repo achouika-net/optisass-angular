@@ -23,7 +23,7 @@
     <div class="print-header">
         <h2>{{ listMode === 'BL' ? 'Liste des Bons de Livraison' : 'Liste des Factures Fournisseurs (Dépenses)' }}
         </h2>
-        <p><strong>Arrêté au:</strong> {{ 0 | date:'dd/MM/yyyy à HH:mm' }}</p>
+        <p><strong>Arrêté au:</strong> {{ printDate | date:'dd/MM/yyyy à HH:mm' }}</p>
 
         <!-- Optional: Print Filters Summary -->
         <div class="print-filters-summary" *ngIf="filters.fournisseurId || selectedPeriod() !== 'all'">
@@ -57,20 +57,70 @@
                     {{ formatClientName(row.client) }}
                     <span *ngIf="row.fiche?.numero" class="sub-text">(Fiche : {{ row.fiche?.numero }})</span>
                 </td>
-                <td>{{ $any(row).categorieBL || row.type }}</td>
+                <td>{{ formatType($any(row).categorieBL || row.type) }}</td>
                 <td>{{ row.statut }}</td>
                 <td class="text-right font-bold">{{ row.montantTTC | number:'1.2-2' }}</td>
             </tr>
         </tbody>
         <tfoot>
-            <tr>
-                <td colspan="6" class="text-right font-bold">TOTAL</td>
-                <td class="text-right font-bold">{{ getTotalTTC() | number:'1.2-2' }}</td>
+            <tr class="total-row">
+                <td [attr.colspan]="listMode === 'BL' ? 6 : 5" class="text-right font-bold uppercase tracking-wider">Total Période (TTC)</td>
+                <td class="text-right font-bold">{{ stats.totalTTC | number:'1.2-2' }}</td>
+            </tr>
+            <tr class="paid-row" *ngIf="listMode === 'BL'">
+                <td [attr.colspan]="listMode === 'BL' ? 6 : 5" class="text-right font-bold uppercase tracking-wider text-green-700">Total Payé</td>
+                <td class="text-right font-bold text-green-700">{{ stats.totalPaid | number:'1.2-2' }}</td>
+            </tr>
+            <tr class="remaining-row" *ngIf="listMode === 'BL'">
+                <td [attr.colspan]="listMode === 'BL' ? 6 : 5" class="text-right font-bold uppercase tracking-wider text-orange-700">Reste à Régler</td>
+                <td class="text-right font-bold text-orange-700">{{ stats.totalRemaining | number:'1.2-2' }}</td>
             </tr>
         </tfoot>
     </table>
 </div>
+
 <div class="container" [class.container-sub]="isSubComponent">
+    <!-- Summary Recap -->
+    <div class="summary-recap mb-6" *ngIf="listMode === 'BL' && !loading">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <mat-card class="recap-card !shadow-none !border !border-blue-100 bg-blue-50/30">
+                <mat-card-content class="flex items-center gap-4 !p-4">
+                    <div class="recap-icon bg-blue-100 text-blue-600 rounded-lg p-3">
+                        <mat-icon>assessment</mat-icon>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">Total Période (TTC)</div>
+                        <div class="text-xl font-bold text-blue-800">{{ stats.totalTTC | number:'1.2-2' }} DH</div>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+
+            <mat-card class="recap-card !shadow-none !border !border-green-100 bg-green-50/30">
+                <mat-card-content class="flex items-center gap-4 !p-4">
+                    <div class="recap-icon bg-green-100 text-green-600 rounded-lg p-3">
+                        <mat-icon>check_circle</mat-icon>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">Total Payé</div>
+                        <div class="text-xl font-bold text-green-800">{{ stats.totalPaid | number:'1.2-2' }} DH</div>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+
+            <mat-card class="recap-card !shadow-none !border !border-orange-100 bg-orange-50/30">
+                <mat-card-content class="flex items-center gap-4 !p-4">
+                    <div class="recap-icon bg-orange-100 text-orange-600 rounded-lg p-3">
+                        <mat-icon>pending_actions</mat-icon>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">Reste à Régler</div>
+                        <div class="text-xl font-bold text-orange-800">{{ stats.totalRemaining | number:'1.2-2' }} DH</div>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+        </div>
+    </div>
+
     <mat-card class="!shadow-none !border !border-gray-100 mb-6">
         <mat-card-content class="!p-4">
             <div class="filters">
@@ -200,7 +250,7 @@
                 <td mat-cell *matCellDef="let element">
                     <mat-chip-set>
                         <mat-chip class="!bg-gray-100 !text-gray-600 mini-chip">
-                            {{ $any(element).categorieBL || element.type }}
+                            {{ formatType($any(element).categorieBL || element.type) }}
                         </mat-chip>
                     </mat-chip-set>
                 </td>
