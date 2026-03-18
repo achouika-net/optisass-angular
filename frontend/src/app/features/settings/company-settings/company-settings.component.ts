@@ -39,6 +39,7 @@ export class CompanySettingsComponent implements OnInit {
     settingsForm: FormGroup;
     loading = false;
     logoPreview: string | null = null;
+    cachetPreview: string | null = null;
 
     constructor() {
         this.settingsForm = this.fb.group({
@@ -85,6 +86,7 @@ export class CompanySettingsComponent implements OnInit {
             next: (settings: CompanySettings) => {
                 this.settingsForm.patchValue(settings);
                 this.logoPreview = settings.logoUrl || null;
+                this.cachetPreview = settings.cachetUrl || null;
 
                 // Load bank accounts
                 this.bankAccounts.clear();
@@ -117,13 +119,26 @@ export class CompanySettingsComponent implements OnInit {
         }
     }
 
+    onCachetChange(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        const file = input?.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e: ProgressEvent<FileReader>) => {
+                this.cachetPreview = e.target?.result as string;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
     saveSettings(): void {
         if (this.settingsForm.invalid) return;
 
         this.loading = true;
         const data: Partial<CompanySettings> = {
             ...this.settingsForm.value,
-            logoUrl: this.logoPreview ?? undefined
+            logoUrl: this.logoPreview ?? undefined,
+            cachetUrl: this.cachetPreview ?? undefined
         };
 
         this.service.updateSettings(data).subscribe({

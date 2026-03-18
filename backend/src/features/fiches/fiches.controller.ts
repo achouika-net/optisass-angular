@@ -48,6 +48,7 @@ export class FichesController {
 
   @Post(':id/email-order')
   async emailOrder(@Param('id') id: string) {
+    console.log(`🔔 [FichesController] Received request to send email for Fiche ID: ${id}`);
     return this.fichesService.sendOrderEmail(id);
   }
 

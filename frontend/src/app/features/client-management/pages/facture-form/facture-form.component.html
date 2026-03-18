@@ -324,7 +324,9 @@
                 </div>
                 <div class="signature-box">
                     <p>Signature et Cachet du Magasin</p>
-                    <div class="sig-line"></div>
+                    <div class="sig-line">
+                        <img *ngIf="companySettings?.cachetUrl" [src]="companySettings.cachetUrl" class="print-cachet" alt="Cachet">
+                    </div>
                 </div>
             </div>
 

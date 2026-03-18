@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, Fiche } from '@prisma/client';
 import { FacturesService } from '../factures/factures.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 import { MailerService } from '../notifications/mailer.service';
@@ -23,6 +23,7 @@ export class FichesService {
     });
 
     if (!fiche) throw new BadRequestException('Fiche introuvable');
+    console.log(`📧 [FichesService] Preparing order email for Fiche #${fiche.numero} (ID: ${id})`);
 
     const content = (fiche.content as any) || {};
     const suivi = content.suiviCommande || {};
@@ -41,61 +42,245 @@ export class FichesService {
     }
 
     // 2. Prepare Data for PDF
-    let designation = '';
     const ordonnance = content.ordonnance || {};
-
-    if (fiche.type === 'LENTILLES') {
-      const lentilles = content.lentilles || {};
-      designation = lentilles.diffLentilles
-        ? `Lentilles - OD: ${lentilles.od?.marque || ''} ${lentilles.od?.modele || ''}, OG: ${lentilles.og?.marque || ''} ${lentilles.og?.modele || ''}`
-        : `Lentilles - ${lentilles.od?.marque || ''} ${lentilles.od?.modele || ''}`;
-    } else {
-      // VERRES SEULEMENT (Demande utilisateur : "pour la designation pointe strictement sur les verre et non la monture")
-      const verres = content.verres || {};
-      
-      const verresDesc = verres.differentODOG
-        ? `Verres - OD: ${verres.marqueOD || ''} ${verres.matiereOD || ''}, OG: ${verres.marqueOG || ''} ${verres.matiereOG || ''}`
-        : `Verres - ${verres.marque || ''} ${verres.matiere || ''}`;
-      
-      designation = verresDesc;
-    }
+    const verres = content.verres || {};
+    const monture = content.monture || {};
+    const montage = content.montage || {};
 
     const clientName = `${fiche.client.prenom || ''} ${fiche.client.nom || ''}`.trim();
+    const bcNumber = suivi.referenceCommande || `BC-${fiche.numero}`;
+    const date = new Date();
 
-    const pdfBuffer = await this.pdfService.generatePurchaseOrder({
-      bcNumber: suivi.referenceCommande || `BC-${fiche.numero}`,
-      date: new Date(),
-      supplierName: supplier.nom,
+    // Helper for formatting (+1.50, -0.75, etc.)
+    const formatSigned = (val: any, fallback = '0.00') => {
+      if (val === null || val === undefined || val === '') return fallback;
+      const num = parseFloat(val);
+      if (isNaN(num)) return val;
+      return (num >= 0 ? '+' : '') + num.toFixed(2);
+    };
+
+    const companySettings = await this.prisma.companySettings.findFirst();
+    const branding = {
+      companyName: companySettings?.name || "Optisaas",
+      logoUrl: companySettings?.logoUrl || undefined,
+      cachetUrl: companySettings?.cachetUrl || undefined,
+    };
+
+    // Lens detail formatting to match frontend
+    const getLensBrand = (m: string, i: string, f: string) => {
+      const parts: string[] = [];
+      if (m) parts.push(m);
+      if (i) parts.push(i);
+      let str = parts.join(' ');
+      if (f) str += ` (${f})`;
+      return str.trim() || '-';
+    };
+
+    // Help fix Axe duplication (remove any existing degree symbols)
+    const cleanAxe = (val: any) => String(val || '0').replace(/°/g, '');
+
+    // -------------------------------------------------------------------
+    // [NEW] STANDARDIZED DIAMETER CALCULATION (Mesuré vs Commandé)
+    // -------------------------------------------------------------------
+    const getStdDiam = (d: number) => {
+      const standards = [50, 55, 60, 65, 70, 75, 80, 85];
+      return standards.find((s) => s >= d) || 85;
+    };
+
+    const parseDualValue = (val: string | null): { od: number | null, og: number | null } => {
+      if (!val || typeof val !== 'string') return { od: null, og: null };
+      if (val.includes('/')) {
+        const [od, og] = val.split('/').map((v) => parseFloat(v));
+        return { od: isNaN(od) ? null : od, og: isNaN(og) ? null : og };
+      }
+      const num = parseFloat(val);
+      return { od: isNaN(num) ? null : num, og: isNaN(num) ? null : num };
+    };
+
+    // 1. Get Measured Diameters (Diamètre Utile / Effectif)
+    const measuredRaw = ((montage as any).diametreEffectif || (montage as any).diagonalMm) as string;
+    const measured = parseDualValue(measuredRaw);
+    
+    // 2. Calculate "Commandé" (Standardized + Safety Margin)
+    const safetyMargin = 3.0; // Margin for edging
+    const intermediate = {
+      od: measured.od ? measured.od + safetyMargin : 0,
+      og: measured.og ? measured.og + safetyMargin : 0
+    };
+    const ordered = {
+      od: measured.od ? getStdDiam(intermediate.od) : 70,
+      og: measured.og ? getStdDiam(intermediate.og) : 75
+    };
+
+    // Technical note for Fiche Montage
+    const measuredLabel = (measuredRaw || (measured.od && measured.og ? `${measured.od}/${measured.og}` : '-')) as string;
+    const intermediateLabel = (measured.od && measured.og ? `${intermediate.od.toFixed(1)}/${intermediate.og.toFixed(1)} mm` : '-');
+    
+    const technicalNoteData = {
+      mesure: measuredLabel || (measured.od && measured.og ? `${measured.od}/${measured.og}` : '65/70'),
+      safety: safetyMargin,
+      intermediate: intermediateLabel,
+      ordered: `${ordered.od}/${ordered.og}`
+    };
+
+    // Helper to format treatments list
+    const formatTreatments = (t: any) => {
+      if (!t) return 'STANDARD';
+      const arr = Array.isArray(t) ? t : [String(t)];
+      if (arr.length === 0) return 'STANDARD';
+      return arr.join(', ').toUpperCase();
+    };
+
+    const lensDetails = {
+      od: verres.differentODOG 
+        ? getLensBrand(verres.marqueOD, verres.matiereOD, verres.fournisseurOD)
+        : getLensBrand(verres.marque, verres.matiere, verres.fournisseur),
+      og: verres.differentODOG 
+        ? getLensBrand(verres.marqueOG, verres.matiereOG, verres.fournisseurOG)
+        : getLensBrand(verres.marque, verres.matiere, verres.fournisseur),
+      treatments: (() => {
+        const tOD = verres.traitementOD || verres.traitement || verres.traitements;
+        const tOG = verres.traitementOG || verres.traitement || verres.traitements;
+        const a1 = Array.isArray(tOD) ? tOD : [tOD];
+        const a2 = Array.isArray(tOG) ? tOG : [tOG];
+        const merged = Array.from(new Set([...a1, ...a2].filter(Boolean)));
+        return merged.length > 0 ? merged.join(', ').toUpperCase() : 'STANDARD';
+      })(),
+      indiceOD: verres.differentODOG ? (verres.indiceOD || '-') : (verres.indice || '-'),
+      indiceOG: verres.differentODOG ? (verres.indiceOG || '-') : (verres.indice || '-'),
+      matiereOD: verres.differentODOG ? (verres.matiereOD || '-') : (verres.matiere || '-'),
+      matiereOG: verres.differentODOG ? (verres.matiereOG || '-') : (verres.matiere || '-'),
+      typeVerre: verres.type || '-'
+    };
+
+    const frameDetails = {
+      reference: monture.reference || '-',
+      marque: monture.marque || '-',
+      taille: monture.taille || '-'
+    };
+
+    // 1. Generate Bon de Commande PDF
+    console.log(`📄 [FichesService] Generating BC PDF with bcNumber: ${bcNumber}, Client: ${clientName}`);
+    const bcPdf = await this.pdfService.generatePurchaseOrder({
+      bcNumber,
+      date,
+      supplierName: suivi.fournisseur,
       clientName: clientName,
-      designation: designation,
+      designation: branding.companyName, 
       prescription: {
         od: {
-          sphere: ordonnance.od?.sphere || '0.00',
-          cylindre: ordonnance.od?.cylindre || '0.00',
-          axe: ordonnance.od?.axe || '0',
+          sphere: formatSigned(ordonnance.od?.sphere),
+          cylindre: formatSigned(ordonnance.od?.cylindre),
+          axe: cleanAxe(ordonnance.od?.axe),
+          addition: formatSigned(ordonnance.od?.addition, '-'),
+          ep: String(montage.ecartPupillaireOD || ordonnance.od?.ep || '-'),
+          haut: String(montage.hauteurOD || '-'),
+          diametre: String(ordered.od), // Ordered (for table)
+          diamUtile: measured.od ? String(measured.od) : '-' // Measured (for header grid)
         },
         og: {
-          sphere: ordonnance.og?.sphere || '0.00',
-          cylindre: ordonnance.og?.cylindre || '0.00',
-          axe: ordonnance.og?.axe || '0',
+          sphere: formatSigned(ordonnance.og?.sphere),
+          cylindre: formatSigned(ordonnance.og?.cylindre),
+          axe: cleanAxe(ordonnance.og?.axe),
+          addition: formatSigned(ordonnance.og?.addition, '-'),
+          ep: String(montage.ecartPupillaireOG || ordonnance.og?.ep || '-'),
+          haut: String(montage.hauteurOG || '-'),
+          diametre: String(ordered.og), // Ordered (for table)
+          diamUtile: measured.og ? String(measured.og) : '-' // Measured (for header grid)
         },
       },
+      ficheNumber: String(fiche.numero),
+      lensDetails,
+      frameDetails,
+      branding,
+    });
+
+    // 2. Generate Fiche de Montage PDF
+    console.log(`📄 [FichesService] Generating Fiche de Montage PDF with technicalNoteData:`, 
+      technicalNoteData,
+    );
+    const montagePdf = await this.pdfService.generateFicheMontagePdf({
+      bcNumber,
+      date,
+      clientName: clientName,
+      magasinName: fiche.client?.centre?.nom || branding.companyName,
+      prescription: {
+        od: {
+          sphere: formatSigned(ordonnance.od?.sphere),
+          cylindre: formatSigned(ordonnance.od?.cylindre),
+          axe: cleanAxe(ordonnance.od?.axe),
+          addition: formatSigned(ordonnance.od?.addition, '-'),
+        },
+        og: {
+          sphere: formatSigned(ordonnance.og?.sphere),
+          cylindre: formatSigned(ordonnance.og?.cylindre),
+          axe: cleanAxe(ordonnance.og?.axe),
+          addition: formatSigned(ordonnance.og?.addition, '-'),
+        },
+      },
+      ficheNumber: String(fiche.numero),
+      centrage: {
+        od: { 
+          dp: String(montage.ecartPupillaireOD || '0'), 
+          ht: String(montage.hauteurOD || '0'), 
+          diamUtile: measured.od ? String(measured.od) : '-'
+        },
+        og: { 
+          dp: String(montage.ecartPupillaireOG || '0'), 
+          ht: String(montage.hauteurOG || '0'), 
+          diamUtile: measured.og ? String(measured.og) : '-',
+        },
+      },
+      verres: lensDetails,
+      diametreConseille: technicalNoteData.ordered,
+      technicalNote: technicalNoteData, // [NEW] Pass data for the blue box
+      imageMontureUrl: montage.capturedImage || undefined,
+      virtualCenteringUrl: montage.configImage || content.configImage || content.virtualCenteringUrl || undefined,
+      preconisationsIA: {
+        od: verres.preconisationIA_OD || `${verres.marqueOD || ''} ${verres.matiereOD || ''}`.trim() || '-',
+        og: verres.preconisationIA_OG || `${verres.marqueOG || ''} ${verres.matiereOG || ''}`.trim() || '-',
+      },
+      observations: montage.remarques || content.observations || undefined,
+      branding,
     });
 
     const centreEmail = fiche.client?.centre?.email || undefined;
     const centreName = fiche.client?.centre?.nom || undefined;
 
     // 3. Send Email
-    await this.mailerService.sendMailWithAttachment({
-      to: supplier.email,
-      cc: centreEmail,
-      replyTo: centreEmail,
-      fromName: centreName,
-      subject: `Bon de Commande - ${suivi.referenceCommande || fiche.numero}`,
-      text: `Bonjour,\n\nVeuillez trouver ci-joint le bon de commande pour le client ${clientName}.\n\nCordialement,\n${centreName || "L'équipe Optique"}`,
-      attachmentName: `Bon_de_Commande_${suivi.referenceCommande || fiche.numero}.pdf`,
-      attachmentBuffer: pdfBuffer,
-    });
+    try {
+      await this.mailerService.sendMailWithAttachment({
+        to: supplier.email,
+        cc: centreEmail,
+        replyTo: centreEmail,
+        fromName: branding.companyName,
+        subject: `[${branding.companyName}] Commande Optique - ${bcNumber} - Client: ${clientName}`,
+        text: `Bonjour,
+
+Veuillez trouver ci-joint les documents concernant la commande de verres pour le client ${clientName} :
+- Le Bon de Commande (Réf: ${bcNumber})
+- La Fiche de Montage avec les mesures techniques.
+
+Nous restons à votre disposition pour toute information complémentaire.
+
+Cordialement,
+L'équipe ${branding.companyName}
+${centreName ? `(${centreName})` : ''}`,
+        attachments: [
+          {
+            filename: `Bon_de_Commande_${bcNumber}.pdf`,
+            content: bcPdf,
+          },
+          {
+            filename: `Fiche_de_Montage_${bcNumber}.pdf`,
+            content: montagePdf,
+          },
+        ],
+      });
+    } catch (error) {
+      console.error('❌ [FichesService] Email sending failed:', error);
+      throw new BadRequestException(`L'envoi de l'email a échoué: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    }
 
     return { success: true };
   }
@@ -160,6 +345,7 @@ export class FichesService {
         monture: incomingContent.monture,
         verres: incomingContent.verres,
         montage: incomingContent.montage,
+        configImage: incomingContent.configImage || incomingContent.virtualCenteringUrl, // [FIX] Store centering image
         suggestions: incomingContent.suggestions,
         equipements: incomingContent.equipements,
         produits: incomingContent.produits,
@@ -237,13 +423,12 @@ export class FichesService {
     } catch (error) {
       console.error('❌ ERROR saving fiche:');
       console.error('Error:', error);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
+      console.error('Error message:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
 
-  private validateRequiredFields(client: any): void {
+  private async validateRequiredFields(client: any): Promise<void> {
     const missing: string[] = [];
 
     if (!client.dateNaissance) missing.push('Date de naissance');
@@ -261,7 +446,7 @@ export class FichesService {
   }
 
   async findAll(startDate?: string) {
-    const where: any = {};
+    const where: Prisma.FicheWhereInput = {};
     if (startDate) {
       where.dateCreation = { gte: new Date(startDate) };
     }
@@ -270,11 +455,11 @@ export class FichesService {
       include: { client: true },
       orderBy: { dateCreation: 'desc' },
     });
-    return fiches.map((f: any) => this.unpackContent(f));
+    return fiches.map((f: Fiche) => this.unpackContent(f));
   }
 
   async findAllByClient(clientId: string, startDate?: string) {
-    const where: any = { clientId };
+    const where: Prisma.FicheWhereInput = { clientId };
     if (startDate) {
       where.dateCreation = { gte: new Date(startDate) };
     }
@@ -282,7 +467,7 @@ export class FichesService {
       where,
       orderBy: { dateCreation: 'desc' },
     });
-    return fiches.map((f: any) => this.unpackContent(f));
+    return fiches.map((f: Fiche) => this.unpackContent(f));
   }
 
   async findOne(id: string) {
@@ -303,14 +488,12 @@ export class FichesService {
       throw new Error(`Fiche with ID ${id} not found`);
     }
 
-    const { content: incomingContent, ...topLevelUpdates } = updateFicheDto;
+    const { content: incomingContent, ...rest } = updateFicheDto;
 
     // Robust Merging Strategy: 
-    // 1. Take existing JSON content
-    // 2. Extract incoming content (either from 'content' key or from DTO itself)
-    // 3. Merge them using object spread for top-level keys within the content JSON
-    const currentContent = (existingFiche.content as any) || {};
-    const contentToMerge = (incomingContent && typeof incomingContent === 'object') ? incomingContent : {};
+    // Handle both cases: { content: { ... } } or flat { ordonnance: ..., configImage: ... }
+    const currentContent = (existingFiche.content as Record<string, any>) || {};
+    const contentToMerge = (incomingContent && typeof incomingContent === 'object') ? incomingContent : rest;
 
     const mergedContent = {
       ...currentContent,
@@ -322,7 +505,7 @@ export class FichesService {
     const updated = await this.prisma.fiche.update({
       where: { id },
       data: {
-        ...topLevelUpdates,
+        ...rest,
         content: mergedContent,
       },
     });
@@ -345,9 +528,11 @@ export class FichesService {
       where: { id },
     });
   }
+
   private unpackContent(fiche: any) {
     if (!fiche) return fiche;
-    let content = fiche.content || {};
+    const rawContent = (fiche.content as Record<string, any>) || {};
+    let content = { ...rawContent };
 
     // LEGACY MAPPING: If content is flat (from Excel), map to structured objects
     if (content.OD_Sph1 !== undefined || content.Verre1D !== undefined) {
@@ -357,12 +542,18 @@ export class FichesService {
           cylindre: content.OD_Cyl1,
           axe: content.OD_Axe1,
           addition: content.OD_Add1,
+          dp: content.prescOD_EP || '',
+          ht: content.prescOD_H || '',
+          diamUtile: content.prescOD_Diam || '-',
         },
         og: {
           sphere: content.OG_Sph1,
           cylindre: content.OG_Cyl1,
           axe: content.OG_Axe1,
           addition: content.OG_Add1,
+          dp: content.prescOG_EP || '',
+          ht: content.prescOG_H || '',
+          diamUtile: content.prescOG_Diam || '-',
         },
         prescripteur: content.Medecin || content.Prescripteur,
       };
@@ -400,6 +591,7 @@ export class FichesService {
       verres: content.verres || fiche.verres,
       montage: content.montage || fiche.montage,
       suiviCommande: content.suiviCommande || fiche.suiviCommande,
+      configImage: content.configImage || fiche.configImage,
       content: undefined,
     };
   }

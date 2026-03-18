@@ -250,8 +250,12 @@
                             <div class="form-group"><label>Base</label><input type="text" formControlName="base"
                                     placeholder="H/B/Int/Ext" (blur)="formatBaseValue('od', $event)"></div>
                         </div>
-                        <div class="form-group full-width"><label>Écart Pupillaire (EP)</label><input type="text"
-                                formControlName="ep" placeholder="32mm" (blur)="formatEPValue('od', $event)"></div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Écart Pupillaire (EP)</label><input type="text"
+                                    formControlName="ep" placeholder="32mm" (blur)="formatEPValue('od', $event)"></div>
+                            <div class="form-group"><label>Diamètre Utile (ED)</label><input type="text"
+                                    formControlName="diametre" placeholder="70" title="Diamètre utile OD"></div>
+                        </div>
                     </div>
                 </div>
                 <!-- OEIL GAUCHE -->
@@ -285,8 +289,12 @@
                             <div class="form-group"><label>Base</label><input type="text" formControlName="base"
                                     placeholder="H/B/Int/Ext" (blur)="formatBaseValue('og', $event)"></div>
                         </div>
-                        <div class="form-group full-width"><label>Écart Pupillaire (EP)</label><input type="text"
-                                formControlName="ep" placeholder="32mm" (blur)="formatEPValue('og', $event)"></div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Écart Pupillaire (EP)</label><input type="text"
+                                    formControlName="ep" placeholder="32mm" (blur)="formatEPValue('og', $event)"></div>
+                            <div class="form-group"><label>Diamètre Utile (ED)</label><input type="text"
+                                    formControlName="diametre" placeholder="70" title="Diamètre utile OG"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1597,6 +1605,9 @@
                             <button type="button" class="btn-email-stylish no-print" (click)="emailOrder()" [disabled]="loading" matTooltip="Envoyer par email au fournisseur">
                                 <mat-icon>{{ loading ? 'hourglass_empty' : 'email' }}</mat-icon> <span class="hidden sm:inline">Envoyer Email</span>
                             </button>
+                            <button type="button" class="btn-whatsapp-stylish no-print" (click)="whatsappOrder()" matTooltip="Partager via WhatsApp">
+                                <mat-icon>share</mat-icon> <span class="hidden sm:inline">WhatsApp</span>
+                            </button>
                         </div>
                     </div>
 
@@ -1757,297 +1768,5 @@
         </div>
     </div>
 
-    <!-- PRINT VIEW: FICHE MONTAGE -->
-    <div class="print-fiche-montage" *ngIf="currentPrintType === 'FICHE_MONTAGE'">
-        <div class="print-header-small">
-            <div class="print-logo-container">
-                <img *ngIf="companySettings?.logoUrl" [src]="companySettings.logoUrl" alt="Logo" class="print-logo">
-                <img *ngIf="!companySettings?.logoUrl" src="assets/images/logo.png" alt="OPTISASS Logo" class="print-logo">
-            </div>
-            <div class="company">
-                <strong>OPTISASS</strong><br>
-                Fiche de Montage Artésane
-            </div>
-            <div class="doc-info">
-                Date: {{ (ficheForm.get('dateCreation')?.value || dateToday) |
-                date:'dd/MM/yyyy' }}<br>
-                Référence: {{ ficheId || 'BROUILLON' }}
-            </div>
-        </div>
 
-        <div class="client-summary">
-            <strong>Client:</strong> {{ clientDisplayName }}
-        </div>
-
-        <div class="print-grid">
-            <div class="print-section">
-                <h4>Correction Ordonnance</h4>
-                <table class="print-table">
-                    <thead>
-                        <tr>
-                            <th>Oeil</th>
-                            <th>Sphère</th>
-                            <th>Cylindre</th>
-                            <th>Axe</th>
-                            <th>Add</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>OD</td>
-                            <td>{{ ficheForm.get('ordonnance.od.sphere')?.value }}</td>
-                            <td>{{ ficheForm.get('ordonnance.od.cylindre')?.value }}</td>
-                            <td>{{ ficheForm.get('ordonnance.od.axe')?.value }}</td>
-                            <td>{{ ficheForm.get('ordonnance.od.addition')?.value }}</td>
-                        </tr>
-                        <tr>
-                            <td>OG</td>
-                            <td>{{ ficheForm.get('ordonnance.og.sphere')?.value }}</td>
-                            <td>{{ ficheForm.get('ordonnance.og.cylindre')?.value }}</td>
-                            <td>{{ ficheForm.get('ordonnance.og.axe')?.value }}</td>
-                            <td>{{ ficheForm.get('ordonnance.og.addition')?.value }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="print-section">
-                <h4>Paramètres de Centrage</h4>
-                <table class="print-table">
-                    <thead>
-                        <tr>
-                            <th>Oeil</th>
-                            <th>DP (Ecart)</th>
-                            <th>Hauteur (H)</th>
-                            <th>Diamètre Utile</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>OD</td>
-                            <td>{{ ficheForm.get('montage.ecartPupillaireOD')?.value }} mm
-                            </td>
-                            <td>{{ ficheForm.get('montage.hauteurOD')?.value }} mm</td>
-                            <td>{{ (ficheForm.get('montage.diametreVerreOD')?.value ||
-                                ficheForm.get('montage.diametreEffectif')?.value?.split('/')?.[0])
-                                || '-' }} mm
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>OG</td>
-                            <td>{{ ficheForm.get('montage.ecartPupillaireOG')?.value }} mm
-                            </td>
-                            <td>{{ ficheForm.get('montage.hauteurOG')?.value }} mm</td>
-                            <td>{{ (ficheForm.get('montage.diametreVerreOG')?.value ||
-                                (ficheForm.get('montage.diametreEffectif')?.value?.includes('/')
-                                ?
-                                ficheForm.get('montage.diametreEffectif')?.value?.split('/')?.[1]
-                                :
-                                ficheForm.get('montage.diametreEffectif')?.value)) || '-' }}
-                                mm</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Technical Specs Block -->
-        <div class="specs-grid-print">
-            <div class="glass-specs-print">
-                <h4 class="specs-title">🟣 Types de Verres</h4>
-                <div class="specs-content">
-                    <div class="spec-line">
-                        <span class="eye-label">OD:</span> {{
-                        ficheForm.get('verres.matiereOD')?.value ||
-                        ficheForm.get('verres.matiere')?.value || '-' }}
-                        {{ ficheForm.get('verres.indiceOD')?.value ||
-                        ficheForm.get('verres.indice')?.value ||
-                        '' }}
-                        ({{ ficheForm.get('verres.marqueOD')?.value ||
-                        ficheForm.get('verres.marque')?.value ||
-                        ''
-                        }})
-                        <span class="treatment-list"
-                            *ngIf="ficheForm.get('verres.traitementOD')?.value?.length || ficheForm.get('verres.traitement')?.value?.length">
-                            • {{ ficheForm.get('verres.traitementOD')?.value?.join(', ') ||
-                            ficheForm.get('verres.traitement')?.value?.join(', ') }}
-                        </span>
-                    </div>
-                    <div class="spec-line">
-                        <span class="eye-label">OG:</span> {{
-                        ficheForm.get('verres.matiereOG')?.value ||
-                        ficheForm.get('verres.matiere')?.value || '-' }}
-                        {{ ficheForm.get('verres.indiceOG')?.value ||
-                        ficheForm.get('verres.indice')?.value ||
-                        '' }}
-                        ({{ ficheForm.get('verres.marqueOG')?.value ||
-                        ficheForm.get('verres.marque')?.value ||
-                        ''
-                        }})
-                        <span class="treatment-list"
-                            *ngIf="ficheForm.get('verres.traitementOG')?.value?.length || ficheForm.get('verres.traitement')?.value?.length">
-                            • {{ ficheForm.get('verres.traitementOG')?.value?.join(', ') ||
-                            ficheForm.get('verres.traitement')?.value?.join(', ') }}
-                        </span>
-                    </div>
-                </div>
-            </div>
-            <div class="diameter-specs-print">
-                <h4 class="specs-title">Diamètre utile</h4>
-                <div class="specs-summary-value">
-                    {{ getDiametreACommander() }}
-                </div>
-            </div>
-        </div>
-
-        <!-- NEW: Margin of Error Advice Block -->
-        <div class="margin-advice-print" *ngIf="getRecommendedDiameter()">
-            <p>{{ getRecommendedDiameter() }}</p>
-        </div>
-
-        <div class="centering-canvas-preview" *ngIf="frameCanvas">
-            <h4>Prévisualisation du Montage</h4>
-            <div class="canvas-container-print">
-                <img [src]="canvasDataUrl" *ngIf="canvasDataUrl" class="print-canvas-img">
-            </div>
-        </div>
-
-        <div class="frame-details" *ngIf="formEquipementPrincipal">
-            <h4>Monture</h4>
-            <p><strong>Réf:</strong> {{
-                formEquipementPrincipal.get('monture.reference')?.value }} |
-                <strong>Marque:</strong> {{
-                formEquipementPrincipal.get('monture.marque')?.value }} |
-                <strong>Matière:</strong> {{
-                formEquipementPrincipal.get('montage.matiereMontureSelected')?.value }}
-            </p>
-        </div>
-
-        <div class="notes-print" *ngIf="ficheForm.get('observations')?.value">
-            <h4>Observations</h4>
-            <p>{{ ficheForm.get('observations')?.value }}</p>
-        </div>
-
-        <div class="ia-recommendation-print" *ngIf="suggestions && suggestions.length > 0">
-            <h4>Recommandation IA (Choix des Verres)</h4>
-            <div class="ia-grid">
-                <div class="ia-item" *ngFor="let sug of suggestions">
-                    <span class="ia-tag">{{ sug.type }}</span>
-                    <strong>{{ sug.matiere }} {{ sug.indice }}</strong>
-                    <p class="ia-rationale">{{ sug.raison }}</p>
-                    <div class="ia-epaisseur" *ngIf="sug.epaisseur">Épaisseur estimée: {{
-                        sug.epaisseur }}</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="print-footer-sig">
-            <div class="sig">Technicien / Monteur</div>
-            <div class="sig">Contrôle Final</div>
-        </div>
-    </div>
-
-    <!-- PRINT VIEW: BON COMMANDE VERRE -->
-    <div class="print-bon-verre" *ngIf="currentPrintType === 'BON_COMMANDE'">
-        <div class="print-header-modern">
-            <div class="print-logo-container">
-                <img *ngIf="companySettings?.logoUrl" [src]="companySettings.logoUrl" alt="Logo" class="print-logo">
-                <img *ngIf="!companySettings?.logoUrl" src="assets/images/logo.png" alt="OPTISASS Logo" class="print-logo">
-            </div>
-            <h1>BON DE COMMANDE VERRES</h1>
-            <div class="ref-box">Date: {{ dateToday | date:'dd/MM/yyyy' }}</div>
-        </div>
-
-        <div class="store-info">
-            <strong>OPTISASS</strong><br>
-            Tél: +212 X XX XX XX XX
-        </div>
-
-        <div class="order-details">
-            <div class="section-title">CARACTÉRISTIQUES DES VERRES</div>
-            <div class="lens-specs">
-                <div class="spec-row">
-                    <span class="label">Type de Verre:</span>
-                    <span class="value">{{ ficheForm.get('verres.type')?.value || '-'
-                        }}</span>
-                </div>
-                <div class="spec-row">
-                    <span class="label">Matière:</span>
-                    <span class="value">{{
-                        formEquipementPrincipal?.get('verres.matiere')?.value ||
-                        ficheForm.get('verres.matiere')?.value ||
-                        ficheForm.get('verres.matiereOD')?.value ||
-                        '-'
-                        }}</span>
-                </div>
-                <div class="spec-row">
-                    <span class="label">Indice:</span>
-                    <span class="value">{{
-                        formEquipementPrincipal?.get('verres.indice')?.value ||
-                        ficheForm.get('verres.indice')?.value ||
-                        ficheForm.get('verres.indiceOD')?.value || '-'
-                        }}</span>
-                </div>
-                <div class="spec-row">
-                    <span class="label">Traitements:</span>
-                    <span class="value">{{
-                        (formEquipementPrincipal?.get('verres.traitement')?.value ||
-                        ficheForm.get('verres.traitement')?.value ||
-                        ficheForm.get('verres.traitementOD')?.value)?.join(',
-                        ') || '-' }}</span>
-                </div>
-                <div class="spec-row">
-                    <span class="label">Diamètre utile:</span>
-                    <span class="value">{{ getDiametreACommander() }} mm</span>
-                </div>
-            </div>
-
-            <div class="section-title">PRESCRIPTION</div>
-            <table class="order-table">
-                <thead>
-                    <tr>
-                        <th>Oeil</th>
-                        <th>Sphère</th>
-                        <th>Cylindre</th>
-                        <th>Axe</th>
-                        <th>Add</th>
-                        <th>Diamètre</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>OD</td>
-                        <td>{{ ficheForm.get('ordonnance.od.sphere')?.value }}</td>
-                        <td>{{ ficheForm.get('ordonnance.od.cylindre')?.value }}</td>
-                        <td>{{ ficheForm.get('ordonnance.od.axe')?.value }}</td>
-                        <td>{{ ficheForm.get('ordonnance.od.addition')?.value }}</td>
-                        <td>{{ getDiametreACommander()?.split('/')?.[0] }}</td>
-                    </tr>
-                    <tr>
-                        <td>OG</td>
-                        <td>{{ ficheForm.get('ordonnance.og.sphere')?.value }}</td>
-                        <td>{{ ficheForm.get('ordonnance.og.cylindre')?.value }}</td>
-                        <td>{{ ficheForm.get('ordonnance.og.axe')?.value }}</td>
-                        <td>{{ ficheForm.get('ordonnance.og.addition')?.value }}</td>
-                        <td>{{ (getDiametreACommander()?.includes('/') ?
-                            getDiametreACommander()?.split('/')?.[1] :
-                            getDiametreACommander()) }}</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div class="suivi-commande" *ngIf="ficheForm.get('suiviCommande.fournisseur')?.value">
-                <p><strong>Fournisseur:</strong> {{
-                    ficheForm.get('suiviCommande.fournisseur')?.value }}</p>
-                <p><strong>Réf. Commande:</strong> {{
-                    ficheForm.get('suiviCommande.referenceCommande')?.value }}
-                </p>
-            </div>
-        </div>
-
-        <div class="print-footer-simple">
-            Cachet du Magasin
-        </div>
-    </div>
 </div>
-    </div>

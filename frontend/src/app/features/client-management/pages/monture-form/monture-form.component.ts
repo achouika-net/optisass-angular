@@ -433,7 +433,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         // Auto-update lens type based on equipment type and addition
         this.setupLensTypeAutoUpdate();
 
-        // Sync EP fields between tabs
+        // Sync EP and Diameter fields between tabs
         this.setupSynchronization();
 
         // Sync selectedEquipmentType with Main Equipment Type if no added equipments
@@ -738,23 +738,52 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             }
         });
         // OG
-        ordonnance.get('og.ep')?.valueChanges.subscribe(val => {
-            if (val && val !== montage.get('ecartPupillaireOG')?.value) {
-                montage.patchValue({ ecartPupillaireOG: val }, { emitEvent: false });
-            }
-        });
-
-        // Montage -> Ordonnance
-        // OD
-        montage.get('ecartPupillaireOD')?.valueChanges.subscribe(val => {
-            if (val && val !== ordonnance.get('od.ep')?.value) {
-                ordonnance.patchValue({ od: { ep: val } }, { emitEvent: false });
-            }
-        });
-        // OG
         montage.get('ecartPupillaireOG')?.valueChanges.subscribe(val => {
             if (val && val !== ordonnance.get('og.ep')?.value) {
                 ordonnance.patchValue({ og: { ep: val } }, { emitEvent: false });
+            }
+        });
+
+        // --- Diameter Synchronization ---
+        
+        // Split (OD/OG) -> Combined (diametreEffectif)
+        montage.get('diametreVerreOD')?.valueChanges.subscribe(od => {
+            const og = montage.get('diametreVerreOG')?.value;
+            if (od && og) {
+                montage.patchValue({ diametreEffectif: `${od}/${og}` }, { emitEvent: false });
+            } else if (od) {
+                montage.patchValue({ diametreEffectif: `${od}` }, { emitEvent: false });
+            }
+        });
+
+        montage.get('diametreVerreOG')?.valueChanges.subscribe(og => {
+            const od = montage.get('diametreVerreOD')?.value;
+            if (od && og) {
+                montage.patchValue({ diametreEffectif: `${od}/${og}` }, { emitEvent: false });
+            } else if (og) {
+                montage.patchValue({ diametreEffectif: `${og}` }, { emitEvent: false });
+            }
+        });
+
+        // Combined (diametreEffectif) -> Split (OD/OG)
+        montage.get('diametreEffectif')?.valueChanges.subscribe(val => {
+            if (typeof val === 'string' && val.includes('/')) {
+                const parts = val.split('/');
+                const od = parts[0].trim();
+                const og = parts[1].trim();
+                if (od !== montage.get('diametreVerreOD')?.value) {
+                    montage.patchValue({ diametreVerreOD: od }, { emitEvent: false });
+                }
+                if (og !== montage.get('diametreVerreOG')?.value) {
+                    montage.patchValue({ diametreVerreOG: og }, { emitEvent: false });
+                }
+            } else if (val && !isNaN(parseFloat(val))) {
+                if (val !== montage.get('diametreVerreOD')?.value) {
+                    montage.patchValue({ diametreVerreOD: val }, { emitEvent: false });
+                }
+                if (val !== montage.get('diametreVerreOG')?.value) {
+                    montage.patchValue({ diametreVerreOG: val }, { emitEvent: false });
+                }
             }
         });
     }
@@ -1591,28 +1620,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
     async printBC(): Promise<void> {
         // Generate BC number first if needed
-        await this.generateBCNumberIfNeeded();
-
-        // [AUTOMATION] If status is still early, mark as COMMANDE to record in history/journal
-        const currentStatut = this.suiviStatut;
-        if (currentStatut === 'A_COMMANDER' || (this.currentFiche as any)?.statut === 'EN_COURS') {
-            await this.setOrderStatus('COMMANDE');
-        }
-        
-        const bcData = this.ficheForm.get('suiviCommande')?.value;
-        const printData = {
-            ...this.ficheForm.value,
-            clientDisplayName: this.client ? (isClientProfessionnel(this.client) ? this.client.raisonSociale : `${this.client.nom} ${this.client.prenom || ''}`).trim() : 'Client',
-            clientFicheNumero: (this.currentFiche as any)?.numero || 'N/A'
-        };
-
-        this.bcPrintService.printBonCommande(
-            printData, 
-            this.companySettings, 
-            null, // currentUser will be handled by service
-            bcData?.referenceCommande || 'N/A', 
-            bcData?.fournisseur || 'N/A'
-        );
+        try { await this.generateBCNumberIfNeeded(); } catch (e) { /* continue */ }
+        this.printBonCommandeVerre();
     }
 
     async generateBCNumberIfNeeded(): Promise<string> {
@@ -3081,6 +3090,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             monture: formValue.monture,
             verres: formValue.verres,
             montage: formValue.montage,
+            configImage: this.getFrameCanvasDataUrl(), // [NEW] Ensure centering image is sent to backend
             suggestions: this.suggestions,  // ✅ Add AI suggestions
             equipements: formValue.equipements || [],  // ✅ Add additional equipment
             suiviCommande: formValue.suiviCommande,    // ✅ Add order tracking
@@ -3977,9 +3987,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             const og = parseFloat(parts[1]);
 
             if (!isNaN(od) && !isNaN(og)) {
-                const sOD = getStd(od + 2);
-                const sOG = getStd(og + 2);
-                return `Diamètre utile est ${val} mm. On ajoute 2 mm marge d'erreur ${(od + 2).toFixed(1)}/${(og + 2).toFixed(1)} mm (+2mm), on commande ${sOD}/${sOG} mm`;
+                const sOD = getStd(od + 3);
+                const sOG = getStd(og + 3);
+                return `Diamètre utile est ${val} mm. On ajoute 3 mm marge d'erreur ${(od + 3).toFixed(1)}/${(og + 3).toFixed(1)} mm (+3mm), on commande ${sOD}/${sOG} mm`;
             }
         }
 
@@ -4013,13 +4023,13 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             const od = parseFloat(parts[0]);
             const og = parseFloat(parts[1]);
             if (!isNaN(od) && !isNaN(og)) {
-                return `${getStd(od + 2)}/${getStd(og + 2)}`;
+                return `${getStd(od + 3)}/${getStd(og + 3)}`;
             }
         }
 
         const num = parseFloat(val);
         if (!isNaN(num)) {
-            return `${getStd(num + 2)}`;
+            return `${getStd(num + 3)}`;
         }
 
         return '-';
@@ -4037,8 +4047,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         if (!ctx) return;
 
         // Assets & Data
+        // User requested to restore the technical reference image only, ignoring real photos
         const customImage = this.ficheForm.get('montage.capturedImage')?.value;
-        const bgSource = customImage || 'assets/calibration-reference.png';
+        const bgSource = 'assets/calibration-reference.png';
 
         const epOD = parseFloat(this.ficheForm.get('montage.ecartPupillaireOD')?.value) || 32;
         const epOG = parseFloat(this.ficheForm.get('montage.ecartPupillaireOG')?.value) || 32;
@@ -4116,50 +4127,32 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             ctx.fillText(`${pont}`, 400, 110);   // Pont
 
             ctx.font = 'italic 10px monospace';
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.4)';
-            ctx.fillText('TECHNICAL_SYNC_ACTIVE: REF_V1.1', 100, 20);
+            // [NEW] Draw Diagonal Measurement (Grand Diamètre - Orange Line)
+            // Hardcoded coordinates to exactly match the user's orange line mockup
+            ctx.strokeStyle = '#f97316'; // Vivid Orange
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            
+            // Grand Diamètre = longest diagonal of the lens shape
+            // Shortened by 5mm at A and 2mm at B (1mm ≈ 4.4px)
+            // Unit vector B→A: (0.9217, -0.3877)
+            const p1 = { x: 134, y: 248 }; // Point B — moved inward by ~9px (2mm)
+            const p2 = { x: 358, y: 153 }; // Point A — moved inward by ~22px (5mm)
 
-            // [NEW] Draw Diagonal Measurement (Grand Diamètre - Black Arrow Style)
-            const diagMm = this.ficheForm.get('montage.diagonalMm')?.value;
-            const diagPoints = this.ficheForm.get('montage.diagonalPoints')?.value;
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
 
-            if (diagMm && diagPoints && customImage) {
-                // Scaling factors
-                const scaleX = canvas.width / img.width;
-                const scaleY = canvas.height / img.height;
-
-                const p1 = { x: diagPoints.p1.x * scaleX, y: diagPoints.p1.y * scaleY };
-                const p2 = { x: diagPoints.p2.x * scaleX, y: diagPoints.p2.y * scaleY };
-
-                ctx.strokeStyle = '#000000'; // Black
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
-
-                // Draw Arrows
-                const drawArrowHead = (pt1: { x: number, y: number }, pt2: { x: number, y: number }) => {
-                    const angle = Math.atan2(pt2.y - pt1.y, pt2.x - pt1.x);
-                    const headLen = 14;
-                    ctx.beginPath();
-                    ctx.moveTo(pt2.x, pt2.y);
-                    ctx.lineTo(pt2.x - headLen * Math.cos(angle - Math.PI / 6), pt2.y - headLen * Math.sin(angle - Math.PI / 6));
-                    ctx.moveTo(pt2.x, pt2.y);
-                    ctx.lineTo(pt2.x - headLen * Math.cos(angle + Math.PI / 6), pt2.y - headLen * Math.sin(angle + Math.PI / 6));
-                    ctx.stroke();
-                };
-                drawArrowHead(p2, p1);
-                drawArrowHead(p1, p2);
-
-                // Label
-                ctx.font = 'bold 20px "Outfit", sans-serif';
-                ctx.fillStyle = '#000000';
-                ctx.textAlign = 'center';
-                const midX = (p1.x + p2.x) / 2;
-                const midY = (p1.y + p2.y) / 2;
-                ctx.fillText(`Grand Diamètre: ${parseFloat(diagMm).toFixed(1)} mm`, midX, midY - 15);
-            }
+            // Label
+            const diagVal = this.ficheForm.get('montage.diametreVerreOD')?.value || '61.4';
+            ctx.font = 'bold 18px "Outfit", sans-serif';
+            ctx.fillStyle = '#000000';
+            ctx.textAlign = 'center';
+            const midX = (p1.x + p2.x) / 2;
+            const midY = (p1.y + p2.y) / 2;
+            
+            // Label moved 15mm (~66px) upward for readability
+            ctx.fillText(`Grand Diamètre: ${parseFloat(diagVal).toFixed(1)} mm`, midX + 10, midY - 1);
         };
     }
 
@@ -4180,12 +4173,23 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     /**
      * Helper to get canvas data URL for print templates
      */
-    getFrameCanvasDataUrl(): string {
-        try {
-            return this.frameCanvas?.nativeElement?.toDataURL() || '';
-        } catch (e) {
-            return '';
+    getFrameCanvasDataUrl(): string | null {
+        // [FIX] Try to capture the interactive canvas from the Fiche Montage tab if it exists
+        const canvas = document.querySelector('canvas.montage-canvas') as HTMLCanvasElement;
+        if (canvas) {
+            console.log('📸 [CAPTURE] Capturing interactive montage canvas...');
+            return canvas.toDataURL('image/jpeg', 0.85);
         }
+
+        // Fallback to @ViewChild if selector fails
+        try {
+            if (this.frameCanvas?.nativeElement) {
+                return this.frameCanvas.nativeElement.toDataURL('image/jpeg', 0.85);
+            }
+        } catch (e) {}
+
+        // Ultimate fallback to stored base64 image
+        return this.ficheForm.get('montage.capturedImage')?.value || null;
     }
 
 
@@ -4493,8 +4497,17 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 ${observations ? `<div class="obs-box"><strong>NOTES:</strong> ${observations}</div>` : ''}
 
                 <div class="sig-row">
-                    <div class="sig-box"><div class="sig-line">Technicien / Monteur</div></div>
-                    <div class="sig-box"><div class="sig-line">Contrôle Final</div></div>
+                    <div class="sig-box">
+                        <div class="sig-line">Technicien / Monteur</div>
+                    </div>
+                    <div class="sig-box">
+                        <div class="sig-line">Contrôle Final</div>
+                        ${this.companySettings?.cachetUrl ? `
+                            <div style="margin-top: 10px;">
+                                <img src="${this.companySettings.cachetUrl}" style="max-height: 80px; max-width: 150px; object-fit: contain;">
+                            </div>
+                        ` : ''}
+                    </div>
                 </div>
             </body>
             </html>
@@ -4507,8 +4520,206 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         }, 500);
     }
 
+    /**
+     * Print Bon de Commande Verre
+     */
+    printBonCommandeVerre(): void {
+        const ord = this.ficheForm.get('ordonnance')?.value || {};
+        const verres = this.ficheForm.get('verres')?.value || {};
+        const suivi = this.ficheForm.get('suiviCommande')?.value || {};
+        const montage = this.ficheForm.get('montage')?.value || {};
+        const today = new Date().toLocaleDateString('fr-FR');
+        const ref = suivi.referenceCommande || 'N/A';
+        const client = this.clientDisplayName || 'Client';
+        const ficheNo = (this.currentFiche as any)?.numero || this.ficheId || 'N/A';
 
+        // Ordonnance rows
+        const od = ord.od || {};
+        const og = ord.og || {};
 
+        // Verres details
+        const isDiff = verres.differentODOG;
+        const matiere = isDiff 
+            ? `OD: ${verres.matiereOD || ''} | OG: ${verres.matiereOG || ''}`
+            : (verres.matiere || '');
+        const indice = isDiff
+            ? `OD: ${verres.indiceOD || ''} | OG: ${verres.indiceOG || ''}`
+            : (verres.indice || '');
+        const traitements = isDiff
+            ? `OD: ${(verres.traitementOD || []).join(', ') || '-'} | OG: ${(verres.traitementOG || []).join(', ') || '-'}`
+            : ((verres.traitement || []).join(', ') || '-');
+        
+        const diametre = this.getDiametreACommander();
+
+        // Dynamic Logo and Company Name
+        const logoUrl = this.companySettings?.logoUrl || `${window.location.origin}/assets/images/logo.png`;
+        const cachetUrl = this.companySettings?.cachetUrl || '';
+        const companyName = this.companySettings?.name || 'OPTISASS';
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            this.snackBar.open('Activez les popups pour imprimer', 'OK', { duration: 5000, verticalPosition: 'top' });
+            return;
+        }
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html lang="fr">
+            <head>
+                <meta charset="UTF-8">
+                <title>Bon de Commande Verres - ${ref}</title>
+                <style>
+                    @page { size: A4 portrait; margin: 0 !important; }
+                    body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; padding: 15mm; line-height: 1.5; font-size: 10pt; background: #fff; }
+                    
+                    /* Header Styles matching invoice/screenshot */
+                    .header { display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #0f172a; padding-bottom: 20px; margin-bottom: 30px; }
+                    .logo-box { display: flex; align-items: center; gap: 15px; }
+                    .logo-img { height: 75px; width: auto; object-fit: contain; }
+                    .company-info { text-align: right; }
+                    .company-info h1 { margin: 0; font-size: 22pt; font-weight: 950; color: #0f172a; text-transform: uppercase; letter-spacing: -0.5px; }
+                    .doc-title { margin-top: 5px; font-size: 16pt; color: #3b82f6; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
+                    
+                    /* Meta info cards */
+                    .meta-info { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 35px; }
+                    .info-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+                    .info-card label { display: block; font-size: 8.5pt; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+                    .info-card p { margin: 0; font-size: 13pt; font-weight: 800; color: #1e293b; }
+                    .info-card .sub-text { font-size: 9pt; color: #64748b; font-weight: 600; margin-top: 4px; }
+
+                    .section { margin-bottom: 35px; }
+                    .section-label { color: #94a3b8; font-size: 9pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
+                    
+                    /* Lens Characteristics Grid */
+                    .lens-specs { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; column-gap: 40px; }
+                    .spec-item { padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+                    .spec-item label { display: block; font-size: 8pt; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+                    .spec-item span { font-size: 10.5pt; font-weight: 600; color: #0f172a; }
+
+                    /* Technical Table */
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                    th { text-align: left; font-size: 8.5pt; text-transform: uppercase; color: #94a3b8; padding: 12px 10px; font-weight: 800; border-bottom: 2px solid #e2e8f0; }
+                    td { padding: 15px 10px; border-bottom: 1px solid #f1f5f9; font-size: 11pt; font-weight: 500; }
+                    .eye-row { font-weight: 900; color: #3b82f6; width: 60px; }
+                    .val-cell { text-align: center; }
+                    th.val-cell { text-align: center; }
+
+                    /* Footer & Cachet */
+                    .footer { text-align: center; margin-top: 60px; }
+                    .cachet-label { font-weight: 800; color: #475569; font-size: 10pt; margin-bottom: 15px; }
+                    .cachet-container { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+                    .cachet-img { max-height: 120px; max-width: 250px; object-fit: contain; }
+                    .cachet-placeholder { display: inline-block; width: 240px; height: 110px; border: 2px dashed #cbd5e1; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 8pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+
+                    @media print {
+                        body { padding: 10mm 15mm; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="logo-box">
+                        <img src="${logoUrl}" class="logo-img" alt="Logo">
+                    </div>
+                    <div class="company-info">
+                        <h1>${companyName}</h1>
+                        <div class="doc-title">Bon de Commande Verres</div>
+                    </div>
+                </div>
+
+                <div class="meta-info">
+                    <div class="info-card">
+                        <label>Client & Dossier</label>
+                        <p>${client}</p>
+                        <div class="sub-text">Fiche N°: ${ficheNo}</div>
+                    </div>
+                    <div class="info-card">
+                        <label>Commande & Date</label>
+                        <p>${ref}</p>
+                        <div class="sub-text">Date: ${today} | Fournisseur: ${suivi.fournisseur || '-'}</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-label">Caractéristiques des Verres</div>
+                    <div class="lens-specs">
+                        <div class="spec-item">
+                            <label>Type de Verre</label>
+                            <span>${verres.type || '-'}</span>
+                        </div>
+                        <div class="spec-item">
+                            <label>Matière</label>
+                            <span>${matiere}</span>
+                        </div>
+                        <div class="spec-item">
+                            <label>Indice</label>
+                            <span>${indice}</span>
+                        </div>
+                        <div class="spec-item">
+                            <label>Diamètre Utile</label>
+                            <span>${diametre} mm</span>
+                        </div>
+                        <div class="spec-item" style="grid-column: span 2; border-bottom: none;">
+                            <label>Traitements</label>
+                            <span>${traitements}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-label">Prescription Technique</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">Oeil</th>
+                                <th class="val-cell">Sphère</th>
+                                <th class="val-cell">Cylindre</th>
+                                <th class="val-cell">Axe</th>
+                                <th class="val-cell">Addition</th>
+                                <th class="val-cell">Diamètre</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="eye-row">OD</td>
+                                <td class="val-cell">${od.sphere || '0.00'}</td>
+                                <td class="val-cell">${od.cylindre || '0.00'}</td>
+                                <td class="val-cell">${od.axe || '0'}°</td>
+                                <td class="val-cell">${od.addition || '0.00'}</td>
+                                <td class="val-cell">${diametre.split('/')?.[0] || diametre}</td>
+                            </tr>
+                            <tr>
+                                <td class="eye-row">OG</td>
+                                <td class="val-cell">${og.sphere || '0.00'}</td>
+                                <td class="val-cell">${og.cylindre || '0.00'}</td>
+                                <td class="val-cell">${og.axe || '0'}°</td>
+                                <td class="val-cell">${og.addition || '0.00'}</td>
+                                <td class="val-cell">${diametre.includes('/') ? diametre.split('/')?.[1] : diametre}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="footer">
+                    <p class="cachet-label">Cachet et Signature</p>
+                    <div class="cachet-container">
+                        ${cachetUrl ? `<img src="${cachetUrl}" class="cachet-img" alt="Cachet">` : `<div class="cachet-placeholder">Emplacement Cachet</div>`}
+                    </div>
+                </div>
+
+                <script>
+                    window.onload = function() {
+                        window.print();
+                        setTimeout(() => window.close(), 1000);
+                    }
+                </script>
+            </body>
+            </html>
+        `);
+
+        printWindow.document.close();
+    }
 
 
     /**
@@ -4544,6 +4755,23 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
     public async emailOrder(): Promise<void> {
         if (!this.ficheId) return;
+
+        // [ACTION] Save current state first to ensure backend uses latest data
+        try {
+            const formValue = {
+                ...this.ficheForm.value,
+                configImage: this.canvasDataUrl // [NEW] Pass the centering image to the backend
+            };
+            await new Promise((resolve, reject) => {
+                this.ficheService.updateFiche(this.ficheId!, formValue).subscribe({
+                    next: () => resolve(true),
+                    error: (err) => reject(err)
+                });
+            });
+        } catch (e) {
+            console.error('Pre-email save failed:', e);
+            // We continue anyway, but warning logs are helpful
+        }
 
         // Ensure BC number is generated before emailing
         await this.generateBCNumberIfNeeded();
@@ -4588,22 +4816,39 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         // Reconstruct order details
         const monture = this.ficheForm.get('monture')?.value;
         const verres = this.ficheForm.get('verres')?.value;
+        const montage = this.ficheForm.get('montage')?.value;
+
+        const establishmentName = this.companySettings?.name || 'Optisaas';
+        const centerName = (this.client as any)?.centre?.nom || 'Centre Rabat';
 
         const orderDetails = [
-            `*Bon de Commande ${bcNumber}*`,
+            `*${establishmentName} - ${centerName}*`,
+            `*Bonjour, voici une nouvelle commande de verres*`,
+            ``,
+            `*Réf Commande : ${bcNumber}*`,
             `Client : ${clientName}`,
             `Fournisseur : ${bcData?.fournisseur || '-'}`,
             ``,
-            `*Monture*`,
+            `*Détails Monture*`,
             `Marque : ${monture?.Marca1 || monture?.marque || '-'}`,
             `Réf    : ${monture?.reference || monture?.RefM1 || '-'}`,
+            `Type   : ${monture?.typeEquipement || '-'}`,
             ``,
-            `*Verres*`,
+            `*Prescription*`,
             `OD : Sph ${verres?.od?.sphere || '0.00'} | Cyl ${verres?.od?.cylindre || '0.00'} | Axe ${verres?.od?.axe || '0'} | Add ${verres?.od?.addition || '0.00'}`,
             `OG : Sph ${verres?.og?.sphere || '0.00'} | Cyl ${verres?.og?.cylindre || '0.00'} | Axe ${verres?.og?.axe || '0'} | Add ${verres?.og?.addition || '0.00'}`,
-            `Marque : ${verres?.marque || '-'}`,
-            `Matière: ${verres?.matiere || '-'}`
-        ].join('\n');
+            `Type Verre : ${verres?.marque || '-'} ${verres?.matiere || '-'}`,
+            ``,
+            `*Mesures de Montage (Fiche Montage)*`,
+            `EP OD : ${montage?.ecartPupillaireOD || '-'} mm | H OD : ${montage?.hauteurOD || '-'} mm`,
+            `EP OG : ${montage?.ecartPupillaireOG || '-'} mm | H OG : ${montage?.hauteurOG || '-'} mm`,
+            `Type Montage : ${montage?.typeMontage || 'Standard'}`,
+            montage?.remarques ? `\n*Notes techniques* : ${montage.remarques}` : '',
+            ``,
+            `⚠️ *Note : Les pièces jointes officielles (BC & Fiche Montage) ont été envoyées par email.*`,
+            ``,
+            `_Merci de confirmer la réception._`
+        ].filter(line => line !== '').join('\n');
 
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(orderDetails)}`;
         window.open(whatsappUrl, '_blank');

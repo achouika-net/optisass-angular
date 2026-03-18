@@ -9,6 +9,7 @@ export interface CompanySettings {
     id?: string;
     name: string;
     logoUrl?: string;
+    cachetUrl?: string;
     address?: string;
     phone?: string;
     email?: string;
