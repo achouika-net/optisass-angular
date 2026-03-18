@@ -4069,6 +4069,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         }
 
         const img = new Image();
+        img.crossOrigin = 'Anonymous'; // Prevent canvas tainting
         img.src = bgSource;
         img.onload = () => {
             // Draw Background
@@ -4174,21 +4175,32 @@ export class MontureFormComponent implements OnInit, OnDestroy {
      * Helper to get canvas data URL for print templates
      */
     getFrameCanvasDataUrl(): string | null {
-        // [FIX] Try to capture the interactive canvas from the Fiche Montage tab if it exists
-        const canvas = document.querySelector('canvas.montage-canvas') as HTMLCanvasElement;
-        if (canvas) {
-            console.log('📸 [CAPTURE] Capturing interactive montage canvas...');
-            return canvas.toDataURL('image/jpeg', 0.85);
+        // 1. Try to use ViewChild natively
+        try {
+            if (this.frameCanvas && this.frameCanvas.nativeElement) {
+                const dataUrl = this.frameCanvas.nativeElement.toDataURL('image/png');
+                if (dataUrl && dataUrl.length > 20) {
+                    return dataUrl;
+                }
+            }
+        } catch (e) {
+            console.error('Canvas capture via ViewChild failed:', e);
         }
 
-        // Fallback to @ViewChild if selector fails
+        // 2. Try to capture from DOM (if ViewChild isn't bound but DOM element is present)
         try {
-            if (this.frameCanvas?.nativeElement) {
-                return this.frameCanvas.nativeElement.toDataURL('image/jpeg', 0.85);
+            const domCanvas = document.querySelector('canvas') as HTMLCanvasElement;
+            if (domCanvas) {
+                const dataUrl = domCanvas.toDataURL('image/png');
+                if (dataUrl && dataUrl.length > 20) {
+                    return dataUrl;
+                }
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('Canvas capture via DOM selector failed:', e);
+        }
 
-        // Ultimate fallback to stored base64 image
+        // Ultimate fallback to stored base64 image (the original raw photo before any canvas drawings)
         return this.ficheForm.get('montage.capturedImage')?.value || null;
     }
 
@@ -4461,7 +4473,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                         <div style="font-size: 7.5pt; color: #64748b; margin-top: 4px; font-weight: 600;">TRAITEMENTS: ${traitOD.join(', ') || 'STANDARDS'}</div>
                     </div>
                     <div class="tech-diam">
-                        <div class="tech-label">DIAMÈTRE UTILE</div>
+                        <div class="tech-label">DIAMÈTRE À COMMANDER</div>
                         <div class="tech-val">${diamCommander}</div>
                     </div>
                 </div>
@@ -4755,6 +4767,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
     public async emailOrder(): Promise<void> {
         if (!this.ficheId) return;
+
+        // [FIX] Capture the canvas data URL before saving, so it can be sent in the email PDF
+        this.canvasDataUrl = this.getFrameCanvasDataUrl();
 
         // [ACTION] Save current state first to ensure backend uses latest data
         try {
