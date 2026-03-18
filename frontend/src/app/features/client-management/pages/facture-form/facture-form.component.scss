@@ -830,7 +830,20 @@
 
             .sig-line {
                 border-top: 1px dashed #cbd5e1;
-                height: 1px;
+                height: 40px; // Increased to give room for stamp
+                position: relative;
+                margin-top: 5px;
+
+                .print-cachet {
+                    position: absolute;
+                    top: -25px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    max-height: 80px;
+                    width: auto;
+                    opacity: 0.85;
+                    pointer-events: none;
+                }
             }
         }
     }

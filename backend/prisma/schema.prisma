@@ -774,5 +774,6 @@ model CompanySettings {
   bankAccounts Json?    // Array of { bankName, rib, iban, swift }
   headerText  String?
   footerText  String?
+  cachetUrl   String?  @db.Text
   updatedAt   DateTime @updatedAt
 }

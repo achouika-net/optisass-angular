@@ -19,8 +19,7 @@ export class MailerService {
     fromName?: string;
     subject: string;
     text: string;
-    attachmentName: string;
-    attachmentBuffer: Buffer;
+    attachments: Array<{ filename: string; content: Buffer }>;
   }) {
     const config = await this.prisma.marketingConfig.findFirst();
 
@@ -48,28 +47,30 @@ export class MailerService {
       tls: { rejectUnauthorized: false },
     });
 
+    // IMPROVEMENT: Enforce valid 'from' address structure. 
+    // Gmail/Outlook often reject if the email part of 'from' doesn't match the authenticated user.
+    const fromEmail = (config?.smtpFrom && config.smtpFrom.includes('@')) 
+      ? config.smtpFrom 
+      : (this.configService.get<string>('SMTP_FROM') || user);
+    
+    // Display name logic: Prefer centreName (options.fromName), then config name (if not email), then center name
+    const displayName = options.fromName || (config?.smtpFrom && !config.smtpFrom.includes('@') ? config.smtpFrom : undefined);
+    const finalFrom = displayName ? `"${displayName}" <${fromEmail}>` : fromEmail;
+
     const info = await transporter.sendMail({
-      from: options.fromName ? `"${options.fromName}" <${config?.smtpFrom || this.configService.get<string>('SMTP_FROM', user)}>` : (config?.smtpFrom || this.configService.get<string>('SMTP_FROM', user)),
+      from: finalFrom,
       to: options.to,
       cc: options.cc,
       replyTo: options.replyTo,
       subject: options.subject,
       text: options.text,
-      html: `<div style="font-family: sans-serif; padding: 20px;">
-              ${options.text.replace(/\n/g, '<br>')}
+      html: `<div style="font-family: sans-serif; padding: 20px; line-height: 1.6;">
+              ${(options.text || '').replace(/\n/g, '<br>')}
              </div>`,
-      attachments: [
-        {
-          filename: options.attachmentName,
-          content: options.attachmentBuffer,
-        },
-      ],
+      attachments: options.attachments,
     });
 
     this.logger.log(`[Mailer] Email sent to ${options.to}: ${info.messageId}`);
-    if (info.messageId && nodemailer.getTestMessageUrl(info)) {
-      this.logger.log(`[Mailer] Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
-    }
     return info;
   }
 }

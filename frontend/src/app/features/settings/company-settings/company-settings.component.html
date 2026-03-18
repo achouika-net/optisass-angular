@@ -41,22 +41,46 @@
                                 </mat-form-field>
                             </div>
 
-                            <!-- Logo Preview -->
-                            <div class="col-md-4 text-center">
-                                <div class="logo-container mb-3">
-                                    <img *ngIf="logoPreview" [src]="logoPreview"
-                                        class="img-fluid logo-preview shadow-sm">
-                                    <div *ngIf="!logoPreview"
-                                        class="no-logo d-flex align-items-center justify-content-center border rounded">
-                                        <mat-icon>image</mat-icon>
-                                        <span>Pas de logo</span>
+                            <!-- Previews Section -->
+                            <div class="col-md-4">
+                                <div class="row branding-row">
+                                    <!-- Logo Column -->
+                                    <div class="col-6 text-center">
+                                        <div class="logo-container mb-2">
+                                            <img *ngIf="logoPreview" [src]="logoPreview"
+                                                class="img-fluid logo-preview shadow-sm" alt="Logo Société">
+                                            <div *ngIf="!logoPreview"
+                                                class="no-logo d-flex align-items-center justify-content-center border rounded">
+                                                <mat-icon>image</mat-icon>
+                                                <span>Pas de logo</span>
+                                            </div>
+                                        </div>
+                                        <button type="button" mat-stroked-button color="primary" class="w-100 btn-upload" (click)="logoInput.click()">
+                                            <mat-icon>upload</mat-icon> Logo
+                                        </button>
+                                        <input #logoInput type="file" (change)="onLogoChange($event)" style="display: none"
+                                            accept="image/*">
+                                    </div>
+
+                                    <!-- Cachet / Signature Column -->
+                                    <div class="col-6 text-center">
+                                        <div class="logo-container mb-2">
+                                            <img *ngIf="cachetPreview" [src]="cachetPreview"
+                                                class="img-fluid logo-preview shadow-sm" alt="Cachet Société">
+                                            <div *ngIf="!cachetPreview"
+                                                class="no-logo d-flex align-items-center justify-content-center border rounded">
+                                                <mat-icon>gesture</mat-icon>
+                                                <span>Pas de cachet</span>
+                                            </div>
+                                        </div>
+                                        <button type="button" mat-stroked-button color="accent" class="w-100 btn-upload" (click)="cachetInput.click()">
+                                            <mat-icon>upload</mat-icon> Cachet
+                                        </button>
+                                        <input #cachetInput type="file" (change)="onCachetChange($event)" style="display: none"
+                                            accept="image/*">
                                     </div>
                                 </div>
-                                <button type="button" mat-stroked-button color="primary" (click)="logoInput.click()">
-                                    <mat-icon>upload</mat-icon> Changer le logo
-                                </button>
-                                <input #logoInput type="file" (change)="onLogoChange($event)" style="display: none"
-                                    accept="image/*">
+                                <p class="text-muted small mt-3 text-center w-100">Logo et Cachet seront insérés dans les documents officiels.</p>
                             </div>
                         </div>
                     </mat-tab>

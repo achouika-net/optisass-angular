@@ -61,3 +61,58 @@
     opacity: 1;
   }
 }
+
+// ============================================================
+// GLOBAL PRINT STYLES
+// Hides the app shell and shows only the active print template
+// ============================================================
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 15mm 12mm 12mm 12mm;
+  }
+
+  // Hide the Angular app shell
+  app-root > *:not(app-monture-form),
+  mat-sidenav-container,
+  mat-sidenav,
+  mat-toolbar,
+  .mat-drawer-container,
+  .app-sidebar,
+  .app-topbar,
+  .app-nav,
+  .breadcrumb,
+  .no-print {
+    display: none !important;
+  }
+
+  // Reset body for printing
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  // The container itself must be visible (print sections are inside it)
+  .fiche-container {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+    min-height: 0 !important;
+  }
+
+  // Hide all direct children of .fiche-container EXCEPT the print templates
+  .fiche-container > *:not(.print-fiche-montage):not(.print-bon-verre) {
+    display: none !important;
+  }
+
+  // Ensure print sections are fully visible and full-width
+  .print-fiche-montage,
+  .print-bon-verre {
+    display: block !important;
+    width: 100% !important;
+    background: white !important;
+    page-break-inside: avoid;
+  }
+}

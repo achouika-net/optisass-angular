@@ -129,6 +129,7 @@ export interface FicheMonture extends FicheClientBase {
     equipements?: any[];  // Additional equipment
     suiviCommande?: any;  // Order tracking data
     lentilles?: any;      // ✅ Added for hybrid fiches (Monture + Lentilles)
+    configImage?: string; // ✅ Virtual centering image data URL
 }
 
 // ============ Fiche Lentilles ============

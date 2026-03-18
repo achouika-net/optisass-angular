@@ -1863,6 +1863,45 @@ input[type="date"] {
     }
 }
 
+.btn-whatsapp-stylish {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 24px;
+    background: #22c55e; // Green-500
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+
+    &:hover {
+        background: #16a34a; // Green-600
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(34, 197, 94, 0.3);
+    }
+
+    &:active {
+        transform: translateY(0);
+    }
+
+    &:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+    }
+}
+
 // Global print hide
 .print-fiche-montage,
 .print-bon-verre {
@@ -2445,9 +2484,297 @@ input[type="date"] {
             background-color: #4338ca;
         }
 
-        option {
+    option {
             background-color: #ffffff;
             color: #1e293b;
         }
     }
+}
+
+// ============================================================
+// PRINT STYLES - Applied when window.print() is triggered
+// ============================================================
+@media print {
+    // --- Reset page and body ---
+    @page {
+        size: A4 portrait;
+        margin: 5mm 5mm 5mm 5mm;
+    }
+
+    * {
+        box-sizing: border-box !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+        font-size: 8pt !important;
+        color: #1e293b !important;
+    }
+
+    // --- Hide everything except the active print container ---
+    // NOTE: .fiche-container is REMOVED from this list because the print sections are inside it.
+    mat-tab-group,
+    mat-tab-header,
+    .mat-tab-body-wrapper,
+    .no-print,
+    button,
+    mat-icon,
+    .mat-mdc-button,
+    .mat-mdc-icon-button,
+    .action-row,
+    .print-actions,
+    .header-actions,
+    .header,
+    .client-info,
+    .main-nav,
+    .tabs-container,
+    .tabs-nav {
+        display: none !important;
+    }
+
+    // --- Container visibility ---
+    .fiche-container {
+        display: block !important;
+        background: white !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        min-height: auto !important;
+    }
+
+    // --- Headers ---
+    .print-header-small, .print-header-modern {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding-bottom: 4px !important;
+        border-bottom: 2px solid #334155 !important;
+        margin-bottom: 8px !important;
+    }
+
+    .print-logo-container {
+        flex: 0 0 120px !important;
+    }
+
+    .print-logo {
+        max-width: 100px !important;
+        max-height: 50px !important;
+        object-fit: contain !important;
+    }
+
+    .print-cachet {
+        max-width: 120px !important;
+        max-height: 80px !important;
+        object-fit: contain !important;
+        opacity: 0.85 !important;
+    }
+
+    .company, .store-info {
+        flex: 1 !important;
+        padding: 0 15px !important;
+        font-size: 9pt !important;
+        line-height: 1.2 !important;
+    }
+
+    .print-header-modern h1 {
+        font-size: 16pt !important;
+        color: #0f172a !important;
+        margin: 0 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+    }
+
+    .doc-info, .ref-box {
+        text-align: right !important;
+        font-size: 8pt !important;
+        color: #475569 !important;
+    }
+
+    // --- Grids and Sections ---
+    .client-summary {
+        font-size: 10pt !important;
+        margin-bottom: 10px !important;
+        padding: 5px !important;
+        background: #f8fafc !important;
+        border-left: 4px solid #334155 !important;
+    }
+
+    .print-grid {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 15px !important;
+        margin-bottom: 15px !important;
+    }
+
+    .print-section, .order-details {
+        margin-bottom: 8px !important;
+    }
+
+    .section-title, h4 {
+        background: #334155 !important;
+        color: white !important;
+        padding: 2px 8px !important;
+        font-size: 8pt !important;
+        margin-bottom: 4px !important;
+        text-transform: uppercase !important;
+    }
+
+    // --- Tables ---
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin-bottom: 6px !important;
+    }
+
+    th, td {
+        border: 1px solid #cbd5e1 !important;
+        padding: 3px 6px !important;
+        text-align: center !important;
+        font-size: 8pt !important;
+    }
+
+    th {
+        background-color: #f1f5f9 !important;
+        font-weight: 700 !important;
+    }
+
+    // --- Lens Specs & IA ---
+    .lens-specs, .ia-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+
+    .spec-row {
+        display: flex !important;
+        justify-content: space-between !important;
+        border-bottom: 1px dashed #e2e8f0 !important;
+        padding: 1px 0 !important;
+    }
+
+    .spec-row .label { font-weight: 600 !important; color: #475569 !important; }
+
+    .ia-recommendation-print {
+        background: #f0f9ff !important;
+        border: 1px solid #bae6fd !important;
+        padding: 8px !important;
+        border-radius: 4px !important;
+    }
+
+    .ia-item {
+        font-size: 7.5pt !important;
+        border-left: 2px solid #0ea5e9 !important;
+        padding-left: 8px !important;
+    }
+
+    .ia-tag {
+        font-size: 6pt !important;
+        background: #0ea5e9 !important;
+        color: white !important;
+        padding: 1px 4px !important;
+        border-radius: 2px !important;
+        text-transform: uppercase !important;
+        display: inline-block !important;
+        margin-bottom: 2px !important;
+    }
+
+    p {
+        margin: 2px 0 !important;
+        line-height: 1.2 !important;
+    }
+
+    // --- Footers and Signatures ---
+    .print-footer-sig {
+        display: flex !important;
+        justify-content: space-around !important;
+        margin-top: 10px !important;
+        padding-top: 8px !important;
+        border-top: 1px solid #e2e8f0 !important;
+    }
+
+    .sig-stamp {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        min-height: 80px !important;
+    }
+
+    .sig {
+        font-weight: 700 !important;
+        font-style: italic !important;
+        margin-bottom: 40px !important;
+    }
+
+    .print-footer-simple {
+        margin-top: 20px !important;
+        text-align: center !important;
+        border-top: 1px solid #cbd5e1 !important;
+        padding-top: 10px !important;
+    }
+
+    .stamp-placeholder {
+        margin-bottom: 5px !important;
+    }
+
+    // --- Prevent Page Breaks ---
+    .print-fiche-montage, .print-bon-verre {
+        page-break-after: auto !important;
+        overflow: hidden !important;
+        padding: 5px !important;
+        display: block !important;
+        visibility: visible !important;
+    }
+
+    .client-summary-restored {
+        display: flex !important;
+        gap: 20px !important;
+        margin-bottom: 8px !important;
+        padding: 6px !important;
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        font-size: 9pt !important;
+    }
+
+    .info-block label {
+        color: #64748b !important;
+        font-size: 7pt !important;
+        display: block !important;
+        text-transform: uppercase !important;
+    }
+
+    .glass-specs-print-restored p, .order-details-restored p {
+        margin: 4px 0 !important;
+        font-size: 8.5pt !important;
+    }
+
+    .specs-box {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+        margin-top: 10px !important;
+        padding: 8px !important;
+        background: #f1f5f9 !important;
+        border-radius: 4px !important;
+    }
+
+    .spec-item {
+        font-size: 8pt !important;
+        border-bottom: 1px dashed #cbd5e1 !important;
+        padding-bottom: 2px !important;
+    }
+
+    .suivi-box {
+        margin-top: 10px !important;
+        padding: 5px !important;
+        border-left: 3px solid #334155 !important;
+        background: #f8fafc !important;
+        font-size: 8pt !important;
+    }
+
+    tr { page-break-inside: avoid !important; }
 }
