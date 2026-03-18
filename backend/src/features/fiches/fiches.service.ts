@@ -234,7 +234,7 @@ export class FichesService {
       verres: lensDetails,
       diametreConseille: technicalNoteData.ordered,
       technicalNote: technicalNoteData, // [NEW] Pass data for the blue box
-      imageMontureUrl: montage.capturedImage || undefined,
+      imageMontureUrl: undefined, // User requested: show canvas only, not the captured real photo
       virtualCenteringUrl: montage.configImage || content.configImage || content.virtualCenteringUrl || undefined,
       preconisationsIA: {
         od: verres.preconisationIA_OD || `${verres.marqueOD || ''} ${verres.matiereOD || ''}`.trim() || '-',

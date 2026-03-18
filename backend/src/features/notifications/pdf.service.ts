@@ -242,7 +242,7 @@ export class PdfService {
             const accentColor = '#4f46e5';
             const techColor = '#2563eb';
             const greyText = '#64748b';
-            const lightBorder = '#e2e8f0';
+            const lightBorder = '#cbd5e1'; // Slightly darker for full table borders like in screenshot
 
             // --- HEADER (RIGHT ALIGNED) ---
             const hasLogo = !!data.branding?.logoUrl;
@@ -251,33 +251,35 @@ export class PdfService {
                     const base64Data = data.branding.logoUrl.includes('base64,')
                         ? data.branding.logoUrl.split('base64,')[1]
                         : data.branding.logoUrl;
-                    doc.image(Buffer.from(base64Data, 'base64'), 30, 30, { height: 50 });
+                    doc.image(Buffer.from(base64Data, 'base64'), 30, 30, { height: 40 });
                 } catch (e) {
                     this.logger.error(`Failed to embed logo: ${e.message}`);
                 }
             }
 
             const headerX = 300;
-            doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(18).text(data.branding?.companyName?.toUpperCase() || 'OPTISAAS', headerX, 25, { align: 'right', width: 265 });
-            doc.fillColor(accentColor).font('Helvetica-Bold').fontSize(12).text('FICHE DE MONTAGE TECHNIQUE', headerX, 48, { align: 'right', width: 265 });
-            doc.fillColor(greyText).font('Helvetica').fontSize(9).text(`Réf: ${data.bcNumber} | Fiche N°: ${data.ficheNumber || '-'} | Date: ${data.date.toLocaleDateString('fr-FR')}`, headerX, 64, { align: 'right', width: 265 });
+            doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(16).text(data.branding?.companyName?.toUpperCase() || 'OPTISAAS', headerX, 25, { align: 'right', width: 265 });
+            doc.fillColor(accentColor).font('Helvetica-Bold').fontSize(11).text('FICHE DE MONTAGE TECHNIQUE', headerX, 45, { align: 'right', width: 265 });
+            doc.fillColor(greyText).font('Helvetica').fontSize(8).text(`REF: ${data.bcNumber} | LE: ${data.date.toLocaleDateString('fr-FR')}`, headerX, 60, { align: 'right', width: 265 });
 
-            // Horizontal separator
-            doc.moveTo(30, 85).lineTo(565, 85).stroke(lightBorder);
+            // Horizontal thick dark blue separator
+            doc.moveTo(30, 75).lineTo(565, 75).lineWidth(2).stroke(primaryColor);
+            doc.lineWidth(1); // reset
 
             // --- CLIENT INFO BAR ---
-            const rowY = 95;
+            const rowY = 90;
             doc.rect(30, rowY, 535, 25).fill('#f8fafc');
-            doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(10).text('CLIENT: ', 45, rowY + 8).font('Helvetica').text(data.clientName, 95, rowY + 8);
-            doc.font('Helvetica-Bold').text('MAGASIN: ', 360, rowY + 8).font('Helvetica').text(data.magasinName || 'OptiSaas', 425, rowY + 8);
+            doc.rect(30, rowY, 535, 25).stroke(lightBorder);
+            doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(9).text('CLIENT: ', 45, rowY + 8, { continued: true }).font('Helvetica').text(data.clientName);
+            doc.font('Helvetica-Bold').text('MAGASIN: ', 360, rowY + 8, { continued: true }).font('Helvetica').text(data.magasinName || 'OptiSaas');
 
             // --- TABLES SECTION ---
             const tablesY = 135;
 
-            // Correction Table (Left)
+            // Updated Heading Style: Blue dot
             const drawHeading = (x: number, y: number, text: string) => {
-                doc.fillColor(accentColor).rect(x, y, 3, 12).fill();
-                doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(10).text(text, x + 10, y + 1);
+                doc.circle(x + 3, y + 4, 2.5).fill(accentColor);
+                doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(9).text(text, x + 10, y);
             };
 
             drawHeading(30, tablesY, 'CORRECTION ORDONNANCE');
@@ -285,35 +287,42 @@ export class PdfService {
             const tableWidth = 260;
             const drawTechTable = (x: number, y: number, headers: string[], rows: any[]) => {
                 const cw = [35, 55, 55, 55, 60];
-                doc.fillColor('#f8fafc').rect(x, y + 20, tableWidth, 20).fill();
-                doc.rect(x, y + 20, tableWidth, 20).stroke(lightBorder);
-
+                
                 let curX = x;
+                // Header row
+                doc.rect(x, y + 15, tableWidth, 20).stroke(lightBorder);
                 headers.forEach((h, i) => {
-                    doc.fillColor(greyText).font('Helvetica-Bold').fontSize(8).text(h, curX, y + 26, { width: cw[i], align: 'center' });
+                    doc.rect(curX, y + 15, cw[i], 20).stroke(lightBorder);
+                    doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(7).text(h, curX, y + 22, { width: cw[i], align: 'center' });
                     curX += cw[i];
                 });
 
+                // Data rows
                 rows.forEach((r, idx) => {
-                    const ry = y + 40 + idx * 25;
-                    doc.fillColor('#f8fafc').rect(x, ry, tableWidth, 25).fill();
-                    doc.rect(x, ry, tableWidth, 25).stroke(lightBorder);
+                    const ry = y + 35 + idx * 22;
+                    curX = x;
+                    
+                    doc.rect(x, ry, tableWidth, 22).stroke(lightBorder);
                     
                     const axe = String(r.c3 || '0');
                     const axeStr = axe.includes('°') ? axe : `${axe}°`;
 
-                    doc.fillColor(techColor).font('Helvetica-Bold').fontSize(10);
-                    doc.text(r.label, x + 5, ry + 8, { width: 35 });
-                    doc.font('Helvetica').fontSize(10);
-                    doc.fillColor('#1e293b').font('Helvetica').fontSize(10);
-                    doc.text(r.c1, x + 45, ry + 8, { width: 45, align: 'center' });
-                    doc.text(r.c2, x + 95, ry + 8, { width: 45, align: 'center' });
-                    doc.text(axeStr, x + 145, ry + 8, { width: 55, align: 'center' });
-                    doc.text(r.c4, x + 205, ry + 8, { width: 45, align: 'center' });
+                    // Col 1 (Oeil)
+                    doc.rect(curX, ry, cw[0], 22).stroke(lightBorder);
+                    doc.fillColor(techColor).font('Helvetica-Bold').fontSize(9).text(r.label, curX, ry + 6, { width: cw[0], align: 'center' });
+                    curX += cw[0];
+
+                    // Other Cols
+                    const dataCols = [r.c1, r.c2, axeStr, r.c4];
+                    dataCols.forEach((colData, ci) => {
+                        doc.rect(curX, ry, cw[ci+1], 22).stroke(lightBorder);
+                        doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(9).text(colData, curX, ry + 6, { width: cw[ci+1], align: 'center' });
+                        curX += cw[ci+1];
+                    });
                 });
             };
 
-            drawTechTable(30, tablesY, ['OEIL', 'SPHÈRE', 'CYL.', 'AXE', 'ADD.'], [
+            drawTechTable(30, tablesY, ['OEIL', 'SPHÈRE', 'CYLINDRE', 'AXE', 'ADD'], [
                 { label: 'OD', c1: data.prescription.od.sphere, c2: data.prescription.od.cylindre, c3: data.prescription.od.axe, c4: data.prescription.od.addition },
                 { label: 'OG', c1: data.prescription.og.sphere, c2: data.prescription.og.cylindre, c3: data.prescription.og.axe, c4: data.prescription.og.addition }
             ]);
@@ -322,28 +331,39 @@ export class PdfService {
             drawHeading(305, tablesY, 'PARAMÈTRES CENTRAGE');
             const drawCentrageTable = (x: number, y: number, headers: string[], rows: any[]) => {
                 const cw = [35, 75, 75, 75];
-                doc.fillColor('#f8fafc').rect(x, y + 20, tableWidth, 20).fill();
-                doc.rect(x, y + 20, tableWidth, 20).stroke(lightBorder);
-
+                
                 let curX = x;
+                // Header row
+                doc.rect(x, y + 15, tableWidth, 20).stroke(lightBorder);
                 headers.forEach((h, i) => {
-                    doc.fillColor(greyText).font('Helvetica-Bold').fontSize(8).text(h, curX, y + 26, { width: cw[i], align: 'center' });
+                    doc.rect(curX, y + 15, cw[i], 20).stroke(lightBorder);
+                    doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(7).text(h, curX, y + 22, { width: cw[i], align: 'center' });
                     curX += cw[i];
                 });
 
+                // Data rows
                 rows.forEach((r, idx) => {
-                    const ry = y + 40 + (idx * 25);
-                    doc.rect(x, ry, tableWidth, 25).stroke(lightBorder);
-                    doc.fillColor(techColor).font('Helvetica-Bold').fontSize(10).text(r.label, x, ry + 8, { width: 35, align: 'center' });
+                    const ry = y + 35 + (idx * 22);
+                    curX = x;
+
+                    doc.rect(x, ry, tableWidth, 22).stroke(lightBorder);
                     
-                    doc.fillColor('#1e293b').font('Helvetica').fontSize(10);
-                    doc.text(r.c1, x + 35, ry + 8, { width: 75, align: 'center' });
-                    doc.text(r.c2, x + 110, ry + 8, { width: 75, align: 'center' });
-                    doc.text(r.c3, x + 185, ry + 8, { width: 75, align: 'center' });
+                    // Col 1
+                    doc.rect(curX, ry, cw[0], 22).stroke(lightBorder);
+                    doc.fillColor(techColor).font('Helvetica-Bold').fontSize(9).text(r.label, curX, ry + 6, { width: cw[0], align: 'center' });
+                    curX += cw[0];
+
+                    // Other cols
+                    const dataCols = [r.c1, r.c2, r.c3];
+                    dataCols.forEach((colData, ci) => {
+                        doc.rect(curX, ry, cw[ci+1], 22).stroke(lightBorder);
+                        doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(9).text(colData, curX, ry + 6, { width: cw[ci+1], align: 'center' });
+                        curX += cw[ci+1];
+                    });
                 });
             };
 
-            const formatCentrageValue = (v: any) => (v && v !== '-' ? `${v} mm` : v || '-');
+            const formatCentrageValue = (v: any) => (v && v !== '-' && !String(v).includes('mm') ? `${v} mm` : v || '-');
             drawCentrageTable(305, tablesY, ['OEIL', 'DP', 'HT (H)', 'DIAM. UTILE'], [
                 { 
                     label: 'OD', 
@@ -360,118 +380,94 @@ export class PdfService {
             ]);
 
             // --- LENS INFO SECTION ---
-            const lensY = 245;
+            const lensY = 230;
             doc.rect(30, lensY, 340, 75).stroke(lightBorder);
-            doc.fillColor(accentColor).font('Helvetica-Bold').fontSize(9).text('VERRES SÉLECTIONNÉS', 40, lensY + 10);
-            doc.fillColor(primaryColor).fontSize(8).font('Helvetica-Bold').text('OD: ', 40, lensY + 25).font('Helvetica').text(data.verres.od, 65, lensY + 25);
-            doc.font('Helvetica-Bold').text('OG: ', 40, lensY + 42).font('Helvetica').text(data.verres.og, 65, lensY + 42);
-            doc.fillColor(techColor).fontSize(8.5).font('Helvetica-BoldOblique').text(`Traitements: ${data.verres.treatments || 'STANDARD'}`, 40, lensY + 60);
+            doc.fillColor('#8b5cf6').font('Helvetica-Bold').fontSize(9).text('TYPES DE VERRES SÉLECTIONNÉS', 40, lensY + 10);
+            doc.fillColor(primaryColor).fontSize(8).font('Helvetica-Bold').text('OD: ', 40, lensY + 25, { continued: true }).font('Helvetica').text(data.verres.od);
+            doc.font('Helvetica-Bold').text('OG: ', 40, lensY + 40, { continued: true }).font('Helvetica').text(data.verres.og);
+            doc.fillColor(greyText).fontSize(8).font('Helvetica').text(`TRAITEMENTS: `, 40, lensY + 55, { continued: true }).fillColor(greyText).text(data.verres.treatments || 'Anti-lumière bleue (Blue Cut)');
 
             doc.rect(380, lensY, 185, 75).stroke(lightBorder);
-            doc.fillColor(greyText).font('Helvetica-Bold').fontSize(8).text('DIAMÈTRE UTILE', 390, lensY + 12);
-            doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(24).text(data.diametreConseille || '70/75', 380, lensY + 32, { width: 185, align: 'center' });
+            doc.fillColor(greyText).font('Helvetica-Bold').fontSize(8).text('DIAMÈTRE À COMMANDER', 390, lensY + 20, { align: 'center', width: 165 });
+            doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(26).text(data.diametreConseille || '65/65', 380, lensY + 40, { width: 185, align: 'center' });
 
-            // (Blue Technical Note Box removed per user request)
+            // --- ADVICE BLUE BOX ---
+            let currentY = lensY + 85;
+            if (data.technicalNote && data.technicalNote.ordered) {
+                const isWarning = data.technicalNote.safety < 0;
+                const bgColor = isWarning ? '#fef2f2' : '#eff6ff';
+                const textColor = isWarning ? '#dc2626' : '#2563eb';
+                const strokeColor = isWarning ? '#fca5a5' : '#bfdbfe';
 
-            // --- IA RECOMMENDATIONS (Moved above Images per user request) ---
-            const iaY = 325;
-            drawHeading(30, iaY, 'CONSEILS TECHNIQUES & PRÉCONISATIONS IA');
+                const adviceText = `Diamètre utile est ${data.technicalNote.mesure} mm. On ajoute 3 mm marge d'erreur ${data.technicalNote.intermediate} mm (+3mm), on commande ${data.technicalNote.ordered} mm`;
+                
+                doc.rect(30, currentY, 535, 20).fillAndStroke(bgColor, strokeColor);
+                doc.fillColor(textColor).font('Helvetica-Bold').fontSize(8.5).text(adviceText, 30, currentY + 6, { width: 535, align: 'center' });
+                currentY += 30;
+            }
+
+            // --- IMAGES SECTION (Centered Canvas) ---
+            doc.rect(30, currentY, 535, 200).stroke(lightBorder);
+            doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(9).text('APERÇU CONFIGURATION MONTURE', 40, currentY + 10);
+            
+            if (data.virtualCenteringUrl) {
+                try {
+                    const base64Centring = data.virtualCenteringUrl.includes('base64,') ? data.virtualCenteringUrl.split('base64,')[1] : data.virtualCenteringUrl;
+                    doc.image(Buffer.from(base64Centring, 'base64'), 132, currentY + 30, { fit: [300, 160], align: 'center', valign: 'center' });
+                } catch (e) {
+                    doc.fillColor(greyText).fontSize(8).text('Image centrage non disponible', 30, currentY + 100, { width: 535, align: 'center' });
+                }
+            }
+            currentY += 215;
+
+            // --- IA RECOMMENDATIONS ---
+            drawHeading(30, currentY, 'PRÉCONISATIONS IA (OPTIMISATION ÉPAISSEUR)');
             
             const drawIABox = (x: number, y: number, side: string, val: string) => {
-                doc.rect(x, y + 15, 260, 35).stroke(lightBorder);
-                doc.fillColor('#eff6ff').rect(x, y + 15, 30, 35).fill();
-                doc.fillColor(techColor).font('Helvetica-Bold').fontSize(10).text(side, x, y + 27, { width: 30, align: 'center' });
-                doc.fillColor('#64748b').font('Helvetica').fontSize(9).text('Configuration patient: ', x + 40, y + 27, { width: 100, continued: true })
-                   .fillColor(primaryColor).text(val);
+                doc.rect(x, y + 15, 260, 25).stroke(lightBorder);
+                doc.fillColor(greyText).font('Helvetica').fontSize(8).text('Configuration patient: ', x + 10, y + 23, { continued: true }).fillColor(primaryColor).text(val);
+                
+                // Blue badge on right side of the box
+                doc.rect(x + 230, y + 19, 20, 16).fillAndStroke('#eff6ff', '#bfdbfe');
+                doc.fillColor(techColor).font('Helvetica-Bold').fontSize(7).text(side, x + 230, y + 24, { width: 20, align: 'center' });
             };
 
-            const boxY = iaY + 25;
+            const boxY = currentY + 5;
             drawIABox(30, boxY, 'OD', data.preconisationsIA?.od || '-');
             drawIABox(305, boxY, 'OG', data.preconisationsIA?.og || '-');
 
-            // --- IMAGES SECTION (Rendered after IA Recommendations) ---
-            const imgSectionY = boxY + 60;
-            const hasMonture = !!data.imageMontureUrl;
-            const hasCentering = !!data.virtualCenteringUrl;
-
-            drawHeading(30, imgSectionY, 'VISUELS DE CONFIGURATION & CENTRAGE');
-            
-            if (hasMonture && hasCentering) {
-                // Side by Side
-                const imgWidth = 260;
-                
-                // Frame
-                doc.rect(30, imgSectionY + 20, imgWidth, 240).stroke(lightBorder);
-                try {
-                    const base64Img = data.imageMontureUrl!.includes('base64,') ? data.imageMontureUrl!.split('base64,')[1] : data.imageMontureUrl;
-                    doc.image(Buffer.from(base64Img!, 'base64'), 35, imgSectionY + 25, { fit: [250, 230], align: 'center', valign: 'center' });
-                } catch (e) {
-                    doc.fillColor(greyText).fontSize(8).text('Visuel monture non disponible', 30, imgSectionY + 130, { width: 260, align: 'center' });
-                }
-
-                // Centering
-                doc.rect(305, imgSectionY + 20, 260, 240).stroke(lightBorder).fill('#f8fafc');
-                try {
-                    const base64Centring = data.virtualCenteringUrl!.includes('base64,') ? data.virtualCenteringUrl!.split('base64,')[1] : data.virtualCenteringUrl;
-                    doc.image(Buffer.from(base64Centring!, 'base64'), 310, imgSectionY + 25, { fit: [250, 230], align: 'center', valign: 'center' });
-                } catch (e) {
-                    doc.fillColor(greyText).fontSize(8).text('Image centrage non disponible', 305, imgSectionY + 130, { width: 260, align: 'center' });
-                }
-            } else if (hasMonture || hasCentering) {
-                // One Image -> Centered (Width 380)
-                const boxWidth = 380;
-                const boxX = (doc.page.width - boxWidth) / 2;
-                const isCentering = hasCentering;
-                const imgUrl = isCentering ? data.virtualCenteringUrl : data.imageMontureUrl;
-                const boxColor = isCentering ? '#f8fafc' : 'white';
-
-                doc.rect(boxX, imgSectionY + 20, boxWidth, 240).stroke(lightBorder);
-                if (isCentering) doc.fill(boxColor); else doc.stroke();
-                
-                try {
-                    const base64Img = imgUrl!.includes('base64,') ? imgUrl!.split('base64,')[1] : imgUrl;
-                    doc.image(Buffer.from(base64Img!, 'base64'), boxX + 5, imgSectionY + 25, { fit: [boxWidth - 10, 230], align: 'center', valign: 'center' });
-                } catch (e) {
-                    doc.fillColor(greyText).fontSize(8).text(isCentering ? 'Image centrage non disponible' : 'Visuel monture non disponible', boxX, imgSectionY + 130, { width: boxWidth, align: 'center' });
-                }
-            } else {
-                // No images provided -> Centered Empty Box Placeholder
-                const boxWidth = 380;
-                const boxX = (doc.page.width - boxWidth) / 2;
-                doc.rect(boxX, imgSectionY + 20, boxWidth, 240).stroke(lightBorder).fill('#f8fafc');
-                doc.fillColor(greyText).fontSize(9).font('Helvetica-Oblique').text('Aucun visuel de configuration capturé pour cette fiche.', boxX, imgSectionY + 130, { width: boxWidth, align: 'center' });
-            }
-
+            currentY += 50;
 
             // --- OBSERVATIONS / NOTES ---
             if (data.observations) {
-                const obsY = imgSectionY + 275;
-                doc.fillColor('#fbfcfd').rect(30, obsY, 535, 30).fill();
-                doc.moveTo(30, obsY).lineTo(30, obsY + 30).lineWidth(3).stroke('#cbd5e1');
-                doc.fillColor(greyText).font('Helvetica-Bold').fontSize(8.5).text('NOTES / REMARQUES:', 40, obsY + 8);
-                doc.fillColor(primaryColor).font('Helvetica').fontSize(8.5).text(data.observations, 140, obsY + 8, { width: 415 });
+                const obsY = currentY;
+                doc.moveTo(30, obsY).lineTo(565, obsY).stroke(lightBorder);
+                doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(9).text('NOTES / REMARQUES:', 30, obsY + 10);
+                doc.font('Helvetica').text(data.observations, 30, obsY + 25, { width: 535 });
+                currentY += 40;
             }
 
             // --- FOOTER AND SIGNATURE ---
             const footY = 700;
-            doc.moveTo(30, footY).lineTo(565, footY).stroke(lightBorder);
-            
-            doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(8.5).text('TECHNICIEN / MONTEUR', 30, footY + 10, { width: 170, align: 'center' });
-            doc.text('CONTRÔLE QUALITÉ FINAL', 200, footY + 10, { width: 170, align: 'center' });
-            doc.text('CACHET ET SIGNATURE', 380, footY + 10, { width: 185, align: 'center' });
+            doc.moveTo(30, footY).lineTo(260, footY).lineWidth(2).stroke(primaryColor);
+            doc.moveTo(305, footY).lineTo(565, footY).lineWidth(2).stroke(primaryColor);
+            doc.lineWidth(1); // reset
+
+            doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(8.5).text('TECHNICIEN / MONTEUR', 30, footY + 10, { width: 230, align: 'center' });
+            doc.text('CONTRÔLE FINAL', 305, footY + 10, { width: 260, align: 'center' });
 
             if (data.branding?.cachetUrl) {
                 try {
                     const base64Cachet = data.branding.cachetUrl.includes('base64,') ? data.branding.cachetUrl.split('base64,')[1] : data.branding.cachetUrl;
-                    doc.image(Buffer.from(base64Cachet, 'base64'), 400, footY + 25, { height: 45 });
+                    doc.image(Buffer.from(base64Cachet, 'base64'), 400, footY + 30, { height: 45 });
                 } catch (e) {
                     console.error('Error drawing Montage cachet:', e);
                 }
             }
 
             // FOOTER
-            doc.fontSize(7).fillColor(greyText).text('OptiSaas - Solution de gestion optique premium', 30, 785);
-            doc.text(`Document généré le ${new Date().toLocaleString('fr-FR')}`, 400, 785, { align: 'right' });
+            doc.fontSize(7).fillColor(greyText).text('OptiSaas - Solution de gestion optique premium', 30, 790);
+            doc.text(`Document généré le ${new Date().toLocaleString('fr-FR')}`, 400, 790, { align: 'right' });
 
             doc.end();
         });
