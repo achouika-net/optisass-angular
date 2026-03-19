@@ -248,6 +248,12 @@ export const MENU: MenuItem[] = [
         type: 'subchild',
         route: 'settings/import',
       },
+      {
+        label: 'Paramètres Verres',
+        icon: 'visibility',
+        type: 'subchild',
+        route: 'settings/glass-parameters',
+      },
     ],
   },
   {

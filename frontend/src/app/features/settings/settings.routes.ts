@@ -19,6 +19,12 @@ export default [
         loadChildren: () => import('./warehouse/warehouse.routes'),
         canActivateChild: [PermissionCanActivateChildGuard],
       },
+      {
+        path: 'glass-parameters',
+        data: { breadcrumb: 'Paramètres Verres' },
+        loadChildren: () => import('./pages/glass-settings/glass-settings.routes'),
+        canActivateChild: [PermissionCanActivateChildGuard],
+      },
     ],
   },
 ] satisfies TypedRoute[];

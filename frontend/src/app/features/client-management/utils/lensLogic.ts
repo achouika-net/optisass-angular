@@ -1,5 +1,5 @@
-// lensLogic.ts
 import { lensDatabase, LensOption, LensTreatment } from "./lensDatabase";
+import { GlassParameters, GlassMaterial, GlassIndex, GlassTreatment } from "../../../core/models/glass-parameters.model";
 
 export interface Correction { sph: number; cyl: number; add?: number; }
 
@@ -104,6 +104,7 @@ export function determineLensType(equipmentType: string, addition: number): stri
 export function getLensSuggestion(
     corr: Correction,
     frame: FrameData,
+    params?: GlassParameters,
     selectedTreatments: LensTreatment[] = []
 ): LensSuggestion {
     const warnings: string[] = [];
@@ -120,14 +121,27 @@ export function getLensSuggestion(
     const usedNearVision = nearPower > distancePower;
 
     // 2. Material Selection based on Effective Power
-    let option: LensOption = lensDatabase[0];
-    if (effectivePower <= 2) option = lensDatabase.find(l => l.material === "CR-39")!;
-    else if (effectivePower <= 4) option = lensDatabase.find(l => l.material === "1.60")!;
-    else if (effectivePower <= 6) option = lensDatabase.find(l => l.material === "1.67")!;
-    else option = lensDatabase.find(l => l.material === "1.74")!; // Default fallback for high power
+    // Use dynamic params if available, otherwise fallback to local database
+    const db = params ? params.materials.map(m => ({
+        material: m.name,
+        index: Math.max(...m.indices.map(i => i.value)) // Use max index for suggesting material
+    })) : lensDatabase;
+
+    let option: LensOption = db[0] as LensOption;
+    
+    // Logic to select "best" material based on power
+    if (effectivePower <= 2) {
+        option = (db.find(l => l.index >= 1.5 && l.index < 1.55) || db[0]) as LensOption;
+    } else if (effectivePower <= 4) {
+        option = (db.find(l => l.index >= 1.56 && l.index < 1.6) || db[0]) as LensOption;
+    } else if (effectivePower <= 6) {
+        option = (db.find(l => l.index >= 1.6 && l.index < 1.7) || db[0]) as LensOption;
+    } else {
+        option = (db.find(l => l.index >= 1.7) || db[db.length - 1]) as LensOption;
+    }
 
     // Fallback if specific option not found
-    if (!option) option = lensDatabase.find(l => l.material === "1.74") || lensDatabase[lensDatabase.length - 1];
+    if (!option) option = (db[db.length - 1] || lensDatabase[lensDatabase.length - 1]) as LensOption;
 
     // 3. Frame Adjustments & Cerclage Constraints
     const cerclage = frame.cerclage || (frame.mount === 'rimless' ? 'percée' : frame.mount === 'semi-rim' ? 'nylor' : 'cerclée');
@@ -135,8 +149,8 @@ export function getLensSuggestion(
     // Increase index for nylor/percée or small frames
     if (cerclage === 'nylor' || cerclage === 'percée' || frame.ed < 50) {
         if (option.index < 1.67) {
-            const higherOption = lensDatabase.find(l => l.index >= 1.67);
-            if (higherOption) option = higherOption;
+            const higherOption = db.find(l => l.index >= 1.67);
+            if (higherOption) option = higherOption as LensOption;
         }
     }
 
@@ -175,12 +189,13 @@ Recommandation: ${option.material} (Indice ${option.index})
 
 /**
  * Helper function to calculate lens price based on material, index, and treatments
- * Updated to correctly match "Organique 1.56" etc.
+ * Updated to use dynamic parameters if provided.
  */
 export function calculateLensPrice(
     material: string,
     index: string,
-    treatments: string[]
+    treatments: string[],
+    params?: GlassParameters
 ): number {
     if (!material || !index) return 0;
 
@@ -189,42 +204,88 @@ export function calculateLensPrice(
     const indexMatch = index.toString().match(/(\d+(\.\d+)?)/);
     const indexNum = indexMatch ? parseFloat(indexMatch[0]) : 1.50;
 
-    // Find matching lens option in DB
-    const lensOption = lensDatabase.find(lens => {
-        // 1. Check Index Match (allow small tolerance)
-        if (Math.abs(lens.index - indexNum) > 0.01) return false;
+    let basePrice = 0;
+    let treatmentCost = 0;
 
-        // 2. Check Material Type Hints
-        const matLower = material.toLowerCase();
-        const dbMatLower = lens.material.toLowerCase();
+    if (params) {
+        // --- 1. DYNAMIC CALCULATION ---
+        
+        // Find material
+        const mat = params.materials.find((m: GlassMaterial) => 
+            material.toLowerCase().includes(m.name.toLowerCase()) || 
+            m.name.toLowerCase().includes(material.toLowerCase())
+        );
 
-        // Specific mappings
-        if (matLower.includes('cr-39')) return dbMatLower === 'cr-39';
-        if (matLower.includes('poly')) return dbMatLower === 'polycarbonate';
-        if (matLower.includes('trivex')) return dbMatLower === 'trivex';
+        if (mat) {
+            // Find index value
+            const idxObj = mat.indices.find((i: GlassIndex) => Math.abs(i.value - indexNum) < 0.01);
+            if (idxObj) {
+                basePrice = idxObj.price;
+            }
+        }
 
-        // For generic "Organique 1.xx", reliance on index check is usually sufficient if we ruled out the special ones
-        // But let's be safe: if db is "1.60" and ui is "organique 1.60", it matches.
-        if (matLower.includes(dbMatLower)) return true;
+        // If not found in materials, try searching all indices directly (fallback)
+        if (basePrice === 0) {
+            for (const m of params.materials) {
+                const idxObj = m.indices.find((i: GlassIndex) => Math.abs(i.value - indexNum) < 0.01);
+                if (idxObj) {
+                    basePrice = idxObj.price;
+                    break;
+                }
+            }
+        }
 
-        return false;
-    });
-
-    // Default base price if not perfectly found
-    let basePrice = 200;
-    if (lensOption) {
-        basePrice = (lensOption.priceRangeMAD[0] + lensOption.priceRangeMAD[1]) / 2;
-    } else {
-        // Heuristic fallback based on index if DB mismatch
-        if (indexNum >= 1.74) basePrice = 900;
-        else if (indexNum >= 1.67) basePrice = 600;
-        else if (indexNum >= 1.60) basePrice = 400;
-        else if (indexNum >= 1.56) basePrice = 300;
+        // Treatments
+        if (treatments && Array.isArray(treatments)) {
+            treatments.forEach(tName => {
+                const treat = params.treatments.find((t: GlassTreatment) => 
+                    tName.toLowerCase().includes(t.name.toLowerCase()) || 
+                    t.name.toLowerCase().includes(tName.toLowerCase())
+                );
+                if (treat) {
+                    treatmentCost += treat.price;
+                }
+            });
+        }
     }
 
-    // Add treatment costs
-    let treatmentCost = 0;
-    if (treatments && treatments.length > 0) {
+    // --- 2. HARDCODED FALLBACK (if params not provided or dynamic lookup failed) ---
+    if (basePrice === 0) {
+        // Find matching lens option in DB
+        const lensOption = lensDatabase.find(lens => {
+            // 1. Check Index Match (allow small tolerance)
+            if (Math.abs(lens.index - indexNum) > 0.01) return false;
+
+            // 2. Check Material Type Hints
+            const matLower = material.toLowerCase();
+            const dbMatLower = lens.material.toLowerCase();
+
+            // Specific mappings
+            if (matLower.includes('cr-39')) return dbMatLower === 'cr-39';
+            if (matLower.includes('poly')) return dbMatLower === 'polycarbonate';
+            if (matLower.includes('trivex')) return dbMatLower === 'trivex';
+
+            // For generic "Organique 1.xx", reliance on index check is usually sufficient if we ruled out the special ones
+            if (matLower.includes(dbMatLower)) return true;
+
+            return false;
+        });
+
+        // Default base price if not perfectly found
+        if (lensOption) {
+            basePrice = (lensOption.priceRangeMAD[0] + lensOption.priceRangeMAD[1]) / 2;
+        } else {
+            // Heuristic fallback based on index if DB mismatch
+            if (indexNum >= 1.74) basePrice = 900;
+            else if (indexNum >= 1.67) basePrice = 600;
+            else if (indexNum >= 1.60) basePrice = 400;
+            else if (indexNum >= 1.56) basePrice = 300;
+            else basePrice = 200;
+        }
+    }
+
+    // Add treatment costs if not already calculated dynamically
+    if (treatmentCost === 0 && treatments && treatments.length > 0) {
         treatments.forEach(treatment => {
             const t = treatment.toLowerCase();
             if (t.includes('anti-reflet') || t.includes('hmc')) treatmentCost += 100;

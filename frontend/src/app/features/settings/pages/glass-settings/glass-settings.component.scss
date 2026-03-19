@@ -1,0 +1,229 @@
+.settings-container {
+  width: 100%;
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.glass-card {
+  border-radius: 16px;
+  overflow: hidden;
+  border: none;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  background: white;
+}
+
+::ng-deep {
+  .mat-mdc-tab-group {
+    --mdc-tab-indicator-active-indicator-color: #1e40af;
+    --mdc-tab-indicator-active-indicator-height: 3px;
+    
+    .mat-mdc-tab .mdc-tab__text-label {
+      font-weight: 600;
+      color: #64748b;
+      letter-spacing: 0.01em;
+    }
+    
+    .mat-mdc-tab.mdc-tab--active .mdc-tab__text-label {
+      color: #1e40af;
+    }
+
+    .mat-mdc-tab-body,
+    .mat-mdc-tab-body-content {
+      padding: 24px 0;
+      overflow: visible !important;
+      height: auto !important;
+    }
+  }
+}
+
+.tab-content {
+  min-height: 450px;
+}
+
+// Table Styling
+.premium-table {
+  width: 100%;
+  background: white;
+  border-collapse: separate;
+  border-spacing: 0;
+
+  tr.mat-mdc-header-row {
+    background-color: #eef2ff; // bg-indigo-50
+    border-bottom: 2px solid #e0e7ff; // bg-indigo-100
+    height: 56px;
+  }
+
+  .mat-mdc-header-cell {
+    color: #475569;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid #e2e8f0;
+  }
+
+  .mat-mdc-row {
+    height: 64px;
+    transition: background-color 0.2s;
+    
+    &:hover {
+      background-color: #f1f5f9;
+    }
+  }
+
+  .mat-mdc-cell {
+    color: #1e293b;
+    font-size: 0.95rem;
+    border-bottom: 1px solid #f1f5f9;
+  }
+}
+
+// Material Blocks (Accordion-like)
+.material-block {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+
+  &:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08);
+  }
+
+  .material-header {
+    background: #f8fafc;
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e2e8f0;
+
+    .mat-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1e3a8a;
+      letter-spacing: 0.025em;
+    }
+  }
+}
+
+// Inputs
+.price-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  width: fit-content;
+  transition: all 0.2s;
+
+  &:focus-within {
+    background: white;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  input {
+    width: 80px;
+    border: none;
+    background: transparent;
+    font-weight: 600;
+    color: #1e293b;
+    text-align: right;
+    font-size: 1rem;
+    outline: none;
+    
+    &::-webkit-inner-spin-button {
+      opacity: 1;
+    }
+  }
+
+  .currency {
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.8rem;
+  }
+}
+
+// Loading & Overlays
+.loading-overlay {
+  background: rgba(255, 255, 255, 0.7);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  
+  .spinner-container {
+    padding: 32px;
+    background: white;
+    border-radius: 24px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+
+    p {
+      color: #1e3a8a;
+      font-weight: 600;
+      margin: 0;
+    }
+  }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #94a3b8;
+  
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: #cbd5e1;
+  }
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-add {
+  border-radius: 10px;
+  font-weight: 600;
+  padding: 0 20px;
+  height: 44px;
+}
+
+.icon-small {
+  font-size: 20px !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+
+// Fixed column widths for alignment across blocks
+.col-indice {
+  width: 25%;
+}
+
+.col-price {
+  width: 55%;
+}
+
+.col-actions {
+  width: 20%;
+}
+
+// Ensure global scrollbar is handled by the layout, not the browser
+:host-context(body) {
+  height: 100%;
+  margin: 0;
+}

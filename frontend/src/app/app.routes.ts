@@ -72,6 +72,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/settings/pages/data-import/data-import.component').then(m => m.DataImportComponent),
       },
       {
+        path: 'settings/glass-parameters',
+        loadComponent: () => import('./features/settings/pages/glass-settings/glass-settings.component').then(m => m.GlassSettingsComponent),
+      },
+      {
         path: 'stats',
         loadComponent: () => import('./features/reports/advanced-stats/advanced-stats.component').then(m => m.AdvancedStatsComponent),
       },

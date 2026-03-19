@@ -1,0 +1,227 @@
+<div class="settings-container">
+  <!-- Header Section -->
+  <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+    <div>
+      <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+        <div class="p-2 bg-blue-50 rounded-xl">
+          <mat-icon class="text-blue-600 block">settings</mat-icon>
+        </div>
+        Paramètres des Verres
+      </h1>
+      <p class="text-slate-500 mt-1 ml-12">Gérez vos marques, matières et tarifs verres standards</p>
+    </div>
+    
+    <button mat-flat-button color="accent" class="btn-add shadow-lg shadow-amber-200/50" (click)="runSeed()">
+      <mat-icon>auto_fix_high</mat-icon>
+      Charger les données par défaut
+    </button>
+  </div>
+
+  <mat-card class="glass-card shadow-sm border border-slate-200">
+    <mat-tab-group animationDuration="200ms">
+      
+      <!-- Brands Tab -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="mr-2">branding_watermark</mat-icon>
+          Marques
+        </ng-template>
+        
+        <div class="tab-content px-6">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold text-slate-800">Collections Disponibles</h2>
+            <button mat-raised-button color="primary" class="btn-add" (click)="addBrand()">
+              <mat-icon>add</mat-icon> Ajouter une marque
+            </button>
+          </div>
+
+          <div class="border rounded-2xl overflow-hidden shadow-sm">
+            <table mat-table [dataSource]="brands" class="premium-table">
+              <ng-container matColumnDef="name">
+                <th mat-header-cell *matHeaderCellDef>Marque</th>
+                <td mat-cell *matCellDef="let brand" class="font-semibold text-slate-700">
+                  {{ brand.name }}
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef class="w-24 text-center">Actions</th>
+                <td mat-cell *matCellDef="let brand">
+                  <div class="flex justify-center">
+                    <button mat-icon-button color="warn" class="hover:bg-red-50" (click)="deleteBrand(brand.id)">
+                      <mat-icon>delete_outline</mat-icon>
+                    </button>
+                  </div>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="['name', 'actions']"></tr>
+              <tr mat-row *matRowDef="let row; columns: ['name', 'actions']"></tr>
+            </table>
+            
+            <div *ngIf="brands.length === 0 && !loading" class="empty-state p-16">
+              <mat-icon>inventory_2</mat-icon>
+              <p>Aucune marque configurée.</p>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- Materials Tab -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="mr-2">layers</mat-icon>
+          Matières & Indices
+        </ng-template>
+
+        <div class="tab-content px-6">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold text-slate-800">Gestion des Tarifs par Indice</h2>
+            <button mat-raised-button color="primary" class="btn-add" (click)="addMaterial()">
+              <mat-icon>add</mat-icon> Ajouter une matière
+            </button>
+          </div>
+
+          <div *ngFor="let material of materials" class="material-block">
+            <div class="material-header">
+              <div class="flex items-center gap-3">
+                <div class="w-2 h-8 bg-blue-500 rounded-full"></div>
+                <span class="mat-title uppercase">{{ material.name }}</span>
+              </div>
+              <div class="action-buttons">
+                <button mat-button color="primary" class="font-bold" (click)="addIndex(material.id)">
+                  <mat-icon>add_circle</mat-icon> Ajouter un indice
+                </button>
+                <div class="w-px h-6 bg-slate-200 mx-2"></div>
+                <button mat-icon-button color="warn" (click)="deleteMaterial(material.id)">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
+            </div>
+            
+            <div class="p-4 bg-white">
+              <div class="rounded-xl border border-slate-100 overflow-hidden">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="text-left bg-indigo-50 border-b-2 border-indigo-100">
+                      <th class="p-4 font-bold text-slate-500 uppercase tracking-wider text-xs col-indice">Indice</th>
+                      <th class="p-4 font-bold text-slate-500 uppercase tracking-wider text-xs col-price">Prix de base Client</th>
+                      <th class="p-4 font-bold text-slate-500 uppercase tracking-wider text-xs text-center col-actions">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    <tr *ngFor="let idx of material.indices" class="hover:bg-slate-50/50 transition-colors">
+                      <td class="p-4 font-bold text-slate-700 text-base col-indice">{{ idx.value }}</td>
+                      <td class="p-4 col-price">
+                        <div class="price-input-wrapper">
+                          <input type="number" [value]="idx.price" #priceInput title="Prix de base de l'indice">
+                          <span class="currency">MAD</span>
+                          <button mat-icon-button color="primary" 
+                                  (click)="updateIndexPrice(idx.id, priceInput.value)"
+                                  [disabled]="priceInput.value == idx.price"
+                                  class="ml-2 bg-white shadow-sm border border-slate-100">
+                            <mat-icon class="icon-small">check</mat-icon>
+                          </button>
+                        </div>
+                      </td>
+                      <td class="p-4 text-center col-actions">
+                        <button mat-icon-button color="warn" (click)="deleteIndex(idx.id)" class="opacity-60 hover:opacity-100">
+                          <mat-icon class="icon-small">delete_outline</mat-icon>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              
+              <div *ngIf="material.indices?.length === 0" class="p-12 text-center text-slate-400 italic bg-slate-50/50 rounded-xl mt-2 border border-dashed border-slate-200">
+                <mat-icon class="mb-2 opacity-30">info_outline</mat-icon>
+                <p>Aucun indice configuré pour cette matière.</p>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="materials.length === 0 && !loading" class="empty-state p-16">
+            <mat-icon>layers_clear</mat-icon>
+            <p>Aucune matière configurée.</p>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- Treatments Tab -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="mr-2">auto_fix_normal</mat-icon>
+          Traitements
+        </ng-template>
+        
+        <div class="tab-content px-6">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold text-slate-800">Options de Traitements & Majorations</h2>
+            <button mat-raised-button color="primary" class="btn-add" (click)="addTreatment()">
+              <mat-icon>add</mat-icon> Ajouter un traitement
+            </button>
+          </div>
+
+          <div class="border rounded-2xl overflow-hidden shadow-sm">
+            <table mat-table [dataSource]="treatments" class="premium-table">
+              <ng-container matColumnDef="name">
+                <th mat-header-cell *matHeaderCellDef>Désignation</th>
+                <td mat-cell *matCellDef="let t" class="font-semibold text-slate-700">
+                  {{ t.name }}
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="price">
+                <th mat-header-cell *matHeaderCellDef>Majoration (MAD)</th>
+                <td mat-cell *matCellDef="let t">
+                  <div class="price-input-wrapper">
+                    <input type="number" [value]="t.price" #tPriceInput title="Majoration prix traitement">
+                    <span class="currency">MAD</span>
+                    <button mat-icon-button color="primary" 
+                            (click)="updateTreatmentPrice(t.id, tPriceInput.value)"
+                            [disabled]="tPriceInput.value == t.price"
+                            class="ml-2 bg-white shadow-sm border border-slate-100">
+                      <mat-icon class="icon-small">check</mat-icon>
+                    </button>
+                  </div>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef class="w-24 text-center">Actions</th>
+                <td mat-cell *matCellDef="let t">
+                  <div class="flex justify-center">
+                    <button mat-icon-button color="warn" class="hover:bg-red-50" (click)="deleteTreatment(t.id)">
+                      <mat-icon>delete_outline</mat-icon>
+                    </button>
+                  </div>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="['name', 'price', 'actions']"></tr>
+              <tr mat-row *matRowDef="let row; columns: ['name', 'price', 'actions']"></tr>
+            </table>
+            
+            <div *ngIf="treatments.length === 0 && !loading" class="empty-state p-16">
+              <mat-icon>blur_off</mat-icon>
+              <p>Aucun traitement configuré.</p>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+
+    </mat-tab-group>
+  </mat-card>
+
+  <!-- Professional Loading Overlay -->
+  <div *ngIf="loading" class="loading-overlay fixed inset-0 z-50 flex items-center justify-center">
+     <div class="spinner-container">
+        <div class="relative flex items-center justify-center">
+            <div class="animate-ping absolute inline-flex h-16 w-16 rounded-full bg-blue-400 opacity-20"></div>
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-100 border-b-blue-600"></div>
+        </div>
+        <p>Chargement des paramètres...</p>
+     </div>
+  </div>
+</div>

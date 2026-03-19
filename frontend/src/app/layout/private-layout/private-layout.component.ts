@@ -1,4 +1,5 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
+import { CdkScrollable } from '@angular/cdk/scrolling';
 import { NgOptimizedImage } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, linkedSignal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -43,6 +44,7 @@ import { WebSocketsService } from '@app/services';
     SidebarComponent,
     BreadcrumbComponent,
     TopbarActionsComponent,
+    CdkScrollable,
   ],
   providers: [WebSocketsService],
 })
