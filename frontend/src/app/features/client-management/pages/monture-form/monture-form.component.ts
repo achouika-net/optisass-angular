@@ -43,6 +43,8 @@ import { SupplierService } from '../../../../shared/services/supplier.service';
 import { ISupplier } from '../../../../shared/models/index';
 import { CompanySettingsService } from '../../../../core/services/company-settings.service';
 import { CompanySettings } from '../../../../shared/interfaces/company-settings.interface';
+import { GlassParametersService } from '../../services/glass-parameters.service';
+import { GlassParameters } from '../../../../core/models/glass-parameters.model';
 
 
 
@@ -139,7 +141,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     private allSuppliers: ISupplier[] = [];
 
     // Master Lists (From Database)
-    lensMaterials: string[] = getLensMaterials();
+    lensMaterials: string[] = [];
 
     dateToday = new Date();
 
@@ -181,37 +183,12 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         return this.equipements.at(0) as FormGroup;
     }
 
-    lensIndices: string[] = getLensIndices();
+    lensIndices: string[] = [];
 
-    lensTreatments: string[] = [
-        'Anti-reflet (HMC)',
-        'Durci (HC)',
-        'Super Anti-reflet (SHMC)',
-        'Anti-lumière bleue (Blue Cut)',
-        'Photochromique (Transitions)',
-        'Teinté (Solaire - Gris)',
-        'Teinté (Solaire - Brun)',
-        'Teinté (Solaire - Vert)',
-        'Polarisé',
-        'Miroité',
-        'Hydrophobe'
-    ];
+    lensTreatments: string[] = [];
 
     // Liste des marques
-    lensBrands: string[] = [
-        'Essilor',
-        'Zeiss',
-        'Hoya',
-        'Nikon',
-        'Rodenstock',
-        'Seiko',
-        'BBGR',
-        'Optiswiss',
-        'Shamir',
-        'Kodak',
-        'Generic',
-        'Autre'
-    ];
+    lensBrands: string[] = [];
 
     // Types de montage
     typesMontage: string[] = [
@@ -260,6 +237,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     nomenclatureString: string | null = null;
     showFacture = false;
     companySettings: CompanySettings | null = null;
+    allGlassParameters: GlassParameters | null = null;
 
     // Local storage for frame height in case form control fails
     private lastMeasFrameHeight: number | null = null;
@@ -338,13 +316,15 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         private ngZone: NgZone,
         private companySettingsService: CompanySettingsService,
         private bcPrintService: BcPrintService,
-        private supplierService: SupplierService
+        private supplierService: SupplierService,
+        private glassParametersService: GlassParametersService
     ) {
         this.ficheForm = this.initForm();
     }
 
     ngOnInit(): void {
         this.loadCompanySettings();
+        this.loadGlassParameters();
         // FIX: Ensure 'hauteurVerre' control exists in 'montage' group immediately
         // This ensures correct data binding when loading existing fiches
         const montageGroup = this.ficheForm.get('montage') as FormGroup;
@@ -707,6 +687,28 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
     }
 
+    loadGlassParameters(): void {
+        this.glassParametersService.getAll().subscribe({
+            next: (params) => {
+                this.allGlassParameters = params;
+                this.lensBrands = params.brands.map(b => b.name);
+                this.lensMaterials = params.materials.map(m => m.name);
+                
+                // For indices, combine all unique index values from all materials
+                const allIndices = new Set<string>();
+                params.materials.forEach(m => {
+                    m.indices.forEach(i => allIndices.add(i.label));
+                });
+                this.lensIndices = Array.from(allIndices).sort();
+                
+                this.lensTreatments = params.treatments.map(t => t.name);
+                
+                this.cdr.markForCheck();
+            },
+            error: (err) => console.error('Error loading glass parameters:', err)
+        });
+    }
+
     updateNomenclature(): void {
         const odVars = this.ficheForm.get('ordonnance.od')?.value || {};
         const ogVars = this.ficheForm.get('ordonnance.og')?.value || {};
@@ -919,13 +921,13 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             const indiceOD = verresGroup.get('indiceOD')?.value;
             const traitementsOD = verresGroup.get('traitementOD')?.value || [];
 
-            prixOD = calculateLensPrice(matiereOD, indiceOD, traitementsOD);
+            prixOD = calculateLensPrice(matiereOD, indiceOD, traitementsOD, this.allGlassParameters || undefined);
         } else {
             const matiere = verresGroup.get('matiere')?.value;
             const indice = verresGroup.get('indice')?.value;
             const traitements = verresGroup.get('traitement')?.value || [];
 
-            prixOD = calculateLensPrice(matiere, indice, traitements);
+            prixOD = calculateLensPrice(matiere, indice, traitements, this.allGlassParameters || undefined);
         }
 
         // Prix OG
@@ -935,7 +937,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             const indiceOG = verresGroup.get('indiceOG')?.value;
             const traitementsOG = verresGroup.get('traitementOG')?.value || [];
 
-            prixOG = calculateLensPrice(matiereOG, indiceOG, traitementsOG);
+            prixOG = calculateLensPrice(matiereOG, indiceOG, traitementsOG, this.allGlassParameters || undefined);
         } else {
             prixOG = prixOD;
         }
@@ -1005,8 +1007,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         };
 
         // Get AI Recommendations
-        const recOD = getLensSuggestion(corrOD, frameData);
-        const recOG = getLensSuggestion(corrOG, frameData);
+        const recOD = getLensSuggestion(corrOD, frameData, this.allGlassParameters || undefined);
+        const recOG = getLensSuggestion(corrOG, frameData, this.allGlassParameters || undefined);
 
         // Compare Spheres and Cylinders for Pair vs Split Logic (Tighter thresholds)
         const diffSph = Math.abs(corrOD.sph - corrOG.sph);

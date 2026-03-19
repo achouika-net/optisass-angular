@@ -3,7 +3,7 @@ export const environment = {
   envName: 'development',
   defaultLanguage: 'fr',
   appName: 'Agenda',
-  apiUrl: 'http://localhost:3000',
+  apiUrl: 'http://localhost:3001',
   websocketUrl: 'wss://optisaas.com/app/',
   appVersion: '2.0.0',
   geoapifyApiKey: '',

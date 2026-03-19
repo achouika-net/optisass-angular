@@ -43,13 +43,13 @@ model Client {
   titre                String?
   codeClient           String?
   groupeId             String?
+  bonsLivraison        BonLivraison[]
   centre               Centre?              @relation(fields: [centreId], references: [id])
   groupe               Groupe?              @relation(fields: [groupeId], references: [id])
   parrain              Client?              @relation("Parrainage", fields: [parrainId], references: [id])
   filleuls             Client[]             @relation("Parrainage")
   factures             Facture[]
   facturesFournisseurs FactureFournisseur[]
-  bonsLivraison        BonLivraison[]
   fiches               Fiche[]
   pointsHistory        PointsHistory[]
   rewardRedemptions    RewardRedemption[]
@@ -66,15 +66,10 @@ model Fiche {
   clientId             String
   content              Json
   numero               Int                  @default(autoincrement())
+  bonsLivraison        BonLivraison[]
   facture              Facture?
   supplierInvoices     FactureFournisseur[]
-  bonsLivraison        BonLivraison[]
   client               Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  @@index([clientId])
-  @@index([dateCreation])
-  @@index([statut])
-  @@index([type])
 }
 
 model Facture {
@@ -115,9 +110,6 @@ model Facture {
 
   @@index([centreId])
   @@index([vendeurId])
-  @@index([dateEmission])
-  @@index([type])
-  @@index([statut])
 }
 
 model Paiement {
@@ -138,31 +130,29 @@ model Paiement {
   updatedAt           DateTime             @updatedAt
   dateEncaissement    DateTime?
   statut              String               @default("ENCAISSE")
-  operationCaisseId   String?              @unique
+  operationCaisseId   String?
   userId              String?
   demandeAlimentation DemandeAlimentation?
   facture             Facture              @relation(fields: [factureId], references: [id], onDelete: Cascade)
   operationCaisse     OperationCaisse?     @relation(fields: [operationCaisseId], references: [id])
   user                User?                @relation(fields: [userId], references: [id])
-  rewardRedemption    RewardRedemption?
 
   @@index([date])
   @@index([mode])
   @@index([statut])
   @@index([factureId])
-  @@index([userId])
 }
 
 model Groupe {
-  id          String    @id @default(uuid())
-  nom         String    @unique
+  id          String   @id @default(uuid())
+  nom         String   @unique
   description String?
   adresse     String?
   telephone   String?
   email       String?
-  type        String    @default("WORK")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  type        String?  @default("FAMILY")
   centres     Centre[]
   clients     Client[]
 }
@@ -179,6 +169,7 @@ model Centre {
   groupeId             String
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
+  bonsLivraison        BonLivraison[]
   caisses              Caisse[]
   groupe               Groupe               @relation(fields: [groupeId], references: [id], onDelete: Cascade)
   clients              Client[]
@@ -188,7 +179,6 @@ model Centre {
   entrepots            Entrepot[]
   factures             Facture[]
   facturesFournisseurs FactureFournisseur[]
-  bonsLivraison        BonLivraison[]
   journeesCaisse       JourneeCaisse[]
 
   @@unique([groupeId, nom])
@@ -269,10 +259,10 @@ model MouvementStock {
   factureFournisseurId  String?
   bonLivraisonId        String?
   userId                String?
+  bonLivraison          BonLivraison?       @relation(fields: [bonLivraisonId], references: [id])
   entrepotDestination   Entrepot?           @relation("EntrepotDestination", fields: [entrepotDestinationId], references: [id])
   entrepotSource        Entrepot?           @relation("EntrepotSource", fields: [entrepotSourceId], references: [id])
   factureFournisseur    FactureFournisseur? @relation(fields: [factureFournisseurId], references: [id])
-  bonLivraison         BonLivraison?       @relation(fields: [bonLivraisonId], references: [id])
   facture               Facture?            @relation(fields: [factureId], references: [id])
   produit               Product             @relation(fields: [produitId], references: [id], onDelete: Cascade)
   user                  User?               @relation(fields: [userId], references: [id])
@@ -325,9 +315,6 @@ model PointsHistory {
   createdAt   DateTime @default(now())
   client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   facture     Facture? @relation(fields: [factureId], references: [id])
-
-  @@index([clientId])
-  @@index([factureId])
 }
 
 model LoyaltyConfig {
@@ -339,22 +326,6 @@ model LoyaltyConfig {
   folderCreationBonus Int      @default(30)
   pointsToMADRatio    Float    @default(0.1)
   rewardThreshold     Int      @default(500)
-}
-
-model RewardRedemption {
-  id         String    @id @default(uuid())
-  clientId   String
-  pointsUsed Int
-  rewardType String
-  madValue   Float
-  redeemedAt DateTime  @default(now())
-  redeemedBy String?
-  userId     String?
-  isUsed     Boolean   @default(false)
-  paiementId String?   @unique
-  client     Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  user       User?     @relation(fields: [userId], references: [id])
-  paiement   Paiement? @relation(fields: [paiementId], references: [id])
 }
 
 model Fournisseur {
@@ -379,9 +350,9 @@ model Fournisseur {
   contacts           Json?
   convention         Json?
   siret              String?
+  bonsLivraison      BonLivraison[]
   depenses           Depense[]
   factures           FactureFournisseur[]
-  bonsLivraison        BonLivraison[]
 }
 
 model Depense {
@@ -408,52 +379,47 @@ model Depense {
   valideParId          String?
   employeeId           String?
   demandeAlimentation  DemandeAlimentation?
+  bonLivraison         BonLivraison?        @relation(fields: [bonLivraisonId], references: [id], onDelete: Cascade)
   centre               Centre               @relation(fields: [centreId], references: [id])
   creeParUser          User?                @relation("CreePar", fields: [creeParId], references: [id])
   echeance             EcheancePaiement?    @relation(fields: [echeanceId], references: [id])
   employee             Employee?            @relation(fields: [employeeId], references: [id])
   factureFournisseur   FactureFournisseur?  @relation(fields: [factureFournisseurId], references: [id], onDelete: Cascade)
-  bonLivraison         BonLivraison?        @relation(fields: [bonLivraisonId], references: [id], onDelete: Cascade)
   fournisseur          Fournisseur?         @relation(fields: [fournisseurId], references: [id])
   valideParUser        User?                @relation("ValidePar", fields: [valideParId], references: [id])
   payroll              Payroll?
 
   @@index([date])
-  @@index([dateEcheance])
-  @@index([statut])
   @@index([centreId])
-  @@index([fournisseurId])
-  @@index([factureFournisseurId])
-  @@index([echeanceId])
 }
 
 model FactureFournisseur {
-  id              String               @id @default(uuid())
-  numeroFacture   String
-  dateEmission    DateTime
-  dateEcheance    DateTime?
-  montantHT       Float
-  montantTVA      Float
-  montantTTC      Float
-  statut          String               @default("A_PAYER")
-  type            String               @default("ACHAT_STOCK")
-  fournisseurId   String
-  quantite        Float?
+  id               String             @id @default(uuid())
+  numeroFacture    String
+  dateEmission     DateTime
+  dateEcheance     DateTime?
+  montantHT        Float
+  montantTVA       Float
+  montantTTC       Float
+  statut           String             @default("A_PAYER")
+  type             String             @default("ACHAT_STOCK")
+  fournisseurId    String
+  quantite         Float?
   referenceInterne String?
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
-  centreId        String?
-  clientId        String?
-  pieceJointeUrl  String?
-  ficheId         String?
-  depenses        Depense?
-  echeances       EcheancePaiement[]
-  centre          Centre?              @relation(fields: [centreId], references: [id])
-  client          Client?              @relation(fields: [clientId], references: [id])
-  fiche           Fiche?               @relation(fields: [ficheId], references: [id])
-  fournisseur     Fournisseur          @relation(fields: [fournisseurId], references: [id])
-  childBLs        BonLivraison[]
-  mouvementsStock MouvementStock[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  centreId         String?
+  clientId         String?
+  pieceJointeUrl   String?
+  ficheId          String?
+  childBLs         BonLivraison[]
+  depenses         Depense?
+  echeances        EcheancePaiement[]
+  centre           Centre?            @relation(fields: [centreId], references: [id])
+  client           Client?            @relation(fields: [clientId], references: [id])
+  fiche            Fiche?             @relation(fields: [ficheId], references: [id])
+  fournisseur      Fournisseur        @relation(fields: [fournisseurId], references: [id])
+  mouvementsStock  MouvementStock[]
 
   @@unique([fournisseurId, numeroFacture])
   @@index([dateEmission])
@@ -478,14 +444,14 @@ model BonLivraison {
   categorieBL          String?
   ficheId              String?
   factureFournisseurId String?
+  centre               Centre?             @relation(fields: [centreId], references: [id])
+  client               Client?             @relation(fields: [clientId], references: [id])
+  factureFournisseur   FactureFournisseur? @relation(fields: [factureFournisseurId], references: [id])
+  fiche                Fiche?              @relation(fields: [ficheId], references: [id])
+  fournisseur          Fournisseur         @relation(fields: [fournisseurId], references: [id])
   depense              Depense?
   echeances            EcheancePaiement[]
   mouvementsStock      MouvementStock[]
-  centre               Centre?              @relation(fields: [centreId], references: [id])
-  client               Client?              @relation(fields: [clientId], references: [id])
-  fiche                Fiche?               @relation(fields: [ficheId], references: [id])
-  fournisseur          Fournisseur          @relation(fields: [fournisseurId], references: [id])
-  factureFournisseur   FactureFournisseur?  @relation(fields: [factureFournisseurId], references: [id])
 
   @@unique([fournisseurId, numeroBL])
   @@index([dateEmission])
@@ -505,15 +471,13 @@ model EcheancePaiement {
   factureFournisseurId String?
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
-  depense              Depense?
-  factureFournisseur   FactureFournisseur? @relation(fields: [factureFournisseurId], references: [id], onDelete: Cascade)
   bonLivraisonId       String?
-  bonLivraison        BonLivraison?       @relation(fields: [bonLivraisonId], references: [id], onDelete: Cascade)
+  depense              Depense?
+  bonLivraison         BonLivraison?       @relation(fields: [bonLivraisonId], references: [id], onDelete: Cascade)
+  factureFournisseur   FactureFournisseur? @relation(fields: [factureFournisseurId], references: [id], onDelete: Cascade)
 
   @@index([dateEcheance])
   @@index([statut])
-  @@index([factureFournisseurId])
-  @@index([bonLivraisonId])
 }
 
 model FinanceConfig {
@@ -759,21 +723,70 @@ model PayrollConfig {
 }
 
 model CompanySettings {
-  id          String   @id @default(uuid())
-  name        String?
-  logoUrl     String?  @db.Text
-  address     String?
-  phone       String?
-  email       String?
-  ice         String?
-  identifiantFiscal String?
-  rc          String?
-  patente     String?
-  cnss        String?
-  inpeCode    String?
-  bankAccounts Json?    // Array of { bankName, rib, iban, swift }
-  headerText  String?
-  footerText  String?
-  cachetUrl   String?  @db.Text
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  logoUrl   String?
+  address   String?
+  phone     String?
+  email     String?
+  website   String?
+  ice       String?
+  rc        String?
+  if        String?
+  patente   String?
+  rib       String?
+  bank      String?
+  updatedAt DateTime @updatedAt
+  cachetUrl String?
+}
+
+model GlassBrand {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model GlassMaterial {
+  id        String       @id @default(uuid())
+  name      String       @unique
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  indices   GlassIndex[]
+}
+
+model GlassIndex {
+  id         String        @id @default(uuid())
+  value      String
+  label      String?
+  price      Float         @default(0)
+  materialId String
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  material   GlassMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([materialId, value])
+}
+
+model GlassTreatment {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  price     Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RewardRedemption {
+  id         String   @id @default(uuid())
+  clientId   String
+  pointsUsed Int
+  rewardType String
+  madValue   Float
+  redeemedAt DateTime @default(now())
+  redeemedBy String?
+  userId     String?
+  isUsed     Boolean  @default(false)
+  paiementId String?
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id])
 }

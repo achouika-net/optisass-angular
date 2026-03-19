@@ -21,4 +21,9 @@ export class DiagController {
       timestamp: new Date().toISOString(),
     };
   }
+
+  @Get('glass-test')
+  async testGlass() {
+    return { status: 'OK', message: 'DiagController can see you' };
+  }
 }

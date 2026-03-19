@@ -38,7 +38,8 @@ import { LoggerMiddleware } from './common/middleware/logger.middleware';
 import { ImportsModule } from './features/imports/imports.module';
 import { CompanySettingsModule } from './features/company-settings/company-settings.module';
 import { NotificationsModule } from './features/notifications/notifications.module';
-
+import { GlassParametersModule } from './features/glass-parameters/glass-parameters.module';
+import { GlassParametersController } from './features/glass-parameters/glass-parameters.controller';
 import { DiagController } from './diag.controller';
 
 @Module({
@@ -73,6 +74,7 @@ import { DiagController } from './diag.controller';
     AccountingModule,
     ImportsModule,
     CompanySettingsModule,
+    GlassParametersModule,
     ServeStaticModule.forRoot({
       rootPath: existsSync('/app/uploads')
         ? '/app/uploads'
@@ -80,7 +82,7 @@ import { DiagController } from './diag.controller';
       serveRoot: '/uploads',
     }),
   ],
-  controllers: [DiagController],
+  controllers: [DiagController, GlassParametersController],
   providers: [],
 })
 export class AppModule implements NestModule {
