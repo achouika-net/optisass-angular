@@ -1565,32 +1565,85 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
 
         const bcNumber = group.get('referenceCommande')?.value || this.generateReference(group.get('dateCommande')?.value || new Date());
         const supplierName = group.get('fournisseur')?.value || '-';
-        const clientName = this.client ? 
-            (isClientParticulier(this.client) ? `${this.client.prenom} ${this.client.nom}`.trim() : (this.client as any).nom || 'Client') : 
-            'Client';
+        const clientName = this.client ? (isClientParticulier(this.client) ? `${this.client.nom} ${this.client.prenom || ''}`.trim() : (this.client as any).nom || 'Client') : 'Client';
 
         const lentilles = this.ficheForm.get('lentilles')?.value;
-        const bothEyesGroup = this.ficheForm.get('diffLentilles');
-        const differentODOG = bothEyesGroup ? bothEyesGroup.value : false;
+        const differentODOG = lentilles?.diffLentilles || false;
+        
+        const establishmentName = this.companySettings?.name || 'Optisaas';
+        const centerName = (this.client as any)?.centre?.nom || 'Centre Rabat';
+
+        const formatPrescription = (p: any) => {
+            if (!p) return null;
+            const parts = [];
+            
+            const sph = (p.sphere !== null && p.sphere !== undefined && p.sphere !== '') ? parseFloat(String(p.sphere)) : null;
+            const cyl = (p.cylindre !== null && p.cylindre !== undefined && p.cylindre !== '') ? parseFloat(String(p.cylindre)) : null;
+            const add = (p.addition !== null && p.addition !== undefined && p.addition !== '') ? parseFloat(String(p.addition)) : null;
+            const axe = p.axe;
+
+            if (sph !== null) {
+                if (sph !== 0 || (!cyl && !add)) {
+                    parts.push(`Sph ${sph > 0 ? '+' : ''}${sph.toFixed(2)}`);
+                }
+            }
+            
+            if (cyl && cyl !== 0) {
+                parts.push(`Cyl ${cyl > 0 ? '+' : ''}${cyl.toFixed(2)}`);
+                parts.push(`Axe ${axe || '0'}°`);
+            }
+            
+            if (add && add !== 0) {
+                parts.push(`Add ${add > 0 ? '+' : ''}${add.toFixed(2)}`);
+            }
+            
+            return parts.length > 0 ? parts.join(' | ') : '0.00';
+        };
+
+        const formatLensParams = (eye: any, fallbackEye: any) => {
+            if (!eye && !fallbackEye) return '-';
+            const details = [];
+            
+            // 1. Marque / Modèle
+            const marque = eye?.marque || fallbackEye?.marque || '';
+            const modele = eye?.modele || fallbackEye?.modele || '';
+            if (marque || modele) details.push(`*${marque} ${modele}*`.trim());
+            
+            // 2. Power (Priority to lens section, fallback to clinical prescription)
+            const power = formatPrescription(eye) || formatPrescription(fallbackEye);
+            details.push(`Pow: ${power || '0.00'}`);
+            
+            // 3. Technical (Rayon / Dia)
+            if (eye?.rayon) details.push(`R: ${eye.rayon}`);
+            if (eye?.diametre) details.push(`D: ${eye.diametre}`);
+            
+            return details.join(' | ');
+        };
+
+        const ordonnance = this.ficheForm.get('ordonnance')?.value;
 
         let detailsLentilles = '';
         if (differentODOG) {
-           const od = this.ficheForm.get('od')?.value;
-           const og = this.ficheForm.get('og')?.value;
-           detailsLentilles = `*Lentilles*\nOD : Sph ${od?.Sph || '0.00'} | Cyl ${od?.Cyl || '0.00'} | Axe ${od?.Axe || '0'} | Add ${od?.Add || '0.00'}\nOG : Sph ${og?.Sph || '0.00'} | Cyl ${og?.Cyl || '0.00'} | Axe ${og?.Axe || '0'} | Add ${og?.Add || '0.00'}`;
+            detailsLentilles = `*Lentilles*\nOD : ${formatLensParams(lentilles?.od, ordonnance?.od)}\nOG : ${formatLensParams(lentilles?.og, ordonnance?.og)}`;
         } else {
-           const od = this.ficheForm.get('od')?.value; // Used as both if not separated
-           detailsLentilles = `*Lentilles*\nSph ${od?.Sph || '0.00'} | Cyl ${od?.Cyl || '0.00'} | Axe ${od?.Axe || '0'} | Add ${od?.Add || '0.00'}`;
+            detailsLentilles = `*Lentilles*\n${formatLensParams(lentilles?.od, ordonnance?.od)}`;
         }
 
         const orderDetails = [
-            `*Bon de Commande ${bcNumber}*`,
+            `*${establishmentName} - ${centerName}*`,
+            `*Bonjour, voici une nouvelle commande de lentilles*`,
+            ``,
+            `*Réf Commande : ${bcNumber}*`,
             `Client : ${clientName}`,
             `Fournisseur : ${supplierName}`,
             ``,
             detailsLentilles,
-            `Marque : ${lentilles?.Marque || '-'}`,
-            `Type : ${lentilles?.Matiere || '-'}`
+            `Type : ${lentilles?.type || '-'}`,
+            `Usage : ${lentilles?.usage || '-'}`,
+            ``,
+            `⚠️ *Note : Les pièces jointes officielles (BC & Fiche Technique) ont été envoyées par email.*`,
+            ``,
+            `_Merci de confirmer la réception._`
         ].join('\n');
 
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(orderDetails)}`;
