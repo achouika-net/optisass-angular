@@ -215,13 +215,18 @@
   </mat-card>
 
   <!-- Professional Loading Overlay -->
-  <div *ngIf="loading" class="loading-overlay fixed inset-0 z-50 flex items-center justify-center">
-     <div class="spinner-container">
-        <div class="relative flex items-center justify-center">
-            <div class="animate-ping absolute inline-flex h-16 w-16 rounded-full bg-blue-400 opacity-20"></div>
-            <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-100 border-b-blue-600"></div>
+  <div class="loading-overlay fixed inset-0 z-[9999] flex items-center justify-center" *ngIf="loading">
+    <div class="spinner-container">
+      <div class="relative">
+        <mat-spinner diameter="60" color="primary"></mat-spinner>
+        <div class="absolute inset-0 flex items-center justify-center">
+          <mat-icon class="text-blue-100 opacity-20 scale-150">settings</mat-icon>
         </div>
-        <p>Chargement des paramètres...</p>
-     </div>
+      </div>
+      <p>Chargement des paramètres...</p>
+      <button mat-stroked-button color="primary" class="mt-4" (click)="loadAll()">
+        <mat-icon>refresh</mat-icon> Réessayer
+      </button>
+    </div>
   </div>
 </div>

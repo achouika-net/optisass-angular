@@ -13,6 +13,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSelectModule } from '@angular/material/select';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { GlassParametersService } from '../../../client-management/services/glass-parameters.service';
 
 @Component({
@@ -32,6 +33,7 @@ import { GlassParametersService } from '../../../client-management/services/glas
     MatSnackBarModule,
     MatDialogModule,
     MatSelectModule,
+    MatProgressSpinnerModule,
   ],
   templateUrl: './glass-settings.component.html',
   styleUrls: ['./glass-settings.component.scss']
@@ -56,15 +58,18 @@ export class GlassSettingsComponent implements OnInit {
   }
 
   loadAll() {
+    console.log('🔄 Loading glass parameters...');
     this.loading = true;
     this.service.getAll(true).subscribe({
       next: (data) => {
+        console.log('✅ Glass parameters loaded:', data);
         this.brands = data.brands;
         this.materials = data.materials;
         this.treatments = data.treatments;
         this.loading = false;
       },
-      error: () => {
+      error: (err) => {
+        console.error('❌ Error loading glass parameters:', err);
         this.snackBar.open('Erreur lors du chargement des paramètres', 'OK', { duration: 3000 });
         this.loading = false;
       }
