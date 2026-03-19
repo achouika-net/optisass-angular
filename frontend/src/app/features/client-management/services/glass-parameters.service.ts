@@ -17,14 +17,16 @@ export class GlassParametersService {
   getAll(forceRefresh = false): Observable<GlassParameters> {
     if (!this.cache$ || forceRefresh) {
       this.cache$ = this.http.get<GlassParameters>(`${this.apiUrl}/all`).pipe(
-        timeout(10000), // 10 second timeout
+        timeout(10000),
         catchError(err => {
-          this.cache$ = undefined; // Clear cache on error
+          console.error('[GlassParametersService] Request failed:', err);
+          this.cache$ = undefined;
           return throwError(() => err);
         }),
         shareReplay(1)
       );
     }
+    console.log('[GlassParametersService] Returning observable for all parameters');
     return this.cache$;
   }
 
