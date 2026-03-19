@@ -145,7 +145,11 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
     dateToday = new Date();
 
-    get minDate(): Date {
+    get minDate(): Date | null {
+        // [FIX] Allow past dates for existing fiches to avoid blocking the update button
+        if (this.ficheId && this.ficheId !== 'new') {
+            return null;
+        }
         const d = new Date();
         d.setHours(0, 0, 0, 0);
         return d;
@@ -429,6 +433,42 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         });
         // Initial call
         this.updateNomenclature();
+
+        // 🔍 DEBUG: Log invalid controls to help identify why the button is disabled
+        this.ficheForm.statusChanges.pipe(debounceTime(500)).subscribe(status => {
+            if (status === 'INVALID') {
+                const controls = this.ficheForm.controls;
+                for (const name in controls) {
+                    if (controls[name].invalid) {
+                console.log('❌ [DEBUG] Invalid Root Control: ' + name, controls[name].errors);
+                // Also log the current value to see why it's failing
+                console.log(`   -> Current Value of ${name}:`, controls[name].value);
+                        
+                        // If it's a group, explore it
+                        if (controls[name] instanceof FormGroup) {
+                            const group = controls[name] as FormGroup;
+                            for (const subName in group.controls) {
+                                if (group.controls[subName].invalid) {
+                                    console.log(`   -> Sub-control ${name}.${subName} is INVALID:`, group.controls[subName].errors);
+                                    
+                                    // Handle deeper nesting (like ordonnance.od)
+                                    if (group.controls[subName] instanceof FormGroup) {
+                                        const subGroup = group.controls[subName] as FormGroup;
+                                        for (const deepName in subGroup.controls) {
+                                            if (subGroup.controls[deepName].invalid) {
+                                                console.log(`      => Deep control ${name}.${subName}.${deepName} is INVALID:`, subGroup.controls[deepName].errors);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                console.log('✅ [DEBUG] Form is now VALID');
+            }
+        });
 
         // REACTIVE RECEPTION CHECK: Trigger whenever the invoice status changes
         this.linkedFacture$.subscribe((facture: Facture | null) => {
@@ -1101,19 +1141,29 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         const verresGroup = parentGroup.get('verres');
         if (!verresGroup) return;
 
+        // [FIX] Ensure indice is a string for mat-select matching
+        const safeIndice = suggestion.indice !== undefined && suggestion.indice !== null ? String(suggestion.indice) : null;
+
+        // Ensure the suggested index is available in the select options
+        if (safeIndice && !this.lensIndices.includes(safeIndice)) {
+            console.log(`➕ [DEBUG] Adding missing index ${safeIndice} to lensIndices`);
+            this.lensIndices.push(safeIndice);
+            this.lensIndices.sort();
+        }
+
         if (suggestion.type === 'Paire') {
             // Case A: Apply to both (Grouped Mode)
             verresGroup.patchValue({
                 differentODOG: false,
                 matiere: suggestion.matiere,
-                indice: suggestion.indice,
+                indice: safeIndice,
                 traitement: suggestion.traitements || [],
                 // Update shadow fields
                 matiereOD: suggestion.matiere,
-                indiceOD: suggestion.indice,
+                indiceOD: safeIndice,
                 traitementOD: suggestion.traitements || [],
                 matiereOG: suggestion.matiere,
-                indiceOG: suggestion.indice,
+                indiceOG: safeIndice,
                 traitementOG: suggestion.traitements || []
             });
             this.closeSuggestions();
@@ -1127,13 +1177,13 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             if (suggestion.type === 'OD') {
                 verresGroup.patchValue({
                     matiereOD: suggestion.matiere,
-                    indiceOD: suggestion.indice,
+                    indiceOD: safeIndice,
                     traitementOD: suggestion.traitements || []
                 });
             } else if (suggestion.type === 'OG') {
                 verresGroup.patchValue({
                     matiereOG: suggestion.matiere,
-                    indiceOG: suggestion.indice,
+                    indiceOG: safeIndice,
                     traitementOG: suggestion.traitements || []
                 });
             }
@@ -1816,7 +1866,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     addition: [null],
                     prisme: [null],
                     base: [null],
-                    ep: [null]
+                    ep: [null],
+                    diametre: [null]
                 }),
                 og: this.fb.group({
                     sphere: [null],
@@ -1825,7 +1876,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     addition: [null],
                     prisme: [null],
                     base: [null],
-                    ep: [null]
+                    ep: [null],
+                    diametre: [null]
                 }),
                 datePrescription: [new Date()],
                 prescripteur: [''],
@@ -4828,15 +4880,49 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         }
 
         const bcData = this.ficheForm.get('suiviCommande')?.value;
-        let clientName = this.client ? (isClientProfessionnel(this.client) ? this.client.raisonSociale : `${this.client.nom} ${this.client.prenom || ''}`).trim() : 'Client';
+        const clientName = this.client ? (isClientProfessionnel(this.client) ? this.client.raisonSociale : `${this.client.nom} ${this.client.prenom || ''}`).trim() : 'Client';
 
-        // Reconstruct order details
         const monture = this.ficheForm.get('monture')?.value;
-        const verres = this.ficheForm.get('verres')?.value;
+        const verresGroup = this.ficheForm.get('verres')?.value;
+        const ordonnanceGroup = this.ficheForm.get('ordonnance')?.value;
         const montage = this.ficheForm.get('montage')?.value;
 
         const establishmentName = this.companySettings?.name || 'Optisaas';
         const centerName = (this.client as any)?.centre?.nom || 'Centre Rabat';
+
+        const formatPrescription = (p: any) => {
+            if (!p) return '-';
+            const parts = [];
+            
+            const sph = (p.sphere !== null && p.sphere !== undefined && p.sphere !== '') ? parseFloat(String(p.sphere)) : null;
+            const cyl = (p.cylindre !== null && p.cylindre !== undefined && p.cylindre !== '') ? parseFloat(String(p.cylindre)) : null;
+            const add = (p.addition !== null && p.addition !== undefined && p.addition !== '') ? parseFloat(String(p.addition)) : null;
+            const axe = p.axe;
+
+            if (sph !== null) {
+                if (sph !== 0 || (!cyl && !add)) {
+                    parts.push(`Sph ${sph > 0 ? '+' : ''}${sph.toFixed(2)}`);
+                }
+            }
+            
+            if (cyl && cyl !== 0) {
+                parts.push(`Cyl ${cyl > 0 ? '+' : ''}${cyl.toFixed(2)}`);
+                parts.push(`Axe ${axe || '0'}°`);
+            }
+            
+            if (add && add !== 0) {
+                parts.push(`Add ${add > 0 ? '+' : ''}${add.toFixed(2)}`);
+            }
+            
+            return parts.length > 0 ? parts.join(' | ') : 'Plano';
+        };
+
+        const lensTypeInfo = [
+            verresGroup?.type,
+            verresGroup?.marque,
+            verresGroup?.matiere,
+            verresGroup?.indice ? `Indice ${verresGroup.indice}` : null
+        ].filter(v => v && v !== '-' && v !== 'null').join(' | ') || '-';
 
         const orderDetails = [
             `*${establishmentName} - ${centerName}*`,
@@ -4852,9 +4938,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             `Type   : ${monture?.typeEquipement || '-'}`,
             ``,
             `*Prescription*`,
-            `OD : Sph ${verres?.od?.sphere || '0.00'} | Cyl ${verres?.od?.cylindre || '0.00'} | Axe ${verres?.od?.axe || '0'} | Add ${verres?.od?.addition || '0.00'}`,
-            `OG : Sph ${verres?.og?.sphere || '0.00'} | Cyl ${verres?.og?.cylindre || '0.00'} | Axe ${verres?.og?.axe || '0'} | Add ${verres?.og?.addition || '0.00'}`,
-            `Type Verre : ${verres?.marque || '-'} ${verres?.matiere || '-'}`,
+            `OD : ${formatPrescription(ordonnanceGroup?.od)}`,
+            `OG : ${formatPrescription(ordonnanceGroup?.og)}`,
+            `Type Verre : ${lensTypeInfo}`,
             ``,
             `*Mesures de Montage (Fiche Montage)*`,
             `EP OD : ${montage?.ecartPupillaireOD || '-'} mm | H OD : ${montage?.hauteurOD || '-'} mm`,

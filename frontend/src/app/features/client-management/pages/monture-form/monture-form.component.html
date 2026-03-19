@@ -315,13 +315,9 @@
                 <div class="header-actions-inline">
                     <mat-form-field appearance="outline" style="width: 280px;">
                         <mat-label>Date Livraison Estimée</mat-label>
-                        <input matInput [matDatepicker]="pickerLivraisonVente" formControlName="dateLivraisonEstimee"
-                            [min]="minDate">
+                        <input matInput [matDatepicker]="pickerLivraisonVente" formControlName="dateLivraisonEstimee">
                         <mat-datepicker-toggle matSuffix [for]="pickerLivraisonVente"></mat-datepicker-toggle>
                         <mat-datepicker #pickerLivraisonVente></mat-datepicker>
-                        <mat-error *ngIf="ficheForm.get('dateLivraisonEstimee')?.hasError('matDatepickerMin')">
-                            La date ne peut pas être dans le passé
-                        </mat-error>
                     </mat-form-field>
                 </div>
             </div>

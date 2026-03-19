@@ -23,7 +23,7 @@ export class FichesService {
     });
 
     if (!fiche) throw new BadRequestException('Fiche introuvable');
-    console.log(`📧 [FichesService] Preparing order email for Fiche #${fiche.numero} (ID: ${id})`);
+    console.log(`📧 [FichesService] Preparing order email for Fiche #${fiche.numero} (ID: ${id}) Type: ${fiche.type}`);
 
     const content = (fiche.content as any) || {};
     const suivi = content.suiviCommande || {};
@@ -41,11 +41,12 @@ export class FichesService {
       throw new BadRequestException(`Email introuvable pour le fournisseur: ${suivi.fournisseur}. Veuillez configurer son adresse email.`);
     }
 
-    // 2. Prepare Data for PDF
-    const ordonnance = content.ordonnance || {};
-    const verres = content.verres || {};
-    const monture = content.monture || {};
-    const montage = content.montage || {};
+    const companySettings = await this.prisma.companySettings.findFirst();
+    const branding = {
+      companyName: companySettings?.name || "Optisaas",
+      logoUrl: companySettings?.logoUrl || undefined,
+      cachetUrl: companySettings?.cachetUrl || undefined,
+    };
 
     const clientName = `${fiche.client.prenom || ''} ${fiche.client.nom || ''}`.trim();
     const bcNumber = suivi.referenceCommande || `BC-${fiche.numero}`;
@@ -54,195 +55,269 @@ export class FichesService {
     // Helper for formatting (+1.50, -0.75, etc.)
     const formatSigned = (val: any, fallback = '0.00') => {
       if (val === null || val === undefined || val === '') return fallback;
-      const num = parseFloat(val);
+      const num = parseFloat(String(val).replace(/,/g, '.'));
       if (isNaN(num)) return val;
       return (num >= 0 ? '+' : '') + num.toFixed(2);
     };
 
-    const companySettings = await this.prisma.companySettings.findFirst();
-    const branding = {
-      companyName: companySettings?.name || "Optisaas",
-      logoUrl: companySettings?.logoUrl || undefined,
-      cachetUrl: companySettings?.cachetUrl || undefined,
-    };
+    let bcPdf: Buffer;
+    let techPdf: Buffer;
+    let techFileName: string;
 
-    // Lens detail formatting to match frontend
-    const getLensBrand = (m: string, i: string, f: string) => {
-      const parts: string[] = [];
-      if (m) parts.push(m);
-      if (i) parts.push(i);
-      let str = parts.join(' ');
-      if (f) str += ` (${f})`;
-      return str.trim() || '-';
-    };
+    if (fiche.type?.toUpperCase() === 'LENTILLES') {
+      const lentilles = content.lentilles || {};
+      const adaptation = content.adaptation || {};
+      const ordonnance = content.ordonnance || content.prescription || {};
 
-    // Help fix Axe duplication (remove any existing degree symbols)
-    const cleanAxe = (val: any) => String(val || '0').replace(/°/g, '');
+      const odL = lentilles.od || {};
+      const ogL = lentilles.og || (lentilles.diffLentilles ? {} : odL);
+      const odP = ordonnance.od || {};
+      const ogP = ordonnance.og || {};
 
-    // -------------------------------------------------------------------
-    // [NEW] STANDARDIZED DIAMETER CALCULATION (Mesuré vs Commandé)
-    // -------------------------------------------------------------------
-    const getStdDiam = (d: number) => {
-      const standards = [50, 55, 60, 65, 70, 75, 80, 85];
-      return standards.find((s) => s >= d) || 85;
-    };
+      console.log('📄 [FichesService] Generating LENS PDFs...');
 
-    const parseDualValue = (val: string | null): { od: number | null, og: number | null } => {
-      if (!val || typeof val !== 'string') return { od: null, og: null };
-      if (val.includes('/')) {
-        const [od, og] = val.split('/').map((v) => parseFloat(v));
-        return { od: isNaN(od) ? null : od, og: isNaN(og) ? null : og };
-      }
-      const num = parseFloat(val);
-      return { od: isNaN(num) ? null : num, og: isNaN(num) ? null : num };
-    };
-
-    // 1. Get Measured Diameters (Diamètre Utile / Effectif)
-    const measuredRaw = ((montage as any).diametreEffectif || (montage as any).diagonalMm) as string;
-    const measured = parseDualValue(measuredRaw);
-    
-    // 2. Calculate "Commandé" (Standardized + Safety Margin)
-    const safetyMargin = 3.0; // Margin for edging
-    const intermediate = {
-      od: measured.od ? measured.od + safetyMargin : 0,
-      og: measured.og ? measured.og + safetyMargin : 0
-    };
-    const ordered = {
-      od: measured.od ? getStdDiam(intermediate.od) : 70,
-      og: measured.og ? getStdDiam(intermediate.og) : 75
-    };
-
-    // Technical note for Fiche Montage
-    const measuredLabel = (measuredRaw || (measured.od && measured.og ? `${measured.od}/${measured.og}` : '-')) as string;
-    const intermediateLabel = (measured.od && measured.og ? `${intermediate.od.toFixed(1)}/${intermediate.og.toFixed(1)} mm` : '-');
-    
-    const technicalNoteData = {
-      mesure: measuredLabel || (measured.od && measured.og ? `${measured.od}/${measured.og}` : '65/70'),
-      safety: safetyMargin,
-      intermediate: intermediateLabel,
-      ordered: `${ordered.od}/${ordered.og}`
-    };
-
-    // Helper to format treatments list
-    const formatTreatments = (t: any) => {
-      if (!t) return 'STANDARD';
-      const arr = Array.isArray(t) ? t : [String(t)];
-      if (arr.length === 0) return 'STANDARD';
-      return arr.join(', ').toUpperCase();
-    };
-
-    const lensDetails = {
-      od: verres.differentODOG 
-        ? getLensBrand(verres.marqueOD, verres.matiereOD, verres.fournisseurOD)
-        : getLensBrand(verres.marque, verres.matiere, verres.fournisseur),
-      og: verres.differentODOG 
-        ? getLensBrand(verres.marqueOG, verres.matiereOG, verres.fournisseurOG)
-        : getLensBrand(verres.marque, verres.matiere, verres.fournisseur),
-      treatments: (() => {
-        const tOD = verres.traitementOD || verres.traitement || verres.traitements;
-        const tOG = verres.traitementOG || verres.traitement || verres.traitements;
-        const a1 = Array.isArray(tOD) ? tOD : [tOD];
-        const a2 = Array.isArray(tOG) ? tOG : [tOG];
-        const merged = Array.from(new Set([...a1, ...a2].filter(Boolean)));
-        return merged.length > 0 ? merged.join(', ').toUpperCase() : 'STANDARD';
-      })(),
-      indiceOD: verres.differentODOG ? (verres.indiceOD || '-') : (verres.indice || '-'),
-      indiceOG: verres.differentODOG ? (verres.indiceOG || '-') : (verres.indice || '-'),
-      matiereOD: verres.differentODOG ? (verres.matiereOD || '-') : (verres.matiere || '-'),
-      matiereOG: verres.differentODOG ? (verres.matiereOG || '-') : (verres.matiere || '-'),
-      typeVerre: verres.type || '-'
-    };
-
-    const frameDetails = {
-      reference: monture.reference || '-',
-      marque: monture.marque || '-',
-      taille: monture.taille || '-'
-    };
-
-    // 1. Generate Bon de Commande PDF
-    console.log(`📄 [FichesService] Generating BC PDF with bcNumber: ${bcNumber}, Client: ${clientName}`);
-    const bcPdf = await this.pdfService.generatePurchaseOrder({
-      bcNumber,
-      date,
-      supplierName: suivi.fournisseur,
-      clientName: clientName,
-      designation: branding.companyName, 
-      prescription: {
-        od: {
-          sphere: formatSigned(ordonnance.od?.sphere),
-          cylindre: formatSigned(ordonnance.od?.cylindre),
-          axe: cleanAxe(ordonnance.od?.axe),
-          addition: formatSigned(ordonnance.od?.addition, '-'),
-          ep: String(montage.ecartPupillaireOD || ordonnance.od?.ep || '-'),
-          haut: String(montage.hauteurOD || '-'),
-          diametre: String(ordered.od), // Ordered (for table)
-          diamUtile: measured.od ? String(measured.od) : '-' // Measured (for header grid)
+      bcPdf = await this.pdfService.generateLensPurchaseOrder({
+        bcNumber,
+        date,
+        supplierName: suivi.fournisseur,
+        clientName,
+        prescription: {
+          od: { 
+            sphere: formatSigned(odP.sphere), 
+            cylindre: formatSigned(odP.cylindre), 
+            axe: String(odP.axe || '0') + '°', 
+            addition: formatSigned(odP.addition),
+            rayon: String(odL.rayon || '-'),
+            diametre: String(odL.diametre || '-')
+          },
+          og: { 
+            sphere: formatSigned(ogP.sphere), 
+            cylindre: formatSigned(ogP.cylindre), 
+            axe: String(ogP.axe || '0') + '°', 
+            addition: formatSigned(ogP.addition),
+            rayon: String(ogL.rayon || '-'),
+            diametre: String(ogL.diametre || '-')
+          },
         },
-        og: {
-          sphere: formatSigned(ordonnance.og?.sphere),
-          cylindre: formatSigned(ordonnance.og?.cylindre),
-          axe: cleanAxe(ordonnance.og?.axe),
-          addition: formatSigned(ordonnance.og?.addition, '-'),
-          ep: String(montage.ecartPupillaireOG || ordonnance.og?.ep || '-'),
-          haut: String(montage.hauteurOG || '-'),
-          diametre: String(ordered.og), // Ordered (for table)
-          diamUtile: measured.og ? String(measured.og) : '-' // Measured (for header grid)
+        lensDetails: {
+          marque: String(odL.marque || '-'),
+          modele: String(odL.modele || '-'),
+          type: String(lentilles.type || '-')
         },
-      },
-      ficheNumber: String(fiche.numero),
-      lensDetails,
-      frameDetails,
-      branding,
-    });
+        branding,
+        ficheNumber: String(fiche.numero)
+      });
 
-    // 2. Generate Fiche de Montage PDF
-    console.log(`📄 [FichesService] Generating Fiche de Montage PDF with technicalNoteData:`, 
-      technicalNoteData,
-    );
-    const montagePdf = await this.pdfService.generateFicheMontagePdf({
-      bcNumber,
-      date,
-      clientName: clientName,
-      magasinName: fiche.client?.centre?.nom || branding.companyName,
-      prescription: {
-        od: {
-          sphere: formatSigned(ordonnance.od?.sphere),
-          cylindre: formatSigned(ordonnance.od?.cylindre),
-          axe: cleanAxe(ordonnance.od?.axe),
-          addition: formatSigned(ordonnance.od?.addition, '-'),
+      techPdf = await this.pdfService.generateLensTechnicalSheet({
+        bcNumber,
+        date,
+        clientName,
+        prescription: {
+          od: { 
+            sphere: formatSigned(odP.sphere), 
+            cylindre: formatSigned(odP.cylindre), 
+            addition: formatSigned(odP.addition),
+            axe: String(odP.axe || '0') + '°'
+          },
+          og: { 
+            sphere: formatSigned(ogP.sphere), 
+            cylindre: formatSigned(ogP.cylindre), 
+            addition: formatSigned(ogP.addition),
+            axe: String(ogP.axe || '0') + '°'
+          },
         },
-        og: {
-          sphere: formatSigned(ordonnance.og?.sphere),
-          cylindre: formatSigned(ordonnance.og?.cylindre),
-          axe: cleanAxe(ordonnance.og?.axe),
-          addition: formatSigned(ordonnance.og?.addition, '-'),
+        lentilles: {
+          od: { 
+            marque: String(odL.marque || '-'), 
+            modele: String(odL.modele || '-'), 
+            rayon: String(odL.rayon || '-'), 
+            diametre: String(odL.diametre || '-'), 
+            mouvement: String(odL.mouvement || '-'), 
+            centrage: String(odL.centrage || '-') 
+          },
+          og: { 
+            marque: String(ogL.marque || '-'), 
+            modele: String(ogL.modele || '-'), 
+            rayon: String(ogL.rayon || '-'), 
+            diametre: String(ogL.diametre || '-'), 
+            mouvement: String(ogL.mouvement || '-'), 
+            centrage: String(ogL.centrage || '-') 
+          },
+          type: String(lentilles.type || '-'),
+          usage: String(lentilles.usage || '-')
         },
-      },
-      ficheNumber: String(fiche.numero),
-      centrage: {
-        od: { 
-          dp: String(montage.ecartPupillaireOD || '0'), 
-          ht: String(montage.hauteurOD || '0'), 
-          diamUtile: measured.od ? String(measured.od) : '-'
+        adaptation: {
+          od: { 
+            secretionLacrimale: String(adaptation.od?.secretionLacrimale || '-'), 
+            but: String(adaptation.od?.but || '-') 
+          },
+          og: { 
+            secretionLacrimale: String(adaptation.og?.secretionLacrimale || '-'), 
+            but: String(adaptation.og?.but || '-') 
+          },
         },
-        og: { 
-          dp: String(montage.ecartPupillaireOG || '0'), 
-          ht: String(montage.hauteurOG || '0'), 
-          diamUtile: measured.og ? String(measured.og) : '-',
+        keratometrie: {
+          od: { 
+            k1: String(odL.keratoH || '-'), 
+            k2: String(odL.keratoV || '-'), 
+            axe: String(odL.keratoAxe || '-'), 
+            kMoy: String(odL.keratoMoy || '-') 
+          },
+          og: { 
+            k1: String(ogL.keratoH || '-'), 
+            k2: String(ogL.keratoV || '-'), 
+            axe: String(ogL.keratoAxe || '-'), 
+            kMoy: String(ogL.keratoMoy || '-') 
+          },
         },
-      },
-      verres: lensDetails,
-      diametreConseille: technicalNoteData.ordered,
-      technicalNote: technicalNoteData, // [NEW] Pass data for the blue box
-      imageMontureUrl: undefined, // User requested: show canvas only, not the captured real photo
-      virtualCenteringUrl: montage.configImage || content.configImage || content.virtualCenteringUrl || undefined,
-      preconisationsIA: {
-        od: verres.preconisationIA_OD || `${verres.marqueOD || ''} ${verres.matiereOD || ''}`.trim() || '-',
-        og: verres.preconisationIA_OG || `${verres.marqueOG || ''} ${verres.matiereOG || ''}`.trim() || '-',
-      },
-      observations: montage.remarques || content.observations || undefined,
-      branding,
-    });
+        branding,
+        ficheNumber: String(fiche.numero)
+      });
+      techFileName = `Fiche_Technique_${bcNumber}.pdf`;
+
+    } else {
+      // --- GLASSES (MONTURE) LOGIC ---
+      const ordonnance = content.ordonnance || {};
+      const verres = content.verres || {};
+      const montage = content.montage || {};
+      const monture = content.monture || {};
+
+      // Helper for Axe and Diameter calculation (Existing logic preserved)
+      const cleanAxe = (val: any) => String(val || '0').replace(/°/g, '');
+      const getStdDiam = (d: number) => {
+        const standards = [50, 55, 60, 65, 70, 75, 80, 85];
+        return standards.find((s) => s >= d) || 85;
+      };
+      const parseDualValue = (val: string | null): { od: number | null, og: number | null } => {
+        if (!val || typeof val !== 'string') return { od: null, og: null };
+        if (val.includes('/')) {
+          const [od, og] = val.split('/').map((v) => parseFloat(v));
+          return { od: isNaN(od) ? null : od, og: isNaN(og) ? null : og };
+        }
+        const num = parseFloat(val);
+        return { od: isNaN(num) ? null : num, og: isNaN(num) ? null : num };
+      };
+
+      const measuredRaw = ((montage as any).diametreEffectif || (montage as any).diagonalMm) as string;
+      const measured = parseDualValue(measuredRaw);
+      const safetyMargin = 3.0;
+      const ordered = {
+        od: measured.od ? getStdDiam(measured.od + safetyMargin) : 70,
+        og: measured.og ? getStdDiam(measured.og + safetyMargin) : 75
+      };
+
+      const getLensBrand = (m: string, i: string, f: string) => {
+        const parts: string[] = [];
+        if (m) parts.push(m);
+        if (i) parts.push(i);
+        let str = parts.join(' ');
+        if (f) str += ` (${f})`;
+        return str.trim() || '-';
+      };
+
+      const lensDetails = {
+        od: verres.differentODOG 
+          ? getLensBrand(verres.marqueOD, verres.matiereOD, verres.fournisseurOD)
+          : getLensBrand(verres.marque, verres.matiere, verres.fournisseur),
+        og: verres.differentODOG 
+          ? getLensBrand(verres.marqueOG, verres.matiereOG, verres.fournisseurOG)
+          : getLensBrand(verres.marque, verres.matiere, verres.fournisseur),
+        treatments: (() => {
+          const tOD = verres.traitementOD || verres.traitement || verres.traitements;
+          const tOG = verres.traitementOG || verres.traitement || verres.traitements;
+          const a1 = Array.isArray(tOD) ? tOD : [tOD];
+          const a2 = Array.isArray(tOG) ? tOG : [tOG];
+          const merged = Array.from(new Set([...a1, ...a2].filter(Boolean)));
+          return merged.length > 0 ? merged.join(', ').toUpperCase() : 'STANDARD';
+        })(),
+        indiceOD: verres.differentODOG ? (verres.indiceOD || '-') : (verres.indice || '-'),
+        indiceOG: verres.differentODOG ? (verres.indiceOG || '-') : (verres.indice || '-'),
+        matiereOD: verres.differentODOG ? (verres.matiereOD || '-') : (verres.matiere || '-'),
+        matiereOG: verres.differentODOG ? (verres.matiereOG || '-') : (verres.matiere || '-'),
+        typeVerre: verres.type || '-'
+      };
+
+      console.log('📄 [FichesService] Generating GLASSES PDFs...');
+      bcPdf = await this.pdfService.generatePurchaseOrder({
+        bcNumber,
+        date,
+        supplierName: suivi.fournisseur,
+        clientName,
+        designation: branding.companyName, 
+        prescription: {
+          od: {
+            sphere: formatSigned(ordonnance.od?.sphere),
+            cylindre: formatSigned(ordonnance.od?.cylindre),
+            axe: cleanAxe(ordonnance.od?.axe),
+            addition: formatSigned(ordonnance.od?.addition, '-'),
+            ep: String(montage.ecartPupillaireOD || ordonnance.od?.ep || '-'),
+            haut: String(montage.hauteurOD || '-'),
+            diametre: String(ordered.od),
+            diamUtile: measured.od ? String(measured.od) : '-'
+          },
+          og: {
+            sphere: formatSigned(ordonnance.og?.sphere),
+            cylindre: formatSigned(ordonnance.og?.cylindre),
+            axe: cleanAxe(ordonnance.og?.axe),
+            addition: formatSigned(ordonnance.og?.addition, '-'),
+            ep: String(montage.ecartPupillaireOG || ordonnance.og?.ep || '-'),
+            haut: String(montage.hauteurOG || '-'),
+            diametre: String(ordered.og),
+            diamUtile: measured.og ? String(measured.og) : '-'
+          },
+        },
+        ficheNumber: String(fiche.numero),
+        lensDetails,
+        frameDetails: {
+          reference: monture.reference || '-',
+          marque: monture.marque || '-',
+          taille: monture.taille || '-'
+        },
+        branding,
+      });
+
+      techPdf = await this.pdfService.generateFicheMontagePdf({
+        bcNumber,
+        date,
+        clientName,
+        magasinName: fiche.client?.centre?.nom || branding.companyName,
+        prescription: {
+          od: {
+            sphere: formatSigned(ordonnance.od?.sphere),
+            cylindre: formatSigned(ordonnance.od?.cylindre),
+            axe: cleanAxe(ordonnance.od?.axe),
+            addition: formatSigned(ordonnance.od?.addition, '-'),
+          },
+          og: {
+            sphere: formatSigned(ordonnance.og?.sphere),
+            cylindre: formatSigned(ordonnance.og?.cylindre),
+            axe: cleanAxe(ordonnance.og?.axe),
+            addition: formatSigned(ordonnance.og?.addition, '-'),
+          },
+        },
+        ficheNumber: String(fiche.numero),
+        centrage: {
+          od: { dp: String(montage.ecartPupillaireOD || '0'), ht: String(montage.hauteurOD || '0'), diamUtile: measured.od ? String(measured.od) : '-' },
+          og: { dp: String(montage.ecartPupillaireOG || '0'), ht: String(montage.hauteurOG || '0'), diamUtile: measured.og ? String(measured.og) : '-' },
+        },
+        verres: lensDetails,
+        diametreConseille: `${ordered.od}/${ordered.og}`,
+        technicalNote: {
+          mesure: (measuredRaw || (measured.od && measured.og ? `${measured.od}/${measured.og}` : '65/70')) as string,
+          safety: safetyMargin,
+          intermediate: (measured.od && measured.og ? `${(measured.od + safetyMargin).toFixed(1)}/${(measured.og + safetyMargin).toFixed(1)} mm` : '-'),
+          ordered: `${ordered.od}/${ordered.og}`
+        },
+        virtualCenteringUrl: montage.configImage || content.configImage || content.virtualCenteringUrl || undefined,
+        preconisationsIA: {
+          od: verres.preconisationIA_OD || `${verres.marqueOD || ''} ${verres.matiereOD || ''}`.trim() || '-',
+          og: verres.preconisationIA_OG || `${verres.marqueOG || ''} ${verres.matiereOG || ''}`.trim() || '-',
+        },
+        observations: montage.remarques || content.observations || undefined,
+        branding,
+      });
+      techFileName = `Fiche_de_Montage_${bcNumber}.pdf`;
+    }
 
     const centreEmail = fiche.client?.centre?.email || undefined;
     const centreName = fiche.client?.centre?.nom || undefined;
@@ -257,9 +332,9 @@ export class FichesService {
         subject: `[${branding.companyName}] Commande Optique - ${bcNumber} - Client: ${clientName}`,
         text: `Bonjour,
 
-Veuillez trouver ci-joint les documents concernant la commande de verres pour le client ${clientName} :
+Veuillez trouver ci-joint les documents concernant la commande pour le client ${clientName} :
 - Le Bon de Commande (Réf: ${bcNumber})
-- La Fiche de Montage avec les mesures techniques.
+- ${fiche.type === 'LENTILLES' ? 'La Fiche Technique' : 'La Fiche de Montage'} avec les mesures techniques.
 
 Nous restons à votre disposition pour toute information complémentaire.
 
@@ -272,8 +347,8 @@ ${centreName ? `(${centreName})` : ''}`,
             content: bcPdf,
           },
           {
-            filename: `Fiche_de_Montage_${bcNumber}.pdf`,
-            content: montagePdf,
+            filename: techFileName,
+            content: techPdf,
           },
         ],
       });
