@@ -506,9 +506,13 @@
                                     </mat-form-field>
                                     <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Traitement</mat-label>
-                                        <mat-select formControlName="traitement" multiple>
-                                            <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
-                                                }}</mat-option>
+                                        <mat-select formControlName="traitement" multiple #traitementSelect>
+                                            <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
+                                            <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
+                                                <button mat-button color="primary" (click)="traitementSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
+                                                    Valider la sélection
+                                                </button>
+                                            </div>
                                         </mat-select>
                                     </mat-form-field>
                                     <mat-form-field appearance="outline" class="w-full">
@@ -549,15 +553,19 @@
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Indice</mat-label>
                                             <mat-select formControlName="indiceOD">
-                                                <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
+                                                <mat-option *ngFor="let i of lensIndicesOD" [value]="i">{{ i
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Traitement</mat-label>
-                                            <mat-select formControlName="traitementOD" multiple>
-                                                <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
-                                                    }}</mat-option>
+                                            <mat-select formControlName="traitementOD" multiple #traitementODSelect>
+                                                <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
+                                                <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
+                                                    <button mat-button color="primary" (click)="traitementODSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
+                                                        Valider la sélection
+                                                    </button>
+                                                </div>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
@@ -596,15 +604,19 @@
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Indice</mat-label>
                                             <mat-select formControlName="indiceOG">
-                                                <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
+                                                <mat-option *ngFor="let i of lensIndicesOG" [value]="i">{{ i
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Traitement</mat-label>
-                                            <mat-select formControlName="traitementOG" multiple>
-                                                <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
-                                                    }}</mat-option>
+                                            <mat-select formControlName="traitementOG" multiple #traitementOGSelect>
+                                                <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
+                                                <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
+                                                    <button mat-button color="primary" (click)="traitementOGSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
+                                                        Valider la sélection
+                                                    </button>
+                                                </div>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
@@ -837,9 +849,13 @@
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Traitement</mat-label>
-                                            <mat-select formControlName="traitement" multiple>
-                                                <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
-                                                    }}</mat-option>
+                                            <mat-select formControlName="traitement" multiple #eqTraitementSelect>
+                                                <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
+                                                <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
+                                                    <button mat-button color="primary" (click)="eqTraitementSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
+                                                        Valider la sélection
+                                                    </button>
+                                                </div>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
@@ -880,15 +896,19 @@
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Indice</mat-label>
                                                 <mat-select formControlName="indiceOD">
-                                                    <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
+                                                    <mat-option *ngFor="let i of lensIndicesOD" [value]="i">{{ i
                                                         }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Traitement</mat-label>
-                                                <mat-select formControlName="traitementOD" multiple>
-                                                    <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
-                                                        }}</mat-option>
+                                                <mat-select formControlName="traitementOD" multiple #eqTraitementODSelect>
+                                                    <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
+                                                    <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
+                                                        <button mat-button color="primary" (click)="eqTraitementODSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
+                                                            Valider la sélection
+                                                        </button>
+                                                    </div>
                                                 </mat-select>
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
@@ -926,15 +946,19 @@
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Indice</mat-label>
                                                 <mat-select formControlName="indiceOG">
-                                                    <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
+                                                    <mat-option *ngFor="let i of lensIndicesOG" [value]="i">{{ i
                                                         }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Traitement</mat-label>
-                                                <mat-select formControlName="traitementOG" multiple>
-                                                    <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t
-                                                        }}</mat-option>
+                                                <mat-select formControlName="traitementOG" multiple #eqTraitementOGSelect>
+                                                    <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
+                                                    <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
+                                                        <button mat-button color="primary" (click)="eqTraitementOGSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
+                                                            Valider la sélection
+                                                        </button>
+                                                    </div>
                                                 </mat-select>
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">

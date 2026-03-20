@@ -188,6 +188,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     }
 
     lensIndices: string[] = [];
+    lensIndicesOD: string[] = [];
+    lensIndicesOG: string[] = [];
 
     lensTreatments: string[] = [];
 
@@ -743,6 +745,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 
                 this.lensTreatments = params.treatments.map(t => t.name);
                 
+                // [FIX] Race Condition: Re-map indices now that catalog is loaded
+                this.reMapIndices();
+
                 this.cdr.markForCheck();
             },
             error: (err) => console.error('Error loading glass parameters:', err)
@@ -910,10 +915,17 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         });
 
         // Split Fields
-        verresGroup.get('matiereOD')?.valueChanges.subscribe(updatePrice);
+        verresGroup.get('matiereOD')?.valueChanges.subscribe((val) => {
+            this.updateLensIndicesForEye('OD', group);
+            updatePrice();
+        });
         verresGroup.get('indiceOD')?.valueChanges.subscribe(updatePrice);
         verresGroup.get('traitementOD')?.valueChanges.subscribe(updatePrice);
-        verresGroup.get('matiereOG')?.valueChanges.subscribe(updatePrice);
+        
+        verresGroup.get('matiereOG')?.valueChanges.subscribe((val) => {
+            this.updateLensIndicesForEye('OG', group);
+            updatePrice();
+        });
         verresGroup.get('indiceOG')?.valueChanges.subscribe(updatePrice);
         verresGroup.get('traitementOG')?.valueChanges.subscribe(updatePrice);
 
@@ -1129,12 +1141,161 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         }
     }
 
-    // Helper to map DB index numbers to UI dropdown values
+    // Helper to map DB index numbers to UI dropdown values (Legacy Fallback)
     mapIndexToUI(dbIndex: number): string {
         if (dbIndex === 1.50) return '1.50 (Standard)';
         if (dbIndex === 1.53) return '1.53 (Trivex)';
         if (dbIndex === 1.59) return '1.59 (Polycarbonate)';
+        if (dbIndex === 1.60) return '1.60 (Organique)';
+        if (dbIndex === 1.67) return '1.67 (Organique)';
+        if (dbIndex === 1.74) return '1.74 (Organique High)';
         return dbIndex.toFixed(2);
+    }
+
+    /**
+     * [FIX] Re-synchronize all indice fields in the form with the loaded catalog labels.
+     * This is called after loadGlassParameters finishes to ensure any "raw" numeric values
+     * loaded from the database are correctly converted to UI-friendly labels even if 
+     * the catalog loaded after the fiche.
+     */
+    private reMapIndices(): void {
+        console.log('🔄 [RE-MAP] Re-mapping indices labels...');
+        const verresGroup = this.ficheForm.get('verres');
+        if (verresGroup) {
+            // 1. Map labels first based on current raw values
+            verresGroup.patchValue({
+                indice: this.findLabelForIndex(verresGroup.get('indice')?.value),
+                indiceOD: this.findLabelForIndex(verresGroup.get('indiceOD')?.value),
+                indiceOG: this.findLabelForIndex(verresGroup.get('indiceOG')?.value)
+            }, { emitEvent: false });
+
+            // 2. NOW refresh lists based on the matched labels/materials
+            this.updateLensIndicesForEye('unified', this.ficheForm);
+            this.updateLensIndicesForEye('OD', this.ficheForm);
+            this.updateLensIndicesForEye('OG', this.ficheForm);
+        }
+
+        const equipementsArray = this.ficheForm.get('equipements') as FormArray;
+        if (equipementsArray) {
+            equipementsArray.controls.forEach((group: AbstractControl) => {
+                const vGrp = group.get('verres');
+                if (vGrp) {
+                    vGrp.patchValue({
+                        indice: this.findLabelForIndex(vGrp.get('indice')?.value),
+                        indiceOD: this.findLabelForIndex(vGrp.get('indiceOD')?.value),
+                        indiceOG: this.findLabelForIndex(vGrp.get('indiceOG')?.value)
+                    }, { emitEvent: false });
+                }
+            });
+        }
+        this.cdr.markForCheck();
+    }
+
+    /**
+     * [FIX] Robust Label Lookup for Lens Indices
+     * Converts raw numbers or partial strings into the exact label string used in the UI catalog.
+     * This prevents the "Indice" field from appearing empty after saving.
+     */
+    findLabelForIndex(val: any): string {
+        if (val === undefined || val === null || val === '') return '';
+        
+        const stringVal = String(val).trim();
+        // If it already looks like a label (contains text and numbers), return it
+        if (/[a-zA-Z]/.test(stringVal)) return stringVal;
+
+        const numValue = parseFloat(stringVal);
+        if (isNaN(numValue)) return stringVal;
+
+        // 1. Search in the loaded glass parameters catalog first (Most Reliable)
+        if (this.allGlassParameters && this.allGlassParameters.materials) {
+            for (const mat of this.allGlassParameters.materials) {
+                const match = mat.indices.find(idx => Math.abs(idx.value - numValue) < 0.01);
+                if (match?.label) return match.label;
+            }
+        }
+
+        // 2. Try to find a substring match in live options lists
+        const allLists = [this.lensIndices, this.lensIndicesOD, this.lensIndicesOG];
+        for (const list of allLists) {
+            if (list && list.length > 0) {
+                const shortVal = numValue.toFixed(2);
+                const match = list.find(opt => opt.includes(shortVal));
+                if (match) return match;
+            }
+        }
+
+        // 3. Fallback to hardcoded mapping
+        const mapped = this.mapIndexToUI(numValue);
+        
+        // 4. Last resort: just use the fixed-point string
+        return mapped || numValue.toFixed(2);
+    }
+
+    /**
+     * Updates eye-specific lens indices based on selected material
+     */
+    updateLensIndicesForEye(eye: 'OD' | 'OG' | 'unified', group: AbstractControl): void {
+        const verresGroup = group.get('verres');
+        if (!verresGroup) return;
+
+        let material = '';
+        let currentIndice = '';
+        if (eye === 'unified') {
+            material = verresGroup.get('matiere')?.value;
+            currentIndice = verresGroup.get('indice')?.value;
+        } else if (eye === 'OD') {
+            material = verresGroup.get('matiereOD')?.value;
+            currentIndice = verresGroup.get('indiceOD')?.value;
+        } else if (eye === 'OG') {
+            material = verresGroup.get('matiereOG')?.value;
+            currentIndice = verresGroup.get('indiceOG')?.value;
+        }
+
+        // Prepare local Set for unique labels
+        const indices = new Set<string>();
+
+        if (material && this.allGlassParameters?.materials) {
+            const searchMat = String(material).trim().toLowerCase();
+            const matData = this.allGlassParameters.materials.find(m => 
+                m.name.trim().toLowerCase() === searchMat || 
+                searchMat.includes(m.name.trim().toLowerCase()) ||
+                m.name.trim().toLowerCase().includes(searchMat)
+            );
+            
+            if (matData) {
+                matData.indices.forEach(idx => {
+                    if (idx.label) indices.add(idx.label);
+                });
+            }
+        }
+
+        // If no material or no results, fallback to all indices
+        let result: string[] = [];
+        if (indices.size > 0) {
+            result = Array.from(indices).sort();
+        } else {
+            // Master fallback from allGlassParameters
+            const all = new Set<string>();
+            this.allGlassParameters?.materials.forEach(m => {
+                m.indices.forEach(i => { if (i.label) all.add(i.label); });
+            });
+            result = Array.from(all).sort();
+        }
+
+        // [FIX] Crucial: Ensure the CURRENT value is in the list to prevent it from disappearing
+        // even if it's not strictly found in the catalog for this material (e.g. legacy data)
+        const currentLabel = this.findLabelForIndex(currentIndice);
+        if (currentLabel && !result.includes(currentLabel)) {
+            result.push(currentLabel);
+            result.sort();
+        }
+        
+        if (eye === 'OD') this.lensIndicesOD = result;
+        else if (eye === 'OG') this.lensIndicesOG = result;
+        else this.lensIndices = result;
+        
+        this.cdr.markForCheck();
+        this.cdr.detectChanges();
     }
 
     applySuggestion(suggestion: SuggestionIA, parentGroup: AbstractControl = this.ficheForm): void {
@@ -1143,13 +1304,6 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
         // [FIX] Ensure indice is a string for mat-select matching
         const safeIndice = suggestion.indice !== undefined && suggestion.indice !== null ? String(suggestion.indice) : null;
-
-        // Ensure the suggested index is available in the select options
-        if (safeIndice && !this.lensIndices.includes(safeIndice)) {
-            console.log(`➕ [DEBUG] Adding missing index ${safeIndice} to lensIndices`);
-            this.lensIndices.push(safeIndice);
-            this.lensIndices.sort();
-        }
 
         if (suggestion.type === 'Paire') {
             // Case A: Apply to both (Grouped Mode)
@@ -1166,6 +1320,12 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 indiceOG: safeIndice,
                 traitementOG: suggestion.traitements || []
             });
+
+            // Force refresh of eye-specific lists
+            this.updateLensIndicesForEye('unified', parentGroup);
+            this.updateLensIndicesForEye('OD', parentGroup);
+            this.updateLensIndicesForEye('OG', parentGroup);
+
             this.closeSuggestions();
 
         } else {
@@ -1180,12 +1340,14 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     indiceOD: safeIndice,
                     traitementOD: suggestion.traitements || []
                 });
+                this.updateLensIndicesForEye('OD', parentGroup);
             } else if (suggestion.type === 'OG') {
                 verresGroup.patchValue({
                     matiereOG: suggestion.matiere,
                     indiceOG: safeIndice,
                     traitementOG: suggestion.traitements || []
                 });
+                this.updateLensIndicesForEye('OG', parentGroup);
             }
 
             // [NEW] Logic: Auto-Unify if OD and OG become identical
@@ -1961,18 +2123,18 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             verres: this.fb.group({
                 matiere: [data?.verres?.matiere || null],
                 marque: [data?.verres?.marque || null],
-                indice: [data?.verres?.indice || null],
+                indice: [this.findLabelForIndex(data?.verres?.indice) || null],
                 traitement: [data?.verres?.traitement || []],
                 prixOD: [data?.verres?.prixOD || 0],
                 prixOG: [data?.verres?.prixOG || 0],
                 differentODOG: [data?.verres?.differentODOG || false],
                 matiereOD: [data?.verres?.matiereOD || null],
                 marqueOD: [data?.verres?.marqueOD || null],
-                indiceOD: [data?.verres?.indiceOD || null],
+                indiceOD: [this.findLabelForIndex(data?.verres?.indiceOD) || null],
                 traitementOD: [data?.verres?.traitementOD || []],
                 matiereOG: [data?.verres?.matiereOG || null],
                 marqueOG: [data?.verres?.marqueOG || null],
-                indiceOG: [data?.verres?.indiceOG || null],
+                indiceOG: [this.findLabelForIndex(data?.verres?.indiceOG) || null],
                 traitementOG: [data?.verres?.traitementOG || []],
                 productId: [data?.verres?.productId || null],
                 entrepotId: [data?.verres?.entrepotId || null],
@@ -2370,8 +2532,13 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     }
 
     private patchForm(fiche: any): void {
+        const wasDisabled = this.ficheForm.disabled;
+        if (wasDisabled) this.ficheForm.enable({ emitEvent: false });
+
         // Patch Form Values
+        // [PATCH] Montage Data first
         console.log('📦 [PATCH] Patching Montage Data:', fiche.montage);
+
         this.ficheForm.patchValue({
             ordonnance: fiche.ordonnance || {},
             monture: fiche.monture || {},
@@ -2393,17 +2560,28 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             // FIX: Guard against empty objects overwriting form
             if (Object.keys(verresVals).length === 0) return;
 
-            // FIX: Convert numeric indices to strings for mat-select matching
-            // Using strict check to handle 0 or existing values
-            if (verresVals.indice !== undefined && verresVals.indice !== null) verresVals.indice = String(verresVals.indice);
-            if (verresVals.indiceOD !== undefined && verresVals.indiceOD !== null) verresVals.indiceOD = String(verresVals.indiceOD);
-            if (verresVals.indiceOG !== undefined && verresVals.indiceOG !== null) verresVals.indiceOG = String(verresVals.indiceOG);
+            // FIX: Robust Index Mapping for mat-select matching
+            // Using findLabelForIndex to convert numeric values (1.59) to full labels ("1.59 (Polycarbonate)")
+            if (verresVals.indice !== undefined && verresVals.indice !== null) {
+                verresVals.indice = this.findLabelForIndex(verresVals.indice);
+            }
+            if (verresVals.indiceOD !== undefined && verresVals.indiceOD !== null) {
+                verresVals.indiceOD = this.findLabelForIndex(verresVals.indiceOD);
+            }
+            if (verresVals.indiceOG !== undefined && verresVals.indiceOG !== null) {
+                verresVals.indiceOG = this.findLabelForIndex(verresVals.indiceOG);
+            }
 
             // FIX: Ensure differentODOG is set first for *ngIf visibility
             const diffODOG = verresVals.differentODOG === true;
             this.ficheForm.get('verres.differentODOG')?.setValue(diffODOG, { emitEvent: false });
 
             this.ficheForm.get('verres')?.patchValue(verresVals, { emitEvent: false });
+
+            // [FIX] Refresh index lists AFTER materials are patched so the filtering works
+            this.updateLensIndicesForEye('unified', this.ficheForm);
+            this.updateLensIndicesForEye('OD', this.ficheForm);
+            this.updateLensIndicesForEye('OG', this.ficheForm);
         }
 
         // Restore suggestions and prescription files for display
@@ -2431,22 +2609,22 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 equipementsArray.push(eqGroup);
                 this.addedEquipmentsExpanded.push(false);
 
-                // Disable if parent is disabled (View Mode)
-                if (this.ficheForm.disabled) {
+                // Disable if parent was disabled (View Mode)
+                if (wasDisabled) {
                     eqGroup.disable();
                 }
             });
         }
 
+        if (wasDisabled) this.ficheForm.disable({ emitEvent: false });
+
         // Trigger visuals
         setTimeout(() => {
-            // [FIX] Do NOT auto-calculate prices on load, as it wipes imported values that don't match catalog
-            // this.calculateLensPrices(); 
             this.updateFrameCanvasVisualization();
         }, 500);
 
-        // Force UI update (OnPush strategy might miss patchValue with emitEvent: false)
         this.cdr.markForCheck();
+        this.cdr.detectChanges();
     }
 
     setActiveTab(index: number): void {
