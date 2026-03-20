@@ -19,6 +19,9 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { debounceTime, distinctUntilChanged, filter, switchMap } from 'rxjs/operators';
 import { FamilyCheckDialogComponent, FamilyCheckDialogResult } from '../../dialogs/family-check-dialog/family-check-dialog.component';
 import { ClientManagementService } from '../../services/client.service';
+import { FinanceService } from '../../../finance/services/finance.service';
+import { Convention } from '../../../finance/models/finance.models';
+import { take } from 'rxjs';
 import {
   TypeClient,
   TitreClient,
@@ -79,6 +82,9 @@ export class ClientFormComponent implements OnInit {
   parrainSearchCtrl = new FormControl('');
   filteredParrains = signal<Client[]>([]);
 
+  // Conventions
+  conventions = signal<Convention[]>([]);
+
   // Enums pour les templates
   TypeClient = TypeClient;
   TitreClient = TitreClient;
@@ -115,11 +121,13 @@ export class ClientFormComponent implements OnInit {
     private clientService: ClientManagementService,
     private router: Router,
     private route: ActivatedRoute,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private financeService: FinanceService
   ) { }
 
   ngOnInit(): void {
     this.initForm();
+    this.loadConventions();
 
     // Vérifier si on est en mode édition
     const id = this.route.snapshot.paramMap.get('id');
@@ -322,6 +330,7 @@ export class ClientFormComponent implements OnInit {
     this.clientForm = this.fb.group({
       // Type de client (obligatoire)
       typeClient: [TypeClient.PARTICULIER, Validators.required],
+      conventionId: [null],
 
       // Champs communs
       telephone: [''],
@@ -429,6 +438,15 @@ export class ClientFormComponent implements OnInit {
 
     // Initialiser avec les validateurs pour le type par défaut
     this.onTypeClientChange(TypeClient.PARTICULIER);
+  }
+
+  private loadConventions(): void {
+    this.financeService.getConventions().pipe(take(1)).subscribe({
+      next: (conventions) => {
+        this.conventions.set(conventions);
+      },
+      error: (err) => console.error('Error loading conventions:', err)
+    });
   }
 
   private onTypeClientChange(type: TypeClient): void {
@@ -644,7 +662,8 @@ export class ClientFormComponent implements OnInit {
       telephone: client.telephone,
       ville: client.ville,
       adresse: client.adresse,
-      statut: client.statut || StatutClient.ACTIF
+      statut: client.statut || StatutClient.ACTIF,
+      conventionId: client.conventionId
     });
 
     // 2. Mettre à jour les validateurs selon le type
@@ -787,7 +806,8 @@ export class ClientFormComponent implements OnInit {
       telephone: formValue.telephone || undefined,
       ville: formValue.ville || undefined,
       adresse: formValue.adresse || undefined,
-      statut: formValue.statut
+      statut: formValue.statut,
+      conventionId: formValue.conventionId || null
     };
 
     if (typeClient === TypeClient.PARTICULIER) {

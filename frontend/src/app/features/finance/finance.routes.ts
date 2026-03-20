@@ -19,6 +19,14 @@ export const routes: Routes = [
         ]
     },
     {
+        path: 'conventions',
+        children: [
+            { path: '', loadComponent: () => import('./pages/convention-list/convention-list.component').then(m => m.ConventionListComponent) },
+            { path: 'new', loadComponent: () => import('./components/convention-form-dialog/convention-form-dialog.component').then(m => m.ConventionFormDialogComponent) },
+            { path: 'edit/:id', loadComponent: () => import('./components/convention-form-dialog/convention-form-dialog.component').then(m => m.ConventionFormDialogComponent) }
+        ]
+    },
+    {
         path: 'expenses',
         children: [
             { path: '', component: ExpenseListComponent },

@@ -78,7 +78,7 @@
                                 @if (clientForm.get('typeClient')?.value === TypeClient.PARTICULIER) {
                                 <mat-form-field appearance="outline">
                                     <mat-label>Date de naissance</mat-label>
-                                    <input matInput [matDatepicker]="picker" formControlName="dateNaissance">
+                                    <input matInput [matDatepicker]="picker" formControlName="dateNaissance" title="Date de naissance" placeholder="JJ/MM/AAAA">
                                     <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
                                     <mat-datepicker #picker></mat-datepicker>
                                     @if (clientForm.get('dateNaissance')?.hasError('required') &&
@@ -272,15 +272,31 @@
                                 </mat-form-field>
                             </div>
 
-                            <!-- Statut -->
-                            <div class="mb-6" *ngIf="clientForm.get('typeClient')?.value !== TypeClient.ANONYME">
-                                <mat-form-field appearance="outline" class="w-full">
+                            <!-- Statut & Convention -->
+                            <div class="grid grid-cols-2 gap-4 mb-6">
+                                <mat-form-field appearance="outline">
                                     <mat-label>Statut du client</mat-label>
                                     <mat-select formControlName="statut">
                                         @for (statut of statuts; track statut) {
                                         <mat-option [value]="statut">{{ statut }}</mat-option>
                                         }
                                     </mat-select>
+                                </mat-form-field>
+
+                                <mat-form-field appearance="outline">
+                                    <mat-label>Convention de prise en charge</mat-label>
+                                    <mat-select formControlName="conventionId">
+                                        <mat-option [value]="null">Aucune convention</mat-option>
+                                        @for (conv of conventions(); track conv.id) {
+                                        <mat-option [value]="conv.id">
+                                            {{ conv.nom }} 
+                                            <span class="text-xs text-gray-500">
+                                                ({{ conv.remiseType === 'PERCENTAGE' ? conv.remiseValeur + '%' : conv.remiseValeur + ' MAD' }})
+                                            </span>
+                                        </mat-option>
+                                        }
+                                    </mat-select>
+                                    <mat-hint>Appliquer une remise automatique aux factures</mat-hint>
                                 </mat-form-field>
                             </div>
                         </div>
@@ -294,7 +310,7 @@
                             <div class="col-span-1">
                                 <mat-form-field appearance="outline" class="w-full">
                                     <mat-label>Rôle Client</mat-label>
-                                    <mat-select formControlName="roleFamille">
+                                    <mat-select formControlName="roleFamille" placeholder="Sélectionner un rôle" title="Rôle Client">
                                         <mat-option *ngFor="let role of rolesClientFamille" [value]="role">
                                             {{role}}
                                         </mat-option>
@@ -322,7 +338,7 @@
                             <div class="col-span-1">
                                 <mat-form-field appearance="outline" class="w-full">
                                     <mat-label>ID Famille</mat-label>
-                                    <input matInput placeholder="ID Groupe Famille" disabled>
+                                    <input matInput placeholder="ID Groupe Famille" disabled title="ID Famille">
                                 </mat-form-field>
                             </div>
 
@@ -387,62 +403,6 @@
                         </div>
                     </mat-tab>
 
-                    <!-- ONGLET CONVENTION (Professionnel uniquement) -->
-                    @if (clientForm.get('typeClient')?.value === TypeClient.PROFESSIONNEL) {
-                    <mat-tab label="Convention">
-                        <div class="p-6" formGroupName="convention">
-                            <mat-checkbox formControlName="actif" class="mb-4">
-                                Ce client bénéficie d'une convention
-                            </mat-checkbox>
-
-                            @if (clientForm.get('convention.actif')?.value) {
-                            <div class="grid grid-cols-2 gap-4 mt-4">
-                                <mat-form-field appearance="outline">
-                                    <mat-label>Nom de la convention</mat-label>
-                                    <input matInput formControlName="nomConvention">
-                                    @if (clientForm.get('convention.nomConvention')?.hasError('required')) {
-                                    <mat-error>Le nom est requis</mat-error>
-                                    }
-                                </mat-form-field>
-
-                                <mat-form-field appearance="outline">
-                                    <mat-label>Remise (%)</mat-label>
-                                    <input matInput type="number" formControlName="remiseOfferte">
-                                </mat-form-field>
-
-                                <mat-form-field appearance="outline">
-                                    <mat-label>Nom contact</mat-label>
-                                    <input matInput formControlName="contactNom">
-                                </mat-form-field>
-
-                                <mat-form-field appearance="outline">
-                                    <mat-label>Tel contact</mat-label>
-                                    <input matInput formControlName="contactTelephone">
-                                </mat-form-field>
-
-                                <mat-form-field appearance="outline">
-                                    <mat-label>Modalité de paiement</mat-label>
-                                    <mat-select formControlName="modalitePaiement">
-                                        @for (mode of modalitesPaiement; track mode) {
-                                        <mat-option [value]="mode">{{ mode }}</mat-option>
-                                        }
-                                    </mat-select>
-                                </mat-form-field>
-
-                                <mat-form-field appearance="outline">
-                                    <mat-label>Echéance de paiement</mat-label>
-                                    <mat-select formControlName="echeancePaiement">
-                                        @for (echeance of echeancesPaiement; track echeance) {
-                                        <mat-option [value]="echeance">{{ echeance }}</mat-option>
-                                        }
-                                    </mat-select>
-                                </mat-form-field>
-                            </div>
-                            }
-                        </div>
-                    </mat-tab>
-                    }
-
                     <!-- ONGLET COUVERTURE SOCIALE (Particulier uniquement) -->
                     @if (clientForm.get('typeClient')?.value === TypeClient.PARTICULIER) {
                     <mat-tab label="Couverture Sociale">
@@ -467,7 +427,7 @@
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Numéro d'adhésion</mat-label>
-                                    <input matInput formControlName="couvertureSocialeNumero">
+                                    <input matInput formControlName="couvertureSocialeNumero" title="Numéro d'adhésion" placeholder="N° Adhésion">
                                 </mat-form-field>
                             </div>
                             }
@@ -547,7 +507,7 @@
                                         </div>
                                         <mat-form-field appearance="outline" class="w-full mt-4">
                                             <mat-label>Autres maladies oculaires</mat-label>
-                                            <textarea matInput formControlName="autres" rows="3"></textarea>
+                                            <textarea matInput formControlName="autres" rows="3" title="Autres maladies oculaires" placeholder="Description des antécédents..."></textarea>
                                         </mat-form-field>
                                     </div>
                                 </div>
@@ -569,7 +529,7 @@
                                         @if (maladiesCheck.checked) {
                                         <mat-form-field appearance="outline" class="w-full mt-2">
                                             <mat-label>Précisez</mat-label>
-                                            <input matInput formControlName="details">
+                                            <input matInput formControlName="details" title="Détails maladies chroniques" placeholder="Détails...">
                                         </mat-form-field>
                                         }
                                     </div>
@@ -587,7 +547,7 @@
                                         @if (traitementCheck.checked) {
                                         <mat-form-field appearance="outline" class="w-full mt-2">
                                             <mat-label>Précisez</mat-label>
-                                            <input matInput formControlName="details">
+                                            <input matInput formControlName="details" title="Détails traitement" placeholder="Détails...">
                                         </mat-form-field>
                                         }
                                     </div>
@@ -604,7 +564,7 @@
                                         @if (allergiesCheck.checked) {
                                         <mat-form-field appearance="outline" class="w-full mt-2">
                                             <mat-label>Précisez</mat-label>
-                                            <input matInput formControlName="details">
+                                            <input matInput formControlName="details" title="Détails allergies" placeholder="Détails...">
                                         </mat-form-field>
                                         }
                                     </div>
@@ -654,7 +614,7 @@
                                         @if (sportCheck.checked) {
                                         <mat-form-field appearance="outline" class="w-full">
                                             <mat-label>Précisez</mat-label>
-                                            <input matInput formControlName="details">
+                                            <input matInput formControlName="details" title="Détails du sport/activité" placeholder="Précisez le sport ou l'activité...">
                                         </mat-form-field>
                                         }
                                     </div>
@@ -773,10 +733,15 @@
 
                                         <mat-form-field appearance="outline" class="col-span-2">
                                             <mat-label>Tâches suivies</mat-label>
-                                            <mat-select formControlName="taches" multiple>
+                                            <mat-select formControlName="taches" multiple #tachesSelect>
                                                 @for (tache of tachesContact; track tache) {
                                                 <mat-option [value]="tache">{{ tache }}</mat-option>
                                                 }
+                                                <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
+                                                    <button mat-button color="primary" (click)="tachesSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
+                                                        Valider la sélection
+                                                    </button>
+                                                </div>
                                             </mat-select>
                                         </mat-form-field>
                                     </div>

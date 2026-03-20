@@ -196,6 +196,8 @@ export interface ClientBase {
     groupe?: any;
     filleuls?: any[];
     pointsHistory?: any[];
+    conventionId?: string;
+    conventionData?: any;
 }
 
 // Client Particulier

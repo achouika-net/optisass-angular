@@ -199,3 +199,25 @@ export interface FundingRequest {
         caisse: { nom: string };
     };
 }
+
+export interface Convention {
+    id: string;
+    nom: string;
+    description?: string;
+    contact?: string;
+    email?: string;
+    telephone?: string;
+    adresse?: string;
+    remiseType: 'PERCENTAGE' | 'FLAT_AMOUNT';
+    remiseValeur: number;
+    remiseForfaitaire?: boolean;
+    montantForfaitaire?: number;
+    montantForfaitaireMonture?: number;
+    montantForfaitaireVerre?: number;
+    notes?: string;
+    createdAt?: string;
+    updatedAt?: string;
+    _count?: {
+        clients: number;
+    };
+}
