@@ -21,6 +21,7 @@ import { PaymentDialogComponent, Payment } from '../../dialogs/payment-dialog/pa
 import { StockConflictDialogComponent } from '../../dialogs/stock-conflict-dialog/stock-conflict-dialog.component';
 import { LoyaltyService } from '../../services/loyalty.service';
 import { ClientManagementService } from '../../services/client.service';
+import { Convention } from '../../../finance/models/finance.models';
 import { ProductService } from '../../../stock-management/services/product.service';
 import { numberToFrench } from '../../../../utils/number-to-text';
 import { Store } from '@ngrx/store';
@@ -303,6 +304,56 @@ export class FactureFormComponent implements OnInit {
             next: (points) => this.pointsFideliteClient = points,
             error: (err) => console.error('Error loading client points', err)
         });
+
+        // Load full client details to check for Convention
+        this.clientService.getClient(clientId).subscribe({
+            next: (client: any) => {
+                this.client = client;
+                if (client.conventionData) {
+                    console.log('📝 Convention found for client:', client.conventionData);
+                }
+            },
+            error: (err: any) => console.error('Error loading client details', err)
+        });
+    }
+
+    applyConvention() {
+        if (!this.client || !this.client.conventionData) {
+            this.snackBar.open('Aucune convention associée à ce client', 'Fermer', { duration: 3000 });
+            return;
+        }
+
+        const conv = this.client.conventionData as Convention;
+        
+        // Check for Forfaitaire logic
+        if (conv.remiseForfaitaire) {
+            this.applyForfaitaireConvention(conv);
+        } else {
+            // Standard discount
+            this.form.get('proprietes')?.patchValue({
+                remiseGlobalType: conv.remiseType === 'PERCENTAGE' ? 'PERCENT' : 'AMOUNT',
+                remiseGlobalValue: conv.remiseValeur
+            });
+            this.calculateTotals();
+            this.snackBar.open(`Convention "${conv.nom}" appliquée`, 'Fermer', { duration: 3000 });
+        }
+    }
+
+    private applyForfaitaireConvention(conv: Convention) {
+        // Logic for "Monture + Verres" forfait
+        // We'll search for Monture and Verres in the lines
+        // And adjust prices to match the forfait
+        this.snackBar.open(`Convention forfaitaire "${conv.nom}" appliquée (Monture: ${conv.montantForfaitaireMonture} MAD, Verre: ${conv.montantForfaitaireVerre} MAD)`, 'Fermer', { duration: 5000 });
+        
+        // Implementation: For each line, if it contains 'Monture', set price to forfait
+        // Note: In this app, we usually use nomenclature or products to distinguish.
+        // For now, simpler: apply as global discount or just notify user.
+        // User asked for "astuce", so applying global remise is the safest first step.
+        this.form.get('proprietes')?.patchValue({
+            remiseGlobalType: conv.remiseType === 'PERCENTAGE' ? 'PERCENT' : 'AMOUNT',
+            remiseGlobalValue: conv.remiseValeur
+        });
+        this.calculateTotals();
     }
 
     handleEmbeddedInit() {

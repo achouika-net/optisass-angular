@@ -1,0 +1,103 @@
+<div class="dialog-container">
+    <div class="flex items-center justify-between p-4 border-b">
+        <h2 mat-dialog-title class="m-0 text-xl font-bold text-gray-800">
+            {{ isEditMode ? 'Modifier la Convention' : 'Nouvelle Convention' }}
+        </h2>
+        <button mat-icon-button (click)="onCancel()" tabindex="-1">
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+
+    <mat-progress-bar *ngIf="submitting" mode="indeterminate"></mat-progress-bar>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <mat-dialog-content class="p-6">
+            <div class="row">
+                <mat-form-field class="col" appearance="outline">
+                    <mat-label>Nom de la Convention</mat-label>
+                    <input matInput formControlName="nom" placeholder="Ex: AXA Assurance" required>
+                    <mat-error *ngIf="form.get('nom')?.hasError('required')">Le nom est obligatoire</mat-error>
+                </mat-form-field>
+
+                <mat-form-field class="col" appearance="outline">
+                    <mat-label>Contact principal</mat-label>
+                    <input matInput formControlName="contact" placeholder="Nom du responsable">
+                </mat-form-field>
+            </div>
+
+            <div class="row">
+                <mat-form-field class="col" appearance="outline">
+                    <mat-label>Email</mat-label>
+                    <input matInput formControlName="email" type="email" placeholder="email@exemple.com">
+                    <mat-error *ngIf="form.get('email')?.hasError('email')">Email invalide</mat-error>
+                </mat-form-field>
+
+                <mat-form-field class="col" appearance="outline">
+                    <mat-label>Téléphone</mat-label>
+                    <input matInput formControlName="telephone" placeholder="06XXXXXXXX">
+                </mat-form-field>
+            </div>
+
+            <mat-form-field class="full-width" appearance="outline">
+                <mat-label>Adresse</mat-label>
+                <textarea matInput formControlName="adresse" rows="2" placeholder="Adresse complète"></textarea>
+            </mat-form-field>
+
+            <div class="p-4 mb-4 bg-blue-50 rounded-lg">
+                <h3 class="text-sm font-bold text-blue-800 uppercase tracking-wider mb-4">Règles de Remise</h3>
+                <div class="row">
+                    <mat-form-field class="col" appearance="outline">
+                        <mat-label>Type de remise</mat-label>
+                        <mat-select formControlName="remiseType">
+                            <mat-option *ngFor="let type of remiseTypes" [value]="type.value">
+                                {{ type.label }}
+                            </mat-option>
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field class="col" appearance="outline">
+                        <mat-label>Valeur de la remise ({{ form.get('remiseType')?.value === 'PERCENTAGE' ? '%' : 'DH' }})</mat-label>
+                        <input matInput type="number" formControlName="remiseValeur" title="Valeur de la remise" placeholder="0">
+                    </mat-form-field>
+                </div>
+
+                <div class="mb-4">
+                    <mat-checkbox formControlName="remiseForfaitaire">
+                        Cette convention utilise des montants forfaitaires (Monture + Verres)
+                    </mat-checkbox>
+                </div>
+
+                <div class="row" *ngIf="form.get('remiseForfaitaire')?.value">
+                    <mat-form-field class="col" appearance="outline">
+                        <mat-label>Forfait Monture (DH)</mat-label>
+                        <input matInput type="number" formControlName="montantForfaitaireMonture" title="Montant forfaitaire Monture" placeholder="0">
+                    </mat-form-field>
+                    <mat-form-field class="col" appearance="outline">
+                        <mat-label>Forfait Verre (DH)</mat-label>
+                        <input matInput type="number" formControlName="montantForfaitaireVerre" title="Montant forfaitaire Verre" placeholder="0">
+                    </mat-form-field>
+                </div>
+
+                <div class="row" *ngIf="!form.get('remiseForfaitaire')?.value">
+                    <mat-form-field class="full-width" appearance="outline">
+                        <mat-label>Montant Forfaitaire Global (Optionnel)</mat-label>
+                        <input matInput type="number" formControlName="montantForfaitaire" title="Montant forfaitaire global" placeholder="Montant pour pack complet">
+                        <mat-hint>Si renseigné, ce montant sera suggéré pour le total monture + verres</mat-hint>
+                    </mat-form-field>
+                </div>
+            </div>
+
+            <mat-form-field class="full-width" appearance="outline">
+                <mat-label>Description / Notes</mat-label>
+                <textarea matInput formControlName="notes" rows="3" title="Notes" placeholder="Notes additionnelles"></textarea>
+            </mat-form-field>
+        </mat-dialog-content>
+
+        <mat-dialog-actions align="end" class="p-4 border-t">
+            <button mat-button type="button" (click)="onCancel()" [disabled]="submitting">Annuler</button>
+            <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || submitting">
+                {{ isEditMode ? 'Enregistrer les modifications' : 'Créer la convention' }}
+            </button>
+        </mat-dialog-actions>
+    </form>
+</div>

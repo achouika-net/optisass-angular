@@ -126,6 +126,7 @@ export class ClientsService {
       include: {
         centre: true,
         groupe: true,
+        conventionData: true,
       },
     });
   }
@@ -146,6 +147,7 @@ export class ClientsService {
         parrain: true,
         filleuls: true,
         groupe: true,
+        conventionData: true,
         pointsHistory: {
           include: { facture: true },
           orderBy: { date: 'desc' },

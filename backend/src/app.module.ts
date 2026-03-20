@@ -27,6 +27,7 @@ import { JourneeCaisseModule } from './features/journee-caisse/journee-caisse.mo
 import { OperationCaisseModule } from './features/operation-caisse/operation-caisse.module';
 import { FundingRequestsModule } from './features/funding-requests/funding-requests.module';
 import { MarketingModule } from './features/marketing/marketing.module';
+import { ConventionsModule } from './features/conventions/conventions.module';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaService } from './prisma/prisma.service';
 import { PersonnelModule } from './features/personnel/personnel.module';
@@ -75,6 +76,7 @@ import { DiagController } from './diag.controller';
     ImportsModule,
     CompanySettingsModule,
     GlassParametersModule,
+    ConventionsModule,
     ServeStaticModule.forRoot({
       rootPath: existsSync('/app/uploads')
         ? '/app/uploads'

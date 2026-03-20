@@ -123,6 +123,10 @@ export class CreateClientDto {
   @IsOptional()
   convention?: any;
 
+  @IsString()
+  @IsOptional()
+  conventionId?: string;
+
   @IsObject()
   @IsOptional()
   contacts?: any;

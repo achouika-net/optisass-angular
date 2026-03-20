@@ -32,6 +32,8 @@ import { SupplierInvoice } from '../../../finance/models/finance.models';
 import { InvoiceFormDialogComponent } from '../../../finance/components/invoice-form-dialog/invoice-form-dialog.component';
 import { MessagingService } from '../../../../core/services/messaging.service';
 import { ExpenseFormDialogComponent } from '../../../finance/components/expense-form-dialog/expense-form-dialog.component';
+import { Convention } from '../../../finance/models/finance.models';
+import { take } from 'rxjs';
 
 export interface Attachment {
   id: string;
@@ -138,6 +140,9 @@ export class ClientDetailComponent implements OnInit {
   // Supplier Invoices (BL Fournisseur)
   supplierInvoices = signal<SupplierInvoice[]>([]);
 
+  // Conventions
+  conventions = signal<Convention[]>([]);
+
   // Table columns
   historyColumns: string[] = ['dateLivraison', 'type', 'dateCreation', 'docteur', 'typeEquipement', 'typeVerre', 'nomenclature', 'actions'];
 
@@ -168,6 +173,7 @@ export class ClientDetailComponent implements OnInit {
       this.loadFiches();
       this.loadStats();
       this.loadSupplierInvoices();
+      this.loadConventions();
     }
   }
 
@@ -527,8 +533,38 @@ export class ClientDetailComponent implements OnInit {
   }
 
   saveClient(): void {
-    if (!this.clientId) return;
-    this.isEditMode = false;
+    if (!this.clientId || !this.client) return;
+    
+    // We only update basic info + conventionId here for now as per the existing flow
+    const updateData: any = {
+      conventionId: this.client.conventionId
+    };
+
+    if (isClientParticulier(this.client)) {
+       updateData.nom = (this.client as any).nom;
+       updateData.prenom = (this.client as any).prenom;
+       updateData.telephone = this.client.telephone;
+       updateData.email = this.client.email;
+       updateData.adresse = this.client.adresse;
+    } else if (isClientProfessionnel(this.client)) {
+       updateData.raisonSociale = this.client.raisonSociale;
+       updateData.telephone = this.client.telephone;
+       updateData.email = this.client.email;
+       updateData.adresse = this.client.adresse;
+    }
+
+    this.clientService.updateClient(this.clientId, updateData).subscribe({
+      next: (updated) => {
+        this.client = updated;
+        this.isEditMode = false;
+        this.snackBar.open('Client mis à jour avec succès', 'OK', { duration: 3000 });
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        console.error('Error updating client:', err);
+        this.snackBar.open('Erreur lors de la mise à jour', 'OK');
+      }
+    });
   }
 
   deleteClient(): void {
@@ -606,6 +642,16 @@ export class ClientDetailComponent implements OnInit {
         this.cdr.markForCheck();
       },
       error: (err) => console.error('Error loading supplier invoices:', err)
+    });
+  }
+
+  loadConventions(): void {
+    this.financeService.getConventions().pipe(take(1)).subscribe({
+      next: (conventions) => {
+        this.conventions.set(conventions);
+        this.cdr.markForCheck();
+      },
+      error: (err) => console.error('Error loading conventions:', err)
     });
   }
 

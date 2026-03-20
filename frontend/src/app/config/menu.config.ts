@@ -175,6 +175,20 @@ export const MENU: MenuItem[] = [
     ],
   },
   {
+    label: 'Gestion Conventions',
+    icon: 'handshake',
+    type: 'sub',
+    route: 'conventions',
+    children: [
+      {
+        label: 'Liste des Conventions',
+        icon: 'handshake',
+        type: 'subchild',
+        route: 'finance/conventions',
+      }
+    ],
+  },
+  {
     label: 'RH & Personnel',
     icon: 'badge',
     type: 'sub',

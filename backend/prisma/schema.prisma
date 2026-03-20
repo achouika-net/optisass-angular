@@ -38,6 +38,8 @@ model Client {
   siteWeb              String?
   contacts             Json?
   convention           Json?
+  conventionId         String?
+  conventionData       Convention?          @relation(fields: [conventionId], references: [id])
   parrainId            String?
   centreId             String?
   titre                String?
@@ -353,6 +355,26 @@ model Fournisseur {
   bonsLivraison      BonLivraison[]
   depenses           Depense[]
   factures           FactureFournisseur[]
+}
+
+model Convention {
+  id                 String   @id @default(uuid())
+  nom                String   @unique
+  description        String?
+  contact            String?
+  email              String?
+  telephone          String?
+  adresse            String?
+  remiseType         String   // "PERCENTAGE" or "FLAT_AMOUNT"
+  remiseValeur              Float    @default(0)
+  montantForfaitaire        Float?   // Optional flat amount for frame + glasses
+  remiseForfaitaire         Boolean  @default(false)
+  montantForfaitaireMonture Float    @default(0)
+  montantForfaitaireVerre   Float    @default(0)
+  notes                     String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  clients            Client[]
 }
 
 model Depense {

@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_URL } from '../../../config/api.config';
-import { Supplier, Expense, SupplierInvoice, ExpenseDTO, SupplierInvoiceDTO, FundingRequest, BonLivraison, BonLivraisonDTO, BonLivraisonListResponse } from '../models/finance.models';
+import { Supplier, Expense, SupplierInvoice, ExpenseDTO, SupplierInvoiceDTO, FundingRequest, BonLivraison, BonLivraisonDTO, BonLivraisonListResponse, Convention } from '../models/finance.models';
 
 @Injectable({
     providedIn: 'root'
@@ -247,6 +247,29 @@ export class FinanceService {
         let params = new HttpParams();
         if (centreId) params = params.set('centreId', centreId);
         return this.http.get<any>(`${this.apiUrl}/treasury/pending-alerts`, { params });
+    }
+
+    // --- Conventions ---
+    getConventions(): Observable<Convention[]> {
+        return this.http.get<Convention[]>(`${this.apiUrl}/conventions`, {
+            params: new HttpParams().set('_t', Date.now().toString())
+        });
+    }
+
+    getConvention(id: string): Observable<Convention> {
+        return this.http.get<Convention>(`${this.apiUrl}/conventions/${id}`);
+    }
+
+    createConvention(convention: Partial<Convention>): Observable<Convention> {
+        return this.http.post<Convention>(`${this.apiUrl}/conventions`, convention);
+    }
+
+    updateConvention(id: string, convention: Partial<Convention>): Observable<Convention> {
+        return this.http.patch<Convention>(`${this.apiUrl}/conventions/${id}`, convention);
+    }
+
+    deleteConvention(id: string): Observable<void> {
+        return this.http.delete<void>(`${this.apiUrl}/conventions/${id}`);
     }
 }
 

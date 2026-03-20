@@ -238,6 +238,14 @@
                         </div>
                     </div>
 
+                    <!-- Convention Shortcut -->
+                    <div class="convention-shortcut-section" *ngIf="client?.conventionData && !isViewMode">
+                        <button type="button" mat-flat-button color="accent" class="w-full mb-4" (click)="applyConvention()">
+                            <mat-icon>assignment_ind</mat-icon>
+                            Appliquer la convention: {{ client.conventionData.nom }}
+                        </button>
+                    </div>
+
                     <div class="discount-section" formGroupName="proprietes" [class.view-mode]="isViewMode">
                         <div class="discount-inputs" *ngIf="!isViewMode">
                             <mat-form-field appearance="outline" class="discount-type">
