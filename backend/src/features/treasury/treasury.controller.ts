@@ -54,6 +54,7 @@ export class TreasuryController {
     @Query('endDate') endDate?: string,
     @Query('centreId') centreId?: string,
     @Query('mode') mode?: string,
+    @Query('statut') statut?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
@@ -62,7 +63,8 @@ export class TreasuryController {
       startDate,
       endDate,
       centreId,
-      statut: mode,
+      type: mode,
+      statut,
       page,
       limit,
     });
