@@ -3684,7 +3684,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     });
                 }
 
-                // If on early tabs, auto-advance to Payments
+                // If on early tabs, auto-advance to Facturation
                 if (this.activeTab < 2) {
                     this.setActiveTab(2);
                 }

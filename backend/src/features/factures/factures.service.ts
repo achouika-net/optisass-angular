@@ -699,20 +699,26 @@ export class FacturesService implements OnModuleInit {
           await this.restoreStockForCancelledInvoice(txClient, currentFacture);
         }
 
+        // Cancel Old First to free up the @unique ficheId
+        await txClient.facture.update({
+          where: { id: currentFacture.id },
+          data: { statut: 'ANNULEE', resteAPayer: 0, ficheId: null }
+        });
+
         const newInvoice = await txClient.facture.create({ data: newInvoiceData as any });
         
+        // Add replacement note to Old
+        await txClient.facture.update({
+          where: { id: currentFacture.id },
+          data: { notes: `Remplacée par ${newInvoice.numero}` }
+        });
+
         // Move Payments
         const pMove = await txClient.paiement.findMany({ where: { factureId: currentFacture.id } });
         const totalPaid = pMove.reduce((s, p) => s + Number(p.montant), 0);
         if (pMove.length > 0) {
           await txClient.paiement.updateMany({ where: { factureId: currentFacture.id }, data: { factureId: newInvoice.id } });
         }
-
-        // Cancel Old
-        await txClient.facture.update({
-          where: { id: currentFacture.id },
-          data: { statut: 'ANNULEE', resteAPayer: 0, ficheId: null, notes: `Remplacée par ${newInvoice.numero}` }
-        });
 
         // Determine Final Status
         let finalStatut = 'VALIDE';
