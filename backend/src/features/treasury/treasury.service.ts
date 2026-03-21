@@ -561,6 +561,12 @@ export class TreasuryService {
       sqlParams.push(filters.statut);
       whereClause += `AND p.statut = $${sqlParams.length} `;
     }
+    if (filters.type && filters.type !== 'ALL') {
+      const types = filters.type.split(',').map(t => t.trim());
+      const inClause = types.map((_, i) => `$${sqlParams.length + i + 1}`).join(', ');
+      types.forEach(t => sqlParams.push(t));
+      whereClause += `AND p.mode IN (${inClause}) `;
+    }
     if (filters.startDate) {
       sqlParams.push(new Date(filters.startDate));
       whereClause += `AND p.date >= $${sqlParams.length} `;
