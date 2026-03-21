@@ -59,6 +59,7 @@ export class ClientsController {
     @Query('telephone') telephone?: string,
     @Query('cin') cin?: string,
     @Query('groupeFamille') groupeFamille?: string,
+    @Query('fidelioEligible') fidelioEligible?: string,
     @Headers('Tenant') centreId?: string,
   ) {
     return this.clientsService.search({
@@ -69,6 +70,7 @@ export class ClientsController {
       telephone,
       cin,
       groupeFamille,
+      fidelioEligible,
       centreId,
     });
   }

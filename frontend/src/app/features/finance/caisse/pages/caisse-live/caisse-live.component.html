@@ -108,7 +108,7 @@
 
     <!-- Quick Actions (Hidden if Closed) -->
     <div class="quick-actions" *ngIf="resume.journee.statut === 'OUVERTE'">
-        <button mat-flat-button color="accent" class="action-btn" *ngIf="resume.journee.caisse.type === 'PRINCIPALE'"
+        <button mat-flat-button color="accent" class="action-btn" *ngIf="resume.journee.caisse.type === 'PRINCIPALE' || resume.journee.caisse.type === 'MIXTE'"
             (click)="openOperationDialog(OperationType.DECAISSEMENT)">
             <mat-icon>remove_circle</mat-icon> DÉCAISSER
         </button>

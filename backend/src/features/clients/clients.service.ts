@@ -69,6 +69,7 @@ export class ClientsService {
     telephone?: string;
     cin?: string;
     groupeFamille?: string;
+    fidelioEligible?: string;
     centreId?: string;
   }) {
     const whereClause: any = {};
@@ -111,6 +112,13 @@ export class ClientsService {
         contains: filters.cin,
         mode: 'insensitive',
       };
+    }
+
+    // Filtre par Eligibilité Fidelio
+    if (filters.fidelioEligible === 'true') {
+      const config = await this.loyaltyService.getConfig();
+      const threshold = (config as any)?.rewardThreshold || 500;
+      whereClause.pointsFidelite = { gte: threshold };
     }
 
     // Filtre par groupe famille (nécessite une jointure)
