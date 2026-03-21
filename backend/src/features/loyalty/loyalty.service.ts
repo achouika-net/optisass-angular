@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class LoyaltyService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async getPointsHistory(clientId: string) {
     return this.prisma.pointsHistory.findMany({
@@ -71,18 +71,25 @@ export class LoyaltyService {
     });
   }
 
-  async awardPointsForPurchase(factureId: string) {
-    const existingAward = await this.prisma.pointsHistory.findFirst({
+  async awardPointsForPurchase(factureId: string, tx?: any) {
+    const prisma = tx || this.prisma;
+    const existingAward = await prisma.pointsHistory.findFirst({
       where: { factureId, type: 'EARN' },
     });
     if (existingAward) return;
 
-    const facture = await this.prisma.facture.findUnique({
+    const facture = await prisma.facture.findUnique({
       where: { id: factureId },
       include: { client: true },
     });
 
     if (!facture || !facture.client) return;
+
+    // Disallow points for convention clients (only for 'direct' clients)
+    if (facture.client.conventionId) {
+      console.log(`ℹ️ Client ${facture.client.id} has a convention. Skipping Fidelio points.`);
+      return;
+    }
 
     const config = (await this.getConfig()) as any;
     const points = Math.floor(facture.totalTTC * config.pointsPerDH);
@@ -90,6 +97,23 @@ export class LoyaltyService {
     if (points <= 0) return;
 
     const typeLabel = facture.type === 'FACTURE' ? 'facture' : 'bon de commande';
+
+    if (tx) {
+      await tx.client.update({
+        where: { id: facture.clientId },
+        data: { pointsFidelite: { increment: points } },
+      });
+      await tx.pointsHistory.create({
+        data: {
+          clientId: facture.clientId,
+          factureId: facture.id,
+          points: points,
+          type: 'EARN',
+          description: `Achat ${typeLabel} ${facture.numero}`,
+        },
+      });
+      return;
+    }
 
     return this.prisma.$transaction([
       this.prisma.client.update({
@@ -154,30 +178,40 @@ export class LoyaltyService {
     points: number,
     description: string,
     factureId?: string,
+    tx?: any,
   ) {
-    const client = await this.prisma.client.findUnique({
+    const pts = Math.floor(points);
+    if (pts === 0) return;
+
+    console.log(
+      `🎯 [LoyaltyService] spendPoints | client: ${clientId}, points: ${pts}, facture: ${factureId} | description: ${description}`,
+    );
+
+    const client = tx || this.prisma;
+
+    // Use a transaction if tx is not provided to ensure atomicity
+    const updateClient = client.client.update({
       where: { id: clientId },
+      data: { pointsFidelite: { decrement: pts } },
     });
 
-    if (!client || client.pointsFidelite < points) {
-      throw new Error('Points insuffisants');
+    const createHistory = client.pointsHistory.create({
+      data: {
+        clientId,
+        factureId,
+        points: -pts,
+        type: 'SPEND',
+        description,
+      },
+    });
+
+    if (tx) {
+      await updateClient;
+      await createHistory;
+      return;
     }
 
-    return this.prisma.$transaction([
-      this.prisma.client.update({
-        where: { id: clientId },
-        data: { pointsFidelite: { decrement: points } },
-      }),
-      this.prisma.pointsHistory.create({
-        data: {
-          clientId,
-          factureId,
-          points: -points,
-          type: 'SPEND',
-          description,
-        },
-      }),
-    ]);
+    return this.prisma.$transaction([updateClient, createHistory]);
   }
 
   async awardPointsForFolderCreation(clientId: string, ficheId: string) {
@@ -194,6 +228,15 @@ export class LoyaltyService {
 
     if (existingAward) {
       console.log('ℹ️ Points already awarded for this folder. Skipping.');
+      return;
+    }
+
+    const client = await this.prisma.client.findUnique({ where: { id: clientId } });
+    if (!client) return;
+
+    // Disallow points for convention clients (only for 'direct' clients)
+    if (client.conventionId) {
+      console.log(`ℹ️ Client ${clientId} has a convention. Skipping folder creation points.`);
       return;
     }
 

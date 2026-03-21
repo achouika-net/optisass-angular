@@ -62,10 +62,12 @@ export class FactureService {
     }
 
     create(facture: Partial<Facture>): Observable<Facture> {
+        console.log('🚀 [FactureService] CREATE called with:', JSON.stringify(facture));
         return this.http.post<Facture>(this.apiUrl, facture);
     }
 
     update(id: string, facture: Partial<Facture>): Observable<Facture> {
+        console.log(`🚀 [FactureService] UPDATE called for ${id} with:`, JSON.stringify(facture));
         return this.http.patch<Facture>(`${this.apiUrl}/${id}`, facture);
     }
 

@@ -1,0 +1,85 @@
+[
+  {
+    "id": "b00ce4fe-49d2-4305-8dff-6eb4afd4a35e",
+    "numero": "BC-2026-015",
+    "type": "BON_COMM",
+    "statut": "VENTE_EN_INSTANCE",
+    "proprietes": {
+      "tvaRate": 0.2,
+      "vendeurId": "23056552-9cff-4d0a-adb9-9a7c38b58742",
+      "nomenclature": "Nomenclature: OD: +2.50 (-0.75) Add +2.75 / OG: +3.25 (-1.25) Add +2.75",
+      "pointsUtilises": 0,
+      "remiseGlobalType": "PERCENT",
+      "stockDecremented": true,
+      "remiseGlobalValue": 0,
+      "dateStockDecrement": "2026-03-21T03:14:32.536Z",
+      "forceStockDecrement": false
+    }
+  },
+  {
+    "id": "99cdfdfb-cc5b-42c6-8105-f18b7e4b9ad7",
+    "numero": "BC-2026-014",
+    "type": "BON_COMM",
+    "statut": "VENTE_EN_INSTANCE",
+    "proprietes": {
+      "tvaRate": 0.2,
+      "vendeurId": "23056552-9cff-4d0a-adb9-9a7c38b58742",
+      "nomenclature": "Nomenclature: OD: +1.50 (-0.75) 100° Add +1.50 / OG: -2.00 Add +1.50",
+      "pointsUtilises": 0,
+      "remiseGlobalType": "PERCENT",
+      "stockDecremented": true,
+      "remiseGlobalValue": 0,
+      "dateStockDecrement": "2026-03-21T01:21:04.353Z",
+      "forceStockDecrement": false
+    }
+  },
+  {
+    "id": "6b07734a-6e7d-49cc-9fea-781c2f65a0a2",
+    "numero": "Devis-2026-001",
+    "type": "DEVIS",
+    "statut": "BROUILLON",
+    "proprietes": {
+      "tvaRate": 0.2,
+      "vendeurId": null,
+      "pointsSpent": true,
+      "nomenclature": "",
+      "pointsUtilises": 1000,
+      "remiseGlobalType": "PERCENT",
+      "remiseGlobalValue": 0
+    }
+  },
+  {
+    "id": "75d7aed6-0e99-4111-89f0-5c29ed53782e",
+    "numero": "BC-2026-013",
+    "type": "BON_COMM",
+    "statut": "VENTE_EN_INSTANCE",
+    "proprietes": {
+      "tvaRate": 0.2,
+      "vendeurId": "23056552-9cff-4d0a-adb9-9a7c38b58742",
+      "nomenclature": "Nomenclature: OD: +1.50 (-0.75) 100° Add +1.50 / OG: -2.00 Add +1.50",
+      "pointsUtilises": 0,
+      "remiseGlobalType": "PERCENT",
+      "stockDecremented": true,
+      "remiseGlobalValue": 0,
+      "dateStockDecrement": "2026-03-20T05:51:58.208Z",
+      "forceStockDecrement": false
+    }
+  },
+  {
+    "id": "459a45e6-9163-48fa-b694-c942e53ebef4",
+    "numero": "BC-2026-012",
+    "type": "BON_COMM",
+    "statut": "VENTE_EN_INSTANCE",
+    "proprietes": {
+      "tvaRate": 0.2,
+      "vendeurId": "23056552-9cff-4d0a-adb9-9a7c38b58742",
+      "nomenclature": "Nomenclature: OD: +1.50 (-0.75) 100° Add +1.50 / OG: -2.00 Add +1.50",
+      "pointsUtilises": 0,
+      "remiseGlobalType": "PERCENT",
+      "stockDecremented": true,
+      "remiseGlobalValue": 0,
+      "dateStockDecrement": "2026-03-20T02:55:57.680Z",
+      "forceStockDecrement": false
+    }
+  }
+]

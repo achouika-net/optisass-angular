@@ -34,8 +34,9 @@ export class CommissionService {
    * Calculates commissions for a specific invoice.
    * Should be called when an invoice is VALIDATED and PAID.
    */
-  async calculateForInvoice(factureId: string) {
-    const facture = await this.prisma.facture.findUnique({
+  async calculateForInvoice(factureId: string, tx?: any) {
+    const prisma = tx || this.prisma;
+    const facture = await prisma.facture.findUnique({
       where: { id: factureId },
       include: { vendeur: true },
     });
@@ -46,12 +47,12 @@ export class CommissionService {
     const mois = facture.dateEmission.toISOString().substring(0, 7); // YYYY-MM
 
     // Delete existing commissions for this invoice to avoid doubles (Idempotency)
-    await this.prisma.commission.deleteMany({
+    await prisma.commission.deleteMany({
       where: { factureId: facture.id },
     });
 
     // Get rules for this employee's poste and centre
-    const rules = await this.prisma.commissionRule.findMany({
+    const rules = await prisma.commissionRule.findMany({
       where: {
         poste: employee.poste,
         OR: [{ centreId: facture.centreId }, { centreId: null }],
@@ -70,7 +71,7 @@ export class CommissionService {
       let typeArticle: string | null = null;
 
       if (line.productId) {
-        const product = await this.prisma.product.findUnique({
+        const product = await prisma.product.findUnique({
           where: { id: line.productId },
         });
         if (product) {
@@ -87,8 +88,7 @@ export class CommissionService {
         else if (desc.includes('ACCESSOIRE')) typeArticle = 'ACCESSOIRE';
       }
 
-      // Find matching rule (Flexible matching: exactly matches OR product type starts with rule type)
-      // e.g. Rule 'MONTURE' matches product 'MONTURE_OPTIQUE'
+      // Find matching rule
       const rule =
         rules.find((r) => {
           if (!typeArticle) return false;
@@ -100,7 +100,7 @@ export class CommissionService {
       if (rule) {
         const montantCom = (line.totalTTC || 0) * (rule.taux / 100);
         if (montantCom > 0) {
-          await this.prisma.commission.create({
+          await prisma.commission.create({
             data: {
               employeeId: employee.id,
               factureId: facture.id,

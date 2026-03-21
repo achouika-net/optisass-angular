@@ -339,14 +339,14 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         }
 
         // Draw frame visualization when tab changes to Fiche Montage
-        this.ficheForm.valueChanges.subscribe(() => {
+        this.ficheForm.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
             if (this.activeTab === 4) {
                 setTimeout(() => this.updateFrameCanvasVisualization(), 100);
             }
         });
 
         // Initialize supplier autocomplete
-        this.supplierService.getActiveSuppliers().subscribe(suppliers => {
+        this.supplierService.getActiveSuppliers().pipe(takeUntil(this.destroy$)).subscribe(suppliers => {
             this.allSuppliers = suppliers;
             this.cdr.markForCheck();
         });
@@ -369,7 +369,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         // Sync fournisseurCtrl with form
         this.fournisseurCtrl.valueChanges.pipe(
             debounceTime(200),
-            distinctUntilChanged()
+            distinctUntilChanged(),
+            takeUntil(this.destroy$)
         ).subscribe((val: any) => {
             // Enforce single string value
             const finalValue = typeof val === 'string' ? val : (val?.name || '');
@@ -384,12 +385,12 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 this.cdr.detectChanges();
             }
         });
-        this.route.paramMap.subscribe(params => {
+        this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
             this.clientId = params.get('clientId');
             this.ficheId = params.get('ficheId');
 
             if (this.clientId) {
-                this.clientService.getClient(this.clientId).subscribe((client: Client | undefined) => {
+                this.clientService.getClient(this.clientId).pipe(takeUntil(this.destroy$)).subscribe((client: Client | undefined) => {
                     this.client = client;
                     this.cdr.markForCheck();
                 });
@@ -430,14 +431,17 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         });
 
         // Update nomenclature when ordonnance changes
-        this.ficheForm.get('ordonnance')?.valueChanges.subscribe(() => {
+        this.ficheForm.get('ordonnance')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
             this.updateNomenclature();
         });
         // Initial call
         this.updateNomenclature();
 
         // 🔍 DEBUG: Log invalid controls to help identify why the button is disabled
-        this.ficheForm.statusChanges.pipe(debounceTime(500)).subscribe(status => {
+        this.ficheForm.statusChanges.pipe(
+            debounceTime(500),
+            takeUntil(this.destroy$)
+        ).subscribe(status => {
             if (status === 'INVALID') {
                 const controls = this.ficheForm.controls;
                 for (const name in controls) {
@@ -473,7 +477,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         });
 
         // REACTIVE RECEPTION CHECK: Trigger whenever the invoice status changes
-        this.linkedFacture$.subscribe((facture: Facture | null) => {
+        this.linkedFacture$.pipe(takeUntil(this.destroy$)).subscribe((facture: Facture | null) => {
             if (facture?.statut === 'VENTE_EN_INSTANCE' && this.currentFiche) {
                 console.log('🔄 [RECEPTION] Reactive trigger (Invoice changed or loaded)');
                 this.checkReceptionForInstance(this.currentFiche);
@@ -2494,7 +2498,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         if (!this.ficheId) return;
 
         this.loading = true;
-        this.ficheService.getFicheById(this.ficheId).subscribe({
+        this.ficheService.getFicheById(this.ficheId).pipe(takeUntil(this.destroy$)).subscribe({
             next: (fiche: FicheClient | undefined) => {
                 if (fiche) {
                     console.log('📄 [LOAD] Fiche loaded:', fiche.id);
@@ -3512,14 +3516,15 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                             this.factureComponent.form.patchValue({ type: userForcedType }, { emitEvent: false });
                         }
 
-                        // [CRITICAL FIX] Dirty check: Only save invoice if lines changed OR it's new
-                        // This prevents unnecessary backend calls and fiscal flow triggers
+                        // [CRITICAL FIX] Dirty check: Only save invoice if lines changed, it's new, OR form is dirty
+                        // The facture form becomes 'dirty' when Fidelio points or global discounts are applied.
                         const currentLines = this.getInvoiceLines();
                         const linesChanged = JSON.stringify(currentLines) !== JSON.stringify(this.initialLines);
                         const isNewInvoice = !this.factureComponent.id || this.factureComponent.id === 'new';
+                        const isFactureDirty = this.factureComponent.form.dirty; // Detects Fidelio points & global remise
 
-                        if (!linesChanged && !isNewInvoice && !userForcedStatut && !userForcedType) {
-                            console.log('📋 [INVOICE SKIP] No changes to invoice lines or status. Skipping save to prevent unwanted fiscal operations.');
+                        if (!linesChanged && !isNewInvoice && !userForcedStatut && !userForcedType && !isFactureDirty) {
+                            console.log('📋 [INVOICE SKIP] No changes to invoice lines, status, or properties. Skipping save to prevent unwanted fiscal operations.');
                             console.log('   Initial lines:', this.initialLines.length, 'Current lines:', currentLines.length);
                             return of(fiche); // Skip invoice save, just return fiche
                         }

@@ -329,7 +329,7 @@ export class FicheProduitFormComponent implements OnInit, AfterViewInit {
 
     loadFiche(id: string): void {
         this.loading = true;
-        this.ficheService.getFicheById(id).subscribe({
+        this.ficheService.getFicheById(id).pipe(takeUntil(this.destroy$)).subscribe({
             next: (fiche: any) => {
                 if (fiche && fiche.type === TypeFiche.PRODUIT) {
                     const ficheProduit = fiche as FicheProduit;
