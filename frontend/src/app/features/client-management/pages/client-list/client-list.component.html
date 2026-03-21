@@ -1,25 +1,29 @@
 <div class="client-management-container p-6">
-    <!-- Header & Actions -->
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold m-0 flex items-center gap-2">
-            <mat-icon color="primary">people</mat-icon>
-            Gestion des Dossiers Clients
-        </h1>
-        <div class="flex gap-2">
-            <button mat-stroked-button color="accent" routerLink="/p/commercial/promotions">
-                <mat-icon>campaign</mat-icon>
-                Campagnes
-            </button>
-            <button mat-stroked-button color="primary" (click)="exportClients()">
-                <mat-icon>download</mat-icon>
-                Exporter
-            </button>
-            <button mat-raised-button color="primary" (click)="addClient()">
-                <mat-icon>add</mat-icon>
-                Ajouter un client
-            </button>
+    <form [formGroup]="searchForm" (ngSubmit)="onSearch()">
+        <!-- Header & Actions -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold m-0 flex items-center gap-2">
+                <mat-icon color="primary">people</mat-icon>
+                Gestion des Dossiers Clients
+            </h1>
+            <div class="flex gap-2 items-center">
+                <mat-slide-toggle formControlName="fidelioEligible" color="primary" class="mr-4">
+                    🎯 Éligible Fidélité
+                </mat-slide-toggle>
+                <button mat-stroked-button color="accent" routerLink="/p/commercial/promotions">
+                    <mat-icon>campaign</mat-icon>
+                    Campagnes
+                </button>
+                <button mat-stroked-button color="primary" (click)="exportClients()">
+                    <mat-icon>download</mat-icon>
+                    Exporter
+                </button>
+                <button mat-raised-button color="primary" (click)="addClient()">
+                    <mat-icon>add</mat-icon>
+                    Ajouter un client
+                </button>
+            </div>
         </div>
-    </div>
 
     <!-- Statistics Cards -->
     <div class="stats-grid grid grid-cols-4 gap-4 mb-6">
@@ -55,7 +59,7 @@
     <!-- Search Section -->
     <mat-card class="search-card mb-6 !shadow-sm !border !border-gray-200">
         <mat-card-content>
-            <form [formGroup]="searchForm" (ngSubmit)="onSearch()" class="search-form">
+            <div class="search-form">
                 <div class="grid grid-cols-4 gap-4 items-end">
                     <mat-form-field appearance="outline">
                         <mat-label>Type de client</mat-label>
@@ -102,12 +106,6 @@
                         <input matInput formControlName="groupeFamille" placeholder="Groupe...">
                     </mat-form-field>
 
-                    <div class="flex items-center mb-4">
-                        <mat-slide-toggle formControlName="fidelioEligible" color="primary">
-                            🎯 Éligible Fidélité
-                        </mat-slide-toggle>
-                    </div>
-
                     <div class="search-button-wrapper">
                         <button mat-raised-button type="submit" class="w-full search-btn">
                             <mat-icon>search</mat-icon>
@@ -115,9 +113,10 @@
                         </button>
                     </div>
                 </div>
-            </form>
+            </div>
         </mat-card-content>
     </mat-card>
+    </form>
 
     <!-- Data Table -->
     <mat-card class="!shadow-sm !border !border-gray-200">
