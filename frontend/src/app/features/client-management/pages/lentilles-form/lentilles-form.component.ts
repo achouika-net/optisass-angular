@@ -951,8 +951,9 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
                     const currentLines = this.getInvoiceLines();
                     const linesChanged = JSON.stringify(currentLines) !== JSON.stringify(this.initialLines);
                     const isNewInvoice = !this.factureComponent.id || this.factureComponent.id === 'new';
+                    const isFactureDirty = this.factureComponent.form.dirty;
 
-                    if (!linesChanged && !isNewInvoice && !userForcedStatut && !userForcedType) {
+                    if (!linesChanged && !isNewInvoice && !userForcedStatut && !userForcedType && !isFactureDirty) {
                         console.log('📋 [INVOICE SKIP] No changes to invoice lines or status.');
                         return of({ fiche, isNew });
                     }

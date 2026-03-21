@@ -1,8 +1,8 @@
-import { Component, OnInit, Input, Output, EventEmitter, OnChanges, SimpleChanges, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter, OnChanges, SimpleChanges, ChangeDetectorRef, signal } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { map, catchError, tap, take } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, FormArray, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, FormArray, FormControl, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
@@ -32,6 +32,8 @@ import { CompanySettings } from '../../../../shared/interfaces/company-settings.
 
 // JsBarcode is loaded as a global script via angular.json scripts[]
 declare const JsBarcode: (element: string | Element, value: string, options?: object) => void;
+
+import { FinanceService } from '../../../finance/services/finance.service';
 
 @Component({
     selector: 'app-facture-form',
@@ -70,6 +72,7 @@ export class FactureFormComponent implements OnInit {
     form: FormGroup;
     id: string | null = null;
     isViewMode = false;
+    originalProprietes: any = {}; // [NEW] Store original DB properties to prevent loss of fields not in form
     client: any = null;
     centreId: string | null = null;
     isLoading = false;
@@ -90,6 +93,10 @@ export class FactureFormComponent implements OnInit {
 
     // Loyalty
     pointsFideliteClient = 0;
+    fidelioEligibility: { eligible: boolean; currentPoints: number; threshold: number; madValue?: number } | null = null;
+
+    // [NEW] Conventions
+    allConventions = signal<Convention[]>([]);
 
     currentUser$: Observable<any> = this.store.select(UserSelector);
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
@@ -108,7 +115,8 @@ export class FactureFormComponent implements OnInit {
         private dialog: MatDialog,
         private store: Store,
         private cdr: ChangeDetectorRef,
-        private companySettingsService: CompanySettingsService
+        private companySettingsService: CompanySettingsService,
+        private financeService: FinanceService
     ) {
         // [FIX] Initialize centreId from current center
         this.centreId = this.currentCentre()?.id || null;
@@ -132,6 +140,7 @@ export class FactureFormComponent implements OnInit {
 
     ngOnInit(): void {
         this.loadCompanySettings();
+        this.loadAllConventions();
         console.log('🚀 [FactureForm] ngOnInit | id:', this.id, '| factureId (input):', this.factureId, '| embedded:', this.embedded);
 
         // CRITICAL FIX: Check if we're loading an existing invoice FIRST
@@ -150,6 +159,7 @@ export class FactureFormComponent implements OnInit {
                 type: 'DEVIS',
                 statut: 'BROUILLON'
             }, { emitEvent: false });
+            this.isLoading = false; // [FIX] Ensure loader is off for new records
         } else {
             console.log('💤 [FactureForm] Embedded but no ID yet. Waiting for ngOnChanges...');
         }
@@ -168,6 +178,12 @@ export class FactureFormComponent implements OnInit {
         if (!this.id || this.id === 'new') {
             this.setVendeurFromUser();
         }
+
+        // [FIX] Subscribe to form value changes for REAL-TIME calculation.
+        // This ensures totals are updated as the user types, not just on 'blur' (change event).
+        this.form.valueChanges.subscribe(() => {
+            this.calculateTotals();
+        });
     }
 
     setVendeurFromUser() {
@@ -214,6 +230,12 @@ export class FactureFormComponent implements OnInit {
                     this.addLine();
                 }
                 this.updateViewMode();
+                this.isLoading = false; // [FIX] Clear loading state
+            } else if (!newVal && newVal !== 'new') {
+                // [FIX] If newVal is explicitly null/undefined (cleared by parent)
+                console.log('ℹ️ [FactureForm] factureId cleared by parent. Stopping loader.');
+                this.isLoading = false;
+                this.id = 'new';
             }
         }
 
@@ -301,7 +323,11 @@ export class FactureFormComponent implements OnInit {
     loadClientPoints(clientId: string) {
         if (!clientId) return;
         this.loyaltyService.getPointsBalance(clientId).subscribe({
-            next: (points) => this.pointsFideliteClient = points,
+            next: (points) => {
+                this.pointsFideliteClient = points;
+                // After loading balance, check if client is eligible for Fidelio reward
+                this.checkFidelioEligibility(clientId);
+            },
             error: (err) => console.error('Error loading client points', err)
         });
 
@@ -317,13 +343,63 @@ export class FactureFormComponent implements OnInit {
         });
     }
 
-    applyConvention() {
-        if (!this.client || !this.client.conventionData) {
-            this.snackBar.open('Aucune convention associée à ce client', 'Fermer', { duration: 3000 });
-            return;
+    checkFidelioEligibility(clientId: string) {
+        const docType = this.form.get('type')?.value;
+        const officialTypes = ['FACTURE', 'BL', 'BON_COMM', 'BON_COMMANDE'];
+        // Only check eligibility for official document types (not DEVIS)
+        if (!officialTypes.includes(docType) && docType) return;
+
+        this.loyaltyService.checkRewardEligibility(clientId).subscribe({
+            next: (result) => {
+                const config = result as any;
+                const madValue = Math.floor(result.currentPoints * 0.1);
+                this.fidelioEligibility = { ...result, madValue };
+                console.log(`💎 [Fidelio] Eligibility: ${result.eligible} | Points: ${result.currentPoints} | Seuil: ${result.threshold}`);
+            },
+            error: (err) => console.error('Error checking Fidelio eligibility', err)
+        });
+    }
+
+    applyFidelioDiscount() {
+        if (!this.fidelioEligibility) return;
+        const pointsToApply = this.fidelioEligibility.currentPoints;
+        this.form.get('proprietes.pointsUtilises')?.setValue(pointsToApply);
+        this.calculateTotals();
+        this.snackBar.open(`✅ ${pointsToApply} points Fidelio appliqués (-${(pointsToApply * 0.1).toFixed(2)} DH)`, 'OK', { duration: 4000 });
+
+        // [FIX] Auto-save the invoice immediately so the user doesn't need to click the main 'Sauvegarder' button.
+        // We only auto-save if the invoice already exists in DB (has a real ID, not 'new').
+        if (this.id && this.id !== 'new') {
+            this.saveAsObservable(false).subscribe({
+                next: () => console.log('✅ [FactureForm] Auto-saved facture after applying Fidelio points'),
+                error: (err) => console.error('❌ [FactureForm] Failed to auto-save facture after Fidelio points', err)
+            });
+        }
+    }
+
+    loadAllConventions() {
+        this.financeService.getConventions().pipe(take(1)).subscribe({
+            next: (conventions) => {
+                this.allConventions.set(conventions);
+                this.cdr.markForCheck();
+            },
+            error: (err) => console.error('Error loading conventions', err)
+        });
+    }
+
+    applyConvention(manualConv?: Convention) {
+        let conv: Convention | null = null;
+        
+        if (manualConv) {
+            conv = manualConv;
+        } else if (this.client?.conventionData) {
+            conv = this.client.conventionData as Convention;
         }
 
-        const conv = this.client.conventionData as Convention;
+        if (!conv) {
+            this.snackBar.open('Aucune convention sélectionnée', 'Fermer', { duration: 3000 });
+            return;
+        }
         
         // Check for Forfaitaire logic
         if (conv.remiseForfaitaire) {
@@ -362,7 +438,13 @@ export class FactureFormComponent implements OnInit {
 
         // If embedded and no ID is provided, but it's not explicitly 'new', we might be waiting
         if (this.embedded && !this.id) {
-            this.isLoading = true;
+            // [FIX] Don't get stuck in loading if we are already in creation mode
+            const routeId = this.factureId || 'new';
+            if (routeId === 'new') {
+                this.isLoading = false;
+            } else {
+                this.isLoading = true;
+            }
         }
 
         if (this.clientIdInput) {
@@ -387,6 +469,7 @@ export class FactureFormComponent implements OnInit {
                 this.addLine();
             }
             this.updateViewMode();
+            this.isLoading = false; // [FIX] Clear loading state
         } else {
             console.log('😴 [FactureForm] Embedded: No facturation ID/Signal yet.');
         }
@@ -425,6 +508,7 @@ export class FactureFormComponent implements OnInit {
             this.loadFacture(this.id);
         } else {
             this.addLine();
+            this.isLoading = false; // [FIX] Clear loading state for new route docs
         }
     }
 
@@ -444,6 +528,19 @@ export class FactureFormComponent implements OnInit {
             entrepotType: [null],
             entrepotNom: [null]
         });
+    }
+
+    get proprietesGroup(): FormGroup {
+        return this.form.get('proprietes') as FormGroup;
+    }
+
+    get pointsUtilises(): FormControl {
+        return this.form.get('proprietes.pointsUtilises') as FormControl;
+    }
+
+    get pointsValueMAD(): number {
+        const points = this.pointsUtilises?.value || 0;
+        return points * 0.1;
     }
 
     onTypeChange() {
@@ -480,9 +577,11 @@ export class FactureFormComponent implements OnInit {
             return sum + (control.get('totalTTC')?.value || 0);
         }, 0);
 
-        const props = this.form.get('proprietes')?.value;
+        // [FIX] Use getRawValue() instead of .value to read properties even when form is disabled (view mode)
+        const proprietesGroup = this.form.get('proprietes') as FormGroup;
+        const props = proprietesGroup ? proprietesGroup.getRawValue() : {};
         const remiseType = props?.remiseGlobalType || 'PERCENT';
-        const remiseValue = props?.remiseGlobalValue || 0;
+        const remiseValue = Number(props?.remiseGlobalValue) || 0;
 
         let globalDiscount = 0;
         if (remiseValue > 0) {
@@ -493,9 +592,9 @@ export class FactureFormComponent implements OnInit {
             }
         }
 
-        // Points Fidelio Deduction (1 point = 1 MAD)
-        const pointsUtilises = props?.pointsUtilises || 0;
-        const discountFromPoints = pointsUtilises;
+        // Points Fidelio Deduction (1 point = 0.1 MAD)
+        const pointsUtilises = Number(props?.pointsUtilises) || 0;
+        const discountFromPoints = pointsUtilises * 0.1;
 
         this.calculatedGlobalDiscount = globalDiscount + discountFromPoints;
 
@@ -533,14 +632,22 @@ export class FactureFormComponent implements OnInit {
 
                 console.log('📋 Nomenclature from DB:', facture.proprietes?.nomenclature);
 
+                this.originalProprietes = facture.proprietes || {}; // [NEW] Store original
+                
                 this.form.patchValue({
                     numero: facture.numero,
                     type: facture.type,
                     statut: facture.statut,
                     dateEmission: facture.dateEmission,
                     clientId: facture.clientId,
-                    proprietes: facture.proprietes
                 }, { emitEvent: false }); // Use emitEvent: false to prevent redundant calculations
+
+                // [FIX] Patch proprietes separately on the FormGroup to ensure nested fields
+                // (especially pointsUtilises) are correctly applied before calculateTotals() runs
+                const proprietesGroup = this.form.get('proprietes') as FormGroup;
+                if (proprietesGroup && this.originalProprietes) {
+                    proprietesGroup.patchValue(this.originalProprietes, { emitEvent: false });
+                }
 
                 // [FIX] Preserve centreId from DB to avoid nulling it on next save
                 if (facture.centreId) {
@@ -578,6 +685,7 @@ export class FactureFormComponent implements OnInit {
             error: (err) => {
                 console.error(err);
                 this.snackBar.open('Erreur lors du chargement', 'Fermer', { duration: 3000 });
+                this.isLoading = false; // [FIX] Stop loading on error
             }
         });
     }
@@ -587,7 +695,23 @@ export class FactureFormComponent implements OnInit {
     }
 
     saveAsObservable(showNotification = true, extraProperties: any = null): Observable<any> {
-        if (this.form.invalid) return new Observable(obs => obs.next(null));
+        if (this.form.invalid) {
+            console.error('❌ [FactureForm] Cannot save: Form is INVALID', this.form.errors);
+            Object.keys(this.form.controls).forEach(key => {
+                const controlErrors = this.form.get(key)?.errors;
+                if (controlErrors) console.error(`   - Control "${key}" errors:`, controlErrors);
+            });
+            // Recursively check proprietes
+            const propGroup = this.form.get('proprietes') as FormGroup;
+            if (propGroup?.invalid) {
+                Object.keys(propGroup.controls).forEach(key => {
+                    const errors = propGroup.get(key)?.errors;
+                    if (errors) console.error(`   - Proprietes.${key} errors:`, errors);
+                });
+            }
+            this.snackBar.open('Erreur: Formulaire invalide. Vérifiez les champs.', 'OK', { duration: 5000 });
+            return new Observable(obs => obs.next(null));
+        }
 
         // Ensure nomenclature from input is in the form before saving
         if (this.nomenclature && this.embedded) {
@@ -616,11 +740,20 @@ export class FactureFormComponent implements OnInit {
             });
         }
 
+        // [FIX] Robust Merge: Combine Original DB props + Current Form props + Extra props
         const mergedProprietes = {
+            ...this.originalProprietes,
             ...currentProprietes,
-            ...(extraProperties || {}),
-            vendeurId: finalVendeurId // Force the ID
+            ...(extraProperties || {})
         };
+
+        // [DIAGNOSTIC] Explicitly log and show what we are sending
+        const pts = mergedProprietes.pointsUtilises || 0;
+        console.log(`📡 [FactureForm] SENDING SAVE: Points=${pts}, totalTTC=${this.totalTTC}`, mergedProprietes);
+        if (pts > 0) {
+            this.snackBar.open(`Envoi: ${pts} points Fidelio (-${pts * 0.1} DH)...`, 'OK', { duration: 2000 });
+        }
+        mergedProprietes.vendeurId = finalVendeurId; // Force the ID
 
         console.log('📝 FactureFormComponent.saveAsObservable - Merged Properties:', mergedProprietes);
 
@@ -639,7 +772,10 @@ export class FactureFormComponent implements OnInit {
 
         console.log('💾 Saving facture with data:', {
             id: this.id,
-            proprietes: factureData.proprietes,
+            statut: factureData.statut,
+            type: factureData.type,
+            proprietes: JSON.stringify(factureData.proprietes),
+            pointsUtilises: factureData.proprietes?.pointsUtilises,
             nomenclature: factureData.proprietes?.nomenclature
         });
 
@@ -648,6 +784,11 @@ export class FactureFormComponent implements OnInit {
             : this.factureService.create(factureData);
 
         return request.pipe(
+            tap(facture => {
+                if (facture.proprietes?.pointsUtilises > 0) {
+                    this.snackBar.open(`✅ Fidelio appliqué: -${facture.proprietes.pointsUtilises * 0.1} DH`, 'OK', { duration: 4000 });
+                }
+            }),
             map(facture => {
                 this.id = facture.id; // Update internal ID to prevent duplicates
 
@@ -730,7 +871,11 @@ export class FactureFormComponent implements OnInit {
                 this.calculateTotals();
                 this.snackBar.open('Données chargées depuis la facture ' + facture.numero, 'OK', { duration: 3000 });
             },
-            error: (err) => console.error('Error loading source facture', err)
+            error: (err) => {
+                console.error('Error loading source facture', err);
+                this.isLoading = false; // [FIX] Stop loading on error
+                this.snackBar.open('Erreur de chargement du document source', 'OK', { duration: 3000 });
+            }
         });
     }
 
@@ -833,11 +978,11 @@ export class FactureFormComponent implements OnInit {
         }
 
         if (this.resteAPayer <= 0 && this.netAPayer > 0) {
-            this.form.patchValue({ statut: 'PAYEE' });
+            this.form.patchValue({ statut: 'PAYEE' }, { emitEvent: false });
         } else if (this.montantPaye > 0) {
             // If user has manually set VALIDE, don't revert to PARTIEL
             if (currentStatut !== 'VALIDE' && currentStatut !== 'VENTE_EN_INSTANCE') {
-                this.form.patchValue({ statut: 'PARTIEL' });
+                this.form.patchValue({ statut: 'PARTIEL' }, { emitEvent: false });
             }
         }
     }

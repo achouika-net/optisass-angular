@@ -222,28 +222,68 @@
                     </div>
                 </div>
                 <div class="footer-right">
-                    <div class="loyalty-spend-section" *ngIf="pointsFideliteClient > 0 && !isViewMode">
+                    <!-- 🏆 BANNIÈRE FIDELIO : Proposer la remise si objectif atteint -->
+                    <div class="fidelio-banner"
+                        *ngIf="fidelioEligibility?.eligible && (form.get('proprietes.pointsUtilises')?.value || 0) === 0">
+                        <mat-icon class="fidelio-icon">military_tech</mat-icon>
+                        <div class="fidelio-banner-content">
+                            <strong>🎉 Objectif Fidelio atteint !</strong>
+                            <span>Ce client dispose de <strong>{{ fidelioEligibility!.currentPoints }} points</strong>
+                                (= <strong>{{ fidelioEligibility!.madValue }} DH</strong> de remise)</span>
+                        </div>
+                        <button type="button" mat-flat-button color="primary" class="fidelio-apply-btn"
+                            (click)="applyFidelioDiscount()">
+                            <mat-icon>redeem</mat-icon>
+                            Appliquer
+                        </button>
+                    </div>
+
+                    <!-- Show loyalty section if client has points OR if points are already applied to this doc -->
+                    <div class="loyalty-spend-section"
+                        *ngIf="(pointsFideliteClient > 0 || (form.get('proprietes.pointsUtilises')?.value || 0) > 0)">
                         <div class="loyalty-balance">
                             <mat-icon color="primary"
                                 style="vertical-align: middle; margin-right: 5px;">stars</mat-icon>
-                            <span>Points Fidélité: <strong>{{ pointsFideliteClient }} pts</strong></span>
+                            <span>Points Fidélité disponibles: <strong>{{ pointsFideliteClient }} pts</strong></span>
                         </div>
                         <div class="points-input-row" formGroupName="proprietes">
                             <mat-form-field appearance="outline" class="points-input">
                                 <mat-label>Points à utiliser</mat-label>
                                 <input matInput type="number" formControlName="pointsUtilises"
-                                    (change)="calculateTotals()" [max]="pointsFideliteClient" min="0">
+                                    (change)="calculateTotals()"
+                                    [max]="pointsFideliteClient + (form.get('proprietes.pointsUtilises')?.value || 0)"
+                                    min="0">
                                 <span matSuffix>pts</span>
+                                <mat-hint *ngIf="pointsValueMAD > 0" style="color: #2e7d32; font-weight: 500;">
+                                    (-{{ pointsValueMAD | number:'1.2-2' }} DH)
+                                </mat-hint>
                             </mat-form-field>
                         </div>
                     </div>
 
-                    <!-- Convention Shortcut -->
-                    <div class="convention-shortcut-section" *ngIf="client?.conventionData && !isViewMode">
-                        <button type="button" mat-flat-button color="accent" class="w-full mb-4" (click)="applyConvention()">
+                    <!-- Convention Section -->
+                    <div class="convention-section mt-4 mb-4" *ngIf="!isViewMode">
+                        <!-- Quick apply for client's own convention -->
+                        <button type="button" mat-flat-button color="accent" class="w-full mb-3" 
+                                *ngIf="client?.conventionData" (click)="applyConvention()">
                             <mat-icon>assignment_ind</mat-icon>
-                            Appliquer la convention: {{ client.conventionData.nom }}
+                            Appliquer convention client: {{ client.conventionData.nom }}
                         </button>
+
+                        <!-- Manual selection for any other convention -->
+                        <mat-form-field appearance="outline" class="w-full no-print">
+                            <mat-label>Choisir une autre Convention</mat-label>
+                            <mat-select (selectionChange)="applyConvention($event.value)">
+                                <mat-option [value]="null">-- Sélectionner --</mat-option>
+                                <mat-option *ngFor="let conv of allConventions()" [value]="conv">
+                                    {{ conv.nom }} 
+                                    <span class="text-xs text-gray-500">
+                                        ({{ conv.remiseType === 'PERCENTAGE' ? conv.remiseValeur + '%' : conv.remiseValeur + ' DH' }})
+                                    </span>
+                                </mat-option>
+                            </mat-select>
+                            <mat-hint>Permet d'appliquer une convention spécifique à cette vente</mat-hint>
+                        </mat-form-field>
                     </div>
 
                     <div class="discount-section" formGroupName="proprietes" [class.view-mode]="isViewMode">
@@ -276,8 +316,7 @@
                             </span>
                             <span class="view-calc"
                                 *ngIf="form.get('proprietes.remiseGlobalType')?.value === 'PERCENT'">
-                                (-{{ (calculatedGlobalDiscount - (form.get('proprietes.pointsUtilises')?.value ||
-                                0)) |
+                                (-{{ (calculatedGlobalDiscount - ((form.get('proprietes.pointsUtilises')?.value || 0) * 0.1)) |
                                 number:'1.2-2' }} DH)
                             </span>
                         </div>
@@ -285,7 +324,7 @@
                             *ngIf="isViewMode && form.get('proprietes.pointsUtilises')?.value > 0">
                             <span>Points Fidelio:</span>
                             <span>
-                                -{{ form.get('proprietes.pointsUtilises')?.value | number:'1.2-2' }} DH
+                                -{{ ((form.get('proprietes.pointsUtilises')?.value || 0) * 0.1) | number:'1.2-2' }} DH
                             </span>
                         </div>
                     </div>
