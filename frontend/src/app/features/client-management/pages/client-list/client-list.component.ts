@@ -11,6 +11,7 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Router, RouterModule } from '@angular/router';
 import { ClientManagementService } from '../../services/client.service';
 import { Client, StatutClient, TypeClient, isClientParticulier, isClientProfessionnel } from '../../models/client.model';
@@ -42,6 +43,7 @@ interface ClientStats {
         MatIconModule,
         MatMenuModule,
         MatDividerModule,
+        MatSlideToggleModule,
         RouterModule,
     ],
     templateUrl: './client-list.component.html',
@@ -96,7 +98,8 @@ export class ClientListComponent implements OnInit, OnDestroy {
             prenom: [''],
             telephone: [''],
             cin: [''],
-            groupeFamille: ['']
+            groupeFamille: [''],
+            fidelioEligible: [false]
         });
     }
 

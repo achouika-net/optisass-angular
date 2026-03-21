@@ -122,6 +122,7 @@ export class ClientManagementService {
         telephone?: string;
         groupeFamille?: string;
         cin?: string;
+        fidelioEligible?: boolean;
     }): Observable<Client[]> {
         // Construire les paramètres de requête
         let params: any = {};
@@ -133,6 +134,7 @@ export class ClientManagementService {
         if (filters.telephone) params.telephone = filters.telephone;
         if (filters.cin) params.cin = filters.cin;
         if (filters.groupeFamille) params.groupeFamille = filters.groupeFamille;
+        if (filters.fidelioEligible) params.fidelioEligible = 'true';
 
         return this.http.get<any[]>(`${this.apiUrl}/search`, { params }).pipe(
             map(clients => clients.map(c => this.mapBackendResponse(c)))
