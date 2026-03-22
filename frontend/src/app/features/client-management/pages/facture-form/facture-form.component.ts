@@ -272,6 +272,12 @@ export class FactureFormComponent implements OnInit {
             console.log('🏥 [FactureForm] conventionIdInput changed:', this.conventionIdInput);
             this.calculateTotals();
         }
+
+        if (changes['clientIdInput'] && this.clientIdInput) {
+            console.log('👤 [FactureForm] clientIdInput changed:', this.clientIdInput);
+            this.form.get('clientId')?.setValue(this.clientIdInput);
+            this.loadClientPoints(this.clientIdInput);
+        }
     }
     loadCompanySettings() {
         this.companySettingsService.getSettings().subscribe({

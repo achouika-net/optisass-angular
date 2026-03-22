@@ -646,10 +646,11 @@ ${centreName ? `(${centreName})` : ''}`,
       };
     }
 
-    // Merge content properties to top level for legacy support
+    // Merge content properties to top level for legacy support, BUT prioritize DB fields (fiche)
+    // over whatever might be cached inside the content JSON (like empty numero strings).
     return {
-      ...fiche,
-      ...content, // Spread content back to top level
+      ...content, // Spread legacy content first
+      ...fiche,   // Spread fiche from DB to ensure core fields (id, numero, dateCreation) are not overwritten
       ordonnance: content.ordonnance || fiche.ordonnance,
       lentilles: content.lentilles || fiche.lentilles,
       adaptation: content.adaptation || fiche.adaptation,

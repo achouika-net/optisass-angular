@@ -754,12 +754,14 @@ model CompanySettings {
   website   String?
   ice       String?
   rc        String?
-  if        String?
-  patente   String?
-  rib       String?
-  bank      String?
-  updatedAt DateTime @updatedAt
-  cachetUrl String?
+  identifiantFiscal String? @map("if")
+  patente           String?
+  cnss              String?
+  inpeCode          String?
+  rib               String?
+  bank              String?
+  updatedAt         DateTime @updatedAt
+  cachetUrl         String?
 }
 
 model GlassBrand {

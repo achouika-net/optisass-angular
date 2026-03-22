@@ -1114,8 +1114,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
             this.suggestions.push({
                 type: 'Paire',
-                matiere: this.mapMaterialToUI(bestRec.option.material),
-                indice: this.mapIndexToUI(bestRec.option.index),
+                matiere: this.getExactMaterialName(bestRec.option.material),
+                indice: this.findLabelForIndex(bestRec.option.index),
                 traitements: this.mapTreatmentsToUI(bestRec.selectedTreatments),
                 raison: bestRec.rationale,
                 epaisseur: thicknessInfo,
@@ -1129,8 +1129,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
             this.suggestions.push({
                 type: 'OD',
-                matiere: this.mapMaterialToUI(recOD.option.material),
-                indice: this.mapIndexToUI(recOD.option.index),
+                matiere: this.getExactMaterialName(recOD.option.material),
+                indice: this.findLabelForIndex(recOD.option.index),
                 traitements: this.mapTreatmentsToUI(recOD.selectedTreatments),
                 raison: recOD.rationale,
                 epaisseur: thickOD,
@@ -1139,8 +1139,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
             this.suggestions.push({
                 type: 'OG',
-                matiere: this.mapMaterialToUI(recOG.option.material),
-                indice: this.mapIndexToUI(recOG.option.index),
+                matiere: this.getExactMaterialName(recOG.option.material),
+                indice: this.findLabelForIndex(recOG.option.index),
                 traitements: this.mapTreatmentsToUI(recOG.selectedTreatments),
                 raison: recOG.rationale,
                 epaisseur: thickOG,
@@ -1153,6 +1153,24 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
         this.showSuggestions = true;
         this.cdr.markForCheck();
+    }
+
+    /**
+     * [FIX] Robust Lookup for Lens Materials
+     * Converts raw AI material strings into the exact material name used in the UI catalog.
+     */
+    getExactMaterialName(dbMaterial: string): string {
+        if (!dbMaterial) return '';
+        if (this.allGlassParameters && this.allGlassParameters.materials) {
+            const searchStr = dbMaterial.trim().toLowerCase();
+            const mat = this.allGlassParameters.materials.find(m => 
+                m.name.toLowerCase() === searchStr || 
+                m.name.toLowerCase().includes(searchStr) || 
+                searchStr.includes(m.name.toLowerCase())
+            );
+            if (mat) return mat.name;
+        }
+        return this.mapMaterialToUI(dbMaterial);
     }
 
     // Helper to map DB material names to UI dropdown values
@@ -1402,6 +1420,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     marque: mqOD,
                     traitement: v.traitementOD // source of truth (same as OG)
                 });
+                // Update the unified list so the UI dropdown can select the value
+                this.updateLensIndicesForEye('unified', parentGroup);
             }
         }
 
@@ -2684,13 +2704,13 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             this.cdr.detectChanges(); // Force re-evaluation of getters like getTimelineEvents
         }
 
-        // Load payments when switching to Payment tab
-        if (index === 2 && this.paymentListComponent) {
+        // Load payments when switching to Payment tab (now tab 3)
+        if (index === 3 && this.paymentListComponent) {
             this.paymentListComponent.loadPayments();
         }
 
-        // Load invoices when switching to Billing tab
-        if (index === 3 && this.client) {
+        // Load invoices when switching to Billing tab (now tab 2)
+        if (index === 2 && this.client) {
             this.updateInitialLines();
             this.loadClientFactures();
         }
@@ -3597,6 +3617,14 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
                         // Pass extraProps to saveAsObservable
                         return this.factureComponent.saveAsObservable(true, extraProps).pipe(
+                            tap(savedFacture => {
+                                if (savedFacture) {
+                                    console.log('💾 [INVOICE SYNC] Silent save complete. Updating parent subject:', savedFacture.numero);
+                                    this.onInvoiceSaved(savedFacture);
+                                } else {
+                                    console.warn('⚠️ [INVOICE SYNC] Save returned null. Skipping parent sync.');
+                                }
+                            }),
                             map(() => fiche),
                             catchError(err => {
                                 if (err.status === 409) {
