@@ -312,7 +312,17 @@
                     <h3>Monture & Verres</h3>
                     <p>Sélectionner les équipements pour le client</p>
                 </div>
-                <div class="header-actions-inline">
+                <div class="header-actions-inline flex gap-4">
+                    <mat-form-field appearance="outline" style="width: 250px;">
+                        <mat-label>Convention / Mutuelle</mat-label>
+                        <mat-select formControlName="conventionId">
+                            <mat-option [value]="null">Aucune (Vente directe)</mat-option>
+                            <mat-option *ngFor="let conv of allConventions" [value]="conv.id">
+                                {{ conv.nom }} ({{ conv.remiseValeur }}{{ conv.remiseType === 'PERCENTAGE' ? '%' : ' DH' }})
+                            </mat-option>
+                        </mat-select>
+                    </mat-form-field>
+
                     <mat-form-field appearance="outline" style="width: 280px;">
                         <mat-label>Date Livraison Estimée</mat-label>
                         <input matInput [matDatepicker]="pickerLivraisonVente" formControlName="dateLivraisonEstimee">
@@ -1038,7 +1048,8 @@
 
             <div class="facturation-container">
                 <app-facture-form [factureId]="(linkedFacture$ | async)?.id" [clientIdInput]="clientId"
-                    [ficheIdInput]="ficheId" [initialLines]="initialLines" [embedded]="true"
+                    [ficheIdInput]="ficheId" [conventionIdInput]="selectedConventionId" 
+                    [initialLines]="initialLines" [embedded]="true"
                     (onSaved)="onInvoiceSaved($event)" (paymentAdded)="onPaymentAdded()"
                     [nomenclature]="nomenclatureString" [isReadonly]="!isEditMode">
                 </app-facture-form>

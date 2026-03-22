@@ -51,8 +51,16 @@ export class StockAvailabilityService {
         include: { entrepot: { include: { centre: true } } },
       });
 
-      const isAvailableLocally =
-        localProduct && localProduct.quantiteActuelle >= requestedQty;
+      // [FIX] Account for stock already decremented for THIS document
+      let alreadyTakenQty = 0;
+      if ((facture.proprietes as any)?.stockDecremented) {
+        // If stock was already decremented, then for THIS invoice, the requested qty is "available"
+        // because it was already taken from the shelf.
+        alreadyTakenQty = requestedQty;
+      }
+
+      const availableQty = (localProduct?.quantiteActuelle || 0) + alreadyTakenQty;
+      const isAvailableLocally = availableQty >= requestedQty;
 
       if (!isAvailableLocally) {
         // 2. Search in other centers

@@ -60,6 +60,7 @@ export class FactureFormComponent implements OnInit {
     @Input() factureId: string | null = null;
     @Input() clientIdInput: string | null = null;
     @Input() ficheIdInput: string | null = null;
+    @Input() conventionIdInput: string| null = null;
     @Input() initialLines: any[] = [];
     @Input() embedded = false;
     @Input() nomenclature: string | null = null;
@@ -94,9 +95,10 @@ export class FactureFormComponent implements OnInit {
     // Loyalty
     pointsFideliteClient = 0;
     fidelioEligibility: { eligible: boolean; currentPoints: number; threshold: number; madValue?: number } | null = null;
+    discountDetail: string = '';
 
     // [NEW] Conventions
-    allConventions = signal<Convention[]>([]);
+    allConventions: Convention[] = [];
 
     currentUser$: Observable<any> = this.store.select(UserSelector);
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
@@ -265,8 +267,12 @@ export class FactureFormComponent implements OnInit {
                 console.log('🛡️ [FactureForm] Ignoring initialLines because Document is an existing invoice:', this.id);
             }
         }
+
+        if (changes['conventionIdInput']) {
+            console.log('🏥 [FactureForm] conventionIdInput changed:', this.conventionIdInput);
+            this.calculateTotals();
+        }
     }
-    // ... (rest of methods) - RESTORED
     loadCompanySettings() {
         this.companySettingsService.getSettings().subscribe({
             next: (settings) => {
@@ -380,7 +386,8 @@ export class FactureFormComponent implements OnInit {
     loadAllConventions() {
         this.financeService.getConventions().pipe(take(1)).subscribe({
             next: (conventions) => {
-                this.allConventions.set(conventions);
+                this.allConventions = conventions;
+                this.calculateTotals(); // Recalculate once we have convention data
                 this.cdr.markForCheck();
             },
             error: (err) => console.error('Error loading conventions', err)
@@ -577,6 +584,36 @@ export class FactureFormComponent implements OnInit {
             return sum + (control.get('totalTTC')?.value || 0);
         }, 0);
 
+        // [NEW] Convention Discount Calculation
+        let conventionDiscount = 0;
+        const targetConvId = this.conventionIdInput;
+        
+        if (targetConvId) {
+            // [FIX] Use loose equality == to handle string/number ID mismatches if any
+            const selectedConv = (this.allConventions || []).find(c => c.id == targetConvId);
+            
+            if (selectedConv) {
+                const remiseVal = Number(selectedConv.remiseValeur) || 0;
+                if (remiseVal > 0) {
+                    if (selectedConv.remiseType === 'PERCENTAGE') {
+                        conventionDiscount = rawTotalTTC * (remiseVal / 100);
+                        this.discountDetail = `(${selectedConv.nom} ${remiseVal}%)`;
+                    } else {
+                        conventionDiscount = remiseVal;
+                        this.discountDetail = `(${selectedConv.nom} -${remiseVal} DH)`;
+                    }
+                    console.log(`🏥 [FactureForm] Applied Convention ${selectedConv.nom}: ${remiseVal}${selectedConv.remiseType === 'PERCENTAGE' ? '%' : ' DH'} (-${conventionDiscount.toFixed(2)} DH)`);
+                } else {
+                    this.discountDetail = '';
+                }
+            } else {
+                console.warn(`🏥 [FactureForm] Convention with ID ${targetConvId} not found in allConventions list (size: ${this.allConventions?.length})`);
+                this.discountDetail = '';
+            }
+        } else {
+            this.discountDetail = '';
+        }
+
         // [FIX] Use getRawValue() instead of .value to read properties even when form is disabled (view mode)
         const proprietesGroup = this.form.get('proprietes') as FormGroup;
         const props = proprietesGroup ? proprietesGroup.getRawValue() : {};
@@ -596,7 +633,7 @@ export class FactureFormComponent implements OnInit {
         const pointsUtilises = Number(props?.pointsUtilises) || 0;
         const discountFromPoints = pointsUtilises * 0.1;
 
-        this.calculatedGlobalDiscount = globalDiscount + discountFromPoints;
+        this.calculatedGlobalDiscount = globalDiscount + discountFromPoints + conventionDiscount;
 
         // Check for AVOIR type to allow negative totals
         const type = this.form.get('type')?.value;

@@ -87,6 +87,7 @@ export interface FicheClientBase {
     montantRestant: number;
     notes?: string;
     createdBy?: string; // ID de l'utilisateur
+    conventionId?: string;
 }
 
 // ============ Fiche Monture ============
