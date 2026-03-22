@@ -412,20 +412,11 @@ ${centreName ? `(${centreName})` : ''}`,
       const looseData = data as any;
       const incomingContent = looseData.content && typeof looseData.content === 'object' ? looseData.content : looseData;
 
-      // Robust Content Mapping
+      // Robust Content Mapping (Preserve all existing fields while ensuring mapping for critical ones)
       const content = {
+        ...incomingContent,
         ordonnance: incomingContent.ordonnance || incomingContent.prescription,
-        lentilles: incomingContent.lentilles,
-        adaptation: incomingContent.adaptation,
-        monture: incomingContent.monture,
-        verres: incomingContent.verres,
-        montage: incomingContent.montage,
         configImage: incomingContent.configImage || incomingContent.virtualCenteringUrl, // [FIX] Store centering image
-        suggestions: incomingContent.suggestions,
-        equipements: incomingContent.equipements,
-        produits: incomingContent.produits,
-        notes: incomingContent.notes,
-        suiviCommande: incomingContent.suiviCommande,
       };
 
       console.log(`💾 [Backend CREATE] Fiche Type: ${data.type} | Content keys:`, Object.keys(content));

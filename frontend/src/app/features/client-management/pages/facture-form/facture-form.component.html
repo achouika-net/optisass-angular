@@ -238,9 +238,9 @@
                         </button>
                     </div>
 
-                    <!-- Show loyalty section if client has points OR if points are already applied to this doc -->
+                    <!-- Show loyalty section ONLY if client is eligible (reached objective) OR if points are already applied to this doc -->
                     <div class="loyalty-spend-section"
-                        *ngIf="(pointsFideliteClient > 0 || (form.get('proprietes.pointsUtilises')?.value || 0) > 0)">
+                        *ngIf="fidelioEligibility?.eligible || (form.get('proprietes.pointsUtilises')?.value || 0) > 0">
                         <div class="loyalty-balance">
                             <mat-icon color="primary"
                                 style="vertical-align: middle; margin-right: 5px;">stars</mat-icon>
@@ -275,7 +275,7 @@
                             <mat-label>Choisir une autre Convention</mat-label>
                             <mat-select (selectionChange)="applyConvention($event.value)">
                                 <mat-option [value]="null">-- Sélectionner --</mat-option>
-                                <mat-option *ngFor="let conv of allConventions()" [value]="conv">
+                                <mat-option *ngFor="let conv of allConventions" [value]="conv">
                                     {{ conv.nom }} 
                                     <span class="text-xs text-gray-500">
                                         ({{ conv.remiseType === 'PERCENTAGE' ? conv.remiseValeur + '%' : conv.remiseValeur + ' DH' }})
@@ -329,6 +329,10 @@
                         </div>
                     </div>
 
+                    <div class="total-row" *ngIf="calculatedGlobalDiscount > 0">
+                        <span>Remise {{ discountDetail }}:</span>
+                        <span>-{{ calculatedGlobalDiscount | number:'1.2-2' }} DH</span>
+                    </div>
                     <div class="total-row">
                         <span>Total HT:</span>
                         <span>{{ totalHT | number:'1.2-2' }} DH</span>

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef, NgZone, Inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef, NgZone, Inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Observable, of, BehaviorSubject, firstValueFrom, throwError } from 'rxjs';
 import { FormBuilder, FormGroup, AbstractControl, ReactiveFormsModule, Validators, FormArray, FormControl } from '@angular/forms';
@@ -45,6 +45,8 @@ import { CompanySettingsService } from '../../../../core/services/company-settin
 import { CompanySettings } from '../../../../shared/interfaces/company-settings.interface';
 import { GlassParametersService } from '../../services/glass-parameters.service';
 import { GlassParameters } from '../../../../core/models/glass-parameters.model';
+import { FinanceService } from '../../../finance/services/finance.service';
+import { Convention } from '../../../finance/models/finance.models';
 
 
 
@@ -88,7 +90,8 @@ interface PrescriptionFile {
         FicheService,
         FactureService,
         ProductService,
-        BcPrintService
+        BcPrintService,
+        FinanceService
     ],
     templateUrl: './monture-form.component.html',
     styleUrls: ['./monture-form.component.scss'],
@@ -139,6 +142,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     fournisseurCtrl = new FormControl('');
     filteredSuppliers$: Observable<ISupplier[]> = of([]);
     private allSuppliers: ISupplier[] = [];
+    allConventions: any[] = [];
+    selectedConventionId: string | null = null;
 
     // Master Lists (From Database)
     lensMaterials: string[] = [];
@@ -323,7 +328,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         private companySettingsService: CompanySettingsService,
         private bcPrintService: BcPrintService,
         private supplierService: SupplierService,
-        private glassParametersService: GlassParametersService
+        private glassParametersService: GlassParametersService,
+        private financeService: FinanceService
     ) {
         this.ficheForm = this.initForm();
     }
@@ -331,12 +337,21 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     ngOnInit(): void {
         this.loadCompanySettings();
         this.loadGlassParameters();
+        this.loadConventions();
         // FIX: Ensure 'hauteurVerre' control exists in 'montage' group immediately
         // This ensures correct data binding when loading existing fiches
         const montageGroup = this.ficheForm.get('montage') as FormGroup;
         if (montageGroup && !montageGroup.contains('hauteurVerre')) {
             montageGroup.addControl('hauteurVerre', new FormControl(null));
         }
+
+        this.selectedConventionId = this.ficheForm.get('conventionId')?.value;
+
+        this.ficheForm.get('conventionId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(val => {
+            console.log('🏥 [MontureForm] conventionId changed:', val);
+            this.selectedConventionId = val;
+            this.cdr.markForCheck();
+        });
 
         // Draw frame visualization when tab changes to Fiche Montage
         this.ficheForm.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
@@ -751,12 +766,21 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 
                 // [FIX] Race Condition: Re-map indices now that catalog is loaded
                 this.reMapIndices();
-
                 this.cdr.markForCheck();
-            },
-            error: (err) => console.error('Error loading glass parameters:', err)
+            }
         });
     }
+
+    loadConventions(): void {
+        this.financeService.getConventions().pipe(takeUntil(this.destroy$)).subscribe({
+            next: (conventions: any[]) => {
+                this.allConventions = conventions;
+                this.cdr.markForCheck();
+            },
+            error: (err) => console.error('Error loading conventions', err)
+        });
+    }
+
 
     updateNomenclature(): void {
         const odVars = this.ficheForm.get('ordonnance.od')?.value || {};
@@ -1968,10 +1992,15 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         const typeVerre = 'Unifocal';
 
         return this.fb.group({
-            // ... existing fields ...
+            // Identification
+            ficheId: [this.ficheId],
             clientId: [this.clientId],
+            conventionId: [null],
             type: ['MONTURE'],
             statut: ['BROUILLON'],
+            numero: [''],
+            dateCre: [new Date()],
+            
             monture: this.fb.group({
                 reference: ['', Validators.required],
                 marque: ['', Validators.required],
@@ -2023,7 +2052,6 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     prix: [0]
                 })
             }),
-            // Restore missing fields from deleted initForm (Important!)
             ordonnance: this.fb.group({
                 od: this.fb.group({
                     sphere: [null],
@@ -2059,11 +2087,11 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 diametreVerreOD: [null],
                 diametreVerreOG: [null],
                 diametreEffectif: ['65/70'],
-                capturedImage: [null], // [NEW] Base64 image from centering tablet
+                capturedImage: [null],
                 remarques: [''],
-                hauteurVerre: [null], // [NEW] Total frame height (B-dimension) persisted
-                diagonalMm: [null], // [NEW] Diagonal diameter measurement
-                diagonalPoints: [null] // [NEW] Points for manual diagonal tracing
+                hauteurVerre: [null],
+                diagonalMm: [null],
+                diagonalPoints: [null]
             }),
             suggestions: [[]],
             equipements: this.fb.array([]),
@@ -2082,7 +2110,6 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 casseHistorique: [[]],
                 nextBcMotive: [''],
                 bcHistorique: [[]],
-                journal: [[]]
             })
         });
     }
@@ -2503,6 +2530,12 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 if (fiche) {
                     console.log('📄 [LOAD] Fiche loaded:', fiche.id);
                     this.currentFiche = fiche;
+                    
+                    // [FIX] Update local clientId property from loaded fiche
+                    if (fiche.clientId) {
+                        this.clientId = fiche.clientId;
+                    }
+                    
                     this.patchForm(fiche);
 
                     // [RECEPTION] Immediate trigger if invoice status is already known
@@ -2544,6 +2577,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         console.log('📦 [PATCH] Patching Montage Data:', fiche.montage);
 
         this.ficheForm.patchValue({
+            clientId: fiche.clientId,
+            conventionId: fiche.conventionId || null,
             ordonnance: fiche.ordonnance || {},
             monture: fiche.monture || {},
             montage: fiche.montage || {},
@@ -2552,6 +2587,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             suiviCommande: fiche.suiviCommande || {},
             lentilles: fiche.lentilles || {}
         }, { emitEvent: false });
+
+        // [FIX] Explicitly sync selectedConventionId since emitEvent: false prevents valueChanges from firing
+        this.selectedConventionId = fiche.conventionId || null;
 
         if (fiche.suiviCommande && fiche.suiviCommande.fournisseur) {
             this.fournisseurCtrl.setValue(fiche.suiviCommande.fournisseur, { emitEvent: false });
@@ -2932,6 +2970,27 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         return lignes;
     }
 
+    private getCalculatedTotals(lignes: any[]) {
+        const rawTotalTTC = lignes.reduce((acc, l) => acc + (l.totalTTC || 0), 0);
+        const conventionId = this.ficheForm.get('conventionId')?.value;
+        const selectedConv = (this.allConventions || []).find(c => c.id === conventionId);
+
+        let conventionDiscount = 0;
+        if (selectedConv && selectedConv.remiseValeur) {
+            if (selectedConv.remiseType === 'PERCENTAGE') {
+                conventionDiscount = rawTotalTTC * (selectedConv.remiseValeur / 100);
+            } else {
+                conventionDiscount = selectedConv.remiseValeur;
+            }
+        }
+
+        const totalTTC = Math.max(0, rawTotalTTC - conventionDiscount);
+        const totalHT = totalTTC / 1.2;
+        const totalTVA = totalTTC - totalHT;
+
+        return { totalTTC, totalHT, totalTVA, conventionDiscount, conventionId };
+    }
+
     generateFacture() {
         if (!this.client || !this.client.id) return;
 
@@ -2941,11 +3000,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             return;
         }
 
-        const totalTTC = (lines: any[]) => lines.reduce((acc: number, val: any) => acc + val.totalTTC, 0);
-        const total = totalTTC(lignes);
-        const tvaRate = 0.20;
-        const totalHT = total / (1 + tvaRate);
-        const tva = total - totalHT;
+        const totals = this.getCalculatedTotals(lignes);
 
         const factureData: Partial<Facture> = {
             type: 'FACTURE',
@@ -2953,11 +3008,12 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             dateEmission: new Date(),
             clientId: this.client.id,
             lignes: lignes,
-            totalTTC: total,
-            totalHT: totalHT,
-            totalTVA: tva,
+            totalTTC: totals.totalTTC,
+            totalHT: totals.totalHT,
+            totalTVA: totals.totalTVA,
             ficheId: this.ficheId, // CRITICAL: Link to Fiche
             proprietes: {
+                conventionId: totals.conventionId,
                 nomenclature: this.nomenclatureString || ''
             }
         };
@@ -3314,11 +3370,14 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         }));
 
         // Build complete fiche data with ALL fields
-        const ficheData: FicheMontureCreate = {
+        const ficheData: any = {
+            ...(this.currentFiche || {}),
+            ...formValue,
             clientId: this.clientId,
             type: TypeFiche.MONTURE,
-            statut: StatutFiche.EN_COURS,
+            statut: this.currentFiche?.statut || StatutFiche.EN_COURS,
             dateLivraisonEstimee: formValue.dateLivraisonEstimee,
+            conventionId: formValue.conventionId,
             ordonnance: {
                 ...formValue.ordonnance,
                 prescriptionFiles: serializableFiles  // ✅ Serializable prescription attachments
@@ -3327,11 +3386,11 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             verres: formValue.verres,
             montage: formValue.montage,
             configImage: this.getFrameCanvasDataUrl(), // [NEW] Ensure centering image is sent to backend
-            suggestions: this.suggestions,  // ✅ Add AI suggestions
+            suggestions: this.suggestions || [],  // ✅ Add AI suggestions
             equipements: formValue.equipements || [],  // ✅ Add additional equipment
             suiviCommande: formValue.suiviCommande,    // ✅ Add order tracking
             montantTotal,
-            montantPaye: 0
+            montantPaye: this.currentFiche?.montantPaye || 0
         };
 
         console.log('📤 Submitting fiche data:', ficheData);
@@ -3567,24 +3626,20 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                                     // We MUST update it with the new lines/properties to keep it in sync.
                                     console.log('🔄 Updating existing invoice (via Service) as component is not active');
 
-                                    const total = generatedLines.reduce((acc, val) => acc + val.totalTTC, 0);
-                                    // Calculate HT/TVA approx or relies on backend? Better to send all.
-                                    // Similar logic to create but for update
-                                    const tvaRate = 0.20;
-                                    const totalHT = total / (1 + tvaRate);
-                                    const tva = total - totalHT;
+                                    const totals = this.getCalculatedTotals(generatedLines);
 
                                     const updateData: any = {
                                         lignes: generatedLines,
-                                        totalTTC: total,
-                                        totalHT: totalHT,
-                                        totalTVA: tva,
+                                        totalTTC: totals.totalTTC,
+                                        totalHT: totals.totalHT,
+                                        totalTVA: totals.totalTVA,
                                         proprietes: {
                                             ...(existingFacture.proprietes as any || {}),
+                                            conventionId: totals.conventionId,
                                             nomenclature: this.nomenclatureString || '',
                                             forceStockDecrement: userForcedStockDecrement || (existingFacture.proprietes as any)?.forceStockDecrement
                                         },
-                                        resteAPayer: total // Usually resets amount to pay if content changes? Valid for BROUILLON.
+                                        resteAPayer: totals.totalTTC // Usually resets amount to pay if content changes? Valid for BROUILLON.
                                     };
 
                                     if (userForcedType) updateData.type = userForcedType;
@@ -3610,10 +3665,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                                 // Generate nomenclature first
                                 console.log('📋 Generating nomenclature for new invoice:', this.nomenclatureString);
 
-                                const total = generatedLines.reduce((acc, val) => acc + val.totalTTC, 0);
-                                const tvaRate = 0.20;
-                                const totalHT = total / (1 + tvaRate);
-                                const tva = total - totalHT;
+                                const totals = this.getCalculatedTotals(generatedLines);
 
                                 const factureData: any = {
                                     type: 'DEVIS',
@@ -3622,14 +3674,15 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                                     clientId: this.clientId,
                                     ficheId: fiche.id,
                                     lignes: generatedLines,
-                                    totalTTC: total,
-                                    totalHT: totalHT,
-                                    totalTVA: tva,
+                                    totalTTC: totals.totalTTC,
+                                    totalHT: totals.totalHT,
+                                    totalTVA: totals.totalTVA,
                                     proprietes: {
+                                        conventionId: totals.conventionId,
                                         nomenclature: this.nomenclatureString || '',
                                         forceStockDecrement: userForcedStockDecrement
                                     },
-                                    resteAPayer: total
+                                    resteAPayer: totals.totalTTC
                                 };
 
                                 return this.factureService.create(factureData).pipe(
@@ -3915,21 +3968,20 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             entrepotId: l.entrepotId
         })));
 
-        const total = lines.reduce((acc, l) => acc + l.totalTTC, 0);
-        const tvaRate = 0.20;
-        const totalHT = total / (1 + tvaRate);
-        const tva = total - totalHT;
+        const totals = this.getCalculatedTotals(lines);
+        const amountPaid = currentFacture.totalTTC - currentFacture.resteAPayer;
 
         const updateData: any = {
             type: 'FACTURE',
             statut: 'VALIDE',
             lignes: lines,
-            totalTTC: total,
-            totalHT: totalHT,
-            totalTVA: tva,
-            resteAPayer: Math.max(0, total - (currentFacture.totalTTC - currentFacture.resteAPayer)),
+            totalTTC: totals.totalTTC,
+            totalHT: totals.totalHT,
+            totalTVA: totals.totalTVA,
+            resteAPayer: Math.max(0, totals.totalTTC - amountPaid),
             proprietes: {
                 ...(currentFacture.proprietes || {}),
+                conventionId: totals.conventionId,
                 nomenclature: this.nomenclatureString || '',
                 validatedAt: new Date(),
                 isTransferFulfilled: true, // Mark as fulfilled
@@ -3970,19 +4022,19 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         this.loading = true;
 
         const lines = this.getInvoiceLines();
-        const total = lines.reduce((acc, l) => acc + l.totalTTC, 0);
-        const tvaRate = 0.20;
-        const totalHT = total / (1 + tvaRate);
-        const tva = total - totalHT;
+        const totals = this.getCalculatedTotals(lines);
+        const amountPaid = (facture.totalTTC || 0) - (facture.resteAPayer || 0);
 
         const updateData: any = {
             statut: 'VENTE_EN_INSTANCE',
             lignes: lines,
-            totalTTC: total,
-            totalHT: totalHT,
-            totalTVA: tva,
+            totalTTC: totals.totalTTC,
+            totalHT: totals.totalHT,
+            totalTVA: totals.totalTVA,
+            resteAPayer: Math.max(0, totals.totalTTC - amountPaid),
             proprietes: {
                 ...(facture.proprietes || {}),
+                conventionId: totals.conventionId,
                 nomenclature: this.nomenclatureString || '',
                 forceStockDecrement: false, // Changed from true
                 instancedAt: new Date()
@@ -4042,10 +4094,13 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         }));
 
         const ficheData: any = {
+            ...(this.currentFiche || {}),
+            ...formValue,
             clientId: this.clientId,
             type: 'MONTURE',
             statut: this.currentFiche?.statut || 'EN_COURS',
             dateLivraisonEstimee: formValue.dateLivraisonEstimee,
+            conventionId: formValue.conventionId,
             ordonnance: {
                 ...formValue.ordonnance,
                 prescriptionFiles: serializableFiles
@@ -4072,12 +4127,15 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                         if (linked && linked.statut === 'VENTE_EN_INSTANCE') {
                             console.log('🔄 [RECEPTION] Background syncing linked invoice:', linked.numero);
                             const lines = this.getInvoiceLines();
-                            const total = lines.reduce((acc, l) => acc + l.totalTTC, 0);
+                            const totals = this.getCalculatedTotals(lines);
                             this.factureService.update(linked.id, {
                                 lignes: lines,
-                                totalTTC: total,
+                                totalTTC: totals.totalTTC,
+                                totalHT: totals.totalHT,
+                                totalTVA: totals.totalTVA,
                                 proprietes: {
                                     ...(linked.proprietes || {}),
+                                    conventionId: totals.conventionId,
                                     nomenclature: this.nomenclatureString || '',
                                     lastSilentUpdate: new Date()
                                 }
