@@ -863,10 +863,10 @@
             padding: 4px;
 
             p {
-                font-weight: 700;
+                font-weight: 400; // Normal weight instead of bold 700
                 font-size: 10px; // Smaller font
                 margin-bottom: 20px; // Compressed space for signature
-                color: #1e293b;
+                color: #94a3b8; // Greyed out instead of dark #1e293b
                 text-transform: uppercase;
             }
 
@@ -878,10 +878,10 @@
 
                 .print-cachet {
                     position: absolute;
-                    top: -45px;
+                    top: -65px; // Moved up slightly more for larger size
                     left: 50%;
                     transform: translateX(-50%);
-                    max-height: 110px;
+                    max-height: 140px; // Increased from 110px
                     width: auto;
                     opacity: 0.85;
                     pointer-events: none;
