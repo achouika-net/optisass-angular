@@ -164,7 +164,7 @@
 
                                     <!-- Remove File -->
                                     <button mat-icon-button color="warn" matTooltip="Supprimer le document"
-                                        (click)="clearDocument()" type="button">
+                                        (click)="clearOcrData()" type="button">
                                         <mat-icon>close</mat-icon>
                                     </button>
                                 </div>
@@ -725,7 +725,7 @@
                 <!-- PREMIUM STICKY ACTION BAR -->
                 <div
                     class="sticky bottom-0 bg-white/90 backdrop-blur-md p-6 border-t border-white shadow-[0_-10px_40px_rgba(0,0,0,0.05)] flex justify-between items-center z-10 mt-12 rounded-t-3xl">
-                    <div class="basket-summary flex gap-8">
+                    <div class="basket-summary flex items-center gap-8">
                         <div class="flex flex-col">
                             <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Valeur Saisie
                                 (HT)</span>
@@ -736,6 +736,11 @@
                             <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Articles</span>
                             <span class="text-2xl font-black text-blue-600">{{ stagedProducts.length }}</span>
                         </div>
+
+                        <button mat-button color="warn" class="!rounded-xl hover:!bg-red-50" 
+                                (click)="clearDocument()" [disabled]="stagedProducts.length === 0" type="button">
+                            <mat-icon>delete_sweep</mat-icon> VIDER LE PANIER
+                        </button>
                     </div>
 
                     <button mat-raised-button
@@ -943,6 +948,27 @@
                                     <td mat-cell *matCellDef="let p" class="text-center font-bold"
                                         [class.text-red-600]="p.quantiteActuelle <= 0">
                                         {{ p.quantiteActuelle }}
+                                    </td>
+                                </ng-container>
+
+                                <ng-container matColumnDef="lastMovement">
+                                    <th mat-header-cell *matHeaderCellDef> Dernier Mouvement </th>
+                                    <td mat-cell *matCellDef="let p">
+                                        <div *ngIf="p.mouvements?.length > 0; else noMovement" class="flex flex-col gap-1 py-1">
+                                            <span class="text-[10px] font-bold text-gray-700 uppercase leading-none">
+                                                {{ p.mouvements[0].motif }}
+                                            </span>
+                                            <div class="flex items-center gap-2 text-[9px] text-gray-500 italic">
+                                                <mat-icon class="scale-50 h-3 w-3">calendar_today</mat-icon>
+                                                {{ p.mouvements[0].dateMovement | date:'dd/MM/yyyy HH:mm' }}
+                                                <span *ngIf="p.mouvements[0].utilisateur" class="ml-1 opacity-70">
+                                                    ({{ p.mouvements[0].utilisateur }})
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <ng-template #noMovement>
+                                            <span class="text-[10px] text-gray-400 italic">Aucun mouvement</span>
+                                        </ng-template>
                                     </td>
                                 </ng-container>
 

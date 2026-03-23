@@ -243,6 +243,10 @@ export class ProductsService {
             centre: true,
           },
         },
+        mouvements: {
+          take: 1,
+          orderBy: { dateMovement: 'desc' },
+        },
       },
     });
 
@@ -264,6 +268,10 @@ export class ProductsService {
       include: {
         entrepot: {
           include: { centre: true },
+        },
+        mouvements: {
+          take: 1,
+          orderBy: { dateMovement: 'desc' },
         },
       },
     });

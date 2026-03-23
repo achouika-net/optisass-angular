@@ -61,7 +61,7 @@ export class StockEntryHistoryPageComponent implements OnInit {
     columnsToDisplay = ['dateEmission', 'fournisseur', 'numeroFacture', 'montantTTC', 'itemsCount', 'actions', 'expand'];
 
     outDataSource = new MatTableDataSource<any>([]);
-    outColumnsToDisplay = ['dateMovement', 'motif', 'utilisateur', 'itemsCount', 'expand'];
+    outColumnsToDisplay = ['dateMovement', 'motif', 'ficheNumero', 'clientNom', 'utilisateur', 'itemsCount', 'expand'];
 
     expandedElement: any | null;
 
@@ -267,9 +267,10 @@ export class StockEntryHistoryPageComponent implements OnInit {
     }
 
     getFicheNumero(movement: any): string {
-        if (movement.facture?.fiche?.numero) {
-            const num = movement.facture.fiche.numero;
-            const date = movement.facture.fiche.dateCreation;
+        const doc = movement.facture || movement.bonLivraison;
+        if (doc?.fiche?.numero) {
+            const num = doc.fiche.numero;
+            const date = doc.fiche.dateCreation;
             if (date) {
                 const d = new Date(date);
                 const formattedDate = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
@@ -277,12 +278,13 @@ export class StockEntryHistoryPageComponent implements OnInit {
             }
             return `n° ${num}`;
         }
-        return movement.facture?.numero || '--';
+        return (movement.facture?.numero || (movement.bonLivraison as any)?.numeroBL) || '--';
     }
 
     getClientName(movement: any): string {
-        if (!movement.facture?.client) return '--';
-        const client = movement.facture.client;
+        const client = movement.facture?.client || movement.bonLivraison?.client;
+        if (!client) return '--';
+
         if (client.raisonSociale) return client.raisonSociale;
         if (client.nom || client.prenom) {
             return `${client.nom || ''} ${client.prenom || ''}`.trim();
