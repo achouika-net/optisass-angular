@@ -78,17 +78,17 @@
                                     <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
                                     <mat-date-range-picker #picker></mat-date-range-picker>
                                 </mat-form-field>
-                                <button mat-icon-button [matMenuTriggerFor]="dateMenu" matTooltip="Raccourcis"
+                                <button mat-icon-button type="button" [matMenuTriggerFor]="dateMenu" matTooltip="Raccourcis"
                                     class="period-btn">
                                     <mat-icon>calendar_today</mat-icon>
                                 </button>
                                 <mat-menu #dateMenu="matMenu" class="modern-menu">
-                                    <button mat-menu-item (click)="setPeriod('TODAY')">Aujourd'hui</button>
-                                    <button mat-menu-item (click)="setPeriod('YESTERDAY')">Hier</button>
-                                    <button mat-menu-item (click)="setPeriod('THIS_WEEK')">Cette semaine</button>
-                                    <button mat-menu-item (click)="setPeriod('THIS_MONTH')">Ce mois-ci</button>
-                                    <button mat-menu-item (click)="setPeriod('LAST_MONTH')">Le mois dernier</button>
-                                    <button mat-menu-item (click)="setPeriod('THIS_YEAR')">Cette année</button>
+                                    <button mat-menu-item type="button" (click)="setPeriod('TODAY')">Aujourd'hui</button>
+                                    <button mat-menu-item type="button" (click)="setPeriod('YESTERDAY')">Hier</button>
+                                    <button mat-menu-item type="button" (click)="setPeriod('THIS_WEEK')">Cette semaine</button>
+                                    <button mat-menu-item type="button" (click)="setPeriod('THIS_MONTH')">Ce mois-ci</button>
+                                    <button mat-menu-item type="button" (click)="setPeriod('LAST_MONTH')">Le mois dernier</button>
+                                    <button mat-menu-item type="button" (click)="setPeriod('THIS_YEAR')">Cette année</button>
                                 </mat-menu>
                             </div>
                         </div>
@@ -113,11 +113,11 @@
                         </mat-form-field>
 
                         <div class="filter-actions">
-                            <button mat-button (click)="resetFilters()" class="reset-btn">
+                            <button mat-button type="button" (click)="resetFilters()" class="reset-btn">
                                 <mat-icon>restart_alt</mat-icon>
                                 RÉINIT.
                             </button>
-                            <button mat-raised-button color="primary" (click)="loadHistory()" class="apply-btn">
+                            <button mat-raised-button type="button" color="primary" (click)="loadHistory()" class="apply-btn">
                                 <mat-icon>search</mat-icon>
                                 FILTRER
                             </button>
@@ -324,17 +324,17 @@
                                     <mat-datepicker-toggle matIconSuffix [for]="outPicker"></mat-datepicker-toggle>
                                     <mat-date-range-picker #outPicker></mat-date-range-picker>
                                 </mat-form-field>
-                                <button mat-icon-button [matMenuTriggerFor]="outDateMenu" matTooltip="Raccourcis"
+                                <button mat-icon-button type="button" [matMenuTriggerFor]="outDateMenu" matTooltip="Raccourcis"
                                     class="period-btn">
                                     <mat-icon>calendar_today</mat-icon>
                                 </button>
                                 <mat-menu #outDateMenu="matMenu" class="modern-menu">
-                                    <button mat-menu-item (click)="setPeriod('TODAY')">Aujourd'hui</button>
-                                    <button mat-menu-item (click)="setPeriod('YESTERDAY')">Hier</button>
-                                    <button mat-menu-item (click)="setPeriod('THIS_WEEK')">Cette semaine</button>
-                                    <button mat-menu-item (click)="setPeriod('THIS_MONTH')">Ce mois-ci</button>
-                                    <button mat-menu-item (click)="setPeriod('LAST_MONTH')">Le mois dernier</button>
-                                    <button mat-menu-item (click)="setPeriod('THIS_YEAR')">Cette année</button>
+                                    <button mat-menu-item type="button" (click)="setPeriod('TODAY')">Aujourd'hui</button>
+                                    <button mat-menu-item type="button" (click)="setPeriod('YESTERDAY')">Hier</button>
+                                    <button mat-menu-item type="button" (click)="setPeriod('THIS_WEEK')">Cette semaine</button>
+                                    <button mat-menu-item type="button" (click)="setPeriod('THIS_MONTH')">Ce mois-ci</button>
+                                    <button mat-menu-item type="button" (click)="setPeriod('LAST_MONTH')">Le mois dernier</button>
+                                    <button mat-menu-item type="button" (click)="setPeriod('THIS_YEAR')">Cette année</button>
                                 </mat-menu>
                             </div>
                         </div>
@@ -346,11 +346,11 @@
                         </mat-form-field>
 
                         <div class="filter-actions">
-                            <button mat-button (click)="resetOutFilters()" class="reset-btn">
+                            <button mat-button type="button" (click)="resetOutFilters()" class="reset-btn">
                                 <mat-icon>restart_alt</mat-icon>
                                 RÉINIT.
                             </button>
-                            <button mat-raised-button color="primary" (click)="loadOutHistory()" class="apply-btn">
+                            <button mat-raised-button type="button" color="primary" (click)="loadOutHistory()" class="apply-btn">
                                 <mat-icon>search</mat-icon>
                                 FILTRER
                             </button>
@@ -412,8 +412,11 @@
                                                         <th>Produit</th>
                                                         <th>Centre / Entrepôts</th>
                                                         <th>Client / Contexte</th>
+                                                        <th>N° Fiche</th>
                                                         <th>Quantité</th>
                                                         <th>Type</th>
+                                                        <th>Motif</th>
+                                                        <th>Auteur</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -444,15 +447,15 @@
                                                         </td>
                                                         <td>
                                                             <div class="client-info">
-                                                                <span class="client-name"
-                                                                    *ngIf="m.facture?.client?.nom; else noClient">
-                                                                    <mat-icon>person</mat-icon> {{ m.facture.client.nom
-                                                                    }} {{ m.facture.client.prenom }}
+                                                                <span class="client-name">
+                                                                    <mat-icon
+                                                                        *ngIf="m.facture?.client">person</mat-icon>
+                                                                    {{ getClientName(m) }}
                                                                 </span>
-                                                                <ng-template #noClient>
-                                                                    <span class="motif-text">{{ m.motif }}</span>
-                                                                </ng-template>
                                                             </div>
+                                                        </td>
+                                                        <td class="font-medium text-gray-600">
+                                                            {{ getFicheNumero(m) }}
                                                         </td>
                                                         <td class="font-bold"
                                                             [class.text-red-600]="m.type !== 'TRANSFERT_ENTREE' && m.type !== 'RECEPTION'"
@@ -465,6 +468,8 @@
                                                                 {{ m.type }}
                                                             </span>
                                                         </td>
+                                                        <td class="text-gray-600 italic small-text">{{ m.motif || '--' }}</td>
+                                                        <td class="text-gray-500 small-text">{{ m.utilisateur || '--' }}</td>
                                                     </tr>
                                                 </tbody>
                                             </table>

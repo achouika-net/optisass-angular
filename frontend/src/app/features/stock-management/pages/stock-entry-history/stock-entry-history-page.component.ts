@@ -266,6 +266,30 @@ export class StockEntryHistoryPageComponent implements OnInit {
         return Array.from(summary.entries()).map(([name, count]) => ({ name, count }));
     }
 
+    getFicheNumero(movement: any): string {
+        if (movement.facture?.fiche?.numero) {
+            const num = movement.facture.fiche.numero;
+            const date = movement.facture.fiche.dateCreation;
+            if (date) {
+                const d = new Date(date);
+                const formattedDate = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+                return `n° ${num} du ${formattedDate}`;
+            }
+            return `n° ${num}`;
+        }
+        return movement.facture?.numero || '--';
+    }
+
+    getClientName(movement: any): string {
+        if (!movement.facture?.client) return '--';
+        const client = movement.facture.client;
+        if (client.raisonSociale) return client.raisonSociale;
+        if (client.nom || client.prenom) {
+            return `${client.nom || ''} ${client.prenom || ''}`.trim();
+        }
+        return '--';
+    }
+
     getAttachmentUrl(path: string): string {
         if (!path) return '';
         // Handle multiple files (take first)
@@ -289,5 +313,9 @@ export class StockEntryHistoryPageComponent implements OnInit {
                 }
             });
         }
+    }
+
+    isPositive(type: string): boolean {
+        return ['ENTREE_ACHAT', 'ENTREE_RETOUR_CLIENT', 'RECEPTION', 'TRANSFERT_ENTREE', 'TRANSFERT_INIT'].includes(type);
     }
 }

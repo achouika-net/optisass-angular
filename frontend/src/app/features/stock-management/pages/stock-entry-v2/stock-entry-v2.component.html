@@ -158,14 +158,13 @@
 
                                     <!-- View File -->
                                     <button mat-icon-button class="scale-75 w-8 h-8" (click)="viewDocument()"
-                                        matTooltip="Visualiser">
+                                        matTooltip="Visualiser" type="button">
                                         <mat-icon>visibility</mat-icon>
                                     </button>
 
                                     <!-- Remove File -->
-                                    <button mat-icon-button color="warn" class="scale-75 w-8 h-8"
-                                        (click)="documentForm.patchValue({file: null}); detectedLines=[]; showOcrData=false;"
-                                        matTooltip="Supprimer">
+                                    <button mat-icon-button color="warn" matTooltip="Supprimer le document"
+                                        (click)="clearDocument()" type="button">
                                         <mat-icon>close</mat-icon>
                                     </button>
                                 </div>
@@ -201,25 +200,25 @@
                                 <div class="flex items-center gap-3">
                                     <button mat-flat-button
                                         class="!bg-white/10 !text-white hover:!bg-white/20 !rounded-full !px-4"
-                                        [matMenuTriggerFor]="splitMenu">
+                                        [matMenuTriggerFor]="splitMenu" type="button">
                                         <mat-icon class="mr-1 scale-75">tune</mat-icon> Ajuster Découpage
                                     </button>
                                     <button mat-flat-button
                                         class="!bg-green-500 !text-white hover:!bg-green-600 !rounded-full !px-6 !font-black !shadow-lg"
-                                        (click)="applyMappingsToBasket()">
+                                        (click)="applyMappingsToBasket()" type="button">
                                         <mat-icon class="mr-1">playlist_add</mat-icon> VALIDER & AJOUTER
                                     </button>
                                 </div>
                             </div>
 
                             <mat-menu #splitMenu="matMenu">
-                                <button mat-menu-item (click)="reSplit('spaces')">
+                                <button mat-menu-item (click)="reSplit('spaces')" type="button">
                                     <mat-icon>space_bar</mat-icon> Par espaces (Standard)
                                 </button>
-                                <button mat-menu-item (click)="reSplit('tabs')">
+                                <button mat-menu-item (click)="reSplit('tabs')" type="button">
                                     <mat-icon>keyboard_tab</mat-icon> Par tabulations
                                 </button>
-                                <button mat-menu-item (click)="reSplit('smart')">
+                                <button mat-menu-item (click)="reSplit('smart')" type="button">
                                     <mat-icon>auto_fix_high</mat-icon> Intelligent (Smart)
                                 </button>
                             </mat-menu>
@@ -271,7 +270,7 @@
                                             <td class="px-2 py-1 text-center">
                                                 <button mat-icon-button color="warn" (click)="removeLine(i)"
                                                     class="!w-6 !h-6 text-gray-400 hover:text-red-600 transition-colors"
-                                                    matTooltip="Supprimer la ligne">
+                                                    matTooltip="Supprimer la ligne" type="button">
                                                     <mat-icon class="!text-sm">close</mat-icon>
                                                 </button>
                                             </td>
@@ -401,7 +400,7 @@
                                     </div>
 
                                     <button mat-flat-button class="h-12 px-8 bg-green-600 text-white hover:bg-green-700"
-                                        (click)="addProduct()" [disabled]="entryForm.invalid">
+                                        (click)="addProduct()" [disabled]="entryForm.invalid" type="button">
                                         <mat-icon>add</mat-icon> AJOUTER
                                     </button>
                                 </div>
@@ -699,12 +698,12 @@
                                     <div class="flex items-center justify-center gap-2">
                                         <button mat-mini-fab color="primary"
                                             class="!w-9 !h-9 !bg-blue-50 !text-blue-600 hover:!bg-blue-600 hover:!text-white border border-blue-100 transition-all shadow-none"
-                                            (click)="splitProduct(element)" matTooltip="Scinder la ligne">
+                                            (click)="splitProduct(element)" matTooltip="Scinder la ligne" type="button">
                                             <mat-icon class="scale-90">call_split</mat-icon>
                                         </button>
                                         <button mat-mini-fab color="warn"
                                             class="!w-9 !h-9 !bg-red-50 !text-red-500 hover:!bg-red-600 hover:!text-white border border-red-100 transition-all shadow-none"
-                                            (click)="removeProduct(element.tempId)" matTooltip="Supprimer">
+                                            (click)="removeProduct(element.tempId)" matTooltip="Supprimer" type="button">
                                             <mat-icon class="scale-90">delete_outline</mat-icon>
                                         </button>
                                     </div>
@@ -742,7 +741,7 @@
                     <button mat-raised-button
                         class="!py-6 !px-12 !text-xl !font-black !rounded-2xl !bg-gradient-to-r !from-blue-600 !to-indigo-600 !text-white !shadow-2xl hover:!scale-105 transition-transform"
                         [disabled]="stagedProducts.length === 0 || documentForm.invalid || duplicateInvoice || submitting"
-                        (click)="finalizeAlimentation()">
+                        (click)="finalizeAlimentation()" type="button">
                         <mat-icon class="mr-3 scale-125" *ngIf="!submitting">archive</mat-icon>
                         <mat-icon class="mr-3 animate-spin scale-125" *ngIf="submitting">sync</mat-icon>
                         {{ submitting ? 'SYNCHRONISATION...' : 'FINALISER L\'ALIMENTATION' }}
@@ -857,11 +856,11 @@
                         </div>
 
                         <div class="flex justify-end gap-3 mb-6">
-                            <button mat-button (click)="resetBulkFilters()" [disabled]="loadingBulk">
+                            <button mat-button (click)="resetBulkFilters()" [disabled]="loadingBulk" type="button">
                                 <mat-icon>restart_alt</mat-icon> RÉINITIALISER
                             </button>
                             <button mat-raised-button color="primary" (click)="searchBulkProducts()"
-                                [disabled]="loadingBulk">
+                                [disabled]="loadingBulk" type="button">
                                 <mat-icon *ngIf="!loadingBulk">search</mat-icon>
                                 <mat-icon *ngIf="loadingBulk" class="animate-spin">sync</mat-icon>
                                 FILTRER
@@ -911,7 +910,11 @@
                                 <ng-container matColumnDef="reference">
                                     <th mat-header-cell *matHeaderCellDef> Référence </th>
                                     <td mat-cell *matCellDef="let p">
-                                        <span class="font-medium text-blue-700">{{ p.codeInterne }}</span>
+                                        <span class="font-medium text-blue-700 hover:underline cursor-pointer" 
+                                              (click)="$event.stopPropagation(); openHistory(p)"
+                                              matTooltip="Voir la traçabilité complète">
+                                            {{ p.codeInterne }}
+                                        </span>
                                     </td>
                                 </ng-container>
 

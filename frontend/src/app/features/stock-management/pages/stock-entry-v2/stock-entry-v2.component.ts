@@ -39,6 +39,8 @@ import { WarehousesService } from '../../../warehouses/services/warehouses.servi
 import { SelectionModel } from '@angular/cdk/collections';
 import { BulkStockOutDialogComponent } from '../../dialogs/bulk-stock-out-dialog/bulk-stock-out-dialog.component';
 import { BulkStockTransferDialogComponent } from '../../dialogs/bulk-stock-transfer-dialog/bulk-stock-transfer-dialog.component';
+import { StockMovementHistoryDialogComponent } from '../../dialogs/stock-movement-history-dialog/stock-movement-history-dialog.component';
+import { StockTransferDialogComponent } from '../../dialogs/stock-transfer-dialog/stock-transfer-dialog.component';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
 export interface StagedProduct {
@@ -549,6 +551,20 @@ export class StockEntryV2Component implements OnInit {
     // --- OCR Logic (Max Best Effort) ---
 
     // OCR Logic
+    openHistory(product: any): void {
+        this.dialog.open(StockMovementHistoryDialogComponent, {
+            width: '90%',
+            maxWidth: '1200px',
+            data: { product }
+        });
+    }
+
+    clearDocument(): void {
+        this.documentForm.patchValue({ file: null });
+        this.detectedLines = [];
+        this.showOcrData = false;
+    }
+
     onFileSelected(event: any) {
         const file = event.target.files[0];
         if (file) {

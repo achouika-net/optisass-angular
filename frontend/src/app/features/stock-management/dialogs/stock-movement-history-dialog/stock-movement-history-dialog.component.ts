@@ -144,13 +144,23 @@ export class StockMovementHistoryDialogComponent implements OnInit {
         if (client.raisonSociale) {
             return client.raisonSociale;
         }
-        if (client.nom && client.prenom) {
-            return `${client.nom} ${client.prenom}`;
+        if (client.nom || client.prenom) {
+            return `${client.nom || ''} ${client.prenom || ''}`.trim();
         }
-        return client.nom || client.prenom || '--';
+        return '--';
     }
 
     getFicheNumero(movement: StockMovement): string {
+        if (movement.facture?.fiche?.numero) {
+            const num = movement.facture.fiche.numero;
+            const date = movement.facture.fiche.dateCreation;
+            if (date) {
+                const d = new Date(date);
+                const formattedDate = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+                return `n° ${num} du ${formattedDate}`;
+            }
+            return `n° ${num}`;
+        }
         return movement.facture?.numero || '--';
     }
 
