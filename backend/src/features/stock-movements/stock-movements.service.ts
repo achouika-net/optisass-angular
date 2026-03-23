@@ -30,6 +30,12 @@ export class StockMovementsService {
             client: true,
           },
         },
+        bonLivraison: {
+          include: {
+            fiche: true,
+            client: true,
+          },
+        },
       },
     });
   }
@@ -548,7 +554,16 @@ export class StockMovementsService {
           include: { centre: true },
         },
         facture: {
-          include: { client: true },
+          include: { 
+            client: true,
+            fiche: true 
+          },
+        },
+        bonLivraison: {
+          include: { 
+            client: true,
+            fiche: true 
+          },
         },
       },
     });

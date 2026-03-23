@@ -371,7 +371,9 @@ export class FacturesService implements OnModuleInit {
             prixAchatUnitaire: product.prixAchatHT,
             prixVenteUnitaire:
               fullInvoice.type === 'AVOIR' ? undefined : line.prixUnitaireTTC,
-            motif: `Facturation ${fullInvoice.numero} (${fullInvoice.statut})`,
+            motif: fullInvoice.fiche
+              ? `Vente Monture - Fiche n° ${fullInvoice.fiche.numero}${fullInvoice.fiche.dateCreation ? ' du ' + new Date(fullInvoice.fiche.dateCreation).toLocaleDateString('fr-FR') : ''} (${fullInvoice.statut})`
+              : `Facturation ${fullInvoice.numero} (${fullInvoice.statut})`,
             utilisateur: userId ? `User ${userId} ` : 'System',
             userId: userId || null,
             dateMovement: new Date(),

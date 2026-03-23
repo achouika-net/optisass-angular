@@ -26,6 +26,19 @@ export interface StockMovement {
             raisonSociale?: string;
         };
     };
+    bonLivraison?: {
+        numeroBL: string;
+        fiche?: {
+            id: string;
+            numero?: number;
+            dateCreation?: string;
+        };
+        client?: {
+            nom?: string;
+            prenom?: string;
+            raisonSociale?: string;
+        };
+    };
 }
 
 import { API_URL } from '../../../config/api.config';

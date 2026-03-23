@@ -63,6 +63,9 @@ export interface BaseProduct {
 
     // New field for Billing Workflow
     sourceStock?: 'PRINCIPALE' | 'SECONDAIRE';
+
+    // Traceability
+    mouvements?: StockMovement[];
 }
 
 /**

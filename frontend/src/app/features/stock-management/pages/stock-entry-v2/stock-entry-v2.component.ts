@@ -167,7 +167,7 @@ export class StockEntryV2Component implements OnInit {
     bulkEntrepotId?: string;
     bulkType?: ProductType;
     bulkProducts$ = new BehaviorSubject<Product[]>([]);
-    bulkDisplayedColumns: string[] = ['select', 'reference', 'marque', 'designation', 'entrepot', 'stock'];
+    bulkDisplayedColumns: string[] = ['select', 'reference', 'marque', 'designation', 'entrepot', 'stock', 'lastMovement'];
     loadingBulk = false;
     skipPaymentPrompt = false;
 
@@ -559,7 +559,7 @@ export class StockEntryV2Component implements OnInit {
         });
     }
 
-    clearDocument(): void {
+    clearOcrData(): void {
         this.documentForm.patchValue({ file: null });
         this.detectedLines = [];
         this.showOcrData = false;
@@ -1372,6 +1372,12 @@ export class StockEntryV2Component implements OnInit {
                 this.snackBar.open(msg, 'OK', { duration: 5000 });
             }
         });
+    }
+
+    clearDocument() {
+        if (confirm('Voulez-vous vraiment vider tout le panier ?')) {
+            this.resetAfterSave();
+        }
     }
 
     private resetAfterSave() {
