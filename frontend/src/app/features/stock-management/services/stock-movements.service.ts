@@ -17,6 +17,8 @@ export interface StockMovement {
         numero: string;
         fiche?: {
             id: string;
+            numero?: number;
+            dateCreation?: string;
         };
         client?: {
             nom?: string;
