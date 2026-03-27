@@ -427,12 +427,23 @@ export class StockMovementsService {
     if (filters.docType === 'BL') {
       andConditions.push({ type: 'BL' });
     } else if (filters.docType === 'FACTURE') {
-      andConditions.push({ type: { in: ['ACHAT_STOCK', 'FACTURE'] } });
-    } else {
-      // Default: Show all
+      // In production, we see types like 'ACHAT_PRODUITS', 'ACHAT VERRES OPTIQUES', etc.
+      // We should include them or just allow all if it's for 'FACTURE' level view.
       andConditions.push({
-        type: { in: ['ACHAT_STOCK', 'FACTURE', 'BL', 'ENTREE_STOCK'] },
+        type: {
+          in: [
+            'ACHAT_STOCK',
+            'FACTURE',
+            'ACHAT_PRODUITS',
+            'ACHAT VERRES OPTIQUES',
+            'RELEMENT_TEL_INTERNET', // Map common custom types if known
+          ],
+        },
       });
+    } else {
+      // Default: Show all entries from factureFournisseur (Purchases/Stock entries)
+      // Removing restrictive list to accommodate custom types from imports
+      console.log('[STOCK-HISTORY] Using default inclusive filter');
     }
 
     if (filters.dateFrom || filters.dateTo) {
@@ -636,16 +647,18 @@ export class StockMovementsService {
     });
   }
 
-  async getDebugData() {
+  async debugData() {
     const count = await this.prisma.factureFournisseur.count();
+    const movementCount = await this.prisma.mouvementStock.count();
     const recent = await this.prisma.factureFournisseur.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
       select: { id: true, numeroFacture: true, centreId: true, type: true },
     });
-    const centers = await this.prisma.centre.findMany({
-      select: { id: true, nom: true },
-    });
-    return { count, recent, availableCenters: centers };
+    return {
+      count,
+      movementCount,
+      recent,
+    };
   }
 }
