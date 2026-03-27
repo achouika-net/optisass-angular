@@ -54,7 +54,7 @@ export class StockMovementsController {
 
   @Get('debug-data')
   debugData() {
-    return this.service.getDebugData();
+    return this.service.debugData();
   }
 
   @Delete('history/:id')
