@@ -586,8 +586,9 @@ export class FactureFormComponent implements OnInit {
     }
 
     calculateTotals() {
-        const rawTotalTTC = this.lignes.controls.reduce((sum, control) => {
-            return sum + (control.get('totalTTC')?.value || 0);
+        const rawTotalTTC = (this.lignes.controls || []).reduce((sum, control: any) => {
+            const line = control.getRawValue();
+            return sum + (Number(line.totalTTC) || 0);
         }, 0);
 
         // [NEW] Convention Discount Calculation
@@ -595,8 +596,7 @@ export class FactureFormComponent implements OnInit {
         const targetConvId = this.conventionIdInput;
         
         if (targetConvId) {
-            // [FIX] Use loose equality == to handle string/number ID mismatches if any
-            const selectedConv = (this.allConventions || []).find(c => c.id == targetConvId);
+            const selectedConv = (this.allConventions || []).find(c => String(c.id) == String(targetConvId));
             
             if (selectedConv) {
                 const remiseVal = Number(selectedConv.remiseValeur) || 0;
@@ -613,7 +613,6 @@ export class FactureFormComponent implements OnInit {
                     this.discountDetail = '';
                 }
             } else {
-                console.warn(`🏥 [FactureForm] Convention with ID ${targetConvId} not found in allConventions list (size: ${this.allConventions?.length})`);
                 this.discountDetail = '';
             }
         } else {
@@ -643,13 +642,14 @@ export class FactureFormComponent implements OnInit {
 
         // Check for AVOIR type to allow negative totals
         const type = this.form.get('type')?.value;
-        if (type === 'AVOIR' || type === 'AVOIR_FOURNISSEUR') {
+        const typeStr = String(type || '').toUpperCase();
+        if (typeStr === 'AVOIR' || typeStr === 'AVOIR_FOURNISSEUR') {
             this.totalTTC = rawTotalTTC - this.calculatedGlobalDiscount;
         } else {
             this.totalTTC = Math.max(0, rawTotalTTC - this.calculatedGlobalDiscount);
         }
 
-        const tvaRate = 0.20;
+        const tvaRate = Number(props?.tvaRate) || 0.20;
         this.totalHT = this.totalTTC / (1 + tvaRate);
         this.totalTVA = this.totalTTC - this.totalHT;
 
@@ -1009,14 +1009,11 @@ export class FactureFormComponent implements OnInit {
 
     updateStatutFromPayments() {
         // Only auto-update if we are not explicitly VALIDE or VENTE_EN_INSTANCE
-        const currentStatut = this.form.get('statut')?.value;
+        const currentStatut = String(this.form.get('statut')?.value || '').toUpperCase();
 
         // If it's a Devis, we don't use the standard invoice statuses (PARTIEL/PAYEE)
         // unless it's just been validated.
-        if (this.form.get('type')?.value === 'DEVIS' && currentStatut !== 'VALIDE') {
-            // Keep current Devis status (DEVIS_EN_COURS, VENTE_EN_INSTANCE, etc.)
-            // But if we want to automatically mark as instance when paid?
-            // Usually we rely on the prompt in MontureForm.
+        if (String(this.form.get('type')?.value || '').toUpperCase() === 'DEVIS' && currentStatut !== 'VALIDE') {
             return;
         }
 

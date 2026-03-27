@@ -168,9 +168,10 @@
                     <!-- Statut Column -->
                     <ng-container matColumnDef="statut">
                         <th mat-header-cell *matHeaderCellDef>Statut</th>
-                        <td mat-cell *matCellDef="let client">
-                            <span class="status-badge" [class.status-actif]="client.statut === 'Actif'"
-                                [class.status-inactif]="client.statut === 'Inactif'">
+                            <td mat-cell *matCellDef="let client">
+                            <span class="status-badge" 
+                                [class.status-actif]="client.statut?.toUpperCase() === 'ACTIF'"
+                                [class.status-inactif]="client.statut?.toUpperCase() === 'INACTIF'">
                                 {{ client.statut }}
                             </span>
                         </td>

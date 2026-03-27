@@ -805,21 +805,56 @@ export class MontureFormComponent implements OnInit, OnDestroy {
 
         if (!ordonnance || !montage) return;
 
-        // Ordonnance -> Montage
+        // --- EP Synchronization (Bi-directional) ---
         // OD
         ordonnance.get('od.ep')?.valueChanges.subscribe(val => {
             if (val && val !== montage.get('ecartPupillaireOD')?.value) {
                 montage.patchValue({ ecartPupillaireOD: val }, { emitEvent: false });
             }
         });
+        montage.get('ecartPupillaireOD')?.valueChanges.subscribe(val => {
+            if (val && val !== ordonnance.get('od.ep')?.value) {
+                ordonnance.get('od')?.patchValue({ ep: val }, { emitEvent: false });
+            }
+        });
         // OG
+        ordonnance.get('og.ep')?.valueChanges.subscribe(val => {
+            if (val && val !== montage.get('ecartPupillaireOG')?.value) {
+                montage.patchValue({ ecartPupillaireOG: val }, { emitEvent: false });
+            }
+        });
         montage.get('ecartPupillaireOG')?.valueChanges.subscribe(val => {
             if (val && val !== ordonnance.get('og.ep')?.value) {
-                ordonnance.patchValue({ og: { ep: val } }, { emitEvent: false });
+                ordonnance.get('og')?.patchValue({ ep: val }, { emitEvent: false });
             }
         });
 
-        // --- Diameter Synchronization ---
+        // --- Height (H) Synchronization (Bi-directional) ---
+        // Using 'diametre' field in Ordonnance as 'Hauteur de pupille (H)'
+        // OD
+        ordonnance.get('od.diametre')?.valueChanges.subscribe(val => {
+            if (val && val !== montage.get('hauteurOD')?.value) {
+                montage.patchValue({ hauteurOD: val }, { emitEvent: false });
+            }
+        });
+        montage.get('hauteurOD')?.valueChanges.subscribe(val => {
+            if (val && val !== ordonnance.get('od.diametre')?.value) {
+                ordonnance.get('od')?.patchValue({ diametre: val }, { emitEvent: false });
+            }
+        });
+        // OG
+        ordonnance.get('og.diametre')?.valueChanges.subscribe(val => {
+            if (val && val !== montage.get('hauteurOG')?.value) {
+                montage.patchValue({ hauteurOG: val }, { emitEvent: false });
+            }
+        });
+        montage.get('hauteurOG')?.valueChanges.subscribe(val => {
+            if (val && val !== ordonnance.get('og.diametre')?.value) {
+                ordonnance.get('og')?.patchValue({ diametre: val }, { emitEvent: false });
+            }
+        });
+
+        // --- Diameter Synchronization (Legacy logic for blank diameter) ---
         
         // Split (OD/OG) -> Combined (diametreEffectif)
         montage.get('diametreVerreOD')?.valueChanges.subscribe(od => {
@@ -2775,7 +2810,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 if (c.sphere && c.sphere !== '0' && c.sphere !== '+0.00') s += (c.sphere.startsWith('+') || c.sphere.startsWith('-') ? c.sphere : '+' + c.sphere) + ' ';
                 if (c.cylindre && c.cylindre !== '0' && c.cylindre !== '+0.00') s += `(${c.cylindre}) `;
                 if (c.axe && c.axe !== '0°') s += `${c.axe} `;
-                if (c.addition && c.addition !== '0' && c.addition !== '+0.00') s += `Add ${c.addition}`;
+                if (c.addition && c.addition !== '0' && c.addition !== '+0.00') s += `ADD ${c.addition}`;
                 return s.trim();
             };
             const descOD = formatCorrection(odVars);
@@ -5180,7 +5215,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             }
             
             if (add && add !== 0) {
-                parts.push(`Add ${add > 0 ? '+' : ''}${add.toFixed(2)}`);
+                parts.push(`ADD ${add > 0 ? '+' : ''}${add.toFixed(2)}`);
             }
             
             return parts.length > 0 ? parts.join(' | ') : 'Plano';
