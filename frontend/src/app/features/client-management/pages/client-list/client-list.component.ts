@@ -176,10 +176,10 @@ export class ClientListComponent implements OnInit, OnDestroy {
 
     updateStats(clients: Client[]) {
         const stats = {
-            actifs: clients.filter(c => c.statut === StatutClient.ACTIF).length,
-            enCompte: clients.filter(c => c.statut === StatutClient.EN_COMPTE).length,
-            passage: clients.filter(c => c.statut === StatutClient.DE_PASSAGE).length,
-            inactifs: clients.filter(c => c.statut === StatutClient.INACTIF).length
+            actifs: clients.filter(c => c.statut?.toString().toUpperCase() === StatutClient.ACTIF).length,
+            enCompte: clients.filter(c => c.statut?.toString().toUpperCase() === StatutClient.EN_COMPTE).length,
+            passage: clients.filter(c => c.statut?.toString().toUpperCase() === StatutClient.DE_PASSAGE).length,
+            inactifs: clients.filter(c => c.statut?.toString().toUpperCase() === StatutClient.INACTIF).length
         };
         this.stats.set(stats);
     }
@@ -209,6 +209,7 @@ export class ClientListComponent implements OnInit, OnDestroy {
             next: (data) => {
                 this.clients.set(data);
                 this.totalItems = data.length;
+                this.updateStats(data); // Ajout pour mettre à jour les cartes lors de la recherche
             },
             error: (err) => console.error('Error searching clients', err)
         });

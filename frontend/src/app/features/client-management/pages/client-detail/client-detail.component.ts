@@ -338,9 +338,9 @@ export class ClientDetailComponent implements OnInit {
         val += ` 00°`;
       }
       if (eye.addition) {
-        val += ` Add ${eye.addition}`;
+        val += ` ADD ${eye.addition}`;
       } else {
-        val += ` Add 0.00`;
+        val += ` ADD 0.00`;
       }
       return val;
     };

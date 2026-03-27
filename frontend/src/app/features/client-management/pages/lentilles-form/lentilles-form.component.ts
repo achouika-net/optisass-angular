@@ -644,7 +644,7 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
             if (o.sphere && o.sphere !== '0' && o.sphere !== '+0.00' && o.sphere !== '') powers.push(`Sph ${o.sphere}`);
             if (o.cylindre && o.cylindre !== '0' && o.cylindre !== '+0.00' && o.cylindre !== '') powers.push(`Cyl ${o.cylindre}`);
             if (o.axe && o.axe !== '0°' && o.axe !== '') powers.push(`Axe ${o.axe}`);
-            if (o.addition && o.addition !== '0' && o.addition !== '+0.00' && o.addition !== '') powers.push(`Add ${o.addition}`);
+            if (o.addition && o.addition !== '0' && o.addition !== '+0.00' && o.addition !== '') powers.push(`ADD ${o.addition}`);
 
             if (powers.length > 0) details.push(`(${powers.join(' ')})`);
 

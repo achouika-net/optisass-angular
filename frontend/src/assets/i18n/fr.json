@@ -71,7 +71,7 @@
     "comment": "Commentaire",
     "marque": "Marque",
     "modele": "Modèle",
-    "add": "Ajouter",
+    "add": "ADD",
     "edit": "Modifier",
     "delete": "Supprimer",
     "postalCode": "Code postal",
@@ -357,7 +357,7 @@
   },
   "client": {
     "clients": "Clients",
-    "add": "Ajouter un client",
+    "add": "ADD un client",
     "identification": "Identification",
     "options": "Options",
     "clientPassage": "Client de passage",
@@ -417,8 +417,8 @@
       "typeControle": "Type de contrôle",
       "gestionCategories": "Gestion des catégories",
       "gestionPrestation": "Gestion des prestations",
-      "ajouterPrestation": "Ajouter une prestation",
-      "ajouterCategorie": "Ajouter une catégorie",
+      "ajouterPrestation": "ADD une prestation",
+      "ajouterCategorie": "ADD une catégorie",
       "gestionChampsSupplementaires": "Gestion des champs supplémentaires",
       "types": {
         "-1": "Tous",
@@ -466,7 +466,7 @@
     },
     "promotion": {
       "promotion": "Promotion",
-      "ajouterPromotion": "Ajouter une promotion",
+      "ajouterPromotion": "ADD une promotion",
       "promotionName": "Nom promotion",
       "promotionType": "Type promotion",
       "promotionStart": "Lancement promotion",
@@ -522,7 +522,7 @@
     "isExtra": "Extra ?",
     "position": "Position",
     "printing": "Impression",
-    "addField": "Ajouter un champ supplémentaire",
+    "addField": "ADD un champ supplémentaire",
     "typesControle": "Types de contrôle",
     "table": "Table",
     "values": "Valeurs",
@@ -553,7 +553,7 @@
     }
   },
   "partner": {
-    "add": "Ajouter un comité d’entreprise",
+    "add": "ADD un comité d’entreprise",
     "name": "Comité d'entreprise",
     "link": "Lien",
     "url": "Url",
@@ -570,7 +570,7 @@
     "validityDate": "Date de validité",
     "code": "Code promo",
     "size": "Taille code promo",
-    "add": "Ajouter un code promo",
+    "add": "ADD un code promo",
     "generateCoupon": "Générer code promotion",
     "discountOf": "Remise de ",
     "paymentRequired": "Paiement en ligne obligatoire pour cette promotion",
@@ -586,7 +586,7 @@
     }
   },
   "holiday": {
-    "add": "Ajouter une date",
+    "add": "ADD une date",
     "periodical": "Périodique",
     "repeatEveryYear": "Répéter chaque année",
     "errors": {
@@ -598,7 +598,7 @@
     }
   },
   "user": {
-    "add": "Ajouter un utilisateur",
+    "add": "ADD un utilisateur",
     "callCenter": "Télésecrétaire",
     "generateAutoPasswordConfirmationPopup": "Un mot de passe sécurisé sera généré automatiquement et transmis à l'utilisateur par e-mail après l'enregistrement. Souhaitez-vous continuer ?",
     "generateAutoPasswordMessage": "Un mot de passe sécurisé sera généré automatiquement et transmis au client par e-mail après l'enregistrement",
@@ -613,7 +613,7 @@
     }
   },
   "controllers": {
-    "add": "Ajouter un agenda contrôleur",
+    "add": "ADD un agenda contrôleur",
     "webStatus": "Statut sur le web",
     "agendaStatus": "Statut sur l’Agenda",
     "visibleOnTheWeb": "Visible sur le web",
