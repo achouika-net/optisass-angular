@@ -753,7 +753,7 @@ export class FactureFormComponent implements OnInit {
                 });
             }
             this.snackBar.open('Erreur: Formulaire invalide. Vérifiez les champs.', 'OK', { duration: 5000 });
-            return new Observable(obs => obs.next(null));
+            return of(null);
         }
 
         // Ensure nomenclature from input is in the form before saving

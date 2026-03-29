@@ -140,17 +140,17 @@ export class ClientsService {
   }
 
   async findOne(id: string) {
-    return this.prisma.client.findUnique({
+    const client = await this.prisma.client.findUnique({
       where: { id },
       include: {
         fiches: {
-          orderBy: { dateCreation: 'desc' }
+          orderBy: { dateCreation: 'desc' },
         },
         bonsLivraison: {
-          orderBy: { dateEmission: 'desc' }
+          orderBy: { dateEmission: 'desc' },
         },
         facturesFournisseurs: {
-          orderBy: { dateEmission: 'desc' }
+          orderBy: { dateEmission: 'desc' },
         },
         parrain: true,
         filleuls: true,
@@ -162,6 +162,35 @@ export class ClientsService {
         },
       },
     });
+
+    if (client && client.fiches) {
+      const purgeBase64 = (obj: any): any => {
+        if (!obj) return obj;
+        if (typeof obj === 'string') {
+          return obj.startsWith('data:image/') || obj.startsWith('data:application/pdf') || obj.length > 30000 
+            ? '[FICHIER_ATTACHE_MASQUE_EN_VUE_LISTE]' 
+            : obj;
+        }
+        if (Array.isArray(obj)) {
+          return obj.map((item) => purgeBase64(item));
+        }
+        if (typeof obj === 'object') {
+          const result: any = {};
+          for (const key of Object.keys(obj)) {
+            result[key] = purgeBase64(obj[key]);
+          }
+          return result;
+        }
+        return obj;
+      };
+
+      client.fiches = client.fiches.map((f) => ({
+        ...f,
+        content: purgeBase64(f.content),
+      }));
+    }
+
+    return client;
   }
 
   async update(id: string, updateClientDto: UpdateClientDto) {

@@ -461,7 +461,7 @@ export class PdfService {
                     const base64Cachet = data.branding.cachetUrl.includes('base64,') ? data.branding.cachetUrl.split('base64,')[1] : data.branding.cachetUrl;
                     doc.image(Buffer.from(base64Cachet, 'base64'), 400, footY + 30, { height: 45 });
                 } catch (e) {
-                    console.error('Error drawing Montage cachet:', e);
+                    this.logger.error(`Error drawing Montage cachet: ${e.message}`);
                 }
             }
 
@@ -578,7 +578,9 @@ export class PdfService {
                 try {
                     const base64Cachet = data.branding.cachetUrl.includes('base64,') ? data.branding.cachetUrl.split('base64,')[1] : data.branding.cachetUrl;
                     doc.image(Buffer.from(base64Cachet, 'base64'), 250, cachetY + 20, { width: 100 });
-                } catch (e) {}
+                } catch (e) {
+                    this.logger.error(`Failed to embed lens order cachet: ${e.message}`);
+                }
             }
 
             doc.fontSize(8).fillColor(greyText).text('OptiSaas - Solution de gestion optique', 40, 785);
@@ -637,7 +639,9 @@ export class PdfService {
                 try {
                     const base64Data = data.branding.logoUrl.includes('base64,') ? data.branding.logoUrl.split('base64,')[1] : data.branding.logoUrl;
                     doc.image(Buffer.from(base64Data, 'base64'), 40, 40, { height: 60 });
-                } catch (e) {}
+                } catch (e) {
+                    this.logger.error(`Failed to embed lens tech sheet logo: ${e.message}`);
+                }
             }
 
             const headerX = hasLogo ? 300 : 40;
@@ -762,7 +766,9 @@ export class PdfService {
                 try {
                     const base64Cachet = data.branding.cachetUrl.includes('base64,') ? data.branding.cachetUrl.split('base64,')[1] : data.branding.cachetUrl;
                     doc.image(Buffer.from(base64Cachet, 'base64'), 380, sigY + 30, { height: 45 });
-                } catch (e) {}
+                } catch (e) {
+                    this.logger.error(`Failed to embed lens tech sheet cachet: ${e.message}`);
+                }
             }
 
             doc.fontSize(8).fillColor(greyText).text('OptiSaas - Solution de gestion optique', 40, 785);

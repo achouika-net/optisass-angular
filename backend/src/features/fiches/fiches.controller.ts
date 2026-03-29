@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   Put,
@@ -24,6 +23,14 @@ export class FichesController {
       JSON.stringify(createFicheDto, null, 2),
     );
     return this.fichesService.create(createFicheDto as any);
+  }
+
+  @Get('bc-history')
+  getBcHistory(
+    @Query('startDate') startDate?: string,
+    @Query('centreId') centreId?: string,
+  ) {
+    return this.fichesService.findAllBcHistory(startDate, centreId);
   }
 
   @Get()

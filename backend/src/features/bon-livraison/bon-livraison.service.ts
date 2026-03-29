@@ -117,56 +117,33 @@ export class BonLivraisonService {
         const skip = page && limit ? (Number(page) - 1) * Number(limit) : undefined;
         const take = limit ? Number(limit) : 10;
 
-        // BULK AUTO-REPAIR: Link orphan expenses to BLs with same amount and date (recent only)
-        try {
-            const unlinkedBLs = await this.prisma.bonLivraison.findMany({
-                where: {
-                    ...whereClause,
-                    depense: null,
-                    montantTTC: { gt: 0 }
-                },
-                take: 50 // Limit per request for performance
-            });
-
-            for (const bl of unlinkedBLs) {
-                const orphanMatch = await this.prisma.depense.findFirst({
-                    where: {
-                        bonLivraisonId: null,
-                        montant: bl.montantTTC,
-                        statut: 'VALIDE',
-                        createdAt: {
-                            gte: new Date(bl.dateEmission.getTime() - 2 * 24 * 60 * 60 * 1000),
-                            lte: new Date(bl.dateEmission.getTime() + 2 * 24 * 60 * 60 * 1000)
-                        }
-                    }
-                });
-
-                if (orphanMatch) {
-                    await this.prisma.depense.update({
-                        where: { id: orphanMatch.id },
-                        data: { bonLivraisonId: bl.id }
-                    });
-                }
-            }
-        } catch (e) {
-            console.error('[BonLivraisonService] Auto-repair failed:', e);
-        }
-
         const [data, total] = await Promise.all([
             this.prisma.bonLivraison.findMany({
                 where: whereClause,
-                include: {
+                select: {
+                    id: true,
+                    numeroBL: true,
+                    dateEmission: true,
+                    dateEcheance: true,
+                    montantHT: true,
+                    montantTVA: true,
+                    montantTTC: true,
+                    statut: true,
+                    type: true,
+                    fournisseurId: true,
                     fournisseur: { select: { id: true, nom: true } },
-                    echeances: true,
-                    depense: true,
-                    // Inclus les fiches du client pour trouver la plus proche si nécessaire
+                    echeances: {
+                        select: { id: true, montant: true, statut: true, type: true, dateEcheance: true }
+                    },
+                    depense: {
+                        select: { id: true, montant: true, statut: true, date: true }
+                    },
                     client: {
                         select: {
                             id: true,
                             nom: true,
                             prenom: true,
                             numeroPieceIdentite: true,
-                            fiches: { select: { id: true, numero: true, dateCreation: true } },
                         },
                     },
                     fiche: { select: { id: true, numero: true, type: true } },
@@ -179,38 +156,11 @@ export class BonLivraisonService {
             this.prisma.bonLivraison.count({ where: whereClause }),
         ]);
 
+        // Optimization: Handle status repair and auto-linking only for the returned page
+        // and avoid nested awaited queries in the loop if possible.
         const enrichedData = await Promise.all(
-            data.map(async (bl) => {
-                const result = { ...bl } as any;
-
-                // AUTO-LINK: If no result.depense is linked, try to find a matching orphan expense
-                // Refined: Check both 'VALIDE' and 'VALIDEE', use user-entered 'date' field, and match 'fournisseurId'
-                if (!result.depense && result.montantTTC > 0) {
-                    const blDate = result.dateEmission.getTime();
-                    const orphanMatch = await this.prisma.depense.findFirst({
-                        where: {
-                            bonLivraisonId: null,
-                            fournisseurId: result.fournisseurId,
-                            montant: {
-                                gte: result.montantTTC - 0.05,
-                                lte: result.montantTTC + 0.05,
-                            },
-                            statut: { in: ['VALIDE', 'VALIDEE'] },
-                            date: {
-                                gte: new Date(blDate - 4 * 24 * 60 * 60 * 1000), // +/- 4 days window
-                                lte: new Date(blDate + 4 * 24 * 60 * 60 * 1000),
-                            },
-                        },
-                    });
-
-                    if (orphanMatch) {
-                        await this.prisma.depense.update({
-                            where: { id: orphanMatch.id },
-                            data: { bonLivraisonId: result.id },
-                        });
-                        result.depense = orphanMatch;
-                    }
-                }
+            data.map(async (bl: any) => {
+                const result = { ...bl };
 
                 // SELF-REPAIR: Ensure status matches actual payments
                 const activeEcheances = (result.echeances || []).filter((e: any) => e.statut !== 'ANNULE');
@@ -244,23 +194,6 @@ export class BonLivraisonService {
                     result.statut = expectedStatus;
                 }
 
-                if (
-                    !result.fiche &&
-                    result.client &&
-                    (result.client as any).fiches &&
-                    (result.client as any).fiches.length > 0
-                ) {
-                    const closestFiche = (result.client as any).fiches.reduce((prev: any, curr: any) => {
-                        const prevDiff = Math.abs(prev.dateCreation.getTime() - result.dateEmission.getTime());
-                        const currDiff = Math.abs(curr.dateCreation.getTime() - result.dateEmission.getTime());
-                        return currDiff < prevDiff ? curr : prev;
-                    });
-                    result.fiche = closestFiche as any;
-                }
-
-                if (result.client) {
-                    delete (result.client as any).fiches;
-                }
                 return result;
             }),
         );

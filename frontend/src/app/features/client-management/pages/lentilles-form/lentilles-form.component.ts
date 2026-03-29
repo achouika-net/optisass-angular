@@ -40,6 +40,7 @@ import { Store } from '@ngrx/store';
 import { UserSelector } from '../../../../core/store/auth/auth.selectors';
 import { Observable, BehaviorSubject, Subject, timer, forkJoin, of, firstValueFrom } from 'rxjs';
 import { takeUntil, filter, distinctUntilChanged, switchMap, debounceTime, startWith, map, catchError, take, tap } from 'rxjs/operators';
+import { FileUploadService } from '../../../../core/services/file-upload.service';
 
 interface PrescriptionFile {
     name: string;
@@ -139,7 +140,8 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
         private productService: ProductService,
         private store: Store,
         private companySettingsService: CompanySettingsService,
-        private ngZone: NgZone
+        private ngZone: NgZone,
+        private fileUploadService: FileUploadService
     ) {
         this.ficheForm = this.initForm();
     }
@@ -2102,30 +2104,34 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const preview = file.type === 'application/pdf'
-                    ? this.sanitizer.bypassSecurityTrustResourceUrl(e.target?.result as string)
-                    : e.target?.result as string;
+            this.fileUploadService.uploadFile(file).subscribe({
+                next: (res) => {
+                    const preview = file.type === 'application/pdf'
+                        ? this.sanitizer.bypassSecurityTrustResourceUrl(res.url)
+                        : res.url;
 
-                const prescriptionFile: PrescriptionFile = {
-                    name: file.name,
-                    type: file.type,
-                    size: file.size,
-                    preview,
-                    file,
-                    uploadDate: new Date()
-                };
-                this.prescriptionFiles.push(prescriptionFile);
+                    const prescriptionFile: PrescriptionFile = {
+                        name: file.name,
+                        type: file.type,
+                        size: file.size,
+                        preview,
+                        file,
+                        uploadDate: new Date()
+                    };
+                    this.prescriptionFiles.push(prescriptionFile);
 
-                // Auto-trigger OCR for images
-                if (file.type.startsWith('image/')) {
-                    this.extractData(prescriptionFile);
+                    // Auto-trigger OCR for images
+                    if (file.type.startsWith('image/')) {
+                        this.extractData(prescriptionFile);
+                    }
+
+                    this.cdr.markForCheck();
+                },
+                error: (err) => {
+                    console.error('File upload failed', err);
+                    this.snackBar.open('Erreur lors du téléchargement du fichier. Veuillez réessayer.', 'Fermer', { duration: 3000 });
                 }
-
-                this.cdr.markForCheck();
-            };
-            reader.readAsDataURL(file);
+            });
         });
         input.value = '';
     }
@@ -2245,17 +2251,25 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
 
     private handleCapturedPhoto(dataUrl: string): void {
         const file = this.dataURLtoFile(dataUrl, `photo_${Date.now()}.jpg`);
-        const prescriptionFile: PrescriptionFile = {
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            preview: dataUrl,
-            file,
-            uploadDate: new Date()
-        };
-        this.prescriptionFiles.push(prescriptionFile);
-        this.extractData(prescriptionFile); // Auto OCR on capture
-        this.cdr.markForCheck();
+        this.fileUploadService.uploadFile(file).subscribe({
+            next: (res) => {
+                const prescriptionFile: PrescriptionFile = {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    preview: res.url,
+                    file,
+                    uploadDate: new Date()
+                };
+                this.prescriptionFiles.push(prescriptionFile);
+                this.extractData(prescriptionFile); // Auto OCR on capture
+                this.cdr.markForCheck();
+            },
+            error: (err) => {
+                console.error('File upload failed', err);
+                this.snackBar.open('Erreur lors de l\'enregistrement de l\'image.', 'Fermer', { duration: 3000 });
+            }
+        });
     }
 
     private dataURLtoFile(dataurl: string, filename: string): File {

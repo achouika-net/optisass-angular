@@ -45,7 +45,6 @@ export class StockMovementsService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
-        // ... file handling ...
         let pieceJointeUrl = '';
         if (base64File && fileName) {
           const uploadDir = path.join(process.cwd(), 'uploads', 'invoices');
@@ -72,7 +71,6 @@ export class StockMovementsService {
           return sum + (Number(a.prixAchat) + tvaAmount) * Number(a.quantite);
         }, 0);
 
-        // Try to infer centreId from allocations if missing
         let effectiveCentreId = invoiceData.centreId;
         if (!effectiveCentreId && allocations.length > 0) {
           const firstWarehouseId = allocations[0].warehouseId;
@@ -81,13 +79,9 @@ export class StockMovementsService {
           });
           if (warehouse?.centreId) {
             effectiveCentreId = warehouse.centreId;
-            console.log(
-              `💡 [STOCK] Inferred Centre ID from warehouse: ${effectiveCentreId}`,
-            );
           }
         }
 
-        // Check if invoice already exists for this supplier (Case-insensitive & Trimmed)
         const trimmedNumero = invoiceData.numeroFacture.trim();
         let invoice = await tx.factureFournisseur.findFirst({
           where: {
@@ -101,15 +95,11 @@ export class StockMovementsService {
         });
 
         if (invoice) {
-          console.warn(
-            `[STOCK] Duplicate alimentation attempt for invoice ${invoice.numeroFacture}`,
-          );
           throw new BadRequestException(
-            `La facture ${invoice.numeroFacture} existe déjà. Vous ne pouvez pas alimenter le stock deux fois sur la même facture/BL pour éviter les doublons.`,
+            `La facture ${invoice.numeroFacture} existe déjà.`,
           );
         }
 
-        // If no invoice exists, we continue with creation
         invoice = await tx.factureFournisseur.create({
           data: {
             numeroFacture: invoiceData.numeroFacture,
@@ -141,18 +131,10 @@ export class StockMovementsService {
           include: { echeances: true },
         });
 
-        // ═══════════════════════════════════════════════════════════════
-        // AUTOMATIC PAYMENT CREATION FOR CASH SUPPLIERS
-        // ═══════════════════════════════════════════════════════════════
-
-        // Fetch supplier payment conditions
+        // Supplier check for automatic payment
         const supplier = await tx.fournisseur.findUnique({
           where: { id: invoiceData.fournisseurId },
         });
-
-        console.log(
-          `🔍 [STOCK] Supplier: ${supplier?.nom}, ID: ${supplier?.id}`,
-        );
 
         const paymentConditions = (
           (supplier?.convention as any)?.echeancePaiement?.[0] ||
@@ -160,147 +142,63 @@ export class StockMovementsService {
           ''
         ).toLowerCase();
 
-        console.log(`💳 [STOCK] Payment conditions: "${paymentConditions}"`);
-
         const isCashPayment =
           paymentConditions.includes('comptant') ||
           paymentConditions.includes('espèces') ||
           paymentConditions.includes('espece') ||
           paymentConditions.includes('immédiat') ||
-          paymentConditions.includes('immediat') ||
           paymentConditions === '';
 
-        const isBL = invoiceData.type === 'BL';
-        console.log(`💰 [STOCK] Is cash payment: ${isCashPayment}`);
-        console.log(`🧾 [STOCK] Is BL: ${isBL}`);
-
-        if (isCashPayment && !isBL) {
-          if (!effectiveCentreId) {
-            console.warn(
-              `⚠️ [STOCK] Skipping automatic payment: Missing Centre ID for invoice ${invoiceData.numeroFacture} (and unable to infer from warehouse)`,
-            );
-          } else {
-            console.log(
-              `🚀 [STOCK] Automatic payment creation for cash supplier: ${supplier?.nom} (Centre: ${effectiveCentreId})`,
-            );
-
-            // Create automatic expense
-            try {
-              const createdPayment = await tx.depense.create({
-                data: {
-                  reference: `PAY-${invoiceData.numeroFacture}`,
-                  montant: totalTTC,
-                  date: normalizeToUTCNoon(invoiceData.dateEmission) as Date,
-                  categorie: 'ACHAT_STOCK',
-                  modePaiement:
-                    paymentConditions.includes('espèces') ||
-                      paymentConditions.includes('espece')
-                      ? 'ESPECES'
-                      : 'CHEQUE',
-                  fournisseurId: invoiceData.fournisseurId,
-                  factureFournisseurId: invoice.id,
-                  centreId: effectiveCentreId,
-                  statut: 'VALIDEE',
-                  description: `Paiement automatique - ${invoiceData.numeroFacture}`,
-                },
-              });
-              console.log(
-                `✅ [STOCK] Payment created: ${createdPayment.id}, Amount: ${createdPayment.montant} DH`,
-              );
-
-              // Update invoice status ONLY if payment succeeded
-              await tx.factureFournisseur.update({
-                where: { id: invoice.id },
-                data: { statut: 'PAYEE' },
-              });
-
-              // Update installment status ONLY if payment succeeded
-              if (invoice.echeances && invoice.echeances.length > 0) {
-                await tx.echeancePaiement.update({
-                  where: { id: invoice.echeances[0].id },
-                  data: { statut: 'PAYEE' },
-                });
-              }
-            } catch (paymentError) {
-              console.error(`❌ [STOCK] ERROR creating payment:`, paymentError);
-              // We do NOT re-throw here to prevent rolling back the stock movement
-              // The user will just have to add payment manually
-            }
-          }
-        } else {
-          console.log(
-            `⏳ [STOCK] Deferred payment for ${supplier?.nom} - Conditions: ${paymentConditions}`,
-          );
+        if (isCashPayment && invoiceData.type !== 'BL' && effectiveCentreId) {
+          await tx.depense.create({
+            data: {
+              reference: `PAY-${invoiceData.numeroFacture}`,
+              montant: totalTTC,
+              date: normalizeToUTCNoon(invoiceData.dateEmission) as Date,
+              categorie: 'ACHAT_STOCK',
+              modePaiement: paymentConditions.includes('espece') ? 'ESPECES' : 'CHEQUE',
+              fournisseurId: invoiceData.fournisseurId,
+              factureFournisseurId: invoice.id,
+              centreId: effectiveCentreId,
+              statut: 'VALIDEE',
+              description: `Paiement automatique - ${invoiceData.numeroFacture}`,
+            },
+          });
+          await tx.factureFournisseur.update({
+            where: { id: invoice.id },
+            data: { statut: 'PAYEE' },
+          });
         }
 
         for (const alloc of allocations) {
-          let targetProduct: any =
-            await this.productsService.findLocalCounterpart(
-              {
-                designation: alloc.nom,
-                codeInterne: alloc.reference,
-                centreId: effectiveCentreId || '',
-                entrepotId: alloc.warehouseId,
-                couleur: alloc.couleur,
-              },
-              tx,
-            );
-
-          // NOUVEAU: Si pas trouvé par findLocalCounterpart, chercher par code/référence seul
-          // Cela permet de détecter les produits existants même avec caractéristiques différentes
-          if (!targetProduct) {
-            targetProduct = await tx.product.findFirst({
-              where: {
-                OR: [
-                  { codeInterne: alloc.reference.trim() },
-                  ...(alloc.codeBarre
-                    ? [{ codeBarres: alloc.codeBarre.trim() }]
-                    : []),
-                ],
-                entrepotId: alloc.warehouseId,
-                // IMPORTANT: Differentiate by color if provided
-                ...(alloc.couleur ? { couleur: alloc.couleur } : {}),
-              },
-            });
-
-            if (targetProduct) {
-              console.log(
-                `[STOCK] Produit existant trouvé par code/référence: ${targetProduct.designation}. Mise à jour automatique.`,
-              );
-            }
-          }
+          let targetProduct = await tx.product.findFirst({
+            where: {
+              OR: [
+                { codeInterne: alloc.reference.trim() },
+                ...(alloc.codeBarre ? [{ codeBarres: alloc.codeBarre.trim() }] : []),
+              ],
+              entrepotId: alloc.warehouseId,
+              ...(alloc.couleur ? { couleur: alloc.couleur } : {}),
+            },
+          });
 
           if (!targetProduct) {
-            const template = await tx.product.findFirst({
-              where: { designation: alloc.nom, codeInterne: alloc.reference },
-            });
-
-            console.log('[STOCK-DEBUG] Creating new product with alloc data:', {
-              ref: alloc.reference,
-              couleur: alloc.couleur,
-              materiau: alloc.materiau,
-              calibre: alloc.calibre,
-            });
-
             targetProduct = await tx.product.create({
               data: {
                 designation: alloc.nom,
                 marque: alloc.marque,
                 codeInterne: alloc.reference.trim(),
                 codeBarres: alloc.codeBarre?.trim() || alloc.reference.trim(),
-                typeArticle:
-                  template?.typeArticle || alloc.categorie || 'AUTRE',
+                typeArticle: alloc.categorie || 'AUTRE',
                 couleur: alloc.couleur,
                 prixAchatHT: Number(alloc.prixAchat),
                 prixVenteHT: Number(alloc.prixVente),
-                prixVenteTTC:
-                  Number(alloc.prixVente) * (1 + Number(alloc.tva) / 100),
+                prixVenteTTC: Number(alloc.prixVente) * (1 + Number(alloc.tva) / 100),
                 quantiteActuelle: 0,
-                seuilAlerte: template?.seuilAlerte || 2,
+                seuilAlerte: 2,
                 statut: 'DISPONIBLE',
                 entrepotId: alloc.warehouseId,
                 specificData: {
-                  ...((template?.specificData as any) || {}),
                   materiau: alloc.materiau,
                   forme: alloc.forme,
                   genre: alloc.genre,
@@ -309,289 +207,182 @@ export class StockMovementsService {
                 },
                 utilisateurCreation: 'system',
               },
-              include: { entrepot: true },
             });
           }
 
-          if (targetProduct) {
-            const existingStock = Number(targetProduct.quantiteActuelle || 0);
-            const existingPrice = Number(targetProduct.prixAchatHT || 0);
-            const newQty = Number(alloc.quantite);
-            const newPrice = Number(alloc.prixAchat);
+          const existingStock = Number(targetProduct.quantiteActuelle || 0);
+          const existingPrice = Number(targetProduct.prixAchatHT || 0);
+          const newQty = Number(alloc.quantite);
+          const newPrice = Number(alloc.prixAchat);
 
-            let finalPrixAchatHT = newPrice;
-            if (existingStock > 0) {
-              // CUMP = (OldValue + NewValue) / TotalQty
-              const totalValue =
-                existingStock * existingPrice + newQty * newPrice;
-              const totalQty = existingStock + newQty;
-              finalPrixAchatHT = totalValue / totalQty;
-            }
-
-            await tx.product.update({
-              where: { id: targetProduct.id },
-              data: {
-                quantiteActuelle: { increment: newQty },
-                prixAchatHT: finalPrixAchatHT,
-                prixVenteHT: Number(alloc.prixVente),
-                prixVenteTTC:
-                  Number(alloc.prixVente) * (1 + Number(alloc.tva) / 100),
-                marque: targetProduct.marque || alloc.marque,
-                typeArticle: targetProduct.typeArticle || alloc.categorie,
-                couleur: targetProduct.couleur || alloc.couleur,
-                specificData: {
-                  ...(targetProduct.specificData || {}),
-                  materiau:
-                    targetProduct.specificData?.materiau || alloc.materiau,
-                  forme: targetProduct.specificData?.forme || alloc.forme,
-                  genre: targetProduct.specificData?.genre || alloc.genre,
-                  calibre: targetProduct.specificData?.calibre || alloc.calibre,
-                  pont: targetProduct.specificData?.pont || alloc.pont,
-                },
-              },
-            });
-
-            await tx.mouvementStock.create({
-              data: {
-                type: 'ENTREE_ACHAT',
-                quantite: Number(alloc.quantite),
-                produitId: targetProduct.id,
-                entrepotDestinationId: alloc.warehouseId,
-                factureFournisseurId: invoice.id,
-                prixAchatUnitaire: Number(alloc.prixAchat),
-                motif: `Alimentation via ${invoice.numeroFacture}`,
-                dateMovement: new Date(),
-                utilisateur: 'system',
-              },
-            });
+          let finalPrixAchatHT = newPrice;
+          if (existingStock > 0) {
+            finalPrixAchatHT = (existingStock * existingPrice + newQty * newPrice) / (existingStock + newQty);
           }
+
+          await tx.product.update({
+            where: { id: targetProduct.id },
+            data: {
+              quantiteActuelle: { increment: newQty },
+              prixAchatHT: finalPrixAchatHT,
+              prixVenteHT: Number(alloc.prixVente),
+              prixVenteTTC: Number(alloc.prixVente) * (1 + Number(alloc.tva) / 100),
+              specificData: {
+                ...(targetProduct.specificData as any || {}),
+                materiau: alloc.materiau,
+                forme: alloc.forme,
+                genre: alloc.genre,
+                calibre: alloc.calibre,
+                pont: alloc.pont,
+              },
+            },
+          });
+
+          await tx.mouvementStock.create({
+            data: {
+              type: 'ENTREE_ACHAT',
+              quantite: newQty,
+              produitId: targetProduct.id,
+              entrepotDestinationId: alloc.warehouseId,
+              factureFournisseurId: invoice.id,
+              prixAchatUnitaire: newPrice,
+              motif: `Alimentation via ${invoice.numeroFacture}`,
+              dateMovement: new Date(),
+              utilisateur: 'system',
+            },
+          });
         }
         return invoice;
       });
     } catch (error) {
-      console.error('[processBulkAlimentation ERROR]', error);
-
-      // EMERGENCY LOGGING
-      try {
-        const logPath = path.join(process.cwd(), 'last_error.log');
-        const logMessage = `[${new Date().toISOString()}] ERROR: ${error.message}\nSTACK: ${error.stack}\nCODE: ${error.code}\nMETA: ${JSON.stringify(error.meta)}\n`;
-        fs.appendFileSync(logPath, logMessage);
-      } catch (e) { }
-
-      if (
-        error instanceof BadRequestException ||
-        error instanceof NotFoundException
-      ) {
-        throw error;
-      }
-
-      if (error.code === 'P2002') {
-        const target = error.meta?.target || [];
-        if (target.includes('numeroFacture')) {
-          throw new BadRequestException(
-            'Ce numéro de facture existe déjà pour ce fournisseur.',
-          );
-        }
-        if (target.includes('codeInterne') || target.includes('codeBarres')) {
-          throw new BadRequestException(
-            `Un produit avec cette référence ou ce code-barres existe déjà dans cet entrepôt. Détails: ${JSON.stringify(target)}`,
-          );
-        }
-        throw new BadRequestException(
-          `Erreur de contrainte unique (doublon) : ${target.join(', ')}`,
-        );
-      }
-
-      throw new BadRequestException(
-        `Erreur lors de l'enregistrement : ${error.message}`,
-      );
+      if (error instanceof BadRequestException || error instanceof NotFoundException) throw error;
+      throw new BadRequestException(`Erreur lors de l'enregistrement : ${error.message}`);
     }
   }
 
   async getHistory(filters: any) {
-    console.log('[STOCK-HISTORY] Filters received:', filters);
     const andConditions: any[] = [];
-
-    // Center Filter
-    if (
-      filters.centreId &&
-      filters.centreId !== 'null' &&
-      filters.centreId !== 'undefined'
-    ) {
-      andConditions.push({
-        OR: [{ centreId: filters.centreId }, { centreId: null }],
-      });
-    }
-
-    // Handle Document Type Filter
+    if (filters.centreId) andConditions.push({ OR: [{ centreId: filters.centreId }, { centreId: null }] });
+    
+    // Broad document types for history
     if (filters.docType === 'BL') {
       andConditions.push({ type: 'BL' });
     } else if (filters.docType === 'FACTURE') {
-      // In production, we see types like 'ACHAT_PRODUITS', 'ACHAT VERRES OPTIQUES', etc.
-      // We should include them or just allow all if it's for 'FACTURE' level view.
-      andConditions.push({
-        type: {
-          in: [
-            'ACHAT_STOCK',
-            'FACTURE',
-            'ACHAT_PRODUITS',
-            'ACHAT VERRES OPTIQUES',
-            'RELEMENT_TEL_INTERNET', // Map common custom types if known
-          ],
-        },
-      });
-    } else {
-      // Default: Show all entries from factureFournisseur (Purchases/Stock entries)
-      // Removing restrictive list to accommodate custom types from imports
-      console.log('[STOCK-HISTORY] Using default inclusive filter');
+      andConditions.push({ type: { in: ['ACHAT_STOCK', 'FACTURE', 'ACHAT_PRODUITS', 'ACHAT VERRES OPTIQUES'] } });
     }
 
-    if (filters.dateFrom || filters.dateTo) {
-      const dateClause: any = {};
-      if (filters.dateFrom && !isNaN(Date.parse(filters.dateFrom))) {
-        dateClause.gte = new Date(filters.dateFrom);
-      }
-      if (filters.dateTo && !isNaN(Date.parse(filters.dateTo))) {
-        dateClause.lte = new Date(filters.dateTo);
-      }
-      if (Object.keys(dateClause).length > 0) {
-        andConditions.push({ dateEmission: dateClause });
-      }
-    }
-
-    if (
-      filters.supplierId &&
-      filters.supplierId !== 'null' &&
-      filters.supplierId !== 'undefined'
-    ) {
-      andConditions.push({ fournisseurId: filters.supplierId });
-    }
-
-    const whereClause = andConditions.length > 0 ? { AND: andConditions } : {};
-
-    console.log(
-      '[STOCK-HISTORY] Query WhereClause:',
-      JSON.stringify(whereClause, null, 2),
-    );
+    if (filters.dateFrom) andConditions.push({ dateEmission: { gte: new Date(filters.dateFrom) } });
+    if (filters.dateTo) andConditions.push({ dateEmission: { lte: new Date(filters.dateTo) } });
+    if (filters.supplierId) andConditions.push({ fournisseurId: filters.supplierId });
 
     return this.prisma.factureFournisseur.findMany({
-      where: whereClause,
-      take: 50,
+      where: andConditions.length > 0 ? { AND: andConditions } : {},
+      take: 100,
       orderBy: { dateEmission: 'desc' },
-      include: {
-        fournisseur: true,
-        mouvementsStock: {
-          include: {
-            produit: true,
-            entrepotDestination: true,
-          },
+      select: {
+        id: true,
+        numeroFacture: true,
+        dateEmission: true,
+        montantHT: true,
+        montantTTC: true,
+        statut: true,
+        type: true,
+        fournisseur: {
+          select: { id: true, nom: true }
         },
-      },
+        mouvementsStock: {
+          select: {
+            id: true,
+            quantite: true,
+            prixAchatUnitaire: true,
+            produit: {
+              select: { id: true, designation: true, codeInterne: true }
+            },
+            entrepotDestination: {
+              select: { id: true, nom: true }
+            }
+          }
+        }
+      }
     });
   }
 
-  async getOutHistory(filters: {
-    dateFrom?: string;
-    dateTo?: string;
-    search?: string;
-    centreId?: string;
-  }) {
-    const whereClause: any = {
-      type: {
-        in: [
-          'SORTIE',
-          'CASSE',
-          'AJUSTEMENT',
-          'RETOUR_FOURNISSEUR',
-          'TRANSFERT_SORTIE',
-          'TRANSFERT_ENTREE',
-          'RECEPTION',
-          'TRANSFERT_INIT',
-          'EXPEDITION',
-          'TRANSFERT_ANNULE',
+  async getOutHistory(filters: { dateFrom?: string; dateTo?: string; search?: string; centreId?: string }) {
+    const movements = await this.prisma.mouvementStock.findMany({
+      where: {
+        AND: [
+          filters.centreId ? {
+            OR: [
+              { entrepotSource: { centreId: filters.centreId } },
+              { entrepotDestination: { centreId: filters.centreId } }
+            ]
+          } : {},
+          {
+            OR: [
+              { type: { in: ['SORTIE', 'VENTE', 'REGULARISATION_SORTIE', 'CASSE', 'PERTE', 'RETOUR_FOURNISSEUR'] } },
+              { quantite: { lt: 0 } },
+              { motif: { contains: 'Vente', mode: 'insensitive' } },
+              { motif: { contains: 'Sortie', mode: 'insensitive' } },
+            ]
+          },
+          filters.dateFrom ? { dateMovement: { gte: new Date(filters.dateFrom) } } : {},
+          filters.dateTo ? { dateMovement: { lte: new Date(filters.dateTo) } } : {},
+          filters.search ? {
+            OR: [
+              { motif: { contains: filters.search, mode: 'insensitive' } },
+              { produit: { designation: { contains: filters.search, mode: 'insensitive' } } },
+            ],
+          } : {},
         ],
       },
-    };
-
-    if (filters.centreId) {
-      whereClause.OR = [
-        { entrepotSource: { centreId: filters.centreId } },
-        { entrepotDestination: { centreId: filters.centreId } },
-        { entrepotSource: null, entrepotDestination: null }, // Initial entries or legacy
-      ];
-    }
-
-    if (filters.dateFrom || filters.dateTo) {
-      whereClause.dateMovement = {};
-      if (filters.dateFrom)
-        whereClause.dateMovement.gte = new Date(filters.dateFrom);
-      if (filters.dateTo)
-        whereClause.dateMovement.lte = new Date(filters.dateTo);
-    }
-
-    if (filters.search) {
-      const searchOR = [
-        { motif: { contains: filters.search, mode: 'insensitive' } },
-        {
-          produit: {
-            designation: { contains: filters.search, mode: 'insensitive' },
-          },
-        },
-        {
-          produit: {
-            codeInterne: { contains: filters.search, mode: 'insensitive' },
-          },
-        },
-      ];
-      if (whereClause.OR) {
-        // Combine with center filter
-        whereClause.AND = [{ OR: whereClause.OR }, { OR: searchOR }];
-        delete whereClause.OR;
-      } else {
-        whereClause.OR = searchOR;
-      }
-    }
-
-    const movements = await this.prisma.mouvementStock.findMany({
-      where: whereClause,
-      take: 200,
+      take: 300, // Increased to ensure enough groups after JS grouping
       orderBy: { dateMovement: 'desc' },
-      include: {
-        produit: true,
+      select: {
+        id: true,
+        type: true,
+        quantite: true,
+        dateMovement: true,
+        motif: true,
+        utilisateur: true,
+        produit: {
+          select: { id: true, designation: true, marque: true, codeInterne: true }
+        },
         entrepotSource: {
-          include: { centre: true },
+          select: { id: true, nom: true, centre: { select: { id: true, nom: true } } }
         },
         entrepotDestination: {
-          include: { centre: true },
+          select: { id: true, nom: true, centre: { select: { id: true, nom: true } } }
         },
         facture: {
-          include: { 
-            client: true,
-            fiche: true 
-          },
+          select: {
+            id: true,
+            numero: true,
+            client: { select: { id: true, nom: true, prenom: true } },
+            fiche: { select: { id: true, numero: true } } // EXCLUDE CONTENT
+          }
         },
         bonLivraison: {
-          include: { 
-            client: true,
-            fiche: true 
-          },
-        },
+          select: {
+            id: true,
+            numeroBL: true,
+            client: { select: { id: true, nom: true, prenom: true } },
+            fiche: { select: { id: true, numero: true } } // EXCLUDE CONTENT
+          }
+        }
       },
     });
 
-    // Grouping movements by motif and approximate time (same minute)
     const groups: any[] = [];
     const groupMap = new Map<string, any>();
 
     movements.forEach((m) => {
       const date = new Date(m.dateMovement);
-      // Group by motif + YYYY-MM-DD HH:mm
       const timeKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()} ${date.getHours()}:${date.getMinutes()}`;
       const key = `${m.motif}_${timeKey}`;
 
       if (!groupMap.has(key)) {
         const group = {
-          id: m.id, // Using first movement ID as group ID for simpler UI handling
+          id: m.id,
           motif: m.motif,
           dateMovement: m.dateMovement,
           utilisateur: m.utilisateur,
@@ -616,49 +407,29 @@ export class StockMovementsService {
         where: { id },
         include: { mouvementsStock: true },
       });
-
-      if (!invoice)
-        throw new NotFoundException('Entrée historique introuvable');
-
-      // 0. Get affected product IDs before deletion
-      const productIds = Array.from(
-        new Set(invoice.mouvementsStock.map((m) => m.produitId)),
-      );
-
-      // 1. Clear Movements (This triggers the sync later)
-      await tx.mouvementStock.deleteMany({
-        where: { factureFournisseurId: id },
-      });
-
-      // 2. Sync each affected product
+      if (!invoice) throw new NotFoundException('Entrée historique introuvable');
+      const productIds = Array.from(new Set(invoice.mouvementsStock.map((m) => m.produitId)));
+      await tx.mouvementStock.deleteMany({ where: { factureFournisseurId: id } });
       for (const productId of productIds) {
         await this.productsService.syncProductState(productId, tx);
       }
-
-      // 3. Delete linked Expense if exists
-      await tx.depense.deleteMany({
-        where: { factureFournisseurId: id },
-      });
-
-      // 4. Delete the Invoice itself
-      return await tx.factureFournisseur.delete({
-        where: { id },
-      });
+      await tx.depense.deleteMany({ where: { factureFournisseurId: id } });
+      return await tx.factureFournisseur.delete({ where: { id } });
     });
   }
 
   async debugData() {
     const count = await this.prisma.factureFournisseur.count();
     const movementCount = await this.prisma.mouvementStock.count();
-    const recent = await this.prisma.factureFournisseur.findMany({
+    const typeCounts = await this.prisma.mouvementStock.groupBy({
+      by: ['type'],
+      _count: { _all: true }
+    });
+    const recentMovements = await this.prisma.mouvementStock.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
-      select: { id: true, numeroFacture: true, centreId: true, type: true },
+      include: { produit: true }
     });
-    return {
-      count,
-      movementCount,
-      recent,
-    };
+    return { count, movementCount, typeCounts, recentMovements };
   }
 }

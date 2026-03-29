@@ -36,7 +36,7 @@
                 <button mat-flat-button color="primary" type="submit" [disabled]="commissionForm.invalid"
                     class="py-[1.25em] h-[56px]">
                     <mat-icon>{{ isEditMode ? 'save' : 'add' }}</mat-icon>
-                    {{ isEditMode ? 'Modifier' : 'Ajouter' }}
+                    {{ isEditMode ? 'Modifier' : 'ADD' }}
                 </button>
                 <button mat-stroked-button color="warn" type="button" *ngIf="isEditMode" (click)="cancelEdit()"
                     class="py-[1.25em] h-[56px]">

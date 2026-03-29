@@ -34,6 +34,7 @@ import { MessagingService } from '../../../../core/services/messaging.service';
 import { ExpenseFormDialogComponent } from '../../../finance/components/expense-form-dialog/expense-form-dialog.component';
 import { Convention } from '../../../finance/models/finance.models';
 import { take } from 'rxjs';
+import { FileUploadService } from '../../../../core/services/file-upload.service';
 
 export interface Attachment {
   id: string;
@@ -162,7 +163,8 @@ export class ClientDetailComponent implements OnInit {
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private financeService: FinanceService,
-    private messagingService: MessagingService
+    private messagingService: MessagingService,
+    private fileUploadService: FileUploadService
   ) {
     this.clientId = this.route.snapshot.paramMap.get('id');
   }
@@ -432,32 +434,61 @@ export class ClientDetailComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(dataUrl => {
       if (dataUrl) {
-        this.saveAttachment({
-          id: crypto.randomUUID(),
-          name: `Photo_${new Date().getTime()}.jpg`,
-          type: 'image/jpeg',
-          url: dataUrl,
-          date: new Date().toISOString()
+        const file = this.dataURLtoFile(dataUrl, `Photo_${new Date().getTime()}.jpg`);
+        this.fileUploadService.uploadFile(file).subscribe({
+            next: (res) => {
+                this.saveAttachment({
+                    id: crypto.randomUUID(),
+                    name: file.name,
+                    type: file.type,
+                    url: res.url,
+                    date: new Date().toISOString()
+                });
+            },
+            error: (err) => {
+                console.error('File upload failed', err);
+                this.snackBar.open('Erreur lors de l\'ajout de la photo', 'Fermer', { duration: 3000 });
+            }
         });
       }
     });
   }
 
+  private dataURLtoFile(dataurl: string, filename: string): File {
+    const arr = dataurl.split(',');
+    const mime = arr[0].match(/:(.*?);/)![1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, { type: mime });
+  }
+
   onFileSelected(event: any): void {
     const file = event.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e: any) => {
-        this.saveAttachment({
-          id: crypto.randomUUID(),
-          name: file.name,
-          type: file.type,
-          url: e.target.result,
-          date: new Date().toISOString(),
-          size: file.size
-        });
-      };
-      reader.readAsDataURL(file);
+      if (file.size > 10 * 1024 * 1024) {
+          alert(`Le fichier ${file.name} est trop volumineux (max 10MB)`);
+          return;
+      }
+      this.fileUploadService.uploadFile(file).subscribe({
+        next: (res) => {
+          this.saveAttachment({
+            id: crypto.randomUUID(),
+            name: file.name,
+            type: file.type,
+            url: res.url,
+            date: new Date().toISOString(),
+            size: file.size
+          });
+        },
+        error: (err) => {
+           console.error('File upload failed', err);
+           this.snackBar.open('Erreur lors de l\'ajout du fichier', 'Fermer', { duration: 3000 });
+        }
+      });
     }
   }
 

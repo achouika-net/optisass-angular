@@ -55,6 +55,9 @@ model Client {
   fiches               Fiche[]
   pointsHistory        PointsHistory[]
   rewardRedemptions    RewardRedemption[]
+
+  @@index([nom, prenom])
+  @@index([telephone])
 }
 
 model Fiche {
@@ -72,6 +75,8 @@ model Fiche {
   facture              Facture?
   supplierInvoices     FactureFournisseur[]
   client               Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
 }
 
 model Facture {
@@ -112,6 +117,8 @@ model Facture {
 
   @@index([centreId])
   @@index([vendeurId])
+  @@index([ficheId])
+  @@index([clientId])
 }
 
 model Paiement {
@@ -237,6 +244,11 @@ model Product {
 
   @@unique([codeInterne, entrepotId])
   @@unique([codeBarres, entrepotId])
+  @@index([designation])
+  @@index([marque])
+  @@index([modele])
+  @@index([typeArticle])
+  @@index([famille])
 }
 
 model MouvementStock {
@@ -268,6 +280,18 @@ model MouvementStock {
   facture               Facture?            @relation(fields: [factureId], references: [id])
   produit               Product             @relation(fields: [produitId], references: [id], onDelete: Cascade)
   user                  User?               @relation(fields: [userId], references: [id])
+
+  @@index([type])
+  @@index([dateMovement])
+  @@index([motif])
+  @@index([produitId])
+  @@index([entrepotSourceId])
+  @@index([entrepotDestinationId])
+  @@index([fournisseurId])
+  @@index([clientId])
+  @@index([factureId])
+  @@index([factureFournisseurId])
+  @@index([bonLivraisonId])
 }
 
 model User {
@@ -304,6 +328,7 @@ model UserCentreRole {
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, centreId])
+  @@index([centreId])
 }
 
 model PointsHistory {
@@ -317,6 +342,8 @@ model PointsHistory {
   createdAt   DateTime @default(now())
   client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   facture     Facture? @relation(fields: [factureId], references: [id])
+
+  @@index([clientId])
 }
 
 model LoyaltyConfig {
@@ -447,6 +474,7 @@ model FactureFournisseur {
   @@index([dateEmission])
   @@index([centreId])
   @@index([clientId])
+  @@index([fournisseurId])
 }
 
 model BonLivraison {
@@ -478,6 +506,9 @@ model BonLivraison {
   @@unique([fournisseurId, numeroBL])
   @@index([dateEmission])
   @@index([centreId])
+  @@index([fournisseurId])
+  @@index([clientId])
+  @@index([factureFournisseurId])
 }
 
 model EcheancePaiement {

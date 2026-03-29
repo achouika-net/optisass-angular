@@ -47,12 +47,16 @@ export class FactureService {
 
     constructor(private http: HttpClient) { }
 
-    findAll(filters?: { clientId?: string, type?: string, statut?: string, ficheId?: string }): Observable<Facture[]> {
+    findAll(filters?: { clientId?: string, type?: string, statut?: string, ficheId?: string, summary?: boolean }): Observable<Facture[]> {
         let params = new HttpParams();
         if (filters?.clientId) params = params.set('clientId', filters.clientId);
         if (filters?.ficheId) params = params.set('ficheId', filters.ficheId);
         if (filters?.type) params = params.set('type', filters.type);
         if (filters?.statut) params = params.set('statut', filters.statut);
+        
+        // Default to summary mode for performance in list views
+        const summary = filters?.summary !== undefined ? filters.summary : true;
+        params = params.set('summary', summary.toString());
 
         return this.http.get<Facture[]>(this.apiUrl, { params });
     }

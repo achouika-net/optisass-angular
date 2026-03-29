@@ -47,6 +47,7 @@ import { GlassParametersService } from '../../services/glass-parameters.service'
 import { GlassParameters } from '../../../../core/models/glass-parameters.model';
 import { FinanceService } from '../../../finance/services/finance.service';
 import { Convention } from '../../../finance/models/finance.models';
+import { FileUploadService } from '../../../../core/services/file-upload.service';
 
 
 
@@ -329,7 +330,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         private bcPrintService: BcPrintService,
         private supplierService: SupplierService,
         private glassParametersService: GlassParametersService,
-        private financeService: FinanceService
+        private financeService: FinanceService,
+        private fileUploadService: FileUploadService
     ) {
         this.ficheForm = this.initForm();
     }
@@ -2305,29 +2307,33 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const preview = file.type === 'application/pdf'
-                    ? this.sanitizer.bypassSecurityTrustResourceUrl(e.target?.result as string)
-                    : e.target?.result as string;
+            this.fileUploadService.uploadFile(file).subscribe({
+                next: (res) => {
+                    const preview = file.type === 'application/pdf'
+                        ? this.sanitizer.bypassSecurityTrustResourceUrl(res.url)
+                        : res.url;
 
-                const prescriptionFile: PrescriptionFile = {
-                    name: file.name,
-                    type: file.type,
-                    size: file.size,
-                    preview,
-                    file: file as File,
-                    uploadDate: new Date()
-                };
-                this.prescriptionFiles.push(prescriptionFile);
-                // Sync with FormControl
-                this.ficheForm.get('ordonnance.prescriptionFiles')?.setValue(this.prescriptionFiles);
-                if (file.type.startsWith('image/')) {
-                    this.extractData(prescriptionFile);
+                    const prescriptionFile: PrescriptionFile = {
+                        name: file.name,
+                        type: file.type,
+                        size: file.size,
+                        preview,
+                        file: file as File,
+                        uploadDate: new Date()
+                    };
+                    this.prescriptionFiles.push(prescriptionFile);
+                    // Sync with FormControl
+                    this.ficheForm.get('ordonnance.prescriptionFiles')?.setValue(this.prescriptionFiles);
+                    if (file.type.startsWith('image/')) {
+                        this.extractData(prescriptionFile);
+                    }
+                    this.cdr.markForCheck();
+                },
+                error: (err) => {
+                    console.error('File upload failed', err);
+                    this.snackBar.open('Erreur lors du téléchargement du fichier. Veuillez réessayer.', 'Fermer', { duration: 3000 });
                 }
-                this.cdr.markForCheck();
-            };
-            reader.readAsDataURL(file);
+            });
         });
         input.value = '';
     }
@@ -2409,21 +2415,29 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 const timestamp = new Date().getTime();
                 const file = new File([blob], `prescription_${timestamp}.jpg`, { type: 'image/jpeg' });
 
-                const prescriptionFile: PrescriptionFile = {
-                    name: file.name,
-                    type: file.type,
-                    size: file.size,
-                    preview: this.capturedImage!,
-                    file,
-                    uploadDate: new Date()
-                };
+                this.fileUploadService.uploadFile(file).subscribe({
+                    next: (res) => {
+                        const prescriptionFile: PrescriptionFile = {
+                            name: file.name,
+                            type: file.type,
+                            size: file.size,
+                            preview: res.url,
+                            file,
+                            uploadDate: new Date()
+                        };
 
-                this.prescriptionFiles.push(prescriptionFile);
-                // Sync with FormControl
-                this.ficheForm.get('ordonnance.prescriptionFiles')?.setValue(this.prescriptionFiles);
-                this.extractData(prescriptionFile);
-                this.closeCameraModal();
-                this.cdr.markForCheck();
+                        this.prescriptionFiles.push(prescriptionFile);
+                        // Sync with FormControl
+                        this.ficheForm.get('ordonnance.prescriptionFiles')?.setValue(this.prescriptionFiles);
+                        this.extractData(prescriptionFile);
+                        this.closeCameraModal();
+                        this.cdr.markForCheck();
+                    },
+                    error: (err) => {
+                        console.error('File upload failed', err);
+                        this.snackBar.open('Erreur lors de l\'enregistrement de l\'image.', 'Fermer', { duration: 3000 });
+                    }
+                });
             });
     }
 
@@ -3778,10 +3792,13 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                     // No invoice to save
                     return of(fiche);
                 }
+            }),
+            finalize(() => {
+                this.loading = false;
+                this.cdr.markForCheck();
             })
         ).subscribe({
             next: (fiche: FicheClient) => {
-                this.loading = false;
                 console.log('Fiche saved:', fiche);
 
                 // Return to view mode after successful save
@@ -3806,7 +3823,6 @@ export class MontureFormComponent implements OnInit, OnDestroy {
                 }
             },
             error: (err: any) => {
-                this.loading = false;
                 console.error('Error saving fiche:', err);
                 const msg = err.error?.message || err.statusText || 'Erreur inconnue';
                 alert(`Erreur lors de l'enregistrement: ${msg}`);
@@ -4518,14 +4534,18 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     onCalibrationImageUpload(event: Event): void {
         const file = (event.target as HTMLInputElement).files?.[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onload = (e: any) => {
-                this.ficheForm.patchValue({
-                    montage: { capturedImage: e.target.result }
-                });
-                this.updateFrameCanvasVisualization();
-            };
-            reader.readAsDataURL(file);
+            this.fileUploadService.uploadFile(file).subscribe({
+                next: (res) => {
+                    this.ficheForm.patchValue({
+                        montage: { capturedImage: res.url }
+                    });
+                    this.updateFrameCanvasVisualization();
+                },
+                error: (err) => {
+                    console.error('Upload failed', err);
+                    this.snackBar.open('Erreur lors du téléchargement de l\'image de calibration.', 'Fermer', { duration: 3000 });
+                }
+            });
         }
     }
 
@@ -5126,61 +5146,131 @@ export class MontureFormComponent implements OnInit, OnDestroy {
     public async emailOrder(): Promise<void> {
         if (!this.ficheId) return;
 
-        // [FIX] Capture the canvas data URL before saving, so it can be sent in the email PDF
-        this.canvasDataUrl = this.getFrameCanvasDataUrl();
+        // [FIX 1] Optimistic UI - Show confirmation IMMEDIATELY
+        this.snackBar.open('📧 Envoi du bon de commande en cours...', 'OK', {
+            duration: 3000,
+            panelClass: ['success-snackbar']
+        });
 
-        // [ACTION] Save current state first to ensure backend uses latest data
+        // [FIX 2] Run all pre-save operations in background (non-blocking)
         try {
+            // Capture canvas data URL before saving
+            this.canvasDataUrl = this.getFrameCanvasDataUrl();
+
+            // Generate BC number synchronously (local operation, fast)
+            const bcCtrl = this.ficheForm.get('suiviCommande.referenceCommande');
+            let currentRef = bcCtrl?.value;
+            if (!currentRef || currentRef === 'N/A' || String(currentRef).trim() === '') {
+                const rawFicheNum = (this.currentFiche as any)?.numero || '000';
+                const ficheNumStr = String(rawFicheNum);
+                const shortFicheNum = ficheNumStr.includes('-') ? ficheNumStr.split('-').pop() : ficheNumStr;
+                const randomId = Math.floor(100 + Math.random() * 900);
+                currentRef = `BC-${shortFicheNum}-${randomId}`;
+                this.ficheForm.get('suiviCommande.referenceCommande')?.setValue(currentRef);
+            }
+
+            // Update order status locally (no extra HTTP call)
+            const currentStatut = this.suiviStatut;
+            if (currentStatut === 'A_COMMANDER' || (this.currentFiche as any)?.statut === 'EN_COURS') {
+                const group = this.ficheForm.get('suiviCommande');
+                if (group) {
+                    const now = new Date();
+                    const journal = group.get('journal')?.value || [];
+                    const fournisseurName = group.get('fournisseur')?.value || 'Non spécifié';
+                    group.patchValue({
+                        statut: 'COMMANDE',
+                        dateCommande: group.get('dateCommande')?.value || now,
+                        journal: [...journal, {
+                            date: now,
+                            statut: 'COMMANDE',
+                            description: `Commande envoyée au fournisseur (${fournisseurName}) - BC: ${currentRef}`,
+                            type: 'commande'
+                        }]
+                    });
+                }
+            }
+
+            // [FIX 2] Single combined save — merges all 3 previous sequential saves into ONE HTTP call
             const formValue = {
                 ...this.ficheForm.value,
-                configImage: this.canvasDataUrl // [NEW] Pass the centering image to the backend
+                configImage: this.canvasDataUrl
             };
-            await new Promise((resolve, reject) => {
+            await new Promise<void>((resolve, reject) => {
                 this.ficheService.updateFiche(this.ficheId!, formValue).subscribe({
-                    next: () => resolve(true),
-                    error: (err) => reject(err)
+                    next: () => resolve(),
+                    error: (err) => { console.warn('Pre-email save failed:', err); resolve(); }
                 });
             });
+
+            // Fire email send (background, non-blocking for UI)
+            this.ficheService.emailOrder(this.ficheId).subscribe({
+                next: () => {
+                    this.snackBar.open('✅ Bon de commande envoyé par email avec succès.', 'Fermer', {
+                        duration: 4000,
+                        panelClass: ['success-snackbar']
+                    });
+                },
+                error: (error) => {
+                    console.error('Error emailing order:', error);
+                    const errorMsg = error.error?.message || 'Erreur lors de l\'envoi de l\'email.';
+                    this.snackBar.open(`❌ ${errorMsg}`, 'Fermer', {
+                        duration: 6000,
+                        panelClass: ['error-snackbar']
+                    });
+                }
+            });
         } catch (e) {
-            console.error('Pre-email save failed:', e);
-            // We continue anyway, but warning logs are helpful
+            console.error('Email order flow error:', e);
+            this.snackBar.open('❌ Erreur lors de la préparation de l\'envoi.', 'Fermer', {
+                duration: 5000,
+                panelClass: ['error-snackbar']
+            });
         }
 
-        // Ensure BC number is generated before emailing
-        await this.generateBCNumberIfNeeded();
-
-        // [AUTOMATION] If status is still early, mark as COMMANDE to record in history/journal
-        const currentStatut = this.suiviStatut;
-        if (currentStatut === 'A_COMMANDER' || (this.currentFiche as any)?.statut === 'EN_COURS') {
-            await this.setOrderStatus('COMMANDE');
-        }
-
-        this.ficheService.emailOrder(this.ficheId).subscribe({
-            next: () => {
-                this.snackBar.open('Bon de commande envoyé par email avec succès.', 'Fermer', {
-                    duration: 3000,
-                    panelClass: ['success-snackbar']
-                });
-            },
-            error: (error) => {
-                console.error('Error emailing order:', error);
-                const errorMsg = error.error?.message || 'Erreur lors de l\'envoi de l\'email.';
-                this.snackBar.open(errorMsg, 'Fermer', {
-                    duration: 5000,
-                    panelClass: ['error-snackbar']
-                });
-            }
-        });
+        // Force UI refresh
+        this.cdr.detectChanges();
     }
 
     public async whatsappOrder(): Promise<void> {
-        // Ensure BC number is generated before sending WhatsApp
-        const bcNumber = await this.generateBCNumberIfNeeded();
-        
-        // [AUTOMATION] If status is still early, mark as COMMANDE to record in history/journal
+        // [FIX 1] Optimistic — generate BC number locally (instant, no HTTP)
+        const bcCtrl = this.ficheForm.get('suiviCommande.referenceCommande');
+        let bcNumber = bcCtrl?.value;
+        if (!bcNumber || bcNumber === 'N/A' || String(bcNumber).trim() === '') {
+            const rawFicheNum = (this.currentFiche as any)?.numero || '000';
+            const ficheNumStr = String(rawFicheNum);
+            const shortFicheNum = ficheNumStr.includes('-') ? ficheNumStr.split('-').pop() : ficheNumStr;
+            const randomId = Math.floor(100 + Math.random() * 900);
+            bcNumber = `BC-${shortFicheNum}-${randomId}`;
+            this.ficheForm.get('suiviCommande.referenceCommande')?.setValue(bcNumber);
+        }
+
+        // [FIX 2] Update order status locally (no extra HTTP call)
         const currentStatut = this.suiviStatut;
         if (currentStatut === 'A_COMMANDER' || (this.currentFiche as any)?.statut === 'EN_COURS') {
-            await this.setOrderStatus('COMMANDE');
+            const group = this.ficheForm.get('suiviCommande');
+            if (group) {
+                const now = new Date();
+                const journal = group.get('journal')?.value || [];
+                const fournisseurName = group.get('fournisseur')?.value || 'Non spécifié';
+                group.patchValue({
+                    statut: 'COMMANDE',
+                    dateCommande: group.get('dateCommande')?.value || now,
+                    journal: [...journal, {
+                        date: now,
+                        statut: 'COMMANDE',
+                        description: `Commande envoyée via WhatsApp (${fournisseurName}) - BC: ${bcNumber}`,
+                        type: 'commande'
+                    }]
+                });
+            }
+        }
+
+        // Save in background (fire-and-forget) — single combined save
+        if (this.ficheId && this.ficheId !== 'new') {
+            this.ficheService.updateFiche(this.ficheId, { suiviCommande: this.ficheForm.get('suiviCommande')?.value } as any).subscribe({
+                next: () => console.log('✅ WhatsApp pre-save done'),
+                error: (err) => console.warn('WhatsApp pre-save failed:', err)
+            });
         }
 
         const bcData = this.ficheForm.get('suiviCommande')?.value;
