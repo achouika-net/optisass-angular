@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { json, urlencoded } from 'express';
+import compression from 'compression';
 import { ValidationPipe, BadRequestException } from '@nestjs/common';
 
 async function bootstrap() {
@@ -12,6 +13,9 @@ async function bootstrap() {
   // Set the limit for incoming JSON and URL-encoded data to support large imports
   app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ limit: '50mb', extended: true }));
+
+  // Enable Gzip compression to significantly reduce network payload size
+  app.use(compression());
 
   app.useGlobalPipes(
     new ValidationPipe({

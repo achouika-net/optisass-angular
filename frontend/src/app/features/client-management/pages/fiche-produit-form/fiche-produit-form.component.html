@@ -39,10 +39,17 @@
                 <mat-icon>edit</mat-icon> Modifier
             </button>
             <!-- Edit Mode: Enregistrer / Mettre à jour -->
-            <button type="button" class="btn-primary" (click)="onSubmit()" [disabled]="ficheForm.invalid || loading"
-                *ngIf="isEditMode">
-                <mat-icon>save</mat-icon> {{ (ficheId && ficheId !== 'new') ? 'Mettre à jour' : 'Enregistrer' }}
-            </button>
+            <div class="flex flex-col items-end relative">
+                <button type="button" class="btn-primary" (click)="onSubmit()" [disabled]="ficheForm.invalid || loading"
+                    *ngIf="isEditMode">
+                    <mat-icon>save</mat-icon> {{ (ficheId && ficheId !== 'new') ? 'Mettre à jour' : 'Enregistrer' }}
+                </button>
+                <div *ngIf="isEditMode && ficheForm.invalid && !loading" class="text-red-500 text-xs mt-1 text-right max-w-xs bg-red-50 p-1 rounded border border-red-200 absolute top-full right-0 z-50 shadow">
+                    ⚠️ <b>Formulaire invalide</b><br>
+                    <span *ngIf="ficheForm.get('dateLivraisonEstimee')?.invalid">• Date de livraison estimée requise<br></span>
+                    <span *ngIf="ficheForm.get('orderItems')?.invalid">• Liste d'articles est invalide (Vérifiez les désignations, références, ou quantités)<br></span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -135,7 +142,7 @@
                                 <mat-icon>search</mat-icon> Rechercher au stock
                             </button>
                             <button type="button" class="btn-primary add-btn" (click)="addProduct()">
-                                <mat-icon>add</mat-icon> Ajouter ligne
+                                <mat-icon>add</mat-icon> ADD ligne
                             </button>
                         </div>
                     </div>
@@ -175,7 +182,7 @@
                         <!-- Empty State inside list -->
                         <div *ngIf="orderItems.length === 0" class="loading-container">
                             <mat-icon class="text-gray-300 text-5xl">shopping_cart</mat-icon>
-                            <p>Aucun article sélectionné. Utilisez le bouton "Rechercher au stock" ou "Ajouter ligne".</p>
+                            <p>Aucun article sélectionné. Utilisez le bouton "Rechercher au stock" ou "ADD ligne".</p>
                         </div>
                     </div>
                 </div>

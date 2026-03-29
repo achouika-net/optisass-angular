@@ -38,11 +38,18 @@
                 *ngIf="!isEditMode && ficheId && ficheId !== 'new'">
                 <mat-icon>edit</mat-icon> Modifier
             </button>
-            <!-- Edit Mode: Enregistrer / Mettre  jour -->
-            <button type="button" class="btn-primary" (click)="onSubmit()" [disabled]="ficheForm.invalid || loading"
-                *ngIf="isEditMode">
-                <mat-icon>save</mat-icon> {{ (ficheId && ficheId !== 'new') ? 'Mettre  jour' : 'Enregistrer' }}
-            </button>
+            <!-- Edit Mode: Enregistrer / Mettre à jour -->
+            <div class="flex flex-col items-end relative">
+                <button type="button" class="btn-primary" (click)="onSubmit()" [disabled]="ficheForm.invalid || loading"
+                    *ngIf="isEditMode">
+                    <mat-icon>save</mat-icon> {{ (ficheId && ficheId !== 'new') ? 'Mettre à jour' : 'Enregistrer' }}
+                </button>
+                <div *ngIf="isEditMode && ficheForm.invalid && !loading" class="text-red-500 text-xs mt-1 text-right max-w-xs bg-red-50 p-1 rounded border border-red-200 absolute top-full right-0 z-50 shadow">
+                    ⚠️ <b>Formulaire invalide</b><br>
+                    <span *ngIf="ficheForm.get('dateLivraisonEstimee')?.invalid">• Date de livraison estimée requise<br></span>
+                    <span *ngIf="ficheForm.get('lentilles.od.marque')?.invalid || ficheForm.get('lentilles.og.marque')?.invalid">• Marque des lentilles (OD/OG) requise<br></span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -918,7 +925,7 @@
                                             <mat-icon class="text-gray-400 text-sm w-4 h-4 mr-1">notes</mat-icon> Notes / Historique Manuel
                                         </label>
                                         <textarea formControlName="commentaire" rows="3"
-                                            placeholder="Ajouter une note importante sur cette commande..."
+                                            placeholder="ADD une note importante sur cette commande..."
                                             class="w-full min-w-0 box-border px-4 py-3 rounded-lg border border-gray-200 bg-white hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all text-sm text-gray-700 font-medium placeholder-gray-400 resize-none"></textarea>
                                     </div>
 

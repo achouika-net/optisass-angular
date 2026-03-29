@@ -36,57 +36,11 @@ export class FicheService {
     }
 
     /**
-     * Récupérer l'historique global des BC
+     * Récupérer l'historique global des BC via l'endpoint optimisé
+     * (ne charge plus toutes les fiches complètes côté client)
      */
     getAllBcHistory(): Observable<any[]> {
-        return this.getAllFiches().pipe(
-            map(fiches => {
-                const allHistory: any[] = [];
-                fiches.forEach(fiche => {
-                    const clientData = (fiche as any).client || {};
-                    const displayName = clientData.raisonSociale ? clientData.raisonSociale : `${clientData.prenom || ''} ${clientData.nom || ''}`.trim();
-                    const ficheNumero = (fiche as any).numero;
-                    
-                    // 1. Get history from both possible locations
-                    const legacyHistory = (fiche as any).bcHistorique || [];
-                    const suiviHistory = (fiche as any).suiviCommande?.bcHistorique || [];
-                    
-                    // Combine and de-duplicate by date/number if necessary
-                    const combinedHistory = [...suiviHistory];
-                    legacyHistory.forEach((lh: any) => {
-                        if (!combinedHistory.find(sh => sh.date === lh.date && sh.numero === lh.numero)) {
-                            combinedHistory.push(lh);
-                        }
-                    });
-
-                    // 2. Add current BC if it exists but isn't in history yet (proactive display)
-                    const currentRef = (fiche as any).suiviCommande?.referenceCommande;
-                    if (currentRef && currentRef !== 'N/A' && !combinedHistory.find(h => h.numero === currentRef)) {
-                        combinedHistory.unshift({
-                            date: (fiche as any).suiviCommande.dateCommande || fiche.dateCreation,
-                            numero: currentRef,
-                            fournisseur: (fiche as any).suiviCommande.fournisseur || 'Non spécifié',
-                            motive: (fiche as any).suiviCommande.nextBcMotive || 'En cours',
-                            isCurrent: true
-                        });
-                    }
-
-                    // 3. Map to final display format
-                    combinedHistory.forEach((bc: any) => {
-                        allHistory.push({
-                            ...bc,
-                            ficheId: fiche.id,
-                            ficheNumero: ficheNumero,
-                            clientDisplayName: displayName || 'Client',
-                            clientName: displayName,
-                            ficheType: fiche.type
-                        });
-                    });
-                });
-                // Sort by date descending
-                return allHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            })
-        );
+        return this.http.get<any[]>(`${this.apiUrl}/bc-history`);
     }
 
 

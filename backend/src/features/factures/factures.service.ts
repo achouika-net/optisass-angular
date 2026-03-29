@@ -446,8 +446,55 @@ export class FacturesService implements OnModuleInit {
     cursor?: Prisma.FactureWhereUniqueInput;
     where?: Prisma.FactureWhereInput;
     orderBy?: Prisma.FactureOrderByWithRelationInput;
+    summary?: boolean;
   }) {
-    const { skip, take = 10, cursor, where, orderBy } = params;
+    const { skip, take = 10, cursor, where, orderBy, summary } = params;
+    
+    // If summary mode is requested (e.g., for list views in client detail), 
+    // we exclude large JSON fields like 'lignes' to save bandwidth and memory.
+    if (summary) {
+      return this.prisma.facture.findMany({
+        skip,
+        take,
+        cursor,
+        where,
+        orderBy,
+        select: {
+          id: true,
+          numero: true,
+          type: true,
+          dateEmission: true,
+          statut: true,
+          clientId: true,
+          totalHT: true,
+          totalTVA: true,
+          totalTTC: true,
+          resteAPayer: true,
+          createdAt: true,
+          updatedAt: true,
+          centreId: true,
+          vendeurId: true,
+          // Exclude 'lignes' and 'proprietes' JSON blobs
+          fiche: {
+            select: {
+              id: true,
+              numero: true,
+              type: true
+            }
+          },
+          paiements: {
+            select: {
+              id: true,
+              montant: true,
+              date: true,
+              mode: true,
+              statut: true
+            }
+          }
+        }
+      });
+    }
+
     const factures = await this.prisma.facture.findMany({
       skip,
       take,

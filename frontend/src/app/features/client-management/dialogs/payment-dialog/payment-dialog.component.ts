@@ -13,6 +13,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { OcrService } from '../../../../core/services/ocr.service';
+import { FileUploadService } from '../../../../core/services/file-upload.service';
 
 export interface PaymentDialogData {
     resteAPayer: number;
@@ -88,7 +89,8 @@ export class PaymentDialogComponent {
         public dialogRef: MatDialogRef<PaymentDialogComponent>,
         @Inject(MAT_DIALOG_DATA) public data: PaymentDialogData,
         private ocrService: OcrService,
-        private dialog: MatDialog
+        private dialog: MatDialog,
+        private fileUploadService: FileUploadService
     ) {
         this.maxAmount = data.resteAPayer;
 
@@ -188,11 +190,12 @@ export class PaymentDialogComponent {
             this.fileName = file.name;
             this.fileSize = file.size;
 
-            const reader = new FileReader();
-            reader.onload = async () => {
-                await this.processImage(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+            this.fileUploadService.uploadFile(file).subscribe({
+                next: async (res) => {
+                    await this.processImage(res.url);
+                },
+                error: (err) => console.error('Upload Error:', err)
+            });
         }
     }
 
@@ -206,24 +209,42 @@ export class PaymentDialogComponent {
 
             ref.afterClosed().subscribe(base64Image => {
                 if (base64Image) {
-                    this.processImage(base64Image);
+                    const file = this.dataURLtoFile(base64Image, `Capture_${new Date().getTime()}.jpg`);
+                    this.fileName = file.name;
+                    this.fileSize = file.size;
+                    
+                    this.fileUploadService.uploadFile(file).subscribe({
+                        next: async (res) => {
+                            await this.processImage(res.url);
+                        },
+                        error: (err) => console.error('Upload Error:', err)
+                    });
                 }
             });
         });
     }
 
-    // Actually, let's implement the method fully after constructor update.
-    // For now, refactoring processImage to be reused.
+    private dataURLtoFile(dataurl: string, filename: string): File {
+        const arr = dataurl.split(',');
+        const mime = arr[0].match(/:(.*?);/)![1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new File([u8arr], filename, { type: mime });
+    }
 
-    async processImage(base64Image: string) {
-        this.attachmentPreview = base64Image;
+    async processImage(imageUrl: string) {
+        this.attachmentPreview = imageUrl;
         this.form.patchValue({ pieceJointe: this.attachmentPreview });
 
         // If no filename (e.g. from camera), generate one
         if (!this.fileName) {
             this.fileName = `camera_capture_${new Date().getTime()}.jpg`;
-            // Estimate size (base64 length * 0.75)
-            this.fileSize = Math.round(base64Image.length * 0.75);
+            // Set fallback size
+            this.fileSize = this.fileSize || 10240;
         }
 
         // OCR Logic

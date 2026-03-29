@@ -245,7 +245,7 @@
         <button mat-raised-button color="primary"
             [disabled]="selection.selected.length === 0" (click)="requestBulkTransfer()">
             <mat-icon>{{ context === 'sales' ? 'add_shopping_cart' : 'swap_horiz' }}</mat-icon>
-            {{ context === 'sales' ? 'Ajouter à la vente' : 'Transférer la sélection' }} 
+            {{ context === 'sales' ? 'ADD à la vente' : 'Transférer la sélection' }} 
             ({{ selection.selected.length }})
         </button>
     </mat-dialog-actions>

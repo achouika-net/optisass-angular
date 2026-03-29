@@ -40,12 +40,21 @@
                 <mat-icon>edit</mat-icon> Modifier
             </button>
             <!-- Edit Mode: Enregistrer / Mettre à jour -->
-            <button type="button" class="btn-primary" (click)="onSubmit()" [disabled]="ficheForm.invalid || loading"
-                *ngIf="isEditMode">
-                <mat-icon>save</mat-icon> {{ (ficheId && ficheId !== 'new') ? 'Mettre à jour' : 'Enregistrer' }}
-            </button>
+            <div class="flex flex-col items-end">
+                <button type="button" class="btn-primary" (click)="onSubmit()" [disabled]="ficheForm.invalid || loading"
+                    *ngIf="isEditMode">
+                    <mat-icon>save</mat-icon> {{ (ficheId && ficheId !== 'new') ? 'Mettre à jour' : 'Enregistrer' }}
+                </button>
+                <div *ngIf="isEditMode && ficheForm.invalid && !loading" class="text-red-500 text-xs mt-1 text-right max-w-xs bg-red-50 p-1 rounded border border-red-200">
+                    ⚠️ <b>Formulaire invalide</b><br>
+                    <span *ngIf="ficheForm.get('dateLivraisonEstimee')?.invalid">• Date de livraison estimée requise<br></span>
+                    <span *ngIf="ficheForm.get('monture.reference')?.invalid">• Réf. monture manquante<br></span>
+                    <span *ngIf="ficheForm.get('monture.marque')?.invalid">• Marque monture manquante<br></span>
+                    <span *ngIf="ficheForm.get('montage')?.invalid">• EP (20-40) ou H (10-30) invalides (Onglet Fiche Montage)<br></span>
+                </div>
+            </div>
 
-            <!-- Always visible: Ajouter BL Verre -->
+            <!-- Always visible: ADD BL Verre -->
 
         </div>
     </div>
@@ -351,7 +360,7 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
                     </svg>
-                    Ajouter un équipement
+                    ADD un équipement
                 </button>
             </div>
             <!-- 3. Equipement Principal (Collapsible) -->
@@ -1716,7 +1725,7 @@
                                 Manuel
                             </label>
                             <textarea formControlName="commentaire" rows="3"
-                                placeholder="Ajouter une note importante sur cette commande..."
+                                placeholder="ADD une note importante sur cette commande..."
                                 class="w-full min-w-0 box-border px-4 py-3 rounded-lg border border-gray-200 bg-white hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all text-sm text-gray-700 font-medium placeholder-gray-400 resize-none"></textarea>
                         </div>
 

@@ -66,6 +66,7 @@ export class FacturesController {
     @Query('unpaid') unpaid?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
+    @Query('summary') summary?: string,
     @Headers('Tenant') centreId?: string,
   ) {
     // [FIX] If searching by FicheId (Unique Global), bypass Centre restriction to find "hidden" invoices from other centers/warehouses
@@ -73,6 +74,7 @@ export class FacturesController {
       return this.facturesService.findAll({
         where: { ficheId },
         take: 1,
+        summary: summary === 'true',
       });
     }
 
@@ -108,6 +110,7 @@ export class FacturesController {
       where,
       orderBy: { createdAt: 'desc' },
       take: 500, // Increase limit to ensure we find older drafts being validated
+      summary: summary === 'true',
     });
   }
 

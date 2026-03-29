@@ -42,6 +42,7 @@ import { NotificationsModule } from './features/notifications/notifications.modu
 import { GlassParametersModule } from './features/glass-parameters/glass-parameters.module';
 import { GlassParametersController } from './features/glass-parameters/glass-parameters.controller';
 import { DiagController } from './diag.controller';
+// import { UploadsModule } from './features/uploads/uploads.module';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { DiagController } from './diag.controller';
     CompanySettingsModule,
     GlassParametersModule,
     ConventionsModule,
+    // UploadsModule,
     ServeStaticModule.forRoot({
       rootPath: existsSync('/app/uploads')
         ? '/app/uploads'
