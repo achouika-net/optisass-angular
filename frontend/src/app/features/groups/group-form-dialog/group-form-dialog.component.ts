@@ -57,17 +57,20 @@ export class GroupFormDialogComponent implements OnInit {
                     },
                     error: (err) => {
                         console.error('Error updating group:', err);
-                        alert('Erreur lors de la mise à jour du groupe');
+                        const errorMessage = err?.error?.message || 'Erreur lors de la mise à jour du groupe';
+                        alert(errorMessage);
                     }
                 });
             } else {
-                this.groupsService.create(formData).subscribe({
+                const createData = { ...formData, type: 'WORK' };
+                this.groupsService.create(createData).subscribe({
                     next: () => {
                         this.dialogRef.close(true);
                     },
                     error: (err) => {
                         console.error('Error creating group:', err);
-                        alert('Erreur lors de la création du groupe');
+                        const errorMessage = err?.error?.message || 'Erreur lors de la création du groupe';
+                        alert(errorMessage);
                     }
                 });
             }
