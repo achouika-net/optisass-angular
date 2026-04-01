@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateGroupeDto } from './dto/create-groupe.dto';
 import { UpdateGroupeDto } from './dto/update-groupe.dto';
@@ -8,12 +8,24 @@ export class GroupsService {
   constructor(private prisma: PrismaService) { }
 
   async create(createGroupeDto: CreateGroupeDto) {
-    return this.prisma.groupe.create({
-      data: createGroupeDto,
-      include: {
-        centres: true,
-      },
-    });
+    try {
+      // Sécurité : Les groupes créés depuis l'IHM "Gestion des groupes" sont toujours des groupes d'entreprise (WORK)
+      if (!createGroupeDto.type) {
+        createGroupeDto.type = 'WORK';
+      }
+      
+      return await this.prisma.groupe.create({
+        data: createGroupeDto,
+        include: {
+          centres: true,
+        },
+      });
+    } catch (error: any) {
+      if (error.code === 'P2002') {
+        throw new ConflictException(`Un groupe avec ce nom existe déjà.`);
+      }
+      throw new InternalServerErrorException('Erreur lors de la création du groupe');
+    }
   }
 
   async findAll(type?: string) {

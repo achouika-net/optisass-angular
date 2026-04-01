@@ -775,6 +775,7 @@ ${centreName ? `(${centreName})` : ''}`,
     if (summaryOnly) {
       const purgeBase64 = (obj: any): any => {
         if (!obj) return obj;
+        if (obj instanceof Date) return obj;
         if (typeof obj === 'string') {
           return obj.startsWith('data:image/') || obj.startsWith('data:application/pdf') || obj.length > 30000 
             ? '[FICHIER_ATTACHE_MASQUE_EN_VUE_LISTE]' 
