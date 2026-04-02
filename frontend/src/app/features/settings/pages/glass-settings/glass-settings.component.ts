@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { API_URL } from '../../../../config/api.config';
@@ -49,8 +49,8 @@ export class GlassSettingsComponent implements OnInit {
   constructor(
     private service: GlassParametersService,
     private snackBar: MatSnackBar,
-    private fb: FormBuilder,
-    private http: HttpClient
+    private http: HttpClient,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -67,11 +67,13 @@ export class GlassSettingsComponent implements OnInit {
         this.materials = data.materials;
         this.treatments = data.treatments;
         this.loading = false;
+        this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('❌ Error loading glass parameters:', err);
         this.snackBar.open('Erreur lors du chargement des paramètres', 'OK', { duration: 3000 });
         this.loading = false;
+        this.cdr.detectChanges();
       }
     });
   }
