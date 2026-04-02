@@ -17,5 +17,5 @@ COPY . .
 # Port exposé (Angular dev server)
 EXPOSE 4200
 
-# Commande de démarrage pour le développement
-CMD ["ng", "serve", "--host", "0.0.0.0", "--poll", "500"]
+# Commande de démarrage pour le développement avec proxy
+CMD ["ng", "serve", "--host", "0.0.0.0", "--poll", "2000", "--proxy-config", "proxy.conf.json"]

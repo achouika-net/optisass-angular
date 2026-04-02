@@ -68,8 +68,8 @@
                 </button>
 
                 <button type="submit" mat-raised-button color="primary" [disabled]="form.invalid"
-                    *ngIf="!embedded && !isViewMode">
-                    <mat-icon>save</mat-icon> Enregistrer
+                    *ngIf="!embedded && (!isViewMode || canEditDiscounts)">
+                    <mat-icon>save</mat-icon> Enregistrer les modifications
                 </button>
                 <button type="button" mat-stroked-button (click)="goBack()" *ngIf="!embedded && isViewMode"
                     class="no-print">
@@ -191,15 +191,15 @@
                     <div class="col-price">
                         <input type="number" formControlName="prixUnitaireTTC" (change)="onLineChange(i)" min="0">
                     </div>
-                    <div class="col-disc" [class.is-readonly]="isViewMode">
-                        <ng-container *ngIf="!isViewMode">
+                    <div class="col-disc" [class.is-readonly]="isViewMode && !canEditDiscounts">
+                        <ng-container *ngIf="!isViewMode || canEditDiscounts">
                             <input type="number" formControlName="remise" (change)="onLineChange(i)" min="0">
                             <select formControlName="remiseType" (change)="onLineChange(i)" aria-label="Type de remise">
                                 <option value="AMOUNT">DH</option>
                                 <option value="PERCENT">%</option>
                             </select>
                         </ng-container>
-                        <span class="remise-display" *ngIf="isViewMode">
+                        <span class="remise-display" *ngIf="isViewMode && !canEditDiscounts">
                             {{ line.get('remise')?.value || 0 }} 
                             {{ line.get('remiseType')?.value === 'PERCENT' ? '%' : 'DH' }}
                         </span>
@@ -304,8 +304,8 @@
                         </mat-form-field>
                     </div>
 
-                    <div class="discount-section" formGroupName="proprietes" [class.view-mode]="isViewMode">
-                        <div class="discount-inputs" *ngIf="!isViewMode">
+                    <div class="discount-section" formGroupName="proprietes" [class.view-mode]="isViewMode && !canEditDiscounts">
+                        <div class="discount-inputs" *ngIf="!isViewMode || canEditDiscounts">
                             <mat-form-field appearance="outline" class="discount-type">
                                 <mat-label>Type Remise</mat-label>
                                 <mat-select formControlName="remiseGlobalType" (selectionChange)="calculateTotals()">
@@ -319,7 +319,7 @@
                                     (change)="calculateTotals()" min="0">
                             </mat-form-field>
                         </div>
-                        <div class="discount-readonly-summary" *ngIf="isViewMode && form.get('proprietes.remiseGlobalValue')?.value > 0">
+                        <div class="discount-readonly-summary" *ngIf="isViewMode && !canEditDiscounts && form.get('proprietes.remiseGlobalValue')?.value > 0">
                             <span class="label">Remise globale:</span>
                             <span class="value">
                                 {{ form.get('proprietes.remiseGlobalValue')?.value }}
