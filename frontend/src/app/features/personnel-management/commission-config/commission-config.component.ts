@@ -33,8 +33,8 @@ import { CommissionRule } from '../../../shared/interfaces/employee.interface';
     ],
     templateUrl: './commission-config.component.html',
     styles: [`
-        :host { display: block; width: 100%; overflow: hidden; }
-        .container { padding: 32px; max-width: 1100px; width: 100%; margin: 0 auto; overflow: hidden; }
+        :host { display: block; width: 100%; overflow: hidden; box-sizing: border-box; }
+        .container { padding: 32px 4%; overflow: hidden; box-sizing: border-box; }
         .header-section { margin-bottom: 28px; }
         .matrix-card { border-radius: 16px; overflow: hidden; border: none; }
         
