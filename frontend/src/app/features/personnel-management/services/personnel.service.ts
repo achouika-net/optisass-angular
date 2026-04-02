@@ -69,6 +69,10 @@ export class PersonnelService {
         return this.http.delete(`${this.apiUrl}/commission-rules/${id}`);
     }
 
+    deleteCommissionRulesByPoste(poste: string): Observable<any> {
+        return this.http.delete(`${this.apiUrl}/commission-rules/by-poste/${poste}`);
+    }
+
     getEmployeeCommissions(employeeId: string, mois: string, annee?: number): Observable<any[]> {
         const params: any = { mois };
         if (annee) params.annee = annee.toString();

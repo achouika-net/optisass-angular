@@ -113,6 +113,12 @@ export class PersonnelController {
     return this.commissionService.deleteRule(id);
   }
 
+  @Delete('commission-rules/by-poste/:poste')
+  deleteCommissionRulesByPoste(@Param('poste') poste: string) {
+    console.log(`🗑️ [PersonnelController] Deleting all rules for poste: ${poste}`);
+    return this.commissionService.deleteRulesByPoste(poste);
+  }
+
   @Get('commissions/:employeeId')
   getEmployeeCommissions(
     @Param('employeeId') employeeId: string,

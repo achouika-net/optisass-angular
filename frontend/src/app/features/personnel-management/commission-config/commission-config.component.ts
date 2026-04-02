@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
@@ -33,8 +33,9 @@ import { CommissionRule } from '../../../shared/interfaces/employee.interface';
     ],
     templateUrl: './commission-config.component.html',
     styles: [`
-        .container { padding: 24px; max-width: 1300px; margin: 0 auto; overflow: hidden; }
-        .header-section { margin-bottom: 24px; }
+        :host { display: block; width: 100%; overflow: hidden; }
+        .container { padding: 32px; max-width: 1100px; width: 100%; margin: 0 auto; overflow: hidden; }
+        .header-section { margin-bottom: 28px; }
         .matrix-card { border-radius: 16px; overflow: hidden; border: none; }
         
         .matrix-table {
@@ -43,19 +44,19 @@ import { CommissionRule } from '../../../shared/interfaces/employee.interface';
         }
         
         .matrix-table th {
-            padding: 12px 8px;
+            padding: 14px 12px;
             text-align: center;
             background: #f1f5f9;
             color: #475569;
             font-weight: 700;
             text-transform: uppercase;
-            font-size: 10px;
+            font-size: 13px;
             letter-spacing: 0.05em;
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom: 2px solid #e2e8f0;
         }
 
         .matrix-table td {
-            padding: 8px;
+            padding: 12px;
             border-bottom: 1px solid #f1f5f9;
             vertical-align: middle;
         }
@@ -64,29 +65,29 @@ import { CommissionRule } from '../../../shared/interfaces/employee.interface';
             font-weight: 700;
             color: #1e293b;
             background: #f8fafc;
-            width: 160px;
+            width: 180px;
             border-right: 1px solid #e2e8f0;
-            font-size: 13px;
+            font-size: 15px;
         }
 
         .rate-input-container {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            gap: 6px;
         }
 
         .rate-input {
-            width: 65px;
-            padding: 6px 8px;
+            width: 75px;
+            padding: 8px 10px;
             border: 1px solid #cbd5e1;
-            border-radius: 6px;
+            border-radius: 8px;
             text-align: right;
             font-family: inherit;
             font-weight: 600;
             color: #334155;
             transition: all 0.2s;
-            font-size: 13px;
+            font-size: 15px;
         }
 
         .rate-input:focus {
@@ -97,14 +98,14 @@ import { CommissionRule } from '../../../shared/interfaces/employee.interface';
 
         .currency {
             color: #94a3b8;
-            font-size: 11px;
+            font-size: 14px;
             font-weight: 600;
         }
 
         .btn-apply-all {
             opacity: 0.3;
             transition: opacity 0.2s;
-            transform: scale(0.85);
+            transform: scale(0.9);
         }
 
         tr:hover .btn-apply-all {
@@ -112,7 +113,7 @@ import { CommissionRule } from '../../../shared/interfaces/employee.interface';
         }
 
         .actions-footer {
-            margin-top: 24px;
+            margin-top: 28px;
             display: flex;
             justify-content: flex-end;
             align-items: center;
@@ -125,23 +126,24 @@ import { CommissionRule } from '../../../shared/interfaces/employee.interface';
             background: #ffffff;
             border: 1px solid #e2e8f0;
             border-radius: 10px;
-            padding: 4px 4px 4px 12px;
+            padding: 4px 4px 4px 14px;
             box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
 
         .add-poste-input {
             border: none;
             outline: none;
-            padding: 4px;
-            font-size: 13px;
-            width: 180px;
+            padding: 6px;
+            font-size: 14px;
+            width: 200px;
             font-weight: 500;
         }
 
         .premium-btn {
             border-radius: 10px;
-            padding: 8px 16px;
+            padding: 10px 20px;
             font-weight: 600;
+            font-size: 14px;
             text-transform: none;
             letter-spacing: normal;
         }
@@ -159,7 +161,8 @@ export class CommissionConfigComponent implements OnInit {
 
     constructor(
         private personnelService: PersonnelService,
-        private snackBar: MatSnackBar
+        private snackBar: MatSnackBar,
+        private cdr: ChangeDetectorRef
     ) {}
 
     ngOnInit(): void {
@@ -170,10 +173,13 @@ export class CommissionConfigComponent implements OnInit {
         this.postes.forEach(poste => {
             if (!this.matrix[poste]) {
                 this.matrix[poste] = {};
-                this.typesProduit.forEach(type => {
-                    this.matrix[poste][type] = 0;
-                });
             }
+            // Always ensure every type key exists
+            this.typesProduit.forEach(type => {
+                if (this.matrix[poste][type] === undefined) {
+                    this.matrix[poste][type] = 0;
+                }
+            });
         });
     }
 
@@ -201,10 +207,12 @@ export class CommissionConfigComponent implements OnInit {
                     }
                 });
                 this.loading = false;
+                this.cdr.markForCheck();
             },
             error: (err) => {
                 console.error('Error loading rules', err);
                 this.loading = false;
+                this.cdr.markForCheck();
             }
         });
     }
@@ -259,6 +267,26 @@ export class CommissionConfigComponent implements OnInit {
                 console.error('Error saving matrix', err);
                 this.snackBar.open('Erreur lors de l\'enregistrement. Assurez-vous que le serveur est bien démarré.', 'Fermer', { duration: 5000 });
                 this.loading = false;
+            }
+        });
+    }
+
+    deletePoste(poste: string): void {
+        if (!confirm(`Supprimer le profil "${poste}" et toutes ses règles de commission ?`)) {
+            return;
+        }
+
+        this.personnelService.deleteCommissionRulesByPoste(poste).subscribe({
+            next: () => {
+                // Remove from local state
+                delete this.matrix[poste];
+                this.postes = this.postes.filter(p => p !== poste);
+                this.snackBar.open(`Profil "${poste}" supprimé avec succès`, 'OK', { duration: 3000 });
+                this.cdr.markForCheck();
+            },
+            error: (err) => {
+                console.error('Error deleting poste', err);
+                this.snackBar.open('Erreur lors de la suppression', 'Fermer', { duration: 5000 });
             }
         });
     }
