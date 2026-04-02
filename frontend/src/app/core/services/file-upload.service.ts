@@ -15,7 +15,8 @@ export interface UploadResponse {
   providedIn: 'root'
 })
 export class FileUploadService {
-  private apiUrl = `${environment.apiUrl}/uploads`;
+  // Add /api prefix because the backend expects POST /api/uploads when running locally or on server
+  private apiUrl = `${environment.apiUrl}/api/uploads`;
 
   constructor(private http: HttpClient) {}
 

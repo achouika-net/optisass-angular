@@ -50,6 +50,21 @@ export class ClientManagementService {
     }
 
     /**
+     * Performance optimization: Get consolidated summary (CA, Reste, Points)
+     */
+    getClientSummary(id: string): Observable<{
+        ca: number;
+        paiements: number;
+        reste: number;
+        pointsFidelite: number;
+        isEligibleForReward: boolean;
+        rewardThreshold: number;
+    }> {
+        return this.http.get<any>(`${this.apiUrl}/${id}/summary`);
+    }
+
+
+    /**
      * Créer un nouveau client
      */
     createClient(clientData: ClientCreate): Observable<Client> {

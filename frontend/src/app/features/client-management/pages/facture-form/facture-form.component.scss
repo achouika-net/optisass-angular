@@ -143,6 +143,65 @@
 
     .col-disc {
         flex: 1;
+        display: flex;
+        align-items: stretch;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        background: white;
+        overflow: hidden;
+
+        &:focus-within {
+            border-color: #3b82f6;
+        }
+
+        input {
+            flex: 1;
+            min-width: 0;
+            border: none;
+            border-radius: 0;
+            padding: 8px;
+            &:focus { outline: none; }
+        }
+
+        select {
+            width: 55px;
+            padding: 8px 4px;
+            border: none;
+            border-left: 1px solid #cbd5e1;
+            background: #f8fafc;
+            text-align: center;
+            font-size: 14px;
+            
+            &:focus { outline: none; }
+
+            &:disabled {
+                background-color: transparent;
+                border-color: transparent;
+                color: inherit;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                appearance: none;
+                padding: 0 8px;
+                font-weight: 600;
+            }
+        }
+
+        &.is-readonly {
+            border-color: transparent;
+            background: transparent;
+
+            select {
+                border-left: none;
+            }
+        }
+
+        .remise-display {
+            flex: 1;
+            padding: 8px;
+            text-align: right;
+            font-weight: 600;
+            color: #475569;
+        }
     }
 
     .col-total {
@@ -256,6 +315,35 @@
 
         .discount-section {
             margin-bottom: 24px;
+
+            &.view-mode {
+                margin-bottom: 12px;
+            }
+
+            .discount-readonly-summary {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 10px 15px;
+                background: #f1f5f9;
+                border-radius: 6px;
+                border-left: 4px solid #3b82f6;
+                margin-bottom: 12px;
+
+                .label {
+                    font-weight: 500;
+                    color: #64748b;
+                    font-size: 0.8em;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                }
+
+                .value {
+                    font-weight: 700;
+                    color: #1e293b;
+                    font-size: 1em;
+                }
+            }
 
             .loyalty-spend-section {
                 background: #f0f7ff;

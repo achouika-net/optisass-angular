@@ -224,11 +224,15 @@ export class PersonnelController {
     @Query('mois') mois?: string,
     @Query('annee') annee?: string,
     @Query('centreId') centreId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
     return this.payrollService.getDashboardStats(
       mois,
       annee ? parseInt(annee) : undefined,
       centreId,
+      startDate,
+      endDate,
     );
   }
 }

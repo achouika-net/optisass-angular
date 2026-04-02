@@ -78,10 +78,18 @@ export class FacturesService implements OnModuleInit {
       });
       if (existing) {
         console.log(`♻️ [UPSERT] Found existing invoice for fiche ${cleanData.ficheId}. Switching to update.`);
+        // [FIX] If existing document has no numero (empty/missing), generate one now
+        const updateData: any = { ...cleanData, statut: cleanData.statut || 'DEVIS_EN_COURS' };
+        if (!existing.numero || existing.numero.trim() === '') {
+          const type = existing.type || cleanData.type || 'DEVIS';
+          const generatedNumero = await this.generateNextNumber(type);
+          updateData.numero = generatedNumero;
+          console.log(`🔧 [UPSERT-FIX] Generated missing numero for existing doc: ${generatedNumero}`);
+        }
         return this.update(
           {
             where: { id: existing.id },
-            data: { ...cleanData, statut: cleanData.statut || 'DEVIS_EN_COURS' },
+            data: updateData,
           },
           userId,
         );
@@ -466,6 +474,7 @@ export class FacturesService implements OnModuleInit {
           dateEmission: true,
           statut: true,
           clientId: true,
+          ficheId: true,
           totalHT: true,
           totalTVA: true,
           totalTTC: true,
@@ -520,6 +529,47 @@ export class FacturesService implements OnModuleInit {
       },
     });
   }
+
+  /**
+   * Performance optimization for Client Dossier. 
+   * Calculates financial totals server-side to avoid sending large invoice lists 
+   * just for summary cards.
+   */
+  async getClientStats(clientId: string) {
+    const factures = await this.prisma.facture.findMany({
+      where: {
+        clientId,
+        statut: { not: 'ANNULEE' },
+      },
+      select: {
+        type: true,
+        statut: true,
+        totalTTC: true,
+        resteAPayer: true,
+        fiche: { select: { id: true, numero: true } },
+      }
+    });
+
+    const stats = factures.reduce((acc, f) => {
+      const type = f.type || 'DEVIS';
+      const status = f.statut || 'BROUILLON';
+      
+      const isCA = type === 'FACTURE' || type === 'BON_COMM' || type === 'BON_COMMANDE' ||
+        (type === 'DEVIS' && (status === 'VENTE_EN_INSTANCE' || status === 'ARCHIVE'));
+      
+      if (isCA) {
+        const total = Number(f.totalTTC || 0);
+        const reste = Number(f.resteAPayer || 0);
+        acc.ca += total;
+        acc.reste += reste;
+        acc.paiements += (total - reste);
+      }
+      return acc;
+    }, { ca: 0, paiements: 0, reste: 0 });
+
+    return stats;
+  }
+
 
   // Helper: Restore Stock for Cancelled Invoice (Increments stock back)
   private async restoreStockForCancelledInvoice(tx: any, invoice: any) {
@@ -794,6 +844,15 @@ export class FacturesService implements OnModuleInit {
 
       // 4. Normal Update Flow
       console.log(`[DIAGNOSTIC] FacturesService.update called for ${where.id}. Data:`, data.proprietes ? JSON.stringify(data.proprietes) : 'undef');
+
+      // [FIX] If the existing document has no numero, generate one now to prevent empty series
+      if (!currentFacture.numero || currentFacture.numero.trim() === '') {
+        const docType = data.type || currentFacture.type || 'DEVIS';
+        const generatedNumero = await this.generateNextNumber(docType, txClient);
+        data.numero = generatedNumero;
+        console.log(`🔧 [UPDATE-FIX] Generated missing numero for doc ${where.id}: ${generatedNumero}`);
+      }
+
       const allowedFields = ['numero','type','dateEmission','dateEcheance','statut','clientId','ficheId','totalHT','totalTVA','totalTTC','resteAPayer','lignes','proprietes','parentFactureId','montantLettres','notes','centreId','exportComptable','typeOperation','vendeurId'];
       const cleanData: any = {};
       for (const field of allowedFields) { if (data[field] !== undefined) cleanData[field] = data[field]; }

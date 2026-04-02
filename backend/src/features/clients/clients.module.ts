@@ -4,8 +4,10 @@ import { ClientsController } from './clients.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { LoyaltyModule } from '../loyalty/loyalty.module';
 
+import { FacturesModule } from '../factures/factures.module';
+
 @Module({
-  imports: [PrismaModule, LoyaltyModule],
+  imports: [PrismaModule, LoyaltyModule, FacturesModule],
   controllers: [ClientsController],
   providers: [ClientsService],
   exports: [ClientsService],

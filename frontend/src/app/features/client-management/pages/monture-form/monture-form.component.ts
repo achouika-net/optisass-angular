@@ -701,15 +701,15 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         console.log('🔍 [MontureForm] Searching for linked facture for ficheId:', this.ficheId);
 
         // Find invoice linked to this fiche directly using ficheId filter
+        // Backend already filters WHERE ficheId = X with take:1, so first result is the match
         this.factureService.findAll({ ficheId: this.ficheId }).subscribe({
             next: (factures: Facture[]) => {
-                // Should only be one due to unique constraint, but find just in case
-                const found = factures.find(f => f.ficheId === this.ficheId);
+                const found = factures.length > 0 ? factures[0] : null;
                 if (found) {
                     console.log('🔗 [MontureForm] Linked Facture found:', found.numero, '| ID:', found.id, '| Status:', found.statut);
                     this.linkedFactureSubject.next(found);
                 } else {
-                    console.log('❓ [MontureForm] No linked facture found for ficheId:', this.ficheId, '| Candidates:', factures.length);
+                    console.log('❓ [MontureForm] No linked facture found for ficheId:', this.ficheId);
                     this.linkedFactureSubject.next(null);
                 }
             },

@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
+import { FacturesService } from '../factures/factures.service';
 import { Prisma } from '@prisma/client';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
@@ -10,7 +11,26 @@ export class ClientsService {
   constructor(
     private prisma: PrismaService,
     private loyaltyService: LoyaltyService,
+    private facturesService: FacturesService,
   ) { }
+
+  /**
+   * Performance optimization: Returns all core dashboard metrics in one call.
+   */
+  async getSummary(clientId: string) {
+    const [stats, loyalty] = await Promise.all([
+      this.facturesService.getClientStats(clientId),
+      this.loyaltyService.checkRewardEligibility(clientId),
+    ]);
+
+    return {
+      ...stats,
+      pointsFidelite: loyalty.currentPoints,
+      isEligibleForReward: loyalty.eligible,
+      rewardThreshold: loyalty.threshold,
+    };
+  }
+
 
   async create(createClientDto: CreateClientDto) {
     // Validate centre existence
@@ -143,52 +163,12 @@ export class ClientsService {
     const client = await this.prisma.client.findUnique({
       where: { id },
       include: {
-        fiches: {
-          orderBy: { dateCreation: 'desc' },
-        },
-        bonsLivraison: {
-          orderBy: { dateEmission: 'desc' },
-        },
-        facturesFournisseurs: {
-          orderBy: { dateEmission: 'desc' },
-        },
         parrain: true,
         filleuls: true,
         groupe: true,
         conventionData: true,
-        pointsHistory: {
-          include: { facture: true },
-          orderBy: { date: 'desc' },
-        },
       },
     });
-
-    if (client && client.fiches) {
-      const purgeBase64 = (obj: any): any => {
-        if (!obj) return obj;
-        if (typeof obj === 'string') {
-          return obj.startsWith('data:image/') || obj.startsWith('data:application/pdf') || obj.length > 30000 
-            ? '[FICHIER_ATTACHE_MASQUE_EN_VUE_LISTE]' 
-            : obj;
-        }
-        if (Array.isArray(obj)) {
-          return obj.map((item) => purgeBase64(item));
-        }
-        if (typeof obj === 'object') {
-          const result: any = {};
-          for (const key of Object.keys(obj)) {
-            result[key] = purgeBase64(obj[key]);
-          }
-          return result;
-        }
-        return obj;
-      };
-
-      client.fiches = client.fiches.map((f) => ({
-        ...f,
-        content: purgeBase64(f.content),
-      }));
-    }
 
     return client;
   }

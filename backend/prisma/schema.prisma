@@ -58,6 +58,7 @@ model Client {
 
   @@index([nom, prenom])
   @@index([telephone])
+  @@index([centreId])
 }
 
 model Fiche {
@@ -77,6 +78,8 @@ model Fiche {
   client               Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
+  @@index([type])
+  @@index([statut])
 }
 
 model Facture {

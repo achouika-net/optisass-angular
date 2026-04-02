@@ -533,6 +533,7 @@ export class PaymentListComponent implements OnInit {
     @Input() ficheId?: string; // Optional: filter payments by fiche
     @Input() clientName: string = '';
     @Input() clientCin: string = '';
+    @Input() factures: Facture[] | null = null;
     @Output() paymentAdded = new EventEmitter<void>();
     dataSource = new MatTableDataSource<PaymentRow>([]);
     impayesDataSource = new MatTableDataSource<Facture>([]);
@@ -553,16 +554,62 @@ export class PaymentListComponent implements OnInit {
     ) { }
 
     ngOnInit() {
-        this.loadPayments();
+        if (!this.factures) {
+            this.loadPayments();
+        } else {
+            this.processInjectedFactures(this.factures);
+        }
     }
 
     ngOnChanges(changes: SimpleChanges) {
-        if (changes['clientId'] && this.clientId) {
+        if (changes['factures'] && this.factures) {
+            this.processInjectedFactures(this.factures);
+        } else if ((changes['clientId'] || changes['ficheId']) && !this.factures) {
             this.loadPayments();
         }
-        if (changes['ficheId']) {
-            this.loadPayments();
+    }
+
+    processInjectedFactures(factures: Facture[]) {
+        // [STABILIZATION] Process synchronously. Parent already wraps the update in setTimeout.
+        // Multiple nested setTimeouts cause unstable offset checks in MatTabGroup.
+        const isFicheMode = !!this.ficheId;
+        const filteredFactures = isFicheMode
+            ? factures.filter(f => f.ficheId === this.ficheId)
+            : factures;
+
+        // 1. Setup Impayés (Global View only)
+        if (!isFicheMode) {
+            console.log('$$$ [PaymentList] Filtering Debts SYNC from', factures.length, 'invoices. (Injected)');
+            this.impayes = factures.filter(f => {
+                const isCancelled = f.statut === 'ANNULEE';
+                const reste = typeof f.resteAPayer === 'string' ? parseFloat(f.resteAPayer) : (f.resteAPayer || 0);
+                const hasDebt = reste > 0.05;
+                return !isCancelled && hasDebt;
+            });
+            this.impayesDataSource.data = this.impayes;
+        } else {
+            this.impayes = [];
+            this.impayesDataSource.data = [];
         }
+
+        const allPayments: PaymentRow[] = [];
+        filteredFactures.forEach(facture => {
+            if (facture.paiements && Array.isArray(facture.paiements)) {
+                facture.paiements.forEach((p: any) => {
+                    allPayments.push({
+                        ...p,
+                        factureNumero: facture.numero,
+                        factureId: facture.id,
+                        resteAPayer: facture.resteAPayer || 0
+                    });
+                });
+            }
+        });
+
+        allPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        this.dataSource.data = allPayments;
+        this.calculateStats(filteredFactures);
+        this.cdr.markForCheck();
     }
 
     loadPayments() {
@@ -580,54 +627,52 @@ export class PaymentListComponent implements OnInit {
         // Fetch ALL types (Facture + Devis) to show full payment history
         // Pass ficheId to ensure we find documents even if center association is mismatched
         this.factureService.findAll({ clientId: this.clientId, ficheId: this.ficheId || undefined }).subscribe(factures => {
-            // Filter fiches by ficheId if provided
-            const isFicheMode = !!this.ficheId;
-            const filteredFactures = isFicheMode
-                ? factures.filter(f => f.ficheId === this.ficheId)
-                : factures;
+            // [STABILIZATION] Wrap updates in setTimeout to avoid NG02100
+            setTimeout(() => {
+                // Filter fiches by ficheId if provided
+                const isFicheMode = !!this.ficheId;
+                const filteredFactures = isFicheMode
+                    ? factures.filter(f => f.ficheId === this.ficheId)
+                    : factures;
 
-            // 1. Setup Impayés (Global View only)
-            if (!isFicheMode) {
-                console.log('$$$ [PaymentList] Filtering Debts from', factures.length, 'invoices.');
-                this.impayes = factures.filter(f => {
-                    // [MODIFIED] Include ALL types (Facture, Devis, Order, BL) that have a debt
-                    // as long as they are not cancelled.
-                    const isCancelled = f.statut === 'ANNULEE';
-
-                    // [DEBUG] Ensure resteAPayer is treated as number
-                    const reste = typeof f.resteAPayer === 'string' ? parseFloat(f.resteAPayer) : (f.resteAPayer || 0);
-                    const hasDebt = reste > 0.05; // Tolerance for float precision
-
-                    return !isCancelled && hasDebt;
-                });
-                console.log('$$$ [PaymentList] Final Impayes:', this.impayes.length);
-                this.impayesDataSource.data = this.impayes;
-            } else {
-                this.impayes = [];
-                this.impayesDataSource.data = [];
-            }
-
-            const allPayments: PaymentRow[] = [];
-
-            filteredFactures.forEach(facture => {
-                if (facture.paiements && Array.isArray(facture.paiements)) {
-                    facture.paiements.forEach((p: any) => {
-                        allPayments.push({
-                            ...p,
-                            factureNumero: facture.numero,
-                            factureId: facture.id,
-                            resteAPayer: facture.resteAPayer || 0
-                        });
+                // 1. Setup Impayés (Global View only)
+                if (!isFicheMode) {
+                    console.log('$$$ [PaymentList] Filtering Debts from', factures.length, 'invoices.');
+                    this.impayes = factures.filter(f => {
+                        const isCancelled = f.statut === 'ANNULEE';
+                        const reste = typeof f.resteAPayer === 'string' ? parseFloat(f.resteAPayer) : (f.resteAPayer || 0);
+                        const hasDebt = reste > 0.05;
+                        return !isCancelled && hasDebt;
                     });
+                    console.log('$$$ [PaymentList] Final Impayes:', this.impayes.length);
+                    this.impayesDataSource.data = this.impayes;
+                } else {
+                    this.impayes = [];
+                    this.impayesDataSource.data = [];
                 }
+
+                const allPayments: PaymentRow[] = [];
+                filteredFactures.forEach(facture => {
+                    if (facture.paiements && Array.isArray(facture.paiements)) {
+                        facture.paiements.forEach((p: any) => {
+                            allPayments.push({
+                                ...p,
+                                factureNumero: facture.numero,
+                                factureId: facture.id,
+                                resteAPayer: facture.resteAPayer || 0
+                            });
+                        });
+                    }
+                });
+
+                // Sort by date desc
+                allPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                this.dataSource.data = allPayments;
+
+                // Calculate Stats for Receipt
+                this.calculateStats(filteredFactures);
+                this.cdr.markForCheck();
             });
-
-            // Sort by date desc
-            allPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            this.dataSource.data = allPayments;
-
-            // Calculate Stats for Receipt
-            this.calculateStats(filteredFactures);
         });
     }
 
