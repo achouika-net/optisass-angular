@@ -30,9 +30,15 @@ export class CommissionService {
     });
   }
 
+  async deleteRulesByPoste(poste: string) {
+    return this.prisma.commissionRule.deleteMany({
+      where: { poste },
+    });
+  }
+
   async upsertBulkRules(rules: any[]) {
     return this.prisma.$transaction(async (tx) => {
-      const results = [];
+      const results: any[] = [];
       for (const rule of rules) {
         // Find existing rule for this poste, typeProduit, and centreId
         const existing = await tx.commissionRule.findFirst({

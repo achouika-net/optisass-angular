@@ -39,7 +39,7 @@
           <tr>
             <th class="role-cell text-left">Poste / Profil</th>
             <th *ngFor="let type of typesProduit">{{ type }}</th>
-            <th class="w-16">Actions</th>
+            <th style="width: 100px;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -57,6 +57,7 @@
                   type="number" 
                   class="rate-input" 
                   [(ngModel)]="matrix[poste][type]"
+                  [ngModelOptions]="{standalone: true}"
                   min="0"
                   max="100"
                   step="0.1"
@@ -68,13 +69,18 @@
             </td>
 
             <td>
-              <div class="flex justify-center">
-                <!-- Smart Trick: Apply the first rate to all others on the same row -->
+              <div class="flex justify-center gap-1">
                 <button mat-icon-button 
                         class="btn-apply-all text-indigo-600 hover:bg-indigo-50" 
                         [matTooltip]="'Appliquer le premier taux ( ' + matrix[poste][typesProduit[0]] + '% ) à TOUS les produits pour ce poste'"
                         (click)="applyToAllRow(poste, matrix[poste][typesProduit[0]])">
                   <mat-icon>auto_fix_high</mat-icon>
+                </button>
+                <button mat-icon-button 
+                        class="btn-apply-all text-red-500 hover:bg-red-50" 
+                        [matTooltip]="'Supprimer le profil ' + poste"
+                        (click)="deletePoste(poste)">
+                  <mat-icon>delete_outline</mat-icon>
                 </button>
               </div>
             </td>
@@ -92,9 +98,10 @@
           placeholder="Nouveau Profil (ex: STAGIAIRE)" 
           class="add-poste-input" 
           [(ngModel)]="newPosteName"
+          [ngModelOptions]="{standalone: true}"
           (keyup.enter)="addPoste()"
         >
-        <button mat-icon-button color="primary" (click)="addPoste()" [disabled]="!newPosteName.trim()">
+        <button mat-icon-button color="primary" (click)="addPoste()" [disabled]="!newPosteName?.trim()">
           <mat-icon>add_circle</mat-icon>
         </button>
     </div>
