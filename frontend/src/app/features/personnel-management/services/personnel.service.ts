@@ -61,6 +61,10 @@ export class PersonnelService {
         return this.http.patch<CommissionRule>(`${this.apiUrl}/commission-rules/${id}`, rule);
     }
 
+    upsertCommissionRulesBulk(rules: CommissionRule[]): Observable<CommissionRule[]> {
+        return this.http.post<CommissionRule[]>(`${this.apiUrl}/commission-rules/bulk-upsert`, rules);
+    }
+
     deleteCommissionRule(id: string): Observable<any> {
         return this.http.delete(`${this.apiUrl}/commission-rules/${id}`);
     }

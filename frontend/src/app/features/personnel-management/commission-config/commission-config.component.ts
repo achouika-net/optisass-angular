@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { PersonnelService } from '../services/personnel.service';
 import { CommissionRule } from '../../../shared/interfaces/employee.interface';
@@ -18,6 +19,7 @@ import { CommissionRule } from '../../../shared/interfaces/employee.interface';
     standalone: true,
     imports: [
         CommonModule,
+        FormsModule,
         ReactiveFormsModule,
         MatTableModule,
         MatCardModule,
@@ -26,117 +28,238 @@ import { CommissionRule } from '../../../shared/interfaces/employee.interface';
         MatInputModule,
         MatSelectModule,
         MatFormFieldModule,
-        MatSnackBarModule
+        MatSnackBarModule,
+        MatTooltipModule
     ],
     templateUrl: './commission-config.component.html',
     styles: [`
-        .container { padding: 20px; }
-        .form-card { margin-bottom: 20px; }
-        .full-width { width: 100%; }
-        table { width: 100%; }
+        .container { padding: 24px; max-width: 1300px; margin: 0 auto; overflow: hidden; }
+        .header-section { margin-bottom: 24px; }
+        .matrix-card { border-radius: 16px; overflow: hidden; border: none; }
+        
+        .matrix-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .matrix-table th {
+            padding: 12px 8px;
+            text-align: center;
+            background: #f1f5f9;
+            color: #475569;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .matrix-table td {
+            padding: 8px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+        }
+
+        .role-cell {
+            font-weight: 700;
+            color: #1e293b;
+            background: #f8fafc;
+            width: 160px;
+            border-right: 1px solid #e2e8f0;
+            font-size: 13px;
+        }
+
+        .rate-input-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .rate-input {
+            width: 65px;
+            padding: 6px 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            text-align: right;
+            font-family: inherit;
+            font-weight: 600;
+            color: #334155;
+            transition: all 0.2s;
+            font-size: 13px;
+        }
+
+        .rate-input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+        }
+
+        .currency {
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .btn-apply-all {
+            opacity: 0.3;
+            transition: opacity 0.2s;
+            transform: scale(0.85);
+        }
+
+        tr:hover .btn-apply-all {
+            opacity: 1;
+        }
+
+        .actions-footer {
+            margin-top: 24px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .add-poste-container {
+            display: flex;
+            align-items: center;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 4px 4px 4px 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .add-poste-input {
+            border: none;
+            outline: none;
+            padding: 4px;
+            font-size: 13px;
+            width: 180px;
+            font-weight: 500;
+        }
+
+        .premium-btn {
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-weight: 600;
+            text-transform: none;
+            letter-spacing: normal;
+        }
     `]
 })
 export class CommissionConfigComponent implements OnInit {
     rules: CommissionRule[] = [];
-    displayedColumns: string[] = ['poste', 'typeProduit', 'taux', 'actions'];
-    commissionForm: FormGroup;
-
-    isEditMode = false;
-    editingId?: string;
-
     postes = ['OPTICIEN', 'VENDEUR', 'CAISSIER', 'RESPONSABLE'];
     typesProduit = ['MONTURE', 'VERRE', 'LENTILLE', 'ACCESSOIRE'];
+    
+    // Matrix data structure: { [poste]: { [typeProduit]: taux } }
+    matrix: { [key: string]: { [key: string]: number } } = {};
+    loading = false;
+    newPosteName = '';
 
     constructor(
         private personnelService: PersonnelService,
-        private fb: FormBuilder,
         private snackBar: MatSnackBar
-    ) {
-        this.commissionForm = this.fb.group({
-            poste: ['', Validators.required],
-            typeProduit: ['', Validators.required],
-            taux: [null, [Validators.required, Validators.min(0), Validators.max(100)]]
-        });
-    }
+    ) {}
 
     ngOnInit(): void {
         this.loadRules();
     }
 
-    loadRules(): void {
-        this.personnelService.getCommissionRules().subscribe({
-            next: (data) => this.rules = data,
-            error: (err) => console.error('Error loading rules', err)
-        });
-    }
-
-    onSubmit(): void {
-        if (this.commissionForm.valid) {
-            const formValue = this.commissionForm.value;
-
-            if (this.isEditMode && this.editingId) {
-                this.personnelService.updateCommissionRule(this.editingId, formValue).subscribe({
-                    next: () => {
-                        this.loadRules();
-                        this.resetForm();
-                        this.snackBar.open('Règle modifiée avec succès', 'OK', { duration: 3000 });
-                    },
-                    error: (err) => {
-                        console.error('Error updating rule', err);
-                        this.snackBar.open('Erreur lors de la modification', 'Fermer', { duration: 3000 });
-                    }
-                });
-            } else {
-                this.personnelService.createCommissionRule(formValue).subscribe({
-                    next: (rule) => {
-                        this.rules = [...this.rules, rule];
-                        this.resetForm();
-                        this.snackBar.open('Règle ajoutée avec succès', 'OK', { duration: 3000 });
-                    },
-                    error: (err) => {
-                        console.error('Error creating rule', err);
-                        this.snackBar.open('Erreur lors de la création', 'Fermer', { duration: 3000 });
-                    }
+    private initializeMatrix(): void {
+        this.postes.forEach(poste => {
+            if (!this.matrix[poste]) {
+                this.matrix[poste] = {};
+                this.typesProduit.forEach(type => {
+                    this.matrix[poste][type] = 0;
                 });
             }
-        }
-    }
-
-    editRule(rule: CommissionRule): void {
-        this.isEditMode = true;
-        this.editingId = rule.id;
-        this.commissionForm.patchValue({
-            poste: rule.poste,
-            typeProduit: rule.typeProduit,
-            taux: rule.taux
         });
     }
 
-    deleteRule(rule: CommissionRule): void {
-        if (confirm('Êtes-vous sûr de vouloir supprimer cette règle ?')) {
-            this.personnelService.deleteCommissionRule(rule.id!).subscribe({
-                next: () => {
-                    this.rules = this.rules.filter(r => r.id !== rule.id);
-                    this.snackBar.open('Règle supprimée', 'OK', { duration: 3000 });
-                },
-                error: (err) => {
-                    console.error('Error deleting rule', err);
-                    this.snackBar.open('Erreur lors de la suppression', 'Fermer', { duration: 3000 });
-                }
-            });
+    loadRules(): void {
+        this.loading = true;
+        this.personnelService.getCommissionRules().subscribe({
+            next: (data) => {
+                this.rules = data;
+                
+                // 1. Extract unique roles from DB to keep the list updated
+                const dbPostes = [...new Set(data.map(r => r.poste))];
+                dbPostes.forEach(p => {
+                    if (!this.postes.includes(p)) {
+                        this.postes.push(p);
+                    }
+                });
+
+                // 2. Initialize matrix structure
+                this.initializeMatrix();
+
+                // 3. Map flat rules to matrix
+                data.forEach(rule => {
+                    if (this.matrix[rule.poste]) {
+                        this.matrix[rule.poste][rule.typeProduit] = rule.taux;
+                    }
+                });
+                this.loading = false;
+            },
+            error: (err) => {
+                console.error('Error loading rules', err);
+                this.loading = false;
+            }
+        });
+    }
+
+    addPoste(): void {
+        const name = this.newPosteName.trim().toUpperCase();
+        if (!name) return;
+        
+        if (this.postes.includes(name)) {
+            this.snackBar.open('Ce poste existe déjà', 'Fermer', { duration: 3000 });
+            return;
         }
+
+        this.postes.push(name);
+        this.matrix[name] = {};
+        this.typesProduit.forEach(type => {
+            this.matrix[name][type] = 0;
+        });
+        this.newPosteName = '';
+        this.snackBar.open(`Poste "${name}" ajouté à la matrice`, 'OK', { duration: 2000 });
     }
 
-    cancelEdit(): void {
-        this.resetForm();
+    applyToAllRow(poste: string, value: number | null): void {
+        if (value === null) return;
+        this.typesProduit.forEach(type => {
+            this.matrix[poste][type] = value;
+        });
+        this.snackBar.open(`Taux de ${value}% appliqué à toutes les catégories pour: ${poste}`, 'OK', { duration: 2000 });
     }
 
-    private resetForm(): void {
-        this.commissionForm.reset();
-        this.isEditMode = false;
-        this.editingId = undefined;
-        Object.keys(this.commissionForm.controls).forEach(key => {
-            this.commissionForm.get(key)?.setErrors(null);
+    saveMatrix(): void {
+        const rulesToUpsert: CommissionRule[] = [];
+        
+        Object.keys(this.matrix).forEach(poste => {
+            Object.keys(this.matrix[poste]).forEach(type => {
+                rulesToUpsert.push({
+                    poste: poste,
+                    typeProduit: type,
+                    taux: this.matrix[poste][type] || 0
+                });
+            });
+        });
+
+        this.loading = true;
+        this.personnelService.upsertCommissionRulesBulk(rulesToUpsert).subscribe({
+            next: () => {
+                this.snackBar.open('Configuration des commissions enregistrée avec succès', 'OK', { duration: 3000 });
+                this.loadRules();
+                this.loading = false;
+            },
+            error: (err) => {
+                console.error('Error saving matrix', err);
+                this.snackBar.open('Erreur lors de l\'enregistrement. Assurez-vous que le serveur est bien démarré.', 'Fermer', { duration: 5000 });
+                this.loading = false;
+            }
         });
     }
 }

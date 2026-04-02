@@ -89,6 +89,12 @@ export class PersonnelController {
     return this.commissionService.createRule(dto);
   }
 
+  @Post('commission-rules/bulk-upsert')
+  upsertCommissionRulesBulk(@Body() rules: any[]) {
+    console.log(`📦 [PersonnelController] Received bulk upsert for ${rules.length} rules`);
+    return this.commissionService.upsertBulkRules(rules);
+  }
+
   @Get('commission-rules')
   getCommissionRules(@Query('centreId') centreId?: string) {
     return this.commissionService.getRules(centreId);

@@ -30,6 +30,41 @@ export class CommissionService {
     });
   }
 
+  async upsertBulkRules(rules: any[]) {
+    return this.prisma.$transaction(async (tx) => {
+      const results = [];
+      for (const rule of rules) {
+        // Find existing rule for this poste, typeProduit, and centreId
+        const existing = await tx.commissionRule.findFirst({
+          where: {
+            poste: rule.poste,
+            typeProduit: rule.typeProduit,
+            centreId: rule.centreId || null,
+          },
+        });
+
+        if (existing) {
+          const updated = await tx.commissionRule.update({
+            where: { id: existing.id },
+            data: { taux: rule.taux },
+          });
+          results.push(updated);
+        } else {
+          const created = await tx.commissionRule.create({
+            data: {
+              poste: rule.poste,
+              typeProduit: rule.typeProduit,
+              taux: rule.taux,
+              centreId: rule.centreId || null,
+            },
+          });
+          results.push(created);
+        }
+      }
+      return results;
+    });
+  }
+
   /**
    * Calculates commissions for a specific invoice.
    * Should be called when an invoice is VALIDATED and PAID.
