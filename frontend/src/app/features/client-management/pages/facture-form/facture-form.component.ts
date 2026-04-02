@@ -322,6 +322,21 @@ export class FactureFormComponent implements OnInit {
         }
     }
 
+    get canEditDiscounts(): boolean {
+        // [FIX] Use getRawValue() because regular .value might return empty object if form is disabled
+        const rawValues = this.form.getRawValue();
+        const type = String(rawValues.type || '').toUpperCase();
+        const statut = String(rawValues.statut || '').toUpperCase();
+        const hasPayments = this.paiements && this.paiements.length > 0;
+        
+        const isEditableDevis = type === 'DEVIS' && !hasPayments && 
+                               statut !== 'VALIDE' && statut !== 'VALIDEE' && statut !== 'VENTE_EN_INSTANCE';
+        
+        console.log(`🔍 [FactureForm] canEditDiscounts Check | Type: ${type} | Statut: ${statut} | HasPayments: ${hasPayments} => ${isEditableDevis}`);
+        
+        return isEditableDevis;
+    }
+
     updateViewMode() {
         // Check if we're in explicit view mode from route
         const isExplicitViewMode = this.route?.snapshot?.queryParamMap?.get('mode') === 'view';
@@ -343,6 +358,17 @@ export class FactureFormComponent implements OnInit {
         if (this.isReadonly || isExplicitViewMode || isLockedDocument) {
             this.isViewMode = true;
             this.form.disable();
+            
+            // [NEW] Selectively enable discount fields if it's an editable Quote (Devis)
+            if (this.canEditDiscounts) {
+                this.lignes.controls.forEach(control => {
+                    control.get('remise')?.enable({ emitEvent: false });
+                    control.get('remiseType')?.enable({ emitEvent: false });
+                });
+                this.form.get('proprietes.remiseGlobalType')?.enable({ emitEvent: false });
+                this.form.get('proprietes.remiseGlobalValue')?.enable({ emitEvent: false });
+                this.form.get('proprietes.pointsUtilises')?.enable({ emitEvent: false });
+            }
         } else {
             this.isViewMode = false;
             this.form.enable();

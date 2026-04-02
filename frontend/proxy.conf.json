@@ -1,0 +1,11 @@
+{
+  "/api": {
+    "target": "http://optisaas-backend:3000",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/api": "/api"
+    },
+    "logLevel": "debug"
+  }
+}
