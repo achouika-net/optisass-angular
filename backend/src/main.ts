@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { json, urlencoded } from 'express';
-import compression from 'compression';
+import compression = require('compression'); // Triggering re-compilation for Docker synchronization
 import { ValidationPipe, BadRequestException } from '@nestjs/common';
 
 async function bootstrap() {

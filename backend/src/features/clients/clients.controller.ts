@@ -75,12 +75,18 @@ export class ClientsController {
     });
   }
 
+  @Get(':id/summary')
+  getSummary(@Param('id') id: string) {
+    return this.clientsService.getSummary(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.clientsService.findOne(id);
   }
 
   @Put(':id')
+
   async update(
     @Param('id') id: string,
     @Body() updateClientDto: UpdateClientDto,

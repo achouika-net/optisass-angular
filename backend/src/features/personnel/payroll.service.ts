@@ -552,19 +552,33 @@ export class PayrollService {
     });
   }
 
-  async getDashboardStats(mois?: string, annee?: number, centreId?: string) {
-    // Default to current month/year if not provided
+  async getDashboardStats(
+    mois?: string,
+    annee?: number,
+    centreId?: string,
+    startDate?: string,
+    endDate?: string
+  ) {
     const now = new Date();
-    const effectiveMois =
-      mois || (now.getMonth() + 1).toString().padStart(2, '0');
+    const effectiveMois = mois || (now.getMonth() + 1).toString().padStart(2, '0');
     const effectiveAnnee = annee && !isNaN(annee) ? annee : now.getFullYear();
 
+    const currentWhere: any = {
+      employee: centreId ? { centres: { some: { centreId } } } : {},
+    };
+
+    if (startDate && endDate) {
+      currentWhere.createdAt = {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      };
+    } else {
+      currentWhere.mois = effectiveMois;
+      currentWhere.annee = effectiveAnnee;
+    }
+
     const payrolls = await this.prisma.payroll.findMany({
-      where: {
-        mois: effectiveMois,
-        annee: effectiveAnnee,
-        employee: centreId ? { centres: { some: { centreId } } } : {},
-      },
+      where: currentWhere,
       include: { employee: true },
     });
 
@@ -584,7 +598,7 @@ export class PayrollService {
       },
     });
 
-    // History of last 6 months
+    // History of last 6 months (Always relative to effectiveAnnee/Mois to keep graph stable)
     const history: any[] = [];
     for (let i = 5; i >= 0; i--) {
       const date = new Date(effectiveAnnee, parseInt(effectiveMois) - 1 - i, 1);

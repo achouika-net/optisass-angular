@@ -281,13 +281,14 @@ export class LoyaltyService {
     const config = (await this.getConfig()) as any;
     const threshold = config.rewardThreshold || 500;
 
+    const numPoints = Number(client.pointsFidelite) || 0;
+    const numThreshold = Number(threshold) || 500;
+
     return {
-      eligible: client.pointsFidelite >= threshold,
-      currentPoints: client.pointsFidelite,
-      threshold: threshold,
-      madValue: Math.floor(
-        client.pointsFidelite * (config.pointsToMADRatio || 0.1),
-      ),
+      eligible: numPoints >= numThreshold,
+      currentPoints: numPoints,
+      threshold: numThreshold,
+      madValue: Math.floor(numPoints * (Number(config.pointsToMADRatio) || 0.1)),
     };
   }
 

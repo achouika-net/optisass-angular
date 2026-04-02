@@ -12,14 +12,22 @@
 
                 <!-- Loaded State -->
                 <ng-container *ngIf="!isLoading">
-                    <h2 *ngIf="!id || id === 'new'">Nouveau Document</h2>
-                    <h2 *ngIf="id && id !== 'new'">
+                    <!-- Only show 'Nouveau Document' if there's no type or it's a brand new empty 'DEVIS' with no numero -->
+                    <h2 *ngIf="(!id || id === 'new') && (!form.get('numero')?.value || form.get('numero')?.value === 'Nouveau') && (!form.get('type')?.value || (form.get('type')?.value === 'DEVIS' && (!lignes.length)))">
+                        Nouveau Document
+                    </h2>
+                    
+                    <h2 *ngIf="(id && id !== 'new') || (form.get('numero')?.value && form.get('numero')?.value !== 'Nouveau') || (form.get('type')?.value && form.get('type')?.value !== 'DEVIS') || (lignes.length > 0)">
                         <span *ngIf="form.get('type')?.value === 'BON_COMM'">BON DE COMMANDE</span>
                         <span *ngIf="form.get('type')?.value === 'FACTURE'">FACTURE</span>
                         <span *ngIf="form.get('type')?.value === 'DEVIS'">DEVIS</span>
                         <span *ngIf="form.get('type')?.value === 'AVOIR'">AVOIR</span>
                         <span *ngIf="form.get('type')?.value === 'BL'">BON DE LIVRAISON</span>
-                        {{ formatNumero(form.get('numero')?.value) }}
+                        <span *ngIf="form.get('type')?.value === 'PROFORMA'">PROFORMA</span>
+                        
+                        <span *ngIf="form.get('numero')?.value" class="ml-2">
+                             <span class="text-gray-400">N°</span> {{ form.get('numero')?.value }}
+                        </span>
                     </h2>
                 </ng-container>
             </div>
@@ -168,7 +176,7 @@
                     <div class="col-desc">Description</div>
                     <div class="col-qty">Qté</div>
                     <div class="col-price">P.U TTC</div>
-                    <div class="col-disc">Remise (DH)</div>
+                    <div class="col-disc">Remise</div>
                     <div class="col-total">Total TTC</div>
                     <div class="col-action"></div>
                 </div>
@@ -183,8 +191,18 @@
                     <div class="col-price">
                         <input type="number" formControlName="prixUnitaireTTC" (change)="onLineChange(i)" min="0">
                     </div>
-                    <div class="col-disc">
-                        <input type="number" formControlName="remise" (change)="onLineChange(i)">
+                    <div class="col-disc" [class.is-readonly]="isViewMode">
+                        <ng-container *ngIf="!isViewMode">
+                            <input type="number" formControlName="remise" (change)="onLineChange(i)" min="0">
+                            <select formControlName="remiseType" (change)="onLineChange(i)" aria-label="Type de remise">
+                                <option value="AMOUNT">DH</option>
+                                <option value="PERCENT">%</option>
+                            </select>
+                        </ng-container>
+                        <span class="remise-display" *ngIf="isViewMode">
+                            {{ line.get('remise')?.value || 0 }} 
+                            {{ line.get('remiseType')?.value === 'PERCENT' ? '%' : 'DH' }}
+                        </span>
                     </div>
                     <div class="col-total">
                         <span class="total-display">{{ line.get('totalTTC')?.value | number:'1.2-2' }} DH</span>
@@ -300,25 +318,18 @@
                                 <input matInput type="number" formControlName="remiseGlobalValue"
                                     (change)="calculateTotals()" min="0">
                             </mat-form-field>
-
+                        </div>
+                        <div class="discount-readonly-summary" *ngIf="isViewMode && form.get('proprietes.remiseGlobalValue')?.value > 0">
+                            <span class="label">Remise globale:</span>
+                            <span class="value">
+                                {{ form.get('proprietes.remiseGlobalValue')?.value }}
+                                {{ form.get('proprietes.remiseGlobalType')?.value === 'PERCENT' ? '%' : 'DH' }}
+                            </span>
                         </div>
                         <div class="discount-calculation"
                             *ngIf="form.get('proprietes.remiseGlobalValue')?.value > 0 && form.get('proprietes.remiseGlobalType')?.value === 'PERCENT'">
                             <span class="calc-label">Montant déduit:</span>
                             <span class="calc-value">-{{ calculatedGlobalDiscount | number:'1.2-2' }} DH</span>
-                        </div>
-                        <div class="discount-display"
-                            *ngIf="isViewMode && form.get('proprietes.remiseGlobalValue')?.value > 0">
-                            <span>Remise Globale:</span>
-                            <span>
-                                {{ form.get('proprietes.remiseGlobalValue')?.value }}
-                                {{ form.get('proprietes.remiseGlobalType')?.value === 'PERCENT' ? '%' : 'DH' }}
-                            </span>
-                            <span class="view-calc"
-                                *ngIf="form.get('proprietes.remiseGlobalType')?.value === 'PERCENT'">
-                                (-{{ (calculatedGlobalDiscount - ((form.get('proprietes.pointsUtilises')?.value || 0) * 0.1)) |
-                                number:'1.2-2' }} DH)
-                            </span>
                         </div>
                         <div class="discount-display"
                             *ngIf="isViewMode && form.get('proprietes.pointsUtilises')?.value > 0">

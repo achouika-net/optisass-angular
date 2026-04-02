@@ -97,7 +97,7 @@ export class GroupsListComponent implements OnInit {
     openCreateDialog(): void {
         const dialogRef = this.dialog.open(GroupFormDialogComponent, {
             width: '680px',
-            maxWidth: '90vw',
+            maxWidth: '680px',
             data: null
         });
 

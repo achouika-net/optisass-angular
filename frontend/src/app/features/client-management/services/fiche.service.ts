@@ -223,9 +223,10 @@ export class FicheService {
         const montantRestant = meta.montantTotal - meta.montantPaye;
 
         return {
-            ...meta,
-            ...content, // Spread content back to top level
+            ...content, // Spread content first (legacy/stored data)
+            ...meta,    // Database metadata (id, numero, dateCreation) must OVERRIDE content
             montantRestant
         } as FicheClient;
     }
+
 }

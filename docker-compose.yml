@@ -11,6 +11,11 @@ services:
     volumes:
       - pgdata_fresh:/var/lib/postgresql/data
       - ./init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
@@ -28,8 +33,9 @@ services:
       FAST_REFRESH: "true"
       NG_CLI_ANALYTICS: "false"
     depends_on:
-      - db
-    command: sh -c "npx prisma generate && npx prisma db push --accept-data-loss && npm run start:dev"
+      db:
+        condition: service_healthy
+    command: sh -c "npx prisma generate && npm run start:dev"
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -37,10 +43,10 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     container_name: optisaas-frontend
     ports:
-      - "4200:4200"
+      - "4200:80"
     environment:
       CHOKIDAR_USEPOLLING: "true"
       CHOKIDAR_INTERVAL: "500"
@@ -67,7 +73,8 @@ services:
       - /app/node_modules
     command: sh -c "npx prisma generate && npx prisma studio --browser none"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
 volumes:
   pgdata_fresh:

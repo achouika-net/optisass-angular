@@ -28,6 +28,14 @@ if not exist "frontend\node_modules" (
     exit /b
 )
 
+echo [INFO] Starting Local Database...
+docker-compose up -d db
+
+echo.
+echo [INFO] Waiting for Database to be ready...
+timeout /t 3 /nobreak >nul
+
+echo.
 echo [INFO] Synchronizing Database...
 cd backend
 call npx prisma db push --accept-data-loss

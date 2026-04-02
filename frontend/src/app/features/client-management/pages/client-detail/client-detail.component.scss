@@ -31,16 +31,40 @@ $white: #ffffff;
         padding-bottom: 8px !important;
     }
 
-    // Align content left, but keep headers centered
-    .mat-column-nomenclature.mat-cell,
-    .mat-column-typeVerre.mat-cell {
-        text-align: left !important;
+    // Align all cells (header and content) consistently
+    .mat-header-cell, .mat-cell {
         vertical-align: top !important;
+        padding-top: 12px !important;
+        padding-bottom: 12px !important;
     }
+
+    // Explicit widths for fixed columns to prevent "desordonne" layout
+    .mat-column-dateLivraison { width: 80px; text-align: center; }
+    .mat-column-type { width: 100px; }
+    .mat-column-dateCreation { width: 100px; text-align: center; }
+    .mat-column-docteur { width: 120px; }
+    .mat-column-typeEquipement { width: 120px; }
+    .mat-column-actions { width: 60px; text-align: right; }
+
+    // Content columns take the rest and should be left-aligned including headers
+    .mat-column-typeVerre, 
+    .mat-column-nomenclature { 
+        min-width: 250px; 
+        text-align: left !important;
+    }
+
 
     // Style for multi-line content in table cells
     .table-multiline {
-        line-height: 1.5;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding: 4px 0;
+        font-size: 0.9em;
     }
 }
 
@@ -540,15 +564,27 @@ table.mat-mdc-table {
     }
 }
 
-// Reward Alert Banner
+.reward-alert-container {
+    display: grid;
+    grid-template-rows: 0fr;
+    /* transition: grid-template-rows 0.4s ease, margin 0.4s ease, padding 0.4s ease; [DISABLED FOR STABILIZATION] */
+    margin: 0 20px;
+    overflow: hidden;
+    border-radius: 12px;
+
+    &.reward-visible {
+        grid-template-rows: 1fr;
+        margin-top: 20px;
+        box-shadow: 0 4px 12px rgba(103, 58, 183, 0.3);
+    }
+}
+
 .reward-alert-banner {
+    min-height: 0;
+    display: flex;
     background: linear-gradient(135deg, #673ab7, #512da8);
     color: white;
-    margin: 20px 20px 0 20px;
     padding: 20px 24px;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(103, 58, 183, 0.3);
-    display: flex;
     justify-content: space-between;
     align-items: center;
     position: relative;

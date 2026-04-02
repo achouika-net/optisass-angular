@@ -7,16 +7,16 @@
             </button>
             <h1>
                 Dossier Client
-                <span class="client-name-subtitle" *ngIf="client">
-                    - {{ clientDisplayName }}
-                    <span class="client-phone" *ngIf="client.telephone">
-                        | <mat-icon>phone</mat-icon> {{ client.telephone }}
+                <span class="client-name-subtitle" *ngIf="client()">
+                    - {{ clientDisplayName() }}
+                    <span class="client-phone" *ngIf="client()?.telephone">
+                        | <mat-icon>phone</mat-icon> {{ client()?.telephone }}
                     </span>
                 </span>
             </h1>
-            <span class="status-badge" [class.actif]="client?.statut === StatutClient.ACTIF"
-                [class.inactif]="client?.statut === StatutClient.INACTIF">
-                {{ client?.statut || 'N/A' }}
+            <span class="status-badge" [class.actif]="client()?.statut === StatutClient.ACTIF"
+                [class.inactif]="client()?.statut === StatutClient.INACTIF">
+                {{ client()?.statut || 'N/A' }}
             </span>
         </div>
         <div class="header-actions">
@@ -47,10 +47,10 @@
                 <mat-icon>more_vert</mat-icon>
             </button>
             <mat-menu #moreMenu="matMenu">
-                <button mat-menu-item (click)="toggleViewMode()" *ngIf="viewMode === 'operations'">
+                <button mat-menu-item (click)="toggleViewMode()" *ngIf="viewMode() === 'operations'">
                     <mat-icon>visibility</mat-icon> Visualiser client
                 </button>
-                <button mat-menu-item (click)="toggleViewMode()" *ngIf="viewMode === 'profile'" class="text-blue-600">
+                <button mat-menu-item (click)="toggleViewMode()" *ngIf="viewMode() === 'profile'" class="text-blue-600">
                     <mat-icon color="primary">arrow_back</mat-icon> Retour aux opérations
                 </button>
                 <mat-divider></mat-divider>
@@ -65,33 +65,35 @@
         </div>
     </div>
 
-    <!-- Reward Alert -->
-    <div class="reward-alert-banner" *ngIf="isEligibleForReward">
-        <div class="reward-alert-content">
-            <div class="reward-icon-wrapper">
-                <mat-icon class="reward-icon">celebration</mat-icon>
-            </div>
-            <div class="reward-text">
-                <div class="reward-title">Objectif de points Fidelio atteint !</div>
-                <div class="reward-subtitle">
-                    Ce client a cumulé <strong>{{ client?.pointsFidelite || 0 }} points</strong> (Objectif : {{
-                    rewardThreshold }} pts).
-                    Vous pouvez débloquer une récompense.
+    <!-- Reward Alert (Strict visibility based on points) -->
+    <div class="reward-alert-container" *ngIf="isEligibleForReward()" [class.reward-visible]="isEligibleForReward()">
+        <div class="reward-alert-banner">
+            <div class="reward-alert-content">
+                <div class="reward-icon-wrapper">
+                    <mat-icon class="reward-icon">celebration</mat-icon>
+                </div>
+                <div class="reward-text">
+                    <div class="reward-title">Objectif de points Fidelio atteint !</div>
+                    <div class="reward-subtitle">
+                        Ce client a cumulé <strong>{{ client()?.pointsFidelite || 0 }} points</strong> (Objectif : {{
+                        rewardThreshold() }} pts).
+                        Vous pouvez débloquer une récompense.
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="reward-actions">
-            <button mat-raised-button class="btn-reward-discount" (click)="redeemRewardWithType('DISCOUNT')">
-                <mat-icon>percent</mat-icon> Appliquer Remise
-            </button>
-            <button mat-raised-button class="btn-reward-cash" (click)="redeemRewardWithType('MAD_BONUS')">
-                <mat-icon>payments</mat-icon> Convertir en Bonus (MAD)
-            </button>
+            <div class="reward-actions">
+                <button mat-raised-button class="btn-reward-discount" (click)="redeemRewardWithType('DISCOUNT')">
+                    <mat-icon>percent</mat-icon> Appliquer Remise
+                </button>
+                <button mat-raised-button class="btn-reward-cash" (click)="redeemRewardWithType('MAD_BONUS')">
+                    <mat-icon>payments</mat-icon> Convertir en Bonus (MAD)
+                </button>
+            </div>
         </div>
     </div>
 
     <!-- Stats Cards Section -->
-    <div class="stats-grid mt-4" *ngIf="client">
+    <div class="stats-grid mt-4" *ngIf="client()">
         <mat-card class="stat-card stat-card-blue">
             <mat-card-content>
                 <div class="stat-number">{{ clientStats().ca | currency:'MAD':'MAD ':'1.0-2' }}</div>
@@ -115,7 +117,7 @@
 
         <mat-card class="stat-card stat-card-purple">
             <mat-card-content>
-                <div class="stat-number">{{ client.pointsFidelite || 0 }}</div>
+                <div class="stat-number">{{ client()?.pointsFidelite || 0 }}</div>
                 <div class="stat-label">Points Fedilio</div>
             </mat-card-content>
         </mat-card>
@@ -126,13 +128,19 @@
     <div class="main-content">
         <!-- Main Content: Tabs -->
         <div class="content-section">
-            <mat-tab-group class="client-tabs" animationDuration="0ms">
+            <mat-tab-group class="client-tabs" animationDuration="0ms" (selectedTabChange)="onTabChange($event)">
                 <!-- NEW: Onglet Fiches Médicales (Default) -->
-                <mat-tab label="Fiches Médicales" *ngIf="viewMode === 'operations'">
+                <mat-tab label="Fiches Médicales" *ngIf="viewMode() === 'operations'">
                     <div class="form-container">
-                        <!-- Data Table -->
-                        <div class="table-responsive">
-                            <table mat-table [dataSource]="fiches" class="w-full">
+                        <!-- Loading State -->
+                        <div *ngIf="loading()" class="flex justify-center items-center p-12">
+                            <mat-spinner diameter="40"></mat-spinner>
+                            <span class="ml-4 text-gray-500">Chargement des fiches...</span>
+                        </div>
+
+                        <!-- Data Table (only if not loading and has data) -->
+                        <div class="table-responsive" *ngIf="!loading() && fiches().length > 0">
+                            <table mat-table [dataSource]="fiches()" class="w-full">
                                 <!-- Type Fiche Column -->
                                 <ng-container matColumnDef="type">
                                     <th mat-header-cell *matHeaderCellDef>Type Fiche</th>
@@ -151,8 +159,7 @@
                                 <!-- Date Fiche Column -->
                                 <ng-container matColumnDef="dateCreation">
                                     <th mat-header-cell *matHeaderCellDef>Date Fiche</th>
-                                    <td mat-cell *matCellDef="let fiche">{{ fiche.dateCreation | date:'dd/MM/yyyy' }}
-                                    </td>
+                                    <td mat-cell *matCellDef="let fiche">{{ (fiche.dateCreation | date:'dd/MM/yyyy') || fiche.dateCreation || '-' }}</td>
                                 </ng-container>
 
                                 <!-- Fiche ID Column -->
@@ -181,7 +188,7 @@
                                 <ng-container matColumnDef="typeVerre">
                                     <th mat-header-cell *matHeaderCellDef>Type Verre / Produits</th>
                                     <td mat-cell *matCellDef="let fiche">
-                                        <div *ngFor="let line of getVerresSummary(fiche).split('\n')"
+                                        <div *ngFor="let line of fiche._verresSummary"
                                             class="table-multiline">
                                             {{ line }}
                                         </div>
@@ -193,7 +200,7 @@
                                     <th mat-header-cell *matHeaderCellDef>Correction</th>
                                     <td mat-cell *matCellDef="let fiche">
                                         <div *ngIf="fiche.type !== TypeFiche.PRODUIT">
-                                            <div *ngFor="let line of getCorrectionSummary(fiche).split('\n')"
+                                            <div *ngFor="let line of fiche._correctionSummary"
                                                 class="table-multiline">
                                                 {{ line }}
                                             </div>
@@ -239,18 +246,24 @@
                                     class="cursor-pointer hover:bg-gray-50 element-row"></tr>
                             </table>
                         </div>
+
+                        <!-- Empty State -->
+                        <div *ngIf="!loading() && fiches().length === 0" class="empty-state p-12 text-center text-gray-400">
+                            <mat-icon class="scale-150 mb-4 opacity-20">history</mat-icon>
+                            <p>Aucune fiche médicale pour ce client.</p>
+                        </div>
                     </div>
                 </mat-tab>
 
                 <!-- Onglet Factures -->
-                <mat-tab label="Facturation" *ngIf="viewMode === 'operations'">
+                <mat-tab label="Facturation" *ngIf="viewMode() === 'operations'">
                     <div class="form-container">
                         <app-facture-list [clientId]="clientId"></app-facture-list>
                     </div>
                 </mat-tab>
 
                 <!-- Onglet BL Fournisseurs -->
-                <mat-tab label="BL Fournisseurs" *ngIf="viewMode === 'operations'">
+                <mat-tab label="BL Fournisseurs" *ngIf="viewMode() === 'operations'">
                     <div class="form-container">
                         <div class="flex justify-between items-center mb-6">
                             <div class="section-title !mt-0">Bons de Livraison Verre / Fournisseur</div>
@@ -331,17 +344,16 @@
                     </div>
                 </mat-tab>
 
-                <!-- Onglet Paiements -->
-                <mat-tab label="Paiements" *ngIf="viewMode === 'operations'">
+                <mat-tab label="Paiements" *ngIf="viewMode() === 'operations'">
                     <div class="form-container">
-                        <app-payment-list [clientId]="clientId" [clientName]="clientDisplayName"
-                            [clientCin]="clientCinValue" (paymentAdded)="loadStats()">
+                        <app-payment-list [clientId]="clientId!" [clientName]="clientDisplayName()"
+                            [clientCin]="clientCinValue()" [factures]="factures()" (paymentAdded)="loadDossierData()">
                         </app-payment-list>
                     </div>
                 </mat-tab>
 
                 <!-- Onglet Fichiers (Attachments) -->
-                <mat-tab label="Fichiers" *ngIf="viewMode === 'operations'">
+                <mat-tab label="Fichiers" *ngIf="viewMode() === 'operations'">
                     <div class="form-container">
                         <div class="flex justify-between items-center mb-6">
                             <div class="section-title !mt-0">Documents & Pièces Jointes</div>
@@ -391,28 +403,28 @@
                 </mat-tab>
 
                 <!-- Onglet Identité Client -->
-                <mat-tab label="Identité Client" *ngIf="viewMode === 'profile'">
-                    <div class="form-container" *ngIf="client">
-                        <ng-container *ngIf="clientParticulier">
+                <mat-tab label="Identité Client" *ngIf="viewMode() === 'profile'">
+                    <div class="form-container" *ngIf="client()">
+                        <ng-container *ngIf="clientParticulier()">
                             <div class="form-row three-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Titre</mat-label>
-                                    <mat-select [value]="clientParticulier.titre" class="readonly-state">
-                                        <mat-option [value]="clientParticulier.titre">{{ clientParticulier.titre
+                                    <mat-select [value]="clientParticulier()?.titre" class="readonly-state">
+                                        <mat-option [value]="clientParticulier()?.titre">{{ clientParticulier()?.titre
                                             }}</mat-option>
                                     </mat-select>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Nom</mat-label>
-                                    <input matInput [value]="clientParticulier.nom" readonly>
+                                    <input matInput [value]="clientParticulier()?.nom" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Prénom</mat-label>
-                                    <input matInput [value]="clientParticulier.prenom" readonly>
+                                    <input matInput [value]="clientParticulier()?.prenom" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Date de naissance</mat-label>
-                                    <input matInput [value]="clientParticulier.dateNaissance | date:'dd/MM/yyyy'"
+                                    <input matInput [value]="clientParticulier()?.dateNaissance | date:'dd/MM/yyyy'"
                                         readonly>
                                     <mat-icon matSuffix>calendar_today</mat-icon>
                                 </mat-form-field>
@@ -422,19 +434,19 @@
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Type de pièce</mat-label>
-                                    <mat-select [value]="clientParticulier.typePieceIdentite" class="readonly-state">
-                                        <mat-option [value]="clientParticulier.typePieceIdentite">{{
-                                            clientParticulier.typePieceIdentite }}</mat-option>
+                                    <mat-select [value]="clientParticulier()?.typePieceIdentite" class="readonly-state">
+                                        <mat-option [value]="clientParticulier()?.typePieceIdentite">{{
+                                            clientParticulier()?.typePieceIdentite }}</mat-option>
                                     </mat-select>
                                 </mat-form-field>
                                 <!-- Show CIN Parent for children, regular ID for adults -->
-                                <mat-form-field appearance="outline" *ngIf="clientParticulier.titre === 'Enf'">
+                                <mat-form-field appearance="outline" *ngIf="clientParticulier()?.titre === 'Enf'">
                                     <mat-label>CIN Parent</mat-label>
-                                    <input matInput [value]="clientParticulier.cinParent || ''" readonly>
+                                    <input matInput [value]="clientParticulier()?.cinParent || ''" readonly>
                                 </mat-form-field>
-                                <mat-form-field appearance="outline" *ngIf="clientParticulier.titre !== 'Enf'">
+                                <mat-form-field appearance="outline" *ngIf="clientParticulier()?.titre !== 'Enf'">
                                     <mat-label>Numéro de pièce</mat-label>
-                                    <input matInput [value]="clientParticulier.numeroPieceIdentite" readonly>
+                                    <input matInput [value]="clientParticulier()?.numeroPieceIdentite" readonly>
                                 </mat-form-field>
                             </div>
 
@@ -442,21 +454,21 @@
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Téléphone</mat-label>
-                                    <input matInput [value]="clientParticulier.telephone" readonly>
+                                    <input matInput [value]="clientParticulier()?.telephone" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Email</mat-label>
-                                    <input matInput [value]="clientParticulier.email || ''" readonly>
+                                    <input matInput [value]="clientParticulier()?.email || ''" readonly>
                                 </mat-form-field>
                             </div>
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Ville</mat-label>
-                                    <input matInput [value]="clientParticulier.ville" readonly>
+                                    <input matInput [value]="clientParticulier()?.ville" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Adresse</mat-label>
-                                    <input matInput [value]="clientParticulier.adresse || ''" readonly>
+                                    <input matInput [value]="clientParticulier()?.adresse || ''" readonly>
                                 </mat-form-field>
                             </div>
 
@@ -464,31 +476,31 @@
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Type de couverture</mat-label>
-                                    <mat-select [value]="clientParticulier.couvertureSociale?.type"
+                                    <mat-select [value]="clientParticulier()?.couvertureSociale?.type"
                                         class="readonly-state">
-                                        <mat-option [value]="clientParticulier.couvertureSociale?.type">{{
-                                            clientParticulier.couvertureSociale?.type || 'Aucune' }}</mat-option>
+                                        <mat-option [value]="clientParticulier()?.couvertureSociale?.type">{{
+                                            clientParticulier()?.couvertureSociale?.type || 'Aucune' }}</mat-option>
                                     </mat-select>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Numéro d'adhésion</mat-label>
-                                    <input matInput [value]="clientParticulier.couvertureSociale?.numeroAdhesion || ''"
+                                    <input matInput [value]="clientParticulier()?.couvertureSociale?.numeroAdhesion || ''"
                                         readonly>
                                 </mat-form-field>
                             </div>
 
                             <div class="section-title">Groupe Famille et Le Lien Parental</div>
                             <!-- OptiSaaS Group Relation display -->
-                            <div class="form-row mt-2 mb-4" *ngIf="client?.groupe">
+                            <div class="form-row mt-2 mb-4" *ngIf="client()?.groupe">
                                 <mat-form-field appearance="outline" class="full-width">
                                     <mat-label>Groupe OptiSaaS (Lien Réel)</mat-label>
-                                    <input matInput [value]="client?.groupe?.nom" readonly>
+                                    <input matInput [value]="client()?.groupe?.nom" readonly>
                                     <mat-icon matSuffix color="primary">hub</mat-icon>
                                 </mat-form-field>
                             </div>
 
                             <!-- Cas Principal : Role + Nom Famille -->
-                            <ng-container *ngIf="clientParticulier.groupeFamille?.role === 'Principal'">
+                            <ng-container *ngIf="clientParticulier()?.groupeFamille?.role === 'Principal'">
                                 <div class="form-row two-cols">
                                     <mat-form-field appearance="outline">
                                         <mat-label>Rôle Client</mat-label>
@@ -498,14 +510,14 @@
                                     </mat-form-field>
                                     <mat-form-field appearance="outline">
                                         <mat-label>Nom Famille</mat-label>
-                                        <input matInput [value]="clientParticulier.groupeFamille?.nomFamille || ''"
+                                        <input matInput [value]="clientParticulier()?.groupeFamille?.nomFamille || ''"
                                             readonly>
                                     </mat-form-field>
                                 </div>
                             </ng-container>
 
                             <!-- Cas Membre : Role + Lien Parental + ID + Nom Famille -->
-                            <ng-container *ngIf="clientParticulier.groupeFamille?.role === 'Membre'">
+                            <ng-container *ngIf="clientParticulier()?.groupeFamille?.role === 'Membre'">
                                 <div class="form-row two-cols">
                                     <mat-form-field appearance="outline">
                                         <mat-label>Rôle Client</mat-label>
@@ -515,10 +527,10 @@
                                     </mat-form-field>
                                     <mat-form-field appearance="outline">
                                         <mat-label>Lien Parental</mat-label>
-                                        <mat-select [value]="clientParticulier.groupeFamille?.lienParental"
+                                        <mat-select [value]="clientParticulier()?.groupeFamille?.lienParental"
                                             class="readonly-state">
-                                            <mat-option [value]="clientParticulier.groupeFamille?.lienParental">{{
-                                                clientParticulier.groupeFamille?.lienParental || '-' }}</mat-option>
+                                            <mat-option [value]="clientParticulier()?.groupeFamille?.lienParental">{{
+                                                clientParticulier()?.groupeFamille?.lienParental || '-' }}</mat-option>
                                         </mat-select>
                                     </mat-form-field>
                                 </div>
@@ -529,7 +541,7 @@
                                     </mat-form-field>
                                     <mat-form-field appearance="outline">
                                         <mat-label>Nom Famille</mat-label>
-                                        <input matInput [value]="clientParticulier.groupeFamille?.nomFamille || ''"
+                                        <input matInput [value]="clientParticulier()?.groupeFamille?.nomFamille || ''"
                                             readonly>
                                     </mat-form-field>
                                 </div>
@@ -541,25 +553,25 @@
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Raison Sociale</mat-label>
-                                    <input matInput [value]="clientProfessionnel.raisonSociale" readonly>
+                                    <input matInput [value]="clientProfessionnel()?.raisonSociale" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Identifiant Fiscal</mat-label>
-                                    <input matInput [value]="clientProfessionnel.identifiantFiscal" readonly>
+                                    <input matInput [value]="clientProfessionnel()?.identifiantFiscal" readonly>
                                 </mat-form-field>
                             </div>
                             <div class="form-row three-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>ICE</mat-label>
-                                    <input matInput [value]="clientProfessionnel.ice" readonly>
+                                    <input matInput [value]="clientProfessionnel()?.ice" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Registre Commerce</mat-label>
-                                    <input matInput [value]="clientProfessionnel.registreCommerce || ''" readonly>
+                                    <input matInput [value]="clientProfessionnel()?.registreCommerce || ''" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Patente</mat-label>
-                                    <input matInput [value]="clientProfessionnel.patente || ''" readonly>
+                                    <input matInput [value]="clientProfessionnel()?.patente || ''" readonly>
                                 </mat-form-field>
                             </div>
 
@@ -567,32 +579,32 @@
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Téléphone</mat-label>
-                                    <input matInput [value]="clientProfessionnel.telephone" readonly>
+                                    <input matInput [value]="clientProfessionnel()?.telephone" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Email</mat-label>
-                                    <input matInput [value]="clientProfessionnel.email" readonly>
+                                    <input matInput [value]="clientProfessionnel()?.email" readonly>
                                 </mat-form-field>
                             </div>
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Ville</mat-label>
-                                    <input matInput [value]="clientProfessionnel.ville" readonly>
+                                    <input matInput [value]="clientProfessionnel()?.ville" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Adresse</mat-label>
-                                    <input matInput [value]="clientProfessionnel.adresse || ''" readonly>
+                                    <input matInput [value]="clientProfessionnel()?.adresse || ''" readonly>
                                 </mat-form-field>
                             </div>
 
                             <div class="section-title">FISCALITÉ</div>
                             <div class="form-row two-cols">
-                                <mat-checkbox [checked]="clientProfessionnel.tvaAssujetti"
+                                <mat-checkbox [checked]="clientProfessionnel()?.tvaAssujetti"
                                     class="readonly-state">Assujetti
                                     à la TVA</mat-checkbox>
-                                <mat-form-field appearance="outline" *ngIf="clientProfessionnel.tvaAssujetti">
+                                <mat-form-field appearance="outline" *ngIf="clientProfessionnel()?.tvaAssujetti">
                                     <mat-label>Numéro d'Autorisation</mat-label>
-                                    <input matInput [value]="clientProfessionnel.numeroAutorisation || ''" readonly>
+                                    <input matInput [value]="clientProfessionnel()?.numeroAutorisation || ''" readonly>
                                 </mat-form-field>
                             </div>
                         </ng-container>
@@ -600,8 +612,8 @@
                 </mat-tab>
 
                 <!-- Onglet Dossier Médical (Particulier Only) -->
-                <mat-tab label="Dossier Médical" *ngIf="viewMode === 'profile' && clientParticulier">
-                    <div class="form-container medical-container" *ngIf="clientParticulier?.dossierMedical as dossier">
+                <mat-tab label="Dossier Médical" *ngIf="viewMode() === 'profile' && clientParticulier()">
+                    <div class="form-container medical-container" *ngIf="clientParticulier()?.dossierMedical as dossier">
                         <div class="medical-columns">
                             <!-- Col 1: Antecedents Visuels -->
                             <div class="medical-col">
@@ -730,31 +742,31 @@
                 </mat-tab>
 
                 <!-- Onglet Convention & Contacts (Professionnel Only) -->
-                <mat-tab label="Convention & Contacts" *ngIf="viewMode === 'profile' && clientProfessionnel">
+                <mat-tab label="Convention & Contacts" *ngIf="viewMode() === 'profile' && clientProfessionnel()">
                     <div class="form-container">
                         <div class="section-title">CONVENTION</div>
                         <div class="form-row two-cols">
                             <!-- Example Convention fields -->
-                            <mat-checkbox [checked]="clientProfessionnel.convention?.actif"
+                            <mat-checkbox [checked]="clientProfessionnel()?.convention?.actif"
                                 class="readonly-state">Convention Active</mat-checkbox>
-                            <mat-form-field appearance="outline" *ngIf="clientProfessionnel.convention?.actif">
+                            <mat-form-field appearance="outline" *ngIf="clientProfessionnel()?.convention?.actif">
                                 <mat-label>Nom Convention</mat-label>
-                                <input matInput [value]="clientProfessionnel.convention?.nomConvention || ''" readonly>
+                                <input matInput [value]="clientProfessionnel()?.convention?.nomConvention || ''" readonly>
                             </mat-form-field>
                         </div>
-                        <div class="form-row two-cols" *ngIf="clientProfessionnel.convention?.actif">
+                        <div class="form-row two-cols" *ngIf="clientProfessionnel()?.convention?.actif">
                             <mat-form-field appearance="outline">
                                 <mat-label>Modalité Paiement</mat-label>
-                                <input matInput [value]="clientProfessionnel.convention?.modalitePaiement" readonly>
+                                <input matInput [value]="clientProfessionnel()?.convention?.modalitePaiement" readonly>
                             </mat-form-field>
                             <mat-form-field appearance="outline">
                                 <mat-label>Échéance Paiement</mat-label>
-                                <input matInput [value]="clientProfessionnel.convention?.echeancePaiement" readonly>
+                                <input matInput [value]="clientProfessionnel()?.convention?.echeancePaiement" readonly>
                             </mat-form-field>
                         </div>
 
                         <div class="section-title">CONTACTS INTERNES</div>
-                        <div *ngFor="let contact of clientProfessionnel.contacts" class="contact-card mb-4">
+                        <div *ngFor="let contact of clientProfessionnel()?.contacts" class="contact-card mb-4">
                             <div class="form-row three-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Nom</mat-label>
@@ -784,18 +796,18 @@
                 </mat-tab>
 
                 <!-- Onglet Notes (Particulier Only) -->
-                <mat-tab label="Notes" *ngIf="viewMode === 'profile' && clientParticulier">
+                <mat-tab label="Notes" *ngIf="viewMode() === 'profile' && clientParticulier()">
                     <div class="form-container">
                         <mat-form-field appearance="outline" class="full-width notes-field">
                             <mat-label>Notes et observations</mat-label>
-                            <textarea matInput [value]="clientParticulier?.dossierMedical?.notes || ''" readonly
+                            <textarea matInput [value]="clientParticulier()?.dossierMedical?.notes || ''" readonly
                                 rows="15"></textarea>
                         </mat-form-field>
                     </div>
                 </mat-tab>
 
                 <!-- Onglet Fidélité -->
-                <mat-tab label="Fidélité Fidelio" *ngIf="viewMode === 'profile'">
+                <mat-tab label="Fidélité Fidelio" *ngIf="viewMode() === 'profile'">
                     <div class="form-container">
                         <div class="section-title">HISTORIQUE DES POINTS</div>
                         <div class="table-responsive">
@@ -847,35 +859,35 @@
                 </mat-tab>
 
                 <!-- Onglet Relations -->
-                <mat-tab label="Relations & Parrainage" *ngIf="viewMode === 'profile'">
+                <mat-tab label="Relations & Parrainage" *ngIf="viewMode() === 'profile'">
                     <div class="form-container">
                         <!-- Parrain -->
                         <div class="section-title">MON PARRAIN</div>
-                        <div *ngIf="parrain"
+                        <div *ngIf="parrain()"
                             class="relation-card p-4 border rounded-lg bg-gray-50 flex justify-between items-center mb-6">
                             <div>
-                                <div class="font-bold text-lg">{{ formatClientName(parrain) }}</div>
+                                <div class="font-bold text-lg">{{ formatClientName(parrain()) }}</div>
                                 <div class="text-sm text-gray-600">
-                                    <mat-icon class="scale-75 align-middle">phone</mat-icon> {{ parrain.telephone ||
+                                    <mat-icon class="scale-75 align-middle">phone</mat-icon> {{ parrain()?.telephone ||
                                     'N/A' }}
-                                    | <mat-icon class="scale-75 align-middle">email</mat-icon> {{ parrain.email || 'N/A'
+                                    | <mat-icon class="scale-75 align-middle">email</mat-icon> {{ parrain()?.email || 'N/A'
                                     }}
                                 </div>
                             </div>
                             <button mat-stroked-button color="primary"
-                                (click)="clientId = parrain.id; loadClientData()">
+                                (click)="clientId = parrain()?.id; loadClientData()">
                                 Voir Dossier
                             </button>
                         </div>
-                        <div *ngIf="!parrain"
+                        <div *ngIf="!parrain()"
                             class="empty-state p-4 border dashed rounded-lg text-center text-gray-400 mb-6">
                             Pas de parrain enregistré.
                         </div>
 
                         <!-- Filleuls -->
-                        <div class="section-title">MES FILLEULS ({{ filleuls.length }})</div>
+                        <div class="section-title">MES FILLEULS ({{ filleuls().length }})</div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div *ngFor="let filleul of filleuls"
+                            <div *ngFor="let filleul of filleuls()"
                                 class="relation-card p-4 border rounded-lg bg-white flex justify-between items-center">
                                 <div>
                                     <div class="font-medium">{{ formatClientName(filleul) }}</div>
@@ -887,7 +899,7 @@
                                 </button>
                             </div>
                         </div>
-                        <div *ngIf="filleuls.length === 0"
+                        <div *ngIf="filleuls().length === 0"
                             class="empty-state p-4 border dashed rounded-lg text-center text-gray-400">
                             Aucun filleul enregistré.
                         </div>

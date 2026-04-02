@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef, signal } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, signal, ChangeDetectionStrategy, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -18,7 +18,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { FormsModule } from '@angular/forms';
 import { ClientManagementService } from '../../services/client.service';
 import { FicheService } from '../../services/fiche.service';
-import { FactureService } from '../../services/facture.service';
+import { FactureService, Facture } from '../../services/facture.service';
 import { LoyaltyService, PointsHistory } from '../../services/loyalty.service';
 import { Client, TypeClient, ClientParticulier, ClientProfessionnel, ClientAnonyme, StatutClient, isClientParticulier, isClientProfessionnel } from '../../models/client.model';
 import { FactureListComponent } from '../facture-list/facture-list.component';
@@ -35,6 +35,7 @@ import { ExpenseFormDialogComponent } from '../../../finance/components/expense-
 import { Convention } from '../../../finance/models/finance.models';
 import { take } from 'rxjs';
 import { FileUploadService } from '../../../../core/services/file-upload.service';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 export interface Attachment {
   id: string;
@@ -68,45 +69,48 @@ export interface Attachment {
     FactureListComponent,
     PaymentListComponent,
     MatSnackBarModule,
-    MatTooltipModule
+    MatTooltipModule,
+    MatProgressSpinnerModule
   ],
   templateUrl: './client-detail.component.html',
-  styleUrls: ['./client-detail.component.scss']
+  styleUrls: ['./client-detail.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ClientDetailComponent implements OnInit {
   clientId: string | null = null;
-  client: Client | null = null;
-  fiches: FicheClient[] = [];
-  loading = true;
-  isEditMode = false;
-  viewMode: 'operations' | 'profile' = 'operations';
+  client = signal<Client | null>(null);
+  fiches = signal<FicheClient[]>([]);
+  loading = signal(true);
+  isEditMode = signal(false);
+  viewMode = signal<'operations' | 'profile'>('operations');
 
   // Attachments Support
   attachments = signal<Attachment[]>([]);
 
   toggleViewMode(mode?: 'operations' | 'profile') {
     if (mode) {
-      this.viewMode = mode;
+      this.viewMode.set(mode);
     } else {
-      this.viewMode = this.viewMode === 'operations' ? 'profile' : 'operations';
+      this.viewMode.set(this.viewMode() === 'operations' ? 'profile' : 'operations');
     }
   }
 
-  get clientDisplayName(): string {
-    if (!this.client) return '';
+  clientDisplayName = computed(() => {
+    const c = this.client();
+    if (!c) return '';
 
-    if (isClientProfessionnel(this.client)) {
-      return this.client.raisonSociale.toUpperCase();
+    if (isClientProfessionnel(c)) {
+      return c.raisonSociale.toUpperCase();
     }
 
-    if (isClientParticulier(this.client) || (this.client as any).nom) {
-      const nom = (this.client as any).nom || '';
-      const prenom = (this.client as any).prenom || '';
+    if (isClientParticulier(c) || (c as any).nom) {
+      const nom = (c as any).nom || '';
+      const prenom = (c as any).prenom || '';
       return `${nom.toUpperCase()} ${this.toTitleCase(prenom)}`;
     }
 
     return '';
-  }
+  });
 
   formatClientName(client: Client | any): string {
     if (!client) return '';
@@ -121,12 +125,28 @@ export class ClientDetailComponent implements OnInit {
     return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   }
 
-  get clientCinValue(): string {
-    if (!this.client) return '';
-    if (isClientProfessionnel(this.client)) return this.client.identifiantFiscal || '';
-    if (isClientParticulier(this.client)) return this.client.numeroPieceIdentite || this.client.cinParent || '';
+  clientCinValue = computed(() => {
+    const c = this.client();
+    if (!c) return '';
+    if (isClientProfessionnel(c)) return c.identifiantFiscal || '';
+    if (isClientParticulier(c)) return (c as any).numeroPieceIdentite || (c as any).cinParent || '';
     return '';
-  }
+  });
+
+  clientParticulier = computed<ClientParticulier | null>(() => {
+    const c = this.client();
+    return c && c.typeClient === TypeClient.PARTICULIER ? (c as ClientParticulier) : null;
+  });
+
+  clientProfessionnel = computed<ClientProfessionnel | null>(() => {
+    const c = this.client();
+    return c && (c.typeClient === TypeClient.PROFESSIONNEL || (c as any).raisonSociale) ? (c as ClientProfessionnel) : null;
+  });
+
+  clientAnonyme = computed<ClientAnonyme | null>(() => {
+    const c = this.client();
+    return c && c.typeClient === TypeClient.ANONYME ? (c as ClientAnonyme) : null;
+  });
 
   // Stats Signal
   clientStats = signal({
@@ -138,13 +158,17 @@ export class ClientDetailComponent implements OnInit {
   // Loyalty History
   pointsHistory = signal<PointsHistory[]>([]);
 
+  factures = signal<Facture[]>([]);
+  
   // Supplier Invoices (BL Fournisseur)
   supplierInvoices = signal<SupplierInvoice[]>([]);
 
   // Conventions
   conventions = signal<Convention[]>([]);
 
-  // Table columns
+  // Tab Loading Tracking
+  private loadedTabs = new Set<string>();
+
   historyColumns: string[] = ['dateLivraison', 'type', 'dateCreation', 'docteur', 'typeEquipement', 'typeVerre', 'nomenclature', 'actions'];
 
   // Enums pour le template
@@ -171,36 +195,91 @@ export class ClientDetailComponent implements OnInit {
 
   ngOnInit(): void {
     if (this.clientId) {
-      this.loadClientData();
-      this.loadFiches();
-      this.loadStats();
-      this.loadSupplierInvoices();
-      this.loadConventions();
+      this.refreshDossier();
     }
   }
 
-  get clientParticulier(): ClientParticulier | null {
-    return this.client && this.client.typeClient === TypeClient.PARTICULIER ? (this.client as ClientParticulier) : null;
+  refreshDossier(): void {
+    if (!this.clientId) return;
+    this.loading.set(true);
+    
+    // 1. Initial Load: Basic client info + Consolidated Summary (Performance optimization)
+    this.loadClientData();
+    this.loadSummaryData();
+    
+    // 2. Functional Load: Medical history (always needed first)
+    this.loadFiches();
+    this.loadDossierData(); // Basic factures list
+    
+    // 3. Reset lazy tabs
+    this.loadedTabs.clear();
+    this.loadedTabs.add('Fiches Médicales'); // Default active
+    this.loadedTabs.add('Facturation'); // Default list
   }
 
-  get clientProfessionnel(): ClientProfessionnel | null {
-    return this.client && this.client.typeClient === TypeClient.PROFESSIONNEL ? (this.client as ClientProfessionnel) : null;
+  onTabChange(event: any): void {
+    const label = event.tab.textLabel;
+    if (this.loadedTabs.has(label)) return;
+
+    this.loadedTabs.add(label);
+    
+    // Lazy load mapping based on tab labels (more robust than indices with *ngIf)
+    switch (label) {
+      case 'BL Fournisseurs':
+        this.loadSupplierInvoices();
+        break;
+      case 'Convention & Contacts':
+        this.loadConventions();
+        break;
+    }
   }
 
-  get clientAnonyme(): ClientAnonyme | null {
-    return this.client && this.client.typeClient === TypeClient.ANONYME ? (this.client as ClientAnonyme) : null;
+  loadSummaryData(): void {
+    if (!this.clientId) return;
+    
+    this.clientService.getClientSummary(this.clientId).subscribe({
+      next: (summary) => {
+        this.clientStats.set({
+          ca: summary.ca,
+          paiements: summary.paiements,
+          reste: summary.reste
+        });
+
+        this.updateLoyaltyState(summary.isEligibleForReward, summary.pointsFidelite, summary.rewardThreshold);
+        this.cdr.markForCheck();
+      },
+      error: (err) => console.error('Error loading summary:', err)
+    });
   }
 
-  // Rewards
-  isEligibleForReward = false;
-  rewardThreshold = 0;
+  parrain = computed(() => this.client()?.parrain);
+  filleuls = computed(() => (this.client() as any)?.filleuls || []);
+
+  // Rewards (Now using signals to prevent NG02100 ExpressionChanged errors)
+  // Rewards (Now using reactive computed signals for absolute reliability)
+  rewardThreshold = signal(500);
+  isEligibleForReward = computed(() => {
+    const c = this.client();
+    if (!c) return false;
+    
+    // Strict numeric coercion to avoid JS "string comparison" pitfalls
+    const pts = Number(c.pointsFidelite || 0);
+    const threshold = Number(this.rewardThreshold() || 500);
+    
+    // Force a minimum logical threshold of 500 for the banner to be safe
+    // and ensure we are doing a numeric comparison.
+    const eligible = pts >= Math.max(threshold, 500);
+    
+    console.log(`[Loyalty DEBUG] Pts: ${pts}, Threshold: ${threshold}, FinalEligible: ${eligible}`);
+    return eligible;
+  });
 
   loadClientData(): void {
     if (!this.clientId) return;
 
     this.clientService.getClient(this.clientId).subscribe({
       next: (client) => {
-        this.client = client || null;
+        this.client.set(client || null);
         if (client && (client as any).pointsHistory) {
           this.pointsHistory.set((client as any).pointsHistory);
         }
@@ -213,12 +292,12 @@ export class ClientDetailComponent implements OnInit {
         // Check reward eligibility
         this.checkRewardEligibility();
 
-        this.loading = false;
+        this.loading.set(false);
         this.cdr.markForCheck();
       },
       error: (error) => {
         console.error('Erreur chargement client:', error);
-        this.loading = false;
+        this.loading.set(false);
       }
     });
   }
@@ -228,7 +307,15 @@ export class ClientDetailComponent implements OnInit {
 
     this.ficheService.getFichesByClient(this.clientId).subscribe({
       next: (fiches) => {
-        this.fiches = fiches;
+        if (fiches.length > 0) {
+          console.log('📌 Debug Fiche 0 dateCreation:', fiches[0].dateCreation, typeof fiches[0].dateCreation);
+        }
+        const enrichedFiches = fiches.map((f: any) => ({
+          ...f,
+          _verresSummary: this.getVerresSummary(f).split('\n'),
+          _correctionSummary: this.getCorrectionSummary(f).split('\n')
+        }));
+        this.fiches.set(enrichedFiches);
         this.cdr.markForCheck();
       },
       error: (error) => {
@@ -237,7 +324,7 @@ export class ClientDetailComponent implements OnInit {
     });
   }
 
-  loadStats(): void {
+  loadDossierData(): void {
     if (!this.clientId) return;
 
     this.factureService.findAll({ clientId: this.clientId }).subscribe({
@@ -261,22 +348,18 @@ export class ClientDetailComponent implements OnInit {
           return sum;
         }, 0);
         const paiements = ca - reste;
+
+        this.factures.set(factures);
         this.clientStats.set({ ca, paiements, reste });
         this.cdr.markForCheck();
       },
       error: (error) => {
-        console.error('Erreur chargement stats (factures):', error);
+        console.error('Erreur chargement factures:', error);
       }
     });
   }
 
-  get parrain(): any {
-    return (this.client as any)?.parrain;
-  }
-
-  get filleuls(): any[] {
-    return (this.client as any)?.filleuls || [];
-  }
+  // Parrain/Filleuls computed signals now handled above
 
   createFicheMonture(): void {
     this.router.navigate(['/p/clients', this.clientId, 'fiche-monture', 'new']);
@@ -493,14 +576,15 @@ export class ClientDetailComponent implements OnInit {
   }
 
   private saveAttachment(newFile: any): void {
-    if (!this.client || !this.clientId) return;
+    const c = this.client();
+    if (!c || !this.clientId) return;
 
     const currentAttachments = this.attachments();
     const updatedAttachments = [...currentAttachments, newFile];
 
     // Persist in dossierMedical JSON
     const updatedDossierMedical = {
-      ...(this.client as any).dossierMedical,
+      ...(c as any).dossierMedical,
       attachments: updatedAttachments
     };
 
@@ -521,12 +605,13 @@ export class ClientDetailComponent implements OnInit {
 
   deleteAttachment(attachmentId: string): void {
     if (!confirm('Voulez-vous vraiment supprimer ce fichier ?')) return;
-    if (!this.client || !this.clientId) return;
+    const c = this.client();
+    if (!c || !this.clientId) return;
 
     const updatedAttachments = this.attachments().filter(a => a.id !== attachmentId);
 
     const updatedDossierMedical = {
-      ...(this.client as any).dossierMedical,
+      ...(c as any).dossierMedical,
       attachments: updatedAttachments
     };
 
@@ -560,34 +645,35 @@ export class ClientDetailComponent implements OnInit {
   }
 
   toggleEditMode(): void {
-    this.isEditMode = !this.isEditMode;
+    this.isEditMode.set(!this.isEditMode());
   }
 
   saveClient(): void {
-    if (!this.clientId || !this.client) return;
+    const c = this.client();
+    if (!this.clientId || !c) return;
     
     // We only update basic info + conventionId here for now as per the existing flow
     const updateData: any = {
-      conventionId: this.client.conventionId
+      conventionId: c.conventionId
     };
 
-    if (isClientParticulier(this.client)) {
-       updateData.nom = (this.client as any).nom;
-       updateData.prenom = (this.client as any).prenom;
-       updateData.telephone = this.client.telephone;
-       updateData.email = this.client.email;
-       updateData.adresse = this.client.adresse;
-    } else if (isClientProfessionnel(this.client)) {
-       updateData.raisonSociale = this.client.raisonSociale;
-       updateData.telephone = this.client.telephone;
-       updateData.email = this.client.email;
-       updateData.adresse = this.client.adresse;
+    if (isClientParticulier(c)) {
+       updateData.nom = (c as any).nom;
+       updateData.prenom = (c as any).prenom;
+       updateData.telephone = c.telephone;
+       updateData.email = c.email;
+       updateData.adresse = c.adresse;
+    } else if (isClientProfessionnel(c)) {
+       updateData.raisonSociale = c.raisonSociale;
+       updateData.telephone = c.telephone;
+       updateData.email = c.email;
+       updateData.adresse = c.adresse;
     }
 
     this.clientService.updateClient(this.clientId, updateData).subscribe({
       next: (updated) => {
-        this.client = updated;
-        this.isEditMode = false;
+        this.client.set(updated);
+        this.isEditMode.set(false);
         this.snackBar.open('Client mis à jour avec succès', 'OK', { duration: 3000 });
         this.cdr.markForCheck();
       },
@@ -613,7 +699,7 @@ export class ClientDetailComponent implements OnInit {
       this.ficheService.deleteFiche(fiche.id).subscribe({
         next: () => {
           this.loadFiches();
-          this.loadStats();
+          this.loadDossierData();
         },
         error: (err) => alert(err.error?.message || err.message || 'Impossible de supprimer cette fiche.')
       });
@@ -624,20 +710,28 @@ export class ClientDetailComponent implements OnInit {
 
   checkRewardEligibility(): void {
     if (!this.clientId) return;
-    console.log('[REWARD] Checking eligibility for client:', this.clientId);
     this.loyaltyService.checkRewardEligibility(this.clientId).subscribe({
       next: (result) => {
-        console.log('[REWARD] Eligibility result:', result);
-        this.isEligibleForReward = result.eligible;
-        this.rewardThreshold = result.threshold;
-        if (this.client && result.currentPoints !== undefined) {
-          this.client.pointsFidelite = result.currentPoints;
-        }
-        console.log('[REWARD] isEligibleForReward:', this.isEligibleForReward, 'threshold:', this.rewardThreshold);
+        this.updateLoyaltyState(result.eligible, result.currentPoints, result.threshold);
         this.cdr.markForCheck();
       },
       error: (err) => console.error('[REWARD] Error checking eligibility:', err)
     });
+  }
+
+  private updateLoyaltyState(isEligible: boolean, points: any, threshold: any): void {
+    const currentPoints = Number(points) || 0;
+    const currentThreshold = Number(threshold) || 500;
+    
+    console.log(`[Loyalty] Syncing state - Pts: ${currentPoints}, Threshold: ${currentThreshold}`);
+    
+    this.rewardThreshold.set(currentThreshold);
+    
+    const c = this.client();
+    if (c && points !== undefined) {
+       c.pointsFidelite = currentPoints;
+       this.client.set({...c});
+    }
   }
 
   redeemRewardWithType(type: 'DISCOUNT' | 'MAD_BONUS'): void {
@@ -651,8 +745,7 @@ export class ClientDetailComponent implements OnInit {
     this.loyaltyService.redeemReward(this.clientId, type).subscribe({
       next: () => {
         alert('Récompense appliquée avec succès !');
-        this.loadClientData(); // Reload points
-        this.isEligibleForReward = false;
+        this.loadClientData(); // This will update pointsFidelite which triggers the computed signal to hide the banner
       },
       error: (err) => alert('Erreur lors de l\'échange de points: ' + err.message)
     });
@@ -754,22 +847,23 @@ export class ClientDetailComponent implements OnInit {
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
         this.loadSupplierInvoices();
-        this.loadStats(); // Update client global stats too if payment affected it (though BL payments are supplier expenses)
+        this.loadDossierData(); // Update client global stats too if payment affected it (though BL payments are supplier expenses)
         this.snackBar.open('Paiement enregistré avec succès', 'Fermer', { duration: 3000 });
       }
     });
   }
 
   sendControlReminder(fiche: FicheClient): void {
-    if (!this.client?.telephone) {
+    const c = this.client();
+    if (!c?.telephone) {
       this.snackBar.open('Ce client n\'a pas de numéro de téléphone renseigné', 'Fermer', { duration: 3000 });
       return;
     }
 
     this.messagingService.openWhatsApp(
-      this.client.telephone,
+      c.telephone,
       'CONTROL_REMINDER',
-      { name: this.clientDisplayName }
+      { name: this.clientDisplayName() }
     );
   }
 }

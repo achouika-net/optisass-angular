@@ -153,7 +153,8 @@ export class FactureFormComponent implements OnInit {
 
         if (isLoadingExisting) {
             console.log('⏳ [FactureForm] Detected existing ID:', routeId, '. Waiting for loadFacture...');
-            this.isLoading = true; // [FIX] Show loading immediately for existing docs
+            this.isLoading = true;
+            this.id = routeId; // Ensure ID is adopted
         } else if (isCreationMode) {
             console.log('✨ [FactureForm] Mode: Creation (Definitive)');
             // Only set default type/statut if creating NEW invoice
@@ -161,7 +162,7 @@ export class FactureFormComponent implements OnInit {
                 type: 'DEVIS',
                 statut: 'BROUILLON'
             }, { emitEvent: false });
-            this.isLoading = false; // [FIX] Ensure loader is off for new records
+            this.isLoading = false;
         } else {
             console.log('💤 [FactureForm] Embedded but no ID yet. Waiting for ngOnChanges...');
         }
@@ -215,6 +216,20 @@ export class FactureFormComponent implements OnInit {
             } else if (newVal === 'new' && this.id !== 'new') {
                 console.log('✨ [FactureForm] factureId transitioned to NEW. Initializing defaults.');
                 this.id = 'new';
+                this.form.reset({
+                    dateEmission: new Date(),
+                    clientId: this.clientIdInput || '',
+                    lignes: [],
+                    proprietes: {
+                        tvaRate: 0.20,
+                        nomenclature: this.nomenclature || '',
+                        remiseGlobalType: 'PERCENT',
+                        remiseGlobalValue: 0,
+                        pointsUtilises: 0,
+                        vendeurId: this.form.get('proprietes.vendeurId')?.value
+                    }
+                }, { emitEvent: false });
+                
                 this.form.patchValue({
                     type: 'DEVIS',
                     statut: 'BROUILLON'
@@ -311,8 +326,21 @@ export class FactureFormComponent implements OnInit {
         // Check if we're in explicit view mode from route
         const isExplicitViewMode = this.route?.snapshot?.queryParamMap?.get('mode') === 'view';
 
-        // Only treat as read-only if explicitly in view mode or readonly flag is set
-        if (this.isReadonly || isExplicitViewMode) {
+        const type = String(this.form.get('type')?.value || '').toUpperCase();
+        const statut = String(this.form.get('statut')?.value || '').toUpperCase();
+        const hasPayments = this.paiements && this.paiements.length > 0;
+
+        // Document is read-only if explicitly asked OR it's no longer a modifiable draft
+        const isLockedDocument = 
+            type === 'FACTURE' || 
+            type === 'BON_COMM' || 
+            type === 'AVOIR' || 
+            statut === 'VALIDE' || 
+            statut === 'VALIDEE' || 
+            hasPayments;
+
+        // Only treat as read-only if explicitly in view mode, readonly flag is set, or document must be locked
+        if (this.isReadonly || isExplicitViewMode || isLockedDocument) {
             this.isViewMode = true;
             this.form.disable();
         } else {
@@ -535,6 +563,7 @@ export class FactureFormComponent implements OnInit {
             qte: [1, [Validators.required, Validators.min(1)]],
             prixUnitaireTTC: [0, [Validators.required, Validators.min(0)]],
             remise: [0],
+            remiseType: ['AMOUNT'], // Support for percent or amount per line
             totalTTC: [0],
             productId: [null],
             entrepotId: [null],
@@ -577,9 +606,19 @@ export class FactureFormComponent implements OnInit {
         const line = this.lignes.at(index);
         const qte = line.get('qte')?.value || 0;
         const puTTC = line.get('prixUnitaireTTC')?.value || 0;
-        const remise = line.get('remise')?.value || 0;
+        const remiseVal = line.get('remise')?.value || 0;
+        const remiseType = line.get('remiseType')?.value || 'AMOUNT';
 
-        const total = (qte * puTTC) - remise;
+        let actualRemise = 0;
+        if (remiseVal > 0) {
+            if (remiseType === 'PERCENT') {
+                actualRemise = (qte * puTTC) * (remiseVal / 100);
+            } else {
+                actualRemise = remiseVal;
+            }
+        }
+
+        const total = (qte * puTTC) - actualRemise;
         line.patchValue({ totalTTC: total }, { emitEvent: false });
 
         this.calculateTotals();

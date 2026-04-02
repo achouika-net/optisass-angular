@@ -2,10 +2,10 @@
   [style.padding-left]="isCollapsed() ? '8px' : '16px'">
   <div class="flex w-full items-center gap-2">
     @if (!isCollapsed() && !isMobile()) {
-    <img [ngSrc]="logo()" width="1473" height="369" alt="homepage-logo" [routerLink]="['/p']"
+    <img [ngSrc]="logo()" priority width="1473" height="369" alt="homepage-logo" [routerLink]="['/p']"
       class="cursor-pointer w-[240px] h-full brightness-0 invert" />
     } @else {
-    <img [ngSrc]="circleLogo()" width="45" height="45" alt="homepage-logo" [routerLink]="['/p']"
+    <img [ngSrc]="circleLogo()" priority width="45" height="45" alt="homepage-logo" [routerLink]="['/p']"
       class="cursor-pointer brightness-0 invert" />
     }
 
