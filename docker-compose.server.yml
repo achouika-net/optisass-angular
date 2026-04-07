@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: optisass-angular-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: optisaas
+    ports:
+      - "5435:5432"
+    volumes:
+      - optisass_angular_pgdata:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+
+  minio:
+    image: minio/minio:latest
+    container_name: optisass-angular-minio
+    restart: always
+    ports:
+      - "9002:9000"
+      - "9003:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - optisass_angular_minio_data:/data
+
+volumes:
+  optisass_angular_pgdata:
+  optisass_angular_minio_data:

@@ -3,14 +3,15 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateBonLivraisonDto } from './dto/create-bon-livraison.dto';
 import { ProductsService } from '../products/products.service';
 import { normalizeToUTCNoon } from '../../shared/utils/date-utils';
-import * as fs from 'fs';
 import * as path from 'path';
+import { StorageService } from '../../common/storage/storage.service';
 
 @Injectable()
 export class BonLivraisonService {
     constructor(
         private prisma: PrismaService,
         private productsService: ProductsService,
+        private storage: StorageService,
     ) { }
 
     async create(createDto: CreateBonLivraisonDto) {
@@ -47,19 +48,9 @@ export class BonLivraisonService {
 
         let pieceJointeUrl = blData.pieceJointeUrl;
         if (base64File && fileName) {
-            const uploadDir = path.join(process.cwd(), 'uploads', 'bl');
-            if (!fs.existsSync(uploadDir)) {
-                fs.mkdirSync(uploadDir, { recursive: true });
-            }
             const fileExt = path.extname(fileName) || '.jpg';
             const safeName = `bl_${Date.now()}${fileExt}`;
-            const filePath = path.join(uploadDir, safeName);
-            const buffer = Buffer.from(
-                base64File.replace(/^data:.*?;base64,/, ''),
-                'base64',
-            );
-            fs.writeFileSync(filePath, buffer);
-            pieceJointeUrl = `/uploads/bl/${safeName}`;
+            pieceJointeUrl = await this.storage.uploadBase64(base64File, 'bl', safeName);
         }
 
         const finalEcheances = echeances || [];
@@ -245,19 +236,9 @@ export class BonLivraisonService {
         // Handle File Attachment Update
         let pieceJointeUrl = inputData.pieceJointeUrl;
         if (base64File && fileName) {
-            const uploadDir = path.join(process.cwd(), 'uploads', 'bl');
-            if (!fs.existsSync(uploadDir)) {
-                fs.mkdirSync(uploadDir, { recursive: true });
-            }
             const fileExt = path.extname(fileName) || '.jpg';
             const safeName = `bl_update_${Date.now()}${fileExt}`;
-            const filePath = path.join(uploadDir, safeName);
-            const buffer = Buffer.from(
-                base64File.replace(/^data:.*?;base64,/, ''),
-                'base64',
-            );
-            fs.writeFileSync(filePath, buffer);
-            pieceJointeUrl = `/uploads/bl/${safeName}`;
+            pieceJointeUrl = await this.storage.uploadBase64(base64File, 'bl', safeName);
         }
 
         return this.prisma.$transaction(async (tx) => {

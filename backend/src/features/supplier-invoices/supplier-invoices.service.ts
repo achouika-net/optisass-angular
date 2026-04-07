@@ -3,14 +3,15 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSupplierInvoiceDto } from './dto/create-supplier-invoice.dto';
 import { ProductsService } from '../products/products.service';
 import { normalizeToUTCNoon } from '../../shared/utils/date-utils';
-import * as fs from 'fs';
 import * as path from 'path';
+import { StorageService } from '../../common/storage/storage.service';
 
 @Injectable()
 export class SupplierInvoicesService {
   constructor(
     private prisma: PrismaService,
     private productsService: ProductsService,
+    private storage: StorageService,
   ) { }
 
   async create(createDto: CreateSupplierInvoiceDto) {
@@ -49,19 +50,9 @@ export class SupplierInvoicesService {
     // Handle File Attachment
     let pieceJointeUrl = invoiceData.pieceJointeUrl;
     if (base64File && fileName) {
-      const uploadDir = path.join(process.cwd(), 'uploads', 'invoices');
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
       const fileExt = path.extname(fileName) || '.jpg';
       const safeName = `inv_${Date.now()}${fileExt}`;
-      const filePath = path.join(uploadDir, safeName);
-      const buffer = Buffer.from(
-        base64File.replace(/^data:.*?;base64,/, ''),
-        'base64',
-      );
-      fs.writeFileSync(filePath, buffer);
-      pieceJointeUrl = `/uploads/invoices/${safeName}`;
+      pieceJointeUrl = await this.storage.uploadBase64(base64File, 'invoices', safeName);
     }
 
     const status = this.calculateInvoiceStatus(
@@ -245,45 +236,21 @@ export class SupplierInvoicesService {
     }
 
     // 2. Process New Attachments (Array)
-    const uploadDir = path.join(process.cwd(), 'uploads', 'invoices');
-    if (newAttachments.length > 0 && !fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
     for (const attachment of newAttachments) {
       if (attachment.base64 && attachment.name) {
         const fileExt = path.extname(attachment.name) || '.jpg';
         const safeName = `inv_${Date.now()}_${Math.round(Math.random() * 1000)}${fileExt}`;
-        const filePath = path.join(uploadDir, safeName);
-
-        // Base64 cleanup
-        const matches = attachment.base64.match(
-          /^data:([A-Za-z-+\/]+);base64,(.+)$/,
-        );
-        let fileData = attachment.base64;
-        if (matches && matches.length === 3) fileData = matches[2];
-        else fileData = attachment.base64.replace(/^data:.*?;base64,/, '');
-
-        fs.writeFileSync(filePath, Buffer.from(fileData, 'base64'));
-        finalUrls.push(`/uploads/invoices/${safeName}`);
+        const url = await this.storage.uploadBase64(attachment.base64, 'invoices', safeName);
+        finalUrls.push(url);
       }
     }
 
     // 3. Fallback: Legacy Single File (if newAttachments empty but base64File present)
     if (newAttachments.length === 0 && base64File && fileName) {
-      if (!fs.existsSync(uploadDir))
-        fs.mkdirSync(uploadDir, { recursive: true });
       const fileExt = path.extname(fileName) || '.jpg';
       const safeName = `inv_update_${Date.now()}${fileExt}`;
-      const filePath = path.join(uploadDir, safeName);
-
-      const matches = base64File.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-      let fileData = base64File;
-      if (matches && matches.length === 3) fileData = matches[2];
-      else fileData = base64File.replace(/^data:.*?;base64,/, '');
-
-      fs.writeFileSync(filePath, Buffer.from(fileData, 'base64'));
-      finalUrls.push(`/uploads/invoices/${safeName}`);
+      const url = await this.storage.uploadBase64(base64File, 'invoices', safeName);
+      finalUrls.push(url);
     }
 
     // 4. Save combined URLs
@@ -467,20 +434,15 @@ export class SupplierInvoicesService {
 
     // Handle Attachments (Shared logic with create/update)
     let finalPieceJointeUrl = invoiceData.pieceJointeUrl || '';
-    const uploadDir = path.join(process.cwd(), 'uploads', 'invoices');
 
     if (newAttachments && newAttachments.length > 0) {
-      if (!fs.existsSync(uploadDir))
-        fs.mkdirSync(uploadDir, { recursive: true });
       const urls: string[] = [];
       for (const attachment of newAttachments) {
         if (attachment.base64 && attachment.name) {
           const fileExt = path.extname(attachment.name) || '.jpg';
           const safeName = `grouped_${Date.now()}_${Math.round(Math.random() * 1000)}${fileExt}`;
-          const filePath = path.join(uploadDir, safeName);
-          const fileData = attachment.base64.replace(/^data:.*?;base64,/, '');
-          fs.writeFileSync(filePath, Buffer.from(fileData, 'base64'));
-          urls.push(`/uploads/invoices/${safeName}`);
+          const url = await this.storage.uploadBase64(attachment.base64, 'invoices', safeName);
+          urls.push(url);
         }
       }
       finalPieceJointeUrl = urls.join(';');

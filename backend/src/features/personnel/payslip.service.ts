@@ -1,17 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
-import * as fs from 'fs';
-import * as path from 'path';
+import { StorageService } from '../../common/storage/storage.service';
 
 @Injectable()
 export class PayslipService {
-  private readonly uploadDir = path.join(process.cwd(), 'uploads', 'payslips');
-
-  constructor() {
-    if (!fs.existsSync(this.uploadDir)) {
-      fs.mkdirSync(this.uploadDir, { recursive: true });
-    }
-  }
+  constructor(private readonly storage: StorageService) {}
 
   async generate(
     employee: any,
@@ -21,10 +14,11 @@ export class PayslipService {
   ) {
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
     const fileName = `payslip-${employee.id}-${payroll.mois}-${payroll.annee}.pdf`;
-    const filePath = path.join(this.uploadDir, fileName);
-    const stream = fs.createWriteStream(filePath);
+    const chunks: Buffer[] = [];
 
-    doc.pipe(stream);
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+
+    doc.pipe(require('stream').PassThrough());
 
     // Header - Professional look
     doc
@@ -229,8 +223,16 @@ export class PayslipService {
     doc.end();
 
     return new Promise((resolve, reject) => {
-      stream.on('finish', () => resolve(`/uploads/payslips/${fileName}`));
-      stream.on('error', reject);
+      doc.on('end', async () => {
+        try {
+          const buffer = Buffer.concat(chunks);
+          const url = await this.storage.uploadBuffer(buffer, 'payslips', fileName, 'application/pdf');
+          resolve(url);
+        } catch (err) {
+          reject(err);
+        }
+      });
+      doc.on('error', reject);
     });
   }
 }

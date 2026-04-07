@@ -1,5 +1,7 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { existsSync } from 'fs';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -32,8 +34,6 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaService } from './prisma/prisma.service';
 import { PersonnelModule } from './features/personnel/personnel.module';
 import { AuthModule } from './features/auth/auth.module';
-import { ServeStaticModule } from '@nestjs/serve-static';
-import { join } from 'path';
 import { AccountingModule } from './features/accounting/accounting.module';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
 import { ImportsModule } from './features/imports/imports.module';
@@ -43,10 +43,12 @@ import { GlassParametersModule } from './features/glass-parameters/glass-paramet
 import { GlassParametersController } from './features/glass-parameters/glass-parameters.controller';
 import { DiagController } from './diag.controller';
 import { UploadsModule } from './features/uploads/uploads.module';
+import { StorageModule } from './common/storage/storage.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    StorageModule,
     PrismaModule,
     GroupsModule,
     CentersModule,
