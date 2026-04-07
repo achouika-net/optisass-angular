@@ -39,6 +39,7 @@
     "compression": "^1.8.1",
     "dayjs": "^1.11.19",
     "jsonwebtoken": "^9.0.3",
+    "minio": "^8.0.7",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.12",
     "pdfkit": "^0.17.2",

@@ -10,7 +10,8 @@ export const environment = {
   defaultLanguage: 'fr',
   appName: 'Agenda',
   // Pour le deploy VPS: toutes les requetes API passent par le proxy Nginx (/api)
-  apiUrl: isLocal ? 'http://localhost:3000' : '',
+  // Cela evite ERR_CONNECTION_REFUSED sur le port 3003
+  apiUrl: isLocal ? 'http://localhost:3003' : '',
   websocketUrl: 'wss://optisaas.com/app/',
   appVersion: '2.0.0',
   geoapifyApiKey: '',
