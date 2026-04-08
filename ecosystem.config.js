@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'optisass-angular-api',
-      script: 'dist/src/main.js',
+      script: 'dist/main.js',
       cwd: '/home/ubuntu/projects/optisass-angular/backend',
       node_args: '--max-old-space-size=1800',
       env: {
