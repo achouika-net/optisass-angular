@@ -19,6 +19,9 @@ import { MatChipsModule } from '@angular/material/chips';
 
 import { PersonnelService } from '../services/personnel.service';
 import { Employee } from '../../../shared/interfaces/employee.interface';
+import { Store } from '@ngrx/store';
+import { UserCurrentCentreSelector } from '../../../core/store/auth/auth.selectors';
+import { effect } from '@angular/core';
 
 @Component({
     selector: 'app-employee-list',
@@ -57,11 +60,23 @@ export class EmployeeListComponent implements OnInit, AfterViewInit {
         statut: ''
     };
 
+    currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
+
     constructor(
         private personnelService: PersonnelService,
-        private dialog: MatDialog
+        private dialog: MatDialog,
+        private store: Store
     ) {
         this.dataSource = new MatTableDataSource<Employee>([]);
+        
+        // Automatically reload when center changes
+        effect(() => {
+            const center = this.currentCentre() as any;
+            if (center && center.id) {
+                this.filter.centreId = center.id;
+                this.loadEmployees();
+            }
+        });
     }
 
     ngOnInit(): void {

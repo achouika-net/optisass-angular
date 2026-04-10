@@ -85,7 +85,7 @@ export class ExpenseListComponent implements OnInit {
   loading = false;
   currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
 
-  selectedPeriod = signal<string>('all');
+  selectedPeriod = signal<string>('this-month');
   periods = [
     { value: 'all', label: 'Toutes les périodes' },
     { value: 'today', label: "Aujourd'hui" },
@@ -103,6 +103,11 @@ export class ExpenseListComponent implements OnInit {
   totalCount = 0;
   pageIndex = 0;
   pageSize = 10;
+  
+  subtotals = {
+    count: 0,
+    totalDepenses: 0
+  };
 
   constructor(
     private financeService: FinanceService,
@@ -173,6 +178,14 @@ export class ExpenseListComponent implements OnInit {
           this.expenses = Array.isArray(res) ? res : [];
           this.totalCount = this.expenses.length;
         }
+        
+        let total = 0;
+        this.expenses.forEach(e => total += (Number(e.montant) || 0));
+        this.subtotals = {
+           count: this.totalCount,
+           totalDepenses: total
+        };
+
         this.loading = false;
         this.cdr.detectChanges();
       },

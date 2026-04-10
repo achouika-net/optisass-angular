@@ -1,27 +1,70 @@
 <div class="container">
     <div class="header">
         <h1 class="text-2xl font-bold flex items-center gap-2">
-            <mat-icon color="primary">payments</mat-icon>
-            {{ activeTab === 'OUTGOING' ? 'Paiements Sortants' : (activeTab === 'INCOMING' ? 'Paiements Entrants' :
-            (activeTab === 'UNPAID_CLIENTS' ? 'Reste à payer' : (activeTab === 'FACTURES' ? 'Gestion Dépenses
-            (Factures)' : 'Bon de livraison BL'))) }}
+            <mat-icon color="primary">{{ viewMode === 'FACTURES' ? 'receipt_long' : 'payments' }}</mat-icon>
+            {{ activeTab === 'OUTGOING' ? 'Sortants (Fournisseurs)' : 
+               activeTab === 'INCOMING' ? 'Entrants (Clients)' : 
+               activeTab === 'UNPAID_CLIENTS' ? 'Reste à payer (Clients)' : 
+               activeTab === 'FACTURES' ? 'Factures Fournisseur' : 
+               activeTab === 'BL' ? 'Bons de livraison (BL)' : 'Historique BC' }}
         </h1>
         <div class="flex gap-2">
             <button mat-stroked-button color="warn" (click)="resetFilters()"
                 *ngIf="['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(activeTab)">
                 <mat-icon>refresh</mat-icon>
-                Réinitialiser Filters
             </button>
         </div>
     </div>
 
-    <mat-tab-group *ngIf="['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(activeTab)"
-        [selectedIndex]="activeTab === 'OUTGOING' ? 0 : (activeTab === 'INCOMING' ? 1 : 2)"
+    <mat-tab-group 
+        *ngIf="viewMode === 'PAIEMENTS'"
+        [selectedIndex]="filteredTabs.indexOf(activeTab)"
         (selectedTabChange)="onTabChange($event)">
+        
         <mat-tab label="Sortants (Fournisseurs)"></mat-tab>
         <mat-tab label="Entrants (Clients)"></mat-tab>
         <mat-tab label="Reste à payer (Clients)"></mat-tab>
     </mat-tab-group>
+
+    <!-- Subtotals Summary Cards (Visible for relevant tabs) -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 mt-6" *ngIf="['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS', 'FACTURES', 'BL'].includes(activeTab)">
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+            <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Nombre d'opérations</span>
+            <span class="text-2xl font-black text-slate-800">{{ subtotals.count }}</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+            <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total TTC</span>
+            <span class="text-2xl font-black"
+                [ngClass]="(activeTab === 'OUTGOING' || activeTab === 'FACTURES' || activeTab === 'BL') ? 'text-red-600' : 'text-green-600'">
+                {{ subtotals.totalTTC | number:'1.2-2' }} DH
+            </span>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center"
+            *ngIf="['OUTGOING', 'FACTURES', 'BL'].includes(activeTab)">
+            <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total HT</span>
+            <span class="text-2xl font-black text-slate-700">
+                {{ subtotals.totalHT | number:'1.2-2' }} DH
+            </span>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center"
+            *ngIf="activeTab === 'UNPAID_CLIENTS'">
+            <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total Reste à Payer</span>
+            <span class="text-2xl font-black text-orange-600">
+                {{ subtotals.totalReste | number:'1.2-2' }} DH
+            </span>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center"
+            *ngIf="activeTab === 'INCOMING'">
+            <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Paiements Validés (Encaissements)</span>
+            <span class="text-2xl font-black text-green-700">
+                {{ subtotals.totalTTC | number:'1.2-2' }} DH
+            </span>
+        </div>
+    </div>
 
     <ng-container *ngIf="['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(activeTab)">
         <mat-card class="mt-4 mb-6">
@@ -90,38 +133,6 @@
             </mat-card-content>
         </mat-card>
 
-        <!-- Subtotals Summary Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-                <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Nombre d'opérations</span>
-                <span class="text-2xl font-black text-slate-800">{{ subtotals.count }}</span>
-            </div>
-
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-                <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total TTC</span>
-                <span class="text-2xl font-black"
-                    [ngClass]="(activeTab === 'OUTGOING') ? 'text-red-600' : 'text-green-600'">
-                    {{ subtotals.totalTTC | number:'1.2-2' }} DH
-                </span>
-            </div>
-
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center"
-                *ngIf="activeTab === 'OUTGOING'">
-                <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total HT</span>
-                <span class="text-2xl font-black text-slate-700">
-                    {{ subtotals.totalHT | number:'1.2-2' }} DH
-                </span>
-            </div>
-
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center"
-                *ngIf="activeTab === 'UNPAID_CLIENTS'">
-                <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total Reste à Payer</span>
-                <span class="text-2xl font-black text-orange-600">
-                    {{ subtotals.totalReste | number:'1.2-2' }} DH
-                </span>
-            </div>
-        </div>
-
         <mat-card class="relative">
             <!-- Loading Overlay -->
             <div *ngIf="loading"
@@ -170,6 +181,27 @@
                     <ng-container matColumnDef="type">
                         <th mat-header-cell *matHeaderCellDef>Type</th>
                         <td mat-cell *matCellDef="let p">{{ p.type }}</td>
+                    </ng-container>
+                    
+                    <ng-container matColumnDef="methodePaiement">
+                        <th mat-header-cell *matHeaderCellDef>Mode</th>
+                        <td mat-cell *matCellDef="let p">
+                            <span class="text-xs font-semibold uppercase text-blue-800">{{ p.methodePaiement || p.method || '-' }}</span>
+                        </td>
+                    </ng-container>
+                    
+                    <ng-container matColumnDef="numeroPiece">
+                        <th mat-header-cell *matHeaderCellDef>N° Pièce</th>
+                        <td mat-cell *matCellDef="let p">
+                            <span class="text-xs">{{ p.numeroPiece || p.numCheque || '-' }}</span>
+                        </td>
+                    </ng-container>
+                    
+                    <ng-container matColumnDef="datePiece">
+                        <th mat-header-cell *matHeaderCellDef>Date Pièce</th>
+                        <td mat-cell *matCellDef="let p">
+                            <span class="text-xs">{{ (p.datePiece || p.dateEcheance) | date:'dd/MM/yyyy' }}</span>
+                        </td>
                     </ng-container>
 
                     <ng-container matColumnDef="fournisseur">
@@ -280,12 +312,12 @@
 
     <div *ngIf="activeTab === 'FACTURES'" class="mt-4">
         <app-supplier-invoice-list listMode="INVOICE" [isSubComponent]="true"
-            [showHeader]="true"></app-supplier-invoice-list>
+            [showHeader]="true" (statsUpdated)="onSubComponentStatsUpdated($event)"></app-supplier-invoice-list>
     </div>
 
     <div *ngIf="activeTab === 'BL'" class="mt-4">
         <app-supplier-invoice-list listMode="BL" [isSubComponent]="true"
-            [showHeader]="true"></app-supplier-invoice-list>
+            [showHeader]="true" (statsUpdated)="onSubComponentStatsUpdated($event)"></app-supplier-invoice-list>
     </div>
 
     <div *ngIf="activeTab === 'BC_HISTORY'" class="mt-4">

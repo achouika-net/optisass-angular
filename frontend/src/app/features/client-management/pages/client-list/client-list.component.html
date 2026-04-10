@@ -121,8 +121,13 @@
     <!-- Data Table -->
     <mat-card class="!shadow-sm !border !border-gray-200">
         <mat-card-content>
-            <div class="table-container">
-                <table mat-table [dataSource]="paginatedClients()" class="w-full">
+            <!-- Loading overlay -->
+            <div *ngIf="loading()" class="flex items-center justify-center py-8 gap-4">
+                <mat-spinner diameter="36"></mat-spinner>
+                <span class="text-gray-500">Chargement des dossiers clients...</span>
+            </div>
+            <div class="table-container" [class.hidden]="loading()">
+                <table mat-table [dataSource]="dataSource" class="w-full">
                     <!-- Date Création Column -->
                     <ng-container matColumnDef="dateCreation">
                         <th mat-header-cell *matHeaderCellDef>Date Création</th>
@@ -221,8 +226,8 @@
                 </table>
             </div>
 
-            <mat-paginator [length]="totalItems" [pageSize]="pageSize" [pageSizeOptions]="[5, 10, 25, 50]"
-                (page)="onPageChange($event)" showFirstLastButtons>
+            <mat-paginator [length]="totalItems" [pageSize]="pageSize" [pageSizeOptions]="[10, 25, 50, 100]"
+                (page)="onPageChange($event)" showFirstLastButtons aria-label="Navigation des pages clients">
             </mat-paginator>
         </mat-card-content>
     </mat-card>

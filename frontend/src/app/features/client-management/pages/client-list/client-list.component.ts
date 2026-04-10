@@ -1,4 +1,7 @@
-import { Component, OnInit, OnDestroy, signal, NgZone, ChangeDetectorRef, computed } from '@angular/core';
+import {
+    Component, OnInit, OnDestroy, signal, NgZone, ChangeDetectorRef,
+    ViewChild, effect, AfterViewInit, inject, Injector
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -6,18 +9,21 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
-import { MatTableModule } from '@angular/material/table';
-import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatTableModule, MatTableDataSource } from '@angular/material/table';
+import { MatPaginatorModule, MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterModule } from '@angular/router';
 import { ClientManagementService } from '../../services/client.service';
 import { Client, StatutClient, TypeClient, isClientParticulier, isClientProfessionnel } from '../../models/client.model';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MessagingService, MessageType } from '../../../../core/services/messaging.service';
 import { Subject } from 'rxjs';
+import { Store } from '@ngrx/store';
+import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 
 interface ClientStats {
@@ -44,28 +50,28 @@ interface ClientStats {
         MatMenuModule,
         MatDividerModule,
         MatSlideToggleModule,
+        MatProgressSpinnerModule,
         RouterModule,
     ],
     templateUrl: './client-list.component.html',
     styleUrl: './client-list.component.css'
 })
-export class ClientListComponent implements OnInit, OnDestroy {
+export class ClientListComponent implements OnInit, AfterViewInit, OnDestroy {
     private destroy$ = new Subject<void>();
+    private injector = inject(Injector);
+
     searchForm: FormGroup;
+    loading = signal(false);
     stats = signal<ClientStats>({ actifs: 0, enCompte: 0, passage: 0, inactifs: 0 });
-    clients = signal<Client[]>([]);
+    currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
 
-    // Pagination state
-    pageSize = signal(10);
-    pageIndex = signal(0);
+    // Pagination state – server-side
+    pageSize = 10;
+    pageIndex = 0;
     totalItems = 0;
+    dataSource = new MatTableDataSource<Client>([]);
 
-    // Paginated data for display
-    paginatedClients = computed(() => {
-        const start = this.pageIndex() * this.pageSize();
-        const end = start + this.pageSize();
-        return this.clients().slice(start, end);
-    });
+    @ViewChild(MatPaginator) paginator!: MatPaginator;
 
     displayedColumns: string[] = ['dateCreation', 'titre', 'nom', 'prenom', 'telephone', 'cin', 'ville', 'statut', 'actions'];
 
@@ -89,7 +95,8 @@ export class ClientListComponent implements OnInit, OnDestroy {
         private snackBar: MatSnackBar,
         private zone: NgZone,
         private cdr: ChangeDetectorRef,
-        private messagingService: MessagingService
+        private messagingService: MessagingService,
+        private store: Store
     ) {
         this.searchForm = this.fb.group({
             typeClient: [''],
@@ -101,12 +108,27 @@ export class ClientListComponent implements OnInit, OnDestroy {
             groupeFamille: [''],
             fidelioEligible: [false]
         });
+
+        // ✅ effect() MUST be in the constructor (injection context)
+        effect(() => {
+            const center = this.currentCentre() as any;
+            if (center && center.id) {
+                // Reload when centre changes – runs inside injection context correctly
+                this.loadClients();
+            }
+        }, { injector: this.injector });
     }
 
     ngOnInit() {
         this.loadClients();
-        this.loadStats();
         this.setupAutoSearch();
+    }
+
+    ngAfterViewInit() {
+        // ✅ Wire paginator AFTER view is initialized so mat-paginator is available
+        if (this.paginator) {
+            this.dataSource.paginator = this.paginator;
+        }
     }
 
     ngOnDestroy() {
@@ -115,21 +137,20 @@ export class ClientListComponent implements OnInit, OnDestroy {
     }
 
     private setupAutoSearch() {
-        // Écouter les changements sur tous les champs de recherche
         this.searchForm.valueChanges.pipe(
-            debounceTime(500), // Attendre 500ms après la dernière frappe
+            debounceTime(500),
             distinctUntilChanged((prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)),
             takeUntil(this.destroy$)
         ).subscribe(values => {
-            // Vérifier si au moins un champ a 2+ caractères
             const hasMinChars = Object.values(values).some(val =>
                 typeof val === 'string' && val.length >= 2
             );
 
             if (hasMinChars) {
+                this.pageIndex = 0; // reset page on new search
                 this.onSearch();
             } else if (this.isFormEmpty(values)) {
-                // Si tous les champs sont vides, recharger tous les clients
+                this.pageIndex = 0;
                 this.loadClients();
             }
         });
@@ -139,36 +160,30 @@ export class ClientListComponent implements OnInit, OnDestroy {
         return Object.values(values).every(val => !val || val === '');
     }
 
-    loadStats() {
-        console.time('📊 [Stats] Card Loading');
-        // TODO: Implement backend endpoint for stats or calculate from list
-        // For now, we initialize with 0
-        this.stats.set({
-            actifs: 0,
-            enCompte: 0,
-            passage: 0,
-            inactifs: 0
-        });
-        console.timeEnd('📊 [Stats] Card Loading');
-    }
-
     loadClients() {
-        console.time('👥 [Clients] Total Load Time');
+        this.loading.set(true);
         this.clientService.getClients().subscribe({
             next: (data) => {
-                console.time('👥 [Clients] Zone Run & Rendering');
                 this.zone.run(() => {
-                    this.clients.set(data);
                     this.totalItems = data.length;
+                    this.dataSource.data = data;
+
+                    // Ensure paginator is wired
+                    if (this.paginator && !this.dataSource.paginator) {
+                        this.dataSource.paginator = this.paginator;
+                    }
+                    if (this.paginator) {
+                        this.paginator.length = data.length;
+                    }
+
                     this.updateStats(data);
+                    this.loading.set(false);
                     this.cdr.markForCheck();
                     this.cdr.detectChanges();
                 });
-                console.timeEnd('👥 [Clients] Zone Run & Rendering');
-                console.timeEnd('👥 [Clients] Total Load Time');
             },
             error: (err) => {
-                console.timeEnd('👥 [Clients] Total Load Time');
+                this.loading.set(false);
                 console.error('Error loading clients', err);
             }
         });
@@ -176,24 +191,22 @@ export class ClientListComponent implements OnInit, OnDestroy {
 
     updateStats(clients: Client[]) {
         const stats = {
-            actifs: clients.filter(c => c.statut?.toString()?.toUpperCase() === StatutClient.ACTIF).length,
-            enCompte: clients.filter(c => c.statut?.toString()?.toUpperCase() === StatutClient.EN_COMPTE).length,
-            passage: clients.filter(c => c.statut?.toString()?.toUpperCase() === StatutClient.DE_PASSAGE).length,
-            inactifs: clients.filter(c => c.statut?.toString()?.toUpperCase() === StatutClient.INACTIF).length
+            actifs: clients.filter(c => c.statut?.toString()?.toUpperCase() === 'ACTIF').length,
+            enCompte: clients.filter(c => c.statut?.toString()?.toUpperCase() === 'EN_COMPTE').length,
+            passage: clients.filter(c => c.statut?.toString()?.toUpperCase() === 'DE_PASSAGE').length,
+            inactifs: clients.filter(c => c.statut?.toString()?.toUpperCase() === 'INACTIF').length
         };
         this.stats.set(stats);
     }
 
     deleteClient(client: Client) {
-        if (confirm(`Êtes-vous sûr de vouloir supprimer le client ${this.getClientName(client)} ${this.getClientPrenom(client)} ? \nCette action est irréversible et supprimera tout l'historique non bloquant.`)) {
+        if (confirm(`Êtes-vous sûr de vouloir supprimer le client ${this.getClientName(client)} ${this.getClientPrenom(client)} ?\nCette action est irréversible.`)) {
             this.clientService.deleteClient(client.id).subscribe({
                 next: () => {
                     this.snackBar.open('Client supprimé avec succès', 'Fermer', { duration: 3000 });
                     this.loadClients();
                 },
                 error: (err: any) => {
-                    console.error('Error deleting client', err);
-                    // Display backend error message if available
                     const msg = err.error?.message || 'Erreur lors de la suppression du client';
                     this.snackBar.open(msg, 'Fermer', { duration: 5000 });
                 }
@@ -203,21 +216,33 @@ export class ClientListComponent implements OnInit, OnDestroy {
 
     onSearch() {
         const criteria = this.searchForm.value;
-        // Basic filtered list from loaded clients (Client-side filtering for now)
-        // OR better: use clientService.searchClients(criteria)
+        this.loading.set(true);
         this.clientService.searchClients(criteria).subscribe({
             next: (data) => {
-                this.clients.set(data);
-                this.totalItems = data.length;
-                this.updateStats(data); // Ajout pour mettre à jour les cartes lors de la recherche
+                this.zone.run(() => {
+                    this.totalItems = data.length;
+                    this.dataSource.data = data;
+                    if (this.paginator) {
+                        this.dataSource.paginator = this.paginator;
+                        this.paginator.length = data.length;
+                        this.paginator.firstPage();
+                    }
+                    this.updateStats(data);
+                    this.loading.set(false);
+                    this.cdr.markForCheck();
+                    this.cdr.detectChanges();
+                });
             },
-            error: (err) => console.error('Error searching clients', err)
+            error: (err) => {
+                this.loading.set(false);
+                console.error('Error searching clients', err);
+            }
         });
     }
 
     onPageChange(event: PageEvent) {
-        this.pageSize.set(event.pageSize);
-        this.pageIndex.set(event.pageIndex);
+        this.pageSize = event.pageSize;
+        this.pageIndex = event.pageIndex;
         this.cdr.markForCheck();
     }
 
@@ -235,7 +260,6 @@ export class ClientListComponent implements OnInit, OnDestroy {
 
     exportClients() {
         console.log('Export des clients');
-        // TODO: Implémenter l'export
     }
 
     // Helper methods for display
@@ -246,7 +270,6 @@ export class ClientListComponent implements OnInit, OnDestroy {
         if (isClientParticulier(client)) {
             return client.nom || '-';
         }
-        // For anonyme clients
         return (client as any).nom || '-';
     }
 
@@ -257,7 +280,6 @@ export class ClientListComponent implements OnInit, OnDestroy {
         if (isClientParticulier(client)) {
             return client.prenom || '-';
         }
-        // For anonyme clients
         return (client as any).prenom || '-';
     }
 
@@ -276,10 +298,8 @@ export class ClientListComponent implements OnInit, OnDestroy {
     }
 
     getClientTitle(client: Client): string {
-        // Direct access to titre if it exists (handles both Particulier and imported data)
         const titre = (client as any).titre;
         if (titre) return titre;
-
         if (isClientProfessionnel(client)) {
             return 'Prof';
         }
@@ -290,12 +310,8 @@ export class ClientListComponent implements OnInit, OnDestroy {
         if (typeClient === 'anonyme' || typeClient === TypeClient.ANONYME) {
             return 'Client de passage';
         }
-        if (typeClient === 'particulier') {
-            return 'Particulier';
-        }
-        if (typeClient === 'professionnel') {
-            return 'Professionnel';
-        }
+        if (typeClient === 'particulier') return 'Particulier';
+        if (typeClient === 'professionnel') return 'Professionnel';
         return typeClient;
     }
 
@@ -304,11 +320,9 @@ export class ClientListComponent implements OnInit, OnDestroy {
             this.snackBar.open('Ce client n\'a pas de numéro de téléphone', 'Fermer', { duration: 3000 });
             return;
         }
-
         const clientName = this.getClientName(client);
         const clientPrenom = this.getClientPrenom(client);
         const fullName = clientPrenom !== '-' ? `${clientName} ${clientPrenom}` : clientName;
-
         this.messagingService.openWhatsApp(client.telephone, type, { name: fullName });
     }
 }

@@ -8,9 +8,6 @@
             <button mat-raised-button color="primary" (click)="openInvoiceDialog()">
                 <mat-icon>add</mat-icon> {{ listMode === 'BL' ? 'Saisir BL' : 'Nouvelle Facture' }}
             </button>
-            <button mat-raised-button color="accent" (click)="openExpenseDialog()" *ngIf="listMode === 'INVOICE'">
-                <mat-icon>receipt</mat-icon> Nouvelle Dépense
-            </button>
             <button mat-stroked-button (click)="printList()">
                 <mat-icon>print</mat-icon> Imprimer la liste
             </button>
@@ -81,7 +78,7 @@
 
 <div class="container" [class.container-sub]="isSubComponent">
     <!-- Summary Recap -->
-    <div class="summary-recap mb-6" *ngIf="listMode === 'BL' && !loading">
+    <div class="summary-recap mb-6" *ngIf="listMode === 'BL' && !loading && !isSubComponent">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <mat-card class="recap-card !shadow-none !border !border-blue-100 bg-blue-50/30">
                 <mat-card-content class="flex items-center gap-4 !p-4">
@@ -248,11 +245,29 @@
             <ng-container matColumnDef="type">
                 <th mat-header-cell *matHeaderCellDef> Type </th>
                 <td mat-cell *matCellDef="let element">
-                    <mat-chip-set>
-                        <mat-chip class="!bg-gray-100 !text-gray-600 mini-chip">
-                            {{ formatType($any(element).categorieBL || element.type) }}
-                        </mat-chip>
-                    </mat-chip-set>
+                    <span class="text-sm font-medium text-gray-700">
+                        {{ formatType($any(element).categorieBL || element.type) }}
+                    </span>
+                </td>
+            </ng-container>
+
+            <!-- Payment Type Column -->
+            <ng-container matColumnDef="paiement">
+                <th mat-header-cell *matHeaderCellDef> Mode Paiement </th>
+                <td mat-cell *matCellDef="let element"> {{getPaymentType(element)}} </td>
+            </ng-container>
+
+            <!-- Piece Count Column -->
+            <ng-container matColumnDef="pieces">
+                <th mat-header-cell *matHeaderCellDef> Nb Pièces </th>
+                <td mat-cell *matCellDef="let element"> {{getPieceCount(element)}} </td>
+            </ng-container>
+
+            <!-- Payment Dates Column -->
+            <ng-container matColumnDef="echeance_dates">
+                <th mat-header-cell *matHeaderCellDef> Dates Echéances </th>
+                <td mat-cell *matCellDef="let element"> 
+                    <span class="text-xs text-gray-500">{{getPieceDates(element)}}</span>
                 </td>
             </ng-container>
 

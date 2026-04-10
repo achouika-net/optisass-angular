@@ -90,27 +90,35 @@ export const MENU: MenuItem[] = [
     ],
   },
   {
-    label: 'Gestion Dépenses',
-    icon: 'payments',
+    label: 'Factures & BL',
+    icon: 'description',
     type: 'sub',
-    route: 'gestion-depenses',
+    route: 'gestion-factures',
     children: [
       {
-        label: 'Gestion Facture Fournisseur',
-        icon: 'description',
-        type: 'subchild',
-        route: 'gestion-depenses/payments',
-        queryParams: { tab: 'FACTURES' }
-      },
-      {
-        label: 'Bon de livraison BL',
+        label: 'Factures Fournisseur',
         icon: 'receipt_long',
         type: 'subchild',
-        route: 'gestion-depenses/bl-management'
+        route: 'gestion-depenses/payments',
+        queryParams: { mode: 'FACTURES', tab: 'FACTURES' }
+      },
+      {
+        label: 'Bons de livraison (BL)',
+        icon: 'local_shipping',
+        type: 'subchild',
+        route: 'gestion-depenses/payments',
+        queryParams: { mode: 'FACTURES', tab: 'BL' }
+      },
+      {
+        label: 'Historique BC',
+        icon: 'history',
+        type: 'subchild',
+        route: 'gestion-depenses/payments',
+        queryParams: { mode: 'FACTURES', tab: 'BC_HISTORY' }
       },
       {
         label: 'Dépenses Diverses',
-        icon: 'payments',
+        icon: 'shopping_cart',
         type: 'subchild',
         route: 'gestion-depenses/expenses'
       }

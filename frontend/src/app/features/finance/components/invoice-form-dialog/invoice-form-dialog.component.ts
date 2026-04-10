@@ -796,12 +796,29 @@ export class InvoiceFormDialogComponent implements OnInit {
         if (this.isBLMode) {
             this.detailsGroup.get('numeroBL')?.setValidators([Validators.required]);
             this.detailsGroup.get('numeroFacture')?.clearValidators();
+            
+            // Client link is MANDATORY for BL
+            this.detailsGroup.get('clientId')?.setValidators([Validators.required]);
+            this.detailsGroup.get('ficheId')?.setValidators([Validators.required]);
         } else {
             this.detailsGroup.get('numeroFacture')?.setValidators([Validators.required]);
             this.detailsGroup.get('numeroBL')?.clearValidators();
+            
+            // Client link is OPTIONAL for Factures (it's for accounting)
+            this.detailsGroup.get('clientId')?.clearValidators();
+            this.detailsGroup.get('ficheId')?.clearValidators();
         }
-        this.detailsGroup.get('numeroFacture')?.updateValueAndValidity();
+        
         this.detailsGroup.get('numeroBL')?.updateValueAndValidity();
+        this.detailsGroup.get('numeroFacture')?.updateValueAndValidity();
+        this.detailsGroup.get('clientId')?.updateValueAndValidity();
+        this.detailsGroup.get('ficheId')?.updateValueAndValidity();
+
+        if (this.form.invalid) {
+            console.error('[InvoiceForm] Invalid form:', this.form.value);
+            this.snackBar.open('Veuillez remplir tous les champs obligatoires (*)', 'Fermer', { duration: 3000 });
+            return;
+        }
 
         const isValid = this.isBLMode ? this.detailsGroup.valid : this.form.valid;
         if (isValid) {

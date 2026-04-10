@@ -28,6 +28,7 @@ import { SupplierInvoiceListComponent } from '../supplier-invoice-list/supplier-
 import { Subject, of, Observable } from 'rxjs';
 import { takeUntil, tap, switchMap, catchError, map } from 'rxjs/operators';
 import { FinanceService } from '../../services/finance.service';
+import { SupplierInvoice } from '../../models/finance.models';
 import { Supplier } from '../../models/finance.models';
 import { InvoiceFormDialogComponent } from '../../components/invoice-form-dialog/invoice-form-dialog.component';
 import { ExpenseFormDialogComponent } from '../../components/expense-form-dialog/expense-form-dialog.component';
@@ -92,6 +93,14 @@ import { BcHistoryListComponent } from '../../components/bc-history-list/bc-hist
 export class OutgoingPaymentListComponent implements OnInit {
     payments: any[] = [];
     activeTab: 'OUTGOING' | 'INCOMING' | 'UNPAID_CLIENTS' | 'FACTURES' | 'BL' | 'BC_HISTORY' = 'OUTGOING';
+    viewMode: 'PAIEMENTS' | 'FACTURES' = 'PAIEMENTS';
+
+    get filteredTabs() {
+        if (this.viewMode === 'FACTURES') {
+            return ['FACTURES', 'BL', 'BC_HISTORY'];
+        }
+        return ['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'];
+    }
 
     get displayedColumns(): string[] {
         if (this.activeTab === 'UNPAID_CLIENTS') {
@@ -99,7 +108,7 @@ export class OutgoingPaymentListComponent implements OnInit {
         }
         const base = ['date', 'source', 'libelle', 'type'];
         const middle = this.activeTab === 'OUTGOING' ? 'fournisseur' : 'client';
-        return [...base, middle, 'montant', 'statut', 'actions'];
+        return [...base, 'methodePaiement', 'numeroPiece', 'datePiece', middle, 'montant', 'statut', 'actions'];
     }
 
     loading = false;
@@ -137,7 +146,7 @@ export class OutgoingPaymentListComponent implements OnInit {
         endDate: '',
         centreId: ''
     };
-    selectedPeriod: string = 'ALL';
+    selectedPeriod: string = 'THIS_MONTH';
     constructor(
         private financeService: FinanceService,
         private router: Router,
@@ -167,16 +176,24 @@ export class OutgoingPaymentListComponent implements OnInit {
             this.filters.centreId = center.id;
         }
 
-        this.applyPredefinedPeriod('ALL', false);
+        this.applyPredefinedPeriod('THIS_MONTH', false);
 
         // Initial load
         this.loadPayments();
 
         this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
+            const mode = params.get('mode');
+            if (mode === 'FACTURES' || mode === 'PAIEMENTS') {
+                this.viewMode = mode as any;
+            }
+
             const tab = params.get('tab');
-            if (tab === 'OUTGOING') this.activeTab = 'OUTGOING';
-            else if (tab === 'INCOMING') this.activeTab = 'INCOMING';
-            else if (tab === 'UNPAID_CLIENTS') this.activeTab = 'UNPAID_CLIENTS';
+            if (tab && this.filteredTabs.includes(tab)) {
+                this.activeTab = tab as any;
+            } else if (!this.filteredTabs.includes(this.activeTab)) {
+                // Set default tab for the current mode if current activeTab is not relevant
+                this.activeTab = this.viewMode === 'FACTURES' ? 'FACTURES' : 'OUTGOING';
+            }
 
             if (['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(this.activeTab)) {
                 this.pageIndex = 0;
@@ -284,6 +301,18 @@ export class OutgoingPaymentListComponent implements OnInit {
         console.log(`[PAYMENTS-PROC] Finished processing.`);
     }
 
+    onSubComponentStatsUpdated(stats: any) {
+        if (['FACTURES', 'BL'].includes(this.activeTab)) {
+            this.subtotals = {
+                ...this.subtotals,
+                count: stats.count || 0,
+                totalTTC: stats.totalTTC || 0,
+                totalHT: stats.totalHT || 0,
+                totalReste: stats.totalReste || 0
+            };
+        }
+    }
+
 
 
     loadSuppliers() {
@@ -299,12 +328,11 @@ export class OutgoingPaymentListComponent implements OnInit {
 
     onTabChange(event: any) {
         const index = event.index;
-        if (index === 0) this.activeTab = 'OUTGOING';
-        else if (index === 1) this.activeTab = 'INCOMING';
-        else if (index === 2) this.activeTab = 'UNPAID_CLIENTS';
-        else if (index === 3) this.activeTab = 'FACTURES';
-        else if (index === 4) this.activeTab = 'BL';
-        else if (index === 5) this.activeTab = 'BC_HISTORY';
+        const tabsInMode = this.filteredTabs;
+        
+        if (tabsInMode[index]) {
+            this.activeTab = tabsInMode[index] as any;
+        }
 
         if (['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(this.activeTab)) {
             this.pageIndex = 0;
@@ -416,6 +444,35 @@ export class OutgoingPaymentListComponent implements OnInit {
         };
         this.selectedPeriod = 'ALL';
         this.loadPayments();
+    }
+
+    openInvoiceDialog(invoice?: SupplierInvoice, viewMode: boolean = false) {
+        const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
+            width: '1400px',
+            maxWidth: '98vw',
+            maxHeight: '98vh',
+            data: { invoice, viewMode, isBL: false }
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result) {
+                this.loadPayments();
+            }
+        });
+    }
+
+    openExpenseDialog() {
+        const dialogRef = this.dialog.open(ExpenseFormDialogComponent, {
+            width: '800px',
+            maxWidth: '95vw',
+            data: {}
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result) {
+                this.loadPayments();
+            }
+        });
     }
 
     viewDetail(payment: any, viewMode: boolean = false) {
