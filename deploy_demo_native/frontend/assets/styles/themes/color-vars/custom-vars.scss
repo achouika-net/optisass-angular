@@ -1,0 +1,26 @@
+// 📁 styles/theme/color-vars/custom-vars.scss
+
+.custom-theme {
+  // 📚 Styles liés à la sidebar pour ce thème
+  --sidebar-text: #5f1d1d;
+  --sidebar-icons: #cf4d4d;
+  --sidebar-hover-bg: #fef2f2;
+  --sidebar-selected-text: #fff;
+
+  // ✅ Sélection des menus principaux pour ce thème
+  --menu-selected-bg: #ffe4e6;
+  --menu-selected-text: #450a0a;
+
+  // 📂 Style des sous-menus actifs pour ce thème
+  --sub-active-bg: #dc2626;
+  --sub-active-text: #ffffff;
+  --sub-opened-bg: #f1f5f9;
+
+  // ⭐ Gestion des favoris (icônes star) pour ce thème
+  --star-active-color: #ff4d4f;
+  --star-inactive-color: #9ca3af;
+  --star-hover-color: #ff4d4f;
+
+  // Gestion de favoris section
+  --favorites-bg: #e5efff;
+}

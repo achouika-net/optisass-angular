@@ -1,0 +1,1 @@
+import"./chunk-HZ6M6AS2.js";var t=[{path:"",loadComponent:()=>import("./chunk-Q35IX64V.js").then(o=>o.GroupsListComponent)},{path:":id",loadComponent:()=>import("./chunk-RPVUYSWD.js").then(o=>o.GroupDetailComponent)}];export{t as groupsRoutes};

@@ -1,0 +1,21 @@
+/* === Import des layers tailwind (dans l'ordre) === */
+@layer theme, utilities;
+
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities) important;
+
+@theme {
+  --color-primary: var(--mat-sys-primary);
+  --color-on-primary: var(--mat-sys-on-primary);
+  --color-tertiary: var(--mat-sys-tertiary);
+  --color-error: var(--mat-sys-error);
+  --color-success: var(--success);
+  --color-bodycolor: var(--bodycolor);
+  --font-sans: var(--bodyfont);
+  --breakpoint-xs: 599.98px;
+  --breakpoint-sm: 959.98px;
+  --breakpoint-md: 1279.98px;
+  --breakpoint-lg: 1919.98px;
+  --breakpoint-xl: 2399.98px;
+  --breakpoint-2xl: 2999.98px;
+}

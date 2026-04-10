@@ -1,0 +1,91 @@
+@use '@angular/material' as mat;
+@use 'global-vars';
+@use 'themes/default-theme' as default;
+@use 'themes/custom-theme' as custom;
+@use 'legacy-styles';
+
+// Matriel Overrides - Must come after @use but BEFORE @include/CSS
+@forward './material-overrides/mat-card';
+@forward './material-overrides/mat-table';
+@forward './material-overrides/mat-toolbar';
+@forward './material-overrides/mat-form-field';
+@forward './material-overrides/mat-radio';
+@forward './material-overrides/mat-select';
+@forward './material-overrides/mat-chip';
+@forward './material-overrides/mat-button-toggle-group';
+@forward './material-overrides/mat-slide-toggle';
+@forward './material-overrides/mat-tree';
+@forward './material-overrides/mat-list';
+@forward './material-overrides/mat-expansion';
+@forward './global-buttons';
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+// Material Core mixin must be included AFTER all @use/@forward rules
+@include mat.core();
+
+// Note: The themes are applied via CSS classes (.default-theme, .custom-theme) 
+// defined in their respective files, so we don't include all-component-themes here.
+
+// CDK Global Overlays are handled by @include mat.core() in styles.scss
+// Manual overrides removed to ensure standard Material behavior.
+
+// ============================================================
+// GLOBAL PRINT STYLES
+// Hides the app shell and shows only the active print template
+// ============================================================
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 15mm 12mm 12mm 12mm;
+  }
+
+  // Hide the Angular app shell
+  app-root > *:not(app-monture-form),
+  mat-sidenav-container,
+  mat-sidenav,
+  mat-toolbar,
+  .mat-drawer-container,
+  .app-sidebar,
+  .app-topbar,
+  .app-nav,
+  .breadcrumb,
+  .no-print {
+    display: none !important;
+  }
+
+  // Reset body for printing
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  // The container itself must be visible (print sections are inside it)
+  .fiche-container {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+    min-height: 0 !important;
+  }
+
+  // Hide all direct children of .fiche-container EXCEPT the print templates
+  .fiche-container > *:not(.print-fiche-montage):not(.print-bon-verre) {
+    display: none !important;
+  }
+
+  // Ensure print sections are fully visible and full-width
+  .print-fiche-montage,
+  .print-bon-verre {
+    display: block !important;
+    width: 100% !important;
+    background: white !important;
+    page-break-inside: avoid;
+  }
+}

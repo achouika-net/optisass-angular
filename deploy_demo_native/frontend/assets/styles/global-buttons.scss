@@ -1,0 +1,86 @@
+/* Global Button Styles for OptiSass */
+
+// Standard Material Raised Buttons
+button[mat-raised-button] {
+    border-radius: 8px !important;
+    padding: 0 24px !important; // Standard padding
+    height: 42px !important; // Standard height
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+    letter-spacing: 0.01em !important;
+
+    // Primary (Blue)
+    &.mat-primary {
+        background-color: #3b82f6 !important; // Blue-500
+        color: #ffffff !important;
+    }
+
+    // Accent (Green)
+    &.mat-accent {
+        background-color: #22c55e !important; // Green-500
+        color: #ffffff !important;
+    }
+
+    // Warn (Red)
+    &.mat-warn {
+        background-color: #ef4444 !important; // Red-500
+        color: #ffffff !important;
+    }
+}
+
+// Standard Material Stroked Buttons
+button[mat-stroked-button] {
+    border-radius: 8px !important;
+    height: 42px !important;
+    border-color: #e5e7eb !important;
+    color: #374151 !important;
+    font-weight: 500 !important;
+    background-color: white !important;
+
+    &:hover {
+        background-color: #f9fafb !important;
+    }
+}
+
+// Utility Classes for Specific Colors (overriding Material colors if needed)
+.bg-indigo-600 {
+    background-color: #4f46e5 !important;
+    color: #ffffff !important;
+}
+
+.bg-green-600 {
+    background-color: #16a34a !important;
+    color: #ffffff !important;
+}
+
+.bg-purple-600 {
+    background-color: #9333ea !important;
+    color: #ffffff !important;
+}
+
+.bg-blue-600 {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+}
+
+// Legacy Classes Support (mapping to new styles)
+.export-btn {
+    @extend .bg-green-600;
+}
+
+.search-btn {
+    background-color: #ef4444 !important;
+    color: white !important;
+}
+
+.add-btn {
+    @extend .bg-blue-600;
+}
+
+// Small/Compact Buttons (e.g. for Scan)
+button.compact-btn,
+button.min-w-\[80px\] {
+    padding: 0 16px !important;
+    height: 42px !important;
+}

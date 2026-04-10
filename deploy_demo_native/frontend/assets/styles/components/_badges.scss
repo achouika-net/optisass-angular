@@ -1,0 +1,27 @@
+@use '../_mixins/badges' as *;
+
+/// Badges génériques
+/// Usage: <span class="badge">Text</span> ou <span class="badge-primary">Text</span>
+.badge {
+  @include badge-base('secondary');
+}
+
+.badge-primary {
+  @include badge-base('primary');
+}
+
+.badge-secondary {
+  @include badge-base('secondary');
+}
+
+.badge-tertiary {
+  @include badge-base('tertiary');
+}
+
+.badge-success {
+  @include badge-base('tertiary');
+}
+
+.badge-error {
+  @include badge-base('error');
+}

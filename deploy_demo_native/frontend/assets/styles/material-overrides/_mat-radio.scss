@@ -1,0 +1,36 @@
+.mat-mdc-radio-group {
+  min-height: 3rem;
+  display: flex !important;
+  align-items: center;
+  flex-wrap: wrap;
+  mat-label {
+    color: var(--mat-sys-primary);
+    min-width: 200px !important;
+    margin-right: auto;
+  }
+
+  .mat-mdc-radio-button {
+    margin-right: 0.625rem /* 10px */ !important;
+    &:has(.mdc-radio--disabled) {
+      cursor: not-allowed;
+      label {
+        cursor: not-allowed;
+      }
+    }
+  }
+  .mat-mdc-form-field-error {
+    flex-basis: 100%;
+    font-size: var(--text-xs);
+  }
+  &.ng-invalid {
+    .mdc-radio__outer-circle {
+      border-color: var(
+        --mat-sys-error
+      ) !important; /* Material Design red color */
+    }
+    mat-label,
+    .mdc-label {
+      color: var(--mat-sys-error);
+    }
+  }
+}
