@@ -1,0 +1,1 @@
+import{q as t,r}from"./chunk-6ENQON7A.js";var o=r("settings"),s=t(o,e=>e.language),g=t(o,e=>e.logo),n=t(o,e=>e.smallLogo),l=t(o,e=>e.theme),S=t(o,e=>e.backgrounds);export{o as a,s as b,g as c,n as d,l as e,S as f};

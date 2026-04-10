@@ -1,0 +1,1 @@
+var o=window.location.hostname,e=o==="localhost",t={production:!1,envName:"development",defaultLanguage:"fr",appName:"Agenda",apiUrl:e?"http://localhost:3001":`http://${o}:3003`,websocketUrl:"wss://optisaas.com/app/",appVersion:"2.0.0",geoapifyApiKey:"",n8nWebhookUrl:e?"http://localhost:5678/webhook/ocr-invoice":`http://${o}:5678/webhook/ocr-invoice`};export{t as a};

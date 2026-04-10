@@ -1,0 +1,1 @@
+import"./chunk-HZ6M6AS2.js";var n=[{path:"promotions",loadComponent:()=>import("./chunk-SUNDFUEP.js").then(o=>o.PromotionManagementComponent)},{path:"code-promo",loadComponent:()=>import("./chunk-SUNDFUEP.js").then(o=>o.PromotionManagementComponent)}];export{n as routes};

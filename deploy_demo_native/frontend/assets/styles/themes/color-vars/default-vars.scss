@@ -1,0 +1,30 @@
+@use 'sass:map';
+@use '../palettes/default-palettes' as *;
+
+.default-theme {
+  --bodycolor: #eef5f9;
+  --white: #ffff;
+
+  // 📚 Styles liés à la sidebar pour ce thème
+  --sidebar-text: #607d8b;
+  --sidebar-icons: #99abb4;
+  --sidebar-hover-bg: #f3f4f6;
+  --sidebar-selected-text: #fff;
+
+  // ✅ Sélection des menus principaux pour ce thème
+  --menu-selected-bg: #bcd0ef;
+  --menu-selected-text: #2f3d4a;
+
+  // 📂 Style des sous-menus actifs pour ce thème
+  --sub-active-bg: #dc2626;
+  --sub-active-text: #ffffff;
+  --sub-opened-bg: #f1f5f9;
+
+  // ⭐ Gestion des favoris (icônes star) pour ce thème
+  --star-active-color: #ef4444;
+  --star-inactive-color: #9ca3af;
+  --star-hover-color: #ef4444;
+
+  // Gestion de favoris section
+  --favorites-bg: #e5efff;
+}

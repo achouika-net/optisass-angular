@@ -1,0 +1,43 @@
+// 📁 styles/theme/themes/custom-theme.scss
+@use '@angular/material' as mat;
+@use './palettes/custom-palettes' as *;
+@use './color-vars/custom-vars';
+@use 'sass:map';
+
+.custom-theme {
+  @include mat.theme(
+    (
+      color: (
+        theme-type: light,
+        primary: $primary-palette,
+        tertiary: $tertiary-palette,
+      ),
+      typography: var(--bodyfont),
+      density: 0,
+    )
+  );
+
+  .primary {
+    @include mat.theme(
+      (
+        color: $primary-palette,
+      )
+    );
+  }
+
+  .tertiary {
+    @include mat.theme(
+      (
+        color: $tertiary-palette,
+      )
+    );
+  }
+
+  .error {
+    @include mat.theme(
+      (
+        color: $error-palette,
+      )
+    );
+  }
+}

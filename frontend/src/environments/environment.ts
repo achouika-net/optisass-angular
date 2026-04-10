@@ -10,7 +10,7 @@ export const environment = {
   defaultLanguage: 'fr',
   appName: 'Agenda',
   // Cela evite ERR_CONNECTION_REFUSED sur le port 3003
-  apiUrl: isLocal ? 'http://localhost:3003' : '',
+  apiUrl: isLocal ? 'http://localhost:3000' : '',
   websocketUrl: 'wss://optisaas.com/app/',
   appVersion: '2.0.0',
   geoapifyApiKey: '',

@@ -1,0 +1,841 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id                   String               @id @default(uuid())
+  typeClient           String
+  dateCreation         DateTime             @default(now())
+  email                String?
+  telephone            String?
+  adresse              String?
+  ville                String?
+  codePostal           String?
+  pointsFidelite       Int                  @default(0)
+  statut               String               @default("INACTIF")
+  commentaires         String?
+  nom                  String?
+  prenom               String?
+  dateNaissance        DateTime?
+  typePieceIdentite    String?
+  numeroPieceIdentite  String?
+  cinParent            String?
+  groupeFamille        Json?
+  dossierMedical       Json?
+  couvertureSociale    Json?
+  raisonSociale        String?
+  identifiantFiscal    String?
+  ice                  String?
+  registreCommerce     String?
+  patente              String?
+  tvaAssujetti         Boolean?             @default(false)
+  numeroAutorisation   String?
+  siteWeb              String?
+  contacts             Json?
+  convention           Json?
+  conventionId         String?
+  conventionData       Convention?          @relation(fields: [conventionId], references: [id])
+  parrainId            String?
+  centreId             String?
+  titre                String?
+  codeClient           String?
+  groupeId             String?
+  bonsLivraison        BonLivraison[]
+  centre               Centre?              @relation(fields: [centreId], references: [id])
+  groupe               Groupe?              @relation(fields: [groupeId], references: [id])
+  parrain              Client?              @relation("Parrainage", fields: [parrainId], references: [id])
+  filleuls             Client[]             @relation("Parrainage")
+  factures             Facture[]
+  facturesFournisseurs FactureFournisseur[]
+  fiches               Fiche[]
+  pointsHistory        PointsHistory[]
+  rewardRedemptions    RewardRedemption[]
+}
+
+model Fiche {
+  id                   String               @id @default(uuid())
+  dateCreation         DateTime             @default(now())
+  statut               String
+  type                 String
+  dateLivraisonEstimee DateTime?
+  montantTotal         Float                @default(0)
+  montantPaye          Float                @default(0)
+  clientId             String
+  content              Json
+  numero               Int                  @default(autoincrement())
+  bonsLivraison        BonLivraison[]
+  facture              Facture?
+  supplierInvoices     FactureFournisseur[]
+  client               Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model Facture {
+  id               String            @id @default(uuid())
+  numero           String            @unique
+  type             String
+  dateEmission     DateTime          @default(now())
+  dateEcheance     DateTime?
+  statut           String
+  clientId         String
+  ficheId          String?           @unique
+  totalHT          Float             @default(0)
+  totalTVA         Float             @default(0)
+  totalTTC         Float             @default(0)
+  resteAPayer      Float             @default(0)
+  lignes           Json
+  proprietes       Json?
+  parentFactureId  String?
+  montantLettres   String?
+  notes            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  centreId         String?
+  exportComptable  Boolean           @default(true)
+  typeOperation    String            @default("COMPTABLE")
+  vendeurId        String?
+  commissions      Commission[]
+  centre           Centre?           @relation(fields: [centreId], references: [id])
+  client           Client            @relation(fields: [clientId], references: [id])
+  fiche            Fiche?            @relation(fields: [ficheId], references: [id])
+  parentFacture    Facture?          @relation("FactureRelations", fields: [parentFactureId], references: [id])
+  children         Facture[]         @relation("FactureRelations")
+  vendeur          Employee?         @relation("VendeurFactures", fields: [vendeurId], references: [id])
+  mouvementsStock  MouvementStock[]
+  operationsCaisse OperationCaisse[]
+  paiements        Paiement[]
+  pointsHistory    PointsHistory[]
+
+  @@index([centreId])
+  @@index([vendeurId])
+  @@index([ficheId])
+}
+
+model Paiement {
+  id                  String               @id @default(uuid())
+  montant             Float
+  date                DateTime             @default(now())
+  mode                String
+  reference           String?
+  notes               String?
+  dateVersement       DateTime?
+  banque              String?
+  tiersNom            String?
+  tiersCin            String?
+  remarque            String?
+  pieceJointe         String?
+  factureId           String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  dateEncaissement    DateTime?
+  statut              String               @default("ENCAISSE")
+  operationCaisseId   String?
+  userId              String?
+  demandeAlimentation DemandeAlimentation?
+  facture             Facture              @relation(fields: [factureId], references: [id], onDelete: Cascade)
+  operationCaisse     OperationCaisse?     @relation(fields: [operationCaisseId], references: [id])
+  user                User?                @relation(fields: [userId], references: [id])
+
+  @@index([date])
+  @@index([mode])
+  @@index([statut])
+  @@index([factureId])
+}
+
+model Groupe {
+  id          String   @id @default(uuid())
+  nom         String   @unique
+  description String?
+  adresse     String?
+  telephone   String?
+  email       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  type        String?  @default("FAMILY")
+  centres     Centre[]
+  clients     Client[]
+}
+
+model Centre {
+  id                   String               @id @default(uuid())
+  nom                  String
+  description          String?
+  adresse              String?
+  ville                String?
+  codePostal           String?
+  telephone            String?
+  email                String?
+  groupeId             String
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  bonsLivraison        BonLivraison[]
+  caisses              Caisse[]
+  groupe               Groupe               @relation(fields: [groupeId], references: [id], onDelete: Cascade)
+  clients              Client[]
+  commissionRules      CommissionRule[]
+  depenses             Depense[]
+  employeeCentres      EmployeeCentre[]
+  entrepots            Entrepot[]
+  factures             Facture[]
+  facturesFournisseurs FactureFournisseur[]
+  journeesCaisse       JourneeCaisse[]
+
+  @@unique([groupeId, nom])
+}
+
+model Entrepot {
+  id                    String           @id @default(uuid())
+  nom                   String
+  description           String?
+  type                  String
+  capaciteMax           Float?
+  surface               Float?
+  responsable           String?
+  centreId              String
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  centre                Centre           @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  mouvementsDestination MouvementStock[] @relation("EntrepotDestination")
+  mouvementsSource      MouvementStock[] @relation("EntrepotSource")
+  produits              Product[]
+
+  @@unique([centreId, nom])
+}
+
+model Product {
+  id                   String           @id @default(uuid())
+  codeInterne          String
+  codeBarres           String
+  referenceFournisseur String?
+  designation          String
+  marque               String?
+  modele               String?
+  couleur              String?
+  typeArticle          String
+  famille              String?
+  sousFamille          String?
+  fournisseurPrincipal String?
+  quantiteActuelle     Float            @default(0)
+  seuilAlerte          Float            @default(0)
+  prixAchatHT          Float            @default(0)
+  coefficient          Float            @default(1)
+  prixVenteHT          Float            @default(0)
+  prixVenteTTC         Float            @default(0)
+  tauxTVA              Float            @default(0.20)
+  statut               String
+  photo                String?
+  utilisateurCreation  String
+  specificData         Json?
+  entrepotId           String
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  mouvements           MouvementStock[]
+  entrepot             Entrepot         @relation(fields: [entrepotId], references: [id])
+
+  @@unique([codeInterne, entrepotId])
+  @@unique([codeBarres, entrepotId])
+  @@index([designation])
+  @@index([marque])
+  @@index([modele])
+  @@index([typeArticle])
+  @@index([famille])
+}
+
+model MouvementStock {
+  id                    String              @id @default(uuid())
+  type                  String
+  quantite              Float
+  dateMovement          DateTime            @default(now())
+  motif                 String
+  utilisateur           String
+  produitId             String
+  entrepotSourceId      String?
+  entrepotDestinationId String?
+  fournisseurId         String?
+  clientId              String?
+  factureId             String?
+  prixAchatUnitaire     Float?
+  prixVenteUnitaire     Float?
+  numeroLot             String?
+  datePeremption        DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  factureFournisseurId  String?
+  bonLivraisonId        String?
+  userId                String?
+  bonLivraison          BonLivraison?       @relation(fields: [bonLivraisonId], references: [id])
+  entrepotDestination   Entrepot?           @relation("EntrepotDestination", fields: [entrepotDestinationId], references: [id])
+  entrepotSource        Entrepot?           @relation("EntrepotSource", fields: [entrepotSourceId], references: [id])
+  factureFournisseur    FactureFournisseur? @relation(fields: [factureFournisseurId], references: [id])
+  facture               Facture?            @relation(fields: [factureId], references: [id])
+  produit               Product             @relation(fields: [produitId], references: [id], onDelete: Cascade)
+  user                  User?               @relation(fields: [userId], references: [id])
+
+  @@index([type])
+  @@index([dateMovement])
+  @@index([motif])
+  @@index([produitId])
+  @@index([entrepotSourceId])
+  @@index([entrepotDestinationId])
+  @@index([fournisseurId])
+  @@index([clientId])
+  @@index([factureId])
+  @@index([factureFournisseurId])
+  @@index([bonLivraisonId])
+}
+
+model User {
+  id               String             @id @default(uuid())
+  nom              String
+  prenom           String
+  civilite         String
+  telephone        String?
+  email            String             @unique
+  photoUrl         String?
+  matricule        String?
+  statut           String             @default("actif")
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  password         String             @default("$2b$10$vYpY.oP6y9G8v6z2X3G2.O7h2/Gk8v6z2X3G2.O7h2/Gk8v6z2X3")
+  depensesCrees    Depense[]          @relation("CreePar")
+  depensesValides  Depense[]          @relation("ValidePar")
+  employee         Employee?
+  stockMovements   MouvementStock[]
+  operationCaisses OperationCaisse[]
+  paiements        Paiement[]
+  redemptions      RewardRedemption[]
+  centreRoles      UserCentreRole[]
+}
+
+model UserCentreRole {
+  id            String   @id @default(uuid())
+  userId        String
+  centreId      String
+  centreName    String
+  role          String
+  entrepotIds   String[]
+  entrepotNames String[]
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, centreId])
+  @@index([centreId])
+}
+
+model PointsHistory {
+  id          String   @id @default(uuid())
+  clientId    String
+  points      Int
+  type        String
+  date        DateTime @default(now())
+  description String?
+  factureId   String?
+  createdAt   DateTime @default(now())
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  facture     Facture? @relation(fields: [factureId], references: [id])
+}
+
+model LoyaltyConfig {
+  id                  String   @id @default(uuid())
+  pointsPerDH         Float    @default(0.1)
+  referrerBonus       Int      @default(50)
+  refereeBonus        Int      @default(20)
+  updatedAt           DateTime @updatedAt
+  folderCreationBonus Int      @default(30)
+  pointsToMADRatio    Float    @default(0.1)
+  rewardThreshold     Int      @default(500)
+}
+
+model Fournisseur {
+  id                 String               @id @default(uuid())
+  nom                String
+  contact            String?
+  email              String?
+  telephone          String?
+  adresse            String?
+  ville              String?
+  siteWeb            String?
+  ice                String?
+  rc                 String?
+  identifiantFiscal  String?
+  patente            String?
+  cnss               String?
+  rib                String?
+  banque             String?
+  conditionsPaiement String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  contacts           Json?
+  convention         Json?
+  siret              String?
+  bonsLivraison      BonLivraison[]
+  depenses           Depense[]
+  factures           FactureFournisseur[]
+}
+
+model Convention {
+  id                 String   @id @default(uuid())
+  nom                String   @unique
+  description        String?
+  contact            String?
+  email              String?
+  telephone          String?
+  adresse            String?
+  remiseType         String   // "PERCENTAGE" or "FLAT_AMOUNT"
+  remiseValeur              Float    @default(0)
+  montantForfaitaire        Float?   // Optional flat amount for frame + glasses
+  remiseForfaitaire         Boolean  @default(false)
+  montantForfaitaireMonture Float    @default(0)
+  montantForfaitaireVerre   Float    @default(0)
+  notes                     String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  clients            Client[]
+}
+
+model Depense {
+  id                   String               @id @default(uuid())
+  date                 DateTime             @default(now())
+  montant              Float
+  categorie            String
+  description          String?
+  modePaiement         String
+  statut               String
+  justificatifUrl      String?
+  centreId             String
+  factureFournisseurId String?              @unique
+  bonLivraisonId       String?              @unique
+  echeanceId           String?              @unique
+  creePar              String?
+  validePar            String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  dateEcheance         DateTime?
+  reference            String?
+  fournisseurId        String?
+  creeParId            String?
+  valideParId          String?
+  employeeId           String?
+  demandeAlimentation  DemandeAlimentation?
+  bonLivraison         BonLivraison?        @relation(fields: [bonLivraisonId], references: [id], onDelete: Cascade)
+  centre               Centre               @relation(fields: [centreId], references: [id])
+  creeParUser          User?                @relation("CreePar", fields: [creeParId], references: [id])
+  echeance             EcheancePaiement?    @relation(fields: [echeanceId], references: [id])
+  employee             Employee?            @relation(fields: [employeeId], references: [id])
+  factureFournisseur   FactureFournisseur?  @relation(fields: [factureFournisseurId], references: [id], onDelete: Cascade)
+  fournisseur          Fournisseur?         @relation(fields: [fournisseurId], references: [id])
+  valideParUser        User?                @relation("ValidePar", fields: [valideParId], references: [id])
+  payroll              Payroll?
+
+  @@index([date])
+  @@index([centreId])
+}
+
+model FactureFournisseur {
+  id               String             @id @default(uuid())
+  numeroFacture    String
+  dateEmission     DateTime
+  dateEcheance     DateTime?
+  montantHT        Float
+  montantTVA       Float
+  montantTTC       Float
+  statut           String             @default("A_PAYER")
+  type             String             @default("ACHAT_STOCK")
+  fournisseurId    String
+  quantite         Float?
+  referenceInterne String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  centreId         String?
+  clientId         String?
+  pieceJointeUrl   String?
+  ficheId          String?
+  childBLs         BonLivraison[]
+  depenses         Depense?
+  echeances        EcheancePaiement[]
+  centre           Centre?            @relation(fields: [centreId], references: [id])
+  client           Client?            @relation(fields: [clientId], references: [id])
+  fiche            Fiche?             @relation(fields: [ficheId], references: [id])
+  fournisseur      Fournisseur        @relation(fields: [fournisseurId], references: [id])
+  mouvementsStock  MouvementStock[]
+
+  @@unique([fournisseurId, numeroFacture])
+  @@index([dateEmission])
+  @@index([centreId])
+  @@index([clientId])
+  @@index([fournisseurId])
+}
+
+model BonLivraison {
+  id                   String              @id @default(uuid())
+  numeroBL             String
+  dateEmission         DateTime
+  dateEcheance         DateTime?
+  montantHT            Float
+  montantTVA           Float
+  montantTTC           Float
+  statut               String              @default("VALIDEE")
+  type                 String              @default("ACHAT_STOCK")
+  fournisseurId        String
+  centreId             String?
+  clientId             String?
+  pieceJointeUrl       String?
+  categorieBL          String?
+  ficheId              String?
+  factureFournisseurId String?
+  centre               Centre?             @relation(fields: [centreId], references: [id])
+  client               Client?             @relation(fields: [clientId], references: [id])
+  factureFournisseur   FactureFournisseur? @relation(fields: [factureFournisseurId], references: [id])
+  fiche                Fiche?              @relation(fields: [ficheId], references: [id])
+  fournisseur          Fournisseur         @relation(fields: [fournisseurId], references: [id])
+  depense              Depense?
+  echeances            EcheancePaiement[]
+  mouvementsStock      MouvementStock[]
+
+  @@unique([fournisseurId, numeroBL])
+  @@index([dateEmission])
+  @@index([centreId])
+  @@index([fournisseurId])
+  @@index([clientId])
+  @@index([factureFournisseurId])
+}
+
+model EcheancePaiement {
+  id                   String              @id @default(uuid())
+  reference            String?
+  type                 String
+  dateEcheance         DateTime
+  dateEncaissement     DateTime?
+  montant              Float
+  statut               String
+  banque               String?
+  remarque             String?
+  factureFournisseurId String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  bonLivraisonId       String?
+  depense              Depense?
+  bonLivraison         BonLivraison?       @relation(fields: [bonLivraisonId], references: [id], onDelete: Cascade)
+  factureFournisseur   FactureFournisseur? @relation(fields: [factureFournisseurId], references: [id], onDelete: Cascade)
+
+  @@index([dateEcheance])
+  @@index([statut])
+}
+
+model FinanceConfig {
+  id               String   @id @default(uuid())
+  monthlyThreshold Float    @default(50000)
+  updatedAt        DateTime @updatedAt
+}
+
+model Caisse {
+  id          String          @id @default(uuid())
+  nom         String
+  description String?
+  statut      String          @default("ACTIVE")
+  centreId    String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  type        String          @default("PRINCIPALE")
+  centre      Centre          @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  journees    JourneeCaisse[]
+
+  @@unique([centreId, nom])
+  @@index([centreId])
+}
+
+model JourneeCaisse {
+  id                      String                @id @default(uuid())
+  dateOuverture           DateTime              @default(now())
+  dateCloture             DateTime?
+  fondInitial             Float
+  soldeTheorique          Float?
+  soldeReel               Float?
+  ecart                   Float?
+  justificationEcart      String?
+  statut                  String                @default("OUVERTE")
+  caissier                String
+  responsableCloture      String?
+  totalComptable          Float                 @default(0)
+  totalInterne            Float                 @default(0)
+  totalDepenses           Float                 @default(0)
+  caisseId                String
+  centreId                String
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  totalTransfertsDepenses Float                 @default(0)
+  totalVentesCarte        Float                 @default(0)
+  totalVentesEspeces      Float                 @default(0)
+  totalVentesCheque       Float                 @default(0)
+  demandesAlimentation    DemandeAlimentation[]
+  caisse                  Caisse                @relation(fields: [caisseId], references: [id], onDelete: Cascade)
+  centre                  Centre                @relation(fields: [centreId], references: [id])
+  operations              OperationCaisse[]
+
+  @@index([caisseId])
+  @@index([centreId])
+  @@index([dateOuverture])
+  @@index([statut])
+}
+
+model OperationCaisse {
+  id              String        @id @default(uuid())
+  type            String
+  typeOperation   String        @default("COMPTABLE")
+  montant         Float
+  moyenPaiement   String
+  reference       String?
+  motif           String?
+  pieceJointe     String?
+  utilisateur     String
+  journeeCaisseId String
+  factureId       String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  userId          String?
+  facture         Facture?      @relation(fields: [factureId], references: [id])
+  journeeCaisse   JourneeCaisse @relation(fields: [journeeCaisseId], references: [id], onDelete: Cascade)
+  user            User?         @relation(fields: [userId], references: [id])
+  paiements       Paiement[]
+
+  @@index([journeeCaisseId])
+  @@index([type])
+  @@index([typeOperation])
+  @@index([moyenPaiement])
+  @@index([createdAt])
+}
+
+model DemandeAlimentation {
+  id              String        @id @default(uuid())
+  montant         Float
+  depenseId       String?       @unique
+  paiementId      String?       @unique
+  journeeCaisseId String
+  statut          String        @default("EN_ATTENTE")
+  createdAt       DateTime      @default(now())
+  validatedAt     DateTime?
+  validatedBy     String?
+  remarque        String?
+  depense         Depense?      @relation(fields: [depenseId], references: [id], onDelete: Cascade)
+  journeeCaisse   JourneeCaisse @relation(fields: [journeeCaisseId], references: [id])
+  paiement        Paiement?     @relation(fields: [paiementId], references: [id], onDelete: Cascade)
+
+  @@index([statut])
+  @@index([createdAt])
+}
+
+model MarketingConfig {
+  id                 String   @id @default(uuid())
+  whatsappApiUrl     String?
+  whatsappInstanceId String?
+  whatsappToken      String?
+  smsGatewayUrl      String?
+  smsApiKey          String?
+  smtpHost           String?
+  smtpPort           Int      @default(587)
+  smtpUser           String?
+  smtpPass           String?
+  smtpFrom           String?
+  updatedAt          DateTime @updatedAt
+}
+
+model Employee {
+  id                        String           @id @default(uuid())
+  matricule                 String?          @unique
+  nom                       String
+  prenom                    String
+  cin                       String?
+  telephone                 String?
+  email                     String?
+  adresse                   String?
+  poste                     String
+  contrat                   String
+  dateEmbauche              DateTime         @default(now())
+  salaireBase               Float            @default(0)
+  statut                    String           @default("ACTIF")
+  userId                    String?          @unique
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+  photoUrl                  String?
+  childrenCount             Int              @default(0)
+  paymentMode               String           @default("VIREMENT")
+  socialSecurityAffiliation Boolean          @default(true)
+  familyStatus              String           @default("CELIBATAIRE")
+  attendance                Attendance[]
+  commissions               Commission[]
+  depenses                  Depense[]
+  user                      User?            @relation(fields: [userId], references: [id])
+  centres                   EmployeeCentre[]
+  facturesVente             Facture[]        @relation("VendeurFactures")
+  payrolls                  Payroll[]
+}
+
+model EmployeeCentre {
+  employeeId String
+  centreId   String
+  centre     Centre   @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@id([employeeId, centreId])
+}
+
+model Attendance {
+  id                String   @id @default(uuid())
+  employeeId        String
+  date              DateTime
+  heuresTravaillees Float    @default(8)
+  retardMinutes     Int      @default(0)
+  estAbsent         Boolean  @default(false)
+  motif             String?
+  createdAt         DateTime @default(now())
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model CommissionRule {
+  id          String  @id @default(uuid())
+  poste       String
+  centreId    String?
+  typeProduit String
+  taux        Float
+  centre      Centre? @relation(fields: [centreId], references: [id])
+}
+
+model Commission {
+  id         String   @id @default(uuid())
+  employeeId String
+  factureId  String
+  type       String
+  montant    Float
+  mois       String
+  createdAt  DateTime @default(now())
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  facture    Facture  @relation(fields: [factureId], references: [id], onDelete: Cascade)
+}
+
+model Payroll {
+  id                       String   @id @default(uuid())
+  employeeId               String
+  mois                     String
+  annee                    Int
+  salaireBase              Float
+  commissions              Float    @default(0)
+  heuresSup                Float    @default(0)
+  retenues                 Float    @default(0)
+  netAPayer                Float
+  statut                   String   @default("BROUILLON")
+  pdfUrl                   String?
+  expenseId                String?  @unique
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  employerCharges          Float    @default(0)
+  grossSalary              Float    @default(0)
+  healthInsuranceDeduction Float    @default(0)
+  incomeTaxDeduction       Float    @default(0)
+  primes                   Float    @default(0)
+  professionalExpenses     Float    @default(0)
+  socialSecurityDeduction  Float    @default(0)
+  taxableNet               Float    @default(0)
+  avances                  Float    @default(0)
+  employee                 Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  expense                  Depense? @relation(fields: [expenseId], references: [id])
+}
+
+model PayrollConfig {
+  id                    String   @id @default(uuid())
+  annee                 Int      @unique
+  socialSecurityRate_S  Float    @default(4.48)
+  socialSecurityRate_P  Float    @default(8.98)
+  socialSecurityCap     Float    @default(6000)
+  healthInsuranceRate_S Float    @default(2.26)
+  healthInsuranceRate_P Float    @default(4.11)
+  profExpensesRate      Float    @default(20)
+  profExpensesCap       Float    @default(2500)
+  incomeTaxBrackets     Json
+  familyDeduction       Float    @default(30)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  familyAllowanceRate_P Float    @default(6.40)
+  trainingRate_P        Float    @default(1.60)
+  familyDeductionCap    Float    @default(180)
+  profExpensesCapHigh   Float?   @default(35000)
+  profExpensesCapLow    Float?   @default(30000)
+  profExpensesRateHigh  Float?   @default(25)
+  profExpensesRateLow   Float?   @default(35)
+  profExpensesThreshold Float?   @default(78000)
+}
+
+model CompanySettings {
+  id        String   @id @default(uuid())
+  name      String
+  logoUrl   String?
+  address   String?
+  phone     String?
+  email     String?
+  website   String?
+  ice       String?
+  rc        String?
+  identifiantFiscal String? @map("if")
+  patente           String?
+  cnss              String?
+  inpeCode          String?
+  rib               String?
+  bank              String?
+  updatedAt         DateTime @updatedAt
+  cachetUrl         String?
+}
+
+model GlassBrand {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model GlassMaterial {
+  id        String       @id @default(uuid())
+  name      String       @unique
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  indices   GlassIndex[]
+}
+
+model GlassIndex {
+  id         String        @id @default(uuid())
+  value      String
+  label      String?
+  price      Float         @default(0)
+  materialId String
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  material   GlassMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([materialId, value])
+}
+
+model GlassTreatment {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  price     Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RewardRedemption {
+  id         String   @id @default(uuid())
+  clientId   String
+  pointsUsed Int
+  rewardType String
+  madValue   Float
+  redeemedAt DateTime @default(now())
+  redeemedBy String?
+  userId     String?
+  isUsed     Boolean  @default(false)
+  paiementId String?
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id])
+}

@@ -1,0 +1,66 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: optisaas-db-shared
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: optisaas
+    ports:
+      # Expose sur tous les interfaces reseau (LAN + localhost)
+      - "0.0.0.0:5436:5432"
+    volumes:
+      - pgdata_shared:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d optisaas"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: optisaas-backend-shared
+    ports:
+      - "0.0.0.0:3002:3000"
+    environment:
+      DATABASE_URL: "postgresql://postgres:mypassword@db:5432/optisaas?schema=public"
+      NODE_ENV: "production"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: sh -c "npx prisma generate && npx prisma db push --accept-data-loss && node dist/src/main.js"
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: optisaas-frontend-shared
+    ports:
+      - "0.0.0.0:4200:80"
+    depends_on:
+      - backend
+    restart: always
+
+
+  prisma-studio:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: optisaas-prisma-studio-shared
+    ports:
+      - "0.0.0.0:5556:5555"
+    environment:
+      DATABASE_URL: "postgresql://postgres:mypassword@db:5432/optisaas?schema=public"
+    command: sh -c "npx prisma generate && npx prisma studio --browser none"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+
+volumes:
+  pgdata_shared:

@@ -1,0 +1,12 @@
+@use '@angular/material' as mat;
+
+@include mat.slide-toggle-overrides(
+  (
+    label-text-size: var(--mat-sys-body-large-size),
+  )
+);
+.mat-mdc-slide-toggle {
+  display: flex !important;
+  align-items: center;
+  height: 60px;
+}

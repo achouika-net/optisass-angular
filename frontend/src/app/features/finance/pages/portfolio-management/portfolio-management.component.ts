@@ -12,6 +12,7 @@ import { FinanceService } from '../../services/finance.service';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { FormsModule } from '@angular/forms';
+import { ChangeDetectorRef } from '@angular/core';
 
 @Component({
   selector: 'app-portfolio-management',
@@ -375,7 +376,8 @@ export class PortfolioManagementComponent implements OnInit {
 
   constructor(
     private financeService: FinanceService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private cdr: ChangeDetectorRef
   ) {
     const startYear = 2024;
     const endYear = new Date().getFullYear() + 1;
@@ -429,10 +431,12 @@ export class PortfolioManagementComponent implements OnInit {
           paid: res.subtotals.paid || 0
         };
         this.loading = false;
+        this.cdr.detectChanges();
       },
       error: () => {
         this.snackBar.open('Erreur lors du chargement des données', 'Fermer');
         this.loading = false;
+        this.cdr.detectChanges();
       }
     });
   }
