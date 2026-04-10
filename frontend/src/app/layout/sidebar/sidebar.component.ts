@@ -131,12 +131,21 @@ export class SidebarComponent implements OnInit {
     // Start monitoring instance sales
     this.monitor.startPolling();
 
+    const currentUrl = this.router.url;
     const opened = this.menuItems()
       .filter((i: any) => i.type === 'sub')
       .find((i: any) =>
-        i.children?.some((child: any) =>
-          this.router.url.startsWith(`/p/${child.route}`)
-        )
+        i.children?.some((child: any) => {
+          const fullRoute = `/p/${child.route}`;
+          if (!currentUrl.startsWith(fullRoute)) return false;
+          
+          if (child.queryParams) {
+            return Object.entries(child.queryParams).every(([key, value]) => 
+              currentUrl.includes(`${key}=${value}`)
+            );
+          }
+          return true;
+        })
       );
     if (opened) {
       this.openSubMenu.set(opened.label);
@@ -220,8 +229,29 @@ export class SidebarComponent implements OnInit {
    */
   isSubActive(children?: MenuItem[]): boolean {
     if (!children) return false;
-    return children.some((child) =>
-      this.router.url.startsWith(`/p/${child.route}`)
-    );
+    const currentUrl = this.router.url;
+    return children.some((child) => {
+      const fullRoute = `/p/${child.route}`;
+      if (!currentUrl.startsWith(fullRoute)) return false;
+
+      // If item has queryParams, all must match in the current URL
+      if (child.queryParams) {
+        return Object.entries(child.queryParams).every(([key, value]) =>
+          currentUrl.includes(`${key}=${value}`)
+        );
+      }
+
+      // Special case: if another child has the same route but DOES have queryParams,
+      // and those queryParams are present in the URL, this current child (without params) 
+      // should NOT be the active one.
+      const hasOtherMatchingParams = children.some(other => 
+        other !== child && 
+        other.route === child.route && 
+        other.queryParams && 
+        Object.entries(other.queryParams).every(([k, v]) => currentUrl.includes(`${k}=${v}`))
+      );
+
+      return !hasOtherMatchingParams;
+    });
   }
 }

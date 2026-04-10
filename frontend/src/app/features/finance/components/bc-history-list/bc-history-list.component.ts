@@ -16,6 +16,10 @@ import { take, firstValueFrom } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { Store } from '@ngrx/store';
 import { UserSelector } from '../../../../core/store/auth/auth.selectors';
+import { signal } from '@angular/core';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatInputModule } from '@angular/material/input';
 
 @Component({
   selector: 'app-bc-history-list',
@@ -31,7 +35,10 @@ import { UserSelector } from '../../../../core/store/auth/auth.selectors';
     MatSnackBarModule,
     MatFormFieldModule,
     MatSelectModule,
-    FormsModule
+    FormsModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
+    MatInputModule
   ],
   templateUrl: './bc-history-list.component.html',
   styleUrls: ['./bc-history-list.component.scss'],
@@ -49,6 +56,22 @@ export class BcHistoryListComponent implements OnInit {
   filterSupplier = '';
   filterClient = '';
   filterMotive = '';
+
+  selectedPeriod = signal<string>('this-month');
+  periods = [
+    { value: 'all', label: 'Toutes les périodes' },
+    { value: 'today', label: "Aujourd'hui" },
+    { value: 'this-month', label: 'Ce mois-ci' },
+    { value: 'last-month', label: 'Mois dernier' },
+    { value: 'this-year', label: 'Cette année' },
+    { value: 'custom', label: 'Personnalisée' }
+  ];
+  customStartDate: Date | null = null;
+  customEndDate: Date | null = null;
+
+  subtotals = {
+    count: 0
+  };
 
   uniqueSuppliers: string[] = [];
   uniqueClients: string[] = [];
@@ -70,7 +93,40 @@ export class BcHistoryListComponent implements OnInit {
       const matchSupplier = !searchTerms.supplier || this.getSupplierName(data.fournisseur) === searchTerms.supplier;
       const matchClient = !searchTerms.client || data.clientDisplayName === searchTerms.client;
       const matchMotive = !searchTerms.motive || this.cleanMotif(data.motive || '') === searchTerms.motive;
-      return matchSupplier && matchClient && matchMotive;
+      
+      let matchDate = true;
+      if (searchTerms.period !== 'all') {
+        const d = new Date(data.date);
+        const now = new Date();
+        
+        let startD: Date;
+        let endD: Date;
+
+        if (searchTerms.period === 'today') {
+           startD = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+           endD = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        } else if (searchTerms.period === 'this-month') {
+           startD = new Date(now.getFullYear(), now.getMonth(), 1);
+           endD = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        } else if (searchTerms.period === 'last-month') {
+           startD = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+           endD = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+        } else if (searchTerms.period === 'this-year') {
+           startD = new Date(now.getFullYear(), 0, 1);
+           endD = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+        } else if (searchTerms.period === 'custom') {
+           startD = searchTerms.startDate ? new Date(searchTerms.startDate) : new Date(0);
+           endD = searchTerms.endDate ? new Date(searchTerms.endDate) : new Date("2100-01-01");
+           endD.setHours(23, 59, 59);
+        } else {
+           startD = new Date(0);
+           endD = new Date("2100-01-01");
+        }
+        
+        matchDate = d >= startD && d <= endD;
+      }
+
+      return matchSupplier && matchClient && matchMotive && matchDate;
     };
 
     this.loadHistory();
@@ -84,6 +140,7 @@ export class BcHistoryListComponent implements OnInit {
         this.history = data;
         this.dataSource.data = data;
         this.extractFilterOptions(data);
+        this.applyFilters(); // trigger filter and stats
         this.loading = false;
         this.cdr.markForCheck();
       },
@@ -117,14 +174,28 @@ export class BcHistoryListComponent implements OnInit {
     this.dataSource.filter = JSON.stringify({
       supplier: this.filterSupplier,
       client: this.filterClient,
-      motive: this.filterMotive
+      motive: this.filterMotive,
+      period: this.selectedPeriod(),
+      startDate: this.customStartDate,
+      endDate: this.customEndDate
     });
+    this.updateStats();
+  }
+
+  updateStats(): void {
+    this.subtotals = {
+      count: this.dataSource.filteredData.length
+    };
+    this.cdr.markForCheck();
   }
 
   clearFilters(): void {
     this.filterSupplier = '';
     this.filterClient = '';
     this.filterMotive = '';
+    this.selectedPeriod.set('this-month');
+    this.customStartDate = null;
+    this.customEndDate = null;
     this.applyFilters();
   }
 

@@ -18,13 +18,21 @@ export class CentersService {
   }
 
   async findAll(groupeId?: string) {
-    return this.prisma.centre.findMany({
-      where: groupeId ? { groupeId } : undefined,
-      include: {
-        groupe: true,
-        entrepots: true,
-      },
-    });
+    try {
+      return await this.prisma.centre.findMany({
+        where: groupeId ? { groupeId } : undefined,
+        include: {
+          groupe: true,
+          entrepots: true,
+        },
+      });
+    } catch (error) {
+      console.error('[CENTERS-SERVICE] Error in findAll:', error);
+      // Fallback to centers without relations if it fails due to relationship missing
+      return this.prisma.centre.findMany({
+        where: groupeId ? { groupeId } : undefined
+      });
+    }
   }
 
   async findOne(id: string) {

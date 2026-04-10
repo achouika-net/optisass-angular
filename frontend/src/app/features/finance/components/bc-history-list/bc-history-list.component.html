@@ -14,6 +14,27 @@
           </mat-select>
       </mat-form-field>
 
+      <mat-form-field appearance="outline" class="w-[180px]" subscriptSizing="dynamic">
+          <mat-label>Période</mat-label>
+          <mat-select [value]="selectedPeriod()" (selectionChange)="selectedPeriod.set($event.value); applyFilters()">
+              <mat-option *ngFor="let p of periods" [value]="p.value">{{ p.label }}</mat-option>
+          </mat-select>
+      </mat-form-field>
+      
+      <mat-form-field appearance="outline" class="w-[150px]" subscriptSizing="dynamic" *ngIf="selectedPeriod() === 'custom'">
+          <mat-label>Date début</mat-label>
+          <input matInput [matDatepicker]="startPicker" [(ngModel)]="customStartDate" (ngModelChange)="applyFilters()">
+          <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
+          <mat-datepicker #startPicker></mat-datepicker>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="w-[150px]" subscriptSizing="dynamic" *ngIf="selectedPeriod() === 'custom'">
+          <mat-label>Date fin</mat-label>
+          <input matInput [matDatepicker]="endPicker" [(ngModel)]="customEndDate" (ngModelChange)="applyFilters()">
+          <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
+          <mat-datepicker #endPicker></mat-datepicker>
+      </mat-form-field>
+
       <mat-form-field appearance="outline" class="w-[220px]" subscriptSizing="dynamic">
           <mat-label>Client</mat-label>
           <mat-select [(ngModel)]="filterClient" (selectionChange)="applyFilters()">
@@ -37,7 +58,7 @@
 
       <div class="ml-auto flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 shrink-0">
         <span class="text-xs font-bold text-blue-400 uppercase">Documents</span>
-        <span class="text-lg font-black text-blue-700">{{ history.length }}</span>
+        <span class="text-lg font-black text-blue-700">{{ subtotals.count }}</span>
       </div>
   </div>
 

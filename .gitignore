@@ -51,3 +51,9 @@ n8n-local/
 backend/import_execute.log
 backend/build_report.txt
 
+# Temporary scripts & dumps (never commit these)
+tmp/
+tmp_ssh/
+vps_dumps/
+*.zip
+

@@ -1,4 +1,4 @@
-import { Component, OnInit, effect, signal, Input, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, effect, signal, Input, ChangeDetectorRef, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -137,6 +137,7 @@ export class SupplierInvoiceListComponent implements OnInit {
   @Input() listMode: 'INVOICE' | 'BL' = 'BL';
   @Input() showHeader = true;
   @Input() isSubComponent = false;
+  @Output() statsUpdated = new EventEmitter<any>();
 
   invoices: SupplierInvoice[] = [];
   displayedColumns: string[] = [];
@@ -148,7 +149,7 @@ export class SupplierInvoiceListComponent implements OnInit {
   pageIndex = 0;
   pageSize = 10;
 
-  selectedPeriod = signal<string>('all');
+  selectedPeriod = signal<string>('this-month');
   periods = [
     { value: 'all', label: 'Toutes les périodes' },
     { value: 'today', label: "Aujourd'hui" },
@@ -209,13 +210,32 @@ export class SupplierInvoiceListComponent implements OnInit {
     });
   }
 
-  updateColumns() {
-    if (this.listMode === 'BL') {
-      this.displayedColumns = ['select', 'date', 'numero', 'fournisseur', 'client', 'ficheMedicale', 'type', 'statut', 'montant', 'actions'];
-    } else {
-      this.displayedColumns = ['date', 'numero', 'fournisseur', 'type', 'statut', 'montant', 'actions'];
+    updateColumns() {
+        if (this.listMode === 'BL') {
+            this.displayedColumns = ['select', 'date', 'numero', 'fournisseur', 'client', 'ficheMedicale', 'type', 'statut', 'montant', 'actions'];
+        } else {
+            this.displayedColumns = ['date', 'numero', 'fournisseur', 'type', 'paiement', 'pieces', 'echeance_dates', 'statut', 'montant', 'actions'];
+        }
     }
-  }
+
+    getPaymentType(element: SupplierInvoice): string {
+        if (!element.echeances || element.echeances.length === 0) return '-';
+        const types = Array.from(new Set(element.echeances.map(e => e.type)));
+        if (types.length === 1) return types[0];
+        return 'MIXTE';
+    }
+
+    getPieceCount(element: SupplierInvoice): number {
+        return element.echeances?.length || 0;
+    }
+
+    getPieceDates(element: SupplierInvoice): string {
+        if (!element.echeances || element.echeances.length === 0) return '-';
+        return element.echeances.map(e => {
+            const date = new Date(e.dateEcheance);
+            return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+        }).join(', ');
+    }
 
   applyFilters() {
     this.loadInvoices();
@@ -294,10 +314,29 @@ export class SupplierInvoiceListComponent implements OnInit {
         if (res && res.data !== undefined) {
           this.invoices = res.data || [];
           this.totalCount = Number(res.total);
+          
+          let calcTTC = 0;
+          let calcHT = 0;
+          let calcReste = 0;
+
+          // Process the items to compute or augment stats
+          this.invoices.forEach(inv => {
+            calcTTC += (inv.montantTTC || 0);
+            calcHT += (inv.montantHT || 0);
+            calcReste += ((inv as any).resteAPayer || 0);
+          });
+
           if (res.stats) {
             this.stats = res.stats;
+            this.statsUpdated.emit({
+              count: this.totalCount,
+              totalTTC: this.stats.totalTTC || calcTTC,
+              totalHT: res.subtotals?.totalHT || calcHT, 
+              totalReste: this.stats.totalRemaining || calcReste
+            });
           } else {
-            this.stats = { totalTTC: 0, totalPaid: 0, totalRemaining: 0 };
+            this.stats = { totalTTC: calcTTC, totalPaid: (calcTTC - calcReste), totalRemaining: calcReste };
+            this.statsUpdated.emit({ count: this.totalCount, totalTTC: calcTTC, totalHT: calcHT, totalReste: calcReste });
           }
         } else {
           this.invoices = Array.isArray(res) ? res : [];
@@ -506,16 +545,10 @@ export class SupplierInvoiceListComponent implements OnInit {
 
   formatType(type: string): string {
     if (!type) return '-';
-    const t = type.toUpperCase();
-    if (t.includes('LENTILLE')) return 'LEN';
-    if (t.includes('VERRE') || t === 'VER') return 'VER';
-    if (t.includes('MONTURE')) return 'MON';
-    if (t.includes('SOLAIRE')) return 'SOL';
-    if (t.includes('ACCESSOIRE')) return 'ACC';
-    
-    // Fallback: remove ACHAT_ prefix and return first 3 chars
-    const cleaned = t.replace('ACHAT_', '');
-    return cleaned.substring(0, 3);
+    // Remove "ACHAT_" prefix and replace underscores with spaces
+    const cleaned = type.replace('ACHAT_', '').replace(/_/g, ' ');
+    // Return capitalized first letter
+    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase();
   }
 
   formatClientName(client: any): string {

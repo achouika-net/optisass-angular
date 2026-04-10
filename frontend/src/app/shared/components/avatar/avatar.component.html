@@ -5,9 +5,9 @@
   [style.min-width.px]="size()"
   [style.min-height.px]="size()"
 >
-  @if (imageBase64()) {
+  @if (imageSrc()) {
     <img
-      [ngSrc]="'data:image/png;base64,' + imageBase64()"
+      [ngSrc]="imageSrc()!"
       [alt]="'Avatar'"
       [width]="size()"
       [height]="size()"

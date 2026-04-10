@@ -9,7 +9,6 @@ export const environment = {
   envName: 'production',
   defaultLanguage: 'fr',
   appName: 'Agenda',
-  // Pour le deploy VPS: toutes les requetes API passent par le proxy Nginx (/api)
   // Cela evite ERR_CONNECTION_REFUSED sur le port 3003
   apiUrl: isLocal ? 'http://localhost:3003' : '',
   websocketUrl: 'wss://optisaas.com/app/',

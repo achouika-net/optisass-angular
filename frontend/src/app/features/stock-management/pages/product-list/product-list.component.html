@@ -16,7 +16,7 @@
                     Situation
                 </button>
                 <button mat-stroked-button color="accent" (click)="printLabels()"
-                    [disabled]="selection.selected.length === 0">
+                    [disabled]="!selection || selection.selected.length === 0">
                     <mat-icon>qr_code</mat-icon>
                     Étiquettes
                 </button>
