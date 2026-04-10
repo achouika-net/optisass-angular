@@ -521,18 +521,29 @@ ${centreName ? `(${centreName})` : ''}`,
 
   /**
    * Lean endpoint for BC History page.
-   * Instead of loading every fiche's full content (with base64 images etc.),
-   * this query fetches only the fields needed to display the BC history table.
+   * Optimized with server-side filtering and sorting.
    */
-  async findAllBcHistory(startDate?: string, centreId?: string) {
+  async findAllBcHistory(query: {
+    startDate?: string;
+    endDate?: string;
+    centreId?: string;
+    limit?: number;
+    skip?: number;
+  }) {
+    const { startDate, endDate, centreId, limit = 50, skip = 0 } = query;
     const where: Prisma.FicheWhereInput = {};
-    if (startDate) {
-      where.dateCreation = { gte: new Date(startDate) };
+    
+    if (startDate || endDate) {
+      where.dateCreation = {};
+      if (startDate) where.dateCreation.gte = new Date(startDate);
+      if (endDate) where.dateCreation.lte = new Date(endDate);
     }
     if (centreId) {
       where.client = { centreId };
     }
 
+    // We fetch a bit more than the limit because one fiche can have multiple BC history entries
+    // But we limit the initial fetch to keep it fast.
     const fiches = await this.prisma.fiche.findMany({
       where,
       select: {
@@ -541,15 +552,16 @@ ${centreName ? `(${centreName})` : ''}`,
         dateCreation: true,
         type: true,
         statut: true,
-        content: true, // we need to extract bcHistorique from inside
+        content: true,
         client: {
           select: { id: true, nom: true, prenom: true, raisonSociale: true },
         },
       },
       orderBy: { dateCreation: 'desc' },
+      take: limit,
+      skip: skip,
     });
 
-    // Extract & flatten BC history records server-side
     const allHistory: any[] = [];
     for (const fiche of fiches) {
       const content = (fiche.content as any) || {};
@@ -598,7 +610,7 @@ ${centreName ? `(${centreName})` : ''}`,
       });
     }
 
-    // Sort by date descending
+    // Sort by date descending (already sorted by fiche date, but BC dates might differ)
     return allHistory.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     );

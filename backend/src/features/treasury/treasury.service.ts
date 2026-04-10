@@ -381,12 +381,13 @@ export class TreasuryService {
         ];
       }
 
-      const [pieces, total, aggregate] = await Promise.all([
+      const [pieces, total, aggregate, inHandAgg, depositedAgg, paidAgg] = await Promise.all([
         this.prisma.echeancePaiement.findMany({
           where,
           include: {
             factureFournisseur: { include: { fournisseur: { select: { nom: true } } } },
             depense: { include: { fournisseur: { select: { nom: true } } } },
+            bonLivraison: { include: { fournisseur: { select: { nom: true } } } },
           },
           orderBy: { dateEcheance: 'desc' },
           skip,
@@ -394,18 +395,30 @@ export class TreasuryService {
         }),
         this.prisma.echeancePaiement.count({ where }),
         this.prisma.echeancePaiement.aggregate({ where, _sum: { montant: true } }),
+        this.prisma.echeancePaiement.aggregate({ 
+          where: { ...where, statut: { in: ['EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON'] } }, 
+          _sum: { montant: true } 
+        }),
+        this.prisma.echeancePaiement.aggregate({ 
+          where: { ...where, statut: { in: ['REMIS_EN_BANQUE', 'DEPOSE', 'DÉPOSÉ'] } }, 
+          _sum: { montant: true } 
+        }),
+        this.prisma.echeancePaiement.aggregate({ 
+          where: { ...where, statut: { in: ['ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ'] } }, 
+          _sum: { montant: true } 
+        })
       ]);
 
       return {
         data: pieces.map((p) => ({
           id: p.id,
           date: p.dateEcheance,
-          libelle: p.factureFournisseur?.numeroFacture || p.depense?.description || p.depense?.categorie || 'N/A',
+          libelle: p.factureFournisseur?.numeroFacture || p.bonLivraison?.numeroBL || p.depense?.description || p.depense?.categorie || 'N/A',
           type: p.type,
-          fournisseur: p.factureFournisseur?.fournisseur?.nom || p.depense?.fournisseur?.nom || 'N/A',
+          fournisseur: p.factureFournisseur?.fournisseur?.nom || p.bonLivraison?.fournisseur?.nom || p.depense?.fournisseur?.nom || 'N/A',
           montant: p.montant,
           statut: p.statut,
-          source: p.factureFournisseur ? 'FACTURE' : 'DEPENSE',
+          source: p.factureFournisseur ? 'FACTURE' : (p.bonLivraison ? 'BL' : 'DEPENSE'),
           modePaiement: p.type,
           reference: p.reference,
           banque: p.banque,
@@ -414,41 +427,58 @@ export class TreasuryService {
           createdAt: p.createdAt,
         })),
         total,
-        subtotals: { totalTTC: aggregate._sum.montant || 0 }
+        subtotals: { 
+          totalTTC: aggregate._sum.montant || 0,
+          inHand: inHandAgg._sum.montant || 0,
+          deposited: depositedAgg._sum.montant || 0,
+          paid: paidAgg._sum.montant || 0
+        }
       };
     }
 
     let depenseWhere = `WHERE 1=1 `;
-    let echeanceWhere = `WHERE 1=1 `;
+    let echeanceWhere = `WHERE 1=1 `; // For FactureFournisseur
+    let blEcheanceWhere = `WHERE 1=1 `; // NEW branch for BonLivraison
     const sqlParams: any[] = [];
 
     if (filters.centreId) {
       sqlParams.push(filters.centreId);
       depenseWhere += `AND d."centreId" = $${sqlParams.length} `;
       echeanceWhere += `AND ff."centreId" = $${sqlParams.length} `;
+      blEcheanceWhere += `AND bl."centreId" = $${sqlParams.length} `;
     }
     if (filters.fournisseurId) {
       sqlParams.push(filters.fournisseurId);
       depenseWhere += `AND d."fournisseurId" = $${sqlParams.length} `;
       echeanceWhere += `AND ff."fournisseurId" = $${sqlParams.length} `;
+      blEcheanceWhere += `AND bl."fournisseurId" = $${sqlParams.length} `;
     }
     if (filters.type) {
       sqlParams.push(filters.type);
       depenseWhere += `AND d.categorie = $${sqlParams.length} `;
       echeanceWhere += `AND ff.type = $${sqlParams.length} `;
+      blEcheanceWhere += `AND bl.type = $${sqlParams.length} `;
     }
     if (filters.startDate) {
       sqlParams.push(new Date(filters.startDate));
-      depenseWhere += `AND d.date >= $${sqlParams.length} `;
+      depenseWhere += `AND COALESCE(d."dateEcheance", d.date) >= $${sqlParams.length} `;
       echeanceWhere += `AND ep."dateEcheance" >= $${sqlParams.length} `;
+      blEcheanceWhere += `AND ep."dateEcheance" >= $${sqlParams.length} `;
     }
     if (filters.endDate) {
       sqlParams.push(new Date(filters.endDate));
-      depenseWhere += `AND d.date <= $${sqlParams.length} `;
+      depenseWhere += `AND COALESCE(d."dateEcheance", d.date) <= $${sqlParams.length} `;
       echeanceWhere += `AND ep."dateEcheance" <= $${sqlParams.length} `;
+      blEcheanceWhere += `AND ep."dateEcheance" <= $${sqlParams.length} `;
     }
-    if (filters.source === 'FACTURE') depenseWhere += `AND 1=0 `;
-    if (filters.source === 'DEPENSE') echeanceWhere += `AND 1=0 `;
+    if (filters.source === 'FACTURE') {
+      depenseWhere += `AND 1=0 `;
+      blEcheanceWhere += `AND 1=0 `;
+    }
+    if (filters.source === 'DEPENSE') {
+      echeanceWhere += `AND 1=0 `;
+      blEcheanceWhere += `AND 1=0 `;
+    }
 
     const baseQuery = `
       SELECT 
@@ -465,18 +495,38 @@ export class TreasuryService {
       UNION ALL
       SELECT 
         ff.id, ep."dateEcheance" as date, ff."numeroFacture" || ' (' || ep.type || ')' as libelle, 
-        ff.type as type, f_ff.nom as fournisseur, ep.montant, ep.statut, 
+        ff.type as type, COALESCE(f_ff.nom, 'N/A') as fournisseur, ep.montant, ep.statut, 
         'Facture ' || ff."numeroFacture" as source, 'FACTURE' as "sourceRaw",
         ep.type as "modePaiement", COALESCE(ep.reference, ff."numeroFacture") as reference, 
         ep.banque, ep."dateEcheance", ep."dateEncaissement", ff."montantHT", ep.id as "echeanceId"
       FROM "EcheancePaiement" ep
       INNER JOIN "FactureFournisseur" ff ON ep."factureFournisseurId" = ff.id
-      INNER JOIN "Fournisseur" f_ff ON ff."fournisseurId" = f_ff.id
+      LEFT JOIN "Fournisseur" f_ff ON ff."fournisseurId" = f_ff.id
       ${echeanceWhere}
+      AND NOT EXISTS (SELECT 1 FROM "Depense" d_idx WHERE d_idx."echeanceId" = ep.id)
+      UNION ALL
+      SELECT 
+        bl.id, ep."dateEcheance" as date, bl."numeroBL" || ' (' || ep.type || ')' as libelle, 
+        bl.type as type, COALESCE(f_bl.nom, 'N/A') as fournisseur, ep.montant, ep.statut, 
+        'BL ' || bl."numeroBL" as source, 'BL' as "sourceRaw",
+        ep.type as "modePaiement", COALESCE(ep.reference, bl."numeroBL") as reference, 
+        ep.banque, ep."dateEcheance", ep."dateEncaissement", bl."montantTTC" as "montantHT", ep.id as "echeanceId"
+      FROM "EcheancePaiement" ep
+      INNER JOIN "BonLivraison" bl ON ep."bonLivraisonId" = bl.id
+      LEFT JOIN "Fournisseur" f_bl ON bl."fournisseurId" = f_bl.id
+      ${blEcheanceWhere}
       AND NOT EXISTS (SELECT 1 FROM "Depense" d_idx WHERE d_idx."echeanceId" = ep.id)
     `;
 
-    const statsQuery = `SELECT COUNT(*)::int as total, COALESCE(SUM(montant), 0)::float as "totalTTC" FROM (${baseQuery}) as c`;
+    const statsQuery = `
+      SELECT 
+        COUNT(*)::int as total, 
+        COALESCE(SUM(montant), 0)::float as "totalTTC",
+        COALESCE(SUM(CASE WHEN statut IN ('EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON', 'NON_PAYEE', 'A_PAYER') THEN montant ELSE 0 END), 0)::float as "inHand",
+        COALESCE(SUM(CASE WHEN statut IN ('REMIS_EN_BANQUE', 'DEPOSE', 'DÉPOSÉ') THEN montant ELSE 0 END), 0)::float as "deposited",
+        COALESCE(SUM(CASE WHEN statut IN ('ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ') THEN montant ELSE 0 END), 0)::float as "paid"
+      FROM (${baseQuery}) as c
+    `;
     const stats = await this.prisma.$queryRawUnsafe<any[]>(statsQuery, ...sqlParams);
 
     const dataQuery = `${baseQuery} ORDER BY date DESC LIMIT ${limit} OFFSET ${skip}`;
@@ -526,6 +576,9 @@ export class TreasuryService {
       total: stats[0]?.total || 0,
       subtotals: {
         totalTTC: stats[0]?.totalTTC || 0,
+        inHand: stats[0]?.inHand || 0,
+        deposited: stats[0]?.deposited || 0,
+        paid: stats[0]?.paid || 0,
         totalAccrual: Number(totalAccrual.toFixed(2)),
         totalHT: Number(totalHT.toFixed(2))
       }
@@ -583,14 +636,22 @@ export class TreasuryService {
       ${whereClause}
     `;
 
-    const statsQuery = `SELECT COUNT(*)::int as total, COALESCE(SUM(p.montant), 0)::float as "totalTTC" ${baseQuery}`;
+    const statsQuery = `
+      SELECT 
+        COUNT(*)::int as total, 
+        COALESCE(SUM(p.montant), 0)::float as "totalTTC",
+        COALESCE(SUM(CASE WHEN p.statut IN ('EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON') THEN p.montant ELSE 0 END), 0)::float as "inHand",
+        COALESCE(SUM(CASE WHEN p.statut IN ('REMIS_EN_BANQUE', 'DEPOSE', 'DÉPOSÉ') THEN p.montant ELSE 0 END), 0)::float as "deposited",
+        COALESCE(SUM(CASE WHEN p.statut IN ('ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ') THEN p.montant ELSE 0 END), 0)::float as "paid"
+      ${baseQuery}
+    `;
     const [stats] = await this.prisma.$queryRawUnsafe<any[]>(statsQuery, ...sqlParams);
 
     const dataQuery = `
       SELECT 
         p.id, p.date, f.numero as libelle, p.mode as type, 
         c.nom || ' ' || COALESCE(c.prenom, '') as fournisseur, p.montant, p.statut, 
-        'FACTURE' as source, p.mode as "modePaiement", p.reference, p.banque, 
+        'FACTURE_CLIENT' as source, p.mode as "modePaiement", p.reference, p.banque, 
         p."dateVersement" as "dateEcheance", p."dateVersement" as "dateEncaissement", 
         f."totalTTC" as "montantHT"
       ${baseQuery}
@@ -601,7 +662,12 @@ export class TreasuryService {
     return {
       data: results.map(r => ({ ...r, montant: Number(r.montant) })),
       total: stats.total,
-      subtotals: { totalTTC: stats.totalTTC }
+      subtotals: { 
+        totalTTC: stats.totalTTC,
+        inHand: stats.inHand,
+        deposited: stats.deposited,
+        paid: stats.paid
+      }
     };
   }
 
@@ -741,7 +807,13 @@ export class TreasuryService {
   async updateEcheanceStatus(id: string, statut: string) {
     const data: any = { statut };
     if (statut === 'ENCAISSE' || statut === 'PAYE') data.dateEncaissement = new Date();
-    return this.prisma.echeancePaiement.update({ where: { id }, data });
+    
+    try {
+      return await this.prisma.echeancePaiement.update({ where: { id }, data });
+    } catch (error) {
+      console.error(`[TREASURY-SERV] Error updating echeance ${id}:`, error.message);
+      throw new Error(`Échéance introuvable ou erreur de mise à jour (${error.message})`);
+    }
   }
 
   async getPendingAlerts(centreId?: string) {

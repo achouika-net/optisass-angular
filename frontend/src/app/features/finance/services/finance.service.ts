@@ -188,12 +188,12 @@ export class FinanceService {
         return this.http.post<any>(`${this.apiUrl}/treasury/config`, { monthlyThreshold: threshold });
     }
 
-    getConsolidatedOutgoings(filters: any): Observable<{ data: any[], total: number, subtotals: { totalTTC: number } }> {
-        return this.http.get<{ data: any[], total: number, subtotals: { totalTTC: number } }>(`${this.apiUrl}/treasury/consolidated-outgoings`, { params: filters });
+    getConsolidatedOutgoings(filters: any): Observable<{ data: any[], total: number, subtotals: { totalTTC: number, inHand: number, deposited: number, paid: number } }> {
+        return this.http.get<{ data: any[], total: number, subtotals: { totalTTC: number, inHand: number, deposited: number, paid: number } }>(`${this.apiUrl}/treasury/consolidated-outgoings`, { params: filters });
     }
 
-    getConsolidatedIncomings(filters: any): Observable<{ data: any[], total: number, subtotals: { totalTTC: number } }> {
-        return this.http.get<{ data: any[], total: number, subtotals: { totalTTC: number } }>(`${this.apiUrl}/treasury/consolidated-incomings`, { params: filters });
+    getConsolidatedIncomings(filters: any): Observable<{ data: any[], total: number, subtotals: { totalTTC: number, inHand: number, deposited: number, paid: number } }> {
+        return this.http.get<{ data: any[], total: number, subtotals: { totalTTC: number, inHand: number, deposited: number, paid: number } }>(`${this.apiUrl}/treasury/consolidated-incomings`, { params: filters });
     }
 
     getUnpaidClientInvoices(filters?: any): Observable<any[]> {
