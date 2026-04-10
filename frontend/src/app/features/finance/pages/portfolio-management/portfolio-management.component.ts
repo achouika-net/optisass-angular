@@ -297,9 +297,13 @@ import { FormsModule } from '@angular/forms';
                         <mat-icon>more_vert</mat-icon>
                       </button>
                       <mat-menu #menu="matMenu">
-                        <button mat-menu-item (click)="updateStatus(item, 'PAYE')">
+                        <button mat-menu-item (click)="updateStatus(item, 'REMIS_EN_BANQUE')" *ngIf="item.statut === 'EN_ATTENTE' || item.statut === 'PORTEFEUILLE'">
+                          <mat-icon class="text-orange-600">account_balance</mat-icon>
+                          <span>Remettre en Banque / Déposé</span>
+                        </button>
+                        <button mat-menu-item (click)="updateStatus(item, 'PAYE')" *ngIf="item.statut !== 'PAYE'">
                           <mat-icon class="text-green-600">check_circle</mat-icon>
-                          <span>Confirmer Décaissement</span>
+                          <span>Confirmer Décaissement (Payé)</span>
                         </button>
                       </mat-menu>
                     </td>
@@ -409,7 +413,7 @@ export class PortfolioManagementComponent implements OnInit {
       statut: this.statusFilter,
       startDate,
       endDate,
-      limit: 500 // Monthly view usually fits in 500
+      limit: 200 // Faster rendering, KPIs are server-side now
     };
 
     const request = this.activeTabId === 0
@@ -419,7 +423,11 @@ export class PortfolioManagementComponent implements OnInit {
     request.subscribe({
       next: (res) => {
         this.items = res.data;
-        this.calculateTotals();
+        this.totals = {
+          inHand: res.subtotals.inHand || 0,
+          deposited: res.subtotals.deposited || 0,
+          paid: res.subtotals.paid || 0
+        };
         this.loading = false;
       },
       error: () => {
@@ -430,11 +438,7 @@ export class PortfolioManagementComponent implements OnInit {
   }
 
   calculateTotals() {
-    this.totals = {
-      inHand: this.items.filter(i => ['EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON'].includes(i.statut.toUpperCase())).reduce((acc, i) => acc + Math.abs(i.montant), 0),
-      deposited: this.items.filter(i => ['REMIS_EN_BANQUE', 'DEPOSE', 'DÉPOSÉ'].includes(i.statut.toUpperCase())).reduce((acc, i) => acc + Math.abs(i.montant), 0),
-      paid: this.items.filter(i => ['ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ'].includes(i.statut.toUpperCase())).reduce((acc, i) => acc + Math.abs(i.montant), 0)
-    };
+    // Logic moved to loadData/Server-side for performance and accuracy
   }
 
   getStatusClass(status: string) {

@@ -39,8 +39,17 @@ export class FicheService {
      * Récupérer l'historique global des BC via l'endpoint optimisé
      * (ne charge plus toutes les fiches complètes côté client)
      */
-    getAllBcHistory(): Observable<any[]> {
-        return this.http.get<any[]>(`${this.apiUrl}/bc-history`);
+    getAllBcHistory(params?: { startDate?: string, endDate?: string, limit?: number, skip?: number }): Observable<any[]> {
+        let url = `${this.apiUrl}/bc-history`;
+        if (params) {
+            const queryParams = new URLSearchParams();
+            if (params.startDate) queryParams.set('startDate', params.startDate);
+            if (params.endDate) queryParams.set('endDate', params.endDate);
+            if (params.limit) queryParams.set('limit', params.limit.toString());
+            if (params.skip) queryParams.set('skip', params.skip.toString());
+            url += `?${queryParams.toString()}`;
+        }
+        return this.http.get<any[]>(url);
     }
 
 

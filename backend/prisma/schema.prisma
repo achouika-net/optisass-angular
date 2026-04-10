@@ -80,6 +80,7 @@ model Fiche {
   @@index([clientId])
   @@index([type])
   @@index([statut])
+  @@index([dateCreation])
 }
 
 model Facture {
@@ -153,6 +154,7 @@ model Paiement {
   @@index([mode])
   @@index([statut])
   @@index([factureId])
+  @@index([date, statut, mode])
 }
 
 model Groupe {
@@ -534,6 +536,7 @@ model EcheancePaiement {
 
   @@index([dateEcheance])
   @@index([statut])
+  @@index([dateEcheance, statut, type])
 }
 
 model FinanceConfig {

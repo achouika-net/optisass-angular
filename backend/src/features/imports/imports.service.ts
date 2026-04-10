@@ -2263,7 +2263,8 @@ export class ImportsService {
                 montant: montantTTC,
                 dateEcheance: dateEmission,
                 type: row[mapping.modePaiement] || 'ESPECES',
-                statut: 'EN_ATTENTE',
+                statut: (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES' ? 'ENCAISSE' : 'EN_ATTENTE',
+                dateEncaissement: (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES' ? dateEmission : null,
               },
             });
 
@@ -2457,7 +2458,8 @@ export class ImportsService {
                 montant: montantTTC || 0,
                 dateEcheance: dateEcheance || dateEmission,
                 type: row[mapping.modePaiement] || 'ESPECES',
-                statut: 'EN_ATTENTE',
+                statut: (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES' ? 'ENCAISSE' : 'EN_ATTENTE',
+                dateEncaissement: (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES' ? (dateEcheance || dateEmission) : null,
               },
             });
           } else {
@@ -2486,7 +2488,8 @@ export class ImportsService {
                 montant: montantTTC || 0,
                 dateEcheance: dateEcheance || dateEmission,
                 type: row[mapping.modePaiement] || 'ESPECES',
-                statut: 'EN_ATTENTE',
+                statut: (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES' ? 'ENCAISSE' : 'EN_ATTENTE',
+                dateEncaissement: (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES' ? (dateEcheance || dateEmission) : null,
               },
             });
           }

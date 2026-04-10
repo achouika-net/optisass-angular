@@ -28,9 +28,18 @@ export class FichesController {
   @Get('bc-history')
   getBcHistory(
     @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
     @Query('centreId') centreId?: string,
+    @Query('limit') limit?: string,
+    @Query('skip') skip?: string,
   ) {
-    return this.fichesService.findAllBcHistory(startDate, centreId);
+    return this.fichesService.findAllBcHistory({
+      startDate,
+      endDate,
+      centreId,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      skip: skip ? parseInt(skip, 10) : undefined,
+    });
   }
 
   @Get()

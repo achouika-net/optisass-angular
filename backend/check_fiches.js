@@ -2,15 +2,26 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  const fichesCount = await prisma.fiche.groupBy({
-    by: ['type'],
-    _count: { _all: true }
+  const fiches = await prisma.fiche.findMany({
+    take: 5,
+    select: {
+      id: true,
+      numero: true,
+      dateCreation: true,
+      content: true
+    }
   });
-  console.log('Fiches dans la DB :', fichesCount);
-  
-  const allFiches = await prisma.fiche.findMany({ select: { id: true, type: true, dateCreation: true } });
-  console.log('Total fiches exact :', allFiches.length);
-  console.log('10 premieres fiches :', allFiches.slice(0, 10));
+  console.log('--- FICHES ---');
+  fiches.forEach(f => {
+    console.log(`ID: ${f.id}, Num: ${f.numero}, Date: ${f.dateCreation} (${typeof f.dateCreation})`);
+    if (f.content && f.content.dateCreation) {
+        console.log(`  - Content Date: ${f.content.dateCreation} (${typeof f.content.dateCreation})`);
+    }
+  });
+  process.exit(0);
 }
 
-main().finally(() => prisma.$disconnect());
+main().catch(e => {
+  console.error(e);
+  process.exit(1);
+});

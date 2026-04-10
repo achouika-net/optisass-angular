@@ -135,7 +135,43 @@ export class BcHistoryListComponent implements OnInit {
 
   loadHistory(): void {
     this.loading = true;
-    this.ficheService.getAllBcHistory().subscribe({
+    this.cdr.markForCheck();
+
+    const period = this.selectedPeriod();
+    let startDate: string | undefined;
+    let endDate: string | undefined;
+    const now = new Date();
+
+    if (period === 'today') {
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      startDate = todayStart.toISOString();
+      endDate = todayEnd.toISOString();
+    } else if (period === 'this-month') {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      startDate = firstDay.toISOString();
+      endDate = lastDay.toISOString();
+    } else if (period === 'last-month') {
+      const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+      startDate = firstDayLastMonth.toISOString();
+      endDate = lastDayLastMonth.toISOString();
+    } else if (period === 'this-year') {
+      const firstDayYear = new Date(now.getFullYear(), 0, 1);
+      const lastDayYear = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+      startDate = firstDayYear.toISOString();
+      endDate = lastDayYear.toISOString();
+    } else if (period === 'custom') {
+      if (this.customStartDate) startDate = this.customStartDate.toISOString();
+      if (this.customEndDate) {
+        const end = new Date(this.customEndDate);
+        end.setHours(23, 59, 59);
+        endDate = end.toISOString();
+      }
+    }
+
+    this.ficheService.getAllBcHistory({ startDate, endDate }).subscribe({
       next: (data) => {
         this.history = data;
         this.dataSource.data = data;
@@ -170,6 +206,11 @@ export class BcHistoryListComponent implements OnInit {
     this.uniqueMotives = Array.from(motives).sort();
   }
 
+  onPeriodChange(event: any): void {
+    this.selectedPeriod.set(event.value);
+    this.loadHistory();
+  }
+
   applyFilters(): void {
     this.dataSource.filter = JSON.stringify({
       supplier: this.filterSupplier,
@@ -196,7 +237,7 @@ export class BcHistoryListComponent implements OnInit {
     this.selectedPeriod.set('this-month');
     this.customStartDate = null;
     this.customEndDate = null;
-    this.applyFilters();
+    this.loadHistory(); // Reload with default period
   }
 
   cleanReference(numero: string): string {
