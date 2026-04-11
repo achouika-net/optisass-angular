@@ -67,7 +67,7 @@ export class FactureFormComponent implements OnInit {
     @Input() isReadonly = false;
     @Output() onSaved = new EventEmitter<any>();
     @Output() onCancelled = new EventEmitter<void>();
-    @Output() paymentAdded = new EventEmitter<void>();
+    @Output() paymentChanged = new EventEmitter<void>();
 
 
     form: FormGroup;
@@ -1038,8 +1038,8 @@ export class FactureFormComponent implements OnInit {
             next: (savedPayment) => {
                 this.snackBar.open('Paiement enregistré', 'Fermer', { duration: 3000 });
                 // Reload facture to get updated status and remaining amount
-                this.loadFacture(this.id!);
-                this.paymentAdded.emit();
+                this.loadFacture(savedPayment.factureId);
+                this.paymentChanged.emit();
             },
 
             error: (err) => {

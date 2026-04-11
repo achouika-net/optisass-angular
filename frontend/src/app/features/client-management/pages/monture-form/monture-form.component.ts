@@ -2262,7 +2262,8 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         if (confirm('Supprimer cet équipement ?')) {
             this.equipements.removeAt(index);
             this.addedEquipmentsExpanded.splice(index, 1);
-            this.cdr.markForCheck();
+            this.snackBar.open('Équipement supprimé', 'OK', { duration: 2000 });
+            this.cdr.detectChanges();
         }
     }
 
@@ -3922,62 +3923,49 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         }
     }
 
-    async onPaymentAdded() {
-        console.log('💰 [EVENT] Payment Added - Checking for archiving decision...');
+    async onPaymentChanged() {
+        console.log('💰 [EVENT] Payment Changed - Syncing state...');
+        
+        // Refresh local data to have latest totals
+        this.loadLinkedFacture();
+        this.loadFiche();
 
-        // [NEW] Logic: Check if ANY product is pending transfer. If so, don't prompt for validation yet.
-        const formValue = this.ficheForm.getRawValue();
-        const hasPendingTransfer = formValue.monture?.isPendingTransfer ||
-            formValue.verres?.isPendingTransfer ||
-            (formValue.equipements || []).some((e: any) => e.monture?.isPendingTransfer || e.verres?.isPendingTransfer);
-
-        if (hasPendingTransfer && !this.receptionComplete) {
-            console.log('📦 Pending transfer detected. Skipping validation prompt until product arrival.');
-            return;
-        }
-
-        // [RESTORED] Check for ANY valid line with total > 0 (even if no specific ProductId/EntrepotId yet)
+        // [NEW] Logic: Check if we actually need to upgrade the status
+        // We only upgrade if it's a new payment on a draft document.
+        
         const invoiceLines = this.getInvoiceLines();
-        const hasLines = invoiceLines.length > 0;
+        if (invoiceLines.length === 0) return;
 
-        if (!hasLines) {
-            console.log('ℹ️ No invoice lines detected. No status upgrade needed.');
-            return;
-        }
-
-        // [FIX] Check if invoice is already validated - skip prompt if already VALIDE
         try {
             const factures = await firstValueFrom(this.factureService.findAll({ clientId: this.clientId || '' }));
             const currentFacture = factures.find(f => f.ficheId === this.ficheId);
 
-            if (currentFacture && (currentFacture.statut === 'VALIDE' || currentFacture.type === 'FACTURE' || currentFacture.statut === 'BON_DE_COMMANDE')) {
-                console.log('✅ Invoice already validated or BC. Skipping upgrade.');
+            if (!currentFacture) return;
+
+            // [FIX] Skip upgrade if already in an advanced status
+            const advancedStatuses = ['VALIDE', 'BON_COMMANDE', 'BON_DE_COMMANDE', 'VENTE_EN_INSTANCE'];
+            if (advancedStatuses.includes(currentFacture.statut) || currentFacture.type === 'FACTURE') {
+                console.log('✅ Document already in advanced status or Facture. No upgrade needed.');
                 return;
             }
 
-            // [NEW] Silent Upgrade to BON_COMM + VENTE_EN_INSTANCE
-            console.log('💪 Upgrading to BON_COMM due to payment.');
-            if (currentFacture) {
+            // Simple check: If any payment exists now, and it was a "Devis", upgrade to "Bon de Commande"
+            const amountPaid = currentFacture.totalTTC - currentFacture.resteAPayer;
+            if (currentFacture.type === 'DEVIS' && amountPaid > 0) {
+                console.log('💪 Upgrading DEVIS to BON_COMM due to new payment.');
                 await firstValueFrom(this.factureService.update(currentFacture.id, {
                     statut: 'VENTE_EN_INSTANCE',
                     type: 'BON_COMM'
                 }));
                 this.snackBar.open('Documentation mise à jour : Bon de Commande', 'OK', { duration: 3000 });
-
-
-
-                // Reload to refresh UI state (linked factures, status badges)
+                
                 this.loadLinkedFacture();
-                this.loadFiche();
-
-                // [FIX] Force child component to reload to see new "BON_COMM" type/number immediately
-                if (this.factureComponent && currentFacture.id) {
-                    console.log('🔄 [UI-SYNC] Forcing FactureForm reload...');
+                if (this.factureComponent) {
                     this.factureComponent.loadFacture(currentFacture.id);
                 }
             }
         } catch (e) {
-            console.error('Error checking invoice status:', e);
+            console.error('Error in onPaymentChanged:', e);
         }
     }
 
