@@ -503,7 +503,98 @@ export class PaiementsService {
   }
 
   async remove(id: string) {
-    // ... (existing remove code)
+    const paiement = await this.prisma.paiement.findUnique({
+      where: { id },
+      include: {
+        facture: true,
+        operationCaisse: { 
+          include: { 
+            journeeCaisse: true 
+          } 
+        },
+      },
+    });
+
+    if (!paiement) {
+      throw new NotFoundException(`Paiement ${id} non trouvé`);
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // 1. REVERSION CAISSE (COMPTABILITÉ)
+      if (paiement.operationCaisseId && paiement.operationCaisse) {
+        const op = paiement.operationCaisse;
+        if (op.journeeCaisse?.statut === 'OUVERTE') {
+          console.log(`[Paiement-Delete] Reversing Caisse Movement for Op ${op.id}`);
+          
+          await tx.journeeCaisse.update({
+            where: { id: op.journeeCaisseId },
+            data: {
+              totalComptable: { decrement: paiement.montant },
+              totalVentesEspeces: ['ESPECES', 'ESPECE'].includes(op.moyenPaiement)
+                ? { decrement: op.montant }
+                : undefined,
+              totalVentesCarte: op.moyenPaiement === 'CARTE'
+                ? { decrement: op.montant }
+                : undefined,
+              totalVentesCheque: ['CHEQUE', 'CHÈQUE'].includes(op.moyenPaiement)
+                ? { decrement: op.montant }
+                : undefined,
+            },
+          });
+
+          // Delete the operation before the payment
+          await tx.operationCaisse.delete({
+            where: { id: op.id },
+          });
+        } else {
+          console.warn(`[Paiement-Delete] Cannot reverse Caisse for Op ${op.id}: Journée is closed.`);
+        }
+      }
+
+      // 2. MISE À JOUR FACTURE (MONTANTS & STATUT)
+      if (paiement.facture) {
+        const facture = paiement.facture;
+        const nouveauReste = (facture.resteAPayer || 0) + paiement.montant;
+        
+        // Determination of the new status
+        // If the balance is equal to the total (0.05 margin), status becomes VALIDE (Unpaid)
+        // Otherwise it remains PARTIEL
+        let nouveauStatut = Math.abs(nouveauReste - (facture.totalTTC || 0)) < 0.05
+          ? 'VALIDE'
+          : 'PARTIEL';
+
+        // Specific cases for Devis/BC
+        if (facture.type === 'BON_COMM' && nouveauStatut === 'VALIDE') {
+            nouveauStatut = 'VENTE_EN_INSTANCE'; // Or whatever initial status a BC has
+        }
+
+        console.log(`[Paiement-Delete] Updating Facture ${facture.numero}: Reste ${facture.resteAPayer} -> ${nouveauReste}, Statut -> ${nouveauStatut}`);
+
+        await tx.facture.update({
+          where: { id: paiement.factureId },
+          data: {
+            resteAPayer: Math.min(facture.totalTTC, nouveauReste),
+            statut: nouveauStatut as any,
+          },
+        });
+      }
+
+      // 3. SUPPRESSION DÉFINITIVE DU PAIEMENT
+      return tx.paiement.delete({
+        where: { id },
+      });
+    });
+
+    // 4. RECALCUL DES COMMISSIONS (POST-TRANSACTION)
+    if (paiement.factureId) {
+      try {
+        await this.commissionService.calculateForInvoice(paiement.factureId);
+      } catch (e) {
+        console.error(`⚠️ [Paiement-Delete] Failed to trigger commission recalc for ${paiement.factureId}:`, e);
+      }
+    }
+
+    return result;
   }
 
   async adminRepair() {

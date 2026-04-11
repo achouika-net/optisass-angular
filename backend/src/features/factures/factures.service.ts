@@ -497,7 +497,11 @@ export class FacturesService implements OnModuleInit {
               montant: true,
               date: true,
               mode: true,
-              statut: true
+              statut: true,
+              reference: true,
+              banque: true,
+              notes: true,
+              tiersNom: true
             }
           }
         }

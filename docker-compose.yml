@@ -26,6 +26,11 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: "postgresql://postgres:mypassword@db:5432/optisaas?schema=public"
+      MINIO_ENDPOINT: "host.docker.internal"
+      MINIO_PORT: "9002"
+      MINIO_ACCESS_KEY: "minioadmin"
+      MINIO_SECRET_KEY: "minioadmin"
+      MINIO_BUCKET: "optisaas"
       CHOKIDAR_USEPOLLING: "true"
       CHOKIDAR_INTERVAL: "500"
       WATCHPACK_POLLING: "true"

@@ -87,7 +87,7 @@ interface PaymentRow {
                 <ng-container matColumnDef="reference">
                   <th mat-header-cell *matHeaderCellDef> Réf / Banque </th>
                   <td mat-cell *matCellDef="let element"> 
-                      <div>{{element.reference || '-'}}</div>
+                      <div class="main-ref">{{element.reference || element.notes || element.remarque || '-'}}</div>
                       <div *ngIf="element.banque" class="sub-text">{{element.banque}}</div>
                   </td>
                 </ng-container>
@@ -108,8 +108,8 @@ interface PaymentRow {
                       <button mat-icon-button color="primary" *ngIf="element.pieceJointe" (click)="viewAttachment(element.pieceJointe)" title="Voir la pièce jointe">
                           <mat-icon>visibility</mat-icon>
                       </button>
-                      <button mat-icon-button color="warn" (click)="deletePayment(element)" title="Supprimer le paiement">
-                          <mat-icon>delete</mat-icon>
+                      <button mat-flat-button color="warn" (click)="deletePayment(element)" style="height: 30px; line-height: 30px; min-width: 40px; padding: 0 4px; margin-left: 4px;">
+                          <mat-icon style="font-size: 18px; width: 18px; height: 18px; margin: 0;">delete</mat-icon> Suppr.
                       </button>
                   </td>
                 </ng-container>
@@ -534,7 +534,7 @@ export class PaymentListComponent implements OnInit {
     @Input() clientName: string = '';
     @Input() clientCin: string = '';
     @Input() factures: Facture[] | null = null;
-    @Output() paymentAdded = new EventEmitter<void>();
+    @Output() paymentChanged = new EventEmitter<void>();
     dataSource = new MatTableDataSource<PaymentRow>([]);
     impayesDataSource = new MatTableDataSource<Facture>([]);
     impayes: Facture[] = []; // For visibility check
@@ -544,6 +544,7 @@ export class PaymentListComponent implements OnInit {
     printingPayment: PaymentRow | null = null;
     stats = { totalTTC: 0, totalPaye: 0, resteAPayer: 0 };
     toDate = new Date(); // Used for header date in global print
+    isLoading: boolean = false;
 
     constructor(
         private factureService: FactureService,
@@ -671,7 +672,7 @@ export class PaymentListComponent implements OnInit {
 
                 // Calculate Stats for Receipt
                 this.calculateStats(filteredFactures);
-                this.cdr.markForCheck();
+                this.cdr.detectChanges();
             });
         });
     }
@@ -829,13 +830,50 @@ export class PaymentListComponent implements OnInit {
             next: () => {
                 this.snackBar.open('Paiement enregistré avec succès', 'Fermer', { duration: 3000 });
                 this.loadPayments(); // Reload list
-                this.paymentAdded.emit();
+                this.paymentChanged.emit();
             },
             error: (err) => {
                 console.error('Error saving payment', err);
                 this.snackBar.open('Erreur lors de l\'enregistrement du paiement', 'Fermer', { duration: 3000 });
             }
         });
+    }
+
+    async deletePayment(row: PaymentRow) {
+        console.log('🗑️ [PaymentList] SILENT DELETE triggered for:', row.id, 'Row Data:', row);
+
+        if (!row.id) {
+            console.error('❌ [PaymentList] Action aborted: Payment row has no ID!', row);
+            this.snackBar.open('Erreur : Impossible de supprimer ce paiement (ID manquant dans l\'interface). Veuillez rafraîchir la page (Ctrl+F5).', 'Compris', {
+                duration: 5000,
+                panelClass: ['snackbar-error']
+            });
+            return;
+        }
+
+        const confirm = window.confirm(`Voulez-vous vraiment supprimer ce paiement de ${row.montant} DH ?`);
+        if (!confirm) return;
+
+        try {
+            this.isLoading = true;
+            console.log('📡 [PaymentList] Sending DELETE request for ID:', row.id);
+            
+            await this.paiementService.delete(row.id).toPromise();
+            
+            console.log('✅ [PaymentList] Payment deleted successfully from server.');
+            this.snackBar.open('Paiement supprimé avec succès', 'OK', { duration: 3000 });
+            
+            // Emit changed event to sync with parent (MontureForm)
+            this.paymentChanged.emit();
+            
+            // Reload local data
+            this.loadPayments();
+        } catch (error) {
+            console.error('❌ [PaymentList] Error during deletion:', error);
+            this.snackBar.open('Échec de la suppression du paiement', 'OK', { duration: 3000 });
+        } finally {
+            this.isLoading = false;
+        }
     }
 
     viewAttachment(base64Content: string) {
@@ -848,23 +886,6 @@ export class PaymentListComponent implements OnInit {
         }
     }
 
-    deletePayment(payment: PaymentRow) {
-        if (confirm('Êtes-vous sûr de vouloir supprimer ce paiement ?')) {
-            if (payment.id) {
-                this.paiementService.delete(payment.id).subscribe({
-                    next: () => {
-                        this.snackBar.open('Paiement supprimé', 'Fermer', { duration: 3000 });
-                        this.loadPayments();
-                        this.paymentAdded.emit();
-                    },
-                    error: (err: any) => {
-                        console.error('Error deleting payment', err);
-                        this.snackBar.open('Erreur lors de la suppression', 'Fermer', { duration: 3000 });
-                    }
-                });
-            }
-        }
-    }
 
     getPaymentModeLabel(mode: string): string {
         const modes: any = {

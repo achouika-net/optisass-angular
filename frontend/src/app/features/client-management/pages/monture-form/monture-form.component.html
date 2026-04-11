@@ -1059,7 +1059,7 @@
                 <app-facture-form [factureId]="(linkedFacture$ | async)?.id" [clientIdInput]="clientId"
                     [ficheIdInput]="ficheId" [conventionIdInput]="selectedConventionId" 
                     [initialLines]="initialLines" [embedded]="true"
-                    (onSaved)="onInvoiceSaved($event)" (paymentAdded)="onPaymentAdded()"
+                    (onSaved)="onInvoiceSaved($event)" (paymentChanged)="onPaymentChanged()"
                     [nomenclature]="nomenclatureString" [isReadonly]="!isEditMode">
                 </app-facture-form>
             </div>
@@ -1082,7 +1082,7 @@
             <div class="payment-container" style="padding: 24px;">
                 <app-payment-list [clientId]="clientId || client?.id" [ficheId]="ficheId"
                     [clientName]="clientDisplayName" [clientCin]="clientCinValue"
-                    (paymentAdded)="onPaymentAdded()"></app-payment-list>
+                    (paymentChanged)="onPaymentChanged()"></app-payment-list>
             </div>
         </div>
 

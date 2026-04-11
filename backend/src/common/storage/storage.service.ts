@@ -26,27 +26,32 @@ export class StorageService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    const exists = await this.client.bucketExists(this.bucket);
-    if (!exists) {
-      await this.client.makeBucket(this.bucket);
-      // Set public read policy so files are accessible without signing
-      const policy = {
-        Version: '2012-10-17',
-        Statement: [
-          {
-            Effect: 'Allow',
-            Principal: { AWS: ['*'] },
-            Action: ['s3:GetObject'],
-            Resource: [`arn:aws:s3:::${this.bucket}/*`],
-          },
-        ],
-      };
-      await this.client.setBucketPolicy(
-        this.bucket,
-        JSON.stringify(policy),
-      );
+    try {
+      const exists = await this.client.bucketExists(this.bucket);
+      if (!exists) {
+        await this.client.makeBucket(this.bucket);
+        // Set public read policy so files are accessible without signing
+        const policy = {
+          Version: '2012-10-17',
+          Statement: [
+            {
+              Effect: 'Allow',
+              Principal: { AWS: ['*'] },
+              Action: ['s3:GetObject'],
+              Resource: [`arn:aws:s3:::${this.bucket}/*`],
+            },
+          ],
+        };
+        await this.client.setBucketPolicy(
+          this.bucket,
+          JSON.stringify(policy),
+        );
+      }
+      console.log(`✅ MinIO storage ready — bucket: ${this.bucket}`);
+    } catch (error) {
+      console.warn('⚠️ MinIO storage NOT ready (connection refused). File features will be disabled.');
+      console.error(error);
     }
-    console.log(`✅ MinIO storage ready — bucket: ${this.bucket}`);
   }
 
   /**

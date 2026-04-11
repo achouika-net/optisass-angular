@@ -1,0 +1,92 @@
+services:
+  # Database
+  db:
+    image: postgres:15-alpine
+    container_name: optisaas-db-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-mypassword}
+      POSTGRES_DB: ${DB_NAME:-optisaas}
+    volumes:
+      - optisaas_pgdata_prod:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d optisaas"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Object Storage (MinIO)
+  minio:
+    image: minio/minio:latest
+    container_name: optisaas-minio-prod
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - optisaas_minio_data_prod:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: optisaas-backend-prod
+    restart: always
+    environment:
+      DATABASE_URL: "postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-mypassword}@db:5432/${DB_NAME:-optisaas}?schema=public"
+      MINIO_ENDPOINT: "minio"
+      MINIO_PORT: "9000"
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-optisaas}
+      PORT: 3000
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    command: sh -c "npx prisma generate && npx prisma db push --accept-data-loss && node dist/src/main.js"
+    ports:
+      - "3000:3000"
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: optisaas-frontend-prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    # Note: For SSL, you will need to mount your certificates or use a reverse proxy like Nginx Proxy Manager
+
+  # Automation (n8n)
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: optisaas-n8n-prod
+    restart: always
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-motdepasse}
+      - WEBHOOK_URL=https://${DOMAIN_NAME:-localhost}/n8n/
+    volumes:
+      - optisaas_n8n_data_prod:/home/node/.n8n
+    ports:
+      - "5678:5678"
+
+volumes:
+  optisaas_pgdata_prod:
+  optisaas_minio_data_prod:
+  optisaas_n8n_data_prod:
