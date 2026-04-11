@@ -304,18 +304,42 @@ export class SalesControlService {
       this.getAvoirs(userId, centreId, startDate, endDate),
 
       // Payments Breakdown (Aggregated by mode)
-      // ⚠️ On filtre également sur le statut du document lié pour que :
-      //    Encaissé + Reste à Recouvrir = CA Global (même base de documents)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // RÈGLE D'OR : Encaissé doit avoir EXACTEMENT le même périmètre
+      // de documents que le CA Global, sinon l'identité échoue :
+      //    Encaissé + Reste à Recouvrir ≠ CA Global
+      //
+      // Périmètre CA :
+      //   1. FACTURES actives
+      //   2. AVOIRS actifs
+      //   3. BCs actifs NON convertis en FACTURE (déduplication ficheId + notes)
+      //
+      // → On applique la même déduplication BC ici.
+      //   Les paiements sur des BCs exclus du CA ne sont pas dans l'Encaissé.
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       this.prisma.paiement.groupBy({
         by: ['mode'],
         _sum: { montant: true },
         where: {
           date: paymentDateFilter.date,
+          statut: { not: 'ANNULE' },
           facture: {
             centreId,
-            statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
+            statut: { notIn: ['ARCHIVE', 'ANNULEE'] as any[] },
+            OR: [
+              // Factures officielles et avoirs (toujours inclus)
+              { type: { in: ['FACTURE', 'AVOIR'] } },
+              // BCs inclus dans le CA (non dédupliqués, même logique que bcAgg)
+              {
+                type: { in: ['BON_COMMANDE', 'BON_COMM'] },
+                ficheId: { notIn: factureFicheIds },
+                OR: [
+                  { notes: { not: { contains: 'Remplacée par' } } },
+                  { notes: null },
+                ],
+              },
+            ],
           },
-          statut: { not: 'ANNULE' },
         },
       }),
     ]);
