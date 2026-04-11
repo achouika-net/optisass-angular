@@ -1,6 +1,6 @@
 
 const { PrismaClient } = require('@prisma/client');
-// Use localhost because we are running outside docker
+// Utilisation de localhost car on tourne en dehors du container
 const prisma = new PrismaClient({
   datasources: {
     db: {
@@ -9,56 +9,66 @@ const prisma = new PrismaClient({
   }
 });
 
-async function audit() {
-  const start = new Date('2026-01-01T00:00:00Z');
-  const end = new Date('2026-12-31T23:59:59Z');
+async function findTheGap() {
+  try {
+    const start = new Date('2026-01-01T00:00:00Z');
+    const end = new Date('2026-12-31T23:59:59Z');
 
-  const docs = await prisma.facture.findMany({
-    where: {
-      dateEmission: { gte: start, lte: end },
-      statut: { notIn: ['ARCHIVE', 'ANNULEE'] }
-    },
-    select: {
-      id: true,
-      numero: true,
-      type: true,
-      totalHT: true,
-      totalTTC: true,
-      ficheId: true,
-      statut: true
-    }
-  });
-
-  const summary = {};
-  let totalHT = 0;
-  let totalTTC = 0;
-
-  console.log('--- AUDIT DOCUMENTS 2026 ---');
-  docs.forEach(d => {
-    if (!summary[d.type]) summary[d.type] = { count: 0, ht: 0, ttc: 0 };
-    summary[d.type].count++;
-    summary[d.type].ht += (d.totalHT || 0);
-    summary[d.type].ttc += (d.totalTTC || 0);
+    console.log('--- RECHERCHE DU DÉCALAGE (DOCS 2026) ---');
     
-    if (d.type === 'AVOIR') {
-        totalHT -= (d.totalHT || 0);
-        totalTTC -= (d.totalTTC || 0);
-    } else {
-        totalHT += (d.totalHT || 0);
-        totalTTC += (d.totalTTC || 0);
-    }
-  });
+    // On récupère tout pour auditer
+    const allDocs = await prisma.facture.findMany({
+      where: {
+        dateEmission: { gte: start, lte: end },
+        statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
+        type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR', 'DEVIS'] }
+      },
+      orderBy: { dateEmission: 'asc' }
+    });
 
-  console.log(JSON.stringify(summary, null, 2));
-  console.log('TOTAL HT NET:', totalHT);
-  console.log('TOTAL TTC NET:', totalTTC);
-  
-  // Check for duplicate Fiches (BC and Facture for same sale)
-  const fiches = docs.filter(d => d.ficheId).map(d => d.ficheId);
-  const duplicates = fiches.filter((item, index) => fiches.indexOf(item) !== index);
-  console.log('DUPLICATE FICHES COUNT:', duplicates.length);
+    const facturesWithFicheIds = new Set(
+      allDocs.filter(f => f.type === 'FACTURE' && f.ficheId).map(f => f.ficheId)
+    );
 
-  process.exit(0);
+    let totalHT = 0;
+    let totalTTC = 0;
+    let count = 0;
+
+    console.log('--- LISTE DES DOCUMENTS COMPTABILISÉS ---');
+    allDocs.forEach(d => {
+      // On applique la logique EXACTE de StatsService
+      const isDevis = d.type === 'DEVIS';
+      const isDouble = (d.type === 'BON_COMMANDE' || d.type === 'BON_COMM') && d.ficheId && facturesWithFicheIds.has(d.ficheId);
+      
+      const skip = isDevis || isDouble;
+      
+      if (!skip) {
+        count++;
+        console.log(`${count}. [${d.type}] ${d.numero} | HT: ${d.totalHT.toFixed(2)} | TTC: ${d.totalTTC.toFixed(2)} | Fiche: ${d.ficheId || 'ANONYME'}`);
+        const valHT = d.totalHT || 0;
+        const valTTC = d.totalTTC || 0;
+        
+        if (d.type === 'AVOIR') {
+          totalHT -= valHT;
+          totalTTC -= valTTC;
+        } else {
+          totalHT += valHT;
+          totalTTC += valTTC;
+        }
+      }
+    });
+
+    console.log('---------------------------');
+    console.log('RÉSULTAT DE L\'AUDIT :');
+    console.log('TOTAL HT :', totalHT.toFixed(2));
+    console.log('TOTAL TTC :', totalTTC.toFixed(2));
+    console.log('NOMBRE DE DOCS :', count);
+  } catch (err) {
+    console.error('ERREUR AUDIT:', err);
+  } finally {
+    await prisma.$disconnect();
+    process.exit(0);
+  }
 }
 
-audit();
+findTheGap();

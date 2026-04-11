@@ -28,6 +28,10 @@ export class SalesControlService {
         centreId,
         statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
         type: { in: ['BON_COMMANDE', 'BON_COMM'] },
+        OR: [
+          { notes: { not: { contains: 'Remplacée par' } } },
+          { notes: null }
+        ],
         ...(start || end ? { dateEmission: { gte: start, lte: end } } : {}),
       },
       include: {
@@ -99,6 +103,7 @@ export class SalesControlService {
       where: {
         centreId,
         type: 'FACTURE',
+        statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
         ...(start || end ? { dateEmission: { gte: start, lte: end } } : {}),
       },
       include: {
@@ -249,6 +254,7 @@ export class SalesControlService {
         where: {
           centreId,
           type: 'FACTURE',
+          statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
           ...dateFilter,
         },
       }),
@@ -261,6 +267,10 @@ export class SalesControlService {
           type: { in: ['BON_COMMANDE', 'BON_COMM'] },
           statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
           ficheId: { notIn: factureFicheIds },
+          OR: [
+            { notes: { not: { contains: 'Remplacée par' } } },
+            { notes: null }
+          ],
           ...dateFilter,
         },
       }),
