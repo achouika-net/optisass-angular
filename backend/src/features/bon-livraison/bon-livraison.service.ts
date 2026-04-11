@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateBonLivraisonDto } from './dto/create-bon-livraison.dto';
 import { ProductsService } from '../products/products.service';
 import { normalizeToUTCNoon } from '../../shared/utils/date-utils';
+import { ExpensesService } from '../expenses/expenses.service';
 import * as path from 'path';
 import { StorageService } from '../../common/storage/storage.service';
 
@@ -12,6 +13,7 @@ export class BonLivraisonService {
         private prisma: PrismaService,
         private productsService: ProductsService,
         private storage: StorageService,
+        private expensesService: ExpensesService,
     ) { }
 
     async create(createDto: CreateBonLivraisonDto) {
@@ -129,6 +131,10 @@ export class BonLivraisonService {
                     depense: {
                         select: { id: true, montant: true, statut: true, date: true }
                     },
+                    clientId: true,
+                    ficheId: true,
+                    categorieBL: true,
+                    centreId: true,
                     client: {
                         select: {
                             id: true,
@@ -289,6 +295,39 @@ export class BonLivraisonService {
     }
 
     async remove(id: string) {
-        return this.prisma.bonLivraison.delete({ where: { id } });
+        return this.prisma.$transaction(async (tx) => {
+            const bl = await tx.bonLivraison.findUnique({
+                where: { id },
+                include: { 
+                    depense: true,
+                    mouvementsStock: true 
+                }
+            });
+
+            if (!bl) return null;
+
+            // 1. Cleanup Treasury if an expense exists
+            if (bl.depense) {
+                await this.expensesService.cleanupTreasuryImpact(bl.depense.id, tx);
+            }
+
+            // 2. Sync Stock (Revert movements)
+            const productIds = Array.from(new Set(bl.mouvementsStock.map(m => m.produitId)));
+            await tx.mouvementStock.deleteMany({
+                where: { bonLivraisonId: id }
+            });
+
+            await Promise.all(
+                productIds.map(pid => this.productsService.syncProductState(pid, tx))
+            );
+
+            // 3. Delete linked echeances
+            await tx.echeancePaiement.deleteMany({
+                where: { bonLivraisonId: id }
+            });
+
+            // 4. Delete the BL itself
+            return tx.bonLivraison.delete({ where: { id } });
+        });
     }
 }

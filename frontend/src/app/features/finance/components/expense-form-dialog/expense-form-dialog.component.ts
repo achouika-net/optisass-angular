@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit, NgZone } from '@angular/core';
+import { Component, Inject, OnInit, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormControl } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
@@ -88,6 +88,7 @@ export class ExpenseFormDialogComponent implements OnInit {
         private store: Store,
         private snackBar: MatSnackBar,
         private dialog: MatDialog,
+        private cdr: ChangeDetectorRef,
         @Optional() public dialogRef: MatDialogRef<ExpenseFormDialogComponent>,
         @Optional() @Inject(MAT_DIALOG_DATA) public data: { expense?: Expense, viewMode?: boolean }
     ) {
@@ -138,11 +139,35 @@ export class ExpenseFormDialogComponent implements OnInit {
         const id = this.route.snapshot.paramMap.get('id');
         if (id) {
             this.isEditMode = true;
-            // Assuming we have a getExpense in service, if not I'll just use what's available
-            // but for now let's hope it's there or I use this.data
-            if (this.data?.expense) {
-                this.form.patchValue(this.data.expense);
+            this.financeService.getExpense(id).subscribe({
+                next: (expense) => {
+                    if (expense) {
+                        this.form.patchValue({
+                            ...expense,
+                            date: expense.date ? new Date(expense.date) : new Date(),
+                            dateEcheance: expense.dateEcheance ? new Date(expense.dateEcheance) : null
+                        });
+
+                        if (expense.fournisseurId && this.suppliers.length > 0) {
+                            const s = this.suppliers.find(x => x.id === expense.fournisseurId);
+                            if (s) this.supplierCtrl.setValue(s.nom);
+                        }
+                        
+                        this.cdr.detectChanges();
+                    }
+                },
+                error: (err) => {
+                    console.error('Erreur chargement dépense', err);
+                    this.snackBar.open('Erreur lors du chargement des données', 'Fermer', { duration: 5000 });
+                }
+            });
+        } else if (this.data?.expense) {
+            this.form.patchValue(this.data.expense);
+            if (this.data.expense.fournisseurId && this.suppliers.length > 0) {
+                const s = this.suppliers.find(x => x.id === this.data.expense.fournisseurId);
+                if (s) this.supplierCtrl.setValue(s.nom);
             }
+            this.cdr.detectChanges();
         }
     }
 
@@ -169,7 +194,10 @@ export class ExpenseFormDialogComponent implements OnInit {
                 const currentId = this.form.get('fournisseurId')?.value;
                 if (currentId) {
                     const s = this.suppliers.find(x => x.id === currentId);
-                    if (s) this.supplierCtrl.setValue(s.nom); // OR set object if using displayWith
+                    if (s) {
+                        this.supplierCtrl.setValue(s.nom);
+                        this.cdr.detectChanges();
+                    }
                 }
             },
             error: (err) => console.error('Erreur chargement fournisseurs', err)
@@ -240,7 +268,8 @@ export class ExpenseFormDialogComponent implements OnInit {
             },
             error: (err) => {
                 console.error('Error creating supplier', err);
-                this.submitting = false; // Stop on error
+                this.submitting = false;
+                this.cdr.detectChanges();
                 this.snackBar.open(this.getErrorMessage(err) || 'Erreur lors de la création du fournisseur', 'Fermer', { duration: 5000 });
             }
         });
@@ -265,6 +294,7 @@ export class ExpenseFormDialogComponent implements OnInit {
                     next: () => this.finalize(expenseData),
                     error: (err) => {
                         this.submitting = false;
+                        this.cdr.detectChanges();
                         const msg = this.getErrorMessage(err);
                         this.snackBar.open(msg || 'Erreur lors de la mise à jour', 'Fermer', { duration: 7000 });
                     }
@@ -317,6 +347,7 @@ export class ExpenseFormDialogComponent implements OnInit {
             ).subscribe((result: any) => {
                 if (!result || result.action === 'CANCEL') {
                     this.submitting = false;
+                    this.cdr.detectChanges();
                     return;
                 }
 
@@ -338,6 +369,7 @@ export class ExpenseFormDialogComponent implements OnInit {
             next: res => this.finalize(res),
             error: (err) => {
                 this.submitting = false;
+                this.cdr.detectChanges();
                 const msg = this.getErrorMessage(err);
                 this.snackBar.open(msg || 'Erreur lors de la création', 'Fermer', { duration: 7000 });
             }
@@ -358,6 +390,7 @@ export class ExpenseFormDialogComponent implements OnInit {
     private finalize(result: any) {
         this.zone.run(() => {
             this.submitting = false;
+            this.cdr.detectChanges();
             if (this.dialogRef) {
                 this.dialogRef.close(result);
             } else {
