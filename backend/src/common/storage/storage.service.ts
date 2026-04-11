@@ -1,11 +1,15 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Client } from 'minio';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class StorageService implements OnModuleInit {
   private client: Client;
   private bucket: string;
   private publicEndpoint: string;
+  private minioReady = false;
+  private localUploadDir = '/app/uploads';
 
   constructor() {
     const endPoint = process.env.MINIO_ENDPOINT || 'localhost';
@@ -23,6 +27,13 @@ export class StorageService implements OnModuleInit {
       accessKey,
       secretKey,
     });
+    
+    // Ensure local fallback directory exists
+    if (!fs.existsSync(this.localUploadDir)) {
+      try {
+        fs.mkdirSync(this.localUploadDir, { recursive: true });
+      } catch (e) {}
+    }
   }
 
   async onModuleInit() {
@@ -47,17 +58,16 @@ export class StorageService implements OnModuleInit {
           JSON.stringify(policy),
         );
       }
+      this.minioReady = true;
       console.log(`✅ MinIO storage ready — bucket: ${this.bucket}`);
     } catch (error) {
-      console.warn('⚠️ MinIO storage NOT ready (connection refused). File features will be disabled.');
-      console.error(error);
+      this.minioReady = false;
+      console.warn('⚠️ MinIO storage NOT ready (connection refused). Falling back to local filesystem in /app/uploads.');
     }
   }
 
   /**
-   * Upload a buffer to MinIO and return the relative path.
-   * The returned path starts with /uploads/ for backward compatibility
-   * with the ServeStatic pattern used in the frontend.
+   * Upload a buffer to MinIO (or fallback) and return the relative path.
    */
   async uploadBuffer(
     buffer: Buffer,
@@ -66,19 +76,28 @@ export class StorageService implements OnModuleInit {
     contentType?: string,
   ): Promise<string> {
     const objectName = `${folder}/${fileName}`;
-    await this.client.putObject(
-      this.bucket,
-      objectName,
-      buffer,
-      buffer.length,
-      contentType ? { 'Content-Type': contentType } : undefined,
-    );
+    
+    if (this.minioReady) {
+      await this.client.putObject(
+        this.bucket,
+        objectName,
+        buffer,
+        buffer.length,
+        contentType ? { 'Content-Type': contentType } : undefined,
+      );
+    } else {
+      // Local fallback
+      const targetDir = path.join(this.localUploadDir, folder);
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(this.localUploadDir, objectName), buffer);
+    }
     return `/uploads/${objectName}`;
   }
 
   /**
-   * Upload a base64 encoded file (optionally with data URI prefix).
-   * Returns the relative path /uploads/{folder}/{fileName}.
+   * Upload a base64 encoded file
    */
   async uploadBase64(
     base64Data: string,
@@ -100,17 +119,29 @@ export class StorageService implements OnModuleInit {
 
   /**
    * Get the full public URL for a stored file path.
-   * If the path is already absolute, return it as-is.
    */
   getPublicUrl(filePath: string): string {
     if (filePath.startsWith('http')) return filePath;
-    // Strip leading /uploads/ to get the object name
     const objectName = filePath.replace(/^\/uploads\//, '');
-    return `${this.publicEndpoint}/${this.bucket}/${objectName}`;
+    
+    if (this.minioReady) {
+      return `${this.publicEndpoint}/${this.bucket}/${objectName}`;
+    } else {
+      return `http://localhost:3000/uploads/${objectName}`;
+    }
   }
 
   async deleteFile(filePath: string): Promise<void> {
     const objectName = filePath.replace(/^\/uploads\//, '');
-    await this.client.removeObject(this.bucket, objectName);
+    if (this.minioReady) {
+      try {
+        await this.client.removeObject(this.bucket, objectName);
+      } catch (e) {}
+    } else {
+      const targetPath = path.join(this.localUploadDir, objectName);
+      if (fs.existsSync(targetPath)) {
+        fs.unlinkSync(targetPath);
+      }
+    }
   }
 }
