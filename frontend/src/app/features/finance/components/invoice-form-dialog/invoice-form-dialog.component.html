@@ -87,6 +87,15 @@
                                         <mat-datepicker-toggle matIconSuffix [for]="pickerE"></mat-datepicker-toggle>
                                         <mat-datepicker #pickerE></mat-datepicker>
                                     </mat-form-field>
+
+                                    <mat-form-field appearance="outline">
+                                        <mat-label>Centre de profit *</mat-label>
+                                        <mat-select formControlName="centreId">
+                                            <mat-option *ngFor="let c of availableCentres" [value]="c.id">
+                                                {{ c.nom }}
+                                            </mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
                                 </div>
 
                                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4"
@@ -324,7 +333,7 @@
                                 Suivant : Planifier Paiement <mat-icon>arrow_forward</mat-icon>
                             </button>
                             <button mat-raised-button color="primary" (click)="onSubmit()"
-                                [disabled]="detailsGroup.invalid" class="!px-8" *ngIf="isBLMode">
+                                [disabled]="detailsGroup.invalid" class="!px-8" *ngIf="isBLMode && !isViewMode">
                                 <mat-icon>save</mat-icon> Enregistrer le BL
                             </button>
                         </div>

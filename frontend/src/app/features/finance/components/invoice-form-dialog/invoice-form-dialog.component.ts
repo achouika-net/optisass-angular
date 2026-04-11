@@ -26,6 +26,8 @@ import { map, startWith, switchMap, catchError, debounceTime, tap } from 'rxjs/o
 import { CeilingWarningDialogComponent } from '../ceiling-warning-dialog/ceiling-warning-dialog.component';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { CameraCaptureDialogComponent } from '../../../../shared/components/camera-capture/camera-capture-dialog.component';
+import { CentersService } from '../../../centers/services/centers.service';
+import { Centre } from '../../../../shared/interfaces/warehouse.interface';
 import { ClientManagementService } from '../../../client-management/services/client.service';
 import { FicheService } from '../../../client-management/services/fiche.service';
 import { Client } from '../../../client-management/models/client.model';
@@ -152,6 +154,7 @@ export class InvoiceFormDialogComponent implements OnInit {
     clientCtrl = new FormControl<any>('');
     filteredClients!: Observable<Client[]>;
     availableFiches: FicheClient[] = [];
+    availableCentres: Centre[] = [];
     loadingClients = false;
     loadingFiches = false;
 
@@ -179,6 +182,7 @@ export class InvoiceFormDialogComponent implements OnInit {
         private cdr: ChangeDetectorRef,
         private dialog: MatDialog,
         private snackBar: MatSnackBar,
+        private centerService: CentersService,
         private clientService: ClientManagementService,
         private ficheService: FicheService,
         @Optional() public dialogRef: MatDialogRef<InvoiceFormDialogComponent>,
@@ -194,7 +198,7 @@ export class InvoiceFormDialogComponent implements OnInit {
 
         this.form = this.fb.group({
             details: this.fb.group({
-                fournisseurId: [data?.invoice?.fournisseurId || prefilled.fournisseurId || ''],
+                fournisseurId: [data?.invoice?.fournisseurId || prefilled.fournisseurId || '', Validators.required],
                 centreId: [data?.invoice?.centreId || this.currentCentre()?.id || '', Validators.required],
                 numeroFacture: [data?.invoice?.numeroFacture || prefilled.numeroFacture || ''],
                 numeroBL: [(data?.invoice as any)?.numeroBL || prefilled.numeroBL || ''],
@@ -252,11 +256,52 @@ export class InvoiceFormDialogComponent implements OnInit {
                 };
             });
         }
+
+        // Initialize client and fiches if already present in data (View/Edit from dialog)
+        if (data?.invoice?.clientId) {
+            this.syncClientAndFiches(data.invoice.clientId, data.invoice.ficheId);
+        }
+    }
+
+    private syncClientAndFiches(clientId: string, ficheId?: string) {
+        this.clientService.getClient(clientId).subscribe((client: Client | undefined) => {
+            if (client) {
+                this.clientCtrl.setValue(client, { emitEvent: false });
+                this.cdr.detectChanges();
+                
+                this.ficheService.getFichesByClient(clientId).subscribe(fiches => {
+                    this.availableFiches = fiches;
+                    if (ficheId) {
+                        this.detailsGroup.get('ficheId')?.setValue(ficheId, { emitEvent: false });
+                    }
+                    this.cdr.detectChanges();
+                });
+            }
+        });
+    }
+
+    private loadCentres() {
+        this.centerService.findAll().subscribe(centres => {
+            this.availableCentres = centres;
+            
+            // Re-apply current selection or default if empty
+            const currentVal = this.detailsGroup.get('centreId')?.value;
+            if (!currentVal && this.currentCentre()?.id) {
+                this.detailsGroup.get('centreId')?.setValue(this.currentCentre()?.id);
+            }
+            this.cdr.detectChanges();
+        });
     }
 
     ngOnInit() {
+        this.loadCentres();
         console.log('[InvoiceForm] VERSION CHECK: Aggressive Rounding & Sync Date Update ACTIVE');
         this.loadSuppliers();
+
+        // Default center for NEW entries
+        if (!this.isEditMode && !this.isViewMode && this.currentCentre()) {
+            this.detailsGroup.patchValue({ centreId: this.currentCentre()?.id });
+        }
 
         // Ensure centreId is set if missing
         if (!this.detailsGroup.get('centreId')?.value) {
@@ -267,10 +312,14 @@ export class InvoiceFormDialogComponent implements OnInit {
         }
 
         // Check if opened as dialog with viewMode in data
-        if ((this.data?.invoice as any)?.viewMode) {
-            this.isViewMode = true;
+        // Fix: Robust detection of view mode from various data structures
+        this.isViewMode = !!((this.data as any)?.viewMode || (this.data as any)?.isViewMode || (this.data?.invoice as any)?.viewMode);
+
+        if (this.isViewMode) {
             this.form.disable();
             this.supplierCtrl.disable();
+            this.clientCtrl.disable();
+            console.log('[InvoiceForm] View Mode ACTIVE - Form disabled');
         }
 
         this.route.queryParams.subscribe(params => {
@@ -300,6 +349,9 @@ export class InvoiceFormDialogComponent implements OnInit {
                         montantTVA: mTVA,
                         montantTTC: mTTC,
                         type: invoice.type,
+                        categorieBL: (invoice as any).categorieBL,
+                        centreId: invoice.centreId,
+                        isBL: (invoice as any).isBL !== undefined ? (invoice as any).isBL : this.data?.invoice?.id ? true : undefined,
                         pieceJointeUrl: invoice.pieceJointeUrl,
                         clientId: invoice.clientId,
                         ficheId: invoice.ficheId,
@@ -308,6 +360,7 @@ export class InvoiceFormDialogComponent implements OnInit {
                         statut: invoice.statut
                     }
                 });
+
                 this.echeances.clear();
                 invoice.echeances?.forEach(e => this.addEcheance(e));
 
@@ -321,6 +374,10 @@ export class InvoiceFormDialogComponent implements OnInit {
 
                 this.autoUpdateStatus();
                 if (invoice.montantTTC > 0) this.calculateFromTTC();
+                
+                if (invoice.clientId) {
+                    this.syncClientAndFiches(invoice.clientId, invoice.ficheId);
+                }
 
                 let pieceJointeUrl = invoice.pieceJointeUrl;
                 // If BL and no attachment, try to inherit from parent invoice
@@ -473,13 +530,15 @@ export class InvoiceFormDialogComponent implements OnInit {
     }
 
     setupSupplierFilter() {
-        this.filteredSuppliers = this.supplierCtrl.valueChanges.pipe(
-            startWith(''),
-            map(value => {
-                const name = typeof value === 'string' ? value : (value as any)?.nom;
-                return name ? this._filterSuppliers(name as string) : this.suppliers.slice();
-            })
-        );
+        if (!this.filteredSuppliers) {
+            this.filteredSuppliers = this.supplierCtrl.valueChanges.pipe(
+                startWith(''),
+                map(value => {
+                    const name = typeof value === 'string' ? value : (value as any)?.nom;
+                    return name ? this._filterSuppliers(name as string) : this.suppliers.slice();
+                })
+            );
+        }
     }
 
     private _filterSuppliers(name: string): Supplier[] {
@@ -797,9 +856,17 @@ export class InvoiceFormDialogComponent implements OnInit {
             this.detailsGroup.get('numeroBL')?.setValidators([Validators.required]);
             this.detailsGroup.get('numeroFacture')?.clearValidators();
             
-            // Client link is MANDATORY for BL
-            this.detailsGroup.get('clientId')?.setValidators([Validators.required]);
-            this.detailsGroup.get('ficheId')?.setValidators([Validators.required]);
+            // Client link is MANDATORY for BL ONLY if it is of type ACHAT_VERRE_OPTIQUE or ACHAT_LENTILLES
+            const currentType = this.detailsGroup.get('type')?.value;
+            const needsClient = ['ACHAT_VERRE_OPTIQUE', 'ACHAT_LENTILLES'].includes(String(currentType));
+            
+            if (needsClient) {
+                this.detailsGroup.get('clientId')?.setValidators([Validators.required]);
+                this.detailsGroup.get('ficheId')?.setValidators([Validators.required]);
+            } else {
+                this.detailsGroup.get('clientId')?.clearValidators();
+                this.detailsGroup.get('ficheId')?.clearValidators();
+            }
         } else {
             this.detailsGroup.get('numeroFacture')?.setValidators([Validators.required]);
             this.detailsGroup.get('numeroBL')?.clearValidators();
@@ -814,8 +881,20 @@ export class InvoiceFormDialogComponent implements OnInit {
         this.detailsGroup.get('clientId')?.updateValueAndValidity();
         this.detailsGroup.get('ficheId')?.updateValueAndValidity();
 
-        if (this.form.invalid) {
-            console.error('[InvoiceForm] Invalid form:', this.form.value);
+        // Change: Check only the relevant group based on the mode
+        const mainGroup = this.isBLMode ? this.detailsGroup : this.form;
+        
+        if (mainGroup.invalid) {
+            const invalidFields = [];
+            const controls = (mainGroup as FormGroup).controls;
+            for (const name in controls) {
+                if (controls[name].invalid) invalidFields.push(name);
+            }
+            console.error('[InvoiceForm] Invalid fields:', invalidFields);
+            console.error('[InvoiceForm] Invalid form section:', mainGroup.value);
+            this.detailsGroup.markAllAsTouched();
+            if (!this.isBLMode) this.paymentGroup.markAllAsTouched();
+            
             this.snackBar.open('Veuillez remplir tous les champs obligatoires (*)', 'Fermer', { duration: 3000 });
             return;
         }
@@ -850,7 +929,10 @@ export class InvoiceFormDialogComponent implements OnInit {
                     this.detailsGroup.patchValue({ fournisseurId: newSupplier.id });
                     this.prepareAndSaveInvoice();
                 },
-                error: () => this.submitting = false
+                error: () => {
+                    this.submitting = false;
+                    this.cdr.detectChanges();
+                }
             });
         }
     }
@@ -905,6 +987,7 @@ export class InvoiceFormDialogComponent implements OnInit {
                 },
                 error: (err) => {
                     this.submitting = false;
+                    this.cdr.detectChanges();
                     const msg = this.getErrorMessage(err);
                     this.snackBar.open(msg || 'Erreur lors du groupement des documents', 'Fermer', { duration: 7000 });
                 }
@@ -926,6 +1009,7 @@ export class InvoiceFormDialogComponent implements OnInit {
                     },
                     error: (err: any) => {
                         this.submitting = false;
+                        this.cdr.detectChanges();
                         const msg = this.getErrorMessage(err);
                         this.snackBar.open(msg || 'Erreur lors de la mise à jour', 'Fermer', { duration: 7000 });
                     }
@@ -1015,6 +1099,7 @@ export class InvoiceFormDialogComponent implements OnInit {
                 ).subscribe((result: any) => {
                     if (!result || result.action === 'CANCEL') {
                         this.submitting = false;
+                        this.cdr.detectChanges();
                         return;
                     }
 
@@ -1106,6 +1191,7 @@ export class InvoiceFormDialogComponent implements OnInit {
             },
             error: (err: any) => {
                 this.submitting = false;
+                this.cdr.detectChanges();
                 const msg = this.getErrorMessage(err);
                 this.snackBar.open(msg || 'Erreur lors de la création', 'Fermer', { duration: 7000 });
             }
@@ -1138,6 +1224,7 @@ export class InvoiceFormDialogComponent implements OnInit {
     private finalize(result: any) {
         this.zone.run(() => {
             this.submitting = false;
+            this.cdr.detectChanges();
             if (this.dialogRef) {
                 this.dialogRef.close(result);
             } else {

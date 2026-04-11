@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSupplierInvoiceDto } from './dto/create-supplier-invoice.dto';
 import { ProductsService } from '../products/products.service';
+import { ExpensesService } from '../expenses/expenses.service';
 import { normalizeToUTCNoon } from '../../shared/utils/date-utils';
 import * as path from 'path';
 import { StorageService } from '../../common/storage/storage.service';
@@ -11,6 +12,7 @@ export class SupplierInvoicesService {
   constructor(
     private prisma: PrismaService,
     private productsService: ProductsService,
+    private expensesService: ExpensesService,
     private storage: StorageService,
   ) { }
 
@@ -340,34 +342,36 @@ export class SupplierInvoicesService {
 
       if (!invoice) return null;
 
-      // 0. Get affected product IDs before deletion
-      const productIds = Array.from(
-        new Set(invoice.mouvementsStock.map((m) => m.produitId)),
-      );
-
-      // 1. Clear Movements (This triggers the sync later)
-      await tx.mouvementStock.deleteMany({
-        where: { factureFournisseurId: id },
+      // 1. Charger les dépenses liées pour nettoyage de trésorerie
+      const linkedExpenses = await tx.depense.findMany({
+        where: { factureFournisseurId: id }
       });
 
-      // 2. Sync each affected product in parallel for better performance
-      await Promise.all(
-        productIds.map((productId) =>
-          this.productsService.syncProductState(productId, tx),
-        ),
-      );
+      for (const expense of linkedExpenses) {
+        await this.expensesService.cleanupTreasuryImpact(expense.id, tx);
+      }
 
-      // 3. Delete linked Expense if exists
+      // 2. Delete linked Expense records (the impact is already cleaned)
       await tx.depense.deleteMany({
         where: { factureFournisseurId: id },
       });
 
-      // 4. Delete payment schedules
+      // 3. Revert stock movements
+      const productIds = Array.from(new Set(invoice.mouvementsStock.map((m) => m.produitId)));
+      await tx.mouvementStock.deleteMany({
+        where: { factureFournisseurId: id },
+      });
+
+      await Promise.all(
+        productIds.map((pid) => this.productsService.syncProductState(pid, tx)),
+      );
+
+      // 4. Delete linked echeances
       await tx.echeancePaiement.deleteMany({
         where: { factureFournisseurId: id },
       });
 
-      // 5. Delete the Invoice itself
+      // Final deletion
       return tx.factureFournisseur.delete({
         where: { id },
       });

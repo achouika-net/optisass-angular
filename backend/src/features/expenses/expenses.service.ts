@@ -403,13 +403,6 @@ export class ExpensesService {
       }
     }
 
-    console.log(
-      '📝 [ExpensesService.update] Id:',
-      id,
-      'Payload:',
-      JSON.stringify(data, null, 2),
-    );
-
     try {
       return await this.prisma.depense.update({
         where: { id },
@@ -421,9 +414,181 @@ export class ExpensesService {
     }
   }
 
-  async remove(id: string) {
-    return this.prisma.depense.delete({
-      where: { id },
+  /**
+   * Reverts the impact of an expense on the cash register (Treasury cleanup)
+   */
+  public async cleanupTreasuryImpact(expenseId: string, tx: any) {
+    const expense = await tx.depense.findUnique({
+      where: { id: expenseId },
+      include: { 
+        creeParUser: true,
+        echeance: true 
+      }
     });
+
+    if (!expense) return;
+
+    // 1. Find the related OperationCaisse
+    const operation = await tx.operationCaisse.findFirst({
+      where: { reference: expenseId }
+    });
+
+    if (operation) {
+      // 2. If it was a cash expense, decrement totalDepenses in JourneeCaisse
+      if (operation.moyenPaiement === 'ESPECES' || operation.moyenPaiement === 'ESPECE') {
+        await tx.journeeCaisse.update({
+          where: { id: operation.journeeCaisseId },
+          data: {
+            totalDepenses: { decrement: operation.montant }
+          }
+        });
+      }
+
+      // 3. Delete the operation
+      await tx.operationCaisse.delete({
+        where: { id: operation.id }
+      });
+    }
+
+    // 4. Handle DemandeAlimentation (if any)
+    await tx.demandeAlimentation.deleteMany({
+      where: { depenseId: expenseId }
+    });
+  }
+
+  async remove(id: string) {
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Fetch expense with links before deletion
+      const expense = await tx.depense.findUnique({
+        where: { id },
+        include: { echeance: true }
+      });
+
+      if (!expense) return null;
+
+      const echeanceId = expense.echeanceId;
+      const blId = expense.bonLivraisonId || expense.echeance?.bonLivraisonId;
+      const factureId = expense.factureFournisseurId || expense.echeance?.factureFournisseurId;
+
+      // 2. Impact cleanup (Treasury)
+      await this.cleanupTreasuryImpact(id, tx);
+
+      // 3. Revert Echeance status if linked
+      if (echeanceId) {
+        await tx.echeancePaiement.update({
+          where: { id: echeanceId },
+          data: {
+            statut: 'EN_ATTENTE',
+            dateEncaissement: null,
+          }
+        });
+      }
+
+      // 4. Final deletion of the expense record
+      const deleted = await tx.depense.delete({
+        where: { id },
+      });
+
+      // 5. Recalculate and Sync Parent Status (BonLivraison or FactureFournisseur)
+      if (blId) {
+        await this.syncBonLivraisonStatus(blId as string, tx);
+      }
+
+      if (factureId) {
+        await this.syncFactureFournisseurStatus(factureId as string, tx);
+      }
+
+      return deleted;
+    });
+  }
+
+  /**
+   * Helper to sync BL status after a payment change
+   */
+  private async syncBonLivraisonStatus(blId: string, tx: any) {
+    const bl = await tx.bonLivraison.findUnique({
+      where: { id: blId },
+      include: { 
+        echeances: true,
+        depense: true 
+      },
+    });
+
+    if (bl) {
+      const activeEcheances = bl.echeances.filter((e) => e.statut !== 'ANNULE');
+      const totalPaidEcheances = activeEcheances
+        .filter((e) => e.statut === 'ENCAISSE')
+        .reduce((sum, e) => sum + e.montant, 0);
+
+      // Check for standalone expense (if any remains)
+      const directPaid = (bl.depense && (bl.depense.statut === 'VALIDE' || bl.depense.statut === 'VALIDEE')) 
+        ? bl.depense.montant 
+        : 0;
+
+      const totalPaid = Math.round((totalPaidEcheances + directPaid) * 100) / 100;
+      const roundedTotalTTC = Math.round(bl.montantTTC * 100) / 100;
+
+      let newStatus = 'EN_ATTENTE';
+      if (totalPaid >= roundedTotalTTC && roundedTotalTTC > 0) {
+        newStatus = 'PAYEE';
+      } else if (totalPaid > 0) {
+        newStatus = 'PARTIELLE';
+      } else {
+        const hasScheduled = activeEcheances.some(
+          (e) => (e.type === 'CHEQUE' || e.type === 'LCN') && e.statut === 'EN_ATTENTE',
+        );
+        newStatus = hasScheduled ? 'PARTIELLE' : 'EN_ATTENTE';
+      }
+
+      await tx.bonLivraison.update({
+        where: { id: blId },
+        data: { statut: newStatus },
+      });
+    }
+  }
+
+  /**
+   * Helper to sync FactureFournisseur status after a payment change
+   */
+  private async syncFactureFournisseurStatus(factureId: string, tx: any) {
+    const facture = await tx.factureFournisseur.findUnique({
+      where: { id: factureId },
+      include: { 
+        echeances: true,
+        depenses: true // Note: FactureFournisseur can have multiple depenses
+      },
+    });
+
+    if (facture) {
+      const activeEcheances = facture.echeances.filter((e) => e.statut !== 'ANNULE');
+      const totalPaidEcheances = activeEcheances
+        .filter((e) => e.statut === 'ENCAISSE')
+        .reduce((sum, e) => sum + e.montant, 0);
+
+      // Sum all directly linked valid expenses
+      const totalDirectExpenses = (facture.depenses || [])
+        .filter(d => d.statut === 'VALIDE' || d.statut === 'VALIDEE')
+        .reduce((sum, d) => sum + d.montant, 0);
+
+      const totalPaid = Math.round((totalPaidEcheances + totalDirectExpenses) * 100) / 100;
+      const roundedTotalTTC = Math.round(facture.montantTTC * 100) / 100;
+
+      let newStatus = 'EN_ATTENTE';
+      if (totalPaid >= roundedTotalTTC && roundedTotalTTC > 0) {
+        newStatus = 'PAYEE';
+      } else if (totalPaid > 0) {
+        newStatus = 'PARTIELLE';
+      } else {
+        const hasScheduled = activeEcheances.some(
+          (e) => (e.type === 'CHEQUE' || e.type === 'LCN') && e.statut === 'EN_ATTENTE',
+        );
+        newStatus = hasScheduled ? 'PARTIELLE' : 'EN_ATTENTE';
+      }
+
+      await tx.factureFournisseur.update({
+        where: { id: factureId },
+        data: { statut: newStatus },
+      });
+    }
   }
 }
