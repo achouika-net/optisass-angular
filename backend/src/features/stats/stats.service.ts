@@ -620,7 +620,7 @@ export class StatsService {
         where: {
           dateEmission: { gte: start, lte: end },
           statut: { notIn: ['ARCHIVE'] },
-          type: { in: ['FACTURE', 'BON_COMMANDE', 'DEVIS', 'AVOIR'] },
+          type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'DEVIS', 'AVOIR'] },
           ...(tenantId ? { centreId: tenantId } : {}),
         },
         select: {
@@ -635,7 +635,7 @@ export class StatsService {
 
       let revenue = 0;
       revenueDocs.forEach((d) => {
-        const val = d.totalTTC || d.totalHT || 0;
+        const val = d.totalHT || d.totalTTC || 0; // Force use HT if available to match UI label
         if (d.type === 'AVOIR') revenue -= val;
         else revenue += val;
       });
@@ -903,7 +903,7 @@ export class StatsService {
           where: {
             centreId: tenantId || undefined,
             statut: { notIn: ['ARCHIVE'] },
-            type: { in: ['FACTURE', 'BON_COMMANDE', 'AVOIR', 'DEVIS'] },
+            type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR', 'DEVIS'] },
           },
           _min: { dateEmission: true },
           _max: { dateEmission: true },
@@ -946,7 +946,7 @@ export class StatsService {
         where: {
           dateEmission: { gte: start, lte: end },
           statut: { notIn: ['ARCHIVE'] },
-          type: { in: ['FACTURE', 'BON_COMMANDE', 'DEVIS', 'AVOIR'] },
+          type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'DEVIS', 'AVOIR'] },
           ...(tenantId ? { centreId: tenantId } : {}),
         },
         select: { dateEmission: true, totalHT: true, totalTTC: true, type: true },
@@ -955,7 +955,7 @@ export class StatsService {
       factures.forEach((f) => {
         const key = formatKey(f.dateEmission);
         if (!monthsMap.has(key)) return;
-        const val = f.totalTTC || f.totalHT || 0;
+        const val = f.totalHT || f.totalTTC || 0; // consistent HT
         const entry = monthsMap.get(key)!;
         if (f.type === 'AVOIR') entry.revenue -= val;
         else entry.revenue += val;
