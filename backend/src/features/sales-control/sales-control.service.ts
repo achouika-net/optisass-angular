@@ -304,12 +304,17 @@ export class SalesControlService {
       this.getAvoirs(userId, centreId, startDate, endDate),
 
       // Payments Breakdown (Aggregated by mode)
+      // ⚠️ On filtre également sur le statut du document lié pour que :
+      //    Encaissé + Reste à Recouvrir = CA Global (même base de documents)
       this.prisma.paiement.groupBy({
         by: ['mode'],
         _sum: { montant: true },
         where: {
           date: paymentDateFilter.date,
-          facture: { centreId },
+          facture: {
+            centreId,
+            statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
+          },
           statut: { not: 'ANNULE' },
         },
       }),
