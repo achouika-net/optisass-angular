@@ -764,26 +764,67 @@ export class StatsService {
         _sum: { montantTTC: true },
       });
 
-      // COGS breakdown manually from FactureFournisseur docs to be 100% sure
-      const inventoryPurchases = await this.prisma.factureFournisseur.findMany({
-        where: {
-          dateEmission: { gte: start, lte: end },
-          type: { in: this.INVENTORY_PURCHASE_TYPES },
-          ...(tenantId ? { centreId: tenantId } : {}),
-        },
-        select: { type: true, montantTTC: true },
+      // --- COGS BREAKDOWN (REAL CONSUMPTION) ---
+      // 1. Get breakdown from stock movements
+      const cogsBreakdownQuery = Prisma.sql`
+          SELECT p."typeArticle" as category, SUM(m."quantite" * COALESCE(m."prixAchatUnitaire", 0)) as amount
+          FROM "MouvementStock" m
+          JOIN "Product" p ON m."produitId" = p."id"
+          JOIN "Facture" f ON m."factureId" = f."id"
+          WHERE f."dateEmission" >= ${start}
+          AND f."dateEmission" <= ${end}
+          AND ( (f."numero" LIKE 'FAC%' OR f."type" IN ('FACTURE', 'BON_COMMANDE', 'DEVIS')) AND f."statut" != 'ARCHIVE' )
+          ${tenantId ? Prisma.sql`AND f."centreId" = ${tenantId}` : Prisma.sql``}
+          GROUP BY p."typeArticle"
+      `;
+      const cogsBreakdownResult = await this.prisma.$queryRaw<any[]>(cogsBreakdownQuery);
+      
+      const cogsMap = new Map<string, number>();
+      
+      // Add results from movements
+      cogsBreakdownResult.forEach(r => {
+        const cat = r.category || 'AUTRES STOCKS';
+        cogsMap.set(cat, (cogsMap.get(cat) || 0) + Math.abs(Number(r.amount || 0)));
       });
 
-      const cogsMap = new Map<string, number>();
-      inventoryPurchases.forEach((p) => {
-        const type = p.type || 'AUTRES STOCKS';
-        cogsMap.set(type, (cogsMap.get(type) || 0) + (p.montantTTC || 0));
-      });
+      // 2. Add linked BLs (usually Verres) to the breakout
+      if (ficheIds.length > 0) {
+        const linkedBlsBreakdown = await this.prisma.factureFournisseur.groupBy({
+          by: ['type'],
+          where: {
+            ficheId: { in: ficheIds },
+          },
+          _sum: { montantTTC: true },
+        });
+
+        linkedBlsBreakdown.forEach(b => {
+          const cat = b.type || 'ACHAT_VERRE_LIE';
+          cogsMap.set(cat, (cogsMap.get(cat) || 0) + (b._sum.montantTTC || 0));
+        });
+      }
+
+      // 3. If rawCogs was fallback (rawCogs === 0 case), populate breakdown from supplier invoices as fallback too
+      if (cogsMap.size === 0 && rawCogs > 0) {
+        const inventoryPurchases = await this.prisma.factureFournisseur.groupBy({
+          by: ['type'],
+          where: {
+            dateEmission: { gte: start, lte: end },
+            type: { in: this.INVENTORY_PURCHASE_TYPES },
+            ...(tenantId ? { centreId: tenantId } : {}),
+          },
+          _sum: { montantTTC: true },
+        });
+
+        inventoryPurchases.forEach(p => {
+          const type = p.type || 'AUTRES STOCKS';
+          cogsMap.set(type, (cogsMap.get(type) || 0) + (p._sum.montantTTC || 0));
+        });
+      }
 
       const formattedCogsBreakdown = Array.from(cogsMap.entries())
         .map(([category, amount]) => ({
           category,
-          amount,
+          amount: Math.round(amount * 100) / 100,
           percentage: rawCogs > 0 ? (amount / rawCogs) * 100 : 0,
         }))
         .sort((a, b) => b.amount - a.amount);
