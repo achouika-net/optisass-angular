@@ -317,9 +317,28 @@ export class SalesControlService {
     const totalAvoirsReste = avoirAgg._sum.resteAPayer || 0;
     const totalReste = totalFacturesReste + totalBMReste - totalAvoirsReste;
 
-    const payments = paymentAgg.map((p) => ({
-      methode: p.mode || 'AUTRE',
-      total: p._sum.montant || 0,
+    // Harmonize payment modes for clean display
+    const mergedPayments = new Map<string, number>();
+    paymentAgg.forEach((p) => {
+      const rawMode = (p.mode || 'AUTRE').toUpperCase();
+      let mode = rawMode;
+      
+      // Grouping rules
+      if (['ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE'].includes(rawMode)) {
+        mode = 'ESPÈCES';
+      } else if (['CARTE', 'CB', 'TPE', 'CARTE BANCAIRE'].includes(rawMode)) {
+        mode = 'CARTE';
+      } else if (['CHEQUE', 'CHÈQUE'].includes(rawMode)) {
+        mode = 'CHÈQUE';
+      }
+
+      const current = mergedPayments.get(mode) || 0;
+      mergedPayments.set(mode, current + (p._sum.montant || 0));
+    });
+
+    const payments = Array.from(mergedPayments.entries()).map(([methode, total]) => ({
+      methode,
+      total,
     }));
 
     const totalEncaissePeriod = payments.reduce((sum, p) => sum + p.total, 0);
