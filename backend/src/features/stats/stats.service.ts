@@ -616,11 +616,11 @@ export class StatsService {
         `[STATS-PROFIT] Start: ${start.toISOString()}, End: ${end.toISOString()}, Tenant: ${tenantId}`,
       );
 
-      const revenueDocs = await this.prisma.facture.findMany({
+      const allDocs = await this.prisma.facture.findMany({
         where: {
           dateEmission: { gte: start, lte: end },
-          statut: { notIn: ['ARCHIVE'] },
-          type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'DEVIS', 'AVOIR'] },
+          statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
+          type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR'] },
           ...(tenantId ? { centreId: tenantId } : {}),
         },
         select: {
@@ -628,14 +628,22 @@ export class StatsService {
           totalHT: true,
           totalTTC: true,
           type: true,
-          lignes: true,
           ficheId: true,
         },
       });
 
+      // Filter logic like in sales control service to avoid duplicates
+      const facturesWithFiche = allDocs.filter(d => d.type === 'FACTURE' && d.ficheId);
+      const factureFicheIds = new Set(facturesWithFiche.map(f => f.ficheId));
+
       let revenue = 0;
-      revenueDocs.forEach((d) => {
-        const val = d.totalHT || d.totalTTC || 0; // Force use HT if available to match UI label
+      allDocs.forEach((d) => {
+        // Skip BC if Facture exists for that fiche
+        if ((d.type === 'BON_COMMANDE' || d.type === 'BON_COMM') && d.ficheId && factureFicheIds.has(d.ficheId)) {
+          return;
+        }
+        
+        const val = d.totalHT || d.totalTTC || 0;
         if (d.type === 'AVOIR') revenue -= val;
         else revenue += val;
       });
@@ -647,14 +655,14 @@ export class StatsService {
                 JOIN "Facture" f ON m."factureId" = f."id"
                 WHERE f."dateEmission" >= ${start}
                 AND f."dateEmission" <= ${end}
-                AND ( (f."numero" LIKE 'FAC%' OR f."type" IN ('FACTURE', 'BON_COMMANDE', 'DEVIS')) AND f."statut" != 'ARCHIVE' )
+                AND ( (f."numero" LIKE 'FAC%' OR f."type" IN ('FACTURE', 'BON_COMMANDE')) AND f."statut" != 'ARCHIVE' )
                 ${tenantId ? Prisma.sql`AND f."centreId" = ${tenantId}` : Prisma.sql``}
             `;
       const cogsResult = await this.prisma.$queryRaw<any[]>(cogsQuery);
       let rawCogs = Math.abs(Number(cogsResult[0]?.total_cost || 0));
 
       // 2. Secondary COGS from linked BL Verre (via FicheId)
-      const ficheIds = revenueDocs
+      const ficheIds = allDocs
         .map((d) => d.ficheId)
         .filter((id): id is string => !!id && typeof id === 'string');
 
@@ -942,20 +950,30 @@ export class StatsService {
       }
 
       // 1. Revenue
-      const factures = await this.prisma.facture.findMany({
+      const facturesRaw = await this.prisma.facture.findMany({
         where: {
           dateEmission: { gte: start, lte: end },
-          statut: { notIn: ['ARCHIVE'] },
-          type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'DEVIS', 'AVOIR'] },
+          statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
+          type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR'] },
           ...(tenantId ? { centreId: tenantId } : {}),
         },
-        select: { dateEmission: true, totalHT: true, totalTTC: true, type: true },
+        select: { dateEmission: true, totalHT: true, totalTTC: true, type: true, ficheId: true },
       });
 
-      factures.forEach((f) => {
+      const facturesWithFicheIds = new Set(
+        facturesRaw.filter(f => f.type === 'FACTURE' && f.ficheId).map(f => f.ficheId)
+      );
+
+      facturesRaw.forEach((f) => {
         const key = formatKey(f.dateEmission);
         if (!monthsMap.has(key)) return;
-        const val = f.totalHT || f.totalTTC || 0; // consistent HT
+
+        // Dedup
+        if ((f.type === 'BON_COMMANDE' || f.type === 'BON_COMM') && f.ficheId && facturesWithFicheIds.has(f.ficheId)) {
+          return;
+        }
+
+        const val = f.totalHT || f.totalTTC || 0;
         const entry = monthsMap.get(key)!;
         if (f.type === 'AVOIR') entry.revenue -= val;
         else entry.revenue += val;
