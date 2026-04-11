@@ -111,8 +111,13 @@
                 <mat-card-content>
                     <div class="text-2xl font-extrabold text-blue-900">{{ data.revenue | number:'1.2-2' }} <span
                             class="text-sm font-normal">DH</span></div>
-                    <div class="text-[10px] text-blue-600 font-medium whitespace-nowrap">Total Facturé (Hors Avoirs)
+                    <div class="text-[10px] text-blue-500 font-medium mt-1 flex items-center gap-1"
+                        *ngIf="data.caTTC">
+                        <mat-icon class="text-[11px] h-3 w-3">link</mat-icon>
+                        CA TTC&nbsp;=&nbsp;<strong>{{ data.caTTC | number:'1.2-2' }} DH</strong>
+                        <span class="ml-1 text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">≡ Contrôle&nbsp;Ventes</span>
                     </div>
+                    <div class="text-[10px] text-blue-400 font-medium">Total Facturé HT (Hors Avoirs)</div>
                 </mat-card-content>
             </mat-card>
 
