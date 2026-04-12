@@ -72,8 +72,6 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
     }
     .actions { display: flex; gap: 4px; justify-content: flex-end; }
     .montant-cell { font-weight: bold; }
-    .chip-caisse { background-color: #e0f2f1; color: #00695c; }
-    .chip-cheque { background-color: #fff3e0; color: #ef6c00; }
     .filters { display: flex; gap: 16px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
     .filters mat-form-field { flex: 1; min-width: 150px; }
     ::ng-deep .dense-field .mat-mdc-form-field-subscript-wrapper { display: none; }
@@ -251,14 +249,6 @@ export class ExpenseListComponent implements OnInit {
           this.snackBar.open('Erreur lors de la suppression', 'Fermer', { duration: 3000 });
         }
       });
-    }
-  }
-
-  getModePaiementClass(mode: string): string {
-    switch (mode) {
-      case 'ESPECES': return 'chip-caisse';
-      case 'CHEQUE': return 'chip-cheque';
-      default: return '';
     }
   }
 
