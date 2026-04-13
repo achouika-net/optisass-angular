@@ -53,10 +53,14 @@ export class StorageService implements OnModuleInit {
             },
           ],
         };
-        await this.client.setBucketPolicy(
-          this.bucket,
-          JSON.stringify(policy),
-        );
+        try {
+          await this.client.setBucketPolicy(
+            this.bucket,
+            JSON.stringify(policy),
+          );
+        } catch (policyError) {
+          console.warn('⚠️ MinIO: Failed to set bucket policy. Uploads may not be publicly accessible.', policyError);
+        }
       }
       this.minioReady = true;
       console.log(`✅ MinIO storage ready — bucket: ${this.bucket}`);
@@ -78,20 +82,20 @@ export class StorageService implements OnModuleInit {
     const objectName = `${folder}/${fileName}`;
     
     if (this.minioReady) {
-      await this.client.putObject(
-        this.bucket,
-        objectName,
-        buffer,
-        buffer.length,
-        contentType ? { 'Content-Type': contentType } : undefined,
-      );
-    } else {
-      // Local fallback
-      const targetDir = path.join(this.localUploadDir, folder);
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
+      try {
+        await this.client.putObject(
+          this.bucket,
+          objectName,
+          buffer,
+          buffer.length,
+          contentType ? { 'Content-Type': contentType } : undefined,
+        );
+      } catch (error) {
+        console.error(`❌ MinIO upload failed for ${objectName}, falling back to local filesystem:`, error);
+        this.writeLocalFallback(folder, objectName, buffer);
       }
-      fs.writeFileSync(path.join(this.localUploadDir, objectName), buffer);
+    } else {
+      this.writeLocalFallback(folder, objectName, buffer);
     }
     return `/uploads/${objectName}`;
   }
@@ -131,12 +135,22 @@ export class StorageService implements OnModuleInit {
     }
   }
 
+  private writeLocalFallback(folder: string, objectName: string, buffer: Buffer): void {
+    const targetDir = path.join(this.localUploadDir, folder);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    fs.writeFileSync(path.join(this.localUploadDir, objectName), buffer);
+  }
+
   async deleteFile(filePath: string): Promise<void> {
     const objectName = filePath.replace(/^\/uploads\//, '');
     if (this.minioReady) {
       try {
         await this.client.removeObject(this.bucket, objectName);
-      } catch (e) {}
+      } catch (e) {
+        console.warn(`⚠️ MinIO: Failed to delete ${objectName}:`, e);
+      }
     } else {
       const targetPath = path.join(this.localUploadDir, objectName);
       if (fs.existsSync(targetPath)) {
