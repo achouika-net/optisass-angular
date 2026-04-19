@@ -197,15 +197,52 @@ LIVRABLE_EQUIPE/
 
 ## 🔐 SÉCURITÉ & AUDIT
 
-### Sécurité Documentée
-- ✅ Multi-tenant strict (isolation centreId)
-- ✅ Authentification JWT + RBAC
-- ✅ Audit trail complet (qui, quand, avant/après)
-- ✅ Validations en cascade
-- ✅ Contraintes base de données
+### 🚨 AUDIT DE SÉCURITÉ (CRITIQUE - À LIRE D'ABORD)
 
-### Checklist Sécurité
-Voir: [CHECKLIST_SECURITY.md](05-CHECKLISTS/CHECKLIST_SECURITY.md)
+⚠️ **Un audit de sécurité complet a identifié des vulnérabilités critiques.**
+
+**Documents sécurité**:
+1. **[SECURITY_AUDIT.md](SECURITY_AUDIT.md)** (Audit complet)
+   - Score de sécurité: 5.5/10
+   - 7 vulnérabilités critiques/hautes
+   - Recommandations d'action
+   - **À faire AVANT production**
+
+2. **[SECURITY_FIXES.ts](SECURITY_FIXES.ts)** (Fixes prêtes à utiliser)
+   - Code corrigé complet
+   - 10 fixes sécurité implémentées
+   - Prêt à copier-coller
+
+3. **[SECURITY_RECOMMENDATIONS.md](SECURITY_RECOMMENDATIONS.md)** (Guide complet)
+   - Plan d'action phase par phase
+   - 4 phases de correction
+   - Avec tests d'implémentation
+
+4. **[05-CHECKLISTS/CHECKLIST_SECURITY.md](05-CHECKLISTS/CHECKLIST_SECURITY.md)** (Mise à jour)
+   - Section "Corrections Critiques Requises"
+   - Items à cocher avant déploiement
+   - Validation post-correction
+
+### ✅ Points Forts de Sécurité
+- ✅ Prisma ORM (protection SQL injection)
+- ✅ Password hashing bcrypt (salt=10)
+- ✅ JWT authentification
+- ✅ RBAC par centre
+- ✅ Multi-tenant isolation conceptuelle
+
+### 🔴 Problèmes Critiques Détectés
+- 🔴 CORS trop permissif (origin: true)
+- 🔴 Secrets par défaut dangereux
+- 🔴 SSL/TLS non vérifiés
+- 🔴 Mots de passe par défaut
+- 🔴 Validation whitelist désactivée
+- 🔴 Logs sans limite de taille
+- 🔴 Erreurs détaillées exposées
+- 🔴 Rate limiting manquant
+- 🔴 Headers de sécurité manquants
+- 🔴 HTTPS redirect manquant
+
+**⏰ Priorité**: À corriger CETTE SEMAINE avant tout déploiement production
 
 ---
 

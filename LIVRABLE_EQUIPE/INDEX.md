@@ -50,12 +50,16 @@ LIVRABLE_EQUIPE/
 │   ├── TROUBLESHOOTING.md          (Erreurs courantes)
 │   └── REFERENCES.md               (Liens utiles)
 │
-└── 05-CHECKLISTS/                  (Before doing X)
-    ├── ONBOARDING_DEVELOPER.md     (Nouveau dev)
-    ├── CHECKLIST_IMPLEMENTATION.md (Avant de coder)
-    ├── CHECKLIST_TESTING.md        (Avant de merger)
-    ├── CHECKLIST_DEPLOYMENT.md     (Avant de déployer)
-    └── CHECKLIST_SECURITY.md       (Audit sécurité)
+├── 05-CHECKLISTS/                  (Before doing X)
+│   ├── ONBOARDING_DEVELOPER.md     (Nouveau dev)
+│   ├── CHECKLIST_IMPLEMENTATION.md (Avant de coder)
+│   ├── CHECKLIST_TESTING.md        (Avant de merger)
+│   ├── CHECKLIST_DEPLOYMENT.md     (Avant de déployer)
+│   └── CHECKLIST_SECURITY.md       (Audit sécurité)
+│
+├── 🔐 SECURITY_AUDIT.md            (⚠️ À LIRE EN PRIORITÉ - Vulnérabilités critiques)
+├── 🔐 SECURITY_FIXES.ts            (Fixes prêtes à utiliser)
+└── 🔐 SECURITY_RECOMMENDATIONS.md  (Guide complet + phases d'action)
 ```
 
 ---
@@ -176,7 +180,8 @@ LIVRABLE_EQUIPE/
 → [CHECKLIST_DEPLOYMENT.md](05-CHECKLISTS/CHECKLIST_DEPLOYMENT.md)
 
 ### "Je dois auditer sécurité"
-→ [CHECKLIST_SECURITY.md](05-CHECKLISTS/CHECKLIST_SECURITY.md)
+**🚨 CRITIQUE**: Lire [SECURITY_AUDIT.md](SECURITY_AUDIT.md) EN PRIORITÉ!
+→ [CHECKLIST_SECURITY.md](05-CHECKLISTS/CHECKLIST_SECURITY.md) + [SECURITY_FIXES.ts](SECURITY_FIXES.ts) + [SECURITY_RECOMMENDATIONS.md](SECURITY_RECOMMENDATIONS.md)
 
 ### "Je suis bloqué"
 → [FAQ_COMMUNES.md](04-RESSOURCES/FAQ_COMMUNES.md) + [TROUBLESHOOTING.md](04-RESSOURCES/TROUBLESHOOTING.md)
