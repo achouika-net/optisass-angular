@@ -4,7 +4,8 @@ import {
   IsString,
   IsOptional,
   IsDateString,
-  Min,
+  IsPositive,
+  IsEnum,
 } from 'class-validator';
 
 export class CreatePaiementDto {
@@ -14,6 +15,8 @@ export class CreatePaiementDto {
 
   @IsNotEmpty()
   @IsNumber()
+  // BUG-004 FIX: Validate montant must be a valid positive number
+  // Note: Can be negative for refunds, but must be finite
   montant: number;
 
   @IsOptional()
@@ -22,14 +25,15 @@ export class CreatePaiementDto {
 
   @IsNotEmpty()
   @IsString()
-  mode: string; // ESPECES, CHEQUE, CARTE, VIREMENT, AUTRE
+  @IsEnum(['ESPECES', 'ESPECE', 'CARTE', 'CHEQUE', 'CHÈQUE', 'VIREMENT', 'LCN', 'AUTRE'], {
+    message: 'Mode de paiement invalide',
+  })
+  mode: string;
 
   @IsOptional()
   @IsString()
   reference?: string;
 
-  @IsOptional()
-  @IsString()
   @IsOptional()
   @IsString()
   notes?: string;
