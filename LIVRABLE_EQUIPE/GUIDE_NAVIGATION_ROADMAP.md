@@ -157,34 +157,335 @@
 
 ---
 
-## 🐛 BUGS & EDGE CASES IDENTIFIÉS
+## 🐛 BUGS & EDGE CASES IDENTIFIÉS + SOLUTIONS
 
-### CRITIQUE (À corriger immédiatement)
+### 🔴 CRITIQUE (À corriger immédiatement)
 
-| ID | Titre | Module | Severité | Fix Effort |
-|----|-------|--------|----------|-----------|
-| BUG-001 | Pas de filtrage centre possibilité data leak | FACTURES | 🔴 CRITIQUE | 4h |
-| BUG-002 | Stock decrement sans transaction rollback | PAIEMENTS | 🔴 CRITIQUE | 6h |
-| BUG-003 | Commission trigger sans vérif montant | COMMISSION | 🔴 CRITIQUE | 3h |
-| BUG-004 | Validation client-side insuffisante | FACTURES | 🟡 HAUTE | 8h |
+#### BUG-001: Data Leak - Pas de filtrage centre
 
-### HAUTE (À corriger bientôt)
+**Description**: Requêtes sans filtrage `centreId` permettent accès à données d'autres centres
 
-| ID | Titre | Module | Fix Effort |
-|----|-------|--------|-----------|
-| BUG-005 | Escheance cheque sans relance automatique | PAIEMENTS | 5h |
-| BUG-006 | Loyalté ne gère pas retours | LOYALTY | 4h |
-| BUG-007 | Export Sage filtre exportComptable insuffisant | ACCOUNTING | 3h |
-| BUG-008 | Stock alert seuil hardcodé (pas configurable) | PRODUCTS | 2h |
+**Cause Racine**: 
+```typescript
+// ❌ DANGEREUX
+const factures = await prisma.facture.findMany({
+  where: { statut: "VALIDE" }  // Toutes les factures de TOUS les centres!
+});
+```
 
-### MOYENNE (À considérer)
+**Impact**: 🔴 CRITIQUE - Client A peut voir factures Client B d'autre centre
 
-| ID | Titre | Module | Fix Effort |
-|----|-------|--------|-----------|
-| BUG-009 | PDF generation lent pour gros fichiers | PDF | 8h |
-| BUG-010 | Caching points fidelité non invalidé | LOYALTY | 2h |
-| BUG-011 | Email templates hardcodés (pas de l10n) | MAILER | 6h |
-| BUG-012 | Upload files pas scannés antivirus | UPLOADS | 4h |
+**Solution**:
+```typescript
+// ✅ CORRECT - Ajouter filtrage centre systématique
+const factures = await prisma.facture.findMany({
+  where: { 
+    centreId: userCentreId,  // ← MANDATORY
+    statut: "VALIDE"
+  }
+});
+
+// Pattern à appliquer partout:
+// 1. GetUserCentre() depuis JWT token
+// 2. Vérifier user.centreRoles includes centreId
+// 3. Ajouter where: { centreId: ... }
+```
+
+**Audit**: Chercher dans codebase tous les `.findMany()` sans `centreId`
+
+**Fix Effort**: 4h  
+**Priority**: 🔴 URGENT (Cette semaine)
+
+---
+
+#### BUG-002: Stock décrémente sans Transaction
+
+**Description**: Stock decrement en dehors de transaction - risque rupture stock
+
+**Cause Racine**:
+```typescript
+// ❌ DANGEREUX - Pas atomique
+const paiement = await prisma.paiement.create({...});
+await prisma.product.update({...});  // Peut échouer!
+// Si crash ici → paiement créé mais stock pas décrémenté
+```
+
+**Impact**: 🔴 CRITIQUE - Stock physique ≠ stock système
+
+**Solution**:
+```typescript
+// ✅ CORRECT - Transaction ACID
+await prisma.$transaction(async (tx) => {
+  // Étape 1: Créer paiement
+  const paiement = await tx.paiement.create({
+    data: { factureId, montant, ... }
+  });
+  
+  // Étape 2: Vérifier stock disponible
+  const products = await tx.product.findMany({
+    where: { id: { in: productIds } }
+  });
+  
+  if (products.some(p => p.quantiteActuelle < required)) {
+    throw new ConflictException("Stock insuffisant");
+  }
+  
+  // Étape 3: Décrémenter stock
+  for (const product of products) {
+    await tx.product.update({
+      where: { id: product.id },
+      data: { quantiteActuelle: { decrement: qty } }
+    });
+  }
+  
+  // Étape 4: Créer mouvements stock
+  await tx.mouvementStock.createMany({
+    data: movements
+  });
+  
+  // ROLLBACK AUTO si erreur
+}, { timeout: 5000 });
+```
+
+**Fix Effort**: 6h  
+**Priority**: 🔴 URGENT (Cette semaine)
+
+---
+
+#### BUG-003: Commission sans vérification montant
+
+**Description**: Commission calculée sur montants non validés (négatifs, zéro)
+
+**Cause Racine**:
+```typescript
+// ❌ DANGEREUX
+const commission = facture.montantHT * percentageCommission;
+// Si montantHT = -1000, commission = -500 (paiement vendeur!)
+```
+
+**Impact**: 🔴 CRITIQUE - Vendeurs payés pour retours
+
+**Solution**:
+```typescript
+// ✅ CORRECT - Validation stricte
+async calculateCommission(facture: Facture) {
+  // 1. Vérifier montant valide
+  if (!facture.montantHT || facture.montantHT <= 0) {
+    throw new BadRequestException("Invalid amount");
+  }
+  
+  // 2. Vérifier statut valid
+  if (!["VALIDE", "PAYEE"].includes(facture.statut)) {
+    return null;  // Pas de commission sur DEVIS
+  }
+  
+  // 3. Vérifier vendeur assigné
+  if (!facture.vendeurId) {
+    return null;
+  }
+  
+  // 4. Récupérer règle
+  const rule = await prisma.commissionRule.findFirst({
+    where: { 
+      centreId: facture.centreId,
+      vendeurId: facture.vendeurId
+    }
+  });
+  
+  if (!rule || rule.percentCommission <= 0) return null;
+  
+  // 5. Calculer avec validations
+  const montantCommission = Number(
+    (facture.montantHT * (rule.percentCommission / 100)).toFixed(2)
+  );
+  
+  if (montantCommission < 0 || !isFinite(montantCommission)) {
+    throw new BadRequestException("Commission calc error");
+  }
+  
+  return montantCommission;
+}
+```
+
+**Fix Effort**: 3h  
+**Priority**: 🔴 URGENT (Cette semaine)
+
+---
+
+#### BUG-004: Validation client-side insuffisante
+
+**Description**: Montants négatifs, zéro, NaN acceptés par API
+
+**Cause Racine**: Pas de validation Prisma + API validation partielle
+
+**Impact**: 🟡 HAUTE - Données corrompues possibles
+
+**Solution**:
+```typescript
+// ✅ CORRECT - Validation Prisma + DTO
+// 1. Schema Prisma
+model Paiement {
+  montant Float @gt(0)  // > 0 obligatoire
+}
+
+// 2. DTO avec class-validator
+export class CreatePaiementDto {
+  @IsPositive()
+  @IsNumber()
+  montant: number;
+  
+  @IsEnum(['ESPECES', 'CARTE', 'CHEQUE', 'VIREMENT'])
+  mode: string;
+  
+  @IsUUID()
+  factureId: string;
+}
+
+// 3. Controller avec validation
+@Post()
+@UseInterceptors(ValidationPipe)
+async create(@Body() dto: CreatePaiementDto) {
+  // DTO déjà validé ici
+  return this.service.create(dto);
+}
+
+// 4. Service avec double-check
+async create(dto: CreatePaiementDto) {
+  if (dto.montant <= 0) {
+    throw new BadRequestException("Montant doit être > 0");
+  }
+  if (!isFinite(dto.montant)) {
+    throw new BadRequestException("Montant invalide");
+  }
+  // ... créer
+}
+```
+
+**Fix Effort**: 8h  
+**Priority**: 🔴 URGENT (Cette semaine)
+
+---
+
+### 🟡 HAUTE (À corriger bientôt)
+
+#### BUG-005: Cheque sans relance automatique
+
+**Solution**:
+```typescript
+// Créer scheduled job qui relance cheques EN_ATTENTE
+// CronJob (chaque jour 9h):
+@Cron('0 9 * * *')
+async checkExpiredChecks() {
+  const overdue = await prisma.paiement.findMany({
+    where: {
+      mode: 'CHEQUE',
+      statut: 'EN_ATTENTE',
+      dateEcheance: { lt: new Date() }
+    }
+  });
+  
+  for (const paiement of overdue) {
+    await this.mailer.sendRelance(paiement);
+  }
+}
+```
+**Fix Effort**: 5h
+
+#### BUG-006: Loyalité & retours
+
+**Solution**:
+```typescript
+// Annuler points quand retour enregistré
+async handleReturn(factureId: string) {
+  const facture = await prisma.facture.findUnique({
+    where: { id: factureId }
+  });
+  
+  // Trouver entry points pour cette facture
+  const pointsEntry = await prisma.pointsHistory.findFirst({
+    where: { factureId }
+  });
+  
+  if (pointsEntry) {
+    // Annuler points
+    await prisma.pointsHistory.create({
+      data: {
+        clientId: facture.clientId,
+        type: 'PERTE',
+        montantPoints: -pointsEntry.montantPoints,
+        raison: 'RETOUR',
+        motif: `Annulation retour ${factureId}`
+      }
+    });
+    
+    // Update client
+    await prisma.client.update({
+      where: { id: facture.clientId },
+      data: {
+        pointsFidelite: { decrement: pointsEntry.montantPoints }
+      }
+    });
+  }
+}
+```
+**Fix Effort**: 4h
+
+#### BUG-007: Export Sage insuffisant
+
+**Solution**:
+```typescript
+// Améliorer filtrage
+async generateSageExport(filter: {
+  dateStart: Date;
+  dateEnd: Date;
+  centreId: string;
+  exportComptable?: boolean;
+}) {
+  const factures = await prisma.facture.findMany({
+    where: {
+      centreId: filter.centreId,
+      dateEmission: { gte: filter.dateStart, lte: filter.dateEnd },
+      statut: { in: ['VALIDE', 'PAYEE'] },
+      exportComptable: filter.exportComptable !== false,
+      type: 'FACTURE'  // Only fiscal invoices
+    }
+  });
+  // ...
+}
+```
+**Fix Effort**: 3h
+
+#### BUG-008: Stock alert hardcodé
+
+**Solution**:
+```typescript
+// Rendre seuil configurable
+model ProductConfiguration {
+  seuilAlertPercentage: Float @default(20)  // 20% du stock normal
+}
+
+// Usage:
+if (product.quantiteActuelle < (product.quantiteNormale * config.seuilAlertPercentage / 100)) {
+  alert!
+}
+```
+**Fix Effort**: 2h
+
+---
+
+### 🟡 MOYENNE (À considérer)
+
+#### BUG-009 + BUG-010 + BUG-011 + BUG-012
+
+| Bug | Solution Rapide |
+|-----|---|
+| **BUG-009** (PDF slow) | Streaming + pagination / Worker queue |
+| **BUG-010** (Cache) | Redis invalidation sur points update |
+| **BUG-011** (i18n) | Extraire templates en BD + i18n key |
+| **BUG-012** (Antivirus) | ClamAV service + scan on upload |
+
+**Total Fix Effort**: 20h  
+**Timeline**: Phase 2 (Juillet 2026)
 
 ---
 
