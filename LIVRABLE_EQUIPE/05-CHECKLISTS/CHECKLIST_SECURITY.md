@@ -1,6 +1,81 @@
 # 🛡️ CHECKLIST SÉCURITÉ
 
-**Usage**: Audit sécurité complet avant déploiement production
+**Usage**: Audit sécurité complet avant déploiement production  
+**Status**: ⚠️ **CORRECTIONS CRITIQUES REQUISES** (voir section 0)  
+**Updated**: 2026-04-19 (audit de sécurité appliqué)
+
+---
+
+## 🔴 SECTION 0: CORRECTIONS CRITIQUES REQUISES
+
+### Vulnérabilités Detectées - Action Immédiate
+
+⚠️ **CES ITEMS DOIVENT ÊTRE CORRIGÉS AVANT TOUT DÉPLOIEMENT PRODUCTION**
+
+#### A. CORS Configuration (CVSS 8.6 - CRITICAL)
+```
+Status: ❌ MANQUANT
+Fix: backend/src/main.ts ligne 32
+```
+- [ ] **FAIT**: CORS origin whitelist implémenté (pas `origin: true`)
+- [ ] **FAIT**: Tester avec origin non-whitelist (doit rejeter)
+- [ ] **FAIT**: CORS_ORIGIN défini dans .env
+
+#### B. Secrets Management (CVSS 9.1 - CRITICAL)
+```
+Status: ❌ MANQUANT
+File: backend/src/common/storage/storage.service.ts ligne 18
+```
+- [ ] **FAIT**: Éliminer fallback `|| 'minioadmin'`
+- [ ] **FAIT**: MINIO_SECRET_KEY env var requis (throw error si absent)
+- [ ] **FAIT**: Générer clé secure: `openssl rand -base64 32`
+
+#### C. SSL/TLS Verification (CVSS 7.5 - HIGH)
+```
+Status: ❌ MANQUANT
+File: backend/src/features/marketing/marketing.service.ts ligne 219
+```
+- [ ] **FAIT**: Production: `rejectUnauthorized: true`
+- [ ] **FAIT**: Dev: `rejectUnauthorized: false` SEULEMENT avec NODE_ENV=development
+
+#### D. Password Validation (CVSS 7.3 - HIGH)
+```
+Status: ❌ MANQUANT
+File: backend/src/features/users/users.service.ts ligne 50
+```
+- [ ] **FAIT**: Éliminer default password `'password123'`
+- [ ] **FAIT**: Password required, minimum 8 chars, strong
+- [ ] **FAIT**: Tester création user sans password (doit échouer)
+
+#### E. Validation Whitelist (CVSS 6.5 - MEDIUM-HIGH)
+```
+Status: ❌ MANQUANT
+File: backend/src/main.ts ligne 21
+```
+- [ ] **FAIT**: `whitelist: true` au lieu de `false`
+- [ ] **FAIT**: `forbidNonWhitelisted: true`
+- [ ] **FAIT**: Tester avec extra properties (doit rejeter)
+
+#### F. Log Rotation (CVSS 6.2 - MEDIUM-HIGH)
+```
+Status: ❌ MANQUANT
+File: backend/src/main.ts ligne 42-48
+```
+- [ ] **FAIT**: Limiter log size à 10MB
+- [ ] **FAIT**: Auto-rotation après 10MB
+- [ ] **FAIT**: Garder max 10 fichiers historiques
+
+---
+
+### ✅ POST-CORRECTIONS VALIDATION
+
+- [ ] `npm audit` - Aucune vulnerability CRITICAL
+- [ ] `npm run test:security` - Tous tests passent
+- [ ] Logs vérifiés: Pas d'erreurs détaillées exposées
+- [ ] .env.example créé sans secrets
+- [ ] Documentation sécurité mise à jour
+- [ ] Code review par second développeur
+- [ ] Staging déploiement avec tests security complets
 
 ---
 
