@@ -836,7 +836,8 @@ UserCentreRole {
 **29. uploads** - Gestion fichiers
 - 🔹 **Endpoints**: POST /uploads/images, GET /uploads/:fileId
 - 🔹 **Responsabilité**: Upload produits (images), documents (PDFs)
-- 🔹 **Stockage**: Local ou S3 (configurable)
+- 🔹 **Stockage**: MinIO (production) avec fallback local automtique en cas d'erreur
+- 🔹 **Robustesse**: Error handling amélioré + fallback local transparent si MinIO indisponible
 
 **30. company-settings** - Configuration générale
 - 🔹 **Endpoints**: GET/PUT /settings

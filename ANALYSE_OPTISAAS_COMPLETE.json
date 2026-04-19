@@ -1731,7 +1731,7 @@
             {
                 "nom": "Uploads",
                 "dossier": "backend/src/features/uploads",
-                "responsabilite": "Gestion fichiers - Upload images/docs, stockage",
+                "responsabilite": "Gestion fichiers - Upload images/docs, stockage MinIO avec fallback local",
                 "entites": [],
                 "endpoints": [
                     "POST /uploads - Upload fichier",
@@ -1740,10 +1740,13 @@
                 "regles_metier": [
                     "Répertoires: images/produits, justificatifs, PDFs",
                     "Formats acceptés: JPEG, PNG, PDF",
-                    "Taille max: 10MB"
+                    "Taille max: 10MB",
+                    "Stockage: MinIO avec fallback local si MinIO indisponible",
+                    "Error handling: Logging des erreurs + fallback automatique"
                 ],
                 "services": [
-                    "UploadsService"
+                    "UploadsService",
+                    "StorageService (MinIO + fallback local)"
                 ],
                 "dependencies": []
             }
