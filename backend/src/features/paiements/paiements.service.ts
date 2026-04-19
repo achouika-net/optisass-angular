@@ -17,7 +17,7 @@ export class PaiementsService {
     private prisma: PrismaService,
     private stockAvailabilityService: StockAvailabilityService,
     private commissionService: CommissionService,
-  ) {}
+  ) { }
 
   async create(createPaiementDto: CreatePaiementDto, userId?: string) {
     const { factureId, montant } = createPaiementDto;
@@ -63,7 +63,7 @@ export class PaiementsService {
     } else if (!finalStatut) {
       finalStatut =
         createPaiementDto.mode === 'ESPECES' ||
-        createPaiementDto.mode === 'CARTE'
+          createPaiementDto.mode === 'CARTE'
           ? 'ENCAISSE'
           : 'EN_ATTENTE';
     }
@@ -343,16 +343,20 @@ export class PaiementsService {
     }
   }
 
-  async findAll(factureId?: string) {
+  async findAll(factureId?: string, centreId?: string) {
+    const where: any = {};
+
     if (factureId) {
-      return this.prisma.paiement.findMany({
-        where: { factureId },
-        include: { facture: true },
-        orderBy: { date: 'desc' },
-      });
+      where.factureId = factureId;
+    }
+
+    // SECURITY: Filter by centreId if provided (prevents data leak)
+    if (centreId) {
+      where.facture = { centreId };
     }
 
     return this.prisma.paiement.findMany({
+      where,
       include: { facture: true },
       orderBy: { date: 'desc' },
       take: 100,
@@ -507,10 +511,10 @@ export class PaiementsService {
       where: { id },
       include: {
         facture: true,
-        operationCaisse: { 
-          include: { 
-            journeeCaisse: true 
-          } 
+        operationCaisse: {
+          include: {
+            journeeCaisse: true
+          }
         },
       },
     });
@@ -525,7 +529,7 @@ export class PaiementsService {
         const op = paiement.operationCaisse;
         if (op.journeeCaisse?.statut === 'OUVERTE') {
           console.log(`[Paiement-Delete] Reversing Caisse Movement for Op ${op.id}`);
-          
+
           await tx.journeeCaisse.update({
             where: { id: op.journeeCaisseId },
             data: {
@@ -555,7 +559,7 @@ export class PaiementsService {
       if (paiement.facture) {
         const facture = paiement.facture;
         const nouveauReste = (facture.resteAPayer || 0) + paiement.montant;
-        
+
         // Determination of the new status
         // If the balance is equal to the total (0.05 margin), status becomes VALIDE (Unpaid)
         // Otherwise it remains PARTIEL
@@ -565,7 +569,7 @@ export class PaiementsService {
 
         // Specific cases for Devis/BC
         if (facture.type === 'BON_COMM' && nouveauStatut === 'VALIDE') {
-            nouveauStatut = 'VENTE_EN_INSTANCE'; // Or whatever initial status a BC has
+          nouveauStatut = 'VENTE_EN_INSTANCE'; // Or whatever initial status a BC has
         }
 
         console.log(`[Paiement-Delete] Updating Facture ${facture.numero}: Reste ${facture.resteAPayer} -> ${nouveauReste}, Statut -> ${nouveauStatut}`);

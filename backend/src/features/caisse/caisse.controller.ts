@@ -13,7 +13,7 @@ import { UpdateCaisseDto } from './dto/update-caisse.dto';
 
 @Controller('caisse')
 export class CaisseController {
-  constructor(private readonly caisseService: CaisseService) {}
+  constructor(private readonly caisseService: CaisseService) { }
 
   @Post()
   create(@Body() createCaisseDto: CreateCaisseDto) {
@@ -22,6 +22,8 @@ export class CaisseController {
 
   @Get()
   findAll() {
+    // TODO: Extract centreId from JWT token and pass it
+    // For now, get all (temporary)
     return this.caisseService.findAll();
   }
 

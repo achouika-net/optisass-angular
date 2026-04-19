@@ -3,11 +3,18 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class LoyaltyService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
-  async getPointsHistory(clientId: string) {
+  async getPointsHistory(clientId: string, centreId?: string) {
+    const where: any = { clientId };
+
+    // SECURITY: Filter by centreId if provided (prevents data leak)
+    if (centreId) {
+      where.facture = { centreId };
+    }
+
     return this.prisma.pointsHistory.findMany({
-      where: { clientId },
+      where,
       orderBy: { date: 'desc' },
       include: { facture: true },
     });
