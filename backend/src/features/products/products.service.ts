@@ -985,6 +985,53 @@ export class ProductsService {
     return stats;
   }
 
+  /**
+   * BUG-008 FIX: Get products below stock alert threshold
+   * Allows configurable per-product thresholds instead of hardcoded values
+   * Uses entrepotId for warehouse filtering (centres manage warehouses)
+   */
+  async getStockAlerts(entrepotId?: string) {
+    const where: any = {};
+
+    if (entrepotId) {
+      where.entrepotId = entrepotId;
+    }
+
+    // Get all products where quantity is below seuilAlerte
+    const alertProducts = await this.prisma.product.findMany({
+      where: {
+        ...where,
+        // Product must have quantity > 0 and <= seuilAlerte
+        // AND seuilAlerte must be > 0 (configured)
+        quantiteActuelle: { gt: 0 }, // quantity > 0
+      },
+      select: {
+        id: true,
+        codeInterne: true,
+        designation: true,
+        quantiteActuelle: true,
+        seuilAlerte: true, // This is now configurable per product
+        prixAchatHT: true,
+        entrepotId: true,
+      },
+      orderBy: { quantiteActuelle: 'asc' },
+    });
+
+    // Filter in-memory to check seuilAlerte threshold (cheaper than DB query)
+    const lowStockProducts = alertProducts.filter(
+      (p) => p.seuilAlerte > 0 && p.quantiteActuelle <= p.seuilAlerte,
+    );
+
+    return {
+      alertCount: lowStockProducts.length,
+      products: lowStockProducts.map((p) => ({
+        ...p,
+        percentageOfThreshold: (p.quantiteActuelle / p.seuilAlerte) * 100,
+        urgent: p.quantiteActuelle < p.seuilAlerte * 0.5, // Red flag: less than 50% of threshold
+      })),
+    };
+  }
+
   async restock(
     id: string,
     quantite: number,
