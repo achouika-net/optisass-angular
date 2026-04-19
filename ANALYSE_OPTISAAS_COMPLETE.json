@@ -1,0 +1,2844 @@
+{
+    "projet": {
+        "nom": "OptiSaas",
+        "description": "Système de gestion complet pour centre optique - Devis, Factures, Gestion stock, Points fidélité, Caisse, Paie, Comptabilité",
+        "type": "Full Stack - NestJS Backend + Angular Frontend",
+        "basesDonnees": "PostgreSQL + Prisma ORM",
+        "architecture": "Microservices modulaire - 32 modules backend, 18 modules frontend"
+    },
+    "entites_principales": {
+        "description": "Modèles Prisma - Architecture données",
+        "Client": {
+            "description": "Clients du centre optique (particuliers et entreprises)",
+            "champs_cles": [
+                "id (UUID)",
+                "typeClient (PARTICULIER|PROFESSIONNEL|ENTREPRISE)",
+                "nom, prenom, dateNaissance",
+                "email, telephone, adresse",
+                "pointsFidelite (solde de points Choukra)",
+                "statut (ACTIF|INACTIF)",
+                "tvaAssujetti (pour factures B2B)",
+                "parrainId (parrainage/fidélité)",
+                "groupeFamille (JSON - liens familiaux)",
+                "conventionId (remises conventions)",
+                "centreId (centre affecté)"
+            ],
+            "relations": [
+                "factures: Facture[]",
+                "fiches: Fiche[]",
+                "bonsLivraison: BonLivraison[]",
+                "pointsHistory: PointsHistory[]",
+                "rewardRedemptions: RewardRedemption[]",
+                "parrain: Client (pour parrainage)",
+                "filleuls: Client[]"
+            ],
+            "statuts": [
+                "INACTIF",
+                "ACTIF",
+                "SUSPENDU"
+            ]
+        },
+        "Fiche": {
+            "description": "Dossier client - Montures/Lentilles/Accessoires (Devis initial avant facture)",
+            "champs_cles": [
+                "id (UUID)",
+                "numero (auto-increment)",
+                "type (MONTURE|LENTILLES|ACCESSOIRES|MIXTE)",
+                "statut (BROUILLON|VALIDATION|DEVIS_EN_COURS|COMMANDE|LIVREE|FACTUREE|ANNULEE)",
+                "dateLivraisonEstimee",
+                "montantTotal, montantPaye",
+                "content (JSON - données techniques prescriptions, mesures, couleurs)",
+                "clientId, facture (lien inverse)"
+            ],
+            "relations": [
+                "client: Client",
+                "facture: Facture?",
+                "bonsLivraison: BonLivraison[]",
+                "supplierInvoices: FactureFournisseur[]"
+            ],
+            "workflow": "Brouillon → Validation → Devis → Bon Commande → Livraison → Facturation",
+            "donnees_json_content": {
+                "monture": {
+                    "categorie": "Lunettes/Solaires/etc",
+                    "genre": "Homme/Femme/Enfant",
+                    "forme": "Rond/Carré/Ovale",
+                    "marque": "String",
+                    "couleur": "String",
+                    "prix": "Float"
+                },
+                "lentilles": {
+                    "type": "Verres/Lentilles de contact",
+                    "materiau": "String",
+                    "indiceRefraction": "Float",
+                    "teinte": "String",
+                    "traitements": [
+                        "anti-reflet",
+                        "anti-UV"
+                    ],
+                    "prix": "Float"
+                },
+                "prescription": {
+                    "od": {
+                        "sphere": "Float",
+                        "cylindre": "Float",
+                        "axe": "String",
+                        "addition": "Float"
+                    },
+                    "og": {
+                        "sphere": "Float",
+                        "cylindre": "Float",
+                        "axe": "String",
+                        "addition": "Float"
+                    },
+                    "dateOrdonnance": "Date",
+                    "praticien": "String"
+                },
+                "adaptation": {
+                    "rayonCourbure": "Float",
+                    "diametre": "Float",
+                    "dateAdaptation": "Date"
+                }
+            }
+        },
+        "Facture": {
+            "description": "Documents commerciaux/comptables - Devis, Bon de commande, Avoir, Facture",
+            "champs_cles": [
+                "id (UUID)",
+                "numero (UNIQUE - DEVIS/BC/FACTURE/AVOIR + séquence)",
+                "type (DEVIS|BON_COMMANDE|FACTURE|AVOIR|FACTURE_PRESTATION)",
+                "statut (DEVIS_EN_COURS|VALIDEE|PAYEE|SOLDEE|ANNULEE|EN_RETOUR)",
+                "typeOperation (COMPTABLE|INTERNE)",
+                "dateEmission, dateEcheance",
+                "clientId, ficheId (fiche associée)",
+                "totalHT, totalTVA, totalTTC",
+                "resteAPayer (reste dû)",
+                "lignes (JSON - détail produits/quantités/prix)",
+                "proprietes (JSON - notes, conditions)",
+                "parentFactureId (pour avoirs/retours)",
+                "vendeurId (employee vendeur)",
+                "centreId",
+                "exportComptable (comptabilisée ou pas)"
+            ],
+            "relations": [
+                "client: Client",
+                "fiche: Fiche?",
+                "vendeur: Employee? (vendeur commissionné)",
+                "centre: Centre",
+                "paiements: Paiement[]",
+                "operationsCaisse: OperationCaisse[]",
+                "mouvementsStock: MouvementStock[]",
+                "commissions: Commission[]",
+                "pointsHistory: PointsHistory[]",
+                "parentFacture: Facture? (avoir lié à facture parent)",
+                "children: Facture[] (avoirs générés)"
+            ],
+            "statuts": [
+                "DEVIS_EN_COURS",
+                "VALIDEE",
+                "PAYEE",
+                "SOLDEE",
+                "ANNULEE",
+                "EN_RETOUR",
+                "PARTIELLEMENT_PAYEE"
+            ],
+            "types_numerotatation": {
+                "DEVIS": "DV-2026-0001",
+                "BON_COMMANDE": "BC-2026-0001",
+                "FACTURE": "FAC-2026-0001",
+                "AVOIR": "AV-2026-0001"
+            },
+            "lignes_json": [
+                {
+                    "productId": "UUID",
+                    "description": "String",
+                    "quantite": "Float",
+                    "prixUnitaireHT": "Float",
+                    "tauxTVA": "Float",
+                    "totalHT": "Float",
+                    "totalTVA": "Float",
+                    "totalTTC": "Float",
+                    "motif": "String (pour retours)"
+                }
+            ]
+        },
+        "Paiement": {
+            "description": "Enregistrement des paiements factures clients",
+            "champs_cles": [
+                "id (UUID)",
+                "factureId",
+                "montant (positif=paiement, négatif=remboursement)",
+                "date, dateVersement, dateEncaissement",
+                "mode (ESPECES|CARTE|CHEQUE|VIREMENT|LCN|AUTRE)",
+                "statut (ENCAISSE|EN_ATTENTE|DECAISSEMENT)",
+                "reference (numéro cheque, etc)",
+                "banque (pour chèques)",
+                "tiersNom, tiersCin (pour chèques tiers)",
+                "operationCaisseId (lien à caisse)"
+            ],
+            "relations": [
+                "facture: Facture",
+                "operationCaisse: OperationCaisse?",
+                "user: User (qui enregistré)",
+                "demandeAlimentation: DemandeAlimentation?"
+            ],
+            "modes_paiement": [
+                "ESPECES",
+                "CARTE",
+                "CHEQUE",
+                "VIREMENT",
+                "LCN",
+                "AUTRES"
+            ]
+        },
+        "PointsHistory": {
+            "description": "Historique points fidélité Choukra par client",
+            "champs_cles": [
+                "id (UUID)",
+                "clientId",
+                "points (montant positif/négatif)",
+                "type (EARN|REDEEM|BONUS_PARRAINAGE|BONUS_DOSSIER|ADJUSTMENT)",
+                "date",
+                "description",
+                "factureId (pour acquis)"
+            ],
+            "relations": [
+                "client: Client",
+                "facture: Facture?"
+            ],
+            "regles": {
+                "pointsPerDH": "0.1 points par DH dépensé",
+                "referrerBonus": "50 points pour parraineur",
+                "refereeBonus": "20 points pour nouveau client",
+                "folderCreationBonus": "30 points création dossier",
+                "pointsToMADRatio": "0.1 - conversion points en réduction"
+            }
+        },
+        "BonLivraison": {
+            "description": "Bon de livraison fournisseur - Suivi commandes auprès fournisseurs",
+            "champs_cles": [
+                "id (UUID)",
+                "numeroBL (UNIQUE par fournisseur)",
+                "dateEmission, dateEcheance",
+                "montantHT, montantTVA, montantTTC",
+                "statut (VALIDEE|LIVREE|REJETEE|RETOURNEE)",
+                "type (ACHAT_STOCK|RETOUR_MARCHANDISE)",
+                "fournisseurId",
+                "centreId, clientId",
+                "ficheId (si lié à commande client)",
+                "categorieBL (MONTURES|VERRES|LENTILLES|ACCESSOIRES)"
+            ],
+            "relations": [
+                "fournisseur: Fournisseur",
+                "centre: Centre?",
+                "client: Client?",
+                "fiche: Fiche?",
+                "mouvementsStock: MouvementStock[]",
+                "factureFournisseur: FactureFournisseur? (facture supplier)"
+            ]
+        },
+        "MouvementStock": {
+            "description": "Mouvements de stock - Entrées, Sorties, Transferts entre entrepôts",
+            "champs_cles": [
+                "id (UUID)",
+                "type (ENTREE|SORTIE|TRANSFERT|RETOUR|CONFECTION|AJUSTEMENT|DECHET)",
+                "quantite",
+                "dateMovement",
+                "motif (raison du mouvement)",
+                "produitId",
+                "entrepotSourceId, entrepotDestinationId",
+                "factureId (si lié à facture)",
+                "bonLivraisonId",
+                "factureFournisseurId",
+                "prixAchatUnitaire, prixVenteUnitaire",
+                "numeroLot, datePeremption (pour tracking",
+                "userId (qui)"
+            ],
+            "relations": [
+                "produit: Product",
+                "facture: Facture?",
+                "bonLivraison: BonLivraison?",
+                "entrepotSource: Entrepot?",
+                "entrepotDestination: Entrepot?",
+                "user: User?"
+            ],
+            "regles_mouvements": {
+                "ENTREE": "Stock augmente - Réception BL fournisseur",
+                "SORTIE": "Stock diminue - Vente à client",
+                "TRANSFERT": "Entre deux entrepôts même centre",
+                "RETOUR": "Client retourne articles",
+                "CONFECTION": "Articles créés sur commande (lunettes)",
+                "AJUSTEMENT": "Correction après inventaire",
+                "DECHET": "Articles perdus/cassés"
+            }
+        },
+        "Product": {
+            "description": "Catalogue produits - Montures, Verres, Lentilles, Accessoires",
+            "champs_cles": [
+                "id (UUID)",
+                "codeInterne (SKU unique par entrepôt)",
+                "codeBarres (EAN)",
+                "referenceFournisseur",
+                "designation",
+                "marque, modele, couleur",
+                "typeArticle (MONTURE|VERRE|LENTILLE|ACCESSOIRE|SERVICE)",
+                "famille, sousFamille",
+                "quantiteActuelle, seuilAlerte",
+                "prixAchatHT, coefficient, prixVenteHT, prixVenteTTC",
+                "tauxTVA",
+                "statut (ACTIF|INACTIF|DISCONTINUED)",
+                "specificData (JSON - données optiques)"
+            ],
+            "relations": [
+                "entrepot: Entrepot",
+                "mouvements: MouvementStock[]"
+            ],
+            "specificData_json": {
+                "monture": {
+                    "categorie": "Lunettes/Solaires",
+                    "genre": "H/F/Enfant",
+                    "forme": "Rond/Carré/Ovale",
+                    "typeMonture": "Cerclée/Semi-cerclée/Percée",
+                    "calibre": "S/M/L",
+                    "pont": "Float",
+                    "branche": "Float",
+                    "typeCharniere": "String"
+                },
+                "verre": {
+                    "typeVerre": "Unifocal/Bifocal/Progressif",
+                    "materiau": "Minéral/Polycarbonate/CR39",
+                    "indiceRefraction": "Float (1.5/1.6/1.67)",
+                    "traitements": [
+                        "anti-reflet",
+                        "anti-UV",
+                        "hydrophobe"
+                    ],
+                    "teinte": "String",
+                    "filtresSpeciaux": [
+                        "BlueLock",
+                        "Driving"
+                    ]
+                },
+                "lentille": {
+                    "typeLentille": "Souple/Rigide",
+                    "matiere": "String",
+                    "rayonCourbure": "Float",
+                    "diametre": "Float",
+                    "puissance": "Float",
+                    "fabricant": "String",
+                    "usage": "Quotidien/Occasionnel"
+                }
+            }
+        },
+        "Entrepot": {
+            "description": "Stocks locaux - Un par centre, peut avoir plusieurs (principal, reserve, etc)",
+            "champs_cles": [
+                "id (UUID)",
+                "nom",
+                "type (PRINCIPAL|RESERVE|TRANSIT|RETOUR)",
+                "centreId",
+                "responsable",
+                "capaciteMax, surface"
+            ],
+            "relations": [
+                "centre: Centre",
+                "produits: Product[]",
+                "mouvementsSource: MouvementStock[] (transferts sortants)",
+                "mouvementsDestination: MouvementStock[] (transferts entrants)"
+            ]
+        },
+        "Fournisseur": {
+            "description": "Suppliers - Fabricants et distributeurs optiques",
+            "champs_cles": [
+                "id (UUID)",
+                "nom",
+                "contact, email, telephone",
+                "adresse, ville",
+                "ice, rc, identifiantFiscal",
+                "conditionsPaiement",
+                "rib, banque",
+                "convention (JSON - accords commerciaux)"
+            ],
+            "relations": [
+                "bonsLivraison: BonLivraison[]",
+                "factures: FactureFournisseur[]",
+                "depenses: Depense[]"
+            ]
+        },
+        "FactureFournisseur": {
+            "description": "Factures reçues de fournisseurs - Imputations comptables achats",
+            "champs_cles": [
+                "id (UUID)",
+                "numeroFacture",
+                "dateEmission, dateEcheance",
+                "montantHT, montantTVA, montantTTC",
+                "statut (A_PAYER|PARTIEL|PAYEE|VALIDEE)",
+                "type (ACHAT_STOCK|SERVICE|AUTRE)",
+                "fournisseurId",
+                "centreId",
+                "ficheId (si facture client supplier)"
+            ],
+            "relations": [
+                "fournisseur: Fournisseur",
+                "centre: Centre?",
+                "fiche: Fiche?",
+                "mouvementsStock: MouvementStock[]",
+                "echeances: EcheancePaiement[]",
+                "depense: Depense?"
+            ]
+        },
+        "Depense": {
+            "description": "Dépenses operationnelles - Loyer, électricité, salaires, etc",
+            "champs_cles": [
+                "id (UUID)",
+                "date, dateEcheance",
+                "montant",
+                "categorie (LOYER|ELECTRICITE|INTERNET|SALAIRE|ASSURANCE|FRAIS_BANCAIRES|AUTRE)",
+                "modePaiement (CHEQUE|VIREMENT|ESPECES|CARTE)",
+                "statut (BROUILLON|VALIDEE|PAYEE|ANNULEE)",
+                "centreId",
+                "fournisseurId",
+                "factureFournisseurId, bonLivraisonId",
+                "echeanceId",
+                "creeParId, valideParId (traces)"
+            ],
+            "relations": [
+                "centre: Centre",
+                "fournisseur: Fournisseur?",
+                "factureFournisseur: FactureFournisseur?",
+                "bonLivraison: BonLivraison?",
+                "echeance: EcheancePaiement?",
+                "creeParUser: User",
+                "valideParUser: User?",
+                "payroll: Payroll? (si payroll)"
+            ],
+            "categories_depenses": [
+                "LOYER",
+                "ELECTRICITE",
+                "INTERNET",
+                "ASSURANCE",
+                "FRAIS_BANCAIRES",
+                "AUTRES_CHARGES",
+                "EAU",
+                "SALAIRES",
+                "COMMISSIONS",
+                "MATERIEL"
+            ]
+        },
+        "Employee": {
+            "description": "Employés du centre - Opticiens, vendeurs, administratifs",
+            "champs_cles": [
+                "id (UUID)",
+                "matricule (UNIQUE)",
+                "nom, prenom, cin",
+                "poste (OPTICIEN|VENDEUR|CAISSIER|MANAGER|ADMINISTRATIF)",
+                "contrat (CDI|CDD|STAGE)",
+                "dateEmbauche",
+                "salaireBase",
+                "statut (ACTIF|SUSPENDU|LICENCIE)",
+                "userId (lien user system)",
+                "childrenCount (allocations familiales)",
+                "familyStatus (CELIBATAIRE|MARIE|DIVORCE)"
+            ],
+            "relations": [
+                "user: User?",
+                "centres: EmployeeCentre[] (affectations)",
+                "commissions: Commission[]",
+                "attendance: Attendance[]",
+                "facturesVente: Facture[] (relation VendeurFactures)",
+                "payrolls: Payroll[]",
+                "depenses: Depense[]"
+            ]
+        },
+        "Commission": {
+            "description": "Commissions vendeurs - Calculées par type produit et montant",
+            "champs_cles": [
+                "id (UUID)",
+                "employeeId",
+                "factureId",
+                "type (MONTURE|VERRE|LENTILLE|ACCESSOIRE|SERVICE)",
+                "montant",
+                "mois (YYYY-MM)"
+            ],
+            "relations": [
+                "employee: Employee",
+                "facture: Facture"
+            ],
+            "regles": {
+                "calcul": "Basé sur CommissionRule - taux % par type produit/poste",
+                "declenchement": "À validation et paiement de la facture",
+                "periode": "Mensuelle YYYY-MM"
+            }
+        },
+        "Payroll": {
+            "description": "Bulletin de paie mensuel - Calculs salaire + prélèvements",
+            "champs_cles": [
+                "id (UUID)",
+                "employeeId",
+                "mois, annee",
+                "salaireBase",
+                "commissions",
+                "heuresSup",
+                "primes",
+                "retenues",
+                "netAPayer",
+                "statut (BROUILLON|VALIDEE|PAYEE)",
+                "pdfUrl"
+            ],
+            "relations": [
+                "employee: Employee",
+                "expense: Depense? (enregistrée comme dépense payroll)"
+            ],
+            "calculs": {
+                "grossSalary": "salaireBase + heuresSup + commissions + primes",
+                "socialSecurityDeduction": "CNSS Employé ~4.48%",
+                "healthInsuranceDeduction": "AMO ~2.26%",
+                "incomeTaxDeduction": "Impôt progressif par tranche",
+                "professionalExpenses": "Frais professionnels 20% plafonné",
+                "netAPayer": "grossSalary - retenues"
+            }
+        },
+        "Caisse": {
+            "description": "Point de vente/Caisse (peut avoir plusieurs par centre)",
+            "champs_cles": [
+                "id (UUID)",
+                "nom (Caisse principale, Caisse 2, etc)",
+                "type (PRINCIPALE|SECONDAIRE|MOBILE)",
+                "statut (ACTIVE|INACTIVE)",
+                "centreId"
+            ],
+            "relations": [
+                "centre: Centre",
+                "journees: JourneeCaisse[]"
+            ]
+        },
+        "JourneeCaisse": {
+            "description": "Session de caisse quotidienne - Ouverture et clôture",
+            "champs_cles": [
+                "id (UUID)",
+                "caisseId, centreId",
+                "dateOuverture",
+                "dateCloture",
+                "fondInitial (montant caisse au démarrage)",
+                "soldeTheorique, soldeReel",
+                "ecart (difference théorique/réel)",
+                "caissier, responsableCloture",
+                "statut (OUVERTE|FERMEE)",
+                "totalVentesEspeces, totalVentesCarte, totalVentesCheque",
+                "totalTransfertsDepenses, totalDepenses"
+            ],
+            "relations": [
+                "caisse: Caisse",
+                "centre: Centre",
+                "operations: OperationCaisse[]",
+                "demandesAlimentation: DemandeAlimentation[]"
+            ],
+            "workflow": "Ouverture → Transactions jour → Clôture (rapprochement manuel)"
+        },
+        "OperationCaisse": {
+            "description": "Transactions dans une journée caisse - Encaissements/décaissements",
+            "champs_cles": [
+                "id (UUID)",
+                "journeeCaisseId",
+                "type (ENCAISSEMENT|DECAISSEMENT)",
+                "typeOperation (COMPTABLE|INTERNE|TRANSFERT)",
+                "montant",
+                "moyenPaiement (ESPECES|CARTE|CHEQUE|VIREMENT)",
+                "reference",
+                "motif",
+                "factureId (si lié à facture)",
+                "utilisateur (qui), userId"
+            ],
+            "relations": [
+                "journeeCaisse: JourneeCaisse",
+                "facture: Facture?",
+                "user: User?",
+                "paiements: Paiement[]"
+            ]
+        },
+        "Centre": {
+            "description": "Succursales/Centres optiques du groupe",
+            "champs_cles": [
+                "id (UUID)",
+                "nom",
+                "groupeId",
+                "adresse, ville, codePostal",
+                "telephone, email"
+            ],
+            "relations": [
+                "groupe: Groupe",
+                "clients: Client[]",
+                "caisses: Caisse[]",
+                "entrepots: Entrepot[]",
+                "factures: Facture[]",
+                "journeesCaisse: JourneeCaisse[]",
+                "commissionRules: CommissionRule[]"
+            ]
+        },
+        "Groupe": {
+            "description": "Groupe optique - Multi-centres",
+            "champs_cles": [
+                "id (UUID)",
+                "nom (UNIQUE)",
+                "type (FAMILY|CORPORATE)",
+                "description"
+            ],
+            "relations": [
+                "centres: Centre[]",
+                "clients: Client[] (groupes familles)"
+            ]
+        },
+        "Convention": {
+            "description": "Conventions commerciales - Remises client",
+            "champs_cles": [
+                "id (UUID)",
+                "nom (UNIQUE)",
+                "remiseType (PERCENTAGE|FLAT_AMOUNT)",
+                "remiseValeur",
+                "montantForfaitaireMonture, montantForfaitaireVerre",
+                "remiseForfaitaire (forfait lunettes complètes)"
+            ],
+            "relations": [
+                "clients: Client[] (bénéficiaires)"
+            ]
+        },
+        "LoyaltyConfig": {
+            "description": "Configuration système points fidélité Choukra",
+            "champs_cles": [
+                "pointsPerDH (0.1 = 1 point par 10 DH)",
+                "referrerBonus (50 points)",
+                "refereeBonus (20 points)",
+                "folderCreationBonus (30 points)",
+                "pointsToMADRatio (conversion en remise)",
+                "rewardThreshold (500 points minimum redemption)"
+            ]
+        },
+        "EcheancePaiement": {
+            "description": "Paiements programmés - Chèques post-datés, virements",
+            "champs_cles": [
+                "id (UUID)",
+                "type (CHEQUE|LCN|VIREMENT|AUTRE)",
+                "dateEcheance",
+                "dateEncaissement",
+                "montant",
+                "statut (EN_ATTENTE|ENCAISSE|ANNULE|REPORTE)",
+                "reference, banque",
+                "factureFournisseurId, bonLivraisonId"
+            ],
+            "relations": [
+                "factureFournisseur: FactureFournisseur?",
+                "bonLivraison: BonLivraison?",
+                "depense: Depense?"
+            ]
+        },
+        "User": {
+            "description": "Utilisateurs système (authentification, rôles)",
+            "champs_cles": [
+                "id (UUID)",
+                "email (UNIQUE)",
+                "nom, prenom, civilite",
+                "telephone, photoUrl",
+                "password (hash bcrypt)",
+                "statut (actif|suspendu|supprime)",
+                "matricule"
+            ],
+            "relations": [
+                "employee: Employee? (si employé)",
+                "operationsCaisses: OperationCaisse[]",
+                "paiements: Paiement[]",
+                "centreRoles: UserCentreRole[]",
+                "stockMovements: MouvementStock[]"
+            ]
+        },
+        "RewardRedemption": {
+            "description": "Utilisation points - Remise appliquée sur commande",
+            "champs_cles": [
+                "id (UUID)",
+                "clientId",
+                "pointsUsed",
+                "rewardType (DISCOUNT|PRODUCT|OTHER)",
+                "madValue (valeur en DH)",
+                "redeemedAt, redeemedBy (traçabilité)"
+            ],
+            "relations": [
+                "client: Client",
+                "user: User?"
+            ]
+        }
+    },
+    "modules_backend": {
+        "count": 32,
+        "description": "Modules métier NestJS",
+        "modules": [
+            {
+                "nom": "Factures",
+                "dossier": "backend/src/features/factures",
+                "responsabilite": "Gestion cycle de vie documents commerciaux - Devis → BC → Facture → Avoir",
+                "entites": [
+                    "Facture",
+                    "Product",
+                    "Client",
+                    "Employee",
+                    "PointsHistory"
+                ],
+                "endpoints": [
+                    "POST /factures - Créer facture/devis/BC/avoir",
+                    "GET /factures - Lister avec filtres (client, type, statut, date)",
+                    "GET /factures/:id - Détails facture",
+                    "PATCH /factures/:id - Modifier brouillon",
+                    "POST /factures/:id/exchange - Créer avoir (retour)",
+                    "GET /factures/:id/check-availability - Vérifier stock disponible"
+                ],
+                "regles_metier": [
+                    "Numerotation unique par type (DEVIS, BC, FACTURE, AVOIR)",
+                    "Transition d'état contrôlée: DEVIS_EN_COURS → VALIDEE → PAYEE → SOLDEE",
+                    "Vérification stock avant transition DEVIS → BC (bloque si rupture)",
+                    "Calcul automatique TVA (TVA collectée comptabilisée)",
+                    "Points fidélité attribués à la validation de la facture",
+                    "Commission vendeur calculée si facture payée",
+                    "Permet retours/avoirs avec tracking ligne par ligne",
+                    "Export comptable conditionnel (flag exportComptable)"
+                ],
+                "flux_processus": "Client → Devis (brouillon) → Validation → Paiement initial → Bon de Commande (fournisseur) → Livraison (réception stock) → Facture complète → Encaissement",
+                "services": [
+                    "FacturesService - Opérations CRUD + validations métier",
+                    "StockAvailabilityService - Vérification stock, détection conflits",
+                    "LoyaltyService (injected) - Attribution points",
+                    "CommissionService (injected) - Calcul commissions"
+                ],
+                "validations": [
+                    "Client existe et centre affecté",
+                    "Fiche associée valide (si ficheId fourni)",
+                    "Stock disponible avant paiement DEVIS",
+                    "Montant paiement ≤ reste à payer",
+                    "Lignes facture avec quantités > 0",
+                    "TVA comprise 0-20%"
+                ],
+                "dependencies": [
+                    "Loyalty",
+                    "Paiements",
+                    "Products",
+                    "Personnel (Commission)"
+                ]
+            },
+            {
+                "nom": "Fiches",
+                "dossier": "backend/src/features/fiches",
+                "responsabilite": "Dossier client - Données optiques, prescriptions, montures/lentilles, suivi confection",
+                "entites": [
+                    "Fiche",
+                    "Client",
+                    "Product",
+                    "BonLivraison"
+                ],
+                "endpoints": [
+                    "POST /fiches - Créer dossier (brouillon)",
+                    "GET /fiches - Lister dossiers client",
+                    "GET /fiches/:id - Consulter fiche (données optiques)",
+                    "PATCH /fiches/:id - Modifier fiche",
+                    "POST /fiches/:id/upgrade-to-facture - Convertir en facture",
+                    "POST /fiches/:id/send-order-email - Email fournisseur + PDFs techniques"
+                ],
+                "regles_metier": [
+                    "Type: MONTURE, LENTILLES, ACCESSOIRES, MIXTE",
+                    "Content JSON stocke prescriptions (sphère, cylindre, axe, addition)",
+                    "Peut avoir plusieurs BL fournisseurs liés",
+                    "Suivi commande: fournisseur → réception → confection → livraison client",
+                    "Emails PDF techniques générés pour fabricants/fournisseurs",
+                    "Historique changements d'état tracé"
+                ],
+                "flux_processus": "Prise de mesure → Brouillon fiche → Validation → Demande fournisseur → Réception → Confection optique → Livraison client → Facturation",
+                "services": [
+                    "FichesService - Gestion dossier",
+                    "PdfService (injected) - Génération PDFs pour fabricants",
+                    "MailerService (injected) - Notifications",
+                    "FacturesService (injected) - Conversion en facture"
+                ],
+                "validations": [
+                    "Client associé valide",
+                    "Type fiche correct",
+                    "Données optiques cohérentes (sphère raisonnables, axe 0-180)",
+                    "Montant total > 0"
+                ],
+                "dependencies": [
+                    "Factures",
+                    "Notifications (Mailer, PDF)"
+                ]
+            },
+            {
+                "nom": "Clients",
+                "dossier": "backend/src/features/clients",
+                "responsabilite": "Gestion base clients - Particuliers, Entreprises, Groupes familiaux, Fidélité",
+                "entites": [
+                    "Client",
+                    "Convention",
+                    "Groupe",
+                    "PointsHistory"
+                ],
+                "endpoints": [
+                    "POST /clients - Créer client",
+                    "GET /clients - Recherche nom/prenom/telephone",
+                    "GET /clients/:id - Profil client",
+                    "PATCH /clients/:id - Modifier info",
+                    "GET /clients/:id/summary - Dashboard client (factures, points, eligibilité)",
+                    "POST /clients/search - Recherche avancée (filtres multiples)"
+                ],
+                "regles_metier": [
+                    "Type: PARTICULIER, PROFESSIONNEL, ENTREPRISE",
+                    "Statut: INACTIF (par défaut) → ACTIF après première facture",
+                    "Parrainage: client peut parrainer → bonus points automatique",
+                    "Convention: remises personnalisées (% ou forfait)",
+                    "Groupes familiaux: tracking liens familiaux (parents, conjoints, enfants)",
+                    "Couverture sociale: données mutuelle pour conventions",
+                    "TVA assujetti pour B2B"
+                ],
+                "flux_processus": "Inscription → Activation (1ère facture) → Accumulation points → Rédemption points/rewards → Historique transactionnel",
+                "services": [
+                    "ClientsService - CRUD + recherche",
+                    "LoyaltyService (injected) - Vérif eligibilité rewards",
+                    "FacturesService (injected) - Stats client"
+                ],
+                "validations": [
+                    "Email unique (si fourni)",
+                    "Centre obligatoire",
+                    "Type client valide",
+                    "Parrain existe (si fourni)"
+                ],
+                "dependencies": [
+                    "Loyalty"
+                ]
+            },
+            {
+                "nom": "Paiements",
+                "dossier": "backend/src/features/paiements",
+                "responsabilite": "Enregistrement paiements clients - Caisse + bancaire, suivi encaissement",
+                "entites": [
+                    "Paiement",
+                    "Facture",
+                    "OperationCaisse",
+                    "JourneeCaisse"
+                ],
+                "endpoints": [
+                    "POST /paiements - Enregistrer paiement",
+                    "GET /paiements - Lister paiements",
+                    "GET /paiements/:id - Détails paiement",
+                    "PATCH /paiements/:id - Modifier statut (notamment post-datés)",
+                    "GET /paiements/facture/:id - Historique paiements facture"
+                ],
+                "regles_metier": [
+                    "Montant paiement ≤ reste à payer facture",
+                    "Modes: ESPECES, CARTE, CHEQUE, VIREMENT, LCN",
+                    "Statut: ENCAISSE (immédiat especes/carte) ou EN_ATTENTE (cheque/virement futur)",
+                    "Paiements négatifs = remboursement (forcément en especes)",
+                    "Intégration caisse: chaque paiement crée OperationCaisse si mode accepté",
+                    "Mise à jour automatique resteAPayer et statut facture"
+                ],
+                "flux_processus": "Facture validée → Demande paiement → Enregistrement paiement → Intégration caisse → Statut facture PAYEE/SOLDEE",
+                "services": [
+                    "PaiementsService - Enregistrement + validations",
+                    "StockAvailabilityService - Vérification stock avant autorisation DEVIS→BC",
+                    "CommissionService - Trigger commission si facture payée"
+                ],
+                "validations": [
+                    "Facture existe et non annulée",
+                    "Montant > 0 pour paiement, montant négatif pour remboursement",
+                    "Mode paiement valide",
+                    "Cheque: références obligatoires (banque, tiersNom, tiersCin)"
+                ],
+                "dependencies": [
+                    "Factures",
+                    "Caisse",
+                    "Personnel (Commission)"
+                ]
+            },
+            {
+                "nom": "Loyalty",
+                "dossier": "backend/src/features/loyalty",
+                "responsabilite": "Programme fidélité Choukra - Attribution/consommation points, rewards, parrainage",
+                "entites": [
+                    "PointsHistory",
+                    "RewardRedemption",
+                    "LoyaltyConfig",
+                    "Client"
+                ],
+                "endpoints": [
+                    "GET /loyalty/config - Lire paramètres fidélité",
+                    "PATCH /loyalty/config - Modifier paramètres",
+                    "GET /loyalty/client/:id/points - Solde points client",
+                    "GET /loyalty/client/:id/history - Historique mouvements points",
+                    "GET /loyalty/client/:id/eligible - Check eligibilité rewards",
+                    "POST /loyalty/redeem - Utiliser points (remise)",
+                    "POST /loyalty/referral - Bonus parrainage"
+                ],
+                "regles_metier": [
+                    "Acquisition: 0.1 points par DH dépensé = 1 point par 10 DH",
+                    "Bonus nouveau client: 20 points",
+                    "Bonus parraineur: 50 points",
+                    "Bonus dossier créé: 30 points",
+                    "Parrainage: client peut parrainer réseau (filleuls)",
+                    "Redemption: 1 point = 0.1 DH remise (10 points = 1 DH)",
+                    "Seuil redemption: min 500 points",
+                    "Historique tracé (EARN/REDEEM/BONUS/ADJUSTMENT)"
+                ],
+                "flux_processus": "Achat client → Points attribués → Historique enregistré → Client peut consulter → Seuil atteint → Redemption → Remise appliquée",
+                "services": [
+                    "LoyaltyService - Points calculation, eligibility, rewards"
+                ],
+                "validations": [
+                    "Client existe",
+                    "Montant facture > 0 pour attribution",
+                    "Points suffisants pour redemption",
+                    "Redemption threshold respecté"
+                ],
+                "dependencies": [
+                    "Clients",
+                    "Factures"
+                ]
+            },
+            {
+                "nom": "Stock Movements",
+                "dossier": "backend/src/features/stock-movements",
+                "responsabilite": "Suivi stocks - Entrées/sorties/transferts, mouvements, inventaire",
+                "entites": [
+                    "MouvementStock",
+                    "Product",
+                    "Entrepot",
+                    "BonLivraison"
+                ],
+                "endpoints": [
+                    "POST /stock-movements - Enregistrer mouvement",
+                    "GET /stock-movements - Lister mouvements",
+                    "GET /stock-movements/product/:id - Historique par produit",
+                    "GET /stock-movements/warehouse/:id - Mouvements entrepôt",
+                    "POST /stock-movements/bulk-alimentation - Import BL fournisseur massif",
+                    "GET /stock-movements/reconciliation - Rapport inventaire"
+                ],
+                "regles_metier": [
+                    "Types: ENTREE (achat), SORTIE (vente), TRANSFERT (inter-warehouse), RETOUR (client), CONFECTION (fabrication lunettes), AJUSTEMENT (inventaire), DECHET (perte)",
+                    "Tracking quantité, prix achat/vente, lot, date péremption",
+                    "Entrepôt source/destination pour transferts",
+                    "Lien à facture (sortie), BL fournisseur (entrée), ou indépendant",
+                    "Décrémentation stock au DEVIS payé (transition BC)",
+                    "Alimentation stock en masse depuis fichier BL"
+                ],
+                "flux_processus": "Achat fournisseur (BC) → Réception BL → Mouvement ENTREE → Stock augmente → Vente client (DEVIS payé) → Mouvement SORTIE → Stock diminue",
+                "services": [
+                    "StockMovementsService - CRUD mouvements + bulk import",
+                    "ProductsService (injected) - Mise à jour quantities"
+                ],
+                "validations": [
+                    "Produit existe",
+                    "Entrepôt source/destination valide",
+                    "Quantité > 0",
+                    "Motif renseigné",
+                    "Prix unitaires raisonnables"
+                ],
+                "dependencies": [
+                    "Products",
+                    "Factures"
+                ]
+            },
+            {
+                "nom": "Products",
+                "dossier": "backend/src/features/products",
+                "responsabilite": "Catalogue produits - Montures, Verres, Lentilles, Accessoires, recherche",
+                "entites": [
+                    "Product",
+                    "Entrepot",
+                    "GlassBrand",
+                    "GlassMaterial",
+                    "GlassIndex"
+                ],
+                "endpoints": [
+                    "POST /products - Créer produit",
+                    "GET /products - Recherche (marque, modele, type)",
+                    "GET /products/:id - Détails produit",
+                    "PATCH /products/:id - Modifier info/prix/stock",
+                    "DELETE /products/:id - Inactiver produit",
+                    "GET /products/search - Recherche avancée (filtres)",
+                    "POST /products/:id/transfer - Transfert inter-warehouse"
+                ],
+                "regles_metier": [
+                    "Code interne unique par entrepôt + code barres",
+                    "Types: MONTURE, VERRE, LENTILLE, ACCESSOIRE, SERVICE",
+                    "Prix: achat HT → coefficient → vente HT → +TVA → vente TTC",
+                    "Stock: quantité actuelle, seuil alerte (réassort auto)",
+                    "SpecificData JSON: données optiques (sphère, cylindre, indice, etc)",
+                    "Statut: ACTIF, INACTIF, DISCONTINUED",
+                    "Familles/sous-familles pour tri/recherche"
+                ],
+                "flux_processus": "Création fournisseur → Paramétrage prix/stock → Achat → Réception → Recherche client → Vente → Suivi stock",
+                "services": [
+                    "ProductsService - Gestion catalogue",
+                    "GlassParametersService (likely) - Config verres/lentilles"
+                ],
+                "validations": [
+                    "Code interne unique par warehouse",
+                    "Marque/modele valides",
+                    "Prix achat < prix vente",
+                    "Coefficient > 0",
+                    "TVA 0-20%"
+                ],
+                "dependencies": [
+                    "Entrepôts",
+                    "Stock-Movements"
+                ]
+            },
+            {
+                "nom": "Treasury (Trésorerie)",
+                "dossier": "backend/src/features/treasury",
+                "responsabilite": "Trésorerie mensuelle - Flux de caisse, CA, achats, rentabilité",
+                "entites": [
+                    "Facture",
+                    "Paiement",
+                    "Depense",
+                    "EcheancePaiement",
+                    "MouvementStock"
+                ],
+                "endpoints": [
+                    "GET /treasury/monthly-summary - CA/achats/depenses par mois",
+                    "GET /treasury/cash-flow - Projection trésorerie",
+                    "GET /treasury/receivables - Clients à relancer (factures impayées)",
+                    "GET /treasury/payables - Fournisseurs à payer",
+                    "GET /treasury/profitability - Marge par produit/client"
+                ],
+                "regles_metier": [
+                    "Classement achats: Stock (optique) vs Operationnel (loyer, électricité, etc)",
+                    "CA = Factures validées + Paiements encaissés",
+                    "Achats = BL fournisseurs reçues",
+                    "Depenses = Charges operationnelles",
+                    "Marge = CA - COGS (cout stock vendu) - Depenses",
+                    "Trésorerie = Encaissements - Décaissements",
+                    "Seuil mensuel: 50000 DH par défaut"
+                ],
+                "flux_processus": "Factures/Paiements clients → CA → COGS calculé → Depenses operationnelles → Marge brute → Trésorerie → Ratios analyse",
+                "services": [
+                    "TreasuryService - Calculs trésorerie"
+                ],
+                "validations": [
+                    "Dates valides (range mensuel)",
+                    "Centre valide (si filtré)"
+                ],
+                "dependencies": [
+                    "Factures",
+                    "Paiements",
+                    "Expenses",
+                    "Stock-Movements"
+                ]
+            },
+            {
+                "nom": "Accounting (Comptabilité)",
+                "dossier": "backend/src/features/accounting",
+                "responsabilite": "Export comptable - Fichiers Sage, journal, bilan",
+                "entites": [
+                    "Facture",
+                    "Paiement",
+                    "Depense"
+                ],
+                "endpoints": [
+                    "POST /accounting/export-sage - Générer fichier Sage (.txt)",
+                    "GET /accounting/journal - Journal comptable brut",
+                    "GET /accounting/balance - Balances comptes",
+                    "GET /accounting/vat-summary - Récapitulatif TVA"
+                ],
+                "regles_metier": [
+                    "Plan comptable marocain: Clients (3421), Ventes (7111), TVA Collectée (4455), Caisse (5161), Fournisseurs (4411), Achats (6111), TVA Déductible (3455)",
+                    "Export Sage: format fichier spécifique (date DD/MM/YY, compte, libelle, debit, credit)",
+                    "TVA: ligne séparée par facture (recette) + par achat (charge)",
+                    "Filtre: uniquement documents comptabilisés (flag exportComptable=true)"
+                ],
+                "flux_processus": "Factures validées/payées → Export comptable → Fichier Sage → Import logiciel comptable → Bilan",
+                "services": [
+                    "AccountingService - Export + formatting"
+                ],
+                "validations": [
+                    "Dates valides",
+                    "Montants > 0",
+                    "Comptes valides (plan comptable)"
+                ],
+                "dependencies": [
+                    "Factures",
+                    "Paiements",
+                    "Depenses"
+                ]
+            },
+            {
+                "nom": "Caisse",
+                "dossier": "backend/src/features/caisse",
+                "responsabilite": "Configuration caisses - Points de vente par centre",
+                "entites": [
+                    "Caisse",
+                    "Centre"
+                ],
+                "endpoints": [
+                    "POST /caisse - Créer caisse (par centre)",
+                    "GET /caisse - Lister caisses",
+                    "GET /caisse/:id - Détails + journees recentes",
+                    "PATCH /caisse/:id - Modifier caisse",
+                    "GET /caisse/centre/:centreId - Caisses par centre"
+                ],
+                "regles_metier": [
+                    "Une caisse = un point de vente/registre de caisse",
+                    "Types: PRINCIPALE (défaut), SECONDAIRE, MOBILE",
+                    "Nom unique par centre",
+                    "Chaque journée = une ouverture/clôture"
+                ],
+                "flux_processus": "Configuration caisse → Ouverture journée → Transactions jour → Clôture rapprochement → Reporting",
+                "services": [
+                    "CaisseService - CRUD + validation unique"
+                ],
+                "validations": [
+                    "Centre existe",
+                    "Nom unique par centre",
+                    "Type valide"
+                ],
+                "dependencies": [
+                    "Centres"
+                ]
+            },
+            {
+                "nom": "Journée Caisse",
+                "dossier": "backend/src/features/journee-caisse",
+                "responsabilite": "Gestion quotidienne caisse - Ouverture, clôture, rapprochement",
+                "entites": [
+                    "JourneeCaisse",
+                    "Caisse",
+                    "OperationCaisse",
+                    "DemandeAlimentation"
+                ],
+                "endpoints": [
+                    "POST /journee-caisse/ouvrir - Ouvrir session caisse",
+                    "GET /journee-caisse - Lister journees",
+                    "GET /journee-caisse/:id - Détails + operations",
+                    "PATCH /journee-caisse/:id/cloturer - Clôturer + rapprochement",
+                    "GET /journee-caisse/:id/operations - Mouvements jour"
+                ],
+                "regles_metier": [
+                    "Ouverture: fond initial renseigné, caissier identifié, statut OUVERTE",
+                    "Clôture: calcul solde théorique (fond + recettes - décaissements) vs solde réel (déclaration caissier)",
+                    "Écart: différence automatiquement calculée, peut être justifié",
+                    "Comptage séparé: Espèces, Cartes (montant+nombre reçus), Chèques (montant+nombre)",
+                    "Statut clôture: FERMEE avec tracking responsable"
+                ],
+                "flux_processus": "Ouverture caisse → Transactions jour → Clôture → Comptage → Rapprochement → Justification écarts → Validation",
+                "services": [
+                    "JourneeCaisseService - Ouverture/clôture + calculs"
+                ],
+                "validations": [
+                    "Caisse non déjà ouverte",
+                    "Fond initial > 0",
+                    "Solde réel fourni à la clôture",
+                    "Ecarts justifiés si > 0.01"
+                ],
+                "dependencies": [
+                    "Caisse",
+                    "OperationCaisse"
+                ]
+            },
+            {
+                "nom": "Operation Caisse",
+                "dossier": "backend/src/features/operation-caisse",
+                "responsabilite": "Mouvements caisse - Intégration automatique paiements",
+                "entites": [
+                    "OperationCaisse",
+                    "JourneeCaisse",
+                    "Paiement",
+                    "Facture"
+                ],
+                "endpoints": [
+                    "GET /operation-caisse - Lister operations",
+                    "GET /operation-caisse/:journeeId - Par journée",
+                    "POST /operation-caisse - Enregistrer mouvement manuel"
+                ],
+                "regles_metier": [
+                    "Créée automatiquement quand paiement enregistré (mode ESPECES, CARTE, CHEQUE, VIREMENT, LCN)",
+                    "Types: ENCAISSEMENT (paiement in), DECAISSEMENT (remboursement out, dépense cash)",
+                    "TypeOperation: COMPTABLE (vente client), INTERNE (transfert, alimentation), TRANSFERT",
+                    "Moyenne de paiement: ESPECES/CARTE/CHEQUE détaillés",
+                    "Rétro-création possible si paiement n'a pas créé operation"
+                ],
+                "flux_processus": "Paiement enregistré → OperationCaisse créée automatiquement → Intégrée à JourneeCaisse du jour → Clôture rapprochement",
+                "services": [
+                    "OperationCaisseService - CRUD + auto-creation from Paiement"
+                ],
+                "validations": [
+                    "JourneeCaisse ouverte (statut OUVERTE)",
+                    "Type paiement supporté pour auto-creation"
+                ],
+                "dependencies": [
+                    "Paiements",
+                    "JourneeCaisse"
+                ]
+            },
+            {
+                "nom": "Personnel",
+                "dossier": "backend/src/features/personnel",
+                "responsabilite": "Gestion employés - Fiches, horaires, commissions, paie",
+                "entites": [
+                    "Employee",
+                    "Attendance",
+                    "Commission",
+                    "Payroll",
+                    "User"
+                ],
+                "endpoints": [
+                    "POST /personnel - Créer employé",
+                    "GET /personnel - Lister employés",
+                    "GET /personnel/:id - Fiche employé + commissions",
+                    "PATCH /personnel/:id - Modifier info",
+                    "POST /personnel/:id/attendance - Pointer presence",
+                    "GET /personnel/:id/payroll - Bulletins paie",
+                    "POST /commission-rules - Définir règles commission"
+                ],
+                "regles_metier": [
+                    "Matricule unique",
+                    "Postes: OPTICIEN, VENDEUR, CAISSIER, MANAGER, ADMINISTRATIF",
+                    "Contrat: CDI, CDD, STAGE",
+                    "Commissions: % par type produit (MONTURE, VERRE, LENTILLE, ACCESSOIRE)",
+                    "Salaire = base + commissions + heures sup + primes - retenues",
+                    "Affiliation sociale: CNSS + AMO + Impôt sur revenu"
+                ],
+                "flux_processus": "Embauche → Fiche employé → Pointage quotidien → Commission accumulation → Calcul paie mensuelle → Bulletin",
+                "services": [
+                    "EmployeeService - CRUD employé",
+                    "CommissionService - Calcul commissions par facture",
+                    "PayrollService - Calcul bulletin paie",
+                    "AttendanceService - Pointage"
+                ],
+                "validations": [
+                    "Matricule unique",
+                    "Poste valide",
+                    "Salaire base ≥ 0",
+                    "Dates cohérentes"
+                ],
+                "dependencies": [
+                    "Factures",
+                    "Depenses"
+                ]
+            },
+            {
+                "nom": "Expenses (Dépenses)",
+                "dossier": "backend/src/features/expenses",
+                "responsabilite": "Gestion dépenses operationnelles - Création, validation, paiement",
+                "entites": [
+                    "Depense",
+                    "Fournisseur",
+                    "EcheancePaiement",
+                    "Payroll"
+                ],
+                "endpoints": [
+                    "POST /expenses - Créer dépense",
+                    "GET /expenses - Lister dépenses",
+                    "PATCH /expenses/:id - Modifier (changement statut)",
+                    "DELETE /expenses/:id - Annuler dépense",
+                    "POST /expenses/:id/validate - Valider dépense (passage A_PAYER → PAYEE)"
+                ],
+                "regles_metier": [
+                    "Catégories: LOYER, ELECTRICITE, INTERNET, SALAIRE, ASSURANCE, FRAIS_BANCAIRES, EAU, AUTRES",
+                    "Modes: CHEQUE, VIREMENT, ESPECES, CARTE",
+                    "Statut: BROUILLON → VALIDEE → PAYEE",
+                    "Chèques/LCN: création automatique EcheancePaiement (post-datés)",
+                    "Paiement immédiat possible si mode ESPECES/CARTE",
+                    "Lien possible à: FactureFournisseur, BonLivraison, Payroll",
+                    "Trace: qui crée, qui valide (audit)"
+                ],
+                "flux_processus": "Dépense créée (brouillon) → Validation responsable → Paiement (immédiat ou post-daté) → Comptabilisation",
+                "services": [
+                    "ExpensesService - CRUD + workflows",
+                    "EcheancePaiementService - Création cheques"
+                ],
+                "validations": [
+                    "Montant > 0",
+                    "Catégorie valide",
+                    "Centre exists",
+                    "Cheque: ref/banque/montant obligatoires"
+                ],
+                "dependencies": [
+                    "Caisse",
+                    "FactureFournisseur"
+                ]
+            },
+            {
+                "nom": "Bon Livraison / Supplier Invoices",
+                "dossier": "backend/src/features/bon-livraison, supplier-invoices",
+                "responsabilite": "Gestion réceptions fournisseurs - BL, factures suppliers, écheances",
+                "entites": [
+                    "BonLivraison",
+                    "FactureFournisseur",
+                    "EcheancePaiement",
+                    "Fournisseur"
+                ],
+                "endpoints": [
+                    "POST /bon-livraison - Créer BL réception",
+                    "GET /bon-livraison - Lister BL",
+                    "PATCH /bon-livraison/:id - Mettre à jour réception",
+                    "POST /supplier-invoices - Créer facture fournisseur",
+                    "GET /supplier-invoices - Lister factures suppliers",
+                    "PATCH /supplier-invoices/:id - Mettre à jour statut (A_PAYER → PAYEE)"
+                ],
+                "regles_metier": [
+                    "BL: numéro unique par fournisseur, suivi réception physique",
+                    "Catégorie: MONTURES, VERRES, LENTILLES, ACCESSOIRES",
+                    "Facture supplier: liée à BL, générer écheances si CHEQUE/LCN",
+                    "Statut: A_PAYER → PARTIEL → PAYEE → SOLDEE",
+                    "Peut créer automatiquement Depense si lié à budget (provisions)"
+                ],
+                "flux_processus": "Commande BC → Réception BL → Réception physique (mouvements stock ENTREE) → Facture supplier → Création écheances → Paiement → Clôture",
+                "services": [
+                    "BonLivraisonService",
+                    "SupplierInvoicesService",
+                    "EcheancePaiementService"
+                ],
+                "validations": [
+                    "Fournisseur existe",
+                    "Numéro unique par fournisseur",
+                    "Montants HT/TVA/TTC cohérents",
+                    "Dates émission ≤ écheance"
+                ],
+                "dependencies": [
+                    "Fournisseurs",
+                    "Stock-Movements",
+                    "Expenses"
+                ]
+            },
+            {
+                "nom": "Suppliers (Fournisseurs)",
+                "dossier": "backend/src/features/suppliers",
+                "responsabilite": "Répertoire fournisseurs - Optiques, accessoires, services",
+                "entites": [
+                    "Fournisseur"
+                ],
+                "endpoints": [
+                    "POST /suppliers - Créer fournisseur",
+                    "GET /suppliers - Lister fournisseurs",
+                    "GET /suppliers/:id - Détails",
+                    "PATCH /suppliers/:id - Modifier info"
+                ],
+                "regles_metier": [
+                    "Données: contact, email, adresse, ICE, RC, RIB",
+                    "Conditions paiement: délais, escomptes",
+                    "Convention: accords commerciaux (remises volume)"
+                ],
+                "flux_processus": "Configuration supplier → Commandes BC → Réception → Paiement",
+                "services": [
+                    "SuppliersService - CRUD"
+                ],
+                "validations": [
+                    "Nom unique",
+                    "Email format valide"
+                ],
+                "dependencies": [
+                    "BonLivraison",
+                    "FactureFournisseur"
+                ]
+            },
+            {
+                "nom": "Centres & Groups",
+                "dossier": "backend/src/features/centers, groups",
+                "responsabilite": "Gestion multi-centres - Groupes optiques, succursales, configuration",
+                "entites": [
+                    "Centre",
+                    "Groupe",
+                    "EmployeeCentre"
+                ],
+                "endpoints": [
+                    "POST /centres - Créer centre",
+                    "GET /centres - Lister centres",
+                    "GET /centres/:id - Détails centre",
+                    "PATCH /centres/:id - Modifier",
+                    "POST /groups - Créer groupe",
+                    "GET /groups - Lister groupes"
+                ],
+                "regles_metier": [
+                    "Centre: succursale physique (adresse, telephone, email)",
+                    "Groupe: fédère multiples centres (optionnel)",
+                    "Isolation données: clients/factures affectés à centre",
+                    "Affectation employés: EmployeeCentre (un employé peut travailler multi-centres)",
+                    "Règles commissions: peuvent être globales ou par centre"
+                ],
+                "flux_processus": "Création groupe → Création centre → Affectation clients → Configuration règles",
+                "services": [
+                    "CentresService",
+                    "GroupesService"
+                ],
+                "validations": [
+                    "Centre unique par (groupe, nom)",
+                    "Groupe nom unique"
+                ],
+                "dependencies": [
+                    "Clients",
+                    "Employees"
+                ]
+            },
+            {
+                "nom": "Warehouses (Entrepôts)",
+                "dossier": "backend/src/features/warehouses",
+                "responsabilite": "Gestion entrepôts - Stocks, localisations, transferts",
+                "entites": [
+                    "Entrepot",
+                    "Product"
+                ],
+                "endpoints": [
+                    "POST /warehouses - Créer entrepôt",
+                    "GET /warehouses - Lister",
+                    "GET /warehouses/:id - Détails + inventaire",
+                    "PATCH /warehouses/:id - Modifier",
+                    "POST /warehouses/:id/transfer - Transfert produit autre warehouse"
+                ],
+                "regles_metier": [
+                    "Entrepôt: PRINCIPAL (défaut), RESERVE, TRANSIT, RETOUR",
+                    "Capacité max: contrôle stockage",
+                    "Responsable: qui manage l'entrepôt",
+                    "Mouvements: tracés avec source/destination"
+                ],
+                "flux_processus": "Configuration warehouse → Réception stock → Rangement → Transferts → Ventes → Picking",
+                "services": [
+                    "WarehousesService"
+                ],
+                "validations": [
+                    "Centre existe",
+                    "Nom unique par centre"
+                ],
+                "dependencies": [
+                    "Centres",
+                    "Stock-Movements"
+                ]
+            },
+            {
+                "nom": "Glass Parameters",
+                "dossier": "backend/src/features/glass-parameters",
+                "responsabilite": "Configuration verres optiques - Marques, matériaux, indices, traitements",
+                "entites": [
+                    "GlassBrand",
+                    "GlassMaterial",
+                    "GlassIndex",
+                    "GlassTreatment"
+                ],
+                "endpoints": [
+                    "GET /glass-brands - Lister marques verres",
+                    "POST /glass-brands - Ajouter marque",
+                    "GET /glass-materials - Lister matériaux",
+                    "POST /glass-materials - Ajouter matériau",
+                    "GET /glass-indices - Lister indices par matériau",
+                    "POST /glass-treatments - Ajouter traitement"
+                ],
+                "regles_metier": [
+                    "Marques: fabricants verres (Essilor, Varilux, etc)",
+                    "Matériaux: Minéral, CR39, Polycarbonate (impact prix)",
+                    "Indices: 1.5, 1.6, 1.67 (plus élevé = plus fin)",
+                    "Traitements: Anti-reflet, Anti-UV, Photochromique (ajoutent prix)",
+                    "Configuration prix: chaque indice/traitement a coût additionnel"
+                ],
+                "flux_processus": "Configuration catalogue → Paramétrage prix → Utilisation dans prescriptions → Calcul facture",
+                "services": [
+                    "GlassParametersService"
+                ],
+                "validations": [
+                    "Marque unique",
+                    "Matériau unique",
+                    "Indice unique par matériau"
+                ],
+                "dependencies": [
+                    "Products"
+                ]
+            },
+            {
+                "nom": "Conventions",
+                "dossier": "backend/src/features/conventions",
+                "responsabilite": "Conventions remises - Accords commerciaux, mutuelles",
+                "entites": [
+                    "Convention",
+                    "Client"
+                ],
+                "endpoints": [
+                    "POST /conventions - Créer convention",
+                    "GET /conventions - Lister conventions",
+                    "GET /conventions/:id - Détails",
+                    "PATCH /conventions/:id - Modifier remise"
+                ],
+                "regles_metier": [
+                    "Remise: % variable ou forfait fixe",
+                    "Types: PERCENTAGE (ex: 10%) ou FLAT_AMOUNT (ex: 50 DH)",
+                    "Forfait lunettes complètes: prix fixe (monture + verre)",
+                    "Clients: affectés à convention via conventionId",
+                    "Calcul facture: remise appliquée automatiquement"
+                ],
+                "flux_processus": "Création convention → Affectation clients → Facture applique remise",
+                "services": [
+                    "ConventionsService"
+                ],
+                "validations": [
+                    "Nom unique",
+                    "RemiseType valide",
+                    "Valeur > 0"
+                ],
+                "dependencies": [
+                    "Clients"
+                ]
+            },
+            {
+                "nom": "Auth",
+                "dossier": "backend/src/features/auth",
+                "responsabilite": "Authentification - Login/logout, JWT, role-based access",
+                "entites": [
+                    "User",
+                    "UserCentreRole"
+                ],
+                "endpoints": [
+                    "POST /auth/login - Authentifier",
+                    "POST /auth/logout - Déconnexion",
+                    "POST /auth/reset-password - Réinitialiser MDP",
+                    "GET /auth/me - Profil utilisateur connecté"
+                ],
+                "regles_metier": [
+                    "JWT token-based",
+                    "Role par centre: ADMIN, MANAGER, VENDEUR, CAISSIER, etc",
+                    "Isolation données par centre (middleware Tenant header)",
+                    "MDP forcé première connexion"
+                ],
+                "flux_processus": "Login → Token JWT → Requête avec token → Vérif permissions → Accès",
+                "services": [
+                    "AuthService"
+                ],
+                "validations": [
+                    "Email existe",
+                    "MDP correct",
+                    "User actif"
+                ],
+                "dependencies": [
+                    "User"
+                ]
+            },
+            {
+                "nom": "Users",
+                "dossier": "backend/src/features/users",
+                "responsabilite": "Gestion utilisateurs système - Création, rôles, centres",
+                "entites": [
+                    "User",
+                    "Employee",
+                    "UserCentreRole"
+                ],
+                "endpoints": [
+                    "POST /users - Créer utilisateur",
+                    "GET /users - Lister utilisateurs",
+                    "GET /users/:id - Détails",
+                    "PATCH /users/:id - Modifier",
+                    "POST /users/:id/assign-centre - Assigner à centre + rôle"
+                ],
+                "regles_metier": [
+                    "Email unique",
+                    "Peut être lié à Employee ou standalone",
+                    "Roles par centre: granulaire (quels entrepôts visibles)"
+                ],
+                "flux_processus": "Création user → Affectation centre + rôle → Accès système",
+                "services": [
+                    "UsersService"
+                ],
+                "validations": [
+                    "Email unique",
+                    "Email format valide"
+                ],
+                "dependencies": [
+                    "Employee",
+                    "Centres"
+                ]
+            },
+            {
+                "nom": "Stats & Reports",
+                "dossier": "backend/src/features/stats",
+                "responsabilite": "Statistiques et rapports - Dashboards, KPIs",
+                "entites": [
+                    "Facture",
+                    "Client",
+                    "Employee",
+                    "Paiement"
+                ],
+                "endpoints": [
+                    "GET /stats/dashboard - KPIs dashboards",
+                    "GET /stats/ca-monthly - CA par mois",
+                    "GET /stats/client-analysis - Top clients, segmentation",
+                    "GET /stats/employee-performance - Ventes/commissions par vendeur"
+                ],
+                "regles_metier": [
+                    "CA = somme factures validées",
+                    "Top clients = par montant ou fréquence",
+                    "Performance vendeur = total commissions + nombre ventes",
+                    "Tendances: 12 mois glissant"
+                ],
+                "services": [
+                    "StatsService"
+                ],
+                "dependencies": [
+                    "Factures",
+                    "Clients",
+                    "Personnel"
+                ]
+            },
+            {
+                "nom": "Notifications & Mailer",
+                "dossier": "backend/src/features/notifications",
+                "responsabilite": "Emails et notifications - Confirmations, rappels, factures",
+                "entites": [
+                    "Client",
+                    "Fiche",
+                    "Facture"
+                ],
+                "endpoints": [
+                    "POST /notifications/send-order-email - Email fournisseur + PDFs",
+                    "POST /notifications/send-invoice - Envoi facture client"
+                ],
+                "regles_metier": [
+                    "Templates email par type (facture, commande, confirmation)",
+                    "Attachments: PDFs (facture, bon de commande, fiches techniques)",
+                    "Configuration SMTP: adresse, port, credentials"
+                ],
+                "services": [
+                    "MailerService - Envoi emails",
+                    "PdfService - Génération PDFs (facture, BCs techniques)"
+                ],
+                "validations": [
+                    "Email destination valide",
+                    "Template existe"
+                ],
+                "dependencies": [
+                    "Fiches",
+                    "Factures"
+                ]
+            },
+            {
+                "nom": "Imports",
+                "dossier": "backend/src/features/imports",
+                "responsabilite": "Import données - Clients, produits, historiques",
+                "entites": [
+                    "Client",
+                    "Product",
+                    "Facture"
+                ],
+                "endpoints": [
+                    "POST /imports - Upload fichier import",
+                    "GET /imports/:id - Status import",
+                    "POST /imports/:id/validate - Valider avant commit"
+                ],
+                "regles_metier": [
+                    "Formats: CSV, XLSX",
+                    "Validations massives avant insertion",
+                    "Transactions: tout ou rien",
+                    "Historique: traçage imports (audit)"
+                ],
+                "services": [
+                    "ImportsService"
+                ],
+                "dependencies": [
+                    "Clients",
+                    "Products",
+                    "Factures"
+                ]
+            },
+            {
+                "nom": "Funding Requests",
+                "dossier": "backend/src/features/funding-requests",
+                "responsabilite": "Demandes d'alimentation caisse - Transferts bank/caisse",
+                "entites": [
+                    "DemandeAlimentation",
+                    "JourneeCaisse"
+                ],
+                "endpoints": [
+                    "POST /funding-requests - Demander alimentation",
+                    "GET /funding-requests - Lister demandes",
+                    "PATCH /funding-requests/:id - Valider/rejeter"
+                ],
+                "regles_metier": [
+                    "Demande: montant insuffisant caisse → demande banque",
+                    "Statut: EN_ATTENTE → VALIDEE",
+                    "Validation: manager/responsable caisse",
+                    "Lien: JourneeCaisse (à quelle journée)"
+                ],
+                "services": [
+                    "FundingRequestsService"
+                ],
+                "dependencies": [
+                    "JourneeCaisse"
+                ]
+            },
+            {
+                "nom": "Marketing Config",
+                "dossier": "backend/src/features/marketing",
+                "responsabilite": "Configuration marketing - SMS, WhatsApp, Email",
+                "entites": [
+                    "MarketingConfig"
+                ],
+                "endpoints": [
+                    "GET /marketing/config - Lire config",
+                    "PATCH /marketing/config - Mettre à jour credentials"
+                ],
+                "regles_metier": [
+                    "WhatsApp: Instance + API Token (envoi factures, confirmations)",
+                    "SMS: Gateway API Key",
+                    "Email: SMTP credentials"
+                ],
+                "services": [
+                    "MarketingService"
+                ],
+                "dependencies": []
+            },
+            {
+                "nom": "Company Settings",
+                "dossier": "backend/src/features/company-settings",
+                "responsabilite": "Configuration générale société - Logo, ICE, RC",
+                "entites": [
+                    "CompanySettings"
+                ],
+                "endpoints": [
+                    "GET /settings - Lire config",
+                    "PATCH /settings - Mettre à jour"
+                ],
+                "regles_metier": [
+                    "Données société: nom, adresse, telephone, email",
+                    "Identifiants: ICE, RC, Identifiant Fiscal, Patente",
+                    "Bancaires: RIB, Banque",
+                    "Brand: Logo, Cachet (pour PDFs)"
+                ],
+                "services": [
+                    "SettingsService"
+                ],
+                "dependencies": []
+            },
+            {
+                "nom": "Sales Control",
+                "dossier": "backend/src/features/sales-control",
+                "responsabilite": "Contrôle ventes - Validation avant facture, alertes stock",
+                "entites": [
+                    "Facture",
+                    "Product",
+                    "MouvementStock"
+                ],
+                "endpoints": [
+                    "POST /sales-control/validate - Vérifier avant validation facture",
+                    "GET /sales-control/alerts - Alertes stock bas"
+                ],
+                "regles_metier": [
+                    "Vérifications: stock suffisant, prix cohérents, client valide",
+                    "Alertes: produits sous seuil alerte",
+                    "Contrôles: montant facture, quantités"
+                ],
+                "services": [
+                    "SalesControlService"
+                ],
+                "dependencies": [
+                    "Factures",
+                    "Products"
+                ]
+            },
+            {
+                "nom": "Uploads",
+                "dossier": "backend/src/features/uploads",
+                "responsabilite": "Gestion fichiers - Upload images/docs, stockage",
+                "entites": [],
+                "endpoints": [
+                    "POST /uploads - Upload fichier",
+                    "GET /uploads/:file - Télécharger fichier"
+                ],
+                "regles_metier": [
+                    "Répertoires: images/produits, justificatifs, PDFs",
+                    "Formats acceptés: JPEG, PNG, PDF",
+                    "Taille max: 10MB"
+                ],
+                "services": [
+                    "UploadsService"
+                ],
+                "dependencies": []
+            }
+        ]
+    },
+    "modules_frontend": {
+        "count": 18,
+        "description": "Modules Angular",
+        "modules": [
+            {
+                "nom": "Dashboard",
+                "dossier": "frontend/src/app/features/dashboard",
+                "description": "Écran d'accueil - KPIs, CA jour/mois, clients actifs, tâches",
+                "pages_ecrans": [
+                    "DashboardComponent"
+                ],
+                "composants_cles": [
+                    "KPI Cards (CA, Clients, Commandes)",
+                    "Chart Revenue (CA derniers 12 mois)",
+                    "Recent Transactions",
+                    "Top Clients Widget"
+                ],
+                "flux_utilisateur": "Login → Dashboard → Navigation modules",
+                "validations": [
+                    "Authentification requise",
+                    "Centre affecté"
+                ],
+                "dependencies": [
+                    "Auth",
+                    "Stats API"
+                ]
+            },
+            {
+                "nom": "Client Management",
+                "dossier": "frontend/src/app/features/client-management",
+                "description": "Gestion clients - Création, modification, historique achats, fidélité",
+                "pages_ecrans": [
+                    "Client List",
+                    "Client Detail",
+                    "Client Create/Edit",
+                    "Client Search Advanced",
+                    "Client Loyalty Points",
+                    "Client Purchase History"
+                ],
+                "composants_cles": [
+                    "ClientForm (création/édition)",
+                    "ClientTable (liste)",
+                    "ClientProfile",
+                    "PointsHistoryChart",
+                    "SearchFilters"
+                ],
+                "flux_utilisateur": "Tableau clients → Création nouveau → Édition info → Consulter fidélité → Historique achats",
+                "validations": [
+                    "Email unique",
+                    "Telephone format",
+                    "Groupes familiaux cohérents"
+                ],
+                "dependencies": [
+                    "Clients API",
+                    "Loyalty API"
+                ]
+            },
+            {
+                "nom": "Commercial (Fiches & Devis)",
+                "dossier": "frontend/src/app/features/commercial",
+                "description": "Flux commercial - Création dossier client, prescriptions, devis",
+                "pages_ecrans": [
+                    "Fiche Creation",
+                    "Prescription Form (Monture, Lentilles, Accessoires)",
+                    "Quote View",
+                    "Order Status",
+                    "Stock Availability Check"
+                ],
+                "composants_cles": [
+                    "PrescriptionForm (données optiques)",
+                    "ProductSelector (recherche produits)",
+                    "QuoteSummary",
+                    "StockChecker",
+                    "ClientSelector"
+                ],
+                "flux_utilisateur": "Nouveau client → Créer fiche → Saisir prescription → Sélectionner produits → Générer devis → Demander paiement",
+                "validations": [
+                    "Données optiques valides (sphère, cylindre, axe)",
+                    "Produits en stock",
+                    "Quantités cohérentes",
+                    "Prix calculés correctement"
+                ],
+                "dependencies": [
+                    "Fiches API",
+                    "Factures API",
+                    "Products API",
+                    "Stock API"
+                ]
+            },
+            {
+                "nom": "Finance (Factures & Paiements)",
+                "dossier": "frontend/src/app/features/finance",
+                "description": "Gestion factures et paiements - Devis, factures, avoirs, suivi encaissement",
+                "pages_ecrans": [
+                    "Invoice List (avec filtres type, statut, date)",
+                    "Invoice Detail",
+                    "Payment Recording",
+                    "Credit Notes (Avoirs)",
+                    "Unpaid Invoices Alert",
+                    "Invoice PDF Export"
+                ],
+                "composants_cles": [
+                    "InvoiceTable",
+                    "InvoiceViewer",
+                    "PaymentForm (mode paiement)",
+                    "InvoiceEditor (modifications)",
+                    "StatusBadges"
+                ],
+                "flux_utilisateur": "Consulter factures → Filtrer par statut → Enregistrer paiement → Générer avoir si retour → Exporter PDF",
+                "validations": [
+                    "Montant paiement ≤ reste à payer",
+                    "Mode paiement valide",
+                    "Cheque: références obligatoires",
+                    "Facture non annulée"
+                ],
+                "dependencies": [
+                    "Factures API",
+                    "Paiements API"
+                ]
+            },
+            {
+                "nom": "Stock Management",
+                "dossier": "frontend/src/app/features/stock-management",
+                "description": "Gestion stocks - Inventaire, mouvements, transferts, alertes",
+                "pages_ecrans": [
+                    "Inventory Dashboard",
+                    "Product Catalog",
+                    "Stock Movement History",
+                    "Warehouse Transfers",
+                    "Low Stock Alerts",
+                    "Stock Adjustments"
+                ],
+                "composants_cles": [
+                    "ProductTable (catalogue avec stock)",
+                    "StockMovementForm",
+                    "WarehouseSelector",
+                    "AlertsList",
+                    "InventoryReport"
+                ],
+                "flux_utilisateur": "Consulter stocks → Créer mouvement (entrée/sortie/transfert) → Ajustements inventaire → Alertes stock bas",
+                "validations": [
+                    "Quantité > 0",
+                    "Warehouse source/destination valide",
+                    "Motif mouvement",
+                    "Prix unitaires cohérents"
+                ],
+                "dependencies": [
+                    "Products API",
+                    "Stock Movements API"
+                ]
+            },
+            {
+                "nom": "Measurement (Prescriptions)",
+                "dossier": "frontend/src/app/features/measurement",
+                "description": "Prises de mesure - Prescriptions optiques, données techniques",
+                "pages_ecrans": [
+                    "Measurement Form",
+                    "Prescription Editor",
+                    "Adaptation Parameters",
+                    "Auto-Detection Mode (camera if available)"
+                ],
+                "composants_cles": [
+                    "PrescriptionInput (sphère, cylindre, axe, addition)",
+                    "AdaptationForm (rayon courbure, diametre)",
+                    "CameraModule (if device has camera)",
+                    "ValidationIndicators"
+                ],
+                "flux_utilisateur": "Ouvrir fiche → Saisir/mesurer prescription → Adapter verres → Confirmer → Retour fiche",
+                "validations": [
+                    "Sphère -20 à +20",
+                    "Cylindre -10 à 0",
+                    "Axe 0 à 180",
+                    "Addition 0 à 4"
+                ],
+                "dependencies": [
+                    "Fiches API"
+                ]
+            },
+            {
+                "nom": "Personnel Management",
+                "dossier": "frontend/src/app/features/personnel-management",
+                "description": "Gestion employés - Fiches, paie, commissions, présence",
+                "pages_ecrans": [
+                    "Employee List",
+                    "Employee Detail",
+                    "Payroll Slip View",
+                    "Commission Summary",
+                    "Attendance Log",
+                    "Salary Configuration"
+                ],
+                "composants_cles": [
+                    "EmployeeForm",
+                    "PayrollViewer",
+                    "CommissionChart",
+                    "AttendanceCalendar"
+                ],
+                "flux_utilisateur": "RH: Consulter fiches employés → Voir commissions → Générer bulletin paie → Consulter présence",
+                "validations": [
+                    "Matricule unique",
+                    "Poste valide",
+                    "Salaire base ≥ 0",
+                    "Heures travaillées cohérentes"
+                ],
+                "dependencies": [
+                    "Personnel API",
+                    "Payroll API"
+                ]
+            },
+            {
+                "nom": "Accounting (Comptabilité)",
+                "dossier": "frontend/src/app/features/accounting",
+                "description": "Export comptable - Exports Sage, journaux, balances TVA",
+                "pages_ecrans": [
+                    "Export Sage",
+                    "Journal View",
+                    "Balance Sheet",
+                    "VAT Summary"
+                ],
+                "composants_cles": [
+                    "ExportForm (date range, centre filter)",
+                    "PreviewTable",
+                    "DownloadButton (fichier texte)"
+                ],
+                "flux_utilisateur": "Sélectionner période → Générer export → Vérifier aperçu → Télécharger fichier Sage",
+                "validations": [
+                    "Dates valides",
+                    "Au moins une facture trouvée"
+                ],
+                "dependencies": [
+                    "Accounting API"
+                ]
+            },
+            {
+                "nom": "Reports",
+                "dossier": "frontend/src/app/features/reports",
+                "description": "Rapports analytiques - CA, clients, stock, rentabilité",
+                "pages_ecrans": [
+                    "Revenue Report",
+                    "Client Analysis",
+                    "Inventory Report",
+                    "Profitability Analysis",
+                    "Monthly Comparison"
+                ],
+                "composants_cles": [
+                    "ReportGenerator",
+                    "Charts (revenue, clients, trends)",
+                    "TableExport",
+                    "DateRangePicker"
+                ],
+                "flux_utilisateur": "Sélectionner type rapport → Filtrer date/centre → Afficher résultats → Exporter PDF/Excel",
+                "validations": [
+                    "Dates cohérentes"
+                ],
+                "dependencies": [
+                    "Stats API"
+                ]
+            },
+            {
+                "nom": "Settings & Configuration",
+                "dossier": "frontend/src/app/features/settings",
+                "description": "Configuration système - Paramètres, utilisateurs, rôles",
+                "pages_ecrams": [
+                    "Company Settings",
+                    "User Management",
+                    "Role Configuration",
+                    "Centre Settings",
+                    "Commission Rules",
+                    "Loyalty Config"
+                ],
+                "composants_cles": [
+                    "CompanyForm",
+                    "UserForm",
+                    "RoleAssignment",
+                    "CommissionRuleTable",
+                    "ConfigForm"
+                ],
+                "flux_utilisateur": "Admin: Accéder settings → Modifier paramètres → Gérer utilisateurs → Définir commissions",
+                "validations": [
+                    "Email unique",
+                    "Valeurs numériques cohérentes"
+                ],
+                "dependencies": [
+                    "Settings API",
+                    "Users API"
+                ]
+            },
+            {
+                "nom": "Authentication",
+                "dossier": "frontend/src/app/features/authentication",
+                "description": "Authentification - Login, logout, reset password",
+                "pages_ecrans": [
+                    "Login Page",
+                    "Logout Confirmation",
+                    "Reset Password",
+                    "First Login (MDP change)"
+                ],
+                "composants_cles": [
+                    "LoginForm",
+                    "PasswordResetForm",
+                    "AuthGuard (routing protection)"
+                ],
+                "flux_utilisateur": "Login → Token stocké → Redirected à dashboard → Logout → Session fermée",
+                "validations": [
+                    "Email obligatoire",
+                    "Mot de passe obligatoire",
+                    "MDP min 8 caractères"
+                ],
+                "dependencies": [
+                    "Auth API",
+                    "localStorage/sessionStorage"
+                ]
+            },
+            {
+                "nom": "User Management",
+                "dossier": "frontend/src/app/features/user-management",
+                "description": "Gestion utilisateurs - Création, rôles, permissions",
+                "pages_ecrans": [
+                    "User List",
+                    "User Create",
+                    "User Edit",
+                    "Role Assignment",
+                    "Centre Assignment"
+                ],
+                "composants_cles": [
+                    "UserForm",
+                    "RoleCheckboxes",
+                    "CentreSelector"
+                ],
+                "flux_utilisateur": "Admin: Créer utilisateur → Assigner centre → Définir rôle → Utilisateur peut login",
+                "validations": [
+                    "Email unique",
+                    "Au moins un rôle assigné"
+                ],
+                "dependencies": [
+                    "Users API"
+                ]
+            },
+            {
+                "nom": "Warehouses",
+                "dossier": "frontend/src/app/features/warehouses",
+                "description": "Gestion entrepôts - Configuration, inventaire par warehouse",
+                "pages_ecrans": [
+                    "Warehouse List",
+                    "Warehouse Detail",
+                    "Warehouse Create",
+                    "Inventory by Warehouse"
+                ],
+                "composants_cles": [
+                    "WarehouseForm",
+                    "WarehouseSelector"
+                ],
+                "flux_utilisateur": "Consulter entrepôts → Voir inventaire → Créer transfert vers autre warehouse",
+                "validations": [
+                    "Nom unique par centre"
+                ],
+                "dependencies": [
+                    "Warehouses API"
+                ]
+            },
+            {
+                "nom": "Groups & Centers",
+                "dossier": "frontend/src/app/features/groups",
+                "description": "Gestion multi-centres - Configuration groupes et centres",
+                "pages_ecrans": [
+                    "Group List",
+                    "Group Create/Edit",
+                    "Centre List",
+                    "Centre Create/Edit"
+                ],
+                "composants_cles": [
+                    "GroupForm",
+                    "CentreForm",
+                    "CentreSelector (dans tous les modules)"
+                ],
+                "flux_utilisateur": "Admin: Créer groupe → Ajouter centres → Isolation données par centre",
+                "validations": [
+                    "Nom unique"
+                ],
+                "dependencies": [
+                    "Centres API",
+                    "Groups API"
+                ]
+            },
+            {
+                "nom": "Advanced Search",
+                "dossier": "frontend/src/app/features/advanced-search",
+                "description": "Recherche multi-critères - Clients, factures, produits",
+                "pages_ecrans": [
+                    "Search Interface",
+                    "Results Display",
+                    "Saved Searches"
+                ],
+                "composants_cles": [
+                    "SearchForm (multi-champs)",
+                    "ResultsTable",
+                    "Filters"
+                ],
+                "flux_utilisateur": "Entrer critères → Rechercher → Afficher résultats → Filtre avancés → Actions bulk",
+                "validations": [
+                    "Au moins un critère"
+                ],
+                "dependencies": [
+                    "Search API"
+                ]
+            },
+            {
+                "nom": "Online Payments",
+                "dossier": "frontend/src/app/features/online-payments",
+                "description": "Paiements en ligne client - (Optionnel si intégration marchant)",
+                "pages_ecrans": [
+                    "Payment Portal",
+                    "Invoice Selection",
+                    "Payment Confirmation"
+                ],
+                "composants_cles": [
+                    "PaymentForm",
+                    "InvoiceSelector"
+                ],
+                "flux_utilisateur": "Client reçoit lien → Sélectionne facture → Paie en ligne → Confirmation",
+                "validations": [
+                    "Montant valide",
+                    "Mode paiement supporté"
+                ],
+                "dependencies": [
+                    "Paiements API",
+                    "Payment Gateway"
+                ]
+            },
+            {
+                "nom": "Agenda & Planning",
+                "dossier": "frontend/src/app/features/agenda",
+                "description": "Planification - Rendez-vous clients, tâches",
+                "pages_ecrans": [
+                    "Calendar View",
+                    "Appointment List",
+                    "Task List"
+                ],
+                "composants_cles": [
+                    "Calendar Component",
+                    "AppointmentForm",
+                    "TaskList"
+                ],
+                "flux_utilisateur": "Vendeur: Consulter calendrier → Créer RDV → Rappels tâches",
+                "validations": [
+                    "Date/heure cohérentes"
+                ],
+                "dependencies": []
+            }
+        ]
+    },
+    "regles_metier_critiques": {
+        "gestion_factures_devis": {
+            "titre": "Cycle Devis → Facture → Paiement",
+            "etapes": [
+                {
+                    "num": 1,
+                    "etape": "DEVIS",
+                    "statut": "DEVIS_EN_COURS",
+                    "actions": [
+                        "Créer devis",
+                        "Modifier articles",
+                        "Recalculer prix/TVA"
+                    ],
+                    "regles": [
+                        "Pas de stock déduit",
+                        "Pas de points attribués",
+                        "Pas de commissions"
+                    ]
+                },
+                {
+                    "num": 2,
+                    "etape": "VALIDATION",
+                    "statut": "VALIDEE",
+                    "actions": [
+                        "Valider devis",
+                        "Transitionner en FACTURE ou BC"
+                    ],
+                    "regles": [
+                        "Vérifier stock disponible (bloque si rupture)",
+                        "Éditer fiche associée"
+                    ]
+                },
+                {
+                    "num": 3,
+                    "etape": "BON DE COMMANDE",
+                    "statut": "BON_COMMANDE",
+                    "actions": [
+                        "Confirmer achat",
+                        "Déduit stock",
+                        "Créer BL fournisseur"
+                    ],
+                    "regles": [
+                        "Stock réservé",
+                        "Fiche passe à COMMANDE"
+                    ]
+                },
+                {
+                    "num": 4,
+                    "etape": "PAIEMENT",
+                    "statut": "PAYEE",
+                    "actions": [
+                        "Enregistrer paiement",
+                        "Attribution points",
+                        "Calcul commission vendeur"
+                    ],
+                    "regles": [
+                        "Paiement partiel possible (PARTIEL)",
+                        "Montant ≤ reste à payer",
+                        "Intégration caisse"
+                    ]
+                },
+                {
+                    "num": 5,
+                    "etape": "CLÔTURE",
+                    "statut": "SOLDEE",
+                    "actions": [
+                        "Facture entièrement payée",
+                        "Archivage"
+                    ],
+                    "regles": [
+                        "Reste à payer = 0"
+                    ]
+                }
+            ],
+            "scenarios_speciaux": [
+                "Retour client: Créer AVOIR (facture enfant), créditer points fidélité",
+                "Paiement négatif: Remboursement client (forcé en ESPECES)",
+                "Devis annulé: Statut ANNULEE, aucune comptabilisation"
+            ]
+        },
+        "gestion_points_fidelite_choukra": {
+            "titre": "Programme fidélité Choukra",
+            "rules": [
+                {
+                    "acquisition": "0.1 points par DH dépensé",
+                    "exemple": "Achat 100 DH = 10 points attribués"
+                },
+                {
+                    "bonus_nouveau": "20 points donnés à la création de client",
+                    "condition": "Client créé avec PARTICULIER"
+                },
+                {
+                    "bonus_parrainage": "50 points parraineur + 20 points nouveau client",
+                    "condition": "Lien parrainId établi"
+                },
+                {
+                    "bonus_dossier": "30 points à la création fiche client",
+                    "condition": "Première fiche du client"
+                },
+                {
+                    "seuil_redemption": "Min 500 points requis",
+                    "conversion": "1 point = 0.1 DH remise = 10 points = 1 DH"
+                },
+                {
+                    "usage": "Remise appliquée à la facture lors du paiement",
+                    "montant": "Points utilisés * 0.1 = remise en DH"
+                }
+            ]
+        },
+        "gestion_stock": {
+            "titre": "Mouvements stock et réservations",
+            "regles": [
+                {
+                    "nom": "ENTREE",
+                    "description": "Réception BL fournisseur - Stock augmente",
+                    "declenchement": "Validation BL réception",
+                    "impact": "quantiteActuelle += quantite"
+                },
+                {
+                    "nom": "SORTIE",
+                    "description": "Vente client - Stock diminue",
+                    "declenchement": "Transition DEVIS → BC (paiement initial)",
+                    "impact": "quantiteActuelle -= quantite"
+                },
+                {
+                    "nom": "TRANSFERT",
+                    "description": "Entre deux entrepôts",
+                    "declenchement": "Création mouvement explicite",
+                    "impact": "Source -= qty, Destination += qty"
+                },
+                {
+                    "nom": "RETOUR",
+                    "description": "Client retourne articles",
+                    "declenchement": "Création avoir",
+                    "impact": "quantiteActuelle += quantite"
+                },
+                {
+                    "nom": "CONFECTION",
+                    "description": "Fabrication sur commande (lunettes)",
+                    "declenchement": "Confection locale",
+                    "impact": "Trace production"
+                },
+                {
+                    "nom": "AJUSTEMENT",
+                    "description": "Correction après inventaire",
+                    "declenchement": "Ajustement manuel",
+                    "impact": "Correction quantité"
+                }
+            ],
+            "verifications": [
+                "Avant DEVIS→BC: vérifier stock suffisant, sinon bloquer transition",
+                "Seul alert: Quantité < seuil alerte → notification réassort",
+                "Lot tracking: numéro lot + date péremption pour produits sensibles"
+            ]
+        },
+        "gestion_paiements": {
+            "titre": "Modes paiement et encaissement",
+            "modes": [
+                {
+                    "mode": "ESPECES",
+                    "statut_defaut": "ENCAISSE",
+                    "integration_caisse": "Immédiate",
+                    "tracking": "OperationCaisse créée jour même"
+                },
+                {
+                    "mode": "CARTE",
+                    "statut_defaut": "ENCAISSE",
+                    "integration_caisse": "Immédiate",
+                    "tracking": "OperationCaisse + montant par moyen"
+                },
+                {
+                    "mode": "CHEQUE",
+                    "statut_defaut": "EN_ATTENTE",
+                    "integration_caisse": "À la date d'encaissement",
+                    "tracking": "EcheancePaiement créée (suivi chèques post-datés)",
+                    "champs_oblig": [
+                        "banque",
+                        "reference",
+                        "tiersNom",
+                        "tiersCin"
+                    ]
+                },
+                {
+                    "mode": "VIREMENT",
+                    "statut_defaut": "EN_ATTENTE",
+                    "integration_caisse": "À confirmé banque",
+                    "tracking": "EcheancePaiement pour suivi"
+                },
+                {
+                    "mode": "LCN",
+                    "statut_defaut": "EN_ATTENTE",
+                    "integration_caisse": "À l'échéance",
+                    "tracking": "EcheancePaiement"
+                }
+            ],
+            "remboursements": [
+                "Paiement montant négatif = remboursement",
+                "Forcé en ESPECES",
+                "Crée OperationCaisse DECAISSEMENT"
+            ]
+        },
+        "gestion_commissions": {
+            "titre": "Calcul commissions vendeurs",
+            "regles": [
+                {
+                    "declenchement": "Facture validée ET payée",
+                    "calcul": "Lignes facture * taux% par type produit"
+                },
+                {
+                    "types_produit": [
+                        "MONTURE",
+                        "VERRE",
+                        "LENTILLE",
+                        "ACCESSOIRE",
+                        "SERVICE"
+                    ],
+                    "regles_commission": "CommissionRule: poste + typeProduit + centreId + taux%"
+                },
+                {
+                    "inference": "Si productId pas trouvé, inférer type du libellé (desc)",
+                    "fallback": "Règle GLOBAL s'applique"
+                },
+                {
+                    "idempotence": "Supprimer commissions existantes avant recalcul (éviter doublons)"
+                }
+            ]
+        },
+        "gestion_caisse": {
+            "titre": "Caisse et gestion trésorerie quotidienne",
+            "workflow": [
+                {
+                    "etape": "OUVERTURE",
+                    "actions": [
+                        "Définir fond initial",
+                        "Identifier caissier",
+                        "Statut OUVERTE"
+                    ]
+                },
+                {
+                    "etape": "TRANSACTIONS",
+                    "actions": [
+                        "Chaque paiement crée OperationCaisse",
+                        "Suivi moyens séparés (especes, carte, cheque)"
+                    ]
+                },
+                {
+                    "etape": "CLÔTURE",
+                    "actions": [
+                        "Compter réel caisse",
+                        "Compter cartes reçues (montant + nombre)",
+                        "Compter chèques (montant + nombre)",
+                        "Calculer solde théorique: fond + recettes - décaissements",
+                        "Calculer écarts: réel - théorique",
+                        "Justifier écarts si > 0.01 DH"
+                    ]
+                }
+            ],
+            "solde_theorique_especes": "fondInitial + totalInterneIn + grossVentesEspeces - totalDecaissementsEspeces",
+            "validations": [
+                "Écarts mineurs tolérés (0.01)",
+                "Trace responsable clôture"
+            ]
+        },
+        "gestion_comptabilite": {
+            "titre": "Comptabilité et exports",
+            "plan_comptable_maroc": [
+                "3421: Clients",
+                "7111: Ventes",
+                "4455: TVA Collectée",
+                "5161: Caisse",
+                "4411: Fournisseurs",
+                "6111: Achats",
+                "3455: TVA Déductible"
+            ],
+            "export_sage": [
+                "Format: texte (date, compte, libelle, debit, credit)",
+                "Seules factures validées + payées",
+                "Seules avec flag exportComptable=true",
+                "TVA ligne séparée par document"
+            ],
+            "tva": [
+                "Collectée: 20% sur ventes client",
+                "Déductible: 20% sur achats fournisseur",
+                "Récapitulatif TVA: CA HT, CA TVA, Achats HT, Achats TVA, Net"
+            ]
+        },
+        "gestion_loyaute_conventions": {
+            "titre": "Conventions commerciales et remises",
+            "types_remise": [
+                {
+                    "type": "PERCENTAGE",
+                    "exemple": "10% remise sur montant total HT",
+                    "calcul": "Montant HT * taux / 100"
+                },
+                {
+                    "type": "FLAT_AMOUNT",
+                    "exemple": "50 DH forfait BL",
+                    "calcul": "Montant fixe déduit"
+                },
+                {
+                    "type": "FORFAIT_LUNETTES",
+                    "description": "Prix fixe pour monture + verre complets",
+                    "montants": [
+                        "montantForfaitaireMonture",
+                        "montantForfaitaireVerre"
+                    ]
+                }
+            ],
+            "application": "Automatique sur facture si client a conventionId"
+        }
+    },
+    "enums_types_critiques": {
+        "statut_client": [
+            "INACTIF",
+            "ACTIF",
+            "SUSPENDU"
+        ],
+        "type_client": [
+            "PARTICULIER",
+            "PROFESSIONNEL",
+            "ENTREPRISE"
+        ],
+        "statut_fiche": [
+            "BROUILLON",
+            "VALIDATION",
+            "DEVIS_EN_COURS",
+            "COMMANDE",
+            "LIVREE",
+            "FACTUREE",
+            "ANNULEE"
+        ],
+        "type_fiche": [
+            "MONTURE",
+            "LENTILLES",
+            "ACCESSOIRES",
+            "MIXTE"
+        ],
+        "statut_facture": [
+            "DEVIS_EN_COURS",
+            "VALIDEE",
+            "PAYEE",
+            "SOLDEE",
+            "ANNULEE",
+            "EN_RETOUR",
+            "PARTIELLEMENT_PAYEE"
+        ],
+        "type_facture": [
+            "DEVIS",
+            "BON_COMMANDE",
+            "FACTURE",
+            "AVOIR",
+            "FACTURE_PRESTATION"
+        ],
+        "mode_paiement": [
+            "ESPECES",
+            "CARTE",
+            "CHEQUE",
+            "VIREMENT",
+            "LCN",
+            "AUTRE"
+        ],
+        "statut_paiement": [
+            "ENCAISSE",
+            "EN_ATTENTE",
+            "DECAISSEMENT"
+        ],
+        "type_operation_caisse": [
+            "ENCAISSEMENT",
+            "DECAISSEMENT"
+        ],
+        "type_mouvement_stock": [
+            "ENTREE",
+            "SORTIE",
+            "TRANSFERT",
+            "RETOUR",
+            "CONFECTION",
+            "AJUSTEMENT",
+            "DECHET"
+        ],
+        "type_article": [
+            "MONTURE",
+            "VERRE",
+            "LENTILLE",
+            "ACCESSOIRE",
+            "SERVICE"
+        ],
+        "type_entrepot": [
+            "PRINCIPAL",
+            "RESERVE",
+            "TRANSIT",
+            "RETOUR"
+        ],
+        "statut_bon_livraison": [
+            "VALIDEE",
+            "LIVREE",
+            "REJETEE",
+            "RETOURNEE"
+        ],
+        "statut_facture_fournisseur": [
+            "A_PAYER",
+            "PARTIEL",
+            "PAYEE",
+            "VALIDEE"
+        ],
+        "categorie_depense": [
+            "LOYER",
+            "ELECTRICITE",
+            "INTERNET",
+            "SALAIRE",
+            "ASSURANCE",
+            "FRAIS_BANCAIRES",
+            "EAU",
+            "AUTRES_CHARGES"
+        ],
+        "statut_depense": [
+            "BROUILLON",
+            "VALIDEE",
+            "PAYEE",
+            "ANNULEE"
+        ],
+        "type_echeance": [
+            "CHEQUE",
+            "LCN",
+            "VIREMENT",
+            "AUTRE"
+        ],
+        "statut_echeance": [
+            "EN_ATTENTE",
+            "ENCAISSE",
+            "ANNULE",
+            "REPORTE"
+        ],
+        "type_employe": [
+            "OPTICIEN",
+            "VENDEUR",
+            "CAISSIER",
+            "MANAGER",
+            "ADMINISTRATIF"
+        ],
+        "contrat_employe": [
+            "CDI",
+            "CDD",
+            "STAGE"
+        ],
+        "statut_employe": [
+            "ACTIF",
+            "SUSPENDU",
+            "LICENCIE"
+        ],
+        "statut_journee_caisse": [
+            "OUVERTE",
+            "FERMEE"
+        ],
+        "type_points": [
+            "EARN",
+            "REDEEM",
+            "BONUS_PARRAINAGE",
+            "BONUS_DOSSIER",
+            "ADJUSTMENT"
+        ],
+        "type_operation": [
+            "COMPTABLE",
+            "INTERNE",
+            "TRANSFERT"
+        ],
+        "statut_payroll": [
+            "BROUILLON",
+            "VALIDEE",
+            "PAYEE"
+        ],
+        "statut_caisse": [
+            "ACTIVE",
+            "INACTIVE"
+        ],
+        "type_caisse": [
+            "PRINCIPALE",
+            "SECONDAIRE",
+            "MOBILE"
+        ]
+    },
+    "flux_complets": {
+        "flux_vente_complete": {
+            "titre": "Processus vente client complet",
+            "etapes": [
+                "1. Client entre en magasin",
+                "2. Créer ou rechercher CLIENT dans système",
+                "3. Créer FICHE (type MONTURE/LENTILLES)",
+                "4. Saisir PRESCRIPTION (données optiques)",
+                "5. Sélectionner PRODUITS (montures, verres, lentilles)",
+                "6. Créer DEVIS (calcul prix/TVA)",
+                "7. Client accepte → Validation devis",
+                "8. Client paie → Enregistrer PAIEMENT",
+                "9. Paiement déclenche:",
+                "   - Statut facture → PAYEE",
+                "   - Points fidélité attribués",
+                "   - Commission vendeur calculée",
+                "   - Stock décrément (SORTIE)",
+                "   - OperationCaisse créée",
+                "10. Facture complète → Statut SOLDEE",
+                "11. Optique confectionne lunettes",
+                "12. Client reprend lunettes",
+                "13. Optique émet facture définitive (document physique)"
+            ]
+        },
+        "flux_achat_fournisseur": {
+            "titre": "Processus achat chez fournisseur",
+            "etapes": [
+                "1. Consultant opticien: Stock bas pour produit",
+                "2. Créer BON_COMMANDE (à partir DEVIS client ou indépendant)",
+                "3. Envoyer EMAIL au fournisseur + PDF technique",
+                "4. Fournisseur livre → Réception BL",
+                "5. Créer MOUVEMENT_STOCK (ENTREE + détails reçu)",
+                "6. Fournisseur facture → Créer FACTURE_FOURNISSEUR",
+                "7. Créer ECHEANCE_PAIEMENT si CHEQUE/LCN post-daté",
+                "8. À date écheance → Payer fournisseur",
+                "9. Statut facture supplier → PAYEE",
+                "10. Si problème réception → Créer AVOIR (retour fournisseur)"
+            ]
+        },
+        "flux_paie": {
+            "titre": "Processus calcul bulletin paie",
+            "etapes": [
+                "1. Mois écoulé",
+                "2. Collecter COMMISSIONS vendeur (factures payées mois)",
+                "3. Collecter HEURES_SUP (pointage)",
+                "4. Calculer BRUT = base + commissions + heures sup + primes",
+                "5. Appliquer RETENUES:",
+                "   - CNSS Employé (4.48%)",
+                "   - AMO (2.26%)",
+                "   - Impôt progressif par tranche",
+                "   - Frais professionnels (20% plafonné)",
+                "6. NET_A_PAYER = BRUT - RETENUES",
+                "7. Générer BULLETIN_PAIE (PDF)",
+                "8. Créer DEPENSE (salaire via PAYROLL)",
+                "9. Payer employé → Statut PAYEE"
+            ]
+        },
+        "flux_tresorerie": {
+            "titre": "Processus suivi trésorerie mensuelle",
+            "etapes": [
+                "1. Clôture mois",
+                "2. Calculer CA = somme factures validées + encaissées",
+                "3. Calculer ACHATS = BL réceptionnées (coût COGS)",
+                "4. Lister DEPENSES mois (catégories)",
+                "5. Marge = CA - COGS - Depenses",
+                "6. Trésorerie = Encaissements - Décaissements",
+                "7. Reporter Clients impayés (+ de X jours)",
+                "8. Reporter Fournisseurs à payer (écheances)",
+                "9. Vérifier seuil mensuel (50000 DH)",
+                "10. Générer REPORTING trésorerie"
+            ]
+        },
+        "flux_comptabilite": {
+            "titre": "Processus export comptable mensuel",
+            "etapes": [
+                "1. Mois clôturé",
+                "2. Filtre factures: VALIDEE + PAYEE + exportComptable=true",
+                "3. Générer EXPORT_SAGE (format txt)",
+                "4. Inclure: client name, montant HT, TVA, total, compte analytique",
+                "5. Inclure paiements: date encaissement, mode paiement, ref",
+                "6. Inclure dépenses: par catégorie, compte de charge",
+                "7. Ligne séparée TVA collectée + TVA déductible",
+                "8. Télécharger fichier → Import logiciel comptable (Sage)",
+                "9. Bilan mensuel: CA, COGS, Charges, Résultat"
+            ]
+        }
+    },
+    "integrations_inter_modules": {
+        "description": "Dépendances et flux de données entre modules",
+        "graphe_dependances": [
+            "Factures ↔ Clients (FK clientId)",
+            "Factures ↔ Fiches (FK ficheId)",
+            "Factures ↔ Paiements (1-N)",
+            "Factures ↔ PointsHistory (record points)",
+            "Factures ↔ Commissions (auto-calc)",
+            "Factures ↔ MouvementsStock (SORTIE au paiement)",
+            "Factures ↔ OperationCaisse (integration caisse)",
+            "Paiements ↔ JourneeCaisse (via OperationCaisse)",
+            "Fiches ↔ Products (articles sélectionnés)",
+            "Fiches ↔ BonLivraison (suivi commande)",
+            "Clients ↔ Loyalty (points par client)",
+            "Clients ↔ Convention (remise automatique)",
+            "BonLivraison ↔ FactureFournisseur (réception)",
+            "BonLivraison ↔ MouvementsStock (ENTREE)",
+            "FactureFournisseur ↔ EcheancePaiement (post-datés)",
+            "FactureFournisseur ↔ Depense (budget)",
+            "MouvementsStock ↔ Products (update quantite)",
+            "MouvementsStock ↔ Entrepot (source/destination)",
+            "Employee ↔ Factures (vendeur)",
+            "Employee ↔ Commission (calculs)",
+            "Employee ↔ Payroll (bulletin)",
+            "Payroll ↔ Depense (recording salaire)",
+            "JourneeCaisse ↔ OperationCaisse (1-N)",
+            "JourneeCaisse ↔ DemandeAlimentation (funding)"
+        ]
+    },
+    "validations_critiques": {
+        "niveau_1_creation": [
+            "Entités obligatoires existent (Client, Centre, Fournisseur)",
+            "IDs uniques respectés (code interne, email, etc)",
+            "Format emails valides",
+            "Dates cohérentes (emission ≤ echeance)"
+        ],
+        "niveau_2_transitions": [
+            "Transitions d'état autorisées (DEVIS → VALIDEE → PAYEE)",
+            "Stock suffisant avant DEVIS → BC",
+            "Montant paiement ≤ reste à payer",
+            "Facture non annulée avant modification"
+        ],
+        "niveau_3_metier": [
+            "Prix cohérents (achat ≤ vente)",
+            "Données optiques valides (sphère/cylindre/axe)",
+            "TVA dans 0-20%",
+            "Points fidélité seuil respected (500 min pour redeem)",
+            "Commission calculée uniquement si facture payée"
+        ],
+        "niveau_4_comptable": [
+            "TVA collectée/déductible correctes",
+            "Export comptable: uniquement documents éligibles",
+            "Montants balancés (total facture = sum lignes)",
+            "Trace audit complète (qui, quand, quoi)"
+        ]
+    },
+    "performance_notes": {
+        "indexes_critiques": [
+            "Client(nom, prenom, telephone, centreId)",
+            "Facture(centreId, clientId, ficheId, dateCreation, statut)",
+            "MouvementStock(produitId, dateMovement, type, entrepotSourceId)",
+            "Paiement(factureId, date, statut, mode)",
+            "PointsHistory(clientId, type, date)"
+        ],
+        "queries_optimisees": [
+            "Factures unpaid: index (centreId, resteAPayer > 0.05)",
+            "Stock availability: index (productId, entrepotId)",
+            "Treasury monthly: date range + centre filter"
+        ],
+        "caching": [
+            "LoyaltyConfig: cache 1 heure",
+            "Products catalogue: cache 30 min",
+            "Commission Rules: cache 1 heure"
+        ]
+    }
+}
