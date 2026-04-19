@@ -9,7 +9,7 @@ const PDFDocument = require('pdfkit');
 export class AccountingService {
   private readonly logger = new Logger(AccountingService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   // Default Mapping (Plan Comptable Marocain)
   private readonly CONFIG = {
@@ -56,16 +56,19 @@ export class AccountingService {
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
 
-    const cid =
-      centreId && centreId !== 'ALL' && centreId !== '' ? centreId : undefined;
+    // BUG-007 FIX: Ensure centreId is always provided (security)
+    if (!centreId || centreId === 'ALL' || centreId === '') {
+      throw new Error('Export Sage requires specific centre ID (no ALL export allowed)');
+    }
 
     const [invoices, payments, expenses] = await Promise.all([
       this.prisma.facture.findMany({
         where: {
           dateEmission: { gte: start, lte: end },
           statut: { in: ['VALIDE', 'VALIDEE', 'PAYEE', 'SOLDEE', 'ENCAISSE'] },
-          centreId: cid,
+          centreId: centreId, // BUG-007: Mandatory filter (not optional)
           exportComptable: true,
+          type: 'FACTURE', // Only fiscal invoices (not DEVIS, BON_COMM, AVOIR)
         },
         include: { client: true },
         orderBy: { dateEmission: 'asc' },
@@ -74,7 +77,10 @@ export class AccountingService {
         where: {
           date: { gte: start, lte: end },
           statut: 'ENCAISSE',
-          facture: cid ? { centreId: cid } : undefined,
+          facture: {
+            centreId: centreId, // BUG-007: Mandatory filter
+            type: 'FACTURE', // Only fiscal invoices
+          },
         },
         include: { facture: { include: { client: true } } },
         orderBy: { date: 'asc' },
@@ -83,7 +89,7 @@ export class AccountingService {
         where: {
           date: { gte: start, lte: end },
           statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
-          centreId: cid,
+          centreId: centreId, // BUG-007: Mandatory filter
         },
         include: { fournisseur: true },
         orderBy: { date: 'asc' },

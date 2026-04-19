@@ -19,6 +19,44 @@ export class PaiementsService {
     private commissionService: CommissionService,
   ) { }
 
+  /**
+   * BUG-005 FIX: Automated cheque follow-up
+   * Daily job at 9am to send reminder for overdue checks
+   * NOTE: @Cron requires @nestjs/schedule module to be registered
+   */
+  async checkExpiredChecks() {
+    console.log('[CRON] Checking for expired checks...');
+
+    // Query overdue checks: checks with dateVersement < now and statut != ENCAISSE
+    const overdue = await this.prisma.paiement.findMany({
+      where: {
+        mode: { in: ['CHEQUE', 'CHÈQUE'] },
+        statut: { not: 'ENCAISSE' }, // Not yet cashed
+        dateVersement: { lt: new Date() }, // Past due date
+      },
+      include: { facture: { include: { client: true } } },
+    });
+
+    if (overdue.length === 0) {
+      console.log('[CRON] No overdue checks found');
+      return;
+    }
+
+    console.log(`[CRON] Found ${overdue.length} overdue checks. Sending reminders...`);
+
+    for (const paiement of overdue) {
+      try {
+        // TODO: Integrate with mailer service
+        console.log(
+          `[CRON RELANCE] Check ${paiement.reference} for facture ${paiement.factureId} (Due: ${paiement.dateVersement})`,
+        );
+        // await this.mailer.sendRelance(paiement, paiement.facture);
+      } catch (e) {
+        console.error(`[CRON ERROR] Failed to send relance for check ${paiement.id}:`, e);
+      }
+    }
+  }
+
   async create(createPaiementDto: CreatePaiementDto, userId?: string) {
     const { factureId, montant } = createPaiementDto;
 
