@@ -5,7 +5,7 @@ import { UpdateCommissionRuleDto } from './dto/update-commission-rule.dto';
 
 @Injectable()
 export class CommissionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async createRule(dto: CreateCommissionRuleDto) {
     return this.prisma.commissionRule.create({ data: dto });
@@ -74,6 +74,7 @@ export class CommissionService {
   /**
    * Calculates commissions for a specific invoice.
    * Should be called when an invoice is VALIDATED and PAID.
+   * BUG-003 FIX: Validate invoice amount strictly
    */
   async calculateForInvoice(factureId: string, tx?: any) {
     const prisma = tx || this.prisma;
@@ -82,7 +83,24 @@ export class CommissionService {
       include: { vendeur: true },
     });
 
+    // BUG-003 FIX: Validate facture amount is positive and valid
     if (!facture || !facture.vendeurId || !facture.vendeur) return null;
+
+    // CRITICAL VALIDATION: Reject negative, zero, or non-finite amounts
+    if (!isFinite(facture.montantHT) || facture.montantHT <= 0) {
+      console.warn(
+        `⚠️ [COMMISSION] Rejeté pour facture ${factureId}: montantHT=${facture.montantHT} (invalide)`,
+      );
+      return null;
+    }
+
+    // Validate status: only VALIDE or PAYEE can have commissions
+    if (!['VALIDE', 'PAYEE', 'SOLDEE'].includes(facture.statut)) {
+      console.warn(
+        `⚠️ [COMMISSION] Rejeté pour facture ${factureId}: statut=${facture.statut} (non eligible)`,
+      );
+      return null;
+    }
 
     const employee = facture.vendeur;
     const mois = facture.dateEmission.toISOString().substring(0, 7); // YYYY-MM
@@ -139,7 +157,27 @@ export class CommissionService {
         }) || rules.find((r) => r.typeProduit === 'GLOBAL');
 
       if (rule) {
-        const montantCom = (line.totalTTC || 0) * (rule.taux / 100);
+        // BUG-003 FIX: Validate line amount and commission calculation
+        const lineAmount = line.totalTTC || 0;
+        if (!isFinite(lineAmount) || lineAmount < 0) {
+          console.warn(
+            `⚠️ [COMMISSION] Ligne ignorée: montant=${lineAmount} (invalide)`,
+          );
+          continue;
+        }
+
+        const montantCom = Number(
+          (lineAmount * (rule.taux / 100)).toFixed(2)
+        );
+
+        // Validate commission is positive and finite
+        if (!isFinite(montantCom) || montantCom < 0) {
+          console.warn(
+            `⚠️ [COMMISSION] Calcul rejeté: montantCom=${montantCom} (invalide)`,
+          );
+          continue;
+        }
+
         if (montantCom > 0) {
           await prisma.commission.create({
             data: {

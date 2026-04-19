@@ -22,6 +22,7 @@ export class PaiementsService {
   async create(createPaiementDto: CreatePaiementDto, userId?: string) {
     const { factureId, montant } = createPaiementDto;
 
+    // [PRE-VALIDATION] Non-modifying checks before transaction
     // 1. Vérifier que la facture existe et est VALIDE
     const facture = await this.prisma.facture.findUnique({
       where: { id: factureId },
@@ -30,6 +31,11 @@ export class PaiementsService {
 
     if (!facture) {
       throw new NotFoundException('Facture non trouvée');
+    }
+
+    // BUG-004 FIX: Validate montant strictly
+    if (!isFinite(montant) || montant === 0) {
+      throw new BadRequestException('Montant invalide - doit être > 0 ou < 0');
     }
 
     // 2. Vérifier que le montant ne dépasse pas le reste à payer
@@ -55,99 +61,100 @@ export class PaiementsService {
       }
     }
 
-    // 3. Déterminer le statut par défaut si non fourni
-    let finalStatut = createPaiementDto.statut;
-    if (montant < 0) {
-      finalStatut = 'DECAISSEMENT';
-      createPaiementDto.mode = 'ESPECES'; // Force Cash for refunds
-    } else if (!finalStatut) {
-      finalStatut =
-        createPaiementDto.mode === 'ESPECES' ||
-          createPaiementDto.mode === 'CARTE'
-          ? 'ENCAISSE'
-          : 'EN_ATTENTE';
-    }
-
-    const paiement = await this.prisma.paiement.create({
-      data: {
-        ...createPaiementDto,
-        statut: finalStatut,
-        userId: userId || null,
-      },
-    });
-
-    // 4. AUTOMATED CASH RECORDING (INTEGRATION CAISSE)
-    const acceptedModes = ['ESPECES', 'ESPECE', 'CARTE', 'CHEQUE', 'CHÈQUE', 'VIREMENT', 'LCN'];
-    if (acceptedModes.includes(createPaiementDto.mode)) {
-      try {
-        await this.prisma.$transaction(async (tx) => {
-          await this.handleCaisseIntegration(tx, paiement, facture, userId);
-        });
-      } catch (caisseError) {
-        console.error('❌ [PAIEMENT CAISSE ERROR]', {
-          paiementId: paiement.id,
-          mode: paiement.mode,
-          montant: paiement.montant,
-          error: caisseError.message,
-          stack: caisseError.stack
-        });
-        // We don't block the payment if caisse integration fails, but we log it
+    // [BUG-002 FIX] ATOMIC TRANSACTION: Wrap all modifications in single transaction
+    return await this.prisma.$transaction(async (tx) => {
+      // 3. Déterminer le statut par défaut si non fourni
+      let finalStatut = createPaiementDto.statut;
+      if (montant < 0) {
+        finalStatut = 'DECAISSEMENT';
+        createPaiementDto.mode = 'ESPECES'; // Force Cash for refunds
+      } else if (!finalStatut) {
+        finalStatut =
+          createPaiementDto.mode === 'ESPECES' ||
+            createPaiementDto.mode === 'CARTE'
+            ? 'ENCAISSE'
+            : 'EN_ATTENTE';
       }
-    }
 
-    // 5. Mettre à jour le reste à payer et le statut de la facture
-    const nouveauReste = facture.resteAPayer - montant;
-    const nouveauStatut =
-      nouveauReste <= 0
-        ? facture.totalTTC > 0
-          ? 'PAYEE'
-          : 'VALIDE'
-        : 'PARTIEL';
+      // 4. CREATE PAYMENT (within transaction)
+      const paiement = await tx.paiement.create({
+        data: {
+          ...createPaiementDto,
+          statut: finalStatut,
+          userId: userId || null,
+        },
+      });
 
-    const updateData: any = {
-      resteAPayer: nouveauReste,
-      statut: nouveauStatut,
-    };
+      // 5. UPDATE INVOICE (within transaction)
+      const nouveauReste = facture.resteAPayer - montant;
+      const nouveauStatut =
+        nouveauReste <= 0
+          ? facture.totalTTC > 0
+            ? 'PAYEE'
+            : 'VALIDE'
+          : 'PARTIEL';
 
-    // [FIX] Standardize transition DEVIS -> BON_COMM
-    if (facture.type === 'DEVIS') {
-      console.log(
-        `📌 [TRANSITION] Devis ${facture.numero} receiving payment. Upgrading to BON_COMM.`,
-      );
-      updateData.type = 'BON_COMM';
-      updateData.numero = await this.generateNextNumber('BON_COMM');
+      const updateData: any = {
+        resteAPayer: nouveauReste,
+        statut: nouveauStatut,
+      };
 
-      // For BC, we use VENTE_EN_INSTANCE as the base status if not fully paid
-      if (nouveauReste > 0) {
-        updateData.statut = 'PARTIEL'; // Or VENTE_EN_INSTANCE? Backend mapping usually uses PARTIEL for paid.
-        // Actually, let's stick to status derived above but ensure type is BON_COMM
-      }
-    }
-
-    const updatedFacture = await this.prisma.facture.update({
-      where: { id: factureId },
-      data: updateData,
-    });
-
-    // [NEW] Commission Trigger
-    if (
-      updatedFacture.vendeurId &&
-      (updatedFacture.statut === 'VALIDE' ||
-        updatedFacture.statut === 'PARTIEL' ||
-        updatedFacture.statut === 'PAYEE' ||
-        updatedFacture.statut === 'BON_DE_COMMANDE')
-    ) {
-      try {
-        await this.commissionService.calculateForInvoice(updatedFacture.id);
-      } catch (e) {
-        console.error(
-          '⚠️ [COMMISSION] Failed to calculate commissions after payment:',
-          e,
+      // [FIX] Standardize transition DEVIS -> BON_COMM
+      if (facture.type === 'DEVIS') {
+        console.log(
+          `📌 [TRANSITION] Devis ${facture.numero} receiving payment. Upgrading to BON_COMM.`,
         );
-      }
-    }
+        updateData.type = 'BON_COMM';
+        updateData.numero = await this.generateNextNumber('BON_COMM');
 
-    return paiement;
+        if (nouveauReste > 0) {
+          updateData.statut = 'PARTIEL';
+        }
+      }
+
+      const updatedFacture = await tx.facture.update({
+        where: { id: factureId },
+        data: updateData,
+      });
+
+      // 6. HANDLE CAISSE INTEGRATION (within transaction)
+      const acceptedModes = ['ESPECES', 'ESPECE', 'CARTE', 'CHEQUE', 'CHÈQUE', 'VIREMENT', 'LCN'];
+      if (acceptedModes.includes(createPaiementDto.mode)) {
+        try {
+          await this.handleCaisseIntegration(tx, paiement, facture, userId);
+        } catch (caisseError) {
+          console.error('❌ [PAIEMENT CAISSE ERROR]', {
+            paiementId: paiement.id,
+            mode: paiement.mode,
+            montant: paiement.montant,
+            error: caisseError.message,
+          });
+          // Propagate error to trigger rollback
+          throw caisseError;
+        }
+      }
+
+      // 7. COMMISSION TRIGGER (within transaction)
+      if (
+        updatedFacture.vendeurId &&
+        (updatedFacture.statut === 'VALIDE' ||
+          updatedFacture.statut === 'PARTIEL' ||
+          updatedFacture.statut === 'PAYEE' ||
+          updatedFacture.statut === 'BON_DE_COMMANDE')
+      ) {
+        try {
+          await this.commissionService.calculateForInvoice(updatedFacture.id, tx);
+        } catch (e) {
+          console.error(
+            '⚠️ [COMMISSION] Failed to calculate commissions after payment:',
+            e,
+          );
+          // Don't block payment if commission fails - just log
+        }
+      }
+
+      return paiement;
+    }, { timeout: 10000, maxWait: 5000 });
   }
 
   private async generateNextNumber(type: 'BON_COMM'): Promise<string> {
