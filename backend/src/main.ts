@@ -3,12 +3,37 @@ import { AppModule } from './app.module';
 import { json, urlencoded } from 'express';
 import compression = require('compression'); // Triggering re-compilation for Docker synchronization
 import { ValidationPipe, BadRequestException } from '@nestjs/common';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Set global prefix for all routes to match frontend config
   app.setGlobalPrefix('api');
+
+  // Security: Use Helmet for security headers
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        fontSrc: ["'self'"],
+        connectSrc: ["'self'", 'https:'],
+        frameSrc: ["'none'"],
+        objectSrc: ["'none'"],
+      },
+    },
+    hsts: {
+      maxAge: 31536000, // 1 year
+      includeSubDomains: true,
+      preload: true,
+    },
+    frameguard: { action: 'deny' },
+    noSniff: true,
+    xssFilter: true,
+  }));
 
   // Set the limit for incoming JSON and URL-encoded data to support large imports
   app.use(json({ limit: '50mb' }));
@@ -28,23 +53,34 @@ async function bootstrap() {
     }),
   );
 
+  // Strict CORS: Only allow specific origins
+  const allowedOrigins = [
+    process.env.FRONTEND_URL || 'http://localhost:4200',
+    'https://optisaas.pro',
+    'https://www.optisaas.pro',
+  ];
+
   app.enableCors({
-    origin: true,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('CORS not allowed'));
+      }
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
+    maxAge: 3600,
   });
 
   const port = process.env.PORT ?? 3000;
-  console.log(
-    `🚀 Server version 2.1 (Maximum Inclusive Import) starting on port ${port}`,
-  );
 
   // LOG STARTUP TO FILE TO BE 100% SURE
   const fs = require('fs');
-  const logFile = 'import_execute.log';
+  const logFile = 'server.log';
   fs.appendFileSync(
     logFile,
-    `\n--- SERVER STARTUP: ${new Date().toISOString()} --- VERSION 2.2 (DIAGNOSTICS ACTIVE) ---\n`,
+    `\n--- SERVER STARTUP: ${new Date().toISOString()} --- VERSION 3.0 (SECURITY HARDENED) ---\n`,
   );
 
   // Redirect console to file
@@ -67,11 +103,15 @@ async function bootstrap() {
     originalConsoleError.apply(console, args);
   };
 
-  console.log('--- DB CONFIG --- URL:', process.env.DATABASE_URL);
-  console.log(
-    '🚀 Server version 2.2 (Diagnostics Active) started on port',
-    port,
-  );
+  console.log('');
+  console.log('╔═══════════════════════════════════════════════════════╗');
+  console.log('║   🚀 OptiSaas ERP - Version 3.0 (Security Hardened)  ║');
+  console.log('╠═══════════════════════════════════════════════════════╣');
+  console.log(`║   Port: ${port}${' '.repeat(50 - `Port: ${port}`.length)}║`);
+  console.log(`║   Environment: ${process.env.NODE_ENV || 'development'}${' '.repeat(43 - `Environment: ${process.env.NODE_ENV || 'development'}`.length)}║`);
+  console.log('║   Security: Helmet + JWT + Rate Limit + Audit Log     ║');
+  console.log('╚═══════════════════════════════════════════════════════╝');
+  console.log('');
 
   await app.listen(port, '0.0.0.0');
 }

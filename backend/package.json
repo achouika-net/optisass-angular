@@ -38,6 +38,7 @@
     "class-validator": "^0.14.3",
     "compression": "^1.8.1",
     "dayjs": "^1.11.19",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "minio": "^8.0.7",
     "multer": "^2.0.2",
