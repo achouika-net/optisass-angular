@@ -1,4 +1,5 @@
-import { IsString, IsNumber, IsArray, IsOptional, IsUUID, IsEnum } from 'class-validator';
+import { IsString, IsNumber, IsArray, IsOptional, IsUUID, IsEnum, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateVirtualTryonDto {
     @IsUUID()
@@ -26,8 +27,11 @@ export class CreateVirtualTryonDto {
 
     @IsArray()
     @IsOptional()
-    faceDetectionData?: any; // Face landmarks from TensorFlow.js
+    faceDetectionData?: any[]; // TensorFlow.js face detection output
 
+    @IsArray()
+    @IsOptional()
+    @ValidateNested({ each: true })
     @IsEnum(['GLASSES', 'SUNGLASSES', 'CONTACT_LENS', 'FRAME', 'LENS'])
     @IsOptional()
     productType?: string;

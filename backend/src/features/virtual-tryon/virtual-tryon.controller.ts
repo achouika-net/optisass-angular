@@ -1,11 +1,10 @@
-import { Controller, Post, Get, Delete, Body, Param, UseGuards, Request, BadRequestException, Inject, CACHE_MANAGER } from '@nestjs/common';
-import { JwtAuthGuard } from '@app/common';
+import { Controller, Post, Get, Delete, Body, Param, Request, BadRequestException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { VirtualTryonService } from './virtual-tryon.service';
 import { CreateVirtualTryonDto } from './dto/create-virtual-tryon.dto';
 import { Cache } from 'cache-manager';
 
 @Controller('virtual-tryon')
-@UseGuards(JwtAuthGuard)
 export class VirtualTryonController {
     constructor(
         private readonly virtualTryonService: VirtualTryonService,

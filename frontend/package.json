@@ -48,14 +48,17 @@
         "@tensorflow-models/face-landmarks-detection": "^1.0.6",
         "@tensorflow/tfjs": "^4.22.0",
         "@types/node": "^24.10.1",
+        "@types/three": "^0.184.0",
         "chart.js": "^4.5.1",
         "crypto-ts": "^1.0.2",
         "date-fns": "^4.1.0",
+        "face-api.js": "^0.22.2",
         "jsbarcode": "^3.12.3",
         "ngx-toastr": "^19.1.0",
         "pdfjs-dist": "^5.4.530",
         "rxjs": "~7.8.2",
         "tesseract.js": "^6.0.1",
+        "three": "^0.184.0",
         "tslib": "^2.8.1"
     },
     "devDependencies": {

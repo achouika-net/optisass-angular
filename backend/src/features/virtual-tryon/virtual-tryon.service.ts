@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
-import { PrismaService } from '@app/common';
+import { PrismaService } from '../../prisma/prisma.service';
 import { CreateVirtualTryonDto, VirtualTryonResultDto } from './dto/create-virtual-tryon.dto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -31,7 +31,7 @@ export class VirtualTryonService {
     ): Promise<VirtualTryonResultDto> {
         try {
             // Validate product exists
-            const product = await this.prisma.produit.findUnique({
+            const product = await this.prisma.product.findUnique({
                 where: { id: dto.productId },
             });
 
@@ -46,15 +46,14 @@ export class VirtualTryonService {
             }
 
             // Store camera image (Base64 → File)
-            const imageFileName = await this.saveCameraImage(dto.cameraImage, effectiveCentreId);
-
+            const imageFileName = await this.saveCameraImage(dto.cameraImage || '', effectiveCentreId);
             // Process face detection data (from frontend TensorFlow.js)
             const faceFrame = this.processFaceDetection(dto.faceDetectionData);
 
             // Generate try-on result (simulated 3D rendering)
             const resultImageUrl = await this.generateTryonResult(
                 imageFileName,
-                dto.model3DUrl,
+                dto.model3DUrl || '',
                 faceFrame,
             );
 
@@ -99,9 +98,9 @@ export class VirtualTryonService {
                 product: {
                     select: {
                         id: true,
-                        nom: true,
-                        prix: true,
-                        image: true,
+                        designation: true,
+                        prixVenteTTC: true,
+                        photo: true,
                     },
                 },
             },
@@ -201,7 +200,8 @@ export class VirtualTryonService {
         }
 
         // Penalize if expressions are uncertain
-        const maxExpression = Math.max(...Object.values(faceFrame.expressions || {}));
+        const expressions = Object.values(faceFrame.expressions || {}) as number[];
+        const maxExpression = expressions.length > 0 ? Math.max(...expressions) : 0;
         if (maxExpression < 0.5) {
             score -= 15;
         }
@@ -263,7 +263,8 @@ export class VirtualTryonService {
 
     private async deleteImageFile(fileUrl: string) {
         try {
-            const fileName = fileUrl.split('/').pop();
+            const fileName = fileUrl.split('/').pop() || '';
+            if (!fileName) throw new Error('Invalid file URL');
             const filePath = path.join(this.storageDir, fileName);
             await fs.unlink(filePath);
         } catch (error) {

@@ -1,4 +1,5 @@
 import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { VirtualTryonService } from './virtual-tryon.service';
 import * as faceapi from 'face-api.js';
@@ -8,6 +9,8 @@ import * as THREE from 'three';
     selector: 'app-virtual-mirror',
     templateUrl: './virtual-mirror.component.html',
     styleUrls: ['./virtual-mirror.component.scss'],
+    standalone: true,
+    imports: [CommonModule],
 })
 export class VirtualMirrorComponent implements OnInit {
     @ViewChild('video') videoRef: ElementRef<HTMLVideoElement>;
@@ -25,7 +28,7 @@ export class VirtualMirrorComponent implements OnInit {
     private scene: THREE.Scene;
     private camera: THREE.PerspectiveCamera;
     private renderer: THREE.WebGLRenderer;
-    private modelsLoaded = false;
+    modelsLoaded = false;
 
     constructor(
         private tryonService: VirtualTryonService,
@@ -47,7 +50,7 @@ export class VirtualMirrorComponent implements OnInit {
                 faceapi.nets.tinyFaceDetector.loadFromUri('/assets/models'),
                 faceapi.nets.faceLandmark68Net.loadFromUri('/assets/models'),
                 faceapi.nets.faceExpressionNet.loadFromUri('/assets/models'),
-                faceapi.nets.faceAgeGenderNet.loadFromUri('/assets/models'),
+                faceapi.nets.ageGenderNet.loadFromUri('/assets/models'),
             ]);
             this.modelsLoaded = true;
         } catch (error) {
@@ -206,7 +209,9 @@ export class VirtualMirrorComponent implements OnInit {
         glasses.position.z = 0;
 
         // Clear previous glasses
-        this.scene.children = this.scene.children.filter((child) => !(child instanceof THREE.Mesh));
+        this.scene.children = this.scene.children.filter(
+            (child: THREE.Object3D) => !(child instanceof THREE.Mesh),
+        );
 
         // Add new glasses
         this.scene.add(glasses);
@@ -251,7 +256,7 @@ export class VirtualMirrorComponent implements OnInit {
             const detection = detections[0];
 
             // Send to backend
-            const result = await this.tryonService.createTryon({
+            const result$ = this.tryonService.createTryon({
                 productId: this.selectedProductId,
                 cameraImage: cameraImage,
                 faceDetectionData: {
@@ -264,9 +269,18 @@ export class VirtualMirrorComponent implements OnInit {
                 centreId: 'AUTO', // Will be set by backend
             });
 
-            this.tryonResult = result;
-            this.confidenceScore = result.confidenceScore;
-            this.stopCamera();
+            result$.subscribe(
+                (result: any) => {
+                    this.tryonResult = result;
+                    this.confidenceScore = result.confidenceScore || 0;
+                    this.stopCamera();
+                },
+                (error: any) => {
+                    console.error('Failed to create try-on:', error);
+                    alert('Failed to create try-on. Please try again.');
+                    this.isLoading = false;
+                },
+            );
         } catch (error) {
             console.error('Failed to create try-on:', error);
             alert('Failed to create try-on. Please try again.');

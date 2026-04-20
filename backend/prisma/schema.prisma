@@ -55,6 +55,7 @@ model Client {
   fiches               Fiche[]
   pointsHistory        PointsHistory[]
   rewardRedemptions    RewardRedemption[]
+  virtualTryons        VirtualTryon[]
 
   @@index([nom, prenom])
   @@index([telephone])
@@ -194,6 +195,7 @@ model Centre {
   factures             Facture[]
   facturesFournisseurs FactureFournisseur[]
   journeesCaisse       JourneeCaisse[]
+  virtualTryons        VirtualTryon[]
 
   @@unique([groupeId, nom])
 }
@@ -245,6 +247,7 @@ model Product {
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   mouvements           MouvementStock[]
+  virtualTryons        VirtualTryon[]
   entrepot             Entrepot         @relation(fields: [entrepotId], references: [id])
 
   @@unique([codeInterne, entrepotId])
@@ -850,4 +853,28 @@ model RewardRedemption {
   paiementId String?
   client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   user       User?    @relation(fields: [userId], references: [id])
+}
+
+model VirtualTryon {
+  id                String   @id @default(uuid())
+  productId         String
+  clientId          String?
+  centreId          String
+  cameraImageUrl    String
+  resultImageUrl    String
+  confidenceScore   Float    @default(0)
+  faceFrame         Json?    // Stores face landmarks, expressions, age, gender
+  productType       String   @default("GLASSES") // GLASSES, SUNGLASSES, CONTACT_LENS, FRAME, LENS
+  tryonDuration     Int      @default(0) // seconds
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  centre            Centre   @relation(fields: [centreId], references: [id], onDelete: Restrict)
+  client            Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([centreId])
+  @@index([clientId])
+  @@index([productId])
+  @@index([createdAt])
 }
