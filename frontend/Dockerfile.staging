@@ -9,8 +9,8 @@ ARG BUILD_DATE=latest
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (with --no-cache to bypass npm cache)
-RUN npm ci --no-cache --legacy-peer-deps
+# Install dependencies (with npm install instead of ci for flexibility)
+RUN npm install --no-save --no-optional --legacy-peer-deps
 
 # Copy source code
 COPY . .

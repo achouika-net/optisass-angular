@@ -1,15 +1,10 @@
-import { Controller, Post, Get, Delete, Body, Param, Request, BadRequestException, Inject } from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Controller, Post, Get, Delete, Body, Param, Request, BadRequestException } from '@nestjs/common';
 import { VirtualTryonService } from './virtual-tryon.service';
 import { CreateVirtualTryonDto } from './dto/create-virtual-tryon.dto';
-import { Cache } from 'cache-manager';
 
 @Controller('virtual-tryon')
 export class VirtualTryonController {
-    constructor(
-        private readonly virtualTryonService: VirtualTryonService,
-        @Inject(CACHE_MANAGER) private cacheManager: Cache,
-    ) { }
+    constructor(private readonly virtualTryonService: VirtualTryonService) { }
 
     /**
      * POST /virtual-tryon
@@ -32,20 +27,7 @@ export class VirtualTryonController {
     @Get('history/:clientId')
     async getHistory(@Param('clientId') clientId: string, @Request() req) {
         const centreId = req.user.centreId;
-        const cacheKey = `tryon-history-${clientId}-${centreId}`;
-
-        // Try cache first
-        const cached = await this.cacheManager.get(cacheKey);
-        if (cached) {
-            return cached;
-        }
-
-        const history = await this.virtualTryonService.getClientHistory(clientId, centreId);
-
-        // Cache for 5 minutes
-        await this.cacheManager.set(cacheKey, history, 5 * 60 * 1000);
-
-        return history;
+        return this.virtualTryonService.getClientHistory(clientId, centreId);
     }
 
     /**
