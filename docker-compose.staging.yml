@@ -1,0 +1,219 @@
+version: '3.8'
+
+# Docker Compose for STAGING - Virtual Try-on Feature Branch
+# Environment: Staging with realistic deployment
+# Commands:
+#   - Production: docker-compose -f docker-compose.staging.yml up -d
+#   - Logs: docker-compose -f docker-compose.staging.yml logs -f
+#   - Stop: docker-compose -f docker-compose.staging.yml down
+
+services:
+  # PostgreSQL Database (Staging)
+  postgres-staging:
+    image: postgres:15-alpine
+    container_name: optisaas-postgres-staging
+    environment:
+      POSTGRES_USER: optisaas_staging
+      POSTGRES_PASSWORD: ${DB_PASSWORD_STAGING}
+      POSTGRES_DB: optisaas_staging
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=fr_FR.UTF-8'
+    volumes:
+      - postgres_data_staging:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    ports:
+      - '5433:5432'
+    healthcheck:
+      test: [ 'CMD-SHELL', 'pg_isready -U optisaas_staging' ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - optisaas-staging
+    labels:
+      - 'com.optisaas.service=database'
+      - 'com.optisaas.environment=staging'
+
+  # Backend NestJS (Staging)
+  backend-staging:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.staging
+      args:
+        NODE_ENV: staging
+    container_name: optisaas-backend-staging
+    depends_on:
+      postgres-staging:
+        condition: service_healthy
+    environment:
+      NODE_ENV: staging
+      DATABASE_URL: postgresql://optisaas_staging:${DB_PASSWORD_STAGING}@postgres-staging:5432/optisaas_staging
+      JWT_SECRET: ${JWT_SECRET_STAGING}
+      JWT_EXPIRATION: 86400
+      REFRESH_TOKEN_EXPIRATION: 604800
+      CORS_ORIGIN: http://localhost:4200,https://staging.optisaas.pro
+      FRONTEND_URL: http://localhost:4200
+      LOG_LEVEL: debug
+      RATE_LIMIT_ENABLED: 'true'
+      AUDIT_LOG_ENABLED: 'true'
+      VIRTUAL_TRYON_STORAGE: /app/public/tryon-results
+    volumes:
+      - ./backend/src:/app/src
+      - ./public/tryon-results:/app/public/tryon-results
+    ports:
+      - '3001:3000'
+    healthcheck:
+      test: [ 'CMD', 'curl', '-f', 'http://localhost:3000/health' ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - optisaas-staging
+    labels:
+      - 'com.optisaas.service=backend'
+      - 'com.optisaas.environment=staging'
+      - 'com.optisaas.features=virtual-tryon'
+
+  # Frontend Angular (Staging)
+  frontend-staging:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.staging
+      args:
+        ENVIRONMENT: staging
+        API_URL: http://localhost:3001
+    container_name: optisaas-frontend-staging
+    depends_on:
+      - backend-staging
+    environment:
+      NODE_ENV: staging
+      ANGULAR_ENVIRONMENT: staging
+      API_BASE_URL: http://localhost:3001/api
+    volumes:
+      - ./frontend/src:/app/src
+    ports:
+      - '4200:4200'
+    healthcheck:
+      test: [ 'CMD', 'curl', '-f', 'http://localhost:4200' ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - optisaas-staging
+    labels:
+      - 'com.optisaas.service=frontend'
+      - 'com.optisaas.environment=staging'
+      - 'com.optisaas.features=virtual-tryon'
+
+  # Redis Cache (Staging)
+  redis-staging:
+    image: redis:7-alpine
+    container_name: optisaas-redis-staging
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data_staging:/data
+    ports:
+      - '6380:6379'
+    healthcheck:
+      test: [ 'CMD', 'redis-cli', 'ping' ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - optisaas-staging
+    labels:
+      - 'com.optisaas.service=cache'
+      - 'com.optisaas.environment=staging'
+
+  # MinIO Object Storage (for images/videos)
+  minio-staging:
+    image: minio/minio:latest
+    container_name: optisaas-minio-staging
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER_STAGING}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD_STAGING}
+    command: minio server /data --console-address ":9001"
+    volumes:
+      - minio_data_staging:/data
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    networks:
+      - optisaas-staging
+    labels:
+      - 'com.optisaas.service=storage'
+      - 'com.optisaas.environment=staging'
+
+  # Nginx Reverse Proxy (Staging)
+  nginx-staging:
+    image: nginx:alpine
+    container_name: optisaas-nginx-staging
+    depends_on:
+      - frontend-staging
+      - backend-staging
+    volumes:
+      - ./nginx.staging.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    ports:
+      - '80:80'
+      - '443:443'
+    networks:
+      - optisaas-staging
+    labels:
+      - 'com.optisaas.service=proxy'
+      - 'com.optisaas.environment=staging'
+
+  # Monitoring: Prometheus (Staging)
+  prometheus-staging:
+    image: prom/prometheus:latest
+    container_name: optisaas-prometheus-staging
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data_staging:/prometheus
+    ports:
+      - '9091:9090'
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - optisaas-staging
+    labels:
+      - 'com.optisaas.service=monitoring'
+      - 'com.optisaas.environment=staging'
+
+  # Monitoring: Grafana (Staging)
+  grafana-staging:
+    image: grafana/grafana:latest
+    container_name: optisaas-grafana-staging
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD_STAGING}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - grafana_data_staging:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    ports:
+      - '3001:3000'
+    depends_on:
+      - prometheus-staging
+    networks:
+      - optisaas-staging
+    labels:
+      - 'com.optisaas.service=dashboard'
+      - 'com.optisaas.environment=staging'
+
+volumes:
+  postgres_data_staging:
+    driver: local
+  redis_data_staging:
+    driver: local
+  minio_data_staging:
+    driver: local
+  prometheus_data_staging:
+    driver: local
+  grafana_data_staging:
+    driver: local
+
+networks:
+  optisaas-staging:
+    driver: bridge
+    labels:
+      - 'com.optisaas.environment=staging'

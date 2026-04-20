@@ -1,0 +1,103 @@
+<div class="virtual-mirror-container">
+    <!-- Header -->
+    <header class="mirror-header">
+        <h1>✨ Essayage Virtuel - Virtual Mirror</h1>
+        <p>Découvrez comment vous allez avec nos lunettes</p>
+    </header>
+
+    <!-- Main Content -->
+    <div class="mirror-content" *ngIf="!tryonResult">
+        <!-- Product Selection -->
+        <div class="product-selector">
+            <h2>1. Sélectionnez un produit</h2>
+            <div class="product-grid">
+                <div *ngFor="let product of productList" class="product-card"
+                    [class.selected]="selectedProductId === product.id" (click)="selectedProductId = product.id">
+                    <img [src]="product.image" [alt]="product.name" />
+                    <h3>{{ product.name }}</h3>
+                    <p class="price">{{ product.price | currency }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Camera Section -->
+        <div class="camera-section">
+            <h2>2. Activez votre caméra</h2>
+
+            <!-- Camera Feed -->
+            <div class="camera-container" *ngIf="isCameraActive">
+                <video #video class="video-feed" playsinline></video>
+                <canvas #canvas class="detection-overlay"></canvas>
+
+                <!-- Status Indicators -->
+                <div class="status-bar">
+                    <div class="status-item" [class.active]="faceDetected">
+                        <span class="status-light"></span>
+                        {{ faceDetected ? '✓ Visage détecté' : '○ En attente...' }}
+                    </div>
+                    <div class="product-indicator" *ngIf="selectedProductId">
+                        <span>{{ selectedProductId }}</span>
+                    </div>
+                </div>
+
+                <!-- Capture Button -->
+                <button class="btn-capture" [disabled]="!faceDetected || !selectedProductId || isLoading"
+                    (click)="captureTryon()">
+                    <span *ngIf="!isLoading">📸 Capturer l'essayage</span>
+                    <span *ngIf="isLoading">⏳ En cours...</span>
+                </button>
+
+                <!-- Stop Camera Button -->
+                <button class="btn-secondary" (click)="stopCamera()">
+                    ✕ Arrêter caméra
+                </button>
+            </div>
+
+            <!-- Camera Not Active -->
+            <div class="camera-inactive" *ngIf="!isCameraActive">
+                <div class="info-box">
+                    <p>Veuillez activer votre caméra pour commencer l'essayage virtuel</p>
+                    <button class="btn-primary" [disabled]="!modelsLoaded || !selectedProductId"
+                        (click)="activateCamera()">
+                        📷 Activer la caméra
+                    </button>
+                    <p class="hint" *ngIf="!modelsLoaded">⏳ Chargement des modèles...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Result Display -->
+    <div class="result-section" *ngIf="tryonResult">
+        <h2>Résultat de votre essayage</h2>
+
+        <!-- Result Image -->
+        <div class="result-container">
+            <img [src]="tryonResult.resultImageUrl" alt="Try-on Result" class="result-image" />
+
+            <!-- Confidence Score -->
+            <div class="confidence-bar">
+                <div class="bar-label">Qualité de détection: {{ confidenceScore }}%</div>
+                <div class="bar-container">
+                    <div class="bar-fill" [style.width.%]="confidenceScore"></div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="result-actions">
+                <button class="btn-primary" (click)="tryonResult = null; activateCamera()">
+                    🔄 Réessayer
+                </button>
+                <button class="btn-secondary" (click)="tryonResult = null">
+                    ← Retour
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mirror-footer">
+        <p>💡 Conseil: Assurez-vous d'une bonne luminosité et placez-vous face à la caméra</p>
+        <p>🔒 Vos données sont sécurisées et supprimées après session</p>
+    </footer>
+</div>
