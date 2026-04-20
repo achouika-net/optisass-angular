@@ -263,7 +263,7 @@ export class StockMovementsService {
   async getHistory(filters: any) {
     const andConditions: any[] = [];
     if (filters.centreId) andConditions.push({ OR: [{ centreId: filters.centreId }, { centreId: null }] });
-    
+
     // Broad document types for history
     if (filters.docType === 'BL') {
       andConditions.push({ type: 'BL' });
@@ -408,7 +408,7 @@ export class StockMovementsService {
         include: { mouvementsStock: true },
       });
       if (!invoice) throw new NotFoundException('Entrée historique introuvable');
-      const productIds = Array.from(new Set(invoice.mouvementsStock.map((m) => m.produitId)));
+      const productIds = Array.from(new Set(invoice.mouvementsStock.map((m) => m.produitId as string)));
       await tx.mouvementStock.deleteMany({ where: { factureFournisseurId: id } });
       for (const productId of productIds) {
         await this.productsService.syncProductState(productId, tx);

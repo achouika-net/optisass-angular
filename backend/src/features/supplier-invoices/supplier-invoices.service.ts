@@ -357,7 +357,7 @@ export class SupplierInvoicesService {
       });
 
       // 3. Revert stock movements
-      const productIds = Array.from(new Set(invoice.mouvementsStock.map((m) => m.produitId)));
+      const productIds = Array.from(new Set(invoice.mouvementsStock.map((m) => m.produitId as string)));
       await tx.mouvementStock.deleteMany({
         where: { factureFournisseurId: id },
       });

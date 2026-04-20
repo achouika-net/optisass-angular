@@ -83,7 +83,7 @@ export class StatsService {
     'ANNULEE',
   ];
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async getRevenueEvolution(
     period: 'daily' | 'monthly' | 'yearly',
@@ -856,10 +856,10 @@ export class StatsService {
     try {
       const tenantId =
         centreId &&
-        centreId.trim() &&
-        centreId !== 'undefined' &&
-        centreId !== 'null' &&
-        centreId !== ''
+          centreId.trim() &&
+          centreId !== 'undefined' &&
+          centreId !== 'null' &&
+          centreId !== ''
           ? centreId
           : undefined;
 
@@ -880,14 +880,16 @@ export class StatsService {
           _min: { dateEmission: true },
           _max: { dateEmission: true },
         });
-        
+
         if (!start) {
-            start = range._min.dateEmission || new Date(new Date().getFullYear(), 0, 1);
-            start.setHours(0,0,0,0);
+          const minDate = range._min.dateEmission || new Date(new Date().getFullYear(), 0, 1);
+          start = new Date(minDate);
+          start.setHours(0, 0, 0, 0);
         }
         if (!end) {
-            end = range._max.dateEmission || new Date();
-            end.setHours(23,59,59,999);
+          const maxDate = range._max.dateEmission || new Date();
+          end = new Date(maxDate);
+          end.setHours(23, 59, 59, 999);
         }
       }
 
@@ -902,9 +904,10 @@ export class StatsService {
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       };
 
-      // Fill Gaps
-      const current = new Date(start);
-      while (current <= end) {
+      // Fill Gaps - ensure both start and end are Date objects
+      const current = new Date(start as Date);
+      const endDateObj = end as Date;
+      while (current <= endDateObj) {
         monthsMap.set(formatKey(current), { revenue: 0, cogs: 0, expenses: 0 });
         if (period === 'daily') {
           current.setDate(current.getDate() + 1);
@@ -935,7 +938,7 @@ export class StatsService {
         // Skip if BC is factured/deduplicated via fiche
         const isBC = f.type === 'BON_COMMANDE' || f.type === 'BON_COMM';
         const isFacturedViaFiche = isBC && f.ficheId && facturesWithFicheIds.has(f.ficheId);
-        
+
         // Skip if BC is factured via notes (for anonymous clients)
         const isFacturedViaNote = isBC && f.notes?.includes('Remplacée par');
 
@@ -946,7 +949,7 @@ export class StatsService {
         // Force HT calculation from TTC to ensure 20% consistency across charts
         const valTTC = f.totalTTC || 0;
         const valHT = valTTC / 1.2;
-        
+
         const entry = monthsMap.get(key)!;
         if (f.type === 'AVOIR') entry.revenue -= valHT;
         else entry.revenue += valHT;

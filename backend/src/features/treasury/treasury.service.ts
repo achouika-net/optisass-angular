@@ -395,17 +395,17 @@ export class TreasuryService {
         }),
         this.prisma.echeancePaiement.count({ where }),
         this.prisma.echeancePaiement.aggregate({ where, _sum: { montant: true } }),
-        this.prisma.echeancePaiement.aggregate({ 
-          where: { ...where, statut: { in: ['EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON'] } }, 
-          _sum: { montant: true } 
+        this.prisma.echeancePaiement.aggregate({
+          where: { ...where, statut: { in: ['EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON'] } },
+          _sum: { montant: true }
         }),
-        this.prisma.echeancePaiement.aggregate({ 
-          where: { ...where, statut: { in: ['REMIS_EN_BANQUE', 'DEPOSE', 'DÉPOSÉ'] } }, 
-          _sum: { montant: true } 
+        this.prisma.echeancePaiement.aggregate({
+          where: { ...where, statut: { in: ['REMIS_EN_BANQUE', 'DEPOSE', 'DÉPOSÉ'] } },
+          _sum: { montant: true }
         }),
-        this.prisma.echeancePaiement.aggregate({ 
-          where: { ...where, statut: { in: ['ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ'] } }, 
-          _sum: { montant: true } 
+        this.prisma.echeancePaiement.aggregate({
+          where: { ...where, statut: { in: ['ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ'] } },
+          _sum: { montant: true }
         })
       ]);
 
@@ -427,7 +427,7 @@ export class TreasuryService {
           createdAt: p.createdAt,
         })),
         total,
-        subtotals: { 
+        subtotals: {
           totalTTC: aggregate._sum.montant || 0,
           inHand: inHandAgg._sum.montant || 0,
           deposited: depositedAgg._sum.montant || 0,
@@ -527,10 +527,10 @@ export class TreasuryService {
         COALESCE(SUM(CASE WHEN statut IN ('ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ') THEN montant ELSE 0 END), 0)::float as "paid"
       FROM (${baseQuery}) as c
     `;
-    const stats = await this.prisma.$queryRawUnsafe<any[]>(statsQuery, ...sqlParams);
+    const stats = (await (this.prisma as any).$queryRawUnsafe(statsQuery, ...sqlParams)) as any[];
 
     const dataQuery = `${baseQuery} ORDER BY date DESC LIMIT ${limit} OFFSET ${skip}`;
-    const results = await this.prisma.$queryRawUnsafe<any[]>(dataQuery, ...sqlParams);
+    const results = (await (this.prisma as any).$queryRawUnsafe(dataQuery, ...sqlParams)) as any[];
 
     const mappedData = results.map(r => ({
       ...r,
@@ -645,7 +645,7 @@ export class TreasuryService {
         COALESCE(SUM(CASE WHEN p.statut IN ('ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ') THEN p.montant ELSE 0 END), 0)::float as "paid"
       ${baseQuery}
     `;
-    const [stats] = await this.prisma.$queryRawUnsafe<any[]>(statsQuery, ...sqlParams);
+    const stats = (await (this.prisma as any).$queryRawUnsafe(statsQuery, ...sqlParams)) as any[];
 
     const dataQuery = `
       SELECT 
@@ -657,16 +657,17 @@ export class TreasuryService {
       ${baseQuery}
       ORDER BY p.date DESC LIMIT ${limit} OFFSET ${skip}
     `;
-    const results = await this.prisma.$queryRawUnsafe<any[]>(dataQuery, ...sqlParams);
+    const results = (await (this.prisma as any).$queryRawUnsafe(dataQuery, ...sqlParams)) as any[];
+    const statsData = (stats && stats[0]) || {};
 
     return {
       data: results.map(r => ({ ...r, montant: Number(r.montant) })),
-      total: stats.total,
-      subtotals: { 
-        totalTTC: stats.totalTTC,
-        inHand: stats.inHand,
-        deposited: stats.deposited,
-        paid: stats.paid
+      total: statsData.total,
+      subtotals: {
+        totalTTC: statsData.totalTTC,
+        inHand: statsData.inHand,
+        deposited: statsData.deposited,
+        paid: statsData.paid
       }
     };
   }
@@ -807,7 +808,7 @@ export class TreasuryService {
   async updateEcheanceStatus(id: string, statut: string) {
     const data: any = { statut };
     if (statut === 'ENCAISSE' || statut === 'PAYE') data.dateEncaissement = new Date();
-    
+
     try {
       return await this.prisma.echeancePaiement.update({ where: { id }, data });
     } catch (error) {
