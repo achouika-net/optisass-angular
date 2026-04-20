@@ -40,6 +40,7 @@ services:
       dockerfile: Dockerfile.staging
       args:
         NODE_ENV: staging
+        BUILD_DATE: ${BUILD_DATE}
     container_name: optisaas-backend-staging
     depends_on:
       postgres-staging:
@@ -81,6 +82,7 @@ services:
       args:
         ENVIRONMENT: staging
         API_URL: http://localhost:3001
+        BUILD_DATE: ${BUILD_DATE}
     container_name: optisaas-frontend-staging
     depends_on:
       - backend-staging

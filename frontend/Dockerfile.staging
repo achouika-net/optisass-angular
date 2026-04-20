@@ -3,11 +3,14 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
+# Cache-busting argument to force fresh npm install
+ARG BUILD_DATE=latest
+
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (with --no-cache to bypass npm cache)
+RUN npm ci --no-cache --legacy-peer-deps
 
 # Copy source code
 COPY . .
