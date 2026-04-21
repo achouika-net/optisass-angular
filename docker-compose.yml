@@ -26,11 +26,12 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: "postgresql://postgres:mypassword@db:5432/optisaas?schema=public"
-      MINIO_ENDPOINT: "host.docker.internal"
-      MINIO_PORT: "9002"
+      MINIO_ENDPOINT: "minio"
+      MINIO_PORT: "9000"
       MINIO_ACCESS_KEY: "minioadmin"
       MINIO_SECRET_KEY: "minioadmin"
       MINIO_BUCKET: "optisaas"
+      MINIO_USE_SSL: "false"
       CHOKIDAR_USEPOLLING: "true"
       CHOKIDAR_INTERVAL: "500"
       WATCHPACK_POLLING: "true"
@@ -64,6 +65,19 @@ services:
       - ./frontend:/app
       - /app/node_modules
 
+  minio:
+    image: minio/minio:latest
+    container_name: optisaas-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: minio server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9002:9000"
+      - "9003:9001"
+
   prisma-studio:
     build:
       context: ./backend
@@ -83,3 +97,4 @@ services:
 
 volumes:
   pgdata_fresh:
+  minio_data:

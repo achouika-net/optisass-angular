@@ -1,7 +1,7 @@
 import { Controller, Get, Query, Res } from '@nestjs/common';
 import { AccountingService } from './accounting.service';
 import { ExportSageDto } from './dto/export-sage.dto';
-import { Response } from 'express';
+import type { Response } from 'express';
 
 @Controller('accounting')
 export class AccountingController {
