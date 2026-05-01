@@ -1,11 +1,11 @@
 <div class="container">
-    <div class="header" style="flex-direction: column; align-items: flex-start; gap: 15px;">
+    <div class="header flex flex-col items-start gap-4">
         <h1 class="text-2xl font-bold">Dépenses & Achats</h1>
-        <div class="header-actions" style="display: flex; gap: 10px;">
-            <button mat-stroked-button color="primary" (click)="printTable()">
+        <div class="header-actions flex">
+            <button type="button" mat-stroked-button color="primary" (click)="printTable()">
                 <mat-icon>print</mat-icon> Imprimer l'état
             </button>
-            <button mat-raised-button color="primary" (click)="openExpenseDialog()">
+            <button type="button" mat-raised-button color="primary" (click)="openExpenseDialog()">
                 <mat-icon>add</mat-icon> Nouvelle Dépense
             </button>
         </div>
@@ -30,14 +30,14 @@
         <div class="p-4 filters">
             <mat-form-field appearance="outline" class="dense-field">
                 <mat-label>Période</mat-label>
-                <mat-select [value]="selectedPeriod()" (selectionChange)="selectedPeriod.set($event.value)">
+                <mat-select aria-label="Select field" [value]="selectedPeriod()" (selectionChange)="selectedPeriod.set($event.value)">
                     <mat-option *ngFor="let p of periods" [value]="p.value">{{p.label}}</mat-option>
                 </mat-select>
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="dense-field" *ngIf="selectedPeriod() === 'custom'">
                 <mat-label>Date début</mat-label>
-                <input matInput [matDatepicker]="startPicker" [(ngModel)]="filters.startDate"
+                <input aria-label="Input" title="Input" matInput [matDatepicker]="startPicker" [(ngModel)]="filters.startDate"
                     (ngModelChange)="loadExpenses()">
                 <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
                 <mat-datepicker #startPicker></mat-datepicker>
@@ -45,13 +45,13 @@
 
             <mat-form-field appearance="outline" class="dense-field" *ngIf="selectedPeriod() === 'custom'">
                 <mat-label>Date fin</mat-label>
-                <input matInput [matDatepicker]="endPicker" [(ngModel)]="filters.endDate"
+                <input aria-label="Input" title="Input" matInput [matDatepicker]="endPicker" [(ngModel)]="filters.endDate"
                     (ngModelChange)="loadExpenses()">
                 <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
                 <mat-datepicker #endPicker></mat-datepicker>
             </mat-form-field>
 
-            <button mat-stroked-button color="warn"
+            <button type="button" mat-stroked-button color="warn"
                 (click)="selectedPeriod.set('this-month'); filters.startDate=null; filters.endDate=null;"
                 *ngIf="selectedPeriod() !== 'this-month'">
                 <mat-icon>refresh</mat-icon> Réinitialiser
@@ -104,22 +104,22 @@
 
             <!-- Montant Column -->
             <ng-container matColumnDef="montant">
-                <th mat-header-cell *matHeaderCellDef style="text-align: right;"> Montant </th>
-                <td mat-cell *matCellDef="let element" style="text-align: right;" class="montant-cell text-red-600">
+                <th mat-header-cell *matHeaderCellDef class="text-right"> Montant </th>
+                <td mat-cell *matCellDef="let element" class="montant-cell text-red-600 text-right">
                     -{{element.montant | number:'1.2-2'}} DH
                 </td>
             </ng-container>
 
             <!-- Actions Column -->
             <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef style="text-align: right;"> Actions </th>
-                <td mat-cell *matCellDef="let element" style="text-align: right;">
+                <th mat-header-cell *matHeaderCellDef class="text-right"> Actions </th>
+                <td mat-cell *matCellDef="let element" class="text-right">
                     <div class="actions">
-                        <button mat-icon-button color="primary" (click)="openExpenseDialog(element)"
+                        <button type="button" mat-icon-button color="primary" (click)="openExpenseDialog(element)"
                             matTooltip="Modifier">
                             <mat-icon>edit</mat-icon>
                         </button>
-                        <button mat-icon-button color="warn" (click)="deleteExpense(element)" matTooltip="Supprimer">
+                        <button type="button" mat-icon-button color="warn" (click)="deleteExpense(element)" matTooltip="Supprimer">
                             <mat-icon>delete</mat-icon>
                         </button>
                     </div>

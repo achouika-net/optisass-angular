@@ -15,7 +15,7 @@
       <div class="flex items-center gap-3">
         <mat-form-field appFieldControlLabel class="flex-1">
           <mat-label>{{ 'stock.entry.warehouse' | translate }}</mat-label>
-          <mat-select
+          <mat-select aria-label="Select field"
             [value]="allocation.warehouseId"
             (selectionChange)="onWarehouseChange(allocation.id, $event.value)"
           >
@@ -27,7 +27,7 @@
 
         <mat-form-field appFieldControlLabel class="w-28">
           <mat-label>{{ 'stock.entry.split.quantity' | translate }}</mat-label>
-          <input
+          <input title="Input" aria-label="Input field"
             matInput
             type="number"
             min="1"

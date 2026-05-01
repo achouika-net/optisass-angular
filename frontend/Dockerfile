@@ -18,4 +18,4 @@ COPY . .
 EXPOSE 4200
 
 # Commande de démarrage pour le développement avec proxy
-CMD ["ng", "serve", "--host", "0.0.0.0", "--poll", "2000", "--proxy-config", "proxy.conf.json"]
+CMD ["ng", "serve", "--host", "0.0.0.0", "--proxy-config", "proxy.conf.json"]

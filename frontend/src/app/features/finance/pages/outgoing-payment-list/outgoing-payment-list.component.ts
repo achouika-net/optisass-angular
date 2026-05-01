@@ -1,4 +1,4 @@
-import { Component, OnInit, effect } from '@angular/core';
+import { Component, OnInit, effect, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { MatCardModule } from '@angular/material/card';
@@ -154,7 +154,9 @@ export class OutgoingPaymentListComponent implements OnInit {
         private dialog: MatDialog,
         private store: Store,
         private route: ActivatedRoute,
-        private http: HttpClient
+        private http: HttpClient,
+        private zone: NgZone,
+        private cd: ChangeDetectorRef
     ) {
         // Automatically reload when center changes
         effect(() => {
@@ -191,14 +193,20 @@ export class OutgoingPaymentListComponent implements OnInit {
             if (tab && this.filteredTabs.includes(tab)) {
                 this.activeTab = tab as any;
             } else if (!this.filteredTabs.includes(this.activeTab)) {
-                // Set default tab for the current mode if current activeTab is not relevant
                 this.activeTab = this.viewMode === 'FACTURES' ? 'FACTURES' : 'OUTGOING';
             }
 
-            if (['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(this.activeTab)) {
-                this.pageIndex = 0;
-                this.loadPayments();
+            const start = params.get('startDate');
+            const end = params.get('endDate');
+            if (start && end) {
+                console.log(`[PAYMENTS-NAV] Applying external date range: ${start} to ${end}`);
+                this.filters.startDate = new Date(start);
+                this.filters.endDate = new Date(end);
+                this.selectedPeriod = 'CUSTOM';
             }
+
+            this.pageIndex = 0;
+            this.loadPayments();
         });
     }
 
@@ -245,26 +253,33 @@ export class OutgoingPaymentListComponent implements OnInit {
         request$.pipe(
             takeUntil(this.destroy$),
             catchError((err: any) => {
-                this.handleError(err);
+                this.zone.run(() => {
+                    this.handleError(err);
+                });
                 return of(null);
             })
         ).subscribe({
             next: (res: any) => {
-                // Ignore stale responses from older requests
-                if (requestId !== this.loadRequestId) {
-                    console.log(`[RESTORE-UI] Ignoring stale response for request #${requestId} (latest is #${this.loadRequestId})`);
-                    return;
-                }
-                console.log(`[RESTORE-UI] Result received for #${requestId}. Total:`, res?.total);
-                if (res) {
-                    this.processResults(res);
-                }
-                this.loading = false;
+                this.zone.run(() => {
+                    // Ignore stale responses from older requests
+                    if (requestId !== this.loadRequestId) {
+                        console.log(`[RESTORE-UI] Ignoring stale response for request #${requestId}`);
+                        return;
+                    }
+                    if (res) {
+                        this.processResults(res);
+                    }
+                    this.loading = false;
+                    this.cd.detectChanges();
+                });
             },
             error: (err: any) => {
-                if (requestId !== this.loadRequestId) return;
-                console.error(`[RESTORE-UI] CRITICAL ERROR:`, err);
-                this.loading = false;
+                this.zone.run(() => {
+                    if (requestId !== this.loadRequestId) return;
+                    console.error(`[RESTORE-UI] CRITICAL ERROR:`, err);
+                    this.loading = false;
+                    this.cd.detectChanges();
+                });
             }
         });
     }
@@ -283,17 +298,8 @@ export class OutgoingPaymentListComponent implements OnInit {
         // Use global subtotals from backend
         this.subtotals.count = res.total || 0;
 
-        // For OUTGOING, we use totalAccrual for the "Total TTC" card to match Treasury Dashboard
-        if (this.activeTab === 'OUTGOING' && res.subtotals?.totalAccrual !== undefined) {
-            this.subtotals.totalTTC = res.subtotals.totalAccrual;
-        } else {
-            this.subtotals.totalTTC = res.subtotals?.totalTTC || 0;
-        }
-
-        // Total HT from backend (global)
+        this.subtotals.totalTTC = res.subtotals?.totalTTC || 0;
         this.subtotals.totalHT = res.subtotals?.totalHT || 0;
-
-        // For UNPAID_CLIENTS, we use totalReste from backend (the 517k)
         this.subtotals.totalReste = res.subtotals?.totalReste || 0;
 
         // Note: calculatePageSubtotals is no longer called here to avoid overwriting global totals

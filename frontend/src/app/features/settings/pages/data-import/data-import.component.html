@@ -1,7 +1,7 @@
 <div class="container mx-auto p-4">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">Import de Données</h1>
-        <button mat-stroked-button color="primary" (click)="reset()" *ngIf="importResult">
+        <button type="button" mat-stroked-button color="primary" (click)="reset()" *ngIf="importResult">
             <mat-icon>refresh</mat-icon> Nouvel Import
         </button>
     </div>
@@ -15,7 +15,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <mat-form-field appearance="outline">
                                 <mat-label>Type de données</mat-label>
-                                <mat-select formControlName="type">
+                                <mat-select aria-label="Select field" formControlName="type">
                                     <mat-option value="clients">Clients</mat-option>
                                     <mat-option value="products">Produits (Stock)</mat-option>
                                     <mat-option value="fiches">Fiches médicales (Lunettes)</mat-option>
@@ -34,7 +34,7 @@
 
                             <mat-form-field appearance="outline" *ngIf="importForm.get('type')?.value === 'products'">
                                 <mat-label>Entrepôt de destination</mat-label>
-                                <mat-select formControlName="warehouseId">
+                                <mat-select aria-label="Select field" formControlName="warehouseId">
                                     <mat-option *ngFor="let w of warehouses" [value]="w.id">
                                         {{w.nom}} ({{w.centre?.nom}})
                                     </mat-option>
@@ -44,7 +44,7 @@
                             <mat-form-field appearance="outline"
                                 *ngIf="importForm.get('type')?.value === 'factures_fournisseurs'">
                                 <mat-label>Type de document (Global)</mat-label>
-                                <mat-select formControlName="isBL">
+                                <mat-select aria-label="Select field" formControlName="isBL">
                                     <mat-option [value]="true">Bon de Livraison (BL)</mat-option>
                                     <mat-option [value]="false">Facture</mat-option>
                                 </mat-select>
@@ -54,14 +54,14 @@
 
                         <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center"
                             [class.bg-gray-50]="!selectedFile">
-                            <input type="file" #fileInput (change)="onFileSelected($event)" accept=".csv, .xlsx, .xls"
+                            <input aria-label="Input" title="Input" type="file" #fileInput (change)="onFileSelected($event)" accept=".csv, .xlsx, .xls"
                                 class="hidden">
 
                             <div *ngIf="!selectedFile">
                                 <mat-icon class="text-4xl text-gray-400">cloud_upload</mat-icon>
                                 <p class="mt-2 text-gray-600">Glissez un fichier CSV/Excel ici ou cliquez pour parcourir
                                 </p>
-                                <button mat-raised-button color="primary" class="mt-4" (click)="fileInput.click()">
+                                <button type="button" mat-raised-button color="primary" class="mt-4" (click)="fileInput.click()">
                                     Sélectionner un fichier
                                 </button>
                             </div>
@@ -75,14 +75,14 @@
                                             number:'1.0-2'}} KB</div>
                                     </div>
                                 </div>
-                                <button mat-icon-button color="warn" (click)="selectedFile = null">
+                                <button type="button" mat-icon-button color="warn" (click)="selectedFile = null">
                                     <mat-icon>close</mat-icon>
                                 </button>
                             </div>
                         </div>
 
                         <div class="flex justify-end mt-4">
-                            <button mat-raised-button color="primary" (click)="onUploadAndNext(stepper)"
+                            <button type="button" mat-raised-button color="primary" (click)="onUploadAndNext(stepper)"
                                 [disabled]="!selectedFile || importForm.invalid || isUploading">
                                 <mat-icon *ngIf="!isUploading">arrow_forward</mat-icon>
                                 <mat-spinner diameter="20" *ngIf="isUploading" class="mr-2"></mat-spinner>
@@ -110,18 +110,18 @@
                                     </div>
                                 </div>
                                 <div class="flex gap-2 shrink-0 flex-wrap justify-end">
-                                    <button mat-stroked-button color="primary" (click)="autoMap()"
+                                    <button type="button" mat-stroked-button color="primary" (click)="autoMap()"
                                         [disabled]="csvHeaders.length === 0">
                                         <mat-icon>auto_fix_high</mat-icon>
                                         Mapper auto
                                     </button>
-                                    <button mat-stroked-button color="accent" (click)="saveDefaultMapping()"
+                                    <button type="button" mat-stroked-button color="accent" (click)="saveDefaultMapping()"
                                         [disabled]="csvHeaders.length === 0"
                                         matTooltip="Sauvegarder ce mapping comme défaut pour ce type d'import">
                                         <mat-icon>bookmark</mat-icon>
                                         Sauvegarder défaut
                                     </button>
-                                    <button mat-stroked-button (click)="toggleIgnoredFields()">
+                                    <button type="button" mat-stroked-button (click)="toggleIgnoredFields()">
                                         <mat-icon>{{showIgnoredFields ? 'visibility_off' : 'visibility'}}</mat-icon>
                                         {{showIgnoredFields ? 'Masquer ignorés' : 'Afficher ignorés'}}
                                     </button>
@@ -138,7 +138,7 @@
                                 <mat-icon class="text-gray-400">arrow_right_alt</mat-icon>
                                 <div class="flex-1">
                                     <mat-form-field appearance="outline" class="w-full -mb-5">
-                                        <mat-select [formControlName]="field.value" placeholder="Ignorer">
+                                        <mat-select aria-label="Select field" [formControlName]="field.value" placeholder="Ignorer">
                                             <mat-option value="">-- Ignorer --</mat-option>
                                             <mat-option *ngFor="let header of csvHeaders" [value]="header">
                                                 {{header}}
@@ -158,8 +158,8 @@
                         </div>
 
                         <div class="flex justify-between mt-8" *ngIf="!isImporting">
-                            <button mat-button matStepperPrevious>Retour</button>
-                            <button mat-raised-button color="primary" (click)="executeImport(stepper)"
+                            <button type="button" mat-button matStepperPrevious>Retour</button>
+                            <button type="button" mat-raised-button color="primary" (click)="executeImport(stepper)"
                                 [disabled]="mappingForm.invalid || isImporting">
                                 <mat-icon>save_alt</mat-icon>
                                 Lancer l'Import
@@ -210,7 +210,7 @@
                             </ul>
                         </div>
 
-                        <button mat-raised-button color="primary" (click)="reset(); stepper.reset()">
+                        <button type="button" mat-raised-button color="primary" (click)="reset(); stepper.reset()">
                             Effectuer un nouvel import
                         </button>
                     </div>

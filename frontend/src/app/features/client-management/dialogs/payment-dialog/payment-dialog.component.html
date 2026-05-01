@@ -10,7 +10,7 @@
                 <!-- Date -->
                 <mat-form-field appearance="outline">
                     <mat-label>Date du paiement</mat-label>
-                    <input matInput [matDatepicker]="picker" formControlName="date">
+                    <input title="Input" aria-label="Input field" matInput [matDatepicker]="picker" formControlName="date">
                     <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
                     <mat-datepicker #picker></mat-datepicker>
                 </mat-form-field>
@@ -18,14 +18,14 @@
                 <!-- Montant -->
                 <mat-form-field appearance="outline">
                     <mat-label>Montant</mat-label>
-                    <input matInput type="number" formControlName="montant" step="0.01" min="0.01" [max]="maxAmount">
+                    <input title="Input" aria-label="Input field" matInput type="number" formControlName="montant" step="0.01" min="0.01" [max]="maxAmount">
                     <span matTextSuffix>DH</span>
                 </mat-form-field>
 
                 <!-- Mode de paiement -->
                 <mat-form-field appearance="outline">
                     <mat-label>Mode de paiement</mat-label>
-                    <mat-select formControlName="mode">
+                    <mat-select aria-label="Select field" formControlName="mode">
                         <mat-option *ngFor="let mode of paymentModes" [value]="mode.value">
                             {{ mode.label }}
                         </mat-option>
@@ -43,7 +43,7 @@
                     <!-- Banque Autocomplete -->
                     <mat-form-field appearance="outline">
                         <mat-label>Banque</mat-label>
-                        <input type="text" matInput formControlName="banque" [matAutocomplete]="autoBanque">
+                        <input title="Input" aria-label="Input field" type="text" matInput formControlName="banque" [matAutocomplete]="autoBanque">
                         <mat-autocomplete #autoBanque="matAutocomplete">
                             <mat-option *ngFor="let b of banks" [value]="b">
                                 {{ b }}
@@ -82,8 +82,8 @@
                         <label class="attachment-label">Pièce Jointe (Scan/Photo)</label>
 
                         <!-- File Input (Hidden) -->
-                        <input #fileInput type="file" (change)="onFileSelected($event)" accept="image/*,application/pdf"
-                            style="display: none">
+                        <input title="Input" aria-label="Input field" #fileInput type="file" (change)="onFileSelected($event)" accept="image/*,application/pdf"
+                            class="hidden">
 
                         <!-- Main Actions -->
                         <div class="actions-row" *ngIf="!attachmentPreview">
@@ -126,15 +126,15 @@
                 <!-- Notes (Legacy) -->
                 <mat-form-field appearance="outline" class="full-width">
                     <mat-label>Notes (Interne)</mat-label>
-                    <textarea matInput formControlName="notes" rows="2"></textarea>
+                    <textarea title="Text area" aria-label="Text area" matInput formControlName="notes" rows="2"></textarea>
                 </mat-form-field>
             </div>
         </form>
     </mat-dialog-content>
 
     <mat-dialog-actions align="end">
-        <button mat-button (click)="onCancel()">Annuler</button>
-        <button mat-raised-button color="primary" (click)="onSave()" [disabled]="form.invalid">
+        <button type="button" mat-button (click)="onCancel()">Annuler</button>
+        <button type="button" mat-raised-button color="primary" (click)="onSave()" [disabled]="form.invalid">
             <mat-icon>check</mat-icon>
             Enregistrer
         </button>

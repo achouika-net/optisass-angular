@@ -13,7 +13,7 @@
             <div class="product-grid">
                 <div *ngFor="let product of productList" class="product-card"
                     [class.selected]="selectedProductId === product.id" (click)="selectedProductId = product.id">
-                    <img [src]="product.image" [alt]="product.name" />
+                    <img alt="Image" [src]="product.image" [alt]="product.name" />
                     <h3>{{ product.name }}</h3>
                     <p class="price">{{ product.price | currency }}</p>
                 </div>
@@ -41,14 +41,14 @@
                 </div>
 
                 <!-- Capture Button -->
-                <button class="btn-capture" [disabled]="!faceDetected || !selectedProductId || isLoading"
+                <button type="button" class="btn-capture" [disabled]="!faceDetected || !selectedProductId || isLoading"
                     (click)="captureTryon()">
                     <span *ngIf="!isLoading">📸 Capturer l'essayage</span>
                     <span *ngIf="isLoading">⏳ En cours...</span>
                 </button>
 
                 <!-- Stop Camera Button -->
-                <button class="btn-secondary" (click)="stopCamera()">
+                <button type="button" class="btn-secondary" (click)="stopCamera()">
                     ✕ Arrêter caméra
                 </button>
             </div>
@@ -57,7 +57,7 @@
             <div class="camera-inactive" *ngIf="!isCameraActive">
                 <div class="info-box">
                     <p>Veuillez activer votre caméra pour commencer l'essayage virtuel</p>
-                    <button class="btn-primary" [disabled]="!modelsLoaded || !selectedProductId"
+                    <button type="button" class="btn-primary" [disabled]="!modelsLoaded || !selectedProductId"
                         (click)="activateCamera()">
                         📷 Activer la caméra
                     </button>
@@ -85,10 +85,10 @@
 
             <!-- Actions -->
             <div class="result-actions">
-                <button class="btn-primary" (click)="tryonResult = null; activateCamera()">
+                <button type="button" class="btn-primary" (click)="tryonResult = null; activateCamera()">
                     🔄 Réessayer
                 </button>
-                <button class="btn-secondary" (click)="tryonResult = null">
+                <button type="button" class="btn-secondary" (click)="tryonResult = null">
                     ← Retour
                 </button>
             </div>

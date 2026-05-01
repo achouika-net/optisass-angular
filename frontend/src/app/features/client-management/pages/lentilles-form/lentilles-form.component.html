@@ -89,7 +89,7 @@
                                 <span>Analyse de l'ordonnance en cours...</span>
                             </div>
 
-                            <input #fileInput type="file" accept="image/*,application/pdf" multiple class="hidden"
+                            <input aria-label="Input" title="Input" #fileInput type="file" accept="image/*,application/pdf" multiple class="hidden"
                                 (change)="onFilesSelected($event)">
 
                             <!-- Files List -->
@@ -100,7 +100,7 @@
                                             {{ file.type.startsWith('image/') ? 'image' : 'picture_as_pdf' }}
                                         </mat-icon>
                                         <span class="file-name" (click)="viewFile(file)">{{ file.name }}</span>
-                                        <button mat-icon-button class="mini-btn-delete" (click)="deleteFile(i)"
+                                        <button type="button" mat-icon-button class="mini-btn-delete" (click)="deleteFile(i)"
                                             *ngIf="isEditMode">
                                             <mat-icon>close</mat-icon>
                                         </button>
@@ -111,7 +111,7 @@
                             <mat-card-content class="grid-3">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Date de prescription</mat-label>
-                                    <input matInput [matDatepicker]="picker" formControlName="datePrescription">
+                                    <input aria-label="Input" title="Input" matInput [matDatepicker]="picker" formControlName="datePrescription">
                                     <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
                                     <mat-datepicker #picker></mat-datepicker>
                                 </mat-form-field>
@@ -122,7 +122,7 @@
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Date de contrle</mat-label>
-                                    <input matInput [matDatepicker]="pickerControleAdapt"
+                                    <input aria-label="Input" title="Input" matInput [matDatepicker]="pickerControleAdapt"
                                         formControlName="dateControle">
                                     <mat-datepicker-toggle matIconSuffix
                                         [for]="pickerControleAdapt"></mat-datepicker-toggle>
@@ -235,14 +235,14 @@
                             <div class="grid-3 align-center">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Type de lentille</mat-label>
-                                    <mat-select formControlName="type">
+                                    <mat-select aria-label="Select field" formControlName="type">
                                         <mat-option *ngFor="let type of lensTypes" [value]="type">{{ type
                                             }}</mat-option>
                                     </mat-select>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Usage</mat-label>
-                                    <mat-select formControlName="usage">
+                                    <mat-select aria-label="Select field" formControlName="usage">
                                         <mat-option *ngFor="let usage of lensUsages" [value]="usage">{{ usage
                                             }}</mat-option>
                                     </mat-select>
@@ -319,7 +319,7 @@
                                 <div class="grid-2">
                                     <mat-form-field appearance="outline" class="dense-field">
                                         <mat-label>Mouvement</mat-label>
-                                        <mat-select formControlName="mouvement">
+                                        <mat-select aria-label="Select field" formControlName="mouvement">
                                             <mat-option value="normal">Normal</mat-option>
                                             <mat-option value="excessif">Excessif</mat-option>
                                             <mat-option value="insuffisant">Insuffisant</mat-option>
@@ -327,7 +327,7 @@
                                     </mat-form-field>
                                     <mat-form-field appearance="outline" class="dense-field">
                                         <mat-label>Centrage</mat-label>
-                                        <mat-select formControlName="centrage">
+                                        <mat-select aria-label="Select field" formControlName="centrage">
                                             <mat-option value="bon">Bon</mat-option>
                                             <mat-option value="decentre">Dcentr</mat-option>
                                             <mat-option value="bas">Bas</mat-option>
@@ -418,7 +418,7 @@
                                 <div class="grid-2">
                                     <mat-form-field appearance="outline" class="dense-field">
                                         <mat-label>Mouvement</mat-label>
-                                        <mat-select formControlName="mouvement">
+                                        <mat-select aria-label="Select field" formControlName="mouvement">
                                             <mat-option value="normal">Normal</mat-option>
                                             <mat-option value="excessif">Excessif</mat-option>
                                             <mat-option value="insuffisant">Insuffisant</mat-option>
@@ -426,7 +426,7 @@
                                     </mat-form-field>
                                     <mat-form-field appearance="outline" class="dense-field">
                                         <mat-label>Centrage</mat-label>
-                                        <mat-select formControlName="centrage">
+                                        <mat-select aria-label="Select field" formControlName="centrage">
                                             <mat-option value="bon">Bon</mat-option>
                                             <mat-option value="decentre">Dcentr</mat-option>
                                             <mat-option value="bas">Bas</mat-option>
@@ -503,13 +503,13 @@
                             <div class="dates-grid">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Date de Pose</mat-label>
-                                    <input matInput [matDatepicker]="pickerEssai" formControlName="dateEssai">
+                                    <input aria-label="Input" title="Input" matInput [matDatepicker]="pickerEssai" formControlName="dateEssai">
                                     <mat-datepicker-toggle matIconSuffix [for]="pickerEssai"></mat-datepicker-toggle>
                                     <mat-datepicker #pickerEssai></mat-datepicker>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Date de Contrle</mat-label>
-                                    <input matInput [matDatepicker]="pickerControleFinal"
+                                    <input aria-label="Input" title="Input" matInput [matDatepicker]="pickerControleFinal"
                                         formControlName="dateControle">
                                     <mat-datepicker-toggle matIconSuffix
                                         [for]="pickerControleFinal"></mat-datepicker-toggle>
@@ -670,7 +670,7 @@
                     <div class="footer-section">
                         <mat-form-field appearance="outline" class="remarques-field">
                             <mat-label>Remarques Globales</mat-label>
-                            <textarea matInput formControlName="remarques" rows="2"></textarea>
+                            <textarea aria-label="Textarea" title="Textarea" matInput formControlName="remarques" rows="2"></textarea>
                         </mat-form-field>
                     </div>
 
@@ -682,7 +682,7 @@
                     <mat-icon class="tab-icon">euro</mat-icon>
                     Facturation
                 </ng-template>
-                <div class="tab-content" style="padding: 24px;">
+                <div class="tab-content p-6">
                     <!-- Always render so @ViewChild is available, but hide if not active -->
                     <app-facture-form [class.hidden]="activeTab !== 4" [factureId]="linkedFacture?.id" [embedded]="true"
                         [isReadonly]="!isEditMode"
@@ -698,7 +698,7 @@
                     <mat-icon class="tab-icon">payments</mat-icon>
                     Paiements
                 </ng-template>
-                <div class="tab-content" style="padding: 24px;">
+                <div class="tab-content p-6">
                     <!-- Always render for consistency, hide if not active -->
                     <app-payment-list [class.hidden]="activeTab !== 5" [clientId]="clientId" [ficheId]="ficheId"
                         [clientName]="clientDisplayName" [clientCin]="clientCinValue"
@@ -934,7 +934,7 @@
                                         *ngIf="getTimelineEvents().length > 0">
                                         <h5 class="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-4">Journal Automatique</h5>
                                         <!-- Wrapper to handle scrolling without clipping absolute dots -->
-                                        <div class="overflow-y-auto custom-scrollbar pr-2 grow" style="max-height: 400px;">
+                                        <div class="overflow-y-auto custom-scrollbar pr-2 grow max-h-[400px]">
                                             <div class="relative border-l-2 border-gray-200 ml-10 space-y-5 py-2">
                                                 <div class="relative pl-7 pb-2" *ngFor="let event of getTimelineEvents()">
                                                     <div class="absolute w-3.5 h-3.5 rounded-full -left-[9px] top-0.5 border-2 border-white z-10"
@@ -979,13 +979,13 @@
         <div class="file-viewer-content" (click)="$event.stopPropagation()">
             <div class="viewer-header">
                 <h3>{{ viewingFile.name }}</h3>
-                <button mat-icon-button (click)="closeViewer()">
+                <button type="button" mat-icon-button (click)="closeViewer()">
                     <mat-icon>close</mat-icon>
                 </button>
             </div>
             <div class="viewer-body">
-                <img *ngIf="viewingFile.type.startsWith('image/')" [src]="viewingFile.preview" class="preview-image">
-                <iframe *ngIf="viewingFile.type === 'application/pdf'" [src]="viewingFile.preview"
+                <img alt="Image" *ngIf="viewingFile.type.startsWith('image/')" [src]="viewingFile.preview" class="preview-image">
+                <iframe title="Frame" *ngIf="viewingFile.type === 'application/pdf'" [src]="viewingFile.preview"
                     class="preview-pdf"></iframe>
             </div>
         </div>

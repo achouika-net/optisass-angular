@@ -167,7 +167,7 @@
                         </span>
                         <span>Prendre une photo</span>
                     </button>
-                    <input #fileInput type="file" accept="image/*,application/pdf" multiple class="hidden"
+                    <input title="Input" #fileInput type="file" accept="image/*,application/pdf" multiple class="hidden"
                         (change)="onFilesSelected($event)" aria-label="Sélectionner des documents">
                 </div>
             </div>
@@ -322,9 +322,9 @@
                     <p>Sélectionner les équipements pour le client</p>
                 </div>
                 <div class="header-actions-inline flex gap-4">
-                    <mat-form-field appearance="outline" style="width: 250px;">
+                    <mat-form-field appearance="outline" class="w-[250px]">
                         <mat-label>Convention / Mutuelle</mat-label>
-                        <mat-select formControlName="conventionId">
+                        <mat-select aria-label="Select field" formControlName="conventionId">
                             <mat-option [value]="null">Aucune (Vente directe)</mat-option>
                             <mat-option *ngFor="let conv of allConventions" [value]="conv.id">
                                 {{ conv.nom }} ({{ conv.remiseValeur }}{{ conv.remiseType === 'PERCENTAGE' ? '%' : ' DH' }})
@@ -332,9 +332,9 @@
                         </mat-select>
                     </mat-form-field>
 
-                    <mat-form-field appearance="outline" style="width: 280px;">
+                    <mat-form-field appearance="outline" class="w-[280px]">
                         <mat-label>Date Livraison Estimée</mat-label>
-                        <input matInput [matDatepicker]="pickerLivraisonVente" formControlName="dateLivraisonEstimee">
+                        <input aria-label="Input" title="Input" matInput [matDatepicker]="pickerLivraisonVente" formControlName="dateLivraisonEstimee">
                         <mat-datepicker-toggle matSuffix [for]="pickerLivraisonVente"></mat-datepicker-toggle>
                         <mat-datepicker #pickerLivraisonVente></mat-datepicker>
                     </mat-form-field>
@@ -368,7 +368,7 @@
                 <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6">
                     <div class="flex items-center justify-between mb-6">
                         <div class="flex items-center gap-3">
-                            <select [formControl]="$any(ficheForm.get('monture.typeEquipement'))"
+                            <select title="Select" [formControl]="$any(ficheForm.get('monture.typeEquipement'))"
                                 class="header-select main" [class.pointer-events-none]="!mainEquipmentExpanded"
                                 [class.opacity-60]="!mainEquipmentExpanded" aria-label="Type d'équipement principal">
                                 <option *ngFor="let type of typesEquipement" [value]="type">{{ type }}</option>
@@ -430,23 +430,23 @@
                                         <button type="button" class="btn-scan" (click)="openStockSearch(-1)"
                                             aria-label="Chercher en Stock">
                                             <mat-icon inline
-                                                style="font-size: 18px; margin-right: 4px;">inventory_2</mat-icon>
+                                                class="text-lg mr-[4px]">inventory_2</mat-icon>
                                             Stock
                                         </button>
                                     </div>
                                 </div>
-                                <div class="form-group"><label>Marque</label><input type="text" formControlName="marque"
+                                <div class="form-group"><label>Marque</label><input title="Input" type="text" formControlName="marque"
                                         aria-label="Marque de la monture">
                                 </div>
-                                <div class="form-group"><label>Couleur</label><input type="text"
+                                <div class="form-group"><label>Couleur</label><input title="Input" type="text"
                                         formControlName="couleur" aria-label="Couleur de la monture">
                                 </div>
-                                <div class="form-group"><label>Taille</label><input type="text" formControlName="taille"
+                                <div class="form-group"><label>Taille</label><input title="Input" type="text" formControlName="taille"
                                         aria-label="Taille de la monture">
                                 </div>
                                 <div class="form-group">
                                     <label>Type de cerclage</label>
-                                    <select formControlName="cerclage" aria-label="Type de cerclage">
+                                    <select title="Select" formControlName="cerclage" aria-label="Type de cerclage">
                                         <option value="">-- Sélectionner --</option>
                                         <option value="cerclée">Cerclée (Complète)</option>
                                         <option value="nylor">Nylor (Semi-cerclée)</option>
@@ -473,9 +473,9 @@
                                         (click)="openStockSearch(-1, 'verres')"
                                         [hidden]="ficheForm.get('verres.differentODOG')?.value"
                                         title="Chercher verres en stock">
-                                        <mat-icon style="font-size: 18px;">inventory_2</mat-icon> Verres
+                                        <mat-icon class="text-lg">inventory_2</mat-icon> Verres
                                     </button>
-                                    <label class="checkbox-label"><input type="checkbox"
+                                    <label class="checkbox-label"><input title="Input" aria-label="Input field" type="checkbox"
                                             formControlName="differentODOG"><span>Différents OD/OG</span></label>
                                 </div>
                             </div>
@@ -483,7 +483,7 @@
                             <div class="suggestions-panel" *ngIf="showSuggestions && activeSuggestionIndex === -1">
                                 <div class="suggestion-item" *ngFor="let suggestion of suggestions">
                                     <div class="suggestion-content">
-                                        <div style="line-height: 1.4;">
+                                        <div class="leading-relaxed">
                                             <div><strong class="text-blue-700">[{{ suggestion.type }}]</strong> <span
                                                     class="font-semibold">{{ suggestion.matiere }}</span> <span
                                                     class="text-gray-400">•</span> Indice {{ suggestion.indice }} <span
@@ -507,25 +507,25 @@
                                 <div class="grid grid-cols-5 gap-4 mb-4">
                                     <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Marque</mat-label>
-                                        <mat-select formControlName="marque">
+                                        <mat-select aria-label="Select field" formControlName="marque">
                                             <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b }}</mat-option>
                                         </mat-select>
                                     </mat-form-field>
                                     <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Matière</mat-label>
-                                        <mat-select formControlName="matiere">
+                                        <mat-select aria-label="Select field" formControlName="matiere">
                                             <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m }}</mat-option>
                                         </mat-select>
                                     </mat-form-field>
                                     <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Indice</mat-label>
-                                        <mat-select formControlName="indice">
+                                        <mat-select aria-label="Select field" formControlName="indice">
                                             <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i }}</mat-option>
                                         </mat-select>
                                     </mat-form-field>
                                     <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Traitement</mat-label>
-                                        <mat-select formControlName="traitement" multiple #traitementSelect>
+                                        <mat-select aria-label="Select field" formControlName="traitement" multiple #traitementSelect>
                                             <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
                                             <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
                                                 <button mat-button color="primary" (click)="traitementSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
@@ -536,7 +536,7 @@
                                     </mat-form-field>
                                     <mat-form-field appearance="outline" class="w-full">
                                         <mat-label>Prix Unitaire</mat-label>
-                                        <input matInput type="text" formControlName="prixOD" [readonly]="!isEditMode"
+                                        <input aria-label="Input" title="Input" matInput type="text" formControlName="prixOD" [readonly]="!isEditMode"
                                             (blur)="formatPrice(ficheForm.get('verres.prixOD'), $event)">
                                         <span matSuffix>DH</span>
                                         <mat-hint>Calcul auto (x2)</mat-hint>
@@ -551,34 +551,34 @@
                                         <button type="button" class="btn-stock-search-mini"
                                             (click)="openStockSearch(-1, 'od')" title="Stock OD">
                                             <mat-icon
-                                                style="font-size: 16px; width: 16px; height: 16px;">inventory_2</mat-icon>
+                                                class="text-base w-[16px] h-[16px]">inventory_2</mat-icon>
                                         </button>
                                     </div>
                                     <div class="grid grid-cols-1 gap-4 mb-4">
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Marque</mat-label>
-                                            <mat-select formControlName="marqueOD">
+                                            <mat-select aria-label="Select field" formControlName="marqueOD">
                                                 <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Matière</mat-label>
-                                            <mat-select formControlName="matiereOD">
+                                            <mat-select aria-label="Select field" formControlName="matiereOD">
                                                 <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Indice</mat-label>
-                                            <mat-select formControlName="indiceOD">
+                                            <mat-select aria-label="Select field" formControlName="indiceOD">
                                                 <mat-option *ngFor="let i of lensIndicesOD" [value]="i">{{ i
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Traitement</mat-label>
-                                            <mat-select formControlName="traitementOD" multiple #traitementODSelect>
+                                            <mat-select aria-label="Select field" formControlName="traitementOD" multiple #traitementODSelect>
                                                 <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
                                                 <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
                                                     <button mat-button color="primary" (click)="traitementODSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
@@ -589,7 +589,7 @@
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Prix Verre OD</mat-label>
-                                            <input matInput type="text" formControlName="prixOD"
+                                            <input aria-label="Input" title="Input" matInput type="text" formControlName="prixOD"
                                                 [readonly]="!isEditMode"
                                                 (blur)="formatPrice(ficheForm.get('verres.prixOD'), $event)">
                                             <span matSuffix>DH</span>
@@ -602,34 +602,34 @@
                                         <button type="button" class="btn-stock-search-mini"
                                             (click)="openStockSearch(-1, 'og')" title="Stock OG">
                                             <mat-icon
-                                                style="font-size: 16px; width: 16px; height: 16px;">inventory_2</mat-icon>
+                                                class="text-base w-[16px] h-[16px]">inventory_2</mat-icon>
                                         </button>
                                     </div>
                                     <div class="grid grid-cols-1 gap-4 mb-4">
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Marque</mat-label>
-                                            <mat-select formControlName="marqueOG">
+                                            <mat-select aria-label="Select field" formControlName="marqueOG">
                                                 <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Matière</mat-label>
-                                            <mat-select formControlName="matiereOG">
+                                            <mat-select aria-label="Select field" formControlName="matiereOG">
                                                 <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Indice</mat-label>
-                                            <mat-select formControlName="indiceOG">
+                                            <mat-select aria-label="Select field" formControlName="indiceOG">
                                                 <mat-option *ngFor="let i of lensIndicesOG" [value]="i">{{ i
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Traitement</mat-label>
-                                            <mat-select formControlName="traitementOG" multiple #traitementOGSelect>
+                                            <mat-select aria-label="Select field" formControlName="traitementOG" multiple #traitementOGSelect>
                                                 <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
                                                 <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
                                                     <button mat-button color="primary" (click)="traitementOGSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
@@ -640,7 +640,7 @@
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Prix Verre OG</mat-label>
-                                            <input matInput type="text" formControlName="prixOG"
+                                            <input aria-label="Input" title="Input" matInput type="text" formControlName="prixOG"
                                                 [readonly]="!isEditMode"
                                                 (blur)="formatPrice(ficheForm.get('verres.prixOG'), $event)">
                                             <span matSuffix>DH</span>
@@ -702,7 +702,7 @@
                         <!-- Header -->
                         <div class="flex items-center justify-between mb-6">
                             <div class="flex items-center gap-3">
-                                <select [formControl]="$any(equipment.get('type'))" class="header-select added"
+                                <select title="Select" [formControl]="$any(equipment.get('type'))" class="header-select added"
                                     [class.pointer-events-none]="!addedEquipmentsExpanded[i]"
                                     [class.opacity-60]="!addedEquipmentsExpanded[i]"
                                     aria-label="Type d'équipement ajouté">
@@ -779,23 +779,23 @@
                                             <button type="button" class="btn-scan" (click)="openStockSearch(i)"
                                                 aria-label="Chercher en Stock">
                                                 <mat-icon inline
-                                                    style="font-size: 18px; margin-right: 4px;">inventory_2</mat-icon>
+                                                    class="text-lg mr-[4px]">inventory_2</mat-icon>
                                                 Stock
                                             </button>
                                         </div>
                                     </div>
-                                    <div class="form-group"><label>Marque</label><input type="text"
+                                    <div class="form-group"><label>Marque</label><input title="Input" type="text"
                                             formControlName="marque" aria-label="Marque de la monture additionnelle">
                                     </div>
-                                    <div class="form-group"><label>Couleur</label><input type="text"
+                                    <div class="form-group"><label>Couleur</label><input title="Input" type="text"
                                             formControlName="couleur" aria-label="Couleur de la monture additionnelle">
                                     </div>
-                                    <div class="form-group"><label>Taille</label><input type="text"
+                                    <div class="form-group"><label>Taille</label><input title="Input" type="text"
                                             formControlName="taille" aria-label="Taille de la monture additionnelle">
                                     </div>
                                     <div class="form-group">
                                         <label>Cerclage</label>
-                                        <select formControlName="cerclage">
+                                        <select aria-label="Select" title="Select" formControlName="cerclage">
                                             <option value="cerclée">Cerclée</option>
                                             <option value="nylor">Nylor</option>
                                             <option value="percée">Percée</option>
@@ -822,9 +822,9 @@
                                             (click)="openStockSearch(i, 'verres')"
                                             [hidden]="equipment.get('verres.differentODOG')?.value"
                                             title="Chercher verres en stock">
-                                            <mat-icon style="font-size: 18px;">inventory_2</mat-icon> Verres
+                                            <mat-icon class="text-lg">inventory_2</mat-icon> Verres
                                         </button>
-                                        <label class="checkbox-label"><input type="checkbox"
+                                        <label class="checkbox-label"><input title="Input" aria-label="Input field" type="checkbox"
                                                 formControlName="differentODOG"><span>Différents
                                                 OD/OG</span></label>
                                     </div>
@@ -847,28 +847,28 @@
                                     <div class="grid grid-cols-5 gap-4 mb-4">
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Marque</mat-label>
-                                            <mat-select formControlName="marque">
+                                            <mat-select aria-label="Select field" formControlName="marque">
                                                 <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Matière</mat-label>
-                                            <mat-select formControlName="matiere">
+                                            <mat-select aria-label="Select field" formControlName="matiere">
                                                 <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Indice</mat-label>
-                                            <mat-select formControlName="indice">
+                                            <mat-select aria-label="Select field" formControlName="indice">
                                                 <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Traitement</mat-label>
-                                            <mat-select formControlName="traitement" multiple #eqTraitementSelect>
+                                            <mat-select aria-label="Select field" formControlName="traitement" multiple #eqTraitementSelect>
                                                 <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
                                                 <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
                                                     <button mat-button color="primary" (click)="eqTraitementSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
@@ -879,7 +879,7 @@
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Prix Unitaire</mat-label>
-                                            <input matInput type="text" formControlName="prixOD"
+                                            <input aria-label="Input" title="Input" matInput type="text" formControlName="prixOD"
                                                 (blur)="formatPrice(getEquipmentGroup(i).get('verres.prixOD'), $event)">
                                             <span matSuffix>DH</span>
                                             <mat-hint>Calcul auto (x2)</mat-hint>
@@ -894,34 +894,34 @@
                                             <button type="button" class="btn-stock-search-mini"
                                                 (click)="openStockSearch(i, 'od')" title="Stock OD">
                                                 <mat-icon
-                                                    style="font-size: 16px; width: 16px; height: 16px;">inventory_2</mat-icon>
+                                                    class="text-base w-[16px] h-[16px]">inventory_2</mat-icon>
                                             </button>
                                         </div>
                                         <div class="grid grid-cols-1 gap-4 mb-4">
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Marque</mat-label>
-                                                <mat-select formControlName="marqueOD">
+                                                <mat-select aria-label="Select field" formControlName="marqueOD">
                                                     <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
                                                         }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Matière</mat-label>
-                                                <mat-select formControlName="matiereOD">
+                                                <mat-select aria-label="Select field" formControlName="matiereOD">
                                                     <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
                                                         }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Indice</mat-label>
-                                                <mat-select formControlName="indiceOD">
+                                                <mat-select aria-label="Select field" formControlName="indiceOD">
                                                     <mat-option *ngFor="let i of lensIndicesOD" [value]="i">{{ i
                                                         }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Traitement</mat-label>
-                                                <mat-select formControlName="traitementOD" multiple #eqTraitementODSelect>
+                                                <mat-select aria-label="Select field" formControlName="traitementOD" multiple #eqTraitementODSelect>
                                                     <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
                                                     <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
                                                         <button mat-button color="primary" (click)="eqTraitementODSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
@@ -932,7 +932,7 @@
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Prix Verre OD</mat-label>
-                                                <input matInput type="text" formControlName="prixOD"
+                                                <input aria-label="Input" title="Input" matInput type="text" formControlName="prixOD"
                                                     (blur)="formatPrice(getEquipmentGroup(i).get('verres.prixOD'), $event)">
                                                 <span matSuffix>DH</span>
                                             </mat-form-field>
@@ -944,34 +944,34 @@
                                             <button type="button" class="btn-stock-search-mini"
                                                 (click)="openStockSearch(i, 'og')" title="Stock OG">
                                                 <mat-icon
-                                                    style="font-size: 16px; width: 16px; height: 16px;">inventory_2</mat-icon>
+                                                    class="text-base w-[16px] h-[16px]">inventory_2</mat-icon>
                                             </button>
                                         </div>
                                         <div class="grid grid-cols-1 gap-4 mb-4">
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Marque</mat-label>
-                                                <mat-select formControlName="marqueOG">
+                                                <mat-select aria-label="Select field" formControlName="marqueOG">
                                                     <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
                                                         }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Matière</mat-label>
-                                                <mat-select formControlName="matiereOG">
+                                                <mat-select aria-label="Select field" formControlName="matiereOG">
                                                     <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
                                                         }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Indice</mat-label>
-                                                <mat-select formControlName="indiceOG">
+                                                <mat-select aria-label="Select field" formControlName="indiceOG">
                                                     <mat-option *ngFor="let i of lensIndicesOG" [value]="i">{{ i
                                                         }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Traitement</mat-label>
-                                                <mat-select formControlName="traitementOG" multiple #eqTraitementOGSelect>
+                                                <mat-select aria-label="Select field" formControlName="traitementOG" multiple #eqTraitementOGSelect>
                                                     <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
                                                     <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
                                                         <button mat-button color="primary" (click)="eqTraitementOGSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
@@ -982,7 +982,7 @@
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Prix Verre OG</mat-label>
-                                                <input matInput type="text" formControlName="prixOG"
+                                                <input aria-label="Input" title="Input" matInput type="text" formControlName="prixOG"
                                                     (blur)="formatPrice(getEquipmentGroup(i).get('verres.prixOG'), $event)">
                                                 <span matSuffix>DH</span>
                                             </mat-form-field>
@@ -1079,7 +1079,7 @@
                     <p>Suivi des règlements pour ce dossier</p>
                 </div>
             </div>
-            <div class="payment-container" style="padding: 24px;">
+            <div class="payment-container p-6">
                 <app-payment-list [clientId]="clientId || client?.id" [ficheId]="ficheId"
                     [clientName]="clientDisplayName" [clientCin]="clientCinValue"
                     (paymentChanged)="onPaymentChanged()"></app-payment-list>
@@ -1150,7 +1150,7 @@
                     <!-- Type de Montage -->
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-2">Type de Montage</label>
-                        <select formControlName="typeMontage"
+                        <select aria-label="Select" title="Select" formControlName="typeMontage"
                             class="w-full h-11 px-4 rounded-xl border border-gray-300 bg-white text-gray-800 focus:ring-2 focus:ring-blue-500 shadow-sm">
                             <option *ngFor="let type of typesMontage" [value]="type">{{ type }}</option>
                         </select>
@@ -1268,7 +1268,7 @@
                     <div class="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-center"
                         *ngIf="getRecommendedDiameter()">
                         <p class="text-sm font-bold text-indigo-800 m-0">
-                            <mat-icon inline style="vertical-align: middle; margin-right: 4px;">info</mat-icon>
+                            <mat-icon inline class="align-middle mr-[4px]">info</mat-icon>
                             {{ getRecommendedDiameter() }}
                         </p>
                     </div>
@@ -1616,7 +1616,7 @@
                                     class="p-3 bg-red-50/50 rounded-lg text-sm border border-red-100 transition-all hover:bg-red-50">
                                 <div class="flex justify-between font-bold text-red-800 mb-1">
                                     <span class="flex items-center gap-1.5"><mat-icon aria-hidden="false"
-                                            style="font-size: 16px; width: 16px; height: 16px;">gavel</mat-icon> {{
+                                            class="text-base w-[16px] h-[16px]">gavel</mat-icon> {{
                                         entry.oeil }}</span>
                                     <span
                                         class="text-[10px] bg-white text-red-600 px-2 py-0.5 rounded shadow-sm border border-red-100">{{
@@ -1790,7 +1790,7 @@
                 <div class="preview-container" *ngIf="capturedImage">
                     <img [src]="capturedImage" alt="Photo capturée">
                 </div>
-                <canvas #canvasElement style="display: none;"></canvas>
+                <canvas #canvasElement class="hidden"></canvas>
             </div>
             <div class="modal-footer">
                 <ng-container *ngIf="!capturedImage">

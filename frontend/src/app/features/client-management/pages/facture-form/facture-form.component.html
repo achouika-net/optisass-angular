@@ -132,7 +132,7 @@
                 <!-- Status -->
                 <mat-form-field appearance="outline" *ngIf="!isViewMode">
                     <mat-label>Statut</mat-label>
-                    <mat-select formControlName="statut">
+                    <mat-select aria-label="Select field" formControlName="statut">
                         <mat-option value="BROUILLON">Brouillon</mat-option>
                         <mat-option value="VENTE_EN_INSTANCE">Vente en instance</mat-option>
                         <mat-option value="VALIDE">Validé</mat-option>
@@ -150,7 +150,7 @@
 
                 <mat-form-field appearance="outline">
                     <mat-label>Type de Document</mat-label>
-                    <mat-select formControlName="type" (selectionChange)="onTypeChange()">
+                    <mat-select aria-label="Select field" formControlName="type" (selectionChange)="onTypeChange()">
                         <mat-option value="FACTURE">Facture</mat-option>
                         <mat-option value="BON_COMM">Bon de commande</mat-option>
                         <mat-option value="DEVIS">Devis</mat-option>
@@ -162,12 +162,12 @@
 
                 <mat-form-field appearance="outline">
                     <mat-label>Date d'émission</mat-label>
-                    <input matInput [matDatepicker]="picker" formControlName="dateEmission">
+                    <input aria-label="Input" title="Input" matInput [matDatepicker]="picker" formControlName="dateEmission">
                     <mat-datepicker-toggle matIconSuffix [for]="picker" [disabled]="isViewMode"></mat-datepicker-toggle>
                     <mat-datepicker #picker></mat-datepicker>
                 </mat-form-field>
             </div>
-            <mat-divider style="margin: 20px 0" class="no-print"></mat-divider>
+            <mat-divider class="my-5 no-print"></mat-divider>
 
             <!-- Lines (Title hidden in print to save space, table headers are enough) -->
             <h3 class="no-print">Lignes du document</h3>
@@ -186,15 +186,15 @@
                         <input type="text" formControlName="description" placeholder="Description du produit/service">
                     </div>
                     <div class="col-qty">
-                        <input type="number" formControlName="qte" (change)="onLineChange(i)" min="1">
+                        <input aria-label="Input" title="Input" type="number" formControlName="qte" (change)="onLineChange(i)" min="1">
                     </div>
                     <div class="col-price">
-                        <input type="number" formControlName="prixUnitaireTTC" (change)="onLineChange(i)" min="0">
+                        <input aria-label="Input" title="Input" type="number" formControlName="prixUnitaireTTC" (change)="onLineChange(i)" min="0">
                     </div>
                     <div class="col-disc" [class.is-readonly]="isViewMode && !canEditDiscounts">
                         <ng-container *ngIf="!isViewMode || canEditDiscounts">
-                            <input type="number" formControlName="remise" (change)="onLineChange(i)" min="0">
-                            <select formControlName="remiseType" (change)="onLineChange(i)" aria-label="Type de remise">
+                            <input aria-label="Input" title="Input" type="number" formControlName="remise" (change)="onLineChange(i)" min="0">
+                            <select title="Select" formControlName="remiseType" (change)="onLineChange(i)" aria-label="Type de remise">
                                 <option value="AMOUNT">DH</option>
                                 <option value="PERCENT">%</option>
                             </select>
@@ -221,7 +221,7 @@
                 </button>
             </div>
 
-            <mat-divider style="margin: 20px 0"></mat-divider>
+            <mat-divider class="my-5"></mat-divider>
 
             <!-- Totals -->
             <div class="footer-section">
@@ -261,18 +261,18 @@
                         *ngIf="fidelioEligibility?.eligible || (form.get('proprietes.pointsUtilises')?.value || 0) > 0">
                         <div class="loyalty-balance">
                             <mat-icon color="primary"
-                                style="vertical-align: middle; margin-right: 5px;">stars</mat-icon>
+                                class="align-middle mr-1">stars</mat-icon>
                             <span>Points Fidélité disponibles: <strong>{{ pointsFideliteClient }} pts</strong></span>
                         </div>
                         <div class="points-input-row" formGroupName="proprietes">
                             <mat-form-field appearance="outline" class="points-input">
                                 <mat-label>Points à utiliser</mat-label>
-                                <input matInput type="number" formControlName="pointsUtilises"
+                                <input aria-label="Input" title="Input" matInput type="number" formControlName="pointsUtilises"
                                     (change)="calculateTotals()"
                                     [max]="pointsFideliteClient + (form.get('proprietes.pointsUtilises')?.value || 0)"
                                     min="0">
                                 <span matSuffix>pts</span>
-                                <mat-hint *ngIf="pointsValueMAD > 0" style="color: #2e7d32; font-weight: 500;">
+                                <mat-hint *ngIf="pointsValueMAD > 0" class="text-green-800 font-medium">
                                     (-{{ pointsValueMAD | number:'1.2-2' }} DH)
                                 </mat-hint>
                             </mat-form-field>
@@ -291,7 +291,7 @@
                         <!-- Manual selection for any other convention -->
                         <mat-form-field appearance="outline" class="w-full no-print">
                             <mat-label>Choisir une autre Convention</mat-label>
-                            <mat-select (selectionChange)="applyConvention($event.value)">
+                            <mat-select aria-label="Select field" (selectionChange)="applyConvention($event.value)">
                                 <mat-option [value]="null">-- Sélectionner --</mat-option>
                                 <mat-option *ngFor="let conv of allConventions" [value]="conv">
                                     {{ conv.nom }} 
@@ -308,14 +308,14 @@
                         <div class="discount-inputs" *ngIf="!isViewMode || canEditDiscounts">
                             <mat-form-field appearance="outline" class="discount-type">
                                 <mat-label>Type Remise</mat-label>
-                                <mat-select formControlName="remiseGlobalType" (selectionChange)="calculateTotals()">
+                                <mat-select aria-label="Select field" formControlName="remiseGlobalType" (selectionChange)="calculateTotals()">
                                     <mat-option value="PERCENT">%</mat-option>
                                     <mat-option value="AMOUNT">DH</mat-option>
                                 </mat-select>
                             </mat-form-field>
                             <mat-form-field appearance="outline" class="discount-value">
                                 <mat-label>Valeur Remise</mat-label>
-                                <input matInput type="number" formControlName="remiseGlobalValue"
+                                <input aria-label="Input" title="Input" matInput type="number" formControlName="remiseGlobalValue"
                                     (change)="calculateTotals()" min="0">
                             </mat-form-field>
                         </div>
@@ -377,7 +377,7 @@
                 </div>
             </div>
 
-            <mat-divider style="margin: 15px 0" class="no-print"></mat-divider>
+            <mat-divider class="my-4 no-print"></mat-divider>
 
             <!-- PRINT SIGNATURES -->
             <div class="print-signatures">
@@ -411,7 +411,7 @@
 
             <!-- LEGAL FOOTER (BOTTOM-MOST) -->
             <div class="print-legal-footer" *ngIf="companySettings">
-                <mat-divider style="margin: 10px 0"></mat-divider>
+                <mat-divider class="my-2"></mat-divider>
 
                 <div class="bank-accounts-horizontal" *ngIf="companySettings.bankAccounts?.length">
                     <span class="footer-title">INFORMATIONS BANCAIRES :</span>

@@ -6,6 +6,135 @@ import { LoyaltyService } from '../loyalty/loyalty.service';
 import { MailerService } from '../notifications/mailer.service';
 import { PdfService } from '../notifications/pdf.service';
 
+interface EyeData {
+  sphere?: string | number;
+  cylindre?: string | number;
+  axe?: string | number;
+  addition?: string | number;
+  rayon?: string | number;
+  diametre?: string | number;
+  usage?: string;
+  type?: string;
+  mouvement?: string;
+  centrage?: string;
+  marque?: string;
+  modele?: string;
+  keratoH?: string | number;
+  keratoV?: string | number;
+  keratoAxe?: string | number;
+  keratoMoy?: string | number;
+  dp?: string | number;
+  ht?: string | number;
+  ep?: string | number;
+  but?: string | number;
+  secretionLacrimale?: string | number;
+}
+
+interface FicheContent {
+  suiviCommande?: {
+    fournisseur?: string;
+    referenceCommande?: string;
+    dateCommande?: Date | string;
+    nextBcMotive?: string;
+    bcHistorique?: any[];
+  };
+  ordonnance?: {
+    od?: EyeData;
+    og?: EyeData;
+  };
+  prescription?: {
+    od?: EyeData;
+    og?: EyeData;
+    diffLentilles?: boolean;
+  };
+  lentilles?: {
+    od?: EyeData;
+    og?: EyeData;
+    diffLentilles?: boolean;
+    type?: string;
+    usage?: string;
+  };
+  adaptation?: {
+    od?: EyeData;
+    og?: EyeData;
+  };
+  verres?: {
+    differentODOG?: boolean;
+    marqueOD?: string;
+    matiereOD?: string;
+    fournisseurOD?: string;
+    marque?: string;
+    matiere?: string;
+    fournisseur?: string;
+    marqueOG?: string;
+    matiereOG?: string;
+    fournisseurOG?: string;
+    traitementOD?: any;
+    traitementOG?: any;
+    traitement?: any;
+    traitements?: any;
+    indiceOD?: string;
+    indice?: string;
+    indiceOG?: string;
+    type?: string;
+    usage?: string;
+    preconisationIA_OD?: string;
+    preconisationIA_OG?: string;
+  };
+  montage?: {
+    od?: EyeData;
+    og?: EyeData;
+    ecartPupillaireOD?: number | string;
+    hauteurOD?: number | string;
+    ecartPupillaireOG?: number | string;
+    hauteurOG?: number | string;
+    diametreEffectif?: string | number;
+    diagonalMm?: string | number;
+    configImage?: string;
+    remarques?: string;
+  };
+  monture?: {
+    reference?: string;
+    marque?: string;
+    taille?: string;
+    modele?: string;
+    type?: string;
+  };
+  bcHistorique?: any[];
+  configImage?: string;
+  virtualCenteringUrl?: string;
+  observations?: string;
+  remarques?: string;
+  preconisationIA_OD?: string;
+  preconisationIA_OG?: string;
+  // Legacy fields for Excel imports
+  OD_Sph1?: any;
+  OD_Cyl1?: any;
+  OD_Axe1?: any;
+  OD_Add1?: any;
+  prescOD_EP?: any;
+  prescOD_H?: any;
+  prescOD_Diam?: any;
+  OG_Sph1?: any;
+  OG_Cyl1?: any;
+  OG_Axe1?: any;
+  OG_Add1?: any;
+  prescOG_EP?: any;
+  prescOG_H?: any;
+  prescOG_Diam?: any;
+  Medecin?: any;
+  Prescripteur?: any;
+  Verre1D?: any;
+  Verre1G?: any;
+  PrixV1D?: any;
+  PrixV1G?: any;
+  MarqueM1?: any;
+  Marque?: any;
+  RefM1?: any;
+  Modele?: any;
+  PrixM1?: any;
+}
+
 @Injectable()
 export class FichesService {
   constructor(
@@ -14,7 +143,7 @@ export class FichesService {
     private loyaltyService: LoyaltyService,
     private mailerService: MailerService,
     private pdfService: PdfService,
-  ) { }
+  ) {}
 
   async sendOrderEmail(id: string) {
     // [FIX 5] Parallelize DB queries — all independent fetches run simultaneously
@@ -27,13 +156,17 @@ export class FichesService {
     ]);
 
     if (!fiche) throw new BadRequestException('Fiche introuvable');
-    console.log(`📧 [FichesService] Preparing order email for Fiche #${fiche.numero} (ID: ${id}) Type: ${fiche.type}`);
+    console.log(
+      `📧 [FichesService] Preparing order email for Fiche #${fiche.numero} (ID: ${id}) Type: ${fiche.type}`,
+    );
 
-    const content = (fiche.content as any) || {};
+    const content = (fiche.content as unknown as FicheContent) || {};
     const suivi = content.suiviCommande || {};
-    
+
     if (!suivi.fournisseur) {
-      throw new BadRequestException('Aucun fournisseur spécifié pour cette commande');
+      throw new BadRequestException(
+        'Aucun fournisseur spécifié pour cette commande',
+      );
     }
 
     // [FIX 5] Supplier lookup can only happen after we have fournisseur name
@@ -42,24 +175,30 @@ export class FichesService {
     });
 
     if (!supplier || !supplier.email) {
-      throw new BadRequestException(`Email introuvable pour le fournisseur: ${suivi.fournisseur}. Veuillez configurer son adresse email.`);
+      throw new BadRequestException(
+        `Email introuvable pour le fournisseur: ${suivi.fournisseur}. Veuillez configurer son adresse email.`,
+      );
     }
 
     const branding = {
-      companyName: companySettings?.name || "Optisaas",
+      companyName: companySettings?.name || 'Optisaas',
       logoUrl: companySettings?.logoUrl || undefined,
       cachetUrl: companySettings?.cachetUrl || undefined,
     };
 
-    const clientName = `${fiche.client.prenom || ''} ${fiche.client.nom || ''}`.trim();
+    const clientName =
+      `${fiche.client.prenom || ''} ${fiche.client.nom || ''}`.trim();
     const bcNumber = suivi.referenceCommande || `BC-${fiche.numero}`;
     const date = new Date();
 
     // Helper for formatting (+1.50, -0.75, etc.)
-    const formatSigned = (val: any, fallback = '0.00') => {
+    const formatSigned = (
+      val: string | number | null | undefined,
+      fallback = '0.00',
+    ) => {
       if (val === null || val === undefined || val === '') return fallback;
       const num = parseFloat(String(val).replace(/,/g, '.'));
-      if (isNaN(num)) return val;
+      if (isNaN(num)) return String(val);
       return (num >= 0 ? '+' : '') + num.toFixed(2);
     };
 
@@ -87,99 +226,102 @@ export class FichesService {
           supplierName: suivi.fournisseur,
           clientName,
           prescription: {
-            od: { 
-              sphere: formatSigned(odP.sphere), 
-              cylindre: formatSigned(odP.cylindre), 
-              axe: String(odP.axe || '0') + '°', 
+            od: {
+              sphere: formatSigned(odP.sphere),
+              cylindre: formatSigned(odP.cylindre),
+              axe: String(odP.axe || '0') + '°',
               addition: formatSigned(odP.addition),
               rayon: String(odL.rayon || '-'),
-              diametre: String(odL.diametre || '-')
+              diametre: String(odL.diametre || '-'),
             },
-            og: { 
-              sphere: formatSigned(ogP.sphere), 
-              cylindre: formatSigned(ogP.cylindre), 
-              axe: String(ogP.axe || '0') + '°', 
+            og: {
+              sphere: formatSigned(ogP.sphere),
+              cylindre: formatSigned(ogP.cylindre),
+              axe: String(ogP.axe || '0') + '°',
               addition: formatSigned(ogP.addition),
               rayon: String(ogL.rayon || '-'),
-              diametre: String(ogL.diametre || '-')
+              diametre: String(ogL.diametre || '-'),
             },
           },
           lensDetails: {
             marque: String(odL.marque || '-'),
             modele: String(odL.modele || '-'),
-            type: String(lentilles.type || '-')
+            type: String(lentilles.type || '-'),
           },
           branding,
-          ficheNumber: String(fiche.numero)
+          ficheNumber: String(fiche.numero),
         }),
         this.pdfService.generateLensTechnicalSheet({
           bcNumber,
           date,
           clientName,
           prescription: {
-            od: { 
-              sphere: formatSigned(odP.sphere), 
-              cylindre: formatSigned(odP.cylindre), 
+            od: {
+              sphere: formatSigned(odP.sphere),
+              cylindre: formatSigned(odP.cylindre),
               addition: formatSigned(odP.addition),
-              axe: String(odP.axe || '0') + '°'
+              axe: String(odP.axe || '0') + '°',
             },
-            og: { 
-              sphere: formatSigned(ogP.sphere), 
-              cylindre: formatSigned(ogP.cylindre), 
+            og: {
+              sphere: formatSigned(ogP.sphere),
+              cylindre: formatSigned(ogP.cylindre),
               addition: formatSigned(ogP.addition),
-              axe: String(ogP.axe || '0') + '°'
+              axe: String(ogP.axe || '0') + '°',
             },
           },
           lentilles: {
-            od: { 
-              marque: String(odL.marque || '-'), 
-              modele: String(odL.modele || '-'), 
-              rayon: String(odL.rayon || '-'), 
-              diametre: String(odL.diametre || '-'), 
-              mouvement: String(odL.mouvement || '-'), 
-              centrage: String(odL.centrage || '-') 
+            od: {
+              marque: String(odL.marque || '-'),
+              modele: String(odL.modele || '-'),
+              rayon: String(odL.rayon || '-'),
+              diametre: String(odL.diametre || '-'),
+              mouvement: String(odL.mouvement || '-'),
+              centrage: String(odL.centrage || '-'),
             },
-            og: { 
-              marque: String(ogL.marque || '-'), 
-              modele: String(ogL.modele || '-'), 
-              rayon: String(ogL.rayon || '-'), 
-              diametre: String(ogL.diametre || '-'), 
-              mouvement: String(ogL.mouvement || '-'), 
-              centrage: String(ogL.centrage || '-') 
+            og: {
+              marque: String(ogL.marque || '-'),
+              modele: String(ogL.modele || '-'),
+              rayon: String(ogL.rayon || '-'),
+              diametre: String(ogL.diametre || '-'),
+              mouvement: String(ogL.mouvement || '-'),
+              centrage: String(ogL.centrage || '-'),
             },
             type: String(lentilles.type || '-'),
-            usage: String(lentilles.usage || '-')
+            usage: String(lentilles.usage || '-'),
           },
           adaptation: {
-            od: { 
-              secretionLacrimale: String(adaptation.od?.secretionLacrimale || '-'), 
-              but: String(adaptation.od?.but || '-') 
+            od: {
+              secretionLacrimale: String(
+                adaptation.od?.secretionLacrimale || '-',
+              ),
+              but: String(adaptation.od?.but || '-'),
             },
-            og: { 
-              secretionLacrimale: String(adaptation.og?.secretionLacrimale || '-'), 
-              but: String(adaptation.og?.but || '-') 
+            og: {
+              secretionLacrimale: String(
+                adaptation.og?.secretionLacrimale || '-',
+              ),
+              but: String(adaptation.og?.but || '-'),
             },
           },
           keratometrie: {
-            od: { 
-              k1: String(odL.keratoH || '-'), 
-              k2: String(odL.keratoV || '-'), 
-              axe: String(odL.keratoAxe || '-'), 
-              kMoy: String(odL.keratoMoy || '-') 
+            od: {
+              k1: String(odL.keratoH || '-'),
+              k2: String(odL.keratoV || '-'),
+              axe: String(odL.keratoAxe || '-'),
+              kMoy: String(odL.keratoMoy || '-'),
             },
-            og: { 
-              k1: String(ogL.keratoH || '-'), 
-              k2: String(ogL.keratoV || '-'), 
-              axe: String(ogL.keratoAxe || '-'), 
-              kMoy: String(ogL.keratoMoy || '-') 
+            og: {
+              k1: String(ogL.keratoH || '-'),
+              k2: String(ogL.keratoV || '-'),
+              axe: String(ogL.keratoAxe || '-'),
+              kMoy: String(ogL.keratoMoy || '-'),
             },
           },
           branding,
-          ficheNumber: String(fiche.numero)
+          ficheNumber: String(fiche.numero),
         }),
       ]);
       techFileName = `Fiche_Technique_${bcNumber}.pdf`;
-
     } else {
       // --- GLASSES (MONTURE) LOGIC ---
       const ordonnance = content.ordonnance || {};
@@ -188,12 +330,15 @@ export class FichesService {
       const monture = content.monture || {};
 
       // Helper for Axe and Diameter calculation (Existing logic preserved)
-      const cleanAxe = (val: any) => String(val || '0').replace(/°/g, '');
+      const cleanAxe = (val: string | number | null | undefined) =>
+        String(val || '0').replace(/°/g, '');
       const getStdDiam = (d: number) => {
         const standards = [50, 55, 60, 65, 70, 75, 80, 85];
         return standards.find((s) => s >= d) || 85;
       };
-      const parseDualValue = (val: string | null): { od: number | null, og: number | null } => {
+      const parseDualValue = (
+        val: string | null,
+      ): { od: number | null; og: number | null } => {
         if (!val || typeof val !== 'string') return { od: null, og: null };
         if (val.includes('/')) {
           const [od, og] = val.split('/').map((v) => parseFloat(v));
@@ -203,15 +348,16 @@ export class FichesService {
         return { od: isNaN(num) ? null : num, og: isNaN(num) ? null : num };
       };
 
-      const measuredRaw = ((montage as any).diametreEffectif || (montage as any).diagonalMm) as string;
+      const measuredRaw = ((montage as any).diametreEffectif ||
+        (montage as any).diagonalMm) as string;
       const measured = parseDualValue(measuredRaw);
       const safetyMargin = 3.0;
       const ordered = {
         od: measured.od ? getStdDiam(measured.od + safetyMargin) : 70,
-        og: measured.og ? getStdDiam(measured.og + safetyMargin) : 75
+        og: measured.og ? getStdDiam(measured.og + safetyMargin) : 75,
       };
 
-      const getLensBrand = (m: string, i: string, f: string) => {
+      const getLensBrand = (m?: string, i?: string, f?: string) => {
         const parts: string[] = [];
         if (m) parts.push(m);
         if (i) parts.push(i);
@@ -221,29 +367,49 @@ export class FichesService {
       };
 
       const lensDetails = {
-        od: verres.differentODOG 
-          ? getLensBrand(verres.marqueOD, verres.matiereOD, verres.fournisseurOD)
+        od: verres.differentODOG
+          ? getLensBrand(
+              verres.marqueOD,
+              verres.matiereOD,
+              verres.fournisseurOD,
+            )
           : getLensBrand(verres.marque, verres.matiere, verres.fournisseur),
-        og: verres.differentODOG 
-          ? getLensBrand(verres.marqueOG, verres.matiereOG, verres.fournisseurOG)
+        og: verres.differentODOG
+          ? getLensBrand(
+              verres.marqueOG,
+              verres.matiereOG,
+              verres.fournisseurOG,
+            )
           : getLensBrand(verres.marque, verres.matiere, verres.fournisseur),
         treatments: (() => {
-          const tOD = verres.traitementOD || verres.traitement || verres.traitements;
-          const tOG = verres.traitementOG || verres.traitement || verres.traitements;
+          const tOD =
+            verres.traitementOD || verres.traitement || verres.traitements;
+          const tOG =
+            verres.traitementOG || verres.traitement || verres.traitements;
           const a1 = Array.isArray(tOD) ? tOD : [tOD];
           const a2 = Array.isArray(tOG) ? tOG : [tOG];
           const merged = Array.from(new Set([...a1, ...a2].filter(Boolean)));
-          return merged.length > 0 ? merged.join(', ').toUpperCase() : 'STANDARD';
+          return merged.length > 0
+            ? merged.join(', ').toUpperCase()
+            : 'STANDARD';
         })(),
-        indiceOD: verres.differentODOG ? (verres.indiceOD || '-') : (verres.indice || '-'),
-        indiceOG: verres.differentODOG ? (verres.indiceOG || '-') : (verres.indice || '-'),
-        matiereOD: verres.differentODOG ? (verres.matiereOD || '-') : (verres.matiere || '-'),
-        matiereOG: verres.differentODOG ? (verres.matiereOG || '-') : (verres.matiere || '-'),
-        typeVerre: verres.type || '-'
+        indiceOD: verres.differentODOG
+          ? verres.indiceOD || '-'
+          : verres.indice || '-',
+        indiceOG: verres.differentODOG
+          ? verres.indiceOG || '-'
+          : verres.indice || '-',
+        matiereOD: verres.differentODOG
+          ? verres.matiereOD || '-'
+          : verres.matiere || '-',
+        matiereOG: verres.differentODOG
+          ? verres.matiereOG || '-'
+          : verres.matiere || '-',
+        typeVerre: verres.type || '-',
       };
 
       console.log('📄 [FichesService] Generating GLASSES PDFs (parallel)...');
-      
+
       // [FIX 5] Generate both PDFs in parallel
       [bcPdf, techPdf] = await Promise.all([
         this.pdfService.generatePurchaseOrder({
@@ -251,7 +417,7 @@ export class FichesService {
           date,
           supplierName: suivi.fournisseur,
           clientName,
-          designation: branding.companyName, 
+          designation: branding.companyName,
           prescription: {
             od: {
               sphere: formatSigned(ordonnance.od?.sphere),
@@ -261,7 +427,7 @@ export class FichesService {
               ep: String(montage.ecartPupillaireOD || ordonnance.od?.ep || '-'),
               haut: String(montage.hauteurOD || '-'),
               diametre: String(ordered.od),
-              diamUtile: measured.od ? String(measured.od) : '-'
+              diamUtile: measured.od ? String(measured.od) : '-',
             },
             og: {
               sphere: formatSigned(ordonnance.og?.sphere),
@@ -271,7 +437,7 @@ export class FichesService {
               ep: String(montage.ecartPupillaireOG || ordonnance.og?.ep || '-'),
               haut: String(montage.hauteurOG || '-'),
               diametre: String(ordered.og),
-              diamUtile: measured.og ? String(measured.og) : '-'
+              diamUtile: measured.og ? String(measured.og) : '-',
             },
           },
           ficheNumber: String(fiche.numero),
@@ -279,7 +445,7 @@ export class FichesService {
           frameDetails: {
             reference: monture.reference || '-',
             marque: monture.marque || '-',
-            taille: monture.taille || '-'
+            taille: monture.taille || '-',
           },
           branding,
         }),
@@ -304,21 +470,45 @@ export class FichesService {
           },
           ficheNumber: String(fiche.numero),
           centrage: {
-            od: { dp: String(montage.ecartPupillaireOD || '0'), ht: String(montage.hauteurOD || '0'), diamUtile: measured.od ? String(measured.od) : '-' },
-            og: { dp: String(montage.ecartPupillaireOG || '0'), ht: String(montage.hauteurOG || '0'), diamUtile: measured.og ? String(measured.og) : '-' },
+            od: {
+              dp: String(montage.ecartPupillaireOD || '0'),
+              ht: String(montage.hauteurOD || '0'),
+              diamUtile: measured.od ? String(measured.od) : '-',
+            },
+            og: {
+              dp: String(montage.ecartPupillaireOG || '0'),
+              ht: String(montage.hauteurOG || '0'),
+              diamUtile: measured.og ? String(measured.og) : '-',
+            },
           },
           verres: lensDetails,
           diametreConseille: `${ordered.od}/${ordered.og}`,
           technicalNote: {
-            mesure: (measuredRaw || (measured.od && measured.og ? `${measured.od}/${measured.og}` : '65/70')) as string,
+            mesure: (measuredRaw ||
+              (measured.od && measured.og
+                ? `${measured.od}/${measured.og}`
+                : '65/70')) as string,
             safety: safetyMargin,
-            intermediate: (measured.od && measured.og ? `${(measured.od + safetyMargin).toFixed(1)}/${(measured.og + safetyMargin).toFixed(1)} mm` : '-'),
-            ordered: `${ordered.od}/${ordered.og}`
+            intermediate:
+              measured.od && measured.og
+                ? `${(measured.od + safetyMargin).toFixed(1)}/${(measured.og + safetyMargin).toFixed(1)} mm`
+                : '-',
+            ordered: `${ordered.od}/${ordered.og}`,
           },
-          virtualCenteringUrl: montage.configImage || content.configImage || content.virtualCenteringUrl || undefined,
+          virtualCenteringUrl:
+            montage.configImage ||
+            content.configImage ||
+            content.virtualCenteringUrl ||
+            undefined,
           preconisationsIA: {
-            od: verres.preconisationIA_OD || `${verres.marqueOD || ''} ${verres.matiereOD || ''}`.trim() || '-',
-            og: verres.preconisationIA_OG || `${verres.marqueOG || ''} ${verres.matiereOG || ''}`.trim() || '-',
+            od:
+              verres.preconisationIA_OD ||
+              `${verres.marqueOD || ''} ${verres.matiereOD || ''}`.trim() ||
+              '-',
+            og:
+              verres.preconisationIA_OG ||
+              `${verres.marqueOG || ''} ${verres.matiereOG || ''}`.trim() ||
+              '-',
           },
           observations: montage.remarques || content.observations || undefined,
           branding,
@@ -362,7 +552,9 @@ ${centreName ? `(${centreName})` : ''}`,
       });
     } catch (error) {
       console.error('❌ [FichesService] Email sending failed:', error);
-      throw new BadRequestException(`L'envoi de l'email a échoué: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+      throw new BadRequestException(
+        `L'envoi de l'email a échoué: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+      );
     }
 
     return { success: true };
@@ -418,16 +610,23 @@ ${centreName ? `(${centreName})` : ''}`,
       }
 
       const looseData = data as any;
-      const incomingContent = looseData.content && typeof looseData.content === 'object' ? looseData.content : looseData;
+      const incomingContent =
+        looseData.content && typeof looseData.content === 'object'
+          ? looseData.content
+          : looseData;
 
       // Robust Content Mapping (Preserve all existing fields while ensuring mapping for critical ones)
       const content = {
         ...incomingContent,
         ordonnance: incomingContent.ordonnance || incomingContent.prescription,
-        configImage: incomingContent.configImage || incomingContent.virtualCenteringUrl, // [FIX] Store centering image
+        configImage:
+          incomingContent.configImage || incomingContent.virtualCenteringUrl, // [FIX] Store centering image
       };
 
-      console.log(`💾 [Backend CREATE] Fiche Type: ${data.type} | Content keys:`, Object.keys(content));
+      console.log(
+        `💾 [Backend CREATE] Fiche Type: ${data.type} | Content keys:`,
+        Object.keys(content),
+      );
 
       const createData: Prisma.FicheUncheckedCreateInput = {
         clientId: clientId,
@@ -436,7 +635,7 @@ ${centreName ? `(${centreName})` : ''}`,
         montantTotal: data.montantTotal,
         montantPaye: data.montantPaye || 0,
         dateLivraisonEstimee: data.dateLivraisonEstimee,
-        content: content as any,
+        content: content as Prisma.JsonObject,
       };
 
       const result = await this.prisma.fiche.create({
@@ -497,12 +696,22 @@ ${centreName ? `(${centreName})` : ''}`,
     } catch (error) {
       console.error('❌ ERROR saving fiche:');
       console.error('Error:', error);
-      console.error('Error message:', error instanceof Error ? error.message : String(error));
+      console.error(
+        'Error message:',
+        error instanceof Error ? error.message : String(error),
+      );
       throw error;
     }
   }
 
-  private async validateRequiredFields(client: any): Promise<void> {
+  private async validateRequiredFields(client: {
+    id: string;
+    dateNaissance?: Date | string | null;
+    telephone?: string | null;
+    ville?: string | null;
+    statut?: string;
+    typeClient?: string;
+  }): Promise<void> {
     const missing: string[] = [];
 
     if (!client.dateNaissance) missing.push('Date de naissance');
@@ -532,7 +741,7 @@ ${centreName ? `(${centreName})` : ''}`,
   }) {
     const { startDate, endDate, centreId, limit = 50, skip = 0 } = query;
     const where: Prisma.FicheWhereInput = {};
-    
+
     if (startDate || endDate) {
       where.dateCreation = {};
       if (startDate) where.dateCreation.gte = new Date(startDate);
@@ -577,14 +786,20 @@ ${centreName ? `(${centreName})` : ''}`,
       // De-duplicate by date+numero
       const combined = [...suiviHistory];
       legacyHistory.forEach((lh: any) => {
-        if (!combined.find((sh) => sh.date === lh.date && sh.numero === lh.numero)) {
+        if (
+          !combined.find((sh: any) => sh.date === lh.date && sh.numero === lh.numero)
+        ) {
           combined.push(lh);
         }
       });
 
       // Include current reference if not already listed
       const currentRef = suivi.referenceCommande;
-      if (currentRef && currentRef !== 'N/A' && !combined.find((h) => h.numero === currentRef)) {
+      if (
+        currentRef &&
+        currentRef !== 'N/A' &&
+        !combined.find((h) => h.numero === currentRef)
+      ) {
         combined.unshift({
           date: suivi.dateCommande || fiche.dateCreation,
           numero: currentRef,
@@ -634,7 +849,7 @@ ${centreName ? `(${centreName})` : ''}`,
     if (startDate) {
       where.dateCreation = { gte: new Date(startDate) };
     }
-    
+
     // Optimize: Selected only needed fields for list view to avoid loading massive 'content' JSON
     const fiches = await this.prisma.fiche.findMany({
       where,
@@ -650,12 +865,12 @@ ${centreName ? `(${centreName})` : ''}`,
         dateLivraisonEstimee: true,
         // We still need some parts of content (like frame brand/model) for the list view
         // But we exclude base64 images/PDFs by letting unpackContent handle a partial object
-        content: true, 
+        content: true,
       },
       orderBy: { dateCreation: 'desc' },
     });
-    
-    return fiches.map((f: any) => this.unpackContent(f, true));
+
+    return fiches.map((f: Partial<Fiche>) => this.unpackContent(f, true));
   }
 
   async findOne(id: string) {
@@ -667,7 +882,7 @@ ${centreName ? `(${centreName})` : ''}`,
 
   async update(id: string, updateFicheDto: any) {
     console.log(`\n🔄 [Backend UPDATE] Fiche ${id}`);
-    
+
     const existingFiche = await this.prisma.fiche.findUnique({
       where: { id },
     });
@@ -678,17 +893,23 @@ ${centreName ? `(${centreName})` : ''}`,
 
     const { content: incomingContent, ...rest } = updateFicheDto;
 
-    // Robust Merging Strategy: 
+    // Robust Merging Strategy:
     // Handle both cases: { content: { ... } } or flat { ordonnance: ..., configImage: ... }
     const currentContent = (existingFiche.content as Record<string, any>) || {};
-    const contentToMerge = (incomingContent && typeof incomingContent === 'object') ? incomingContent : rest;
+    const contentToMerge =
+      incomingContent && typeof incomingContent === 'object'
+        ? incomingContent
+        : rest;
 
     const mergedContent = {
       ...currentContent,
-      ...contentToMerge
+      ...contentToMerge,
     };
 
-    console.log(`💾 [Backend UPDATE] Merged content keys:`, Object.keys(mergedContent));
+    console.log(
+      `💾 [Backend UPDATE] Merged content keys:`,
+      Object.keys(mergedContent),
+    );
 
     const updated = await this.prisma.fiche.update({
       where: { id },
@@ -717,10 +938,9 @@ ${centreName ? `(${centreName})` : ''}`,
     });
   }
 
-  private unpackContent(fiche: any, summaryOnly = false) {
+  private unpackContent(fiche: Partial<Fiche>, summaryOnly = false) {
     if (!fiche) return fiche;
-    const rawContent = (fiche.content as Record<string, any>) || {};
-    let content = { ...rawContent };
+    let content = (fiche.content as unknown as FicheContent) || {};
 
     // LEGACY MAPPING: If content is flat (from Excel), map to structured objects
     if (content.OD_Sph1 !== undefined || content.Verre1D !== undefined) {
@@ -770,46 +990,46 @@ ${centreName ? `(${centreName})` : ''}`,
 
     // Merge content properties to top level for legacy support, BUT prioritize DB fields (fiche)
     // over whatever might be cached inside the content JSON (like empty numero strings).
-    let finalFiche = {
+    let finalFiche: any = {
       ...content, // Spread legacy content first
-      ...fiche,   // Spread fiche from DB to ensure core fields (id, numero, dateCreation) are not overwritten
-      ordonnance: content.ordonnance || fiche.ordonnance,
-      lentilles: content.lentilles || fiche.lentilles,
-      adaptation: content.adaptation || fiche.adaptation,
-      monture: content.monture || fiche.monture,
-      verres: content.verres || fiche.verres,
-      montage: content.montage || fiche.montage,
-      suiviCommande: content.suiviCommande || fiche.suiviCommande,
-      configImage: content.configImage || fiche.configImage,
+      ...fiche, // Spread fiche from DB to ensure core fields (id, numero, dateCreation) are not overwritten
+      ordonnance: content.ordonnance || (fiche as any).ordonnance,
+      lentilles: content.lentilles || (fiche as any).lentilles,
+      adaptation: content.adaptation || (fiche as any).adaptation,
+      monture: content.monture || (fiche as any).monture,
+      verres: content.verres || (fiche as any).verres,
+      montage: content.montage || (fiche as any).montage,
+      suiviCommande: content.suiviCommande || (fiche as any).suiviCommande,
+      configImage: content.configImage || (fiche as any).configImage,
       content: undefined,
     };
 
-    if (summaryOnly) {
-      const purgeBase64 = (obj: any): any => {
-        if (!obj) return obj;
-        if (obj instanceof Date) return obj;
-        if (typeof obj === 'string') {
-          return obj.startsWith('data:image/') || obj.startsWith('data:application/pdf') || obj.length > 30000 
-            ? '[FICHIER_ATTACHE_MASQUE_EN_VUE_LISTE]' 
-            : obj;
-        }
-        if (Array.isArray(obj)) {
-          return obj.map(item => purgeBase64(item));
-        }
-        if (typeof obj === 'object') {
-          const result: any = {};
-          for (const key of Object.keys(obj)) {
-            result[key] = purgeBase64(obj[key]);
-          }
-          return result;
-        }
-        return obj;
-      };
+    const purgeBase64 = (obj: unknown): any => {
+      if (!obj || typeof obj !== 'object') return obj;
+      if (obj instanceof Date) return obj;
 
-      finalFiche = purgeBase64(finalFiche);
-    }
-    
+      if (Array.isArray(obj)) {
+        return obj.map((item) => purgeBase64(item));
+      }
+
+      const result: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (typeof value === 'string') {
+          result[key] =
+            value.startsWith('data:image/') ||
+            value.startsWith('data:application/pdf') ||
+            value.length > 30000
+              ? '[FICHIER_ATTACHE_MASQUE_EN_VUE_LISTE]'
+              : value;
+        } else {
+          result[key] = purgeBase64(value);
+        }
+      }
+      return result;
+    };
+
+    finalFiche = purgeBase64(finalFiche);
+
     return finalFiche;
   }
 }
-

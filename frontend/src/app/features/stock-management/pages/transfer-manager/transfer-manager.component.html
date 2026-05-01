@@ -4,7 +4,7 @@
             <h1 class="text-2xl font-bold text-slate-800">Gestion des Transferts Inter-Centres</h1>
             <p class="text-slate-500">Gérez les expéditions et réceptions de produits entre les centres.</p>
         </div>
-        <button mat-stroked-button color="primary" (click)="loadTransfers()">
+        <button type="button" mat-stroked-button color="primary" (click)="loadTransfers()">
             <mat-icon>refresh</mat-icon> Actualiser
         </button>
     </div>
@@ -29,7 +29,7 @@
                     <mat-icon class="text-blue-600">info</mat-icon>
                     <span class="text-sm font-medium text-blue-800">{{ selection.selected.length }} transfert(s)
                         sélectionné(s)</span>
-                    <button mat-flat-button color="primary" (click)="shipSelected()" class="ml-auto">
+                    <button type="button" mat-flat-button color="primary" (click)="shipSelected()" class="ml-auto">
                         <mat-icon>local_shipping</mat-icon>
                         VALIDER SÉLECTION
                     </button>
@@ -114,11 +114,11 @@
                         <th mat-header-cell *matHeaderCellDef> Actions </th>
                         <td mat-cell *matCellDef="let t">
                             <div class="flex gap-2">
-                                <button mat-flat-button color="success" *ngIf="t.status === 'RESERVED'"
+                                <button type="button" mat-flat-button color="success" *ngIf="t.status === 'RESERVED'"
                                     (click)="shipTransfer(t)">
                                     <mat-icon>local_shipping</mat-icon> VALIDER EXPÉDITION
                                 </button>
-                                <button mat-icon-button color="warn" (click)="cancelTransfer(t)" title="Annuler">
+                                <button type="button" mat-icon-button color="warn" (click)="cancelTransfer(t)" title="Annuler">
                                     <mat-icon>cancel</mat-icon>
                                 </button>
                             </div>
@@ -150,7 +150,7 @@
                     <mat-icon class="text-green-600">info</mat-icon>
                     <span class="text-sm font-medium text-green-800">{{ incomingSelection.selected.length }}
                         transfert(s) sélectionné(s)</span>
-                    <button mat-flat-button color="primary" (click)="receiveSelected()" class="ml-auto">
+                    <button type="button" mat-flat-button color="primary" (click)="receiveSelected()" class="ml-auto">
                         <mat-icon>download_for_offline</mat-icon>
                         CONFIRMER RÉCEPTION
                     </button>
@@ -239,11 +239,11 @@
                         <th mat-header-cell *matHeaderCellDef> Actions </th>
                         <td mat-cell *matCellDef="let t">
                             <div class="flex gap-2">
-                                <button mat-flat-button color="primary" *ngIf="t.status === 'SHIPPED'"
+                                <button type="button" mat-flat-button color="primary" *ngIf="t.status === 'SHIPPED'"
                                     (click)="receiveTransfer(t)">
                                     <mat-icon>download_for_offline</mat-icon> CONFIRMER RÉCEPTION
                                 </button>
-                                <button mat-icon-button color="warn" (click)="cancelTransfer(t)" title="Annuler">
+                                <button type="button" mat-icon-button color="warn" (click)="cancelTransfer(t)" title="Annuler">
                                     <mat-icon>cancel</mat-icon>
                                 </button>
                             </div>
@@ -270,7 +270,7 @@
                 <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
                     <mat-form-field appearance="outline" class="dense-form-field">
                         <mat-label>Période</mat-label>
-                        <mat-select [(ngModel)]="selectedPeriod" (selectionChange)="onPeriodChange()">
+                        <mat-select aria-label="Select field" [(ngModel)]="selectedPeriod" (selectionChange)="onPeriodChange()">
                             <mat-option value="today">Aujourd'hui</mat-option>
                             <mat-option value="week">Cette semaine</mat-option>
                             <mat-option value="month">Ce mois</mat-option>
@@ -281,7 +281,7 @@
 
                     <mat-form-field appearance="outline" class="dense-form-field">
                         <mat-label>Type de mouvement</mat-label>
-                        <mat-select [(ngModel)]="selectedType" (selectionChange)="loadHistory()">
+                        <mat-select aria-label="Select field" [(ngModel)]="selectedType" (selectionChange)="loadHistory()">
                             <mat-option *ngFor="let type of availableTypes" [value]="type.value">
                                 {{type.label}}
                             </mat-option>
@@ -290,7 +290,7 @@
 
                     <mat-form-field appearance="outline" class="dense-form-field">
                         <mat-label>Du</mat-label>
-                        <input matInput [matDatepicker]="startPicker" [(ngModel)]="startDate"
+                        <input aria-label="Input" title="Input" matInput [matDatepicker]="startPicker" [(ngModel)]="startDate"
                             (dateChange)="loadHistory()">
                         <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
                         <mat-datepicker #startPicker></mat-datepicker>
@@ -298,12 +298,12 @@
 
                     <mat-form-field appearance="outline" class="dense-form-field">
                         <mat-label>Au</mat-label>
-                        <input matInput [matDatepicker]="endPicker" [(ngModel)]="endDate" (dateChange)="loadHistory()">
+                        <input aria-label="Input" title="Input" matInput [matDatepicker]="endPicker" [(ngModel)]="endDate" (dateChange)="loadHistory()">
                         <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
                         <mat-datepicker #endPicker></mat-datepicker>
                     </mat-form-field>
 
-                    <button mat-flat-button color="primary" class="filter-button" (click)="loadHistory()"
+                    <button type="button" mat-flat-button color="primary" class="filter-button" (click)="loadHistory()"
                         [disabled]="loadingHistory">
                         <mat-icon>filter_list</mat-icon> Filtrer
                     </button>

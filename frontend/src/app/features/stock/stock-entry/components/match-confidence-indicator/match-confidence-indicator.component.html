@@ -35,13 +35,13 @@
 
       <!-- Actions -->
       @if (hasMatch()) {
-        <button mat-menu-item (click)="onClearMatch()">
+        <button type="button" mat-menu-item (click)="onClearMatch()">
           <mat-icon>link_off</mat-icon>
           {{ 'stock.entry.matching.actions.clear' | translate }}
         </button>
       }
 
-      <button mat-menu-item (click)="onRetryMatch()">
+      <button type="button" mat-menu-item (click)="onRetryMatch()">
         <mat-icon>refresh</mat-icon>
         {{ 'stock.entry.matching.actions.retry' | translate }}
       </button>
@@ -53,7 +53,7 @@
           {{ 'stock.entry.matching.suggestions' | translate }}
         </div>
         @for (suggestion of suggestions(); track suggestion.productId) {
-          <button
+          <button type="button"
             mat-menu-item
             (click)="onSuggestionSelect(suggestion)"
             [matTooltip]="suggestion.reason"

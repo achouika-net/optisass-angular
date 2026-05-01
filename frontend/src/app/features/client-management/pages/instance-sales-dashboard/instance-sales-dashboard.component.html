@@ -7,7 +7,7 @@
             </h1>
             <p class="subtitle">Gestion des ventes en attente de réception produit</p>
         </div>
-        <button mat-raised-button color="primary" (click)="monitor.refreshNow()">
+        <button type="button" mat-raised-button color="primary" (click)="monitor.refreshNow()">
             <mat-icon>refresh</mat-icon>
             Actualiser
         </button>
@@ -115,40 +115,40 @@
                 <ng-container matColumnDef="actions">
                     <th mat-header-cell *matHeaderCellDef>Actions</th>
                     <td mat-cell *matCellDef="let sale">
-                        <button mat-icon-button [matMenuTriggerFor]="menu" class="actions-button">
+                        <button type="button" mat-icon-button [matMenuTriggerFor]="menu" class="actions-button">
                             <mat-icon>more_vert</mat-icon>
                         </button>
                         <mat-menu #menu="matMenu">
                             <!-- New: Valider la Réception -->
-                            <button mat-menu-item (click)="validateReception(sale)"
+                            <button type="button" mat-menu-item (click)="validateReception(sale)"
                                 *ngIf="sale.status === 'IN_TRANSIT'">
                                 <mat-icon color="accent">local_shipping</mat-icon>
                                 <span>Valider la réception</span>
                             </button>
 
                             <!-- Valider la vente -->
-                            <button mat-menu-item (click)="validateSale(sale)" [disabled]="sale.status !== 'READY'">
+                            <button type="button" mat-menu-item (click)="validateSale(sale)" [disabled]="sale.status !== 'READY'">
                                 <mat-icon [class.disabled-icon]="sale.status !== 'READY'"
                                     color="primary">check_circle</mat-icon>
                                 <span>Valider la vente</span>
                             </button>
 
-                            <button mat-menu-item (click)="viewDetails(sale)">
+                            <button type="button" mat-menu-item (click)="viewDetails(sale)">
                                 <mat-icon>visibility</mat-icon>
                                 <span>Voir les détails</span>
                             </button>
                             <mat-divider></mat-divider>
                             <!-- Messaging Actions -->
-                            <button mat-menu-item (click)="notifyReady(sale)">
-                                <mat-icon style="color: #25D366;">check_circle</mat-icon>
+                            <button type="button" mat-menu-item (click)="notifyReady(sale)">
+                                <mat-icon class="text-[#25d366]">check_circle</mat-icon>
                                 <span>Notifier: Prêt</span>
                             </button>
-                            <button mat-menu-item (click)="notifyDelay(sale)">
+                            <button type="button" mat-menu-item (click)="notifyDelay(sale)">
                                 <mat-icon color="warn">schedule</mat-icon>
                                 <span>Notifier: Retard</span>
                             </button>
                             <mat-divider></mat-divider>
-                            <button mat-menu-item (click)="cancelSale(sale)" [disabled]="sale.status === 'CANCELLED'">
+                            <button type="button" mat-menu-item (click)="cancelSale(sale)" [disabled]="sale.status === 'CANCELLED'">
                                 <mat-icon [class.disabled-icon]="sale.status === 'CANCELLED'">cancel</mat-icon>
                                 <span>Annuler la vente</span>
                             </button>

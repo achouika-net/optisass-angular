@@ -5,7 +5,7 @@
     <!-- Name (required) -->
     <mat-form-field appFieldControlLabel class="col-span-full">
       <mat-label>{{ 'stock.entry.supplierDialog.name' | translate }}</mat-label>
-      <input matInput [formField]="formState.name" cdkFocusInitial />
+      <input title="Input" aria-label="Input field" matInput [formField]="formState.name" cdkFocusInitial />
       @if (formState.name().touched() && formState.name().invalid()) {
         <mat-error app-field-error [errors]="formState.name().errors()" fieldname="name" />
       }
@@ -29,14 +29,14 @@
     <!-- Email -->
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'stock.entry.supplierDialog.email' | translate }}</mat-label>
-      <input matInput type="email" [formField]="formState.email" />
+      <input title="Input" aria-label="Input field" matInput type="email" [formField]="formState.email" />
       <mat-icon matPrefix>email</mat-icon>
     </mat-form-field>
 
     <!-- Phone -->
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'stock.entry.supplierDialog.phone' | translate }}</mat-label>
-      <input matInput type="tel" [formField]="formState.phone" />
+      <input title="Input" aria-label="Input field" matInput type="tel" [formField]="formState.phone" />
       <mat-icon matPrefix>phone</mat-icon>
     </mat-form-field>
   </div>

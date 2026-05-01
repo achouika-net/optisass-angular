@@ -8,7 +8,7 @@
 
       <mat-form-field appearance="outline" class="w-[220px]" subscriptSizing="dynamic">
           <mat-label>Fournisseur</mat-label>
-          <mat-select [(ngModel)]="filterSupplier" (selectionChange)="applyFilters()">
+          <mat-select aria-label="Select field" [(ngModel)]="filterSupplier" (selectionChange)="applyFilters()">
               <mat-option value="">Tous les fournisseurs</mat-option>
               <mat-option *ngFor="let s of uniqueSuppliers" [value]="s">{{ s }}</mat-option>
           </mat-select>
@@ -16,28 +16,28 @@
 
       <mat-form-field appearance="outline" class="w-[180px]" subscriptSizing="dynamic">
           <mat-label>Période</mat-label>
-          <mat-select [value]="selectedPeriod()" (selectionChange)="onPeriodChange($event)">
+          <mat-select aria-label="Select field" [value]="selectedPeriod()" (selectionChange)="onPeriodChange($event)">
               <mat-option *ngFor="let p of periods" [value]="p.value">{{ p.label }}</mat-option>
           </mat-select>
       </mat-form-field>
       
       <mat-form-field appearance="outline" class="w-[150px]" subscriptSizing="dynamic" *ngIf="selectedPeriod() === 'custom'">
           <mat-label>Date début</mat-label>
-          <input matInput [matDatepicker]="startPicker" [(ngModel)]="customStartDate" (ngModelChange)="loadHistory()">
+          <input aria-label="Input" title="Input" matInput [matDatepicker]="startPicker" [(ngModel)]="customStartDate" (ngModelChange)="loadHistory()">
           <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
           <mat-datepicker #startPicker></mat-datepicker>
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="w-[150px]" subscriptSizing="dynamic" *ngIf="selectedPeriod() === 'custom'">
           <mat-label>Date fin</mat-label>
-          <input matInput [matDatepicker]="endPicker" [(ngModel)]="customEndDate" (ngModelChange)="loadHistory()">
+          <input aria-label="Input" title="Input" matInput [matDatepicker]="endPicker" [(ngModel)]="customEndDate" (ngModelChange)="loadHistory()">
           <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
           <mat-datepicker #endPicker></mat-datepicker>
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="w-[220px]" subscriptSizing="dynamic">
           <mat-label>Client</mat-label>
-          <mat-select [(ngModel)]="filterClient" (selectionChange)="applyFilters()">
+          <mat-select aria-label="Select field" [(ngModel)]="filterClient" (selectionChange)="applyFilters()">
               <mat-option value="">Tous les clients</mat-option>
               <mat-option *ngFor="let c of uniqueClients" [value]="c">{{ c }}</mat-option>
           </mat-select>
@@ -45,13 +45,13 @@
 
       <mat-form-field appearance="outline" class="w-[200px]" subscriptSizing="dynamic">
           <mat-label>Motif</mat-label>
-          <mat-select [(ngModel)]="filterMotive" (selectionChange)="applyFilters()">
+          <mat-select aria-label="Select field" [(ngModel)]="filterMotive" (selectionChange)="applyFilters()">
               <mat-option value="">Tous les motifs</mat-option>
               <mat-option *ngFor="let m of uniqueMotives" [value]="m">{{ m }}</mat-option>
           </mat-select>
       </mat-form-field>
 
-      <button mat-stroked-button color="warn" class="!rounded-lg shrink-0" (click)="clearFilters()" *ngIf="filterSupplier || filterClient || filterMotive">
+      <button type="button" mat-stroked-button color="warn" class="!rounded-lg shrink-0" (click)="clearFilters()" *ngIf="filterSupplier || filterClient || filterMotive">
           <mat-icon>clear_all</mat-icon>
           Réinitialiser
       </button>
@@ -134,14 +134,14 @@
               <th mat-header-cell *matHeaderCellDef></th>
               <td mat-cell *matCellDef="let bc">
                   <div class="flex justify-end gap-1">
-                      <button mat-icon-button color="primary" matTooltip="Réimprimer le BC" (click)="reprintBC(bc)" class="hover:bg-blue-50 transition-colors">
+                      <button type="button" mat-icon-button color="primary" matTooltip="Réimprimer le BC" (click)="reprintBC(bc)" class="hover:bg-blue-50 transition-colors">
                           <mat-icon class="!text-[20px]">print</mat-icon>
                       </button>
-                      <button mat-icon-button [matMenuTriggerFor]="menu" class="hover:bg-gray-100 transition-colors">
+                      <button type="button" mat-icon-button [matMenuTriggerFor]="menu" class="hover:bg-gray-100 transition-colors">
                           <mat-icon class="!text-[20px] text-gray-400">more_horiz</mat-icon>
                       </button>
                       <mat-menu #menu="matMenu" xPosition="before" class="!rounded-xl !shadow-xl border border-gray-100">
-                          <button mat-menu-item (click)="reprintBC(bc)">
+                          <button type="button" mat-menu-item (click)="reprintBC(bc)">
                               <mat-icon class="text-blue-600">print</mat-icon>
                               <span class="font-medium">Imprimer le document</span>
                           </button>
@@ -161,7 +161,7 @@
                           <mat-icon class="text-gray-200 !text-[32px] w-[32px] h-[32px]">history</mat-icon>
                       </div>
                       <span class="text-gray-400 font-bold uppercase tracking-widest text-xs">Aucun document trouvé</span>
-                      <button mat-button color="primary" class="!text-[10px] font-bold" (click)="clearFilters()" *ngIf="filterSupplier || filterClient || filterMotive">
+                      <button type="button" mat-button color="primary" class="!text-[10px] font-bold" (click)="clearFilters()" *ngIf="filterSupplier || filterClient || filterMotive">
                           EFFACER LES FILTRES
                       </button>
                   </div>

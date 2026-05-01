@@ -15,7 +15,7 @@
         <div class="form-row">
             <mat-form-field appearance="outline" class="half-width">
                 <mat-label>Type</mat-label>
-                <mat-select formControlName="type" required>
+                <mat-select aria-label="Select field" formControlName="type" required>
                     <mat-option *ngFor="let type of entrepotTypes" [value]="type">
                         {{ type }}
                     </mat-option>
@@ -52,8 +52,8 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-    <button mat-button (click)="onCancel()">Annuler</button>
-    <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="!form.valid">
+    <button type="button" mat-button (click)="onCancel()">Annuler</button>
+    <button type="button" mat-raised-button color="primary" (click)="onSubmit()" [disabled]="!form.valid">
         {{ isEditMode ? 'Mettre à jour' : 'Créer' }}
     </button>
 </mat-dialog-actions>

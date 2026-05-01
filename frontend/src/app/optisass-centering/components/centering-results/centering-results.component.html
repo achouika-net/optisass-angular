@@ -6,7 +6,7 @@
         <p>Calculé: PD {{result.pd | number:'1.1-1'}} mm</p>
     </div>
     <div *ngIf="animationUrl">
-        <video [src]="animationUrl" controls style="width:100%; max-width:240px;"></video>
+        <video [src]="animationUrl" controls class="w-full"></video>
     </div>
-    <button class="save-btn" (click)="onSave()">Utiliser ces mesures</button>
+    <button type="button" class="save-btn" (click)="onSave()">Utiliser ces mesures</button>
 </div>

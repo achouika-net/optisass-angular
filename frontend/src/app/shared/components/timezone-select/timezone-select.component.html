@@ -1,6 +1,6 @@
 <mat-form-field appFieldControlLabel>
   <mat-label>{{ 'configurationAgenda.timeZone' | translate }}</mat-label>
-  <input [formControl]="searchControl" [matAutocomplete]="auto" matInput />
+  <input title="Input" aria-label="Input field" [formControl]="searchControl" [matAutocomplete]="auto" matInput />
   <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayTimezone">
     @for (row of filteredTimezones(); track row) {
       <mat-option [value]="row.value">

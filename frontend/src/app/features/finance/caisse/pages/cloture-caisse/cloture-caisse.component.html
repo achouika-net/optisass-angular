@@ -143,7 +143,7 @@
                                 </div>
                                 <mat-form-field appearance="outline" class="full-width">
                                     <mat-label>Solde Réel Compté (Espèces) (DH)</mat-label>
-                                    <input matInput type="number" formControlName="soldeReel" min="0">
+                                    <input aria-label="Input" title="Input" matInput type="number" formControlName="soldeReel" min="0">
                                     <mat-hint>Théorique : {{ resume.soldeTheorique | number:'1.2-2' }} DH</mat-hint>
                                     <mat-error
                                         *ngIf="form.get('soldeReel')?.hasError('required')">Obligatoire</mat-error>
@@ -165,12 +165,12 @@
                                 <div class="form-grid">
                                     <mat-form-field appearance="outline">
                                         <mat-label>Nombre de reçus Carte</mat-label>
-                                        <input matInput type="number" formControlName="nbRecuCarte" min="0">
+                                        <input aria-label="Input" title="Input" matInput type="number" formControlName="nbRecuCarte" min="0">
                                         <mat-hint>Théorique : {{ resume.nbVentesCarte }} reçu(s)</mat-hint>
                                     </mat-form-field>
                                     <mat-form-field appearance="outline">
                                         <mat-label>Montant Total Carte (DH)</mat-label>
-                                        <input matInput type="number" formControlName="montantTotalCarte" min="0">
+                                        <input aria-label="Input" title="Input" matInput type="number" formControlName="montantTotalCarte" min="0">
                                         <mat-hint>Théorique : {{ resume.totalVentesCarte | number:'1.2-2' }}
                                             DH</mat-hint>
                                     </mat-form-field>
@@ -192,12 +192,12 @@
                                 <div class="form-grid">
                                     <mat-form-field appearance="outline">
                                         <mat-label>Nombre de chèques</mat-label>
-                                        <input matInput type="number" formControlName="nbRecuCheque" min="0">
+                                        <input aria-label="Input" title="Input" matInput type="number" formControlName="nbRecuCheque" min="0">
                                         <mat-hint>Théorique : {{ resume.nbVentesCheque }} chèque(s)</mat-hint>
                                     </mat-form-field>
                                     <mat-form-field appearance="outline">
                                         <mat-label>Montant Total Chèques (DH)</mat-label>
-                                        <input matInput type="number" formControlName="montantTotalCheque" min="0">
+                                        <input aria-label="Input" title="Input" matInput type="number" formControlName="montantTotalCheque" min="0">
                                         <mat-hint>Théorique : {{ resume.totalVentesCheque | number:'1.2-2' }}
                                             DH</mat-hint>
                                     </mat-form-field>
@@ -349,9 +349,9 @@
 
     <!-- Explicit Error State if not loading and no resume -->
     <div class="error-container" *ngIf="!loading">
-        <mat-icon class="text-red-500" style="font-size: 48px; height: 48px; width: 48px;">error_outline</mat-icon>
+        <mat-icon class="text-red-500 text-[48px] h-[48px] w-[48px]">error_outline</mat-icon>
         <h3>Impossible de charger les données</h3>
         <p>Le serveur n'a pas renvoyé le résumé de caisse.</p>
-        <button mat-flat-button color="primary" (click)="loadData()">Réessayer</button>
+        <button type="button" mat-flat-button color="primary" (click)="loadData()">Réessayer</button>
     </div>
 </ng-template>

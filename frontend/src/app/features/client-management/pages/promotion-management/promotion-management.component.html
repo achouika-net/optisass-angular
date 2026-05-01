@@ -15,7 +15,7 @@
                 <div class="filters-row">
                     <mat-form-field appearance="outline">
                         <mat-label>Type d'article</mat-label>
-                        <mat-select [ngModel]="filterType()" (ngModelChange)="filterType.set($event)">
+                        <mat-select aria-label="Select field" [ngModel]="filterType()" (ngModelChange)="filterType.set($event)">
                             <mat-option value="">Tous les types</mat-option>
                             <mat-option value="monture">Montures</mat-option>
                             <mat-option value="lentille">Lentilles</mat-option>
@@ -31,7 +31,7 @@
 
                     <mat-form-field appearance="outline">
                         <mat-label>Ancienneté (jours)</mat-label>
-                        <input matInput type="number" [ngModel]="filterDaysInStock()"
+                        <input aria-label="Input" title="Input" matInput type="number" [ngModel]="filterDaysInStock()"
                             (ngModelChange)="filterDaysInStock.set($event)">
                         <span matSuffix>jours+</span>
                     </mat-form-field>
@@ -40,7 +40,7 @@
                 <div class="inventory-preview" *ngIf="!loading()">
                     <div class="stats-summary">
                         <strong>{{ filteredProducts().length }}</strong> produits correspondent aux critères.
-                        <button mat-button color="primary" (click)="selectAllProducts()"
+                        <button type="button" mat-button color="primary" (click)="selectAllProducts()"
                             *ngIf="filteredProducts().length > 0">
                             Tout sélectionner
                         </button>
@@ -98,7 +98,7 @@
                 <mat-card-content>
                     <mat-form-field appearance="outline" class="w-full">
                         <mat-label>Template du message</mat-label>
-                        <textarea matInput rows="6" [ngModel]="messageTemplate()"
+                        <textarea aria-label="Textarea" title="Textarea" matInput rows="6" [ngModel]="messageTemplate()"
                             (ngModelChange)="messageTemplate.set($event)"></textarea>
                         <mat-hint>Utilisez {{'{{NAME}}'}}, {{'{{MARQUE}}'}}, {{'{{PRODUCT}}'}} comme
                             variables.</mat-hint>
@@ -136,7 +136,7 @@
                             paramètres.</span>
                     </div>
 
-                    <button mat-raised-button color="primary" class="btn-launch"
+                    <button type="button" mat-raised-button color="primary" class="btn-launch"
                         [disabled]="selectedProducts().length === 0" (click)="launchCampaign()">
                         <mat-icon>send</mat-icon> LANCER LA CAMPAGNE AUTOMATIQUE
                     </button>

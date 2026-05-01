@@ -12,7 +12,7 @@ export class ClientsService {
     private prisma: PrismaService,
     private loyaltyService: LoyaltyService,
     private facturesService: FacturesService,
-  ) { }
+  ) {}
 
   /**
    * Performance optimization: Returns all core dashboard metrics in one call.
@@ -30,7 +30,6 @@ export class ClientsService {
       rewardThreshold: loyalty.threshold,
     };
   }
-
 
   async create(createClientDto: CreateClientDto) {
     // Validate centre existence
@@ -58,7 +57,7 @@ export class ClientsService {
   }
 
   async findAll(nom?: string, centreId?: string) {
-    const whereClause: any = {};
+    const whereClause: Prisma.ClientWhereInput = {};
 
     if (!centreId) return []; // Isolation
     whereClause.centreId = centreId;
@@ -92,7 +91,7 @@ export class ClientsService {
     fidelioEligible?: string;
     centreId?: string;
   }) {
-    const whereClause: any = {};
+    const whereClause: Prisma.ClientWhereInput = {};
 
     // Isolation par centre
     if (!filters.centreId) return [];
@@ -137,7 +136,7 @@ export class ClientsService {
     // Filtre par Eligibilité Fidelio
     if (filters.fidelioEligible === 'true') {
       const config = await this.loyaltyService.getConfig();
-      const threshold = (config as any)?.rewardThreshold || 500;
+      const threshold = config?.rewardThreshold || 500;
       whereClause.pointsFidelite = { gte: threshold };
     }
 

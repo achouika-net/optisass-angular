@@ -2,7 +2,7 @@
 <!-- Street with autocomplete -->
 <mat-form-field>
   <mat-label>{{ streetLabelKey() | translate }}</mat-label>
-  <input matInput type="text" [formField]="streetField()" [placeholder]="'address.streetPlaceholder' | translate"
+  <input aria-label="Input" title="Input" matInput type="text" [formField]="streetField()" [placeholder]="'address.streetPlaceholder' | translate"
     [matAutocomplete]="auto" />
   @if (addressResource.isLoading()) {
   <mat-spinner matSuffix diameter="20" />
@@ -39,7 +39,7 @@
 <!-- Street Line 2 -->
 <mat-form-field>
   <mat-label>{{ streetLine2LabelKey() | translate }}</mat-label>
-  <input matInput type="text" [formField]="streetLine2Field()"
+  <input aria-label="Input" title="Input" matInput type="text" [formField]="streetLine2Field()"
     [placeholder]="'address.streetLine2Placeholder' | translate" />
   @if (streetLine2Field()().touched() && streetLine2Field()().invalid()) {
   <mat-error app-field-error [errors]="streetLine2Field()().errors()" fieldname="streetLine2" />
@@ -51,7 +51,7 @@
   <!-- Postcode -->
   <mat-form-field appFieldControlLabel>
     <mat-label>{{ postcodeLabelKey() | translate }}</mat-label>
-    <input matInput type="text" [formField]="postcodeField()" />
+    <input aria-label="Input" title="Input" matInput type="text" [formField]="postcodeField()" />
     @if (postcodeField()().touched() && postcodeField()().invalid()) {
     <mat-error app-field-error [errors]="postcodeField()().errors()" fieldname="postcode" pattern="postcode" />
     }
@@ -60,7 +60,7 @@
   <!-- City -->
   <mat-form-field appFieldControlLabel>
     <mat-label>{{ cityLabelKey() | translate }}</mat-label>
-    <input matInput type="text" [formField]="cityField()" />
+    <input aria-label="Input" title="Input" matInput type="text" [formField]="cityField()" />
     @if (cityField()().touched() && cityField()().invalid()) {
     <mat-error app-field-error [errors]="cityField()().errors()" fieldname="city" />
     }

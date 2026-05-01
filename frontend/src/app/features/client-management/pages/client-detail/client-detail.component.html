@@ -2,7 +2,7 @@
     <!-- Header -->
     <div class="header">
         <div class="header-content">
-            <button mat-button (click)="goBack()" class="mr-2 text-gray-600">
+            <button type="button" mat-button (click)="goBack()" class="mr-2 text-gray-600">
                 <mat-icon>arrow_back</mat-icon> Dossiers Clients
             </button>
             <h1>
@@ -20,45 +20,45 @@
             </span>
         </div>
         <div class="header-actions">
-            <button mat-flat-button color="primary" [matMenuTriggerFor]="createMenu" class="btn-create">
+            <button type="button" mat-flat-button color="primary" [matMenuTriggerFor]="createMenu" class="btn-create">
                 <mat-icon>add</mat-icon> ACTIONS
             </button>
             <mat-menu #createMenu="matMenu" class="premium-menu">
-                <button mat-menu-item (click)="createFicheMonture()">
+                <button type="button" mat-menu-item (click)="createFicheMonture()">
                     <mat-icon color="primary">visibility</mat-icon> Nouvelle Fiche Monture
                 </button>
-                <button mat-menu-item (click)="createFicheLentilles()">
+                <button type="button" mat-menu-item (click)="createFicheLentilles()">
                     <mat-icon color="accent">remove_red_eye</mat-icon> Nouvelle Fiche Lentilles
                 </button>
-                <button mat-menu-item (click)="createFicheProduit()">
+                <button type="button" mat-menu-item (click)="createFicheProduit()">
                     <mat-icon class="text-green-600">shopping_cart</mat-icon> Nouvelle Fiche Produit
                 </button>
                 <mat-divider></mat-divider>
-                <button mat-menu-item (click)="createFacture()">
+                <button type="button" mat-menu-item (click)="createFacture()">
                     <mat-icon class="text-blue-600">receipt</mat-icon> Créer Facture / Devis
                 </button>
                 <mat-divider></mat-divider>
-                <button mat-menu-item (click)="createSupplierInvoice()">
-                    <mat-icon style="color: #673ab7;">add_shopping_cart</mat-icon> ADD BL Verre
+                <button type="button" mat-menu-item (click)="createSupplierInvoice()">
+                    <mat-icon class="text-[#673ab7]">add_shopping_cart</mat-icon> ADD BL Verre
                 </button>
             </mat-menu>
 
-            <button mat-icon-button [matMenuTriggerFor]="moreMenu">
+            <button type="button" mat-icon-button [matMenuTriggerFor]="moreMenu">
                 <mat-icon>more_vert</mat-icon>
             </button>
             <mat-menu #moreMenu="matMenu">
-                <button mat-menu-item (click)="toggleViewMode()" *ngIf="viewMode() === 'operations'">
+                <button type="button" mat-menu-item (click)="toggleViewMode()" *ngIf="viewMode() === 'operations'">
                     <mat-icon>visibility</mat-icon> Visualiser client
                 </button>
-                <button mat-menu-item (click)="toggleViewMode()" *ngIf="viewMode() === 'profile'" class="text-blue-600">
+                <button type="button" mat-menu-item (click)="toggleViewMode()" *ngIf="viewMode() === 'profile'" class="text-blue-600">
                     <mat-icon color="primary">arrow_back</mat-icon> Retour aux opérations
                 </button>
                 <mat-divider></mat-divider>
-                <button mat-menu-item (click)="completeProfile()">
+                <button type="button" mat-menu-item (click)="completeProfile()">
                     <mat-icon>edit</mat-icon> Modifier le profil
                 </button>
                 <mat-divider></mat-divider>
-                <button mat-menu-item (click)="deleteClient()" class="text-red-600">
+                <button type="button" mat-menu-item (click)="deleteClient()" class="text-red-600">
                     <mat-icon color="warn">delete</mat-icon> Supprimer le client
                 </button>
             </mat-menu>
@@ -82,10 +82,10 @@
                 </div>
             </div>
             <div class="reward-actions">
-                <button mat-raised-button class="btn-reward-discount" (click)="redeemRewardWithType('DISCOUNT')">
+                <button type="button" mat-raised-button class="btn-reward-discount" (click)="redeemRewardWithType('DISCOUNT')">
                     <mat-icon>percent</mat-icon> Appliquer Remise
                 </button>
-                <button mat-raised-button class="btn-reward-cash" (click)="redeemRewardWithType('MAD_BONUS')">
+                <button type="button" mat-raised-button class="btn-reward-cash" (click)="redeemRewardWithType('MAD_BONUS')">
                     <mat-icon>payments</mat-icon> Convertir en Bonus (MAD)
                 </button>
             </div>
@@ -214,26 +214,26 @@
 
                                 <!-- Actions Column -->
                                 <ng-container matColumnDef="actions">
-                                    <th mat-header-cell *matHeaderCellDef style="text-align: right;">Actions</th>
-                                    <td mat-cell *matCellDef="let fiche" style="text-align: right;">
-                                        <button mat-icon-button [matMenuTriggerFor]="menu">
+                                    <th mat-header-cell *matHeaderCellDef class="text-right">Actions</th>
+                                    <td mat-cell *matCellDef="let fiche" class="text-right">
+                                        <button type="button" mat-icon-button [matMenuTriggerFor]="menu">
                                             <mat-icon>more_vert</mat-icon>
                                         </button>
                                         <mat-menu #menu="matMenu">
-                                            <button mat-menu-item (click)="viewFiche(fiche)">
+                                            <button type="button" mat-menu-item (click)="viewFiche(fiche)">
                                                 <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
                                                 <span>Visualiser</span>
                                             </button>
-                                            <button mat-menu-item (click)="sendControlReminder(fiche)">
-                                                <mat-icon style="color: #25D366;">message</mat-icon>
+                                            <button type="button" mat-menu-item (click)="sendControlReminder(fiche)">
+                                                <mat-icon class="text-[#25d366]">message</mat-icon>
                                                 <span>Relance Contrôle</span>
                                             </button>
-                                            <button mat-menu-item (click)="createSupplierInvoice()">
-                                                <mat-icon style="color: #673ab7;">add_shopping_cart</mat-icon>
+                                            <button type="button" mat-menu-item (click)="createSupplierInvoice()">
+                                                <mat-icon class="text-[#673ab7]">add_shopping_cart</mat-icon>
                                                 <span>ADD BL Verre</span>
                                             </button>
                                             <mat-divider></mat-divider>
-                                            <button mat-menu-item (click)="deleteFiche(fiche)">
+                                            <button type="button" mat-menu-item (click)="deleteFiche(fiche)">
                                                 <mat-icon class="premium-menu-icon-delete">delete</mat-icon>
                                                 <span>Supprimer</span>
                                             </button>
@@ -267,7 +267,7 @@
                     <div class="form-container">
                         <div class="flex justify-between items-center mb-6">
                             <div class="section-title !mt-0">Bons de Livraison Verre / Fournisseur</div>
-                            <button mat-raised-button color="primary" (click)="createSupplierInvoice()">
+                            <button type="button" mat-raised-button color="primary" (click)="createSupplierInvoice()">
                                 <mat-icon>add</mat-icon> ADD BL
                             </button>
                         </div>
@@ -308,20 +308,20 @@
                                 </ng-container>
 
                                 <ng-container matColumnDef="actions">
-                                    <th mat-header-cell *matHeaderCellDef style="text-align: right;">Actions</th>
-                                    <td mat-cell *matCellDef="let inv" style="text-align: right;">
-                                        <button mat-icon-button [matMenuTriggerFor]="menuBL">
+                                    <th mat-header-cell *matHeaderCellDef class="text-right">Actions</th>
+                                    <td mat-cell *matCellDef="let inv" class="text-right">
+                                        <button type="button" mat-icon-button [matMenuTriggerFor]="menuBL">
                                             <mat-icon>more_vert</mat-icon>
                                         </button>
                                         <mat-menu #menuBL="matMenu">
-                                            <button mat-menu-item (click)="viewSupplierInvoice(inv)">
+                                            <button type="button" mat-menu-item (click)="viewSupplierInvoice(inv)">
                                                 <mat-icon>visibility</mat-icon> Voir
                                             </button>
-                                            <button mat-menu-item (click)="openPaymentDialog(inv)"
+                                            <button type="button" mat-menu-item (click)="openPaymentDialog(inv)"
                                                 *ngIf="inv.statut !== 'PAYEE'">
                                                 <mat-icon color="primary">payments</mat-icon> Payer
                                             </button>
-                                            <button mat-menu-item class="text-red-600"
+                                            <button type="button" mat-menu-item class="text-red-600"
                                                 (click)="deleteSupplierInvoice(inv)">
                                                 <mat-icon color="warn">delete</mat-icon> Supprimer
                                             </button>
@@ -358,11 +358,11 @@
                         <div class="flex justify-between items-center mb-6">
                             <div class="section-title !mt-0">Documents & Pièces Jointes</div>
                             <div class="flex gap-2">
-                                <input type="file" #fileInput class="hidden" (change)="onFileSelected($event)">
-                                <button mat-stroked-button color="primary" (click)="fileInput.click()">
+                                <input aria-label="Input" title="Input" type="file" #fileInput class="hidden" (change)="onFileSelected($event)">
+                                <button type="button" mat-stroked-button color="primary" (click)="fileInput.click()">
                                     <mat-icon>upload_file</mat-icon> Importer un fichier
                                 </button>
-                                <button mat-raised-button color="primary" (click)="openCamera()">
+                                <button type="button" mat-raised-button color="primary" (click)="openCamera()">
                                     <mat-icon>camera_alt</mat-icon> Prendre une photo
                                 </button>
                             </div>
@@ -381,12 +381,12 @@
                                 </mat-card-content>
                                 <mat-divider></mat-divider>
                                 <mat-card-actions align="end">
-                                    <button mat-icon-button color="warn"
+                                    <button type="button" mat-icon-button color="warn"
                                         (click)="$event.stopPropagation(); deleteAttachment(file.id)"
                                         matTooltip="Supprimer">
                                         <mat-icon>delete</mat-icon>
                                     </button>
-                                    <button mat-icon-button color="primary"
+                                    <button type="button" mat-icon-button color="primary"
                                         (click)="$event.stopPropagation(); downloadAttachment(file)"
                                         matTooltip="Visualiser / Télécharger">
                                         <mat-icon>download</mat-icon>
@@ -409,22 +409,22 @@
                             <div class="form-row three-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Titre</mat-label>
-                                    <mat-select [value]="clientParticulier()?.titre" class="readonly-state">
+                                    <mat-select aria-label="Select field" [value]="clientParticulier()?.titre" class="readonly-state">
                                         <mat-option [value]="clientParticulier()?.titre">{{ clientParticulier()?.titre
                                             }}</mat-option>
                                     </mat-select>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Nom</mat-label>
-                                    <input matInput [value]="clientParticulier()?.nom" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientParticulier()?.nom" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Prénom</mat-label>
-                                    <input matInput [value]="clientParticulier()?.prenom" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientParticulier()?.prenom" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Date de naissance</mat-label>
-                                    <input matInput [value]="clientParticulier()?.dateNaissance | date:'dd/MM/yyyy'"
+                                    <input aria-label="Input" title="Input" matInput [value]="clientParticulier()?.dateNaissance | date:'dd/MM/yyyy'"
                                         readonly>
                                     <mat-icon matSuffix>calendar_today</mat-icon>
                                 </mat-form-field>
@@ -434,7 +434,7 @@
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Type de pièce</mat-label>
-                                    <mat-select [value]="clientParticulier()?.typePieceIdentite" class="readonly-state">
+                                    <mat-select aria-label="Select field" [value]="clientParticulier()?.typePieceIdentite" class="readonly-state">
                                         <mat-option [value]="clientParticulier()?.typePieceIdentite">{{
                                             clientParticulier()?.typePieceIdentite }}</mat-option>
                                     </mat-select>
@@ -442,11 +442,11 @@
                                 <!-- Show CIN Parent for children, regular ID for adults -->
                                 <mat-form-field appearance="outline" *ngIf="clientParticulier()?.titre === 'Enf'">
                                     <mat-label>CIN Parent</mat-label>
-                                    <input matInput [value]="clientParticulier()?.cinParent || ''" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientParticulier()?.cinParent || ''" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline" *ngIf="clientParticulier()?.titre !== 'Enf'">
                                     <mat-label>Numéro de pièce</mat-label>
-                                    <input matInput [value]="clientParticulier()?.numeroPieceIdentite" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientParticulier()?.numeroPieceIdentite" readonly>
                                 </mat-form-field>
                             </div>
 
@@ -454,21 +454,21 @@
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Téléphone</mat-label>
-                                    <input matInput [value]="clientParticulier()?.telephone" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientParticulier()?.telephone" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Email</mat-label>
-                                    <input matInput [value]="clientParticulier()?.email || ''" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientParticulier()?.email || ''" readonly>
                                 </mat-form-field>
                             </div>
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Ville</mat-label>
-                                    <input matInput [value]="clientParticulier()?.ville" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientParticulier()?.ville" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Adresse</mat-label>
-                                    <input matInput [value]="clientParticulier()?.adresse || ''" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientParticulier()?.adresse || ''" readonly>
                                 </mat-form-field>
                             </div>
 
@@ -476,7 +476,7 @@
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Type de couverture</mat-label>
-                                    <mat-select [value]="clientParticulier()?.couvertureSociale?.type"
+                                    <mat-select aria-label="Select field" [value]="clientParticulier()?.couvertureSociale?.type"
                                         class="readonly-state">
                                         <mat-option [value]="clientParticulier()?.couvertureSociale?.type">{{
                                             clientParticulier()?.couvertureSociale?.type || 'Aucune' }}</mat-option>
@@ -484,7 +484,7 @@
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Numéro d'adhésion</mat-label>
-                                    <input matInput [value]="clientParticulier()?.couvertureSociale?.numeroAdhesion || ''"
+                                    <input aria-label="Input" title="Input" matInput [value]="clientParticulier()?.couvertureSociale?.numeroAdhesion || ''"
                                         readonly>
                                 </mat-form-field>
                             </div>
@@ -494,7 +494,7 @@
                             <div class="form-row mt-2 mb-4" *ngIf="client()?.groupe">
                                 <mat-form-field appearance="outline" class="full-width">
                                     <mat-label>Groupe OptiSaaS (Lien Réel)</mat-label>
-                                    <input matInput [value]="client()?.groupe?.nom" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="client()?.groupe?.nom" readonly>
                                     <mat-icon matSuffix color="primary">hub</mat-icon>
                                 </mat-form-field>
                             </div>
@@ -504,13 +504,13 @@
                                 <div class="form-row two-cols">
                                     <mat-form-field appearance="outline">
                                         <mat-label>Rôle Client</mat-label>
-                                        <mat-select value="Principal" class="readonly-state">
+                                        <mat-select aria-label="Select field" value="Principal" class="readonly-state">
                                             <mat-option value="Principal">Principal</mat-option>
                                         </mat-select>
                                     </mat-form-field>
                                     <mat-form-field appearance="outline">
                                         <mat-label>Nom Famille</mat-label>
-                                        <input matInput [value]="clientParticulier()?.groupeFamille?.nomFamille || ''"
+                                        <input aria-label="Input" title="Input" matInput [value]="clientParticulier()?.groupeFamille?.nomFamille || ''"
                                             readonly>
                                     </mat-form-field>
                                 </div>
@@ -521,13 +521,13 @@
                                 <div class="form-row two-cols">
                                     <mat-form-field appearance="outline">
                                         <mat-label>Rôle Client</mat-label>
-                                        <mat-select value="Membre" class="readonly-state">
+                                        <mat-select aria-label="Select field" value="Membre" class="readonly-state">
                                             <mat-option value="Membre">Membre</mat-option>
                                         </mat-select>
                                     </mat-form-field>
                                     <mat-form-field appearance="outline">
                                         <mat-label>Lien Parental</mat-label>
-                                        <mat-select [value]="clientParticulier()?.groupeFamille?.lienParental"
+                                        <mat-select aria-label="Select field" [value]="clientParticulier()?.groupeFamille?.lienParental"
                                             class="readonly-state">
                                             <mat-option [value]="clientParticulier()?.groupeFamille?.lienParental">{{
                                                 clientParticulier()?.groupeFamille?.lienParental || '-' }}</mat-option>
@@ -537,11 +537,11 @@
                                 <div class="form-row two-cols">
                                     <mat-form-field appearance="outline">
                                         <mat-label>ID Famille</mat-label>
-                                        <input matInput disabled value="">
+                                        <input aria-label="Input" title="Input" matInput disabled value="">
                                     </mat-form-field>
                                     <mat-form-field appearance="outline">
                                         <mat-label>Nom Famille</mat-label>
-                                        <input matInput [value]="clientParticulier()?.groupeFamille?.nomFamille || ''"
+                                        <input aria-label="Input" title="Input" matInput [value]="clientParticulier()?.groupeFamille?.nomFamille || ''"
                                             readonly>
                                     </mat-form-field>
                                 </div>
@@ -553,25 +553,25 @@
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Raison Sociale</mat-label>
-                                    <input matInput [value]="clientProfessionnel()?.raisonSociale" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientProfessionnel()?.raisonSociale" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Identifiant Fiscal</mat-label>
-                                    <input matInput [value]="clientProfessionnel()?.identifiantFiscal" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientProfessionnel()?.identifiantFiscal" readonly>
                                 </mat-form-field>
                             </div>
                             <div class="form-row three-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>ICE</mat-label>
-                                    <input matInput [value]="clientProfessionnel()?.ice" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientProfessionnel()?.ice" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Registre Commerce</mat-label>
-                                    <input matInput [value]="clientProfessionnel()?.registreCommerce || ''" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientProfessionnel()?.registreCommerce || ''" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Patente</mat-label>
-                                    <input matInput [value]="clientProfessionnel()?.patente || ''" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientProfessionnel()?.patente || ''" readonly>
                                 </mat-form-field>
                             </div>
 
@@ -579,21 +579,21 @@
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Téléphone</mat-label>
-                                    <input matInput [value]="clientProfessionnel()?.telephone" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientProfessionnel()?.telephone" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Email</mat-label>
-                                    <input matInput [value]="clientProfessionnel()?.email" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientProfessionnel()?.email" readonly>
                                 </mat-form-field>
                             </div>
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Ville</mat-label>
-                                    <input matInput [value]="clientProfessionnel()?.ville" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientProfessionnel()?.ville" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Adresse</mat-label>
-                                    <input matInput [value]="clientProfessionnel()?.adresse || ''" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientProfessionnel()?.adresse || ''" readonly>
                                 </mat-form-field>
                             </div>
 
@@ -604,7 +604,7 @@
                                     à la TVA</mat-checkbox>
                                 <mat-form-field appearance="outline" *ngIf="clientProfessionnel()?.tvaAssujetti">
                                     <mat-label>Numéro d'Autorisation</mat-label>
-                                    <input matInput [value]="clientProfessionnel()?.numeroAutorisation || ''" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="clientProfessionnel()?.numeroAutorisation || ''" readonly>
                                 </mat-form-field>
                             </div>
                         </ng-container>
@@ -663,7 +663,7 @@
 
                                 <mat-form-field appearance="outline" class="mt-2 full-width">
                                     <mat-label>Autres maladies oculaires</mat-label>
-                                    <textarea matInput [value]="dossier.antecedentsFamiliaux?.autres || ''" readonly
+                                    <textarea aria-label="Textarea" title="Textarea" matInput [value]="dossier.antecedentsFamiliaux?.autres || ''" readonly
                                         rows="2"></textarea>
                                 </mat-form-field>
                             </div>
@@ -679,7 +679,7 @@
                                 <mat-form-field appearance="outline" class="full-width mt-2"
                                     *ngIf="dossier.maladiesChroniques?.actif">
                                     <mat-label>Précisez</mat-label>
-                                    <input matInput [value]="dossier.maladiesChroniques?.details || ''" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="dossier.maladiesChroniques?.details || ''" readonly>
                                 </mat-form-field>
 
                                 <label class="field-label mt-4">Prenez-vous actuellement un traitement médicamenteux
@@ -689,7 +689,7 @@
                                 <mat-form-field appearance="outline" class="full-width mt-2"
                                     *ngIf="dossier.traitementMedicamenteux?.actif">
                                     <mat-label>Précisez</mat-label>
-                                    <input matInput [value]="dossier.traitementMedicamenteux?.details || ''" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="dossier.traitementMedicamenteux?.details || ''" readonly>
                                 </mat-form-field>
 
                                 <label class="field-label mt-4">Avez-vous des allergies connues ?</label>
@@ -698,7 +698,7 @@
                                 <mat-form-field appearance="outline" class="full-width mt-2"
                                     *ngIf="dossier.allergies?.actif">
                                     <mat-label>Précisez</mat-label>
-                                    <input matInput [value]="dossier.allergies?.details || ''" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="dossier.allergies?.details || ''" readonly>
                                 </mat-form-field>
                             </div>
 
@@ -734,7 +734,7 @@
                                 <mat-form-field appearance="outline" class="full-width mt-2"
                                     *ngIf="dossier.sport?.actif">
                                     <mat-label>Précisez</mat-label>
-                                    <input matInput [value]="dossier.sport?.details || ''" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="dossier.sport?.details || ''" readonly>
                                 </mat-form-field>
                             </div>
                         </div>
@@ -751,17 +751,17 @@
                                 class="readonly-state">Convention Active</mat-checkbox>
                             <mat-form-field appearance="outline" *ngIf="clientProfessionnel()?.convention?.actif">
                                 <mat-label>Nom Convention</mat-label>
-                                <input matInput [value]="clientProfessionnel()?.convention?.nomConvention || ''" readonly>
+                                <input aria-label="Input" title="Input" matInput [value]="clientProfessionnel()?.convention?.nomConvention || ''" readonly>
                             </mat-form-field>
                         </div>
                         <div class="form-row two-cols" *ngIf="clientProfessionnel()?.convention?.actif">
                             <mat-form-field appearance="outline">
                                 <mat-label>Modalité Paiement</mat-label>
-                                <input matInput [value]="clientProfessionnel()?.convention?.modalitePaiement" readonly>
+                                <input aria-label="Input" title="Input" matInput [value]="clientProfessionnel()?.convention?.modalitePaiement" readonly>
                             </mat-form-field>
                             <mat-form-field appearance="outline">
                                 <mat-label>Échéance Paiement</mat-label>
-                                <input matInput [value]="clientProfessionnel()?.convention?.echeancePaiement" readonly>
+                                <input aria-label="Input" title="Input" matInput [value]="clientProfessionnel()?.convention?.echeancePaiement" readonly>
                             </mat-form-field>
                         </div>
 
@@ -770,25 +770,25 @@
                             <div class="form-row three-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Nom</mat-label>
-                                    <input matInput [value]="contact.nom" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="contact.nom" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Prénom</mat-label>
-                                    <input matInput [value]="contact.prenom" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="contact.prenom" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Fonction</mat-label>
-                                    <input matInput [value]="contact.fonction" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="contact.fonction" readonly>
                                 </mat-form-field>
                             </div>
                             <div class="form-row two-cols">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Téléphone</mat-label>
-                                    <input matInput [value]="contact.telephone" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="contact.telephone" readonly>
                                 </mat-form-field>
                                 <mat-form-field appearance="outline">
                                     <mat-label>Email</mat-label>
-                                    <input matInput [value]="contact.email" readonly>
+                                    <input aria-label="Input" title="Input" matInput [value]="contact.email" readonly>
                                 </mat-form-field>
                             </div>
                         </div>
@@ -800,7 +800,7 @@
                     <div class="form-container">
                         <mat-form-field appearance="outline" class="full-width notes-field">
                             <mat-label>Notes et observations</mat-label>
-                            <textarea matInput [value]="clientParticulier()?.dossierMedical?.notes || ''" readonly
+                            <textarea aria-label="Textarea" title="Textarea" matInput [value]="clientParticulier()?.dossierMedical?.notes || ''" readonly
                                 rows="15"></textarea>
                         </mat-form-field>
                     </div>
@@ -874,7 +874,7 @@
                                     }}
                                 </div>
                             </div>
-                            <button mat-stroked-button color="primary"
+                            <button type="button" mat-stroked-button color="primary"
                                 (click)="clientId = parrain()?.id; loadClientData()">
                                 Voir Dossier
                             </button>
@@ -894,7 +894,7 @@
                                     <div class="text-xs text-gray-500">Inscrit le {{ filleul.dateCreation |
                                         date:'dd/MM/yyyy' }}</div>
                                 </div>
-                                <button mat-icon-button (click)="clientId = filleul.id; loadClientData()">
+                                <button type="button" mat-icon-button (click)="clientId = filleul.id; loadClientData()">
                                     <mat-icon>open_in_new</mat-icon>
                                 </button>
                             </div>

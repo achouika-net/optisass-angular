@@ -4,22 +4,17 @@ import { PrismaService } from '../../prisma/prisma.service';
 @Injectable()
 export class TreasuryService {
   private readonly INVENTORY_PURCHASE_TYPES = [
-    'ACHAT VERRES OPTIQUES',
-    'ACHAT MONTURES OPTIQUES',
-    'ACHAT LENTILLES DE CONTACT',
-    'ACHAT ACCESSOIRES OPTIQUES',
-    'ACHAT_STOCK',
+    'ACHAT VERRES OPTIQUES', 'ACHAT_VERRE_OPTIQUE', 'ACHAT_VERRES_OPTIQUES', 'ACHAT VERRE OPTIQUE',
+    'ACHAT MONTURES OPTIQUES', 'ACHAT_MONTURE_OPTIQUE', 'ACHAT_MONTURES_OPTIQUES', 'ACHAT MONTURE OPTIQUE',
+    'ACHAT LENTILLES DE CONTACT', 'ACHAT_LENTILLES', 'ACHAT_LENTILLES_DE_CONTACT', 'ACHAT LENTILLES',
+    'ACHAT ACCESSOIRES OPTIQUES', 'ACHAT_ACCESSOIRES', 'ACHAT_ACCESSOIRES_OPTIQUES', 'ACHAT ACCESSOIRES',
+    'ACHAT_STOCK', 'ACHAT STOCK'
   ];
 
   private readonly OPERATIONAL_PURCHASE_TYPES = [
-    'ELECTRICITE',
-    'INTERNET',
-    'ASSURANCE',
-    'FRAIS BANCAIRES',
-    'AUTRES CHARGES',
-    'REGLEMENT CONSOMMATION EAU',
-    'REGLEMENT SALAIRS OPTIQUES',
-    'LOYER',
+    'ELECTRICITE', 'ÉLECTRICITÉ', 'INTERNET', 'ASSURANCE', 'FRAIS BANCAIRES', 
+    'AUTRES CHARGES', 'REGLEMENT CONSOMMATION EAU', 'REGLEMENT SALAIRS OPTIQUES', 
+    'LOYER', 'SALAIRE', 'FRAIS_DIVERS'
   ];
 
   private readonly ACTIVE_STATUSES = [
@@ -61,7 +56,6 @@ export class TreasuryService {
         where: {
           date: { gte: startDate, lte: endDate },
           centreId: centreId,
-          echeanceId: null,
         } as any,
         _sum: { montant: true },
       }),
@@ -76,12 +70,14 @@ export class TreasuryService {
               OR: [
                 { depense: { centreId } },
                 { factureFournisseur: { centreId } },
+                { bonLivraison: { centreId } },
               ],
             }
             : {
               OR: [
                 { depense: { isNot: null } },
                 { factureFournisseur: { isNot: null } },
+                { bonLivraison: { isNot: null } },
               ],
             }),
         },
@@ -90,6 +86,7 @@ export class TreasuryService {
           statut: true,
           dateEcheance: true,
           depense: { select: { id: true, categorie: true, description: true } },
+          bonLivraison: { select: { id: true, type: true, numeroBL: true } },
           factureFournisseur: {
             select: { id: true, type: true, numeroFacture: true },
           },
@@ -162,6 +159,17 @@ export class TreasuryService {
         },
         _sum: { montantTTC: true },
       }),
+
+      // 9. BL Breakdown by Type (Not yet invoiced)
+      this.prisma.bonLivraison.groupBy({
+        by: ['type'],
+        where: {
+          dateEmission: { gte: startDate, lte: endDate },
+          factureFournisseurId: null,
+          ...(centreId ? { centreId } : {}),
+        },
+        _sum: { montantTTC: true },
+      }),
     ]);
 
     const directExpenseCategories = results[0] as any[];
@@ -173,6 +181,7 @@ export class TreasuryService {
     const totalInvoicesTTC = (results[6] as any)._sum.montantTTC || 0;
     const totalDirectExpensesValue = (results[7] as any)._sum.montant || 0;
     const invoiceBreakdown = results[8] as any[];
+    const blBreakdown = results[9] as any[];
 
     const monthlyThreshold = config?.monthlyThreshold || 50000;
 
@@ -186,8 +195,26 @@ export class TreasuryService {
       const isInventory = inventoryTypes.includes(type);
       const isOperational = operationalTypes.includes(type);
 
-      // We count all supplier invoices to be consistent with getRealProfit 
-      // which uses the same "all for operational + all for inventory" logic.
+      const amount = Number(b._sum.montantTTC || 0);
+      let cat = type;
+      if (isInventory) {
+        if (type === 'ACHAT MONTURES OPTIQUES') cat = 'ACHAT MONTURES';
+        else if (type === 'ACHAT VERRES OPTIQUES') cat = 'ACHAT VERRES';
+        else if (type === 'ACHAT LENTILLES DE CONTACT') cat = 'ACHAT LENTILLES';
+        else if (type === 'ACHAT ACCESSOIRES OPTIQUES') cat = 'ACHAT ACCESSOIRES';
+        else cat = 'ACHAT STOCK (Divers)';
+      }
+
+      combinedCategoriesMap.set(
+        cat,
+        (combinedCategoriesMap.get(cat) || 0) + amount,
+      );
+    });
+
+    // 1b. Process BL Categories (Non-invoiced)
+    blBreakdown.forEach((b) => {
+      const type = b.type || 'AUTRE';
+      const isInventory = inventoryTypes.includes(type);
       const amount = Number(b._sum.montantTTC || 0);
       let cat = type;
       if (isInventory) {
@@ -214,30 +241,50 @@ export class TreasuryService {
       );
     });
 
-    // Total Expenses is strictly Invoice-based (Accrual) for header consistency
-    const totalExpenses = totalInvoicesTTC + totalDirectExpensesValue;
+    // Total Engaged (Invoices + Direct)
+    const totalEngaged = totalInvoicesTTC + totalDirectExpensesValue;
 
     // 3. Process Scheduled Payments (Echeances) - FOR CASH FLOW ONLY
     let totalScheduledCashed = 0;
     let totalOutgoingPending = 0;
-
+    
     monthlyEcheances.forEach((e) => {
-      const type = e.factureFournisseur?.type;
-      const isInventory = inventoryTypes.includes(type);
-      const isOperational = operationalTypes.includes(type);
+      const rawType = (e.factureFournisseur?.type || e.bonLivraison?.type || e.depense?.categorie || 'AUTRE');
+      const type = rawType.toUpperCase().replace(/_/g, ' ');
+      
+      const isInventory = this.INVENTORY_PURCHASE_TYPES.some(t => type.includes(t.toUpperCase().replace(/_/g, ' ')));
+      const isOperational = this.OPERATIONAL_PURCHASE_TYPES.some(t => type.includes(t.toUpperCase().replace(/_/g, ' ')));
 
-      // Only count installments related to valid invoice/expense types
       if (e.factureFournisseur && !isInventory && !isOperational) return;
+      if (e.bonLivraison && !isInventory && !isOperational) return;
 
       const amount = Number(e.montant || 0);
-      const isCashed = ['ENCAISSE', 'DECAISSE', 'PAYE', 'PAYÉ', 'PAYEE', 'PAYÉE', 'SOLDE'].includes(e.statut?.toUpperCase());
+      const status = (e.statut || '').toUpperCase();
+      const isCashed = ['ENCAISSE', 'ENCAISSÉ', 'DECAISSE', 'DÉCAISSÉ', 'PAYE', 'PAYÉ', 'PAYEE', 'PAYÉE', 'SOLDE', 'VALIDE', 'VALIDÉ'].includes(status);
 
-      if (e.statut === 'EN_ATTENTE') {
+      if (status === 'EN_ATTENTE' || status === 'A_PAYER') {
         totalOutgoingPending += amount;
       } else if (isCashed) {
         totalScheduledCashed += amount;
+        
+        // Add to pie chart categories for Paid items
+        let cat = rawType;
+        if (isInventory) {
+          if (type.includes('MONTURE')) cat = 'ACHAT MONTURES';
+          else if (type.includes('VERRE')) cat = 'ACHAT VERRES';
+          else if (type.includes('LENTILLE')) cat = 'ACHAT LENTILLES';
+          else if (type.includes('ACCESSOIRE')) cat = 'ACHAT ACCESSOIRES';
+          else cat = 'ACHAT STOCK (Divers)';
+        }
+        combinedCategoriesMap.set(cat, (combinedCategoriesMap.get(cat) || 0) + amount);
       }
     });
+
+    // Final calculations for Dashboard
+    // totalExpensesCashed: what has effectively left the bank/cash this month
+    const totalExpensesCashed = totalScheduledCashed + totalDirectExpensesValue; 
+    const totalPlannedOutgoing = totalScheduledCashed + totalOutgoingPending + totalDirectExpensesValue;
+    const totalExpenses = totalEngaged; // Orange card: Engagements of the month
 
     // 3. Process Incoming Payments (Paiement)
     let incomingStandard = 0;
@@ -285,13 +332,31 @@ export class TreasuryService {
     const totalIncoming = incomingStandard - incomingAvoir;
     const totalIncomingCashed = incomingCashedStandard - incomingCashedAvoir;
 
-    // totalExpensesCashed includes paid installments + paid direct expenses
-    const totalExpensesCashed = totalScheduledCashed + totalDirectExpensesValue;
+    // totalExpensesCashed includes paid installments + paid direct expenses (already declared above)
 
     const balance = totalIncoming - totalExpenses;
     const balanceReal = totalIncomingCashed - totalExpensesCashed;
 
-    const categories = Array.from(combinedCategoriesMap.entries())
+    const stockCategories = Array.from(combinedCategoriesMap.entries())
+      .filter(([name]) =>
+        inventoryTypes.some(
+          (t) =>
+            name.toUpperCase().includes(t.toUpperCase()) ||
+            name.toUpperCase().includes('ACHAT'),
+        ),
+      )
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    const expenseCategories = Array.from(combinedCategoriesMap.entries())
+      .filter(
+        ([name]) =>
+          !inventoryTypes.some(
+            (t) =>
+              name.toUpperCase().includes(t.toUpperCase()) ||
+              name.toUpperCase().includes('ACHAT'),
+          ),
+      )
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
 
@@ -301,20 +366,35 @@ export class TreasuryService {
       (p) => p.statut === 'EN_ATTENTE' && ['CHEQUE', 'LCN'].includes(p.mode),
     ).length;
 
+    const totalBLTTC = blBreakdown.reduce((sum, b) => sum + Number(b._sum.montantTTC || 0), 0);
+    const totalEngagedActual = totalInvoicesTTC + totalDirectExpensesValue + totalBLTTC;
+
     return {
       month,
       year,
-      totalExpenses,
+      totalExpenses: totalEngagedActual,   // Orange card: NEW engagements of the month
+      totalEngaged: totalEngagedActual,
       totalIncoming,
       totalExpensesCashed,
       totalIncomingCashed,
       balance,
       balanceReal,
-      totalScheduled: totalInvoicesTTC + totalDirectExpensesValue, // Unified planned total
+      totalScheduled: totalExpensesCashed, // Purple card "amount" part shows what's already regulated? 
+      // Wait, usually the purple card title shows the full volume against the ceiling.
+      // If the user wants to see the 900, but still track the 6900...
+      // Let's keep totalScheduled as 900 (regulated) but show totalPlannedOutgoing elsewhere if needed.
+      // ACTUALLY: The user wants "Dépenses du mois" to be the totality. 
+      // So Orange = 6900.
+      // Purple card should probably also show 6900 against the ceiling of 50000.
+      totalScheduledVolume: totalPlannedOutgoing, 
       totalIncomingPending: incomingPendingStandard - incomingPendingAvoir,
       totalOutgoingPending,
       monthlyThreshold,
-      categories,
+      categories: Array.from(combinedCategoriesMap.entries())
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value),
+      stockCategories,
+      expenseCategories,
       incomingCash,
       incomingCard,
       countCard,
@@ -483,9 +563,9 @@ export class TreasuryService {
     const baseQuery = `
       SELECT 
         d.id, d.date, COALESCE(d.description, d.categorie) as libelle, d.categorie as type, 
-        COALESCE(f.nom, ff_d.nom, 'N/A') as fournisseur, d.montant, d.statut, 'DEPENSE' as source, 
-        'DEPENSE' as "sourceRaw", d."modePaiement", d.reference, ep_d.banque, d."dateEcheance", 
-        ep_d."dateEncaissement", d.montant as "montantHT", NULL as "echeanceId"
+        COALESCE(f.nom, ff_d.nom, 'N/A') as fournisseur, d.montant, 'ENCAISSE' as statut, 'DEPENSE' as source, 
+        'DEPENSE' as "sourceRaw", d."modePaiement", d.reference, ep_d.banque, d.date as "dateEcheance", 
+        d.date as "dateEncaissement", d.montant as "montantHT", NULL as "echeanceId"
       FROM "Depense" d
       LEFT JOIN "Fournisseur" f ON d."fournisseurId" = f.id
       LEFT JOIN "FactureFournisseur" inv_d ON d."factureFournisseurId" = inv_d.id
@@ -498,7 +578,9 @@ export class TreasuryService {
         ff.type as type, COALESCE(f_ff.nom, 'N/A') as fournisseur, ep.montant, ep.statut, 
         'Facture ' || ff."numeroFacture" as source, 'FACTURE' as "sourceRaw",
         ep.type as "modePaiement", COALESCE(ep.reference, ff."numeroFacture") as reference, 
-        ep.banque, ep."dateEcheance", ep."dateEncaissement", ff."montantHT", ep.id as "echeanceId"
+        ep.banque, ep."dateEcheance", ep."dateEncaissement", 
+        (ep.montant * (ff."montantHT" / NULLIF(ff."montantTTC", 0))) as "montantHT", 
+        ep.id as "echeanceId"
       FROM "EcheancePaiement" ep
       INNER JOIN "FactureFournisseur" ff ON ep."factureFournisseurId" = ff.id
       LEFT JOIN "Fournisseur" f_ff ON ff."fournisseurId" = f_ff.id
@@ -510,7 +592,9 @@ export class TreasuryService {
         bl.type as type, COALESCE(f_bl.nom, 'N/A') as fournisseur, ep.montant, ep.statut, 
         'BL ' || bl."numeroBL" as source, 'BL' as "sourceRaw",
         ep.type as "modePaiement", COALESCE(ep.reference, bl."numeroBL") as reference, 
-        ep.banque, ep."dateEcheance", ep."dateEncaissement", bl."montantTTC" as "montantHT", ep.id as "echeanceId"
+        ep.banque, ep."dateEcheance", ep."dateEncaissement", 
+        (ep.montant * (bl."montantHT" / NULLIF(bl."montantTTC", 0))) as "montantHT", 
+        ep.id as "echeanceId"
       FROM "EcheancePaiement" ep
       INNER JOIN "BonLivraison" bl ON ep."bonLivraisonId" = bl.id
       LEFT JOIN "Fournisseur" f_bl ON bl."fournisseurId" = f_bl.id
@@ -522,9 +606,10 @@ export class TreasuryService {
       SELECT 
         COUNT(*)::int as total, 
         COALESCE(SUM(montant), 0)::float as "totalTTC",
+        COALESCE(SUM("montantHT"), 0)::float as "totalHT",
         COALESCE(SUM(CASE WHEN statut IN ('EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON', 'NON_PAYEE', 'A_PAYER') THEN montant ELSE 0 END), 0)::float as "inHand",
         COALESCE(SUM(CASE WHEN statut IN ('REMIS_EN_BANQUE', 'DEPOSE', 'DÉPOSÉ') THEN montant ELSE 0 END), 0)::float as "deposited",
-        COALESCE(SUM(CASE WHEN statut IN ('ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ') THEN montant ELSE 0 END), 0)::float as "paid"
+        COALESCE(SUM(CASE WHEN statut IN ('ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ', 'SOLDE', 'DÉCAISSÉ', 'DECAISSE') THEN montant ELSE 0 END), 0)::float as "paid"
       FROM (${baseQuery}) as c
     `;
     const stats = (await (this.prisma as any).$queryRawUnsafe(statsQuery, ...sqlParams)) as any[];
@@ -538,8 +623,8 @@ export class TreasuryService {
       montantHT: Number(r.montantHT || r.montant || 0)
     }));
 
-    // Accrual Total for Dashboard Alignment
-    const [accrualFactureAgg, accrualDepenseAgg] = await Promise.all([
+    // Accrual Total for Dashboard Alignment (Including BLs)
+    const [accrualFactureAgg, accrualDepenseAgg, accrualBLAgg] = await Promise.all([
       this.prisma.factureFournisseur.aggregate({
         where: {
           centreId: filters.centreId,
@@ -565,22 +650,37 @@ export class TreasuryService {
           ...(filters.fournisseurId ? { fournisseurId: filters.fournisseurId } : {}),
         },
         _sum: { montant: true }
+      }),
+      this.prisma.bonLivraison.aggregate({
+        where: {
+          centreId: filters.centreId,
+          ...(filters.startDate || filters.endDate ? {
+            dateEmission: {
+              ...(filters.startDate ? { gte: new Date(filters.startDate) } : {}),
+              ...(filters.endDate ? { lte: new Date(filters.endDate) } : {})
+            }
+          } : {}),
+          ...(filters.fournisseurId ? { fournisseurId: filters.fournisseurId } : {}),
+          // Exclude BLs that are already invoiced to avoid double counting if they appear as Factures
+          factureFournisseurId: null
+        },
+        _sum: { montantTTC: true, montantHT: true }
       })
     ]);
 
-    const totalAccrual = (accrualFactureAgg._sum.montantTTC || 0) + (accrualDepenseAgg._sum.montant || 0);
-    const totalHT = (accrualFactureAgg._sum.montantHT || 0) + (accrualDepenseAgg._sum.montant || 0);
+    const totalAccrual = (accrualFactureAgg._sum.montantTTC || 0) + (accrualDepenseAgg._sum.montant || 0) + (accrualBLAgg._sum.montantTTC || 0);
+    const totalHT = (accrualFactureAgg._sum.montantHT || 0) + (accrualDepenseAgg._sum.montant || 0) + (accrualBLAgg._sum.montantHT || 0);
 
     return {
       data: mappedData,
       total: stats[0]?.total || 0,
       subtotals: {
-        totalTTC: stats[0]?.totalTTC || 0,
-        inHand: stats[0]?.inHand || 0,
-        deposited: stats[0]?.deposited || 0,
-        paid: stats[0]?.paid || 0,
+        totalTTC: Number((stats[0]?.totalTTC || 0).toFixed(2)),
+        inHand: Number((stats[0]?.inHand || 0).toFixed(2)),
+        deposited: Number((stats[0]?.deposited || 0).toFixed(2)),
+        paid: Number((stats[0]?.paid || 0).toFixed(2)),
         totalAccrual: Number(totalAccrual.toFixed(2)),
-        totalHT: Number(totalHT.toFixed(2))
+        totalHT: Number((stats[0]?.totalHT || 0).toFixed(2))
       }
     };
   }
@@ -789,20 +889,32 @@ export class TreasuryService {
 
   async getYearlyProjection(year: number, centreId?: string) {
     const months = Array.from({ length: 12 }, (_, i) => i + 1);
-    const results = await Promise.all(months.map(month => {
+    const results = await Promise.all(months.map(async month => {
       const startDate = new Date(Date.UTC(year, month - 1, 1));
       const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
-      return this.prisma.echeancePaiement.aggregate({
-        where: {
-          dateEcheance: { gte: startDate, lte: endDate },
-          statut: { not: 'ANNULE' },
-          ...(centreId ? { OR: [{ depense: { centreId } }, { factureFournisseur: { centreId } }] } : { OR: [{ depense: { isNot: null } }, { factureFournisseur: { isNot: null } }] }),
-        },
-        _sum: { montant: true },
-      });
+      
+      const [echeancesSum, directSum] = await Promise.all([
+        this.prisma.echeancePaiement.aggregate({
+          where: {
+            dateEcheance: { gte: startDate, lte: endDate },
+            statut: { not: 'ANNULE' },
+            ...(centreId ? { OR: [{ depense: { centreId } }, { factureFournisseur: { centreId } }] } : { OR: [{ depense: { isNot: null } }, { factureFournisseur: { isNot: null } }] }),
+          },
+          _sum: { montant: true },
+        }),
+        this.prisma.depense.aggregate({
+          where: {
+            date: { gte: startDate, lte: endDate },
+            ...(centreId ? { centreId } : {}),
+          },
+          _sum: { montant: true },
+        })
+      ]);
+
+      return Number(echeancesSum._sum?.montant || 0) + Number(directSum._sum?.montant || 0);
     }));
 
-    return results.map((res, i) => ({ month: i + 1, totalExpenses: Number((res as any)._sum.montant || 0) }));
+    return results.map((total, i) => ({ month: i + 1, totalExpenses: total }));
   }
 
   async updateEcheanceStatus(id: string, statut: string) {

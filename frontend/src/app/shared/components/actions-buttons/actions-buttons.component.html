@@ -14,7 +14,7 @@
     </mat-card-content>
   </mat-card>
   <div class="fixed right-3 bottom-[4.25rem] z-[1000] md:hidden">
-    <button
+    <button type="button"
       mat-fab
       class="transition duration-150 ease-in-out"
       [class.rotate-90]="isOpen()"
@@ -41,7 +41,7 @@
           [matTooltip]="button.tooltip | translate"
           class="relative"
         >
-          <button
+          <button type="button"
             matButton="filled"
             [attr.data-subitem]="$index + 1"
             [style.background-color]="!button.disabled ? button.customColor : null"

@@ -4,6 +4,8 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
+import * as fs from 'fs';
+import { Prisma, Paiement, Facture } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePaiementDto } from './dto/create-paiement.dto';
 import { UpdatePaiementDto } from './dto/update-paiement.dto';
@@ -17,7 +19,7 @@ export class PaiementsService {
     private prisma: PrismaService,
     private stockAvailabilityService: StockAvailabilityService,
     private commissionService: CommissionService,
-  ) { }
+  ) {}
 
   /**
    * BUG-005 FIX: Automated cheque follow-up
@@ -42,17 +44,24 @@ export class PaiementsService {
       return;
     }
 
-    console.log(`[CRON] Found ${overdue.length} overdue checks. Sending reminders...`);
+    console.log(
+      `[CRON] Found ${overdue.length} overdue checks. Sending reminders...`,
+    );
 
     for (const paiement of overdue) {
       try {
         // TODO: Integrate with mailer service
         console.log(
-          `[CRON RELANCE] Check ${paiement.reference} for facture ${paiement.factureId} (Due: ${paiement.dateVersement})`,
+          `[CRON RELANCE] Check ${paiement.reference} for facture ${
+            paiement.factureId
+          } (Due: ${String(paiement.dateVersement)})`,
         );
         // await this.mailer.sendRelance(paiement, paiement.facture);
       } catch (e) {
-        console.error(`[CRON ERROR] Failed to send relance for check ${paiement.id}:`, e);
+        console.error(
+          `[CRON ERROR] Failed to send relance for check ${paiement.id}:`,
+          e,
+        );
       }
     }
   }
@@ -100,102 +109,116 @@ export class PaiementsService {
     }
 
     // [BUG-002 FIX] ATOMIC TRANSACTION: Wrap all modifications in single transaction
-    return await this.prisma.$transaction(async (tx) => {
-      // 3. Déterminer le statut par défaut si non fourni
-      let finalStatut = createPaiementDto.statut;
-      if (montant < 0) {
-        finalStatut = 'DECAISSEMENT';
-        createPaiementDto.mode = 'ESPECES'; // Force Cash for refunds
-      } else if (!finalStatut) {
-        finalStatut =
-          createPaiementDto.mode === 'ESPECES' ||
+    return await this.prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        // 3. Déterminer le statut par défaut si non fourni
+        let finalStatut = createPaiementDto.statut;
+        if (montant < 0) {
+          finalStatut = 'DECAISSEMENT';
+          createPaiementDto.mode = 'ESPECES'; // Force Cash for refunds
+        } else if (!finalStatut) {
+          finalStatut =
+            createPaiementDto.mode === 'ESPECES' ||
             createPaiementDto.mode === 'CARTE'
-            ? 'ENCAISSE'
-            : 'EN_ATTENTE';
-      }
-
-      // 4. CREATE PAYMENT (within transaction)
-      const paiement = await tx.paiement.create({
-        data: {
-          ...createPaiementDto,
-          statut: finalStatut,
-          userId: userId || null,
-        },
-      });
-
-      // 5. UPDATE INVOICE (within transaction)
-      const nouveauReste = facture.resteAPayer - montant;
-      const nouveauStatut =
-        nouveauReste <= 0
-          ? facture.totalTTC > 0
-            ? 'PAYEE'
-            : 'VALIDE'
-          : 'PARTIEL';
-
-      const updateData: any = {
-        resteAPayer: nouveauReste,
-        statut: nouveauStatut,
-      };
-
-      // [FIX] Standardize transition DEVIS -> BON_COMM
-      if (facture.type === 'DEVIS') {
-        console.log(
-          `📌 [TRANSITION] Devis ${facture.numero} receiving payment. Upgrading to BON_COMM.`,
-        );
-        updateData.type = 'BON_COMM';
-        updateData.numero = await this.generateNextNumber('BON_COMM');
-
-        if (nouveauReste > 0) {
-          updateData.statut = 'PARTIEL';
+              ? 'ENCAISSE'
+              : 'EN_ATTENTE';
         }
-      }
 
-      const updatedFacture = await tx.facture.update({
-        where: { id: factureId },
-        data: updateData,
-      });
+        // 4. CREATE PAYMENT (within transaction)
+        const paiement = await tx.paiement.create({
+          data: {
+            ...createPaiementDto,
+            statut: finalStatut,
+            userId: userId || null,
+          },
+        });
 
-      // 6. HANDLE CAISSE INTEGRATION (within transaction)
-      const acceptedModes = ['ESPECES', 'ESPECE', 'CARTE', 'CHEQUE', 'CHÈQUE', 'VIREMENT', 'LCN'];
-      if (acceptedModes.includes(createPaiementDto.mode)) {
-        try {
-          await this.handleCaisseIntegration(tx, paiement, facture, userId);
-        } catch (caisseError) {
-          console.error('❌ [PAIEMENT CAISSE ERROR]', {
-            paiementId: paiement.id,
-            mode: paiement.mode,
-            montant: paiement.montant,
-            error: caisseError.message,
-          });
-          // Propagate error to trigger rollback
-          throw caisseError;
-        }
-      }
+        // 5. UPDATE INVOICE (within transaction)
+        const nouveauReste = facture.resteAPayer - montant;
+        const nouveauStatut =
+          nouveauReste <= 0
+            ? facture.totalTTC > 0
+              ? 'PAYEE'
+              : 'VALIDE'
+            : 'PARTIEL';
 
-      // 7. COMMISSION TRIGGER (within transaction)
-      if (
-        updatedFacture.vendeurId &&
-        (updatedFacture.statut === 'VALIDE' ||
-          updatedFacture.statut === 'PARTIEL' ||
-          updatedFacture.statut === 'PAYEE' ||
-          updatedFacture.statut === 'BON_DE_COMMANDE')
-      ) {
-        try {
-          await this.commissionService.calculateForInvoice(updatedFacture.id, tx);
-        } catch (e) {
-          console.error(
-            '⚠️ [COMMISSION] Failed to calculate commissions after payment:',
-            e,
+        const updateData: Prisma.FactureUpdateInput = {
+          resteAPayer: nouveauReste,
+          statut: nouveauStatut,
+        };
+
+        // [FIX] Standardize transition DEVIS -> BON_COMM
+        if (facture.type === 'DEVIS') {
+          console.log(
+            `📌 [TRANSITION] Devis ${facture.numero} receiving payment. Upgrading to BON_COMM.`,
           );
-          // Don't block payment if commission fails - just log
-        }
-      }
+          updateData.type = 'BON_COMM';
+          updateData.numero = await this.generateNextNumber('BON_COMM');
 
-      return paiement;
-    }, { timeout: 10000, maxWait: 5000 });
+          if (nouveauReste > 0) {
+            updateData.statut = 'PARTIEL';
+          }
+        }
+
+        const updatedFacture = await tx.facture.update({
+          where: { id: factureId },
+          data: updateData,
+        });
+
+        // 6. HANDLE CAISSE INTEGRATION (within transaction)
+        const acceptedModes = [
+          'ESPECES',
+          'ESPECE',
+          'CARTE',
+          'CHEQUE',
+          'CHÈQUE',
+          'VIREMENT',
+          'LCN',
+        ];
+        if (acceptedModes.includes(createPaiementDto.mode)) {
+          try {
+            await this.handleCaisseIntegration(tx, paiement, facture, userId);
+          } catch (caisseError) {
+            console.error('❌ [PAIEMENT CAISSE ERROR]', {
+              paiementId: paiement.id,
+              mode: paiement.mode,
+              montant: paiement.montant,
+              error: (caisseError as Error).message,
+            });
+            // Propagate error to trigger rollback
+            throw caisseError;
+          }
+        }
+
+        // 7. COMMISSION TRIGGER (within transaction)
+        if (
+          updatedFacture.vendeurId &&
+          (updatedFacture.statut === 'VALIDE' ||
+            updatedFacture.statut === 'PARTIEL' ||
+            updatedFacture.statut === 'PAYEE' ||
+            updatedFacture.statut === 'BON_DE_COMMANDE')
+        ) {
+          try {
+            await this.commissionService.calculateForInvoice(
+              updatedFacture.id,
+              tx,
+            );
+          } catch (e) {
+            console.error(
+              '⚠️ [COMMISSION] Failed to calculate commissions after payment:',
+              e,
+            );
+            // Don't block payment if commission fails - just log
+          }
+        }
+
+        return paiement;
+      },
+      { timeout: 10000, maxWait: 5000 },
+    );
   }
 
-  private async generateNextNumber(type: 'BON_COMM'): Promise<string> {
+  private async generateNextNumber(_type: 'BON_COMM'): Promise<string> {
     const year = new Date().getFullYear();
     const prefix = 'BC';
 
@@ -224,12 +247,14 @@ export class PaiementsService {
   }
 
   async handleCaisseIntegration(
-    tx: any,
-    paiement: any,
-    facture: any,
+    tx: Prisma.TransactionClient,
+    paiement: Paiement,
+    facture: Facture,
     userId?: string,
   ) {
-    console.log(`[Caisse-Integration] Processing payment ${paiement.id} (${paiement.mode}, ${paiement.montant}DH) for Facture ${facture?.numero}`);
+    console.log(
+      `[Caisse-Integration] Processing payment ${paiement.id} (${paiement.mode}, ${paiement.montant}DH) for Facture ${facture?.numero}`,
+    );
 
     // ──────────────────────────────────────────────────────────
     // ANTI-DOUBLON GUARD: If this payment is already linked to an
@@ -249,12 +274,14 @@ export class PaiementsService {
     let targetCentreId = facture?.centreId;
 
     if (!targetCentreId && facture?.clientId) {
-      console.log(`[Caisse-Integration] Facture ${facture.id} missing centreId. Resolving from client...`);
+      console.log(
+        `[Caisse-Integration] Facture ${facture.id} missing centreId. Resolving from client...`,
+      );
       const client = await tx.client.findUnique({
         where: { id: facture.clientId },
-        select: { centreId: true }
+        select: { centreId: true },
       });
-      targetCentreId = client?.centreId;
+      targetCentreId = client?.centreId ?? null;
     }
 
     if (!targetCentreId) {
@@ -271,7 +298,7 @@ export class PaiementsService {
       // Refunds MUST go through the expense register
       const expenseJournee = await tx.journeeCaisse.findFirst({
         where: {
-          centreId: targetCentreId!,
+          centreId: targetCentreId,
           statut: 'OUVERTE',
           caisse: { type: { in: ['DEPENSES', 'MIXTE'] } },
         },
@@ -298,7 +325,8 @@ export class PaiementsService {
     });
 
     // Strategy: If there's a MIXTE caisse open, prefer it. Otherwise take the first one found.
-    const openJournee = openSessions.find((j) => j.caisse.type === 'MIXTE') || openSessions[0];
+    const openJournee =
+      openSessions.find((j) => j.caisse.type === 'MIXTE') || openSessions[0];
 
     if (openJournee) {
       const absMontant = Math.abs(paiement.montant);
@@ -371,7 +399,7 @@ export class PaiementsService {
           data: {
             totalComptable: { increment: paiement.montant },
             totalVentesEspeces:
-              (paiement.mode === 'ESPECES' || paiement.mode === 'ESPECE')
+              paiement.mode === 'ESPECES' || paiement.mode === 'ESPECE'
                 ? { increment: paiement.montant }
                 : undefined,
             totalVentesCarte:
@@ -379,7 +407,7 @@ export class PaiementsService {
                 ? { increment: paiement.montant }
                 : undefined,
             totalVentesCheque:
-              (paiement.mode === 'CHEQUE' || paiement.mode === 'CHÈQUE')
+              paiement.mode === 'CHEQUE' || paiement.mode === 'CHÈQUE'
                 ? { increment: paiement.montant }
                 : undefined,
           },
@@ -389,7 +417,7 @@ export class PaiementsService {
   }
 
   async findAll(factureId?: string, centreId?: string) {
-    const where: any = {};
+    const where: Prisma.PaiementWhereInput = {};
 
     if (factureId) {
       where.factureId = factureId;
@@ -468,14 +496,13 @@ export class PaiementsService {
     // 2. Synchronization with Caisse Integration
     const opId = paiement.operationCaisseId;
     if (opId) {
-      await this.prisma.$transaction(async (tx) => {
+      await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const op = await tx.operationCaisse.findUnique({
           where: { id: opId },
           include: { journeeCaisse: true },
         });
 
         if (op && (op as any).journeeCaisse?.statut === 'OUVERTE') {
-          const journeeCaisse = (op as any).journeeCaisse;
           const newMode = updatePaiementDto.mode || (paiement.mode as any);
           const newMontant =
             updatePaiementDto.montant !== undefined
@@ -522,10 +549,9 @@ export class PaiementsService {
                     ? updatePaiementDto.montant
                     : paiement.montant,
               },
-              totalVentesEspeces:
-                ['ESPECES', 'ESPECE'].includes(newMode)
-                  ? { increment: newMontant }
-                  : undefined,
+              totalVentesEspeces: ['ESPECES', 'ESPECE'].includes(newMode)
+                ? { increment: newMontant }
+                : undefined,
               totalVentesCarte:
                 newMode === 'CARTE' ? { increment: newMontant } : undefined,
               totalVentesCheque:
@@ -558,8 +584,8 @@ export class PaiementsService {
         facture: true,
         operationCaisse: {
           include: {
-            journeeCaisse: true
-          }
+            journeeCaisse: true,
+          },
         },
       },
     });
@@ -568,78 +594,95 @@ export class PaiementsService {
       throw new NotFoundException(`Paiement ${id} non trouvé`);
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      // 1. REVERSION CAISSE (COMPTABILITÉ)
-      if (paiement.operationCaisseId && paiement.operationCaisse) {
-        const op = paiement.operationCaisse;
-        if (op.journeeCaisse?.statut === 'OUVERTE') {
-          console.log(`[Paiement-Delete] Reversing Caisse Movement for Op ${op.id}`);
+    const result = await this.prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        // 1. REVERSION CAISSE (COMPTABILITÉ)
+        if (paiement.operationCaisseId && paiement.operationCaisse) {
+          const op = paiement.operationCaisse;
+          if (op.journeeCaisse?.statut === 'OUVERTE') {
+            console.log(
+              `[Paiement-Delete] Reversing Caisse Movement for Op ${op.id}`,
+            );
 
-          await tx.journeeCaisse.update({
-            where: { id: op.journeeCaisseId },
+            await tx.journeeCaisse.update({
+              where: { id: op.journeeCaisseId },
+              data: {
+                totalComptable: { decrement: paiement.montant },
+                totalVentesEspeces: ['ESPECES', 'ESPECE'].includes(
+                  op.moyenPaiement,
+                )
+                  ? { decrement: op.montant }
+                  : undefined,
+                totalVentesCarte:
+                  op.moyenPaiement === 'CARTE'
+                    ? { decrement: op.montant }
+                    : undefined,
+                totalVentesCheque: ['CHEQUE', 'CHÈQUE'].includes(
+                  op.moyenPaiement,
+                )
+                  ? { decrement: op.montant }
+                  : undefined,
+              },
+            });
+
+            // Delete the operation before the payment
+            await tx.operationCaisse.delete({
+              where: { id: op.id },
+            });
+          } else {
+            console.warn(
+              `[Paiement-Delete] Cannot reverse Caisse for Op ${op.id}: Journée is closed.`,
+            );
+          }
+        }
+
+        // 2. MISE À JOUR FACTURE (MONTANTS & STATUT)
+        if (paiement.facture) {
+          const facture = paiement.facture;
+          const nouveauReste = (facture.resteAPayer || 0) + paiement.montant;
+
+          // Determination of the new status
+          // If the balance is equal to the total (0.05 margin), status becomes VALIDE (Unpaid)
+          // Otherwise it remains PARTIEL
+          let nouveauStatut =
+            Math.abs(nouveauReste - (facture.totalTTC || 0)) < 0.05
+              ? 'VALIDE'
+              : 'PARTIEL';
+
+          // Specific cases for Devis/BC
+          if (facture.type === 'BON_COMM' && nouveauStatut === 'VALIDE') {
+            nouveauStatut = 'VENTE_EN_INSTANCE'; // Or whatever initial status a BC has
+          }
+
+          console.log(
+            `[Paiement-Delete] Updating Facture ${facture.numero}: Reste ${facture.resteAPayer} -> ${nouveauReste}, Statut -> ${nouveauStatut}`,
+          );
+
+          await tx.facture.update({
+            where: { id: paiement.factureId },
             data: {
-              totalComptable: { decrement: paiement.montant },
-              totalVentesEspeces: ['ESPECES', 'ESPECE'].includes(op.moyenPaiement)
-                ? { decrement: op.montant }
-                : undefined,
-              totalVentesCarte: op.moyenPaiement === 'CARTE'
-                ? { decrement: op.montant }
-                : undefined,
-              totalVentesCheque: ['CHEQUE', 'CHÈQUE'].includes(op.moyenPaiement)
-                ? { decrement: op.montant }
-                : undefined,
+              resteAPayer: Math.min(facture.totalTTC, nouveauReste),
+              statut: nouveauStatut as any,
             },
           });
-
-          // Delete the operation before the payment
-          await tx.operationCaisse.delete({
-            where: { id: op.id },
-          });
-        } else {
-          console.warn(`[Paiement-Delete] Cannot reverse Caisse for Op ${op.id}: Journée is closed.`);
-        }
-      }
-
-      // 2. MISE À JOUR FACTURE (MONTANTS & STATUT)
-      if (paiement.facture) {
-        const facture = paiement.facture;
-        const nouveauReste = (facture.resteAPayer || 0) + paiement.montant;
-
-        // Determination of the new status
-        // If the balance is equal to the total (0.05 margin), status becomes VALIDE (Unpaid)
-        // Otherwise it remains PARTIEL
-        let nouveauStatut = Math.abs(nouveauReste - (facture.totalTTC || 0)) < 0.05
-          ? 'VALIDE'
-          : 'PARTIEL';
-
-        // Specific cases for Devis/BC
-        if (facture.type === 'BON_COMM' && nouveauStatut === 'VALIDE') {
-          nouveauStatut = 'VENTE_EN_INSTANCE'; // Or whatever initial status a BC has
         }
 
-        console.log(`[Paiement-Delete] Updating Facture ${facture.numero}: Reste ${facture.resteAPayer} -> ${nouveauReste}, Statut -> ${nouveauStatut}`);
-
-        await tx.facture.update({
-          where: { id: paiement.factureId },
-          data: {
-            resteAPayer: Math.min(facture.totalTTC, nouveauReste),
-            statut: nouveauStatut as any,
-          },
+        // 3. SUPPRESSION DÉFINITIVE DU PAIEMENT
+        return tx.paiement.delete({
+          where: { id },
         });
-      }
-
-      // 3. SUPPRESSION DÉFINITIVE DU PAIEMENT
-      return tx.paiement.delete({
-        where: { id },
-      });
-    });
+      },
+    );
 
     // 4. RECALCUL DES COMMISSIONS (POST-TRANSACTION)
     if (paiement.factureId) {
       try {
         await this.commissionService.calculateForInvoice(paiement.factureId);
       } catch (e) {
-        console.error(`⚠️ [Paiement-Delete] Failed to trigger commission recalc for ${paiement.factureId}:`, e);
+        console.error(
+          `⚠️ [Paiement-Delete] Failed to trigger commission recalc for ${paiement.factureId}:`,
+          e,
+        );
       }
     }
 
@@ -647,7 +690,6 @@ export class PaiementsService {
   }
 
   async adminRepair() {
-    const fs = require('fs');
     const logFile = 'repair-debug.log';
     const log = (msg: string) => {
       console.log(msg);
@@ -862,9 +904,7 @@ export class PaiementsService {
             where: { id: journee.id },
             data: {
               totalComptable: { increment: montant },
-              totalVentesEspeces: ['ESPECES', 'ESPECE'].includes(
-                payment.mode,
-              )
+              totalVentesEspeces: ['ESPECES', 'ESPECE'].includes(payment.mode)
                 ? { increment: montant }
                 : undefined,
               totalVentesCarte:
@@ -927,10 +967,11 @@ export class PaiementsService {
               where: { id: op.journeeCaisseId },
               data: {
                 totalComptable: { decrement: op.montant },
-                totalVentesEspeces:
-                  ['ESPECES', 'ESPECE'].includes(op.moyenPaiement)
-                    ? { decrement: op.montant }
-                    : undefined,
+                totalVentesEspeces: ['ESPECES', 'ESPECE'].includes(
+                  op.moyenPaiement,
+                )
+                  ? { decrement: op.montant }
+                  : undefined,
                 totalVentesCarte:
                   op.moyenPaiement === 'CARTE'
                     ? { decrement: op.montant }

@@ -4,7 +4,7 @@
         <h1 class="text-2xl font-bold m-0">
             {{ isEditMode ? 'Modifier l\'utilisateur' : 'ADD un utilisateur' }}
         </h1>
-        <button mat-icon-button (click)="onCancel()" matTooltip="Retour">
+        <button type="button" mat-icon-button (click)="onCancel()" matTooltip="Retour">
             <mat-icon>arrow_back</mat-icon>
         </button>
     </div>
@@ -34,7 +34,7 @@
                         <div class="mb-6">
                             <mat-form-field appearance="outline" class="w-full">
                                 <mat-label>Sélectionner le personnel</mat-label>
-                                <mat-select formControlName="employeeId"
+                                <mat-select aria-label="Select field" formControlName="employeeId"
                                     (selectionChange)="onEmployeeChange($event.value)">
                                     <mat-option *ngFor="let emp of employees()" [value]="emp.id">
                                         {{ emp.nom }} {{ emp.prenom }} ({{ emp.matricule || 'N/A' }})
@@ -63,7 +63,7 @@
                         <!-- Read-Only Preview of Selected Employee -->
                         <div *ngIf="selectedEmployee" class="bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
                             <div class="flex items-start gap-4">
-                                <img *ngIf="selectedEmployee.photoUrl" [src]="selectedEmployee.photoUrl"
+                                <img alt="Image" *ngIf="selectedEmployee.photoUrl" [src]="selectedEmployee.photoUrl"
                                     class="w-16 h-16 rounded-full object-cover border">
                                 <div *ngIf="!selectedEmployee.photoUrl"
                                     class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-400">
@@ -108,7 +108,7 @@
 
                         <mat-form-field class="centre-field">
                             <mat-label>Centre</mat-label>
-                            <mat-select formControlName="centreId" (selectionChange)="onCentreChange(i)">
+                            <mat-select aria-label="Select field" formControlName="centreId" (selectionChange)="onCentreChange(i)">
                                 <mat-option *ngFor="let centre of centres()" [value]="centre.id">
                                     {{ centre.nom }}
                                 </mat-option>
@@ -120,7 +120,7 @@
 
                         <mat-form-field class="entrepot-field" *ngIf="getEntrepotsForCentre(i).length > 0">
                             <mat-label>Entrepôts</mat-label>
-                            <mat-select formControlName="entrepotIds" multiple (selectionChange)="onEntrepotsChange(i)">
+                            <mat-select aria-label="Select field" formControlName="entrepotIds" multiple (selectionChange)="onEntrepotsChange(i)">
                                 <mat-select-trigger>
                                     {{ (centreRole.get('entrepotIds')?.value?.length || 0) + ' sélectionné(s)' }}
                                 </mat-select-trigger>
@@ -135,7 +135,7 @@
 
                         <mat-form-field class="role-field">
                             <mat-label>Rôle</mat-label>
-                            <mat-select formControlName="role">
+                            <mat-select aria-label="Select field" formControlName="role">
                                 <mat-option *ngFor="let role of userRoles" [value]="role">
                                     {{ role }}
                                 </mat-option>

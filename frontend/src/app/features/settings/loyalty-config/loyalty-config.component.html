@@ -9,15 +9,15 @@
             </div>
         </div>
         <div class="action-section">
-            <button *ngIf="!isEditing" mat-raised-button color="primary" class="edit-btn" (click)="startEditing()">
+            <button type="button" *ngIf="!isEditing" mat-raised-button color="primary" class="edit-btn" (click)="startEditing()">
                 <mat-icon>edit</mat-icon>
                 <span>Modifier</span>
             </button>
             <div *ngIf="isEditing" class="edit-actions">
-                <button mat-button (click)="cancelEditing()" [disabled]="loading">
+                <button type="button" mat-button (click)="cancelEditing()" [disabled]="loading">
                     Annuler
                 </button>
-                <button mat-raised-button color="primary" class="save-btn" [disabled]="loading" (click)="saveConfig()">
+                <button type="button" mat-raised-button color="primary" class="save-btn" [disabled]="loading" (click)="saveConfig()">
                     <mat-icon>{{ loading ? 'sync' : 'save' }}</mat-icon>
                     <span>Enregistrer</span>
                 </button>
@@ -42,7 +42,7 @@
                     <div class="field-container mt-4">
                         <mat-form-field appearance="outline" class="w-full">
                             <mat-label>Ratio Points par DH</mat-label>
-                            <input matInput type="number" [(ngModel)]="config.pointsPerDH"
+                            <input aria-label="Input" title="Input" matInput type="number" [(ngModel)]="config.pointsPerDH"
                                 [ngModelOptions]="{standalone: true}" step="0.01" min="0" [disabled]="!isEditing">
                             <span matSuffix class="suffix-text">pts / DH</span>
                             <mat-hint>Ex: 0.1 pts/DH = 10 pts pour 100 DH</mat-hint>
@@ -64,14 +64,14 @@
                     <div class="fields-row mt-4">
                         <mat-form-field appearance="outline">
                             <mat-label>Bonus Parrain</mat-label>
-                            <input matInput type="number" [(ngModel)]="config.referrerBonus"
+                            <input aria-label="Input" title="Input" matInput type="number" [(ngModel)]="config.referrerBonus"
                                 [ngModelOptions]="{standalone: true}" min="0" [disabled]="!isEditing">
                             <span matSuffix class="suffix-text">pts</span>
                         </mat-form-field>
 
                         <mat-form-field appearance="outline">
                             <mat-label>Bonus Filleul</mat-label>
-                            <input matInput type="number" [(ngModel)]="config.refereeBonus"
+                            <input aria-label="Input" title="Input" matInput type="number" [(ngModel)]="config.refereeBonus"
                                 [ngModelOptions]="{standalone: true}" min="0" [disabled]="!isEditing">
                             <span matSuffix class="suffix-text">pts</span>
                         </mat-form-field>
@@ -93,7 +93,7 @@
                     <div class="field-container mt-4">
                         <mat-form-field appearance="outline" class="w-full">
                             <mat-label>Points / Création</mat-label>
-                            <input matInput type="number" [(ngModel)]="config.folderCreationBonus"
+                            <input aria-label="Input" title="Input" matInput type="number" [(ngModel)]="config.folderCreationBonus"
                                 [ngModelOptions]="{standalone: true}" min="0" [disabled]="!isEditing">
                             <span matSuffix class="suffix-text">pts</span>
                             <mat-hint>Points au client dès l'enregistrement.</mat-hint>
@@ -115,7 +115,7 @@
                     <div class="fields-row mt-4">
                         <mat-form-field appearance="outline">
                             <mat-label>Seuil d'objectif</mat-label>
-                            <input matInput type="number" [(ngModel)]="config.rewardThreshold"
+                            <input aria-label="Input" title="Input" matInput type="number" [(ngModel)]="config.rewardThreshold"
                                 [ngModelOptions]="{standalone: true}" min="0" [disabled]="!isEditing">
                             <span matSuffix class="suffix-text">pts</span>
                             <mat-hint>Points requis pour échanger</mat-hint>
@@ -123,7 +123,7 @@
 
                         <mat-form-field appearance="outline">
                             <mat-label>Conversion</mat-label>
-                            <input matInput type="number" [(ngModel)]="config.pointsToMADRatio"
+                            <input aria-label="Input" title="Input" matInput type="number" [(ngModel)]="config.pointsToMADRatio"
                                 [ngModelOptions]="{standalone: true}" step="0.01" min="0" [disabled]="!isEditing">
                             <span matSuffix class="suffix-text">MAD / pt</span>
                             <mat-hint>Valeur en MAD par point</mat-hint>

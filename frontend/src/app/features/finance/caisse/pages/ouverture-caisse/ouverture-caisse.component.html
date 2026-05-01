@@ -9,7 +9,7 @@
             <form [formGroup]="form" (ngSubmit)="onSubmit()">
                 <mat-form-field appearance="outline" class="full-width">
                     <mat-label>Sélectionner la caisse</mat-label>
-                    <mat-select formControlName="caisseId">
+                    <mat-select aria-label="Select field" formControlName="caisseId">
                         <mat-option *ngFor="let caisse of caisses" [value]="caisse.id"
                             [disabled]="caisse.journees && caisse.journees[0]?.statut === 'OUVERTE'">
                             {{ caisse.nom }}
@@ -26,7 +26,7 @@
 
                 <mat-form-field appearance="outline" class="full-width">
                     <mat-label>Fond de caisse initial (DH)</mat-label>
-                    <input matInput type="number" formControlName="fondInitial" min="0">
+                    <input aria-label="Input" title="Input" matInput type="number" formControlName="fondInitial" min="0">
                     <mat-error *ngIf="form.get('fondInitial')?.hasError('required')">
                         Le fond initial est obligatoire
                     </mat-error>

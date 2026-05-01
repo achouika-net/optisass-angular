@@ -5,19 +5,19 @@
         <!-- Last Name -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.lastName' | translate }}</mat-label>
-          <input matInput [formField]="searchForm().last_name" />
+          <input title="Input" aria-label="Input field" matInput [formField]="searchForm().last_name" />
         </mat-form-field>
 
         <!-- First Name -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.firstName' | translate }}</mat-label>
-          <input matInput [formField]="searchForm().first_name" />
+          <input title="Input" aria-label="Input field" matInput [formField]="searchForm().first_name" />
         </mat-form-field>
 
         <!-- Role -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.role' | translate }}</mat-label>
-          <mat-select [formField]="searchForm().role_id">
+          <mat-select aria-label="Select field" [formField]="searchForm().role_id">
             <mat-option [value]="-1">{{ 'commun.all' | translate }}</mat-option>
             @for (role of roles(); track role.id) {
               <mat-option [value]="role.id">{{ role.name }}</mat-option>
@@ -28,7 +28,7 @@
         <!-- Status -->
         <mat-form-field appFieldControlLabel>
           <mat-label>{{ 'commun.status' | translate }}</mat-label>
-          <mat-select [formField]="searchForm().actif">
+          <mat-select aria-label="Select field" [formField]="searchForm().actif">
             @for (state of states(); track state.code) {
               <mat-option [value]="state.code">
                 {{ 'commun.' + state.label | translate }}

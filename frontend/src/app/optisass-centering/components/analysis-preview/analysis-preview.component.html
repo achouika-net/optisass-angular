@@ -1,20 +1,20 @@
 <div class="analysis">
-    <canvas #canvas style="width:100%; border:1px solid #ddd;"></canvas>
-    <div class="controls" style="margin-top:8px;">
+    <canvas #canvas class="w-full"></canvas>
+    <div class="controls mt-[8px]">
         <label>Largeur monture (mm):
-            <input type="number" [(ngModel)]="frameWidthMM" (change)="drawPreview()" />
+            <input title="Input" aria-label="Input field" type="number" [(ngModel)]="frameWidthMM" (change)="drawPreview()" />
         </label>
-        <div class="adjust-group" style="display:flex; gap:10px; align-items:center; margin-bottom:5px;">
+        <div class="adjust-group flex mb-1">
             <span>Ligne Haute:</span>
-            <button (click)="adjustTopGlass(-2)">↑</button>
-            <button (click)="adjustTopGlass(2)">↓</button>
+            <button type="button" (click)="adjustTopGlass(-2)">↑</button>
+            <button type="button" (click)="adjustTopGlass(2)">↓</button>
         </div>
-        <div class="adjust-group" style="display:flex; gap:10px; align-items:center;">
+        <div class="adjust-group flex">
             <span>Ligne Basse:</span>
-            <button (click)="adjustBottomGlass(-2)">↑</button>
-            <button (click)="adjustBottomGlass(2)">↓</button>
+            <button type="button" (click)="adjustBottomGlass(-2)">↑</button>
+            <button type="button" (click)="adjustBottomGlass(2)">↓</button>
         </div>
-        <button (click)="generateAnimation()" [disabled]="!data">Générer animation</button>
+        <button type="button" (click)="generateAnimation()" [disabled]="!data">Générer animation</button>
         <a *ngIf="animUrl" [href]="animUrl" download="optisass_anim.webm">Télécharger animation</a>
     </div>
 

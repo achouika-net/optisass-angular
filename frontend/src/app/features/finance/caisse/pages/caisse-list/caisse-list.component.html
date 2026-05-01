@@ -2,11 +2,11 @@
     <div class="header">
         <h1>Mes Caisses</h1>
         <div class="actions">
-            <button mat-stroked-button color="primary" routerLink="/p/finance/caisse/history">
+            <button type="button" mat-stroked-button color="primary" routerLink="/p/finance/caisse/history">
                 <mat-icon>history</mat-icon>
                 Historique
             </button>
-            <button mat-raised-button color="primary" (click)="openCreateDialog()" *ngIf="isManagementMode">
+            <button type="button" mat-raised-button color="primary" (click)="openCreateDialog()" *ngIf="isManagementMode">
                 <mat-icon>add</mat-icon>
                 Nouvelle Caisse
             </button>
@@ -62,12 +62,12 @@
 
                         <span class="spacer"></span>
 
-                        <button mat-button color="primary" *ngIf="!getOpenSession(caisse)"
+                        <button type="button" mat-button color="primary" *ngIf="!getOpenSession(caisse)"
                             (click)="openSession(caisse.id)">
                             OUVRIR LA CAISSE
                         </button>
 
-                        <button mat-raised-button color="primary" *ngIf="getOpenSession(caisse)"
+                        <button type="button" mat-raised-button color="primary" *ngIf="getOpenSession(caisse)"
                             (click)="viewSession(getOpenSession(caisse)!)">
                             ACCÉDER À LA CAISSE
                         </button>

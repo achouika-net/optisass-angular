@@ -2,8 +2,7 @@ import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { existsSync } from 'fs';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+
 import { PrismaModule } from './prisma/prisma.module';
 import { ClientsModule } from './features/clients/clients.module';
 import { FichesModule } from './features/fiches/fiches.module';
@@ -31,14 +30,14 @@ import { FundingRequestsModule } from './features/funding-requests/funding-reque
 import { MarketingModule } from './features/marketing/marketing.module';
 import { ConventionsModule } from './features/conventions/conventions.module';
 import { ConfigModule } from '@nestjs/config';
-import { PrismaService } from './prisma/prisma.service';
+
 import { PersonnelModule } from './features/personnel/personnel.module';
 import { AuthModule } from './features/auth/auth.module';
 import { AccountingModule } from './features/accounting/accounting.module';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
 import { ImportsModule } from './features/imports/imports.module';
 import { CompanySettingsModule } from './features/company-settings/company-settings.module';
-import { NotificationsModule } from './features/notifications/notifications.module';
+
 import { GlassParametersModule } from './features/glass-parameters/glass-parameters.module';
 import { GlassParametersController } from './features/glass-parameters/glass-parameters.controller';
 import { DiagController } from './diag.controller';

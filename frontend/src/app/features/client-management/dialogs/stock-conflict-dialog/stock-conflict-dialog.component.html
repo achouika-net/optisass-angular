@@ -35,9 +35,9 @@
                 <div *ngIf="conflict.alternatives.length > 0">
                     <div class="alternative-info" *ngFor="let alt of conflict.alternatives">
                         <mat-icon
-                            style="font-size: 14px; vertical-align: middle; width: 14px; height: 14px;">location_city</mat-icon>
+                            class="text-sm align-middle w-[14px] h-[14px]">location_city</mat-icon>
                         {{ alt.centreNom }}: <strong>{{ alt.availableQty }}</strong> dispo
-                        <button mat-button color="primary" class="density-compact"
+                        <button type="button" mat-button color="primary" class="density-compact"
                             (click)="onRequestTransfer(conflict, alt)">
                             Demander Transfert
                         </button>
@@ -62,7 +62,7 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-    <button mat-button mat-dialog-close>Annuler</button>
-    <button mat-stroked-button color="primary" (click)="onReplace()">Remplacer le produit</button>
-    <button mat-flat-button color="warn" (click)="onCancelSale()">Annuler la vente</button>
+    <button type="button" mat-button mat-dialog-close>Annuler</button>
+    <button type="button" mat-stroked-button color="primary" (click)="onReplace()">Remplacer le produit</button>
+    <button type="button" mat-flat-button color="warn" (click)="onCancelSale()">Annuler la vente</button>
 </mat-dialog-actions>

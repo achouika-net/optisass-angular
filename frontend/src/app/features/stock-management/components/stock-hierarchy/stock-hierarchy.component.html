@@ -3,7 +3,7 @@
         <h1>Vue Hiérarchique du Stock</h1>
         <div class="actions">
             <!-- Add global actions here if needed -->
-            <button mat-stroked-button color="primary" routerLink="/p/stock">
+            <button type="button" mat-stroked-button color="primary" routerLink="/p/stock">
                 <mat-icon>list</mat-icon>
                 Vue Liste Produits
             </button>
@@ -24,7 +24,7 @@
                     <span class="node-name">{{ node.name }}</span>
                     <span class="node-type-label">{{ node.data.type }}</span> <!-- Display warehouse type -->
 
-                    <button mat-icon-button class="action-btn" matTooltip="Voir détails">
+                    <button type="button" mat-icon-button class="action-btn" matTooltip="Voir détails">
                         <mat-icon>chevron_right</mat-icon>
                     </button>
                 </div>
@@ -33,7 +33,7 @@
             <!-- Nested Node (Group / Center) -->
             <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild">
                 <div class="mat-tree-node-content group-node" (click)="onNodeClick(node)">
-                    <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'Toggle ' + node.name"
+                    <button type="button" mat-icon-button matTreeNodeToggle [attr.aria-label]="'Toggle ' + node.name"
                         (click)="$event.stopPropagation(); node.type === 'GROUP' || node.type === 'CENTER' ? onNodeClick(node) : null">
                         <mat-icon class="mat-icon-rtl-mirror">
                             {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}

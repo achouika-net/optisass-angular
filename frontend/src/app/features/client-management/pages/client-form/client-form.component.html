@@ -43,7 +43,7 @@
                                 @if (clientForm.get('typeClient')?.value === TypeClient.PARTICULIER) {
                                 <mat-form-field appearance="outline">
                                     <mat-label>Titre</mat-label>
-                                    <mat-select formControlName="titre">
+                                    <mat-select aria-label="Select field" formControlName="titre">
                                         @for (titre of titres; track titre) {
                                         <mat-option [value]="titre">{{ titre }}</mat-option>
                                         }
@@ -127,7 +127,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Type de pièce</mat-label>
-                                    <mat-select formControlName="typePieceIdentite">
+                                    <mat-select aria-label="Select field" formControlName="typePieceIdentite">
                                         @for (type of typesPieceIdentite; track type) {
                                         <mat-option [value]="type">{{ type }}</mat-option>
                                         }
@@ -276,7 +276,7 @@
                             <div class="grid grid-cols-2 gap-4 mb-6">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Statut du client</mat-label>
-                                    <mat-select formControlName="statut">
+                                    <mat-select aria-label="Select field" formControlName="statut">
                                         @for (statut of statuts; track statut) {
                                         <mat-option [value]="statut">{{ statut }}</mat-option>
                                         }
@@ -285,7 +285,7 @@
 
                                 <mat-form-field appearance="outline">
                                     <mat-label>Convention de prise en charge</mat-label>
-                                    <mat-select formControlName="conventionId">
+                                    <mat-select aria-label="Select field" formControlName="conventionId">
                                         <mat-option [value]="null">Aucune convention</mat-option>
                                         @for (conv of conventions(); track conv.id) {
                                         <mat-option [value]="conv.id">
@@ -310,7 +310,7 @@
                             <div class="col-span-1">
                                 <mat-form-field appearance="outline" class="w-full">
                                     <mat-label>Rôle Client</mat-label>
-                                    <mat-select formControlName="roleFamille" placeholder="Sélectionner un rôle" title="Rôle Client">
+                                    <mat-select aria-label="Select field" formControlName="roleFamille" placeholder="Sélectionner un rôle" title="Rôle Client">
                                         <mat-option *ngFor="let role of rolesClientFamille" [value]="role">
                                             {{role}}
                                         </mat-option>
@@ -326,7 +326,7 @@
                                 *ngIf="clientForm.get('roleFamille')?.value === RoleClientFamille.MEMBRE">
                                 <mat-form-field appearance="outline" class="w-full">
                                     <mat-label>Lien Parental</mat-label>
-                                    <mat-select formControlName="lienParental">
+                                    <mat-select aria-label="Select field" formControlName="lienParental">
                                         <mat-option *ngFor="let lien of liensParentaux" [value]="lien">
                                             {{lien}}
                                         </mat-option>
@@ -415,7 +415,7 @@
                             <div class="grid grid-cols-2 gap-4 mt-4">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Type de couverture</mat-label>
-                                    <mat-select formControlName="couvertureSocialeType">
+                                    <mat-select aria-label="Select field" formControlName="couvertureSocialeType">
                                         @for (type of typesCouverture; track type) {
                                         <mat-option [value]="type">{{ type }}</mat-option>
                                         }
@@ -724,7 +724,7 @@
 
                                         <mat-form-field appearance="outline">
                                             <mat-label>Canal de communication</mat-label>
-                                            <mat-select formControlName="canal">
+                                            <mat-select aria-label="Select field" formControlName="canal">
                                                 @for (canal of canauxCommunication; track canal) {
                                                 <mat-option [value]="canal">{{ canal }}</mat-option>
                                                 }
@@ -733,7 +733,7 @@
 
                                         <mat-form-field appearance="outline" class="col-span-2">
                                             <mat-label>Tâches suivies</mat-label>
-                                            <mat-select formControlName="taches" multiple #tachesSelect>
+                                            <mat-select aria-label="Select field" formControlName="taches" multiple #tachesSelect>
                                                 @for (tache of tachesContact; track tache) {
                                                 <mat-option [value]="tache">{{ tache }}</mat-option>
                                                 }

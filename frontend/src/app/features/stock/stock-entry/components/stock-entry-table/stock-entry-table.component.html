@@ -21,7 +21,7 @@
     <th mat-header-cell *matHeaderCellDef class="w-12"></th>
     <td mat-cell *matCellDef="let row">
       @if (row.id === null) {
-      <button mat-icon-button (click)="$event.stopPropagation(); toggleExpand(row._rowId)" [matTooltip]="
+      <button type="button" mat-icon-button (click)="$event.stopPropagation(); toggleExpand(row._rowId)" [matTooltip]="
               row._isExpanded
                 ? ('stock.entry.collapse' | translate)
                 : ('stock.entry.expand' | translate)
@@ -60,7 +60,7 @@
         <!-- Desktop: editable input -->
         @let fields = $any(getRowFields(row._rowId));
         @if (fields) {
-        <input class="inline-input inline-input-wide hidden xl:block" [formField]="fields.designation" />
+        <input aria-label="Input" title="Input" class="inline-input inline-input-wide hidden xl:block" [formField]="fields.designation" />
         }
         <!-- Tablet/Mobile: readonly text -->
         <span class="xl:hidden truncate max-w-xs" [matTooltip]="row.designation">
@@ -85,7 +85,7 @@
         {{ getTotalQuantity(row._rowId) }}
       </span>
       } @else {
-      <input type="number" class="inline-input" [value]="getTotalQuantity(row._rowId)"
+      <input aria-label="Input" title="Input" type="number" class="inline-input" [value]="getTotalQuantity(row._rowId)"
         (change)="onQuantityChange(row._rowId, $event)" min="1" />
       }
       }
@@ -120,7 +120,7 @@
       @let fields = getRowFields(row._rowId);
       @if (fields) {
       <div class="flex items-center gap-1">
-        <input type="number" class="inline-input" [formField]="fields.purchasePriceExclTax" [class.input-error]="
+        <input aria-label="Input" title="Input" type="number" class="inline-input" [formField]="fields.purchasePriceExclTax" [class.input-error]="
                 fields.purchasePriceExclTax().touched() && fields.purchasePriceExclTax().invalid()
               " step="0.01" />
         <span class="text-xs text-gray-500">MAD</span>
@@ -135,7 +135,7 @@
       {{ 'stock.entry.tvaRate' | translate }}
     </th>
     <td mat-cell *matCellDef="let row" class="hidden-below-960">
-      <mat-select class="w-full" [value]="$any(row).tvaRate"
+      <mat-select aria-label="Select field" class="w-full" [value]="$any(row).tvaRate"
         (selectionChange)="onTvaChange(row._rowId, $any($event.value))">
         @for (rate of tvaRates(); track rate.code) {
         <mat-option [value]="+rate.code">{{ rate.label }}</mat-option>
@@ -164,16 +164,16 @@
   <ng-container matColumnDef="actions">
     <th mat-header-cell *matHeaderCellDef class="w-12"></th>
     <td mat-cell *matCellDef="let row">
-      <button mat-icon-button [matMenuTriggerFor]="menu">
+      <button type="button" mat-icon-button [matMenuTriggerFor]="menu">
         <mat-icon>more_vert</mat-icon>
       </button>
       <mat-menu #menu="matMenu">
-        <button mat-menu-item (click)="splitClick.emit(row._rowId)">
+        <button type="button" mat-menu-item (click)="splitClick.emit(row._rowId)">
           <mat-icon>call_split</mat-icon>
           {{ 'stock.entry.splitQuantity' | translate }}
         </button>
         <mat-divider />
-        <button mat-menu-item class="text-error" (click)="deleteClick.emit(row._rowId)">
+        <button type="button" mat-menu-item class="text-error" (click)="deleteClick.emit(row._rowId)">
           <mat-icon class="text-error">delete</mat-icon>
           {{ 'commun.delete' | translate }}
         </button>

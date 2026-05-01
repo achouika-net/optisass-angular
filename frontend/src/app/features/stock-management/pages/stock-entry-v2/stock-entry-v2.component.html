@@ -68,7 +68,7 @@
 
                                 <mat-form-field appearance="outline" class="w-64 compact-field">
                                     <mat-label>Fournisseur</mat-label>
-                                    <mat-select formControlName="fournisseurId">
+                                    <mat-select aria-label="Select field" formControlName="fournisseurId">
                                         <mat-option *ngIf="!(suppliers$ | async)" disabled>
                                             <div class="flex items-center gap-2">
                                                 <mat-icon class="animate-spin text-sm">sync</mat-icon>
@@ -84,7 +84,7 @@
 
                                 <mat-form-field appearance="outline" class="w-40 compact-field">
                                     <mat-label>Type</mat-label>
-                                    <mat-select formControlName="type">
+                                    <mat-select aria-label="Select field" formControlName="type">
                                         <mat-option value="FACTURE">Facture</mat-option>
                                         <mat-option value="BL">Bon Livraison</mat-option>
                                     </mat-select>
@@ -107,14 +107,14 @@
 
                                 <mat-form-field appearance="outline" class="w-44 compact-field">
                                     <mat-label>Date d'émission</mat-label>
-                                    <input matInput [matDatepicker]="docPicker" formControlName="date">
+                                    <input aria-label="Input" title="Input" matInput [matDatepicker]="docPicker" formControlName="date">
                                     <mat-datepicker-toggle matIconSuffix [for]="docPicker"></mat-datepicker-toggle>
                                     <mat-datepicker #docPicker></mat-datepicker>
                                 </mat-form-field>
 
                                 <mat-form-field appearance="outline" class="w-56 compact-field font-bold">
                                     <mat-label>Entrepôt (Facultatif)</mat-label>
-                                    <mat-select formControlName="entrepotId">
+                                    <mat-select aria-label="Select field" formControlName="entrepotId">
                                         <mat-option [value]="''">Aucun (Stock central)</mat-option>
                                         <mat-option *ngFor="let w of entrepots$ | async" [value]="w.id">{{ w.nom
                                             }}</mat-option>
@@ -122,11 +122,11 @@
                                     <mat-icon matPrefix class="scale-75 text-blue-600">warehouse</mat-icon>
                                 </mat-form-field>
 
-                                <input type="file" #fileInput hidden (change)="onFileSelected($event)"
+                                <input title="Input" aria-label="Input field" type="file" #fileInput hidden (change)="onFileSelected($event)"
                                     accept="image/*,application/pdf">
 
                                 <!-- Attach Button -->
-                                <button mat-stroked-button color="primary" (click)="fileInput.click()"
+                                <button type="button" mat-stroked-button color="primary" (click)="fileInput.click()"
                                     *ngIf="!documentForm.get('file')?.value">
                                     <mat-icon>attach_file</mat-icon> Joindre Document
                                 </button>
@@ -144,7 +144,7 @@
                                 </div>
 
                                 <!-- Camera Button -->
-                                <button mat-flat-button color="accent" (click)="openCamera()"
+                                <button type="button" mat-flat-button color="accent" (click)="openCamera()"
                                     *ngIf="!documentForm.get('file')?.value">
                                     <mat-icon>photo_camera</mat-icon> Scanner
                                 </button>
@@ -233,7 +233,7 @@
                                                 class="px-2 py-3 border-b min-w-[120px]">
                                                 <div class="flex flex-col gap-1">
                                                     <span class="text-gray-400 text-[10px]">Col {{ i + 1 }}</span>
-                                                    <select
+                                                    <select aria-label="Select" title="Select"
                                                         class="w-full text-xs p-1 rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500 bg-white"
                                                         [(ngModel)]="columnMappings[i]">
                                                         <option *ngFor="let type of columnTypes" [value]="type.value">
@@ -309,7 +309,7 @@
                                 <div class="col-span-4">
                                     <mat-form-field appearance="outline" class="w-full">
                                         <mat-label>Désignation Produit</mat-label>
-                                        <input matInput formControlName="nom">
+                                        <input aria-label="Input" title="Input" matInput formControlName="nom">
                                         <mat-icon matSuffix *ngIf="isSearching">loop</mat-icon>
                                     </mat-form-field>
                                     <!-- Existing Product Badge -->
@@ -330,13 +330,13 @@
                                 <div class="col-span-2">
                                     <mat-form-field appearance="outline" class="w-full">
                                         <mat-label>Marque</mat-label>
-                                        <input matInput formControlName="marque">
+                                        <input aria-label="Input" title="Input" matInput formControlName="marque">
                                     </mat-form-field>
                                 </div>
                                 <div class="col-span-2">
                                     <mat-form-field appearance="outline" class="w-full">
                                         <mat-label>Catégorie</mat-label>
-                                        <mat-select formControlName="categorie">
+                                        <mat-select aria-label="Select field" formControlName="categorie">
                                             <mat-option *ngFor="let type of productTypes" [value]="type">
                                                 {{ formatTypeLabel(type) }}
                                             </mat-option>
@@ -351,18 +351,18 @@
                                         <mat-form-field appearance="outline" class="w-32 compact-field bg-white"
                                             subscriptSizing="dynamic">
                                             <mat-label>Qté</mat-label>
-                                            <input matInput type="number" formControlName="quantite" min="1">
+                                            <input aria-label="Input" title="Input" matInput type="number" formControlName="quantite" min="1">
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-40 compact-field bg-white"
                                             subscriptSizing="dynamic">
                                             <mat-label>P.Achat (Indicatif)</mat-label>
-                                            <input matInput type="number" formControlName="prixAchat">
+                                            <input aria-label="Input" title="Input" matInput type="number" formControlName="prixAchat">
                                             <span matSuffix class="text-xs text-gray-400">DH</span>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-24 compact-field bg-white"
                                             subscriptSizing="dynamic">
                                             <mat-label>TVA</mat-label>
-                                            <mat-select formControlName="tva">
+                                            <mat-select aria-label="Select field" formControlName="tva">
                                                 <mat-option *ngFor="let rate of tvaOptions"
                                                     [value]="rate">{{rate}}%</mat-option>
                                             </mat-select>
@@ -380,20 +380,20 @@
                                             appearance="outline" class="w-32 compact-field bg-white"
                                             subscriptSizing="dynamic">
                                             <mat-label>Coef (x)</mat-label>
-                                            <input matInput type="number" formControlName="coefficient" step="0.1">
+                                            <input aria-label="Input" title="Input" matInput type="number" formControlName="coefficient" step="0.1">
                                         </mat-form-field>
 
                                         <mat-form-field *ngIf="entryForm.get('modePrix')?.value === 'FIXE'"
                                             appearance="outline" class="w-32 compact-field bg-white"
                                             subscriptSizing="dynamic">
                                             <mat-label>Marge Fixe (DH)</mat-label>
-                                            <input matInput type="number" formControlName="margeFixe">
+                                            <input aria-label="Input" title="Input" matInput type="number" formControlName="margeFixe">
                                         </mat-form-field>
 
                                         <mat-form-field appearance="outline"
                                             class="w-48 compact-field bg-white font-bold" subscriptSizing="dynamic">
                                             <mat-label>Prix Vente Final</mat-label>
-                                            <input matInput type="number" formControlName="prixVente"
+                                            <input aria-label="Input" title="Input" matInput type="number" formControlName="prixVente"
                                                 class="text-green-700 font-bold">
                                             <span matSuffix>DH</span>
                                         </mat-form-field>
@@ -438,7 +438,7 @@
                                 <mat-form-field appearance="outline" class="w-52 compact-field"
                                     subscriptSizing="dynamic">
                                     <mat-label>Catégorie</mat-label>
-                                    <mat-select formControlName="categorie">
+                                    <mat-select aria-label="Select field" formControlName="categorie">
                                         <mat-option [value]="null">---</mat-option>
                                         <mat-option *ngFor="let type of productTypes" [value]="type">
                                             {{ formatTypeLabel(type) }}
@@ -449,7 +449,7 @@
                                 <mat-form-field appearance="outline" class="w-60 compact-field"
                                     subscriptSizing="dynamic">
                                     <mat-label>Entrepôt</mat-label>
-                                    <mat-select formControlName="entrepotId">
+                                    <mat-select aria-label="Select field" formControlName="entrepotId">
                                         <mat-option [value]="null">---</mat-option>
                                         <mat-option *ngFor="let w of entrepots$ | async"
                                             [value]="w.id">{{w.nom}}</mat-option>
@@ -460,7 +460,7 @@
                                 <mat-form-field appearance="outline" class="w-24 compact-field"
                                     subscriptSizing="dynamic">
                                     <mat-label>Qté</mat-label>
-                                    <input matInput type="number" formControlName="quantite" min="1">
+                                    <input aria-label="Input" title="Input" matInput type="number" formControlName="quantite" min="1">
                                 </mat-form-field>
                             </div>
 
@@ -493,7 +493,7 @@
                                 <mat-form-field appearance="outline" class="w-24 compact-field"
                                     subscriptSizing="dynamic">
                                     <mat-label>TVA</mat-label>
-                                    <mat-select formControlName="tva" placeholder="TVA">
+                                    <mat-select aria-label="Select field" formControlName="tva" placeholder="TVA">
                                         <mat-option [value]="null">---</mat-option>
                                         <mat-option *ngFor="let rate of tvaOptions"
                                             [value]="rate">{{rate}}%</mat-option>
@@ -514,7 +514,7 @@
                                 <th mat-header-cell *matHeaderCellDef> Référence </th>
                                 <td mat-cell *matCellDef="let element">
                                     <div class="flex flex-col gap-1">
-                                        <input [(ngModel)]="element.reference" (input)="onDescriptionChange(element)"
+                                        <input aria-label="Input" title="Input" [(ngModel)]="element.reference" (input)="onDescriptionChange(element)"
                                             class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-blue-900 font-bold">
 
                                         <!-- STOCK STATUS BADGE -->
@@ -531,7 +531,7 @@
                             <ng-container matColumnDef="marque">
                                 <th mat-header-cell *matHeaderCellDef> Marque </th>
                                 <td mat-cell *matCellDef="let element">
-                                    <input [(ngModel)]="element.marque" (input)="updateProduct(element)"
+                                    <input aria-label="Input" title="Input" [(ngModel)]="element.marque" (input)="updateProduct(element)"
                                         class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 uppercase font-bold text-slate-500">
                                 </td>
                             </ng-container>
@@ -539,7 +539,7 @@
                             <ng-container matColumnDef="codeBarre">
                                 <th mat-header-cell *matHeaderCellDef> Code </th>
                                 <td mat-cell *matCellDef="let element">
-                                    <input [(ngModel)]="element.codeBarre" (input)="updateProduct(element)"
+                                    <input aria-label="Input" title="Input" [(ngModel)]="element.codeBarre" (input)="updateProduct(element)"
                                         class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs font-mono text-gray-600">
                                 </td>
                             </ng-container>
@@ -607,7 +607,7 @@
                                                 <input [(ngModel)]="element.forme" (input)="updateProduct(element)"
                                                     placeholder="Forme"
                                                     class="w-14 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 capitalize">
-                                                <select [(ngModel)]="element.genre" (change)="updateProduct(element)"
+                                                <select aria-label="Select" title="Select" [(ngModel)]="element.genre" (change)="updateProduct(element)"
                                                     class="text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 outline-none">
                                                     <option [value]="undefined">Genre?</option>
                                                     <option value="HOMME">H</option>
@@ -625,7 +625,7 @@
                             <ng-container matColumnDef="categorie">
                                 <th mat-header-cell *matHeaderCellDef> Catégorie </th>
                                 <td mat-cell *matCellDef="let element">
-                                    <select [(ngModel)]="element.categorie" (change)="updateProduct(element)"
+                                    <select aria-label="Select" title="Select" [(ngModel)]="element.categorie" (change)="updateProduct(element)"
                                         class="bg-transparent border-none text-xs focus:ring-1 focus:ring-blue-400 rounded cursor-pointer font-bold text-gray-500">
                                         <option *ngFor="let type of productTypes" [value]="type">
                                             {{ formatTypeLabel(type) }}
@@ -637,7 +637,7 @@
                             <ng-container matColumnDef="entrepotId">
                                 <th mat-header-cell *matHeaderCellDef> Entrepôt </th>
                                 <td mat-cell *matCellDef="let element">
-                                    <select [(ngModel)]="element.entrepotId" (change)="updateProduct(element)"
+                                    <select aria-label="Select" title="Select" [(ngModel)]="element.entrepotId" (change)="updateProduct(element)"
                                         class="bg-transparent border-none text-xs focus:ring-1 focus:ring-blue-400 rounded cursor-pointer font-black text-blue-700">
                                         <option *ngFor="let w of entrepots$ | async" [value]="w.id">{{w.nom}}</option>
                                     </select>
@@ -647,7 +647,7 @@
                             <ng-container matColumnDef="quantite">
                                 <th mat-header-cell *matHeaderCellDef class="text-center"> Qte </th>
                                 <td mat-cell *matCellDef="let element" class="text-center">
-                                    <input type="number" [(ngModel)]="element.quantite" (input)="updateProduct(element)"
+                                    <input aria-label="Input" title="Input" type="number" [(ngModel)]="element.quantite" (input)="updateProduct(element)"
                                         class="w-12 bg-transparent border-none text-center focus:ring-1 focus:ring-blue-400 rounded font-bold">
                                 </td>
                             </ng-container>
@@ -655,7 +655,7 @@
                             <ng-container matColumnDef="prixAchat">
                                 <th mat-header-cell *matHeaderCellDef class="text-right"> P.Achat (Est.) </th>
                                 <td mat-cell *matCellDef="let element" class="text-right">
-                                    <input type="text" [ngModel]="element.prixAchat | number:'1.2-2'"
+                                    <input aria-label="Input" title="Input" type="text" [ngModel]="element.prixAchat | number:'1.2-2'"
                                         (change)="element.prixAchat = parseInputPrice($event.target.value); updateProduct(element)"
                                         class="w-24 bg-transparent border-none text-right focus:ring-1 focus:ring-blue-400 rounded text-gray-500 font-medium">
                                 </td>
@@ -664,7 +664,7 @@
                             <ng-container matColumnDef="tva">
                                 <th mat-header-cell *matHeaderCellDef class="text-center"> TVA </th>
                                 <td mat-cell *matCellDef="let element" class="text-center">
-                                    <select [(ngModel)]="element.tva" (change)="updateProduct(element)"
+                                    <select aria-label="Select" title="Select" [(ngModel)]="element.tva" (change)="updateProduct(element)"
                                         class="bg-transparent border-none text-xs focus:ring-1 focus:ring-blue-400 rounded cursor-pointer">
                                         <option *ngFor="let rate of tvaOptions" [value]="rate">{{rate}}%</option>
                                     </select>
@@ -674,14 +674,29 @@
 
                             <ng-container matColumnDef="prixVente">
                                 <th mat-header-cell *matHeaderCellDef class="text-right"> Tarification </th>
-                                <td mat-cell *matCellDef="let element" class="text-right">
+                                <td mat-cell *matCellDef="let element" class="text-right align-top pt-2">
                                     <div class="flex flex-col items-end gap-1">
-                                        <input type="text" [ngModel]="element.prixVente | number:'1.2-2'"
+                                        <input aria-label="Input" title="Input" type="text" [ngModel]="element.prixVente | number:'1.2-2'"
                                             (change)="element.prixVente = parseInputPrice($event.target.value); updateProduct(element)"
-                                            class="w-24 bg-transparent border-none text-right focus:ring-1 focus:ring-green-400 rounded text-green-700 font-bold p-0">
+                                            class="w-24 bg-transparent border-none text-right focus:ring-1 focus:ring-green-400 rounded text-green-700 font-bold p-0 leading-none">
+
+                                        <!-- Individual Pricing Settings -->
+                                        <div class="flex items-center justify-end gap-1 mt-1 bg-gray-50 p-1 rounded border border-gray-100">
+                                            <select aria-label="Select mode" title="Select mode" [(ngModel)]="element.modePrix" (change)="updateProduct(element)"
+                                                class="text-[10px] font-bold p-0 border-none bg-transparent text-gray-700 outline-none w-auto focus:ring-0 cursor-pointer">
+                                                <option value="COEFF">Coef (x)</option>
+                                                <option value="FIXE">Marge (+DH)</option>
+                                            </select>
+                                            
+                                            <input aria-label="Input coeff" title="Input coeff" *ngIf="element.modePrix === 'COEFF'" type="number" [(ngModel)]="element.coefficient" (input)="updateProduct(element)"
+                                                class="w-10 text-[11px] p-0 border-b border-gray-300 bg-transparent text-right font-bold text-blue-600 focus:border-blue-500 outline-none" step="0.1">
+                                                
+                                            <input aria-label="Input marge" title="Input marge" *ngIf="element.modePrix === 'FIXE'" type="number" [(ngModel)]="element.margeFixe" (input)="updateProduct(element)"
+                                                class="w-12 text-[11px] p-0 border-b border-gray-300 bg-transparent text-right font-bold text-blue-600 focus:border-blue-500 outline-none">
+                                        </div>
 
                                         <!-- PROFIT MARGIN BADGE -->
-                                        <span class="badge"
+                                        <span class="badge mt-0.5"
                                             [class.success]="calculateMargin(element.prixAchat, element.prixVente) > 30"
                                             [class.warning]="calculateMargin(element.prixAchat, element.prixVente) > 0 && calculateMargin(element.prixAchat, element.prixVente) <= 30"
                                             [class.danger]="calculateMargin(element.prixAchat, element.prixVente) <= 0">
@@ -839,7 +854,7 @@
 
                             <mat-form-field appearance="outline">
                                 <mat-label>Catégorie</mat-label>
-                                <mat-select [(ngModel)]="bulkType" (selectionChange)="searchBulkProducts()">
+                                <mat-select aria-label="Select field" [(ngModel)]="bulkType" (selectionChange)="searchBulkProducts()">
                                     <mat-option [value]="undefined">Toutes les catégories</mat-option>
                                     <mat-option *ngFor="let type of productTypes" [value]="type">
                                         {{ formatTypeLabel(type) }}
@@ -850,7 +865,7 @@
 
                             <mat-form-field appearance="outline">
                                 <mat-label>Entrepot</mat-label>
-                                <mat-select [(ngModel)]="bulkEntrepotId" (selectionChange)="searchBulkProducts()">
+                                <mat-select aria-label="Select field" [(ngModel)]="bulkEntrepotId" (selectionChange)="searchBulkProducts()">
                                     <mat-option [value]="undefined">Tous les entrepots</mat-option>
                                     <mat-option *ngFor="let entrepot of entrepots$ | async" [value]="entrepot.id">
                                         {{ entrepot.nom }}
@@ -883,14 +898,14 @@
                                 <span class="font-medium text-orange-900">produit(s) sélectionné(s)</span>
                             </div>
                             <div class="flex gap-3">
-                                <button mat-raised-button class="bg-red-600 text-white hover:bg-red-700"
+                                <button type="button" mat-raised-button class="bg-red-600 text-white hover:bg-red-700"
                                     (click)="openBulkStockOut()">
                                     <mat-icon>remove_shopping_cart</mat-icon> SORTIE GROUPÉE
                                 </button>
-                                <button mat-raised-button color="primary" (click)="openBulkTransfer()">
+                                <button type="button" mat-raised-button color="primary" (click)="openBulkTransfer()">
                                     <mat-icon>swap_horiz</mat-icon> TRANSFERT GROUPÉ
                                 </button>
-                                <button mat-button (click)="bulkSelection.clear()">ANNULER</button>
+                                <button type="button" mat-button (click)="bulkSelection.clear()">ANNULER</button>
                             </div>
                         </div>
 

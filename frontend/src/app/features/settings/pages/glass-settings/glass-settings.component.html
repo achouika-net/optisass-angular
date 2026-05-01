@@ -11,7 +11,7 @@
       <p class="text-slate-500 mt-1 ml-12">Gérez vos marques, matières et tarifs verres standards</p>
     </div>
     
-    <button mat-flat-button color="accent" class="btn-add shadow-lg shadow-amber-200/50" (click)="runSeed()">
+    <button type="button" mat-flat-button color="accent" class="btn-add shadow-lg shadow-amber-200/50" (click)="runSeed()">
       <mat-icon>auto_fix_high</mat-icon>
       Charger les données par défaut
     </button>
@@ -30,7 +30,7 @@
         <div class="tab-content px-6">
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-bold text-slate-800">Collections Disponibles</h2>
-            <button mat-raised-button color="primary" class="btn-add" (click)="addBrand()">
+            <button type="button" mat-raised-button color="primary" class="btn-add" (click)="addBrand()">
               <mat-icon>add</mat-icon> ADD une marque
             </button>
           </div>
@@ -48,7 +48,7 @@
                 <th mat-header-cell *matHeaderCellDef class="w-24 text-center">Actions</th>
                 <td mat-cell *matCellDef="let brand">
                   <div class="flex justify-center">
-                    <button mat-icon-button color="warn" class="hover:bg-red-50" (click)="deleteBrand(brand.id)">
+                    <button type="button" mat-icon-button color="warn" class="hover:bg-red-50" (click)="deleteBrand(brand.id)">
                       <mat-icon>delete_outline</mat-icon>
                     </button>
                   </div>
@@ -77,7 +77,7 @@
         <div class="tab-content px-6">
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-bold text-slate-800">Gestion des Tarifs par Indice</h2>
-            <button mat-raised-button color="primary" class="btn-add" (click)="addMaterial()">
+            <button type="button" mat-raised-button color="primary" class="btn-add" (click)="addMaterial()">
               <mat-icon>add</mat-icon> ADD une matière
             </button>
           </div>
@@ -89,11 +89,11 @@
                 <span class="mat-title uppercase">{{ material.name }}</span>
               </div>
               <div class="action-buttons">
-                <button mat-button color="primary" class="font-bold" (click)="addIndex(material.id)">
+                <button type="button" mat-button color="primary" class="font-bold" (click)="addIndex(material.id)">
                   <mat-icon>add_circle</mat-icon> ADD un indice
                 </button>
                 <div class="w-px h-6 bg-slate-200 mx-2"></div>
-                <button mat-icon-button color="warn" (click)="deleteMaterial(material.id)">
+                <button type="button" mat-icon-button color="warn" (click)="deleteMaterial(material.id)">
                   <mat-icon>delete</mat-icon>
                 </button>
               </div>
@@ -116,7 +116,7 @@
                         <div class="price-input-wrapper">
                           <input type="number" [value]="idx.price" #priceInput title="Prix de base de l'indice">
                           <span class="currency">MAD</span>
-                          <button mat-icon-button color="primary" 
+                          <button type="button" mat-icon-button color="primary" 
                                   (click)="updateIndexPrice(idx.id, priceInput.value)"
                                   [disabled]="priceInput.value == idx.price"
                                   class="ml-2 bg-white shadow-sm border border-slate-100">
@@ -125,7 +125,7 @@
                         </div>
                       </td>
                       <td class="p-4 text-center col-actions">
-                        <button mat-icon-button color="warn" (click)="deleteIndex(idx.id)" class="opacity-60 hover:opacity-100">
+                        <button type="button" mat-icon-button color="warn" (click)="deleteIndex(idx.id)" class="opacity-60 hover:opacity-100">
                           <mat-icon class="icon-small">delete_outline</mat-icon>
                         </button>
                       </td>
@@ -158,7 +158,7 @@
         <div class="tab-content px-6">
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-bold text-slate-800">Options de Traitements & Majorations</h2>
-            <button mat-raised-button color="primary" class="btn-add" (click)="addTreatment()">
+            <button type="button" mat-raised-button color="primary" class="btn-add" (click)="addTreatment()">
               <mat-icon>add</mat-icon> ADD un traitement
             </button>
           </div>
@@ -178,7 +178,7 @@
                   <div class="price-input-wrapper">
                     <input type="number" [value]="t.price" #tPriceInput title="Majoration prix traitement">
                     <span class="currency">MAD</span>
-                    <button mat-icon-button color="primary" 
+                    <button type="button" mat-icon-button color="primary" 
                             (click)="updateTreatmentPrice(t.id, tPriceInput.value)"
                             [disabled]="tPriceInput.value == t.price"
                             class="ml-2 bg-white shadow-sm border border-slate-100">
@@ -192,7 +192,7 @@
                 <th mat-header-cell *matHeaderCellDef class="w-24 text-center">Actions</th>
                 <td mat-cell *matCellDef="let t">
                   <div class="flex justify-center">
-                    <button mat-icon-button color="warn" class="hover:bg-red-50" (click)="deleteTreatment(t.id)">
+                    <button type="button" mat-icon-button color="warn" class="hover:bg-red-50" (click)="deleteTreatment(t.id)">
                       <mat-icon>delete_outline</mat-icon>
                     </button>
                   </div>
@@ -224,7 +224,7 @@
         </div>
       </div>
       <p>Chargement des paramètres...</p>
-      <button mat-stroked-button color="primary" class="mt-4" (click)="loadAll()">
+      <button type="button" mat-stroked-button color="primary" class="mt-4" (click)="loadAll()">
         <mat-icon>refresh</mat-icon> Réessayer
       </button>
     </div>

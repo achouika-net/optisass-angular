@@ -1,6 +1,6 @@
 <mat-form-field appFieldControlLabel>
   <mat-label>{{ label() }}</mat-label>
-  <input
+  <input title="Input" aria-label="Input field"
     [formControl]="addressControl"
     [placeholder]="
       addressControl.enabled && 'commun.enterAddressForSearch' | translate

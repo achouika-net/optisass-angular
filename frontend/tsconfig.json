@@ -50,6 +50,7 @@
     "strictNullChecks": false,
     "target": "ES2022",
     "strict": true,
+    "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "typeRoots": [
       "node_modules/@types"

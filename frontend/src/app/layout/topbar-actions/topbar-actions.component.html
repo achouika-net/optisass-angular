@@ -1,10 +1,10 @@
 <div class="flex items-center gap-1">
-  <button mat-icon-button><mat-icon>public</mat-icon></button>
-  <button mat-icon-button><mat-icon>delete</mat-icon></button>
-  <button mat-icon-button><mat-icon>calendar_month</mat-icon></button>
-  <button mat-icon-button><mat-icon>support_agent</mat-icon></button>
+  <button type="button" mat-icon-button><mat-icon>public</mat-icon></button>
+  <button type="button" mat-icon-button><mat-icon>delete</mat-icon></button>
+  <button type="button" mat-icon-button><mat-icon>calendar_month</mat-icon></button>
+  <button type="button" mat-icon-button><mat-icon>support_agent</mat-icon></button>
 
-  <button mat-button class="mr-2 text-white" [matMenuTriggerFor]="centersMenu">
+  <button type="button" mat-button class="mr-2 text-white" [matMenuTriggerFor]="centersMenu">
     <div class="flex items-center gap-1">
       <mat-icon class="text-white">store_mall_directory</mat-icon>
       <span class="text-xs font-medium text-white">
@@ -15,7 +15,7 @@
   </button>
   <mat-menu #centersMenu="matMenu" class="min-w-56">
     @for (centre of centres(); track centre.id) {
-    <button mat-menu-item (click)="selectCenter(centre)">
+    <button type="button" mat-menu-item (click)="selectCenter(centre)">
       <mat-icon class="text-gray-900">store</mat-icon>
       <span class="font-semibold text-gray-900">
         {{ (centre?.name || centre?.nom || '') | uppercase }}
@@ -24,7 +24,7 @@
     }
   </mat-menu>
 
-  <button mat-button class="text-white" [matMenuTriggerFor]="userMenu">
+  <button type="button" mat-button class="text-white" [matMenuTriggerFor]="userMenu">
     <div class="flex items-center gap-1">
       <mat-icon class="text-white">person</mat-icon>
       @if (!isMobile()) {
@@ -37,7 +37,7 @@
     </div>
   </button>
   @if (!isMobile()) {
-  <button mat-icon-button>
+  <button type="button" mat-icon-button>
     <mat-icon>open_in_full</mat-icon>
   </button>
   }
@@ -49,16 +49,16 @@
     <span class="text-xs text-gray-500">{{ user()?.email }}</span>
   </div>
   <mat-divider class="m-0" />
-  <button mat-menu-item>
+  <button type="button" mat-menu-item>
     <mat-icon class="text-gray-900">account_circle</mat-icon>
     <span class="text-gray-900">Mon compte</span>
   </button>
-  <button mat-menu-item>
+  <button type="button" mat-menu-item>
     <mat-icon class="text-gray-900">settings</mat-icon>
     <span class="text-gray-900">Paramètres</span>
   </button>
   <mat-divider class="m-0 mx-5" />
-  <button mat-menu-item (click)="logout()">
+  <button type="button" mat-menu-item (click)="logout()">
     <mat-icon class="text-gray-900 font-bold">logout</mat-icon>
     <span class="text-gray-900 font-bold">Déconnexion</span>
   </button>

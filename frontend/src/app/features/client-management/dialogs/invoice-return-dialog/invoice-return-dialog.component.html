@@ -8,7 +8,7 @@
     <form [formGroup]="form">
         <mat-form-field appearance="outline" class="w-full">
             <mat-label>Motif du retour</mat-label>
-            <mat-select formControlName="reason" required>
+            <mat-select aria-label="Select field" formControlName="reason" required>
                 <mat-option value="DEFECTUEUX">Produit Défectueux (Retour Stock Défectueux)</mat-option>
                 <mat-option value="ERREUR_SAISIE">Erreur de Saisie (Retour Stock Normal)</mat-option>
                 <mat-option value="CHANGEMENT_AVIS">Changement d'Avis (Retour Stock Normal)</mat-option>
@@ -32,7 +32,7 @@
                 <!-- Quantity to return input, only visible if selected -->
                 <mat-form-field *ngIf="isSelected(i)" appearance="outline" class="qty-input">
                     <mat-label>Qté Retour</mat-label>
-                    <input matInput type="number" [formControl]="getQuantityControl(i)" min="1" [max]="item.qte">
+                    <input aria-label="Input" title="Input" matInput type="number" [formControl]="getQuantityControl(i)" min="1" [max]="item.qte">
                 </mat-form-field>
             </div>
         </div>
@@ -40,8 +40,8 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-    <button mat-button (click)="cancel()">Annuler</button>
-    <button mat-raised-button color="primary" [disabled]="form.invalid || selectedItems.size === 0" (click)="confirm()">
+    <button type="button" mat-button (click)="cancel()">Annuler</button>
+    <button type="button" mat-raised-button color="primary" [disabled]="form.invalid || selectedItems.size === 0" (click)="confirm()">
         Valider l'Échange
     </button>
 </mat-dialog-actions>

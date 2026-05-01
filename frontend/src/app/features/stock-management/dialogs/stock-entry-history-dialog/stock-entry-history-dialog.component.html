@@ -1,10 +1,10 @@
 <div class="dialog-header">
     <h2 mat-dialog-title>Historique des Entrées de Stock</h2>
     <div class="header-actions">
-        <button mat-icon-button (click)="loadHistory()" matTooltip="Actualiser">
+        <button type="button" mat-icon-button (click)="loadHistory()" matTooltip="Actualiser">
             <mat-icon>refresh</mat-icon>
         </button>
-        <button mat-icon-button (click)="close()" matTooltip="Fermer">
+        <button type="button" mat-icon-button (click)="close()" matTooltip="Fermer">
             <mat-icon>close</mat-icon>
         </button>
     </div>
@@ -14,16 +14,16 @@
 
     <!-- Date Filter with Shortcuts -->
     <div class="date-filter-group">
-        <button mat-icon-button [matMenuTriggerFor]="dateMenu" matTooltip="Périodes prédéfinies">
+        <button type="button" mat-icon-button [matMenuTriggerFor]="dateMenu" matTooltip="Périodes prédéfinies">
             <mat-icon>calendar_today</mat-icon>
         </button>
         <mat-menu #dateMenu="matMenu">
-            <button mat-menu-item (click)="setPeriod('TODAY')">Aujourd'hui</button>
-            <button mat-menu-item (click)="setPeriod('YESTERDAY')">Hier</button>
-            <button mat-menu-item (click)="setPeriod('THIS_WEEK')">Cette semaine</button>
-            <button mat-menu-item (click)="setPeriod('THIS_MONTH')">Ce mois</button>
-            <button mat-menu-item (click)="setPeriod('LAST_MONTH')">Mois dernier</button>
-            <button mat-menu-item (click)="setPeriod('THIS_YEAR')">Cette année</button>
+            <button type="button" mat-menu-item (click)="setPeriod('TODAY')">Aujourd'hui</button>
+            <button type="button" mat-menu-item (click)="setPeriod('YESTERDAY')">Hier</button>
+            <button type="button" mat-menu-item (click)="setPeriod('THIS_WEEK')">Cette semaine</button>
+            <button type="button" mat-menu-item (click)="setPeriod('THIS_MONTH')">Ce mois</button>
+            <button type="button" mat-menu-item (click)="setPeriod('LAST_MONTH')">Mois dernier</button>
+            <button type="button" mat-menu-item (click)="setPeriod('THIS_YEAR')">Cette année</button>
         </mat-menu>
 
         <mat-form-field appearance="outline" class="dense-field date-field">
@@ -40,7 +40,7 @@
     <!-- Document Type Filter -->
     <mat-form-field appearance="outline" class="dense-field">
         <mat-label>Type Document</mat-label>
-        <mat-select formControlName="docType">
+        <mat-select aria-label="Select field" formControlName="docType">
             <mat-option [value]="null">Tous</mat-option>
             <mat-option value="FACTURE">Facture</mat-option>
             <mat-option value="BL">Bon de Livraison</mat-option>
@@ -50,16 +50,16 @@
     <!-- Supplier Filter -->
     <mat-form-field appearance="outline" class="dense-field">
         <mat-label>Fournisseur</mat-label>
-        <mat-select formControlName="supplierId">
+        <mat-select aria-label="Select field" formControlName="supplierId">
             <mat-option [value]="null">Tous</mat-option>
             <mat-option *ngFor="let s of suppliers" [value]="s.id">{{ s.nom }}</mat-option>
         </mat-select>
     </mat-form-field>
 
-    <button mat-flat-button color="primary" (click)="loadHistory()">
+    <button type="button" mat-flat-button color="primary" (click)="loadHistory()">
         <mat-icon>search</mat-icon> Filtrer
     </button>
-    <button mat-stroked-button (click)="resetFilters()">
+    <button type="button" mat-stroked-button (click)="resetFilters()">
         Réinitialiser
     </button>
 </div>
@@ -113,7 +113,7 @@
             <ng-container matColumnDef="expand">
                 <th mat-header-cell *matHeaderCellDef aria-label="row actions">&nbsp;</th>
                 <td mat-cell *matCellDef="let element">
-                    <button mat-icon-button aria-label="expand row"
+                    <button type="button" mat-icon-button aria-label="expand row"
                         (click)="(expandedElement = expandedElement === element ? null : element); $event.stopPropagation()">
                         <mat-icon *ngIf="expandedElement !== element">keyboard_arrow_down</mat-icon>
                         <mat-icon *ngIf="expandedElement === element">keyboard_arrow_up</mat-icon>

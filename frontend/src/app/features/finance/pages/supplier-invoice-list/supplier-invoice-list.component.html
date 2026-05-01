@@ -5,10 +5,10 @@
             {{ listMode === 'BL' ? 'Bons de Livraison (BL)' : 'Factures Fournisseur' }}
         </h1>
         <div class="flex items-center gap-2">
-            <button mat-raised-button color="primary" (click)="openInvoiceDialog()">
+            <button type="button" mat-raised-button color="primary" (click)="openInvoiceDialog()">
                 <mat-icon>add</mat-icon> {{ listMode === 'BL' ? 'Saisir BL' : 'Nouvelle Facture' }}
             </button>
-            <button mat-stroked-button (click)="printList()">
+            <button type="button" mat-stroked-button (click)="printList()">
                 <mat-icon>print</mat-icon> Imprimer la liste
             </button>
         </div>
@@ -123,7 +123,7 @@
             <div class="filters">
                 <mat-form-field appearance="outline" class="dense-field">
                     <mat-label>Fournisseur</mat-label>
-                    <mat-select [(ngModel)]="filters.fournisseurId" (ngModelChange)="applyFilters()">
+                    <mat-select aria-label="Select field" [(ngModel)]="filters.fournisseurId" (ngModelChange)="applyFilters()">
                         <mat-option value="">Tous les fournisseurs</mat-option>
                         <mat-option *ngFor="let s of suppliers" [value]="s.id">{{s.nom}}</mat-option>
                     </mat-select>
@@ -131,14 +131,14 @@
 
                 <mat-form-field appearance="outline" class="dense-field">
                     <mat-label>Période</mat-label>
-                    <mat-select [value]="selectedPeriod()" (selectionChange)="selectedPeriod.set($event.value)">
+                    <mat-select aria-label="Select field" [value]="selectedPeriod()" (selectionChange)="selectedPeriod.set($event.value)">
                         <mat-option *ngFor="let p of periods" [value]="p.value">{{p.label}}</mat-option>
                     </mat-select>
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="dense-field" *ngIf="selectedPeriod() === 'custom'">
                     <mat-label>Date début</mat-label>
-                    <input matInput [matDatepicker]="startPicker" [(ngModel)]="filters.startDate"
+                    <input aria-label="Input" title="Input" matInput [matDatepicker]="startPicker" [(ngModel)]="filters.startDate"
                         (ngModelChange)="applyFilters()">
                     <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
                     <mat-datepicker #startPicker></mat-datepicker>
@@ -146,13 +146,13 @@
 
                 <mat-form-field appearance="outline" class="dense-field" *ngIf="selectedPeriod() === 'custom'">
                     <mat-label>Date fin</mat-label>
-                    <input matInput [matDatepicker]="endPicker" [(ngModel)]="filters.endDate"
+                    <input aria-label="Input" title="Input" matInput [matDatepicker]="endPicker" [(ngModel)]="filters.endDate"
                         (ngModelChange)="applyFilters()">
                     <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
                     <mat-datepicker #endPicker></mat-datepicker>
                 </mat-form-field>
 
-                <button mat-stroked-button color="warn" (click)="resetFilters()"
+                <button type="button" mat-stroked-button color="warn" (click)="resetFilters()"
                     *ngIf="filters.fournisseurId || selectedPeriod() !== 'all'">
                     <mat-icon>refresh</mat-icon>
                     Réinitialiser
@@ -168,7 +168,7 @@
             <span class="font-medium">{{selection.selected.length}} {{ listMode === 'BL' ? 'BL' : 'Factures' }}
                 sélectionnés</span>
         </div>
-        <button mat-flat-button color="primary" (click)="groupSelectedBLs()"
+        <button type="button" mat-flat-button color="primary" (click)="groupSelectedBLs()"
             *ngIf="selection.selected.length > 1 && listMode === 'BL'">
             <mat-icon>auto_awesome_motion</mat-icon>
             Attacher Facture Fournisseur
@@ -182,7 +182,7 @@
         </div>
 
         <div *ngIf="!loading && invoices.length === 0" class="p-8 text-center text-gray-500">
-            <mat-icon class="text-gray-300" style="font-size: 48px; width: 48px; height: 48px;">inventory_2</mat-icon>
+            <mat-icon class="text-gray-300 text-[48px] w-[48px] h-[48px]">inventory_2</mat-icon>
             <p>Aucun document trouvé pour cette période.</p>
         </div>
 
@@ -286,7 +286,7 @@
 
             <!-- Montant Column -->
             <ng-container matColumnDef="montant">
-                <th mat-header-cell *matHeaderCellDef style="text-align: right;"> Montant TTC </th>
+                <th mat-header-cell *matHeaderCellDef class="text-right"> Montant TTC </th>
                 <td mat-cell *matCellDef="let element" class="montant-cell">
                     {{element.montantTTC | number:'1.2-2'}} DH
                     <div class="text-xs font-normal text-gray-400">HT: {{element.montantHT | number:'1.2-2'}}</div>
@@ -295,32 +295,32 @@
 
             <!-- Actions Column -->
             <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef style="text-align: right;"> Actions </th>
-                <td mat-cell *matCellDef="let element" style="text-align: right;">
-                    <button mat-icon-button [matMenuTriggerFor]="menu">
+                <th mat-header-cell *matHeaderCellDef class="text-right"> Actions </th>
+                <td mat-cell *matCellDef="let element" class="text-right">
+                    <button type="button" mat-icon-button [matMenuTriggerFor]="menu">
                         <mat-icon>more_vert</mat-icon>
                     </button>
                     <mat-menu #menu="matMenu">
-                        <button mat-menu-item (click)="openInvoiceDialog(element, true)">
+                        <button type="button" mat-menu-item (click)="openInvoiceDialog(element, true)">
                             <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
                             <span>Visualiser</span>
                         </button>
-                        <button mat-menu-item (click)="openInvoiceDialog(element, false)">
+                        <button type="button" mat-menu-item (click)="openInvoiceDialog(element, false)">
                             <mat-icon class="premium-menu-icon-edit">edit</mat-icon>
                             <span>Modifier</span>
                         </button>
-                        <button mat-menu-item (click)="openPaymentDialog(element)" *ngIf="element.statut !== 'PAYEE'">
-                            <mat-icon style="color: #2e7d32 !important;">payments</mat-icon>
+                        <button type="button" mat-menu-item (click)="openPaymentDialog(element)" *ngIf="element.statut !== 'PAYEE'">
+                            <mat-icon class="text-[#2e7d32 !important]">payments</mat-icon>
                             <span>{{ (element.type === 'ACHAT_VERRE_OPTIQUE' && listMode === 'BL') ? (
                                 $any(element).numeroBL || element.numeroFacture ) : (element.numeroFacture ||
                                 $any(element).numeroBL) }}</span>
                         </button>
                         <mat-divider></mat-divider>
-                        <button mat-menu-item *ngIf="element.pieceJointeUrl">
-                            <mat-icon style="color: #4b5563 !important;">download</mat-icon>
+                        <button type="button" mat-menu-item *ngIf="element.pieceJointeUrl">
+                            <mat-icon class="text-[#4b5563 !important]">download</mat-icon>
                             <span>Télécharger</span>
                         </button>
-                        <button mat-menu-item (click)="deleteInvoice(element)">
+                        <button type="button" mat-menu-item (click)="deleteInvoice(element)">
                             <mat-icon class="premium-menu-icon-delete">delete</mat-icon>
                             <span>Supprimer</span>
                         </button>

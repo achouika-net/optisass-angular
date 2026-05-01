@@ -8,19 +8,19 @@
     <div class="detail-header">
         <h1 class="detail-title">{{ product.designation }}</h1>
         <div class="header-actions">
-            <button mat-button (click)="goBack()" class="back-btn">
+            <button type="button" mat-button (click)="goBack()" class="back-btn">
                 <mat-icon>arrow_back</mat-icon> Retour
             </button>
 
-            <button mat-raised-button color="primary" *ngIf="product.statut === 'DISPONIBLE'"
+            <button type="button" mat-raised-button color="primary" *ngIf="product.statut === 'DISPONIBLE'"
                 (click)="requestTransfer()" class="transfer-btn">
                 <mat-icon>local_shipping</mat-icon> Demander Transfert
             </button>
 
-            <button mat-raised-button color="accent" (click)="editProduct()" class="edit-btn">
+            <button type="button" mat-raised-button color="accent" (click)="editProduct()" class="edit-btn">
                 <mat-icon>edit</mat-icon> Modifier
             </button>
-            <button mat-raised-button color="warn" (click)="deleteProduct()" class="delete-btn">
+            <button type="button" mat-raised-button color="warn" (click)="deleteProduct()" class="delete-btn">
                 <mat-icon>delete</mat-icon> Supprimer
             </button>
         </div>
@@ -158,7 +158,7 @@
 <div class="no-product" *ngIf="!isLoading && !product">
     <mat-icon>inventory_2</mat-icon>
     <p>Produit non trouvé</p>
-    <button mat-raised-button color="primary" routerLink="/p/stock">
+    <button type="button" mat-raised-button color="primary" routerLink="/p/stock">
         Retour à la liste
     </button>
 </div>

@@ -8,7 +8,7 @@
                     ? 'Bon de livraison BL' : 'Nouvelle Facture Fournisseur')) }}
                 </mat-card-title>
             </div>
-            <button mat-icon-button (click)="onCancel()" *ngIf="dialogRef">
+            <button type="button" mat-icon-button (click)="onCancel()" *ngIf="dialogRef">
                 <mat-icon>close</mat-icon>
             </button>
         </mat-card-header>
@@ -74,7 +74,7 @@
 
                                     <mat-form-field appearance="outline" *ngIf="isBLMode">
                                         <mat-label>Catégorie (Label tableau) *</mat-label>
-                                        <mat-select formControlName="categorieBL">
+                                        <mat-select aria-label="Select field" formControlName="categorieBL">
                                             <mat-option *ngFor="let cat of blCategories" [value]="cat.value">
                                                 {{ cat.label }}
                                             </mat-option>
@@ -83,14 +83,14 @@
 
                                     <mat-form-field appearance="outline">
                                         <mat-label>Date d'émission *</mat-label>
-                                        <input matInput [matDatepicker]="pickerE" formControlName="dateEmission">
+                                        <input aria-label="Input" title="Input" matInput [matDatepicker]="pickerE" formControlName="dateEmission">
                                         <mat-datepicker-toggle matIconSuffix [for]="pickerE"></mat-datepicker-toggle>
                                         <mat-datepicker #pickerE></mat-datepicker>
                                     </mat-form-field>
 
                                     <mat-form-field appearance="outline">
                                         <mat-label>Centre de profit *</mat-label>
-                                        <mat-select formControlName="centreId">
+                                        <mat-select aria-label="Select field" formControlName="centreId">
                                             <mat-option *ngFor="let c of availableCentres" [value]="c.id">
                                                 {{ c.nom }}
                                             </mat-option>
@@ -102,7 +102,7 @@
                                     *ngIf="!isBLMode">
                                     <mat-form-field appearance="outline">
                                         <mat-label>Date d'échéance </mat-label>
-                                        <input matInput [matDatepicker]="pickerH" formControlName="dateEcheance">
+                                        <input aria-label="Input" title="Input" matInput [matDatepicker]="pickerH" formControlName="dateEcheance">
                                         <mat-datepicker-toggle matIconSuffix [for]="pickerH"></mat-datepicker-toggle>
                                         <mat-datepicker #pickerH></mat-datepicker>
                                     </mat-form-field>
@@ -132,7 +132,7 @@
 
                                     <mat-form-field appearance="outline">
                                         <mat-label>Fiche Médicale / Dossier *</mat-label>
-                                        <mat-select formControlName="ficheId">
+                                        <mat-select aria-label="Select field" formControlName="ficheId">
                                             <mat-option *ngIf="loadingFiches" disabled>
                                                 Chargement des fiches...
                                             </mat-option>
@@ -153,14 +153,14 @@
                                     class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 pt-4 border-t bg-gray-50 p-4 rounded-xl">
                                     <mat-form-field appearance="outline">
                                         <mat-label>Total TTC *</mat-label>
-                                        <input matInput type="number" formControlName="montantTTC"
+                                        <input aria-label="Input" title="Input" matInput type="number" formControlName="montantTTC"
                                             (blur)="calculateFromTTC()">
                                         <mat-hint>Saisissez le montant TTC</mat-hint>
                                     </mat-form-field>
 
                                     <mat-form-field appearance="outline">
                                         <mat-label>TVA (%)</mat-label>
-                                        <mat-select formControlName="tauxTVA">
+                                        <mat-select aria-label="Select field" formControlName="tauxTVA">
                                             <mat-option [value]="0">0% (Exonéré)</mat-option>
                                             <mat-option [value]="7">7%</mat-option>
                                             <mat-option [value]="10">10%</mat-option>
@@ -171,13 +171,13 @@
 
                                     <mat-form-field appearance="outline">
                                         <mat-label>Montant HT</mat-label>
-                                        <input matInput type="number" formControlName="montantHT" readonly>
+                                        <input aria-label="Input" title="Input" matInput type="number" formControlName="montantHT" readonly>
                                         <mat-hint>Calculé automatiquement</mat-hint>
                                     </mat-form-field>
 
                                     <mat-form-field appearance="outline">
                                         <mat-label>Montant TVA</mat-label>
-                                        <input matInput type="number" formControlName="montantTVA" readonly>
+                                        <input aria-label="Input" title="Input" matInput type="number" formControlName="montantTVA" readonly>
                                     </mat-form-field>
                                 </div>
 
@@ -245,7 +245,7 @@
                                         </div>
                                     </div>
 
-                                    <input #fileInput type="file" accept="image/*,application/pdf" multiple
+                                    <input aria-label="Input" title="Input" #fileInput type="file" accept="image/*,application/pdf" multiple
                                         class="hidden" (change)="onFilesSelected($event)">
 
                                     <!-- Liste des fichiers -->
@@ -296,7 +296,7 @@
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <mat-form-field appearance="outline">
                                             <mat-label>Mode de paiement *</mat-label>
-                                            <mat-select formControlName="modePaiement">
+                                            <mat-select aria-label="Select field" formControlName="modePaiement">
                                                 <mat-option *ngFor="let m of paymentMethods" [value]="m">{{ m
                                                     }}</mat-option>
                                             </mat-select>
@@ -305,7 +305,7 @@
                                         <mat-form-field appearance="outline"
                                             *ngIf="form.get('directPayment.modePaiement')?.value !== 'ESPECES'">
                                             <mat-label>Date d'échéance</mat-label>
-                                            <input matInput [matDatepicker]="pickerDP" formControlName="dateEcheance">
+                                            <input aria-label="Input" title="Input" matInput [matDatepicker]="pickerDP" formControlName="dateEcheance">
                                             <mat-datepicker-toggle matIconSuffix
                                                 [for]="pickerDP"></mat-datepicker-toggle>
                                             <mat-datepicker #pickerDP></mat-datepicker>
@@ -328,11 +328,11 @@
                         </form>
 
                         <div class="flex justify-end mt-6">
-                            <button mat-raised-button color="primary" matStepperNext [disabled]="detailsGroup.invalid"
+                            <button type="button" mat-raised-button color="primary" matStepperNext [disabled]="detailsGroup.invalid"
                                 class="!px-8" *ngIf="!isBLMode">
                                 Suivant : Planifier Paiement <mat-icon>arrow_forward</mat-icon>
                             </button>
-                            <button mat-raised-button color="primary" (click)="onSubmit()"
+                            <button type="button" mat-raised-button color="primary" (click)="onSubmit()"
                                 [disabled]="detailsGroup.invalid" class="!px-8" *ngIf="isBLMode && !isViewMode">
                                 <mat-icon>save</mat-icon> Enregistrer le BL
                             </button>
@@ -356,11 +356,11 @@
                                                 number:'1.2-2' }} MAD</span></p>
                                     </div>
                                     <div class="flex gap-2">
-                                        <button mat-stroked-button color="accent" (click)="manualApplyConditions()"
+                                        <button type="button" mat-stroked-button color="accent" (click)="manualApplyConditions()"
                                             *ngIf="!isViewMode" matTooltip="Ré-appliquer les conditions du fournisseur">
                                             <mat-icon>refresh</mat-icon> Rafraîchir
                                         </button>
-                                        <button mat-stroked-button color="primary" (click)="addEcheance()"
+                                        <button type="button" mat-stroked-button color="primary" (click)="addEcheance()"
                                             *ngIf="!isViewMode">
                                             <mat-icon>add</mat-icon> ADD une échéance
                                         </button>
@@ -372,7 +372,7 @@
                                         class="p-2 bg-gray-50 border border-gray-100 rounded-lg relative mb-2">
                                         <div class="flex justify-between items-center mb-2 border-b pb-1">
                                             <h4 class="text-xs font-bold text-gray-700 uppercase">Échéance #{{i+1}}</h4>
-                                            <button mat-icon-button color="warn" (click)="removeEcheance(i)"
+                                            <button type="button" mat-icon-button color="warn" (click)="removeEcheance(i)"
                                                 *ngIf="!isViewMode" matTooltip="Supprimer l'échéance" class="scale-75">
                                                 <mat-icon>delete</mat-icon>
                                             </button>
@@ -381,7 +381,7 @@
                                         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
                                             <mat-form-field appearance="outline" class="dense-field">
                                                 <mat-label>Mode *</mat-label>
-                                                <mat-select formControlName="type">
+                                                <mat-select aria-label="Select field" formControlName="type">
                                                     <mat-option *ngFor="let m of paymentMethods" [value]="m">{{ m
                                                         }}</mat-option>
                                                 </mat-select>
@@ -389,7 +389,7 @@
 
                                             <mat-form-field appearance="outline" class="dense-field">
                                                 <mat-label>Date *</mat-label>
-                                                <input matInput [matDatepicker]="pick" formControlName="dateEcheance">
+                                                <input aria-label="Input" title="Input" matInput [matDatepicker]="pick" formControlName="dateEcheance">
                                                 <mat-datepicker-toggle matIconSuffix
                                                     [for]="pick"></mat-datepicker-toggle>
                                                 <mat-datepicker #pick></mat-datepicker>
@@ -397,7 +397,7 @@
 
                                             <mat-form-field appearance="outline" class="dense-field">
                                                 <mat-label>Montant *</mat-label>
-                                                <input matInput type="number" formControlName="montant">
+                                                <input aria-label="Input" title="Input" matInput type="number" formControlName="montant">
                                             </mat-form-field>
 
                                             <mat-form-field appearance="outline" class="dense-field"
@@ -441,13 +441,13 @@
                                 </div>
 
                                 <div class="flex justify-between mt-8 pt-6 border-t">
-                                    <button mat-button matStepperPrevious>
+                                    <button type="button" mat-button matStepperPrevious>
                                         <mat-icon>arrow_back</mat-icon> Retour aux détails
                                     </button>
                                     <div class="flex gap-2">
-                                        <button mat-button (click)="onCancel()">{{ isViewMode ? 'Fermer' : 'Annuler'
+                                        <button type="button" mat-button (click)="onCancel()">{{ isViewMode ? 'Fermer' : 'Annuler'
                                             }}</button>
-                                        <button mat-raised-button color="primary" (click)="onSubmit()"
+                                        <button type="button" mat-raised-button color="primary" (click)="onSubmit()"
                                             [disabled]="form.invalid" class="!px-10" *ngIf="!isViewMode">
                                             <mat-icon>save</mat-icon> {{ isBLMode ? 'Enregistrer le BL' :
                                             (data?.isGrouping
@@ -477,9 +477,9 @@
                 </button>
             </div>
             <div class="flex justify-center">
-                <img *ngIf="viewingFile.type.startsWith('image/')" [src]="viewingFile.preview"
+                <img alt="Image" *ngIf="viewingFile.type.startsWith('image/')" [src]="viewingFile.preview"
                     class="max-w-full max-h-[70vh] object-contain">
-                <iframe *ngIf="viewingFile.type === 'application/pdf'" [src]="viewingFile.preview"
+                <iframe title="Frame" *ngIf="viewingFile.type === 'application/pdf'" [src]="viewingFile.preview"
                     class="w-full h-[70vh]"></iframe>
             </div>
         </div>

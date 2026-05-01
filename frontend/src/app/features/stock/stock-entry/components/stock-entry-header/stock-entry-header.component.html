@@ -36,7 +36,7 @@
       <!-- Document number -->
       <mat-form-field appFieldControlLabel class="w-40">
         <mat-label>{{ 'stock.entry.documentNumber' | translate }}</mat-label>
-        <input matInput [formField]="documentNumberField()" />
+        <input title="Input" aria-label="Input field" matInput [formField]="documentNumberField()" />
         @if (documentNumberField()().touched() && documentNumberField()().invalid()) {
           <mat-error
             app-field-error
@@ -49,7 +49,7 @@
       <!-- Document date -->
       <mat-form-field appFieldControlLabel class="w-44">
         <mat-label>{{ 'stock.entry.documentDate' | translate }}</mat-label>
-        <input matInput [matDatepicker]="picker" [formField]="documentDateField()" />
+        <input title="Input" aria-label="Input field" matInput [matDatepicker]="picker" [formField]="documentDateField()" />
         <mat-datepicker-toggle matIconSuffix [for]="picker" />
         <mat-datepicker #picker />
       </mat-form-field>

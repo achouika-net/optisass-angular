@@ -1,7 +1,7 @@
 <div class="product-form-container">
     <div class="form-header">
         <h1 class="form-title">{{ isEditMode ? 'Modifier' : 'Nouveau' }} Produit</h1>
-        <button mat-button routerLink="/p/stock" class="back-btn">
+        <button type="button" mat-button routerLink="/p/stock" class="back-btn">
             <mat-icon>arrow_back</mat-icon> Retour
         </button>
     </div>
@@ -36,7 +36,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Groupe *</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select [value]="selectedGroup"
+                                            <mat-select aria-label="Select field" [value]="selectedGroup"
                                                 (selectionChange)="onGroupChange($event.value)">
                                                 <mat-option *ngFor="let group of groups" [value]="group.id">
                                                     {{ group.nom }}
@@ -48,7 +48,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Centre *</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select [value]="selectedCenter"
+                                            <mat-select aria-label="Select field" [value]="selectedCenter"
                                                 (selectionChange)="onCenterChange($event.value)"
                                                 [disabled]="!selectedGroup">
                                                 <mat-option *ngFor="let center of centers" [value]="center.id">
@@ -61,7 +61,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Entrepôt *</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select [value]="selectedWarehouse"
+                                            <mat-select aria-label="Select field" [value]="selectedWarehouse"
                                                 (selectionChange)="onWarehouseChange($event.value)"
                                                 [disabled]="!selectedCenter">
                                                 <mat-option *ngFor="let warehouse of warehouses" [value]="warehouse.id">
@@ -80,7 +80,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Type *</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select formControlName="typeArticle">
+                                            <mat-select aria-label="Select field" formControlName="typeArticle">
                                                 <mat-option *ngFor="let type of productTypes" [value]="type">
                                                     {{ formatTypeLabel(type) }}
                                                 </mat-option>
@@ -204,8 +204,8 @@
                                                 *ngIf="productForm.get('photo')?.value" matTooltip="Supprimer la photo">
                                                 <mat-icon>delete</mat-icon>
                                             </button>
-                                            <input #fileInput type="file" (change)="onFileSelected($event)"
-                                                accept="image/*" style="display: none;">
+                                            <input title="Input" aria-label="Input field" #fileInput type="file" (change)="onFileSelected($event)"
+                                                accept="image/*" class="hidden">
                                         </div>
                                     </div>
                                 </div>
@@ -238,7 +238,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Catégorie *</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select formControlName="categorie">
+                                            <mat-select aria-label="Select field" formControlName="categorie">
                                                 <mat-option *ngFor="let cat of frameCategories" [value]="cat">
                                                     {{ cat | titlecase }}
                                                 </mat-option>
@@ -249,7 +249,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Genre</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select formControlName="genre">
+                                            <mat-select aria-label="Select field" formControlName="genre">
                                                 <mat-option *ngFor="let g of genders" [value]="g">
                                                     {{ g | titlecase }}
                                                 </mat-option>
@@ -260,7 +260,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Forme *</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select formControlName="forme">
+                                            <mat-select aria-label="Select field" formControlName="forme">
                                                 <mat-option *ngFor="let shape of frameShapes" [value]="shape">
                                                     {{ shape | titlecase }}
                                                 </mat-option>
@@ -273,7 +273,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Matière *</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select formControlName="matiere">
+                                            <mat-select aria-label="Select field" formControlName="matiere">
                                                 <mat-option *ngFor="let mat of frameMaterials" [value]="mat">
                                                     {{ mat | titlecase }}
                                                 </mat-option>
@@ -284,7 +284,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Type Monture *</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select formControlName="typeMonture">
+                                            <mat-select aria-label="Select field" formControlName="typeMonture">
                                                 <mat-option *ngFor="let type of frameTypes" [value]="type">
                                                     {{ type | titlecase }}
                                                 </mat-option>
@@ -295,7 +295,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Type Charnière</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select formControlName="typeCharniere">
+                                            <mat-select aria-label="Select field" formControlName="typeCharniere">
                                                 <mat-option *ngFor="let hinge of hingeTypes" [value]="hinge">
                                                     {{ hinge | titlecase }}
                                                 </mat-option>
@@ -335,7 +335,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Type de Verre *</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select formControlName="typeVerre">
+                                            <mat-select aria-label="Select field" formControlName="typeVerre">
                                                 <mat-option *ngFor="let type of lensTypes" [value]="type">
                                                     {{ type | titlecase }}
                                                 </mat-option>
@@ -346,7 +346,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Matériau *</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select formControlName="materiau">
+                                            <mat-select aria-label="Select field" formControlName="materiau">
                                                 <mat-option *ngFor="let mat of lensMaterials" [value]="mat">
                                                     {{ mat | titlecase }}
                                                 </mat-option>
@@ -357,7 +357,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Indice de Réfraction *</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select formControlName="indiceRefraction">
+                                            <mat-select aria-label="Select field" formControlName="indiceRefraction">
                                                 <mat-option *ngFor="let index of lensIndices" [value]="index">
                                                     {{ index }}
                                                 </mat-option>
@@ -374,7 +374,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Type de Lentille *</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select formControlName="typeLentille">
+                                            <mat-select aria-label="Select field" formControlName="typeLentille">
                                                 <mat-option *ngFor="let type of contactLensTypes" [value]="type">
                                                     {{ type | titlecase }}
                                                 </mat-option>
@@ -385,7 +385,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Usage *</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select formControlName="usage">
+                                            <mat-select aria-label="Select field" formControlName="usage">
                                                 <mat-option *ngFor="let u of contactLensUsages" [value]="u">
                                                     {{ u | titlecase }}
                                                 </mat-option>
@@ -396,7 +396,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Laboratoire</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <input matInput formControlName="laboratoire">
+                                            <input aria-label="Input" title="Input" matInput formControlName="laboratoire">
                                         </mat-form-field>
                                     </div>
                                 </div>
@@ -431,14 +431,14 @@
                                     <div class="form-field">
                                         <label class="field-label">Date Péremption</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <input matInput type="date" formControlName="datePeremption">
+                                            <input aria-label="Input" title="Input" matInput type="date" formControlName="datePeremption">
                                         </mat-form-field>
                                     </div>
 
                                     <div class="form-field">
                                         <label class="field-label">Numéro Lot</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <input matInput formControlName="numeroLot">
+                                            <input aria-label="Input" title="Input" matInput formControlName="numeroLot">
                                         </mat-form-field>
                                     </div>
                                 </div>
@@ -451,7 +451,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Catégorie *</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select formControlName="categorieAccessoire">
+                                            <mat-select aria-label="Select field" formControlName="categorieAccessoire">
                                                 <mat-option *ngFor="let cat of accessoryCategories" [value]="cat">
                                                     {{ cat | titlecase }}
                                                 </mat-option>
@@ -462,7 +462,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Sous-Catégorie</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <input matInput formControlName="sousCategorie">
+                                            <input aria-label="Input" title="Input" matInput formControlName="sousCategorie">
                                         </mat-form-field>
                                     </div>
                                 </div>
@@ -508,7 +508,7 @@
                                     <div class="form-field">
                                         <label class="field-label">Statut</label>
                                         <mat-form-field subscriptSizing="dynamic" class="w-full no-label-field">
-                                            <mat-select formControlName="statut">
+                                            <mat-select aria-label="Select field" formControlName="statut">
                                                 <mat-option *ngFor="let status of productStatuses" [value]="status">
                                                     {{ status | titlecase }}
                                                 </mat-option>

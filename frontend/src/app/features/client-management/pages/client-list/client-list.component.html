@@ -10,15 +10,15 @@
                 <mat-slide-toggle formControlName="fidelioEligible" color="primary" class="mr-4">
                     🎯 Éligible Fidélité
                 </mat-slide-toggle>
-                <button mat-stroked-button color="accent" routerLink="/p/commercial/promotions">
+                <button type="button" mat-stroked-button color="accent" routerLink="/p/commercial/promotions">
                     <mat-icon>campaign</mat-icon>
                     Campagnes
                 </button>
-                <button mat-stroked-button color="primary" (click)="exportClients()">
+                <button type="button" mat-stroked-button color="primary" (click)="exportClients()">
                     <mat-icon>download</mat-icon>
                     Exporter
                 </button>
-                <button mat-raised-button color="primary" (click)="addClient()">
+                <button type="button" mat-raised-button color="primary" (click)="addClient()">
                     <mat-icon>add</mat-icon>
                     ADD un client
                 </button>
@@ -63,7 +63,7 @@
                 <div class="grid grid-cols-4 gap-4 items-end">
                     <mat-form-field appearance="outline">
                         <mat-label>Type de client</mat-label>
-                        <mat-select formControlName="typeClient">
+                        <mat-select aria-label="Select field" formControlName="typeClient">
                             <mat-option value="" class="text-black">Tous</mat-option>
                             @for (type of clientTypes; track type.value) {
                             <mat-option [value]="type.value">{{ type.label }}</mat-option>
@@ -73,7 +73,7 @@
 
                     <mat-form-field appearance="outline">
                         <mat-label>Statut</mat-label>
-                        <mat-select formControlName="statut">
+                        <mat-select aria-label="Select field" formControlName="statut">
                             <mat-option value="" class="text-black">Tous</mat-option>
                             @for (statut of statuts; track statut.value) {
                             <mat-option [value]="statut.value">{{ statut.label }}</mat-option>
@@ -185,35 +185,35 @@
                     <ng-container matColumnDef="actions">
                         <th mat-header-cell *matHeaderCellDef>Actions</th>
                         <td mat-cell *matCellDef="let client">
-                            <button mat-icon-button [matMenuTriggerFor]="menu">
+                            <button type="button" mat-icon-button [matMenuTriggerFor]="menu">
                                 <mat-icon>more_vert</mat-icon>
                             </button>
                             <mat-menu #menu="matMenu">
-                                <button mat-menu-item (click)="viewClient(client)">
+                                <button type="button" mat-menu-item (click)="viewClient(client)">
                                     <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
                                     <span>Visualiser</span>
                                 </button>
-                                <button mat-menu-item (click)="editClient(client)">
+                                <button type="button" mat-menu-item (click)="editClient(client)">
                                     <mat-icon class="premium-menu-icon-edit">edit</mat-icon>
                                     <span>Modifier</span>
                                 </button>
                                 <mat-divider></mat-divider>
-                                <button mat-menu-item [matMenuTriggerFor]="messageMenu">
+                                <button type="button" mat-menu-item [matMenuTriggerFor]="messageMenu">
                                     <mat-icon class="whatsapp-icon">message</mat-icon>
                                     <span>Envoyer message</span>
                                 </button>
                                 <mat-divider></mat-divider>
-                                <button mat-menu-item (click)="deleteClient(client)">
+                                <button type="button" mat-menu-item (click)="deleteClient(client)">
                                     <mat-icon class="premium-menu-icon-delete">delete</mat-icon>
                                     <span>Supprimer</span>
                                 </button>
                             </mat-menu>
                             <mat-menu #messageMenu="matMenu">
-                                <button mat-menu-item (click)="sendMessage(client, 'PROMOTION')">
+                                <button type="button" mat-menu-item (click)="sendMessage(client, 'PROMOTION')">
                                     <mat-icon>campaign</mat-icon>
                                     <span>Offre promotionnelle</span>
                                 </button>
-                                <button mat-menu-item (click)="sendMessage(client, 'GENERAL')">
+                                <button type="button" mat-menu-item (click)="sendMessage(client, 'GENERAL')">
                                     <mat-icon>chat</mat-icon>
                                     <span>Message général</span>
                                 </button>

@@ -32,23 +32,23 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end" class="!px-4 !py-3">
-  <button mat-button (click)="cancel()">
+  <button type="button" mat-button (click)="cancel()">
     {{ 'commun.cancel' | translate }}
   </button>
 
   @if (!capturedImage() && !hasError() && !isLoading()) {
-    <button mat-flat-button color="primary" (click)="capturePhoto()">
+    <button type="button" mat-flat-button color="primary" (click)="capturePhoto()">
       <mat-icon>photo_camera</mat-icon>
       {{ 'commun.capture' | translate }}
     </button>
   }
 
   @if (capturedImage()) {
-    <button mat-stroked-button (click)="retakePhoto()">
+    <button type="button" mat-stroked-button (click)="retakePhoto()">
       <mat-icon>refresh</mat-icon>
       {{ 'commun.retake' | translate }}
     </button>
-    <button mat-flat-button color="primary" (click)="confirmPhoto()">
+    <button type="button" mat-flat-button color="primary" (click)="confirmPhoto()">
       <mat-icon>check</mat-icon>
       {{ 'commun.confirm' | translate }}
     </button>

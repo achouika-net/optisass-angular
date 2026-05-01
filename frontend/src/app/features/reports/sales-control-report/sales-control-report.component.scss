@@ -42,6 +42,171 @@
     }
 }
 
+.summary-cards {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+
+    .stat-card {
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+
+        &.blue {
+            flex: 1.5;
+            min-width: 300px;
+            background: #f0f7ff;
+            border-left: 5px solid #007bff;
+        }
+
+        &.green {
+            flex: 1;
+            min-width: 250px;
+            background: #f0fdf4;
+            border-left: 5px solid #22c55e;
+        }
+
+        &.red {
+            flex: 1;
+            min-width: 250px;
+            background: #fef2f2;
+            border-left: 5px solid #ef4444;
+        }
+
+        mat-card-content {
+            padding: 1.25rem;
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            
+            &.center {
+                align-items: center;
+            }
+        }
+
+        .stat-label {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.875rem;
+            font-weight: 600;
+
+            &.uppercase {
+                text-transform: uppercase;
+                letter-spacing: 0.025em;
+            }
+        }
+
+        .stat-value {
+            font-weight: 700;
+
+            &.large-blue {
+                margin: 0.25rem 0;
+                font-size: 2.25rem;
+                font-weight: 800;
+                color: #1e293b;
+
+                .currency {
+                    font-size: 1rem;
+                    font-weight: 500;
+                }
+            }
+
+            &.medium-green {
+                margin: 0.5rem 0;
+                font-size: 1.75rem;
+                color: #15803d;
+            }
+
+            &.medium-red {
+                margin: 0.5rem 0;
+                font-size: 1.75rem;
+                color: #b91c1c;
+            }
+        }
+
+        .stat-icon {
+            &.bg-blue {
+                background: #007bff1a;
+                padding: 0.75rem;
+                border-radius: 12px;
+                color: #007bff;
+
+                mat-icon {
+                    width: 32px;
+                    height: 32px;
+                    font-size: 32px;
+                }
+            }
+
+            &.text-green {
+                color: #22c55e;
+                font-size: 28px;
+            }
+
+            &.text-red {
+                color: #ef4444;
+                font-size: 28px;
+            }
+        }
+
+        .stat-details {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+            font-size: 0.85rem;
+
+            .detail-col {
+                flex: 1;
+
+                &.border-left {
+                    border-left: 1px solid #e2e8f0;
+                    padding-left: 1rem;
+                }
+
+                .label {
+                    color: #64748b;
+                }
+
+                .val {
+                    font-weight: 700;
+
+                    &.green { color: #10b981; }
+                    &.orange { color: #f59e0b; }
+                    &.red { color: #ef4444; }
+                }
+            }
+        }
+
+        .stat-breakdown {
+            margin-top: 1rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #dcfce7;
+            font-size: 0.8rem;
+            color: #166534;
+
+            .breakdown-list {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.75rem;
+
+                .breakdown-item {
+                    background: #ffffff;
+                    padding: 2px 8px;
+                    border-radius: 4px;
+                    border: 1px solid #dcfce7;
+
+                    .label { color: #64748b; }
+                    .val { font-weight: 700; margin-left: 4px; }
+                }
+            }
+        }
+    }
+}
+
 /* Filter Toolbar */
 .filter-toolbar {
     background: #fff;

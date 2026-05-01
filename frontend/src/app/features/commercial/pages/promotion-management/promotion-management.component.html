@@ -16,12 +16,12 @@
                     <mat-card-content>
                         <mat-form-field appearance="outline" class="full-width">
                             <mat-label>Nom de la promotion</mat-label>
-                            <input matInput [ngModel]="promotionName()" (ngModelChange)="promotionName.set($event)">
+                            <input aria-label="Input" title="Input" matInput [ngModel]="promotionName()" (ngModelChange)="promotionName.set($event)">
                         </mat-form-field>
 
                         <mat-form-field appearance="outline" class="full-width">
                             <mat-label>Description / Concept</mat-label>
-                            <textarea matInput rows="3" [ngModel]="promotionDescription()"
+                            <textarea aria-label="Textarea" title="Textarea" matInput rows="3" [ngModel]="promotionDescription()"
                                 (ngModelChange)="promotionDescription.set($event)"></textarea>
                         </mat-form-field>
 
@@ -30,7 +30,7 @@
                             <div class="age-input">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Durée en stock (jours)</mat-label>
-                                    <input matInput type="number" [ngModel]="stockAgeLimitDays()"
+                                    <input aria-label="Input" title="Input" matInput type="number" [ngModel]="stockAgeLimitDays()"
                                         (ngModelChange)="stockAgeLimitDays.set($event)">
                                     <mat-icon matSuffix>timer</mat-icon>
                                 </mat-form-field>
@@ -50,7 +50,7 @@
                         <div class="new-rule-form">
                             <mat-form-field appearance="outline">
                                 <mat-label>Cible</mat-label>
-                                <mat-select [(ngModel)]="newRule().type">
+                                <mat-select aria-label="Select field" [(ngModel)]="newRule().type">
                                     <mat-option value="MARQUE">Par Marque</mat-option>
                                     <mat-option value="CATEGORIE">Par Catégorie</mat-option>
                                     <mat-option value="PRODUIT">Par Produit (ID)</mat-option>
@@ -59,14 +59,14 @@
 
                             <mat-form-field appearance="outline" *ngIf="newRule().type === 'MARQUE'">
                                 <mat-label>Marque</mat-label>
-                                <mat-select [(ngModel)]="newRule().target">
+                                <mat-select aria-label="Select field" [(ngModel)]="newRule().target">
                                     <mat-option *ngFor="let b of brands()" [value]="b">{{b}}</mat-option>
                                 </mat-select>
                             </mat-form-field>
 
                             <mat-form-field appearance="outline" *ngIf="newRule().type === 'CATEGORIE'">
                                 <mat-label>Catégorie</mat-label>
-                                <mat-select [(ngModel)]="newRule().target">
+                                <mat-select aria-label="Select field" [(ngModel)]="newRule().target">
                                     <mat-option value="monture">Montures</mat-option>
                                     <mat-option value="lentille">Lentilles</mat-option>
                                     <mat-option value="accessoire">Accessoires</mat-option>
@@ -75,16 +75,16 @@
 
                             <mat-form-field appearance="outline" *ngIf="newRule().type === 'PRODUIT'">
                                 <mat-label>ID Produit / Code</mat-label>
-                                <input matInput [(ngModel)]="newRule().target">
+                                <input aria-label="Input" title="Input" matInput [(ngModel)]="newRule().target">
                             </mat-form-field>
 
                             <mat-form-field appearance="outline" class="remise-field">
                                 <mat-label>Remise (%)</mat-label>
-                                <input matInput type="number" [(ngModel)]="newRule().remise">
+                                <input aria-label="Input" title="Input" matInput type="number" [(ngModel)]="newRule().remise">
                                 <span matSuffix>%</span>
                             </mat-form-field>
 
-                            <button mat-mini-fab color="primary" (click)="addRule()">
+                            <button type="button" mat-mini-fab color="primary" (click)="addRule()">
                                 <mat-icon>add</mat-icon>
                             </button>
                         </div>
@@ -93,7 +93,7 @@
                             <div *ngFor="let rule of rules(); let i = index" class="rule-chip">
                                 <span><strong>{{rule.type}}</strong>: {{rule.target || 'Toutes'}} &rarr;
                                     <b>{{rule.remise}}%</b></span>
-                                <button mat-icon-button color="warn" (click)="removeRule(i)">
+                                <button type="button" mat-icon-button color="warn" (click)="removeRule(i)">
                                     <mat-icon>delete</mat-icon>
                                 </button>
                             </div>
@@ -115,7 +115,7 @@
                         <div class="product-filters-row">
                             <mat-form-field appearance="outline" class="search-field">
                                 <mat-label>Rechercher un produit...</mat-label>
-                                <input matInput [ngModel]="productSearch()" (ngModelChange)="productSearch.set($event)">
+                                <input aria-label="Input" title="Input" matInput [ngModel]="productSearch()" (ngModelChange)="productSearch.set($event)">
                                 <mat-icon matSuffix>search</mat-icon>
                             </mat-form-field>
 
@@ -164,10 +164,10 @@
                     </mat-card-header>
                     <mat-card-content>
                         <div class="segmentation-actions">
-                            <button mat-stroked-button (click)="selectSegment('ALL')">Tous</button>
-                            <button mat-stroked-button (click)="selectSegment('ACTIF')" color="primary">Actifs</button>
-                            <button mat-stroked-button (click)="selectSegment('INACTIF')" color="warn">Inactifs</button>
-                            <button mat-stroked-button (click)="selectSegment('BIRTHDAY')"
+                            <button type="button" mat-stroked-button (click)="selectSegment('ALL')">Tous</button>
+                            <button type="button" mat-stroked-button (click)="selectSegment('ACTIF')" color="primary">Actifs</button>
+                            <button type="button" mat-stroked-button (click)="selectSegment('INACTIF')" color="warn">Inactifs</button>
+                            <button type="button" mat-stroked-button (click)="selectSegment('BIRTHDAY')"
                                 color="accent">Anniversaires</button>
                         </div>
 
@@ -211,7 +211,7 @@
 
                         <mat-form-field appearance="outline" class="full-width message-area">
                             <mat-label>Message Personnalisé</mat-label>
-                            <textarea matInput rows="6" [ngModel]="messageTemplate()"
+                            <textarea aria-label="Textarea" title="Textarea" matInput rows="6" [ngModel]="messageTemplate()"
                                 (ngModelChange)="messageTemplate.set($event)"></textarea>
                             <mat-hint>Variables: {{'{{NAME}}'}}, {{'{{PRODUCT}}'}}, {{'{{MARQUE}}'}},
                                 {{'{{PROMO_NAME}}'}}</mat-hint>
@@ -222,7 +222,7 @@
                             <p><strong>Canal:</strong> {{selectedChannel()}}</p>
                         </div>
 
-                        <button mat-raised-button color="primary" class="full-width launch-btn"
+                        <button type="button" mat-raised-button color="primary" class="full-width launch-btn"
                             [disabled]="loading() || selectedClients().length === 0" (click)="launchCampaign()">
                             <mat-icon>rocket_launch</mat-icon>
                             Diffuser la Promotion

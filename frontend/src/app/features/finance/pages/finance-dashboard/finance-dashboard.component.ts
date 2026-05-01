@@ -12,6 +12,7 @@ import { FormsModule } from '@angular/forms';
 import { FinanceService } from '../../services/finance.service';
 import { Chart, registerables } from 'chart.js';
 import { Store } from '@ngrx/store';
+import { Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ChangeDetectorRef } from '@angular/core';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
@@ -52,6 +53,8 @@ Chart.register(...registerables);
     .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 32px; }
     .kpi-card { padding: 24px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07); transition: all 0.3s ease; }
     .kpi-card:hover { transform: translateY(-5px); box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.12); }
+    .clickable-card { cursor: pointer; transition: all 0.2s ease-in-out; }
+    .clickable-card:hover { transform: translateY(-8px) scale(1.02); z-index: 10; }
     .metric-value { font-size: 28px; font-weight: 800; margin: 12px 0; color: #1e293b; }
     .metric-label { color: #64748b; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
     .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 32px; }
@@ -195,7 +198,8 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         private financeService: FinanceService,
         private store: Store,
         private zone: NgZone,
-        private cd: ChangeDetectorRef
+        private cd: ChangeDetectorRef,
+        private router: Router
     ) {
         // Reactivity to center changes
         effect(() => {
@@ -453,9 +457,21 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         });
     }
 
+    goToPayments(tab: 'OUTGOING' | 'INCOMING') {
+        const dates = this.getDateRange();
+        this.router.navigate(['/p/finance/payments'], {
+            queryParams: {
+                tab: tab,
+                startDate: dates.start,
+                endDate: dates.end,
+                mode: 'PAIEMENTS'
+            }
+        });
+    }
+
     get percentageUsed(): number {
         if (!this.summary || this.monthlyThreshold === 0) return 0;
-        const amountToCheck = this.summary.totalScheduled !== undefined ? this.summary.totalScheduled : this.summary.totalExpenses;
+        const amountToCheck = this.summary.totalScheduledVolume !== undefined ? this.summary.totalScheduledVolume : this.summary.totalExpenses;
         return (amountToCheck / this.monthlyThreshold) * 100;
     }
 

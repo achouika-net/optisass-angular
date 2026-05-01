@@ -5,7 +5,7 @@
             Gestion des Groupes
         </h1>
         <div class="header-actions">
-            <button mat-raised-button color="primary" (click)="openCreateDialog()">
+            <button type="button" mat-raised-button color="primary" (click)="openCreateDialog()">
                 <mat-icon>add</mat-icon>
                 Nouveau Groupe
             </button>
@@ -92,22 +92,22 @@
 
                 <!-- Actions Column -->
                 <ng-container matColumnDef="actions">
-                    <th mat-header-cell *matHeaderCellDef style="text-align: right;">Actions</th>
-                    <td mat-cell *matCellDef="let groupe" style="text-align: right;">
-                        <button mat-icon-button [matMenuTriggerFor]="menu">
+                    <th mat-header-cell *matHeaderCellDef class="text-right">Actions</th>
+                    <td mat-cell *matCellDef="let groupe" class="text-right">
+                        <button type="button" mat-icon-button [matMenuTriggerFor]="menu">
                             <mat-icon>more_vert</mat-icon>
                         </button>
                         <mat-menu #menu="matMenu">
-                            <button mat-menu-item [routerLink]="['/p/groups', groupe.id]">
+                            <button type="button" mat-menu-item [routerLink]="['/p/groups', groupe.id]">
                                 <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
                                 <span>Visualiser</span>
                             </button>
-                            <button mat-menu-item (click)="openEditDialog(groupe)">
+                            <button type="button" mat-menu-item (click)="openEditDialog(groupe)">
                                 <mat-icon class="premium-menu-icon-edit">edit</mat-icon>
                                 <span>Modifier</span>
                             </button>
                             <mat-divider></mat-divider>
-                            <button mat-menu-item (click)="deleteGroupe(groupe.id!)">
+                            <button type="button" mat-menu-item (click)="deleteGroupe(groupe.id!)">
                                 <mat-icon class="premium-menu-icon-delete">delete</mat-icon>
                                 <span>Supprimer</span>
                             </button>
@@ -122,7 +122,7 @@
             <div *ngIf="!loading && groupes.length === 0" class="text-center p-12">
                 <mat-icon class="!w-12 !h-12 !text-5xl mb-4 opacity-20">inventory</mat-icon>
                 <p class="text-gray-500 mb-4">Aucun groupe trouvé</p>
-                <button mat-raised-button color="primary" (click)="openCreateDialog()">
+                <button type="button" mat-raised-button color="primary" (click)="openCreateDialog()">
                     Créer le premier groupe
                 </button>
             </div>

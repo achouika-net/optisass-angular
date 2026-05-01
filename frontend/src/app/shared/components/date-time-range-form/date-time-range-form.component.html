@@ -2,7 +2,7 @@
   <!-- Day -->
   <mat-form-field appFieldControlLabel>
     <mat-label>{{ 'calendar.the' | translate }}</mat-label>
-    <input
+    <input title="Input" aria-label="Input field"
       matInput
       [matDatepicker]="datepicker"
       [(ngModel)]="day"
@@ -17,7 +17,7 @@
   <!-- Start time -->
   <mat-form-field appFieldControlLabel>
     <mat-label>{{ 'calendar.from' | translate }}</mat-label>
-    <input
+    <input title="Input" aria-label="Input field"
       matInput
       [matTimepicker]="startTimepicker"
       [formControl]="startDateControl()"
@@ -30,7 +30,7 @@
   <!-- End time -->
   <mat-form-field appFieldControlLabel>
     <mat-label>{{ 'calendar.to' | translate }}</mat-label>
-    <input
+    <input title="Input" aria-label="Input field"
       matInput
       [matTimepicker]="endTimepicker"
       [formControl]="endDateControl()"

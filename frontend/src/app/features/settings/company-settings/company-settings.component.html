@@ -25,19 +25,19 @@
                                     <div class="col-md-6">
                                         <mat-form-field appearance="outline" class="w-100">
                                             <mat-label>Téléphone</mat-label>
-                                            <input matInput formControlName="phone">
+                                            <input aria-label="Input" title="Input" matInput formControlName="phone">
                                         </mat-form-field>
                                     </div>
                                     <div class="col-md-6">
                                         <mat-form-field appearance="outline" class="w-100">
                                             <mat-label>E-mail</mat-label>
-                                            <input matInput formControlName="email" type="email">
+                                            <input aria-label="Input" title="Input" matInput formControlName="email" type="email">
                                         </mat-form-field>
                                     </div>
                                 </div>
                                 <mat-form-field appearance="outline" class="w-100">
                                     <mat-label>Adresse</mat-label>
-                                    <textarea matInput formControlName="address" rows="2"></textarea>
+                                    <textarea aria-label="Textarea" title="Textarea" matInput formControlName="address" rows="2"></textarea>
                                 </mat-form-field>
                             </div>
 
@@ -58,7 +58,7 @@
                                         <button type="button" mat-stroked-button color="primary" class="w-100 btn-upload" (click)="logoInput.click()">
                                             <mat-icon>upload</mat-icon> Logo
                                         </button>
-                                        <input #logoInput type="file" (change)="onLogoChange($event)" style="display: none"
+                                        <input title="Input" aria-label="Input field" #logoInput type="file" (change)="onLogoChange($event)" class="hidden"
                                             accept="image/*">
                                     </div>
 
@@ -76,7 +76,7 @@
                                         <button type="button" mat-stroked-button color="accent" class="w-100 btn-upload" (click)="cachetInput.click()">
                                             <mat-icon>upload</mat-icon> Cachet
                                         </button>
-                                        <input #cachetInput type="file" (change)="onCachetChange($event)" style="display: none"
+                                        <input title="Input" aria-label="Input field" #cachetInput type="file" (change)="onCachetChange($event)" class="hidden"
                                             accept="image/*">
                                     </div>
                                 </div>
@@ -91,31 +91,31 @@
                             <div class="col-md-6">
                                 <mat-form-field appearance="outline" class="w-100">
                                     <mat-label>ICE (Identifiant Commun de l'Entreprise)</mat-label>
-                                    <input matInput formControlName="ice">
+                                    <input aria-label="Input" title="Input" matInput formControlName="ice">
                                 </mat-form-field>
                             </div>
                             <div class="col-md-6">
                                 <mat-form-field appearance="outline" class="w-100">
                                     <mat-label>IF (Identifiant Fiscal)</mat-label>
-                                    <input matInput formControlName="identifiantFiscal">
+                                    <input aria-label="Input" title="Input" matInput formControlName="identifiantFiscal">
                                 </mat-form-field>
                             </div>
                             <div class="col-md-6">
                                 <mat-form-field appearance="outline" class="w-100">
                                     <mat-label>RC (Registre du Commerce)</mat-label>
-                                    <input matInput formControlName="rc">
+                                    <input aria-label="Input" title="Input" matInput formControlName="rc">
                                 </mat-form-field>
                             </div>
                             <div class="col-md-3">
                                 <mat-form-field appearance="outline" class="w-100">
                                     <mat-label>Patente</mat-label>
-                                    <input matInput formControlName="patente">
+                                    <input aria-label="Input" title="Input" matInput formControlName="patente">
                                 </mat-form-field>
                             </div>
                             <div class="col-md-3">
                                 <mat-form-field appearance="outline" class="w-100">
                                     <mat-label>CNSS</mat-label>
-                                    <input matInput formControlName="cnss">
+                                    <input aria-label="Input" title="Input" matInput formControlName="cnss">
                                 </mat-form-field>
                             </div>
                             <div class="col-md-6">
@@ -144,25 +144,25 @@
                                     <div class="col-md-4">
                                         <mat-form-field appearance="outline" class="w-100">
                                             <mat-label>Nom de la banque</mat-label>
-                                            <input matInput formControlName="bankName">
+                                            <input aria-label="Input" title="Input" matInput formControlName="bankName">
                                         </mat-form-field>
                                     </div>
                                     <div class="col-md-8">
                                         <mat-form-field appearance="outline" class="w-100">
                                             <mat-label>RIB (24 chiffres)</mat-label>
-                                            <input matInput formControlName="rib">
+                                            <input aria-label="Input" title="Input" matInput formControlName="rib">
                                         </mat-form-field>
                                     </div>
                                     <div class="col-md-6">
                                         <mat-form-field appearance="outline" class="w-100">
                                             <mat-label>IBAN</mat-label>
-                                            <input matInput formControlName="iban">
+                                            <input aria-label="Input" title="Input" matInput formControlName="iban">
                                         </mat-form-field>
                                     </div>
                                     <div class="col-md-6">
                                         <mat-form-field appearance="outline" class="w-100">
                                             <mat-label>SWIFT / BIC</mat-label>
-                                            <input matInput formControlName="swift">
+                                            <input aria-label="Input" title="Input" matInput formControlName="swift">
                                         </mat-form-field>
                                     </div>
                                 </div>
@@ -197,7 +197,7 @@
         </mat-card-content>
 
         <mat-card-actions align="end" class="p-3">
-            <button mat-raised-button color="primary" (click)="saveSettings()"
+            <button type="button" mat-raised-button color="primary" (click)="saveSettings()"
                 [disabled]="loading || settingsForm.invalid">
                 <mat-icon *ngIf="!loading">save</mat-icon>
                 <span *ngIf="!loading">Enregistrer les modifications</span>

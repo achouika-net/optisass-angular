@@ -19,7 +19,7 @@
       class="xs:flex-row xs:gap-4 flex flex-col items-center justify-center gap-2"
     >
       @if (!isAuthenticated()) {
-        <button
+        <button type="button"
           mat-raised-button
           color="primary"
           (click)="goToLogin()"
@@ -30,7 +30,7 @@
         </button>
       }
       @if (isAuthenticated()) {
-        <button
+        <button type="button"
           mat-raised-button
           color="primary"
           [routerLink]="['/p']"
@@ -39,7 +39,7 @@
           <mat-icon class="mr-2" fontIcon="home"></mat-icon>
           {{ 'authentication.goToHome' | translate }}
         </button>
-        <button
+        <button type="button"
           mat-raised-button
           color="primary"
           (click)="logout()"

@@ -2,20 +2,20 @@
     <!-- Global Context Menus Moved to Top for better initialization -->
     <mat-menu #bcMenu="matMenu">
         <ng-template matMenuContent let-inv="invoice">
-            <button mat-menu-item (click)="openPaymentDialog(inv)" *ngIf="inv.resteAPayer > 0">
+            <button type="button" mat-menu-item (click)="openPaymentDialog(inv)" *ngIf="inv.resteAPayer > 0">
                 <mat-icon color="primary">payments</mat-icon>
                 <span>Paiement</span>
             </button>
-            <button mat-menu-item (click)="validateInvoice(inv)">
-                <mat-icon style="color: #10b981;">check_circle</mat-icon>
+            <button type="button" mat-menu-item (click)="validateInvoice(inv)">
+                <mat-icon class="text-[#10b981]">check_circle</mat-icon>
                 <span>Facturer (BC → Facture)</span>
             </button>
-            <button mat-menu-item (click)="viewFiche(inv)">
+            <button type="button" mat-menu-item (click)="viewFiche(inv)">
                 <mat-icon>visibility</mat-icon>
                 <span>Afficher Fiche</span>
             </button>
             <mat-divider></mat-divider>
-            <button mat-menu-item (click)="createAvoir(inv)">
+            <button type="button" mat-menu-item (click)="createAvoir(inv)">
                 <mat-icon color="warn">assignment_return</mat-icon>
                 <span>Annuler (Créer Avoir)</span>
             </button>
@@ -24,15 +24,15 @@
 
     <mat-menu #factureMenu="matMenu">
         <ng-template matMenuContent let-inv="invoice">
-            <button mat-menu-item (click)="openPaymentDialog(inv)" *ngIf="inv.resteAPayer > 0">
+            <button type="button" mat-menu-item (click)="openPaymentDialog(inv)" *ngIf="inv.resteAPayer > 0">
                 <mat-icon>payments</mat-icon>
                 <span>Paiement</span>
             </button>
-            <button mat-menu-item (click)="viewDocument(inv)">
+            <button type="button" mat-menu-item (click)="viewDocument(inv)">
                 <mat-icon color="primary">visibility</mat-icon>
                 <span>Voir Facture</span>
             </button>
-            <button mat-menu-item (click)="createAvoir(inv)">
+            <button type="button" mat-menu-item (click)="createAvoir(inv)">
                 <mat-icon color="warn">assignment_return</mat-icon>
                 <span>Échanger / Avoir</span>
             </button>
@@ -41,11 +41,11 @@
 
     <mat-menu #devisMenu="matMenu">
         <ng-template matMenuContent let-inv="invoice">
-            <button mat-menu-item (click)="viewDocument(inv)">
+            <button type="button" mat-menu-item (click)="viewDocument(inv)">
                 <mat-icon color="primary">visibility</mat-icon>
                 <span>Voir le document</span>
             </button>
-            <button mat-menu-item (click)="archiveInvoice(inv)">
+            <button type="button" mat-menu-item (click)="archiveInvoice(inv)">
                 <mat-icon color="warn">archive</mat-icon>
                 <span>Archiver</span>
             </button>
@@ -69,66 +69,53 @@
     </div>
 
     <!-- Summary Cards -->
-    <div class="summary-cards" style="display: flex; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap;">
+    <div class="summary-cards">
         <!-- CA Global Card -->
-        <mat-card class="stat-card blue"
-            style="flex: 1.5; min-width: 300px; background: #f0f7ff; border-left: 5px solid #007bff; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
-            <mat-card-content style="padding: 1.25rem;">
-                <div style="display: flex; justify-content: space-between; align-items: start;">
+        <mat-card class="stat-card blue">
+            <mat-card-content>
+                <div class="stat-header">
                     <div class="stat-info">
-                        <p class="stat-label"
-                            style="margin: 0; color: #64748b; font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.025em;">
-                            Chiffre d'Affaires Global</p>
-                        <h2 class="stat-value"
-                            style="margin: 0.25rem 0; font-size: 2.25rem; font-weight: 800; color: #1e293b;">{{
-                            metrics.totalCA | number:'1.2-2' }} <span
-                                style="font-size: 1rem; font-weight: 500;">DH</span></h2>
+                        <p class="stat-label uppercase">Chiffre d'Affaires Global</p>
+                        <h2 class="stat-value large-blue">
+                            {{ metrics.totalCA | number:'1.2-2' }} <span class="currency">DH</span>
+                        </h2>
                     </div>
-                    <div class="stat-icon"
-                        style="background: #007bff1a; padding: 0.75rem; border-radius: 12px; color: #007bff;">
-                        <mat-icon style="width: 32px; height: 32px; font-size: 32px;">account_balance_wallet</mat-icon>
+                    <div class="stat-icon bg-blue">
+                        <mat-icon>account_balance_wallet</mat-icon>
                     </div>
                 </div>
-                <div
-                    style="display: flex; gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; font-size: 0.85rem;">
-                    <div style="flex: 1;">
-                        <span style="color: #64748b;">Factures:</span>
-                        <div style="font-weight: 700; color: #10b981;">+{{ metrics.totalFactures | number:'1.2-2' }}
-                        </div>
+                <div class="stat-details">
+                    <div class="detail-col">
+                        <span class="label">Factures:</span>
+                        <div class="val green">+{{ metrics.totalFactures | number:'1.2-2' }}</div>
                     </div>
-                    <div style="flex: 1; border-left: 1px solid #e2e8f0; padding-left: 1rem;">
-                        <span style="color: #64748b;">BC (Instance):</span>
-                        <div style="font-weight: 700; color: #f59e0b;">{{ metrics.totalBC | number:'1.2-2' }}</div>
+                    <div class="detail-col border-left">
+                        <span class="label">BC (Instance):</span>
+                        <div class="val orange">{{ metrics.totalBC | number:'1.2-2' }}</div>
                     </div>
-                    <div style="flex: 1; border-left: 1px solid #e2e8f0; padding-left: 1rem;">
-                        <span style="color: #64748b;">Avoirs:</span>
-                        <div style="font-weight: 700; color: #ef4444;">-{{ metrics.totalAvoirs | number:'1.2-2' }}</div>
+                    <div class="detail-col border-left">
+                        <span class="label">Avoirs:</span>
+                        <div class="val red">-{{ metrics.totalAvoirs | number:'1.2-2' }}</div>
                     </div>
                 </div>
             </mat-card-content>
         </mat-card>
 
         <!-- Cash Flow Card -->
-        <mat-card class="stat-card green"
-            style="flex: 1; min-width: 250px; background: #f0fdf4; border-left: 5px solid #22c55e;">
-            <mat-card-content style="padding: 1.25rem;">
-                <div style="display: flex; justify-content: space-between;">
+        <mat-card class="stat-card green">
+            <mat-card-content>
+                <div class="stat-header center">
                     <div>
-                        <p class="stat-label" style="margin: 0; color: #64748b; font-size: 0.875rem; font-weight: 600;">
-                            ENCAISSÉ (PÉRIODE)</p>
-                        <h2 class="stat-value"
-                            style="margin: 0.5rem 0; font-size: 1.75rem; color: #15803d; font-weight: 700;">{{
-                            metrics.totalPaid | number:'1.2-2' }} DH</h2>
+                        <p class="stat-label">ENCAISSÉ (PÉRIODE)</p>
+                        <h2 class="stat-value medium-green">{{ metrics.totalPaid | number:'1.2-2' }} DH</h2>
                     </div>
-                    <mat-icon style="color: #22c55e; font-size: 28px;">payments</mat-icon>
+                    <mat-icon class="stat-icon text-green">payments</mat-icon>
                 </div>
-                <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #dcfce7; font-size: 0.8rem; color: #166534;"
-                    *ngIf="metrics.paymentBreakdown.length > 0">
-                    <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
-                        <div *ngFor="let p of metrics.paymentBreakdown"
-                            style="background: #ffffff; padding: 2px 8px; border-radius: 4px; border: 1px solid #dcfce7;">
-                            <span style="color: #64748b;">{{ getPaymentLabel(p.methode) }}:</span>
-                            <span style="font-weight: 700; margin-left: 4px;">{{ p.total | number:'1.2-2' }}</span>
+                <div class="stat-breakdown" *ngIf="metrics.paymentBreakdown.length > 0">
+                    <div class="breakdown-list">
+                        <div *ngFor="let p of metrics.paymentBreakdown" class="breakdown-item">
+                            <span class="label">{{ getPaymentLabel(p.methode) }}:</span>
+                            <span class="val">{{ p.total | number:'1.2-2' }}</span>
                         </div>
                     </div>
                 </div>
@@ -136,18 +123,14 @@
         </mat-card>
 
         <!-- Balance Card -->
-        <mat-card class="stat-card red"
-            style="flex: 1; min-width: 250px; background: #fef2f2; border-left: 5px solid #ef4444;">
-            <mat-card-content style="padding: 1.25rem;">
-                <div style="display: flex; justify-content: space-between;">
+        <mat-card class="stat-card red">
+            <mat-card-content>
+                <div class="stat-header center">
                     <div>
-                        <p class="stat-label" style="margin: 0; color: #64748b; font-size: 0.875rem; font-weight: 600;">
-                            RESTE À RECOUVRER</p>
-                        <h2 class="stat-value"
-                            style="margin: 0.5rem 0; font-size: 1.75rem; color: #b91c1c; font-weight: 700;">{{
-                            metrics.totalReste | number:'1.2-2' }} DH</h2>
+                        <p class="stat-label">RESTE À RECOUVRER</p>
+                        <h2 class="stat-value medium-red">{{ metrics.totalReste | number:'1.2-2' }} DH</h2>
                     </div>
-                    <mat-icon style="color: #ef4444; font-size: 28px;">warning</mat-icon>
+                    <mat-icon class="stat-icon text-red">warning</mat-icon>
                 </div>
             </mat-card-content>
         </mat-card>
@@ -156,15 +139,15 @@
     <!-- Advanced Filter Section -->
     <div class="filter-toolbar">
         <div class="period-chips">
-            <button mat-button class="chip-btn" [class.active]="filterType === 'ALL'"
+            <button type="button" mat-button class="chip-btn" [class.active]="filterType === 'ALL'"
                 (click)="setFilterType('ALL')">Toute la période</button>
-            <button mat-button class="chip-btn" [class.active]="filterType === 'DAILY'"
+            <button type="button" mat-button class="chip-btn" [class.active]="filterType === 'DAILY'"
                 (click)="setFilterType('DAILY')">Aujourd'hui</button>
-            <button mat-button class="chip-btn" [class.active]="filterType === 'MONTHLY'"
+            <button type="button" mat-button class="chip-btn" [class.active]="filterType === 'MONTHLY'"
                 (click)="setFilterType('MONTHLY')">Par Mois</button>
-            <button mat-button class="chip-btn" [class.active]="filterType === 'YEARLY'"
+            <button type="button" mat-button class="chip-btn" [class.active]="filterType === 'YEARLY'"
                 (click)="setFilterType('YEARLY')">Annuel</button>
-            <button mat-button class="chip-btn" [class.active]="filterType === 'CUSTOM'"
+            <button type="button" mat-button class="chip-btn" [class.active]="filterType === 'CUSTOM'"
                 (click)="setFilterType('CUSTOM')">Personnalisé</button>
         </div>
 
@@ -184,14 +167,14 @@
                 <ng-container *ngSwitchCase="'MONTHLY'">
                     <mat-form-field appearance="outline" class="density-compact">
                         <mat-label>Mois</mat-label>
-                        <mat-select [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()"
+                        <mat-select aria-label="Select field" [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()"
                             title="Sélectionner le mois">
                             <mat-option *ngFor="let m of availableMonths" [value]="m.value">{{ m.label }}</mat-option>
                         </mat-select>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="density-compact">
                         <mat-label>Année</mat-label>
-                        <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
+                        <mat-select aria-label="Select field" [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
                             title="Sélectionner l'année">
                             <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
                         </mat-select>
@@ -201,7 +184,7 @@
                 <!-- Yearly -->
                 <mat-form-field appearance="outline" class="density-compact" *ngSwitchCase="'YEARLY'">
                     <mat-label>Année</mat-label>
-                    <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
+                    <mat-select aria-label="Select field" [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
                         title="Sélectionner l'année">
                         <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
                     </mat-select>
@@ -234,7 +217,7 @@
                 <mat-icon matPrefix>search</mat-icon>
             </mat-form-field>
 
-            <button mat-icon-button (click)="loadData()" [class.refreshing]="loading" color="primary">
+            <button type="button" mat-icon-button (click)="loadData()" [class.refreshing]="loading" color="primary">
                 <mat-icon>refresh</mat-icon>
             </button>
         </div>
@@ -276,9 +259,9 @@
                                 </tr>
                                 <tr *ngFor="let invoice of group.invoices" class="data-row">
                                     <td>
-                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div class="flex">
                                             <span
-                                                style="font-size: 0.7rem; padding: 2px 6px; background-color: #dbecfe; color: #1e40af; border: 1px solid #bfdbfe; border-radius: 4px; font-weight: 600;"
+                                                class="text-[0.7rem] bg-[#dbecfe] text-[#1e40af]"
                                                 *ngIf="invoice.type === 'BON_COMMANDE' || invoice.type === 'BON_COMM'">BC</span>
                                             <span class="font-bold">{{ invoice.numero }}</span>
                                         </div>
@@ -296,10 +279,10 @@
                                     <td class="price-cell remain">{{ invoice.resteAPayer | number:'1.2-2' }}</td>
                                     <td class="actions-cell">
                                         <div class="action-buttons">
-                                            <button mat-icon-button color="primary" (click)="viewDocument(invoice)">
+                                            <button type="button" mat-icon-button color="primary" (click)="viewDocument(invoice)">
                                                 <mat-icon>description</mat-icon>
                                             </button>
-                                            <button mat-icon-button [matMenuTriggerFor]="bcMenu" [matMenuTriggerData]="{invoice: invoice}">
+                                            <button type="button" mat-icon-button [matMenuTriggerFor]="bcMenu" [matMenuTriggerData]="{invoice: invoice}">
                                                 <mat-icon>more_vert</mat-icon>
                                             </button>
                                         </div>
@@ -373,10 +356,10 @@
                                     </td>
                                     <td class="actions-cell">
                                         <div class="action-buttons">
-                                            <button mat-icon-button color="primary" (click)="viewDocument(invoice)">
+                                            <button type="button" mat-icon-button color="primary" (click)="viewDocument(invoice)">
                                                 <mat-icon>visibility</mat-icon>
                                             </button>
-                                            <button mat-icon-button [matMenuTriggerFor]="factureMenu" [matMenuTriggerData]="{invoice: invoice}">
+                                            <button type="button" mat-icon-button [matMenuTriggerFor]="factureMenu" [matMenuTriggerData]="{invoice: invoice}">
                                                 <mat-icon>more_vert</mat-icon>
                                             </button>
                                         </div>
@@ -407,7 +390,7 @@
             <ng-template mat-tab-label>
                 <mat-icon>inventory_2</mat-icon>
                 <span>Devis (Instance)</span>
-                <span class="tab-badge" style="background: #f59e0b; color: white; font-weight: 800; box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);" *ngIf="metrics.countWithoutPayment > 0">{{
+                <span class="tab-badge bg-[#f59e0b] text-[white]" *ngIf="metrics.countWithoutPayment > 0">{{
                     metrics.countWithoutPayment }}</span>
             </ng-template>
             <div class="tab-content">
@@ -431,10 +414,10 @@
                                 <td class="price-cell">{{ invoice.totalTTC | number:'1.2-2' }}</td>
                                 <td class="actions-cell">
                                     <div class="action-buttons">
-                                        <button mat-button color="primary" (click)="validateInvoice(invoice)">
+                                        <button type="button" mat-button color="primary" (click)="validateInvoice(invoice)">
                                             Valider BC
                                         </button>
-                                        <button mat-icon-button [matMenuTriggerFor]="devisMenu" [matMenuTriggerData]="{invoice: invoice}">
+                                        <button type="button" mat-icon-button [matMenuTriggerFor]="devisMenu" [matMenuTriggerData]="{invoice: invoice}">
                                             <mat-icon>more_vert</mat-icon>
                                         </button>
                                     </div>
@@ -481,7 +464,7 @@
                                 <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
                                 <td class="price-cell text-danger">-{{ invoice.totalTTC | number:'1.2-2' }}</td>
                                 <td class="actions-cell">
-                                    <button mat-icon-button (click)="viewDocument(invoice)">
+                                    <button type="button" mat-icon-button (click)="viewDocument(invoice)">
                                         <mat-icon>visibility</mat-icon>
                                     </button>
                                 </td>

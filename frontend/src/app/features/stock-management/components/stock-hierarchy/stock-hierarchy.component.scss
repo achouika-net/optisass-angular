@@ -46,6 +46,7 @@
     padding: 8px 16px;
     border-radius: 6px;
     transition: background-color 0.2s;
+    -webkit-user-select: none;
     user-select: none;
     width: 100%; // Ensure click area covers row
 

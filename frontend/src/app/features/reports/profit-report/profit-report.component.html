@@ -6,7 +6,7 @@
             Bénéfice Réel
         </h1>
         <div class="flex items-center gap-2 text-xs text-gray-400">
-            <button mat-button color="primary" class="!min-w-0" (click)="loadData()">
+            <button type="button" mat-button color="primary" class="!min-w-0" (click)="loadData()">
                 <mat-icon class="text-sm">refresh</mat-icon> Actualiser
             </button>
         </div>
@@ -15,15 +15,15 @@
     <!-- Unified Filter Toolbar (Matching Finance Dashboard) -->
     <div class="filter-toolbar glass mb-4">
         <div class="period-chips">
-            <button mat-button class="chip-btn" [class.active]="filterType === 'ALL'"
+            <button type="button" mat-button class="chip-btn" [class.active]="filterType === 'ALL'"
                 (click)="setFilterType('ALL')">Toute la période</button>
-            <button mat-button class="chip-btn" [class.active]="filterType === 'DAILY'"
+            <button type="button" mat-button class="chip-btn" [class.active]="filterType === 'DAILY'"
                 (click)="setFilterType('DAILY')">Aujourd'hui</button>
-            <button mat-button class="chip-btn" [class.active]="filterType === 'MONTHLY'"
+            <button type="button" mat-button class="chip-btn" [class.active]="filterType === 'MONTHLY'"
                 (click)="setFilterType('MONTHLY')">Par Mois</button>
-            <button mat-button class="chip-btn" [class.active]="filterType === 'YEARLY'"
+            <button type="button" mat-button class="chip-btn" [class.active]="filterType === 'YEARLY'"
                 (click)="setFilterType('YEARLY')">Annuel</button>
-            <button mat-button class="chip-btn" [class.active]="filterType === 'CUSTOM'"
+            <button type="button" mat-button class="chip-btn" [class.active]="filterType === 'CUSTOM'"
                 (click)="setFilterType('CUSTOM')">Personnalisé</button>
         </div>
 
@@ -42,14 +42,14 @@
                 <ng-container *ngSwitchCase="'MONTHLY'">
                     <mat-form-field appearance="outline" class="density-compact month-field">
                         <mat-label>Mois</mat-label>
-                        <mat-select [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()"
+                        <mat-select aria-label="Select field" [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()"
                             title="Sélectionner le mois">
                             <mat-option *ngFor="let m of availableMonths" [value]="m.value">{{ m.label }}</mat-option>
                         </mat-select>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="density-compact year-field">
                         <mat-label>Année</mat-label>
-                        <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
+                        <mat-select aria-label="Select field" [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
                             title="Sélectionner l'année">
                             <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
                         </mat-select>
@@ -59,7 +59,7 @@
                 <!-- Yearly -->
                 <mat-form-field appearance="outline" class="density-compact year-field" *ngSwitchCase="'YEARLY'">
                     <mat-label>Année</mat-label>
-                    <mat-select [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
+                    <mat-select aria-label="Select field" [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
                         title="Sélectionner l'année">
                         <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
                     </mat-select>
@@ -84,7 +84,7 @@
                 </ng-container>
             </ng-container>
 
-            <button mat-mini-fab color="primary" (click)="loadData()" [disabled]="loading" matTooltip="Rafraîchir"
+            <button type="button" mat-mini-fab color="primary" (click)="loadData()" [disabled]="loading" matTooltip="Rafraîchir"
                 class="refresh-main-btn ml-auto">
                 <mat-icon [class.spinning]="loading">refresh</mat-icon>
             </button>

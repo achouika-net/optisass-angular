@@ -1,7 +1,7 @@
 <div class="history-container">
     <div class="header">
         <div class="title-section">
-            <button mat-icon-button routerLink="/p/finance/caisse">
+            <button type="button" mat-icon-button routerLink="/p/finance/caisse">
                 <mat-icon>arrow_back</mat-icon>
             </button>
             <h1>Historique des Clôtures</h1>
@@ -10,7 +10,7 @@
         <div class="filter-section">
             <mat-form-field appearance="outline" class="period-select">
                 <mat-label>Période</mat-label>
-                <mat-select [(ngModel)]="selectedPeriod" (selectionChange)="setPeriod($event.value)">
+                <mat-select aria-label="Select field" [(ngModel)]="selectedPeriod" (selectionChange)="setPeriod($event.value)">
                     <mat-option value="today">Aujourd'hui</mat-option>
                     <mat-option value="yesterday">Hier</mat-option>
                     <mat-option value="thisWeek">Cette Semaine</mat-option>
@@ -22,19 +22,19 @@
 
             <mat-form-field appearance="outline" class="date-picker" *ngIf="selectedPeriod === 'custom'">
                 <mat-label>Du</mat-label>
-                <input matInput [matDatepicker]="startPicker" [(ngModel)]="startDate" (dateChange)="loadHistory()">
+                <input aria-label="Input" title="Input" matInput [matDatepicker]="startPicker" [(ngModel)]="startDate" (dateChange)="loadHistory()">
                 <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
                 <mat-datepicker #startPicker></mat-datepicker>
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="date-picker" *ngIf="selectedPeriod === 'custom'">
                 <mat-label>Au</mat-label>
-                <input matInput [matDatepicker]="endPicker" [(ngModel)]="endDate" (dateChange)="loadHistory()">
+                <input aria-label="Input" title="Input" matInput [matDatepicker]="endPicker" [(ngModel)]="endDate" (dateChange)="loadHistory()">
                 <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
                 <mat-datepicker #endPicker></mat-datepicker>
             </mat-form-field>
 
-            <button mat-stroked-button (click)="loadHistory()" class="refresh-btn">
+            <button type="button" mat-stroked-button (click)="loadHistory()" class="refresh-btn">
                 <mat-icon>refresh</mat-icon>
             </button>
         </div>
@@ -117,7 +117,7 @@
             <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef></th>
                 <td mat-cell *matCellDef="let element">
-                    <button mat-icon-button color="primary" (click)="viewDetails(element.id)"
+                    <button type="button" mat-icon-button color="primary" (click)="viewDetails(element.id)"
                         matTooltip="Voir les détails">
                         <mat-icon>visibility</mat-icon>
                     </button>

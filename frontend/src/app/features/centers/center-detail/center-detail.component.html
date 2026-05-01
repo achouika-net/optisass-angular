@@ -6,7 +6,7 @@
                 <h2>{{ centre.nom }}</h2>
             </mat-card-title>
             <div class="header-actions">
-                <button mat-button [routerLink]="['/p/groups', centre.groupeId]" class="back-button">
+                <button type="button" mat-button [routerLink]="['/p/groups', centre.groupeId]" class="back-button">
                     <mat-icon>arrow_back</mat-icon>
                     <span>Retour</span>
                 </button>
@@ -41,7 +41,7 @@
                 <h3>Entrepôts ({{ centre.entrepots?.length || 0 }})</h3>
             </mat-card-title>
             <div class="header-actions">
-                <button mat-raised-button color="primary" (click)="openCreateWarehouseDialog()">
+                <button type="button" mat-raised-button color="primary" (click)="openCreateWarehouseDialog()">
                     <mat-icon>add</mat-icon>
                     Nouvel Entrepôt
                 </button>
@@ -79,22 +79,22 @@
 
                 <!-- Actions Column -->
                 <ng-container matColumnDef="actions">
-                    <th mat-header-cell *matHeaderCellDef style="text-align: right;">Actions</th>
-                    <td mat-cell *matCellDef="let entrepot" style="text-align: right;">
-                        <button mat-icon-button [matMenuTriggerFor]="menu">
+                    <th mat-header-cell *matHeaderCellDef class="text-right">Actions</th>
+                    <td mat-cell *matCellDef="let entrepot" class="text-right">
+                        <button type="button" mat-icon-button [matMenuTriggerFor]="menu">
                             <mat-icon>more_vert</mat-icon>
                         </button>
                         <mat-menu #menu="matMenu">
-                            <button mat-menu-item [routerLink]="['/p/warehouses', entrepot.id]">
+                            <button type="button" mat-menu-item [routerLink]="['/p/warehouses', entrepot.id]">
                                 <mat-icon class="premium-menu-icon-view">visibility</mat-icon>
                                 <span>Visualiser</span>
                             </button>
                             <mat-divider></mat-divider>
-                            <button mat-menu-item (click)="openEditWarehouseDialog(entrepot)">
+                            <button type="button" mat-menu-item (click)="openEditWarehouseDialog(entrepot)">
                                 <mat-icon class="premium-menu-icon-edit">edit</mat-icon>
                                 <span>Modifier</span>
                             </button>
-                            <button mat-menu-item (click)="deleteWarehouse(entrepot)">
+                            <button type="button" mat-menu-item (click)="deleteWarehouse(entrepot)">
                                 <mat-icon class="premium-menu-icon-delete">delete</mat-icon>
                                 <span>Supprimer</span>
                             </button>
@@ -109,7 +109,7 @@
             <div *ngIf="!centre.entrepots || centre.entrepots.length === 0" class="no-data">
                 <mat-icon>warehouse</mat-icon>
                 <p>Aucun entrepôt trouvé</p>
-                <button mat-raised-button color="primary" (click)="openCreateWarehouseDialog()">
+                <button type="button" mat-raised-button color="primary" (click)="openCreateWarehouseDialog()">
                     <mat-icon>add</mat-icon>
                     Créer le premier entrepôt
                 </button>

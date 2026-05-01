@@ -52,8 +52,8 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-    <button mat-button (click)="onCancel()">Annuler</button>
-    <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="!form.valid">
+    <button type="button" mat-button (click)="onCancel()">Annuler</button>
+    <button type="button" mat-raised-button color="primary" (click)="onSubmit()" [disabled]="!form.valid">
         {{ isEditMode ? 'Mettre à jour' : 'Créer' }}
     </button>
 </mat-dialog-actions>

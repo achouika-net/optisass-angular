@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class LoyaltyService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async getPointsHistory(clientId: string, centreId?: string) {
-    const where: any = { clientId };
+    const where: Prisma.PointsHistoryWhereInput = { clientId };
 
     // SECURITY: Filter by centreId if provided (prevents data leak)
     if (centreId) {
@@ -39,7 +40,7 @@ export class LoyaltyService {
           folderCreationBonus: 30,
           rewardThreshold: 500,
           pointsToMADRatio: 0.1,
-        } as any,
+        },
       });
     }
     return config;
@@ -69,16 +70,19 @@ export class LoyaltyService {
         rewardThreshold:
           data.rewardThreshold !== undefined
             ? parseInt(data.rewardThreshold)
-            : (config as any).rewardThreshold,
+            : config.rewardThreshold,
         pointsToMADRatio:
           data.pointsToMADRatio !== undefined
             ? parseFloat(data.pointsToMADRatio)
-            : (config as any).pointsToMADRatio,
-      } as any,
+            : config.pointsToMADRatio,
+      },
     });
   }
 
-  async awardPointsForPurchase(factureId: string, tx?: any) {
+  async awardPointsForPurchase(
+    factureId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
     const prisma = tx || this.prisma;
     const existingAward = await prisma.pointsHistory.findFirst({
       where: { factureId, type: 'EARN' },
@@ -94,16 +98,19 @@ export class LoyaltyService {
 
     // Disallow points for convention clients (only for 'direct' clients)
     if (facture.client.conventionId) {
-      console.log(`ℹ️ Client ${facture.client.id} has a convention. Skipping Fidelio points.`);
+      console.log(
+        `ℹ️ Client ${facture.client.id} has a convention. Skipping Fidelio points.`,
+      );
       return;
     }
 
-    const config = (await this.getConfig()) as any;
-    const points = Math.floor(facture.totalTTC * config.pointsPerDH);
+    const config = await this.getConfig();
+    const points = Math.floor(facture.totalTTC * (config.pointsPerDH || 0));
 
     if (points <= 0) return;
 
-    const typeLabel = facture.type === 'FACTURE' ? 'facture' : 'bon de commande';
+    const typeLabel =
+      facture.type === 'FACTURE' ? 'facture' : 'bon de commande';
 
     if (tx) {
       await tx.client.update({
@@ -150,7 +157,7 @@ export class LoyaltyService {
 
     if (existingBonus) return;
 
-    const config = (await this.getConfig()) as any;
+    const config = await this.getConfig();
 
     return this.prisma.$transaction([
       this.prisma.client.update({
@@ -185,7 +192,7 @@ export class LoyaltyService {
     points: number,
     description: string,
     factureId?: string,
-    tx?: any,
+    tx?: Prisma.TransactionClient,
   ) {
     const pts = Math.floor(points);
     if (pts === 0) return;
@@ -238,16 +245,20 @@ export class LoyaltyService {
       return;
     }
 
-    const client = await this.prisma.client.findUnique({ where: { id: clientId } });
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId },
+    });
     if (!client) return;
 
     // Disallow points for convention clients (only for 'direct' clients)
     if (client.conventionId) {
-      console.log(`ℹ️ Client ${clientId} has a convention. Skipping folder creation points.`);
+      console.log(
+        `ℹ️ Client ${clientId} has a convention. Skipping folder creation points.`,
+      );
       return;
     }
 
-    const config = (await this.getConfig()) as any;
+    const config = await this.getConfig();
     console.log('⚙️ Loyalty config found:', config);
 
     if (!config.folderCreationBonus || config.folderCreationBonus <= 0) {
@@ -285,7 +296,7 @@ export class LoyaltyService {
       throw new Error('Client not found');
     }
 
-    const config = (await this.getConfig()) as any;
+    const config = await this.getConfig();
     const threshold = config.rewardThreshold || 500;
 
     const numPoints = Number(client.pointsFidelite) || 0;
@@ -295,7 +306,9 @@ export class LoyaltyService {
       eligible: numPoints >= numThreshold,
       currentPoints: numPoints,
       threshold: numThreshold,
-      madValue: Math.floor(numPoints * (Number(config.pointsToMADRatio) || 0.1)),
+      madValue: Math.floor(
+        numPoints * (Number(config.pointsToMADRatio) || 0.1),
+      ),
     };
   }
 
@@ -362,8 +375,14 @@ export class LoyaltyService {
         orderBy: { dateEmission: 'asc' },
       });
 
-      if (oldestUnpaidInvoice && typeof oldestUnpaidInvoice.resteAPayer === 'number') {
-        const montantAReduire = Math.min(redemption.madValue, oldestUnpaidInvoice.resteAPayer);
+      if (
+        oldestUnpaidInvoice &&
+        typeof oldestUnpaidInvoice.resteAPayer === 'number'
+      ) {
+        const montantAReduire = Math.min(
+          redemption.madValue,
+          oldestUnpaidInvoice.resteAPayer,
+        );
         const nouveauReste = oldestUnpaidInvoice.resteAPayer - montantAReduire;
         const newStatut = nouveauReste <= 0.05 ? 'PAYEE' : 'PARTIEL';
 
@@ -375,25 +394,30 @@ export class LoyaltyService {
             date: new Date(),
             reference: 'BONUS_FIDELIO',
             notes: `Application immédiate prime de fidélité.`,
-          }
+          },
         });
 
         await tx.rewardRedemption.update({
           where: { id: redemption.id },
           data: {
             isUsed: true,
-            paiementId: paiement.id
-          }
+            paiementId: paiement.id,
+          },
         });
 
         await tx.facture.update({
           where: { id: oldestUnpaidInvoice.id },
           data: {
             resteAPayer: nouveauReste,
-            statut: oldestUnpaidInvoice.statut === 'BROUILLON' ? 'BROUILLON' : newStatut
-          }
+            statut:
+              oldestUnpaidInvoice.statut === 'BROUILLON'
+                ? 'BROUILLON'
+                : newStatut,
+          },
         });
-        console.log(`✅ [Loyalty] Applied ${montantAReduire} MAD Fidelio reward immediately to invoice ${oldestUnpaidInvoice.numero}`);
+        console.log(
+          `✅ [Loyalty] Applied ${montantAReduire} MAD Fidelio reward immediately to invoice ${oldestUnpaidInvoice.numero}`,
+        );
       }
 
       return redemption;
@@ -435,7 +459,9 @@ export class LoyaltyService {
     });
 
     if (!pointsEntry) {
-      console.log(`[LOYALTY] No points earned entry found for facture ${factureId}`);
+      console.log(
+        `[LOYALTY] No points earned entry found for facture ${factureId}`,
+      );
       return;
     }
 
@@ -473,7 +499,9 @@ export class LoyaltyService {
    * Ready for Redis integration
    */
   private async invalidatePointsCache(clientId: string): Promise<void> {
-    console.log(`[LOYALTY-CACHE] Invalidating points cache for client ${clientId}`);
+    console.log(
+      `[LOYALTY-CACHE] Invalidating points cache for client ${clientId}`,
+    );
 
     // TODO: Integrate with Redis when available
     // const cacheKey = `loyalty:points:${clientId}`;
@@ -494,6 +522,8 @@ export class LoyaltyService {
     // - Points balance
     // - Redemption history
     // - Loyalty tier calculations
-    console.log(`[LOYALTY-CACHE] All loyalty caches invalidated for ${clientId}`);
+    console.log(
+      `[LOYALTY-CACHE] All loyalty caches invalidated for ${clientId}`,
+    );
   }
 }

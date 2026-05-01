@@ -1,7 +1,7 @@
 <div class="flex flex-col space-y-6">
     <!-- Header -->
     <div class="flex items-center gap-4">
-        <button mat-icon-button routerLink="/p/personnel/employees">
+        <button type="button" mat-icon-button routerLink="/p/personnel/employees">
             <mat-icon>arrow_back</mat-icon>
         </button>
         <div>
@@ -26,7 +26,7 @@
                     <div class="flex-shrink-0 flex flex-col items-center gap-2">
                         <div
                             class="relative w-32 h-32 rounded-full overflow-hidden border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
-                            <img *ngIf="photoPreview" [src]="photoPreview" class="w-full h-full object-cover">
+                            <img alt="Image" *ngIf="photoPreview" [src]="photoPreview" class="w-full h-full object-cover">
                             <mat-icon *ngIf="!photoPreview"
                                 class="text-4xl text-gray-400 w-10 h-10">account_circle</mat-icon>
                         </div>
@@ -48,7 +48,7 @@
                         </div>
 
                         <span class="text-xs text-gray-500">Photo de profil</span>
-                        <input #photoInput type="file" accept="image/*" class="hidden"
+                        <input aria-label="Input" title="Input" #photoInput type="file" accept="image/*" class="hidden"
                             (change)="onPhotoSelected($event)">
                     </div>
 
@@ -100,47 +100,47 @@
 
                     <mat-form-field appearance="outline">
                         <mat-label>Poste</mat-label>
-                        <mat-select formControlName="poste">
+                        <mat-select aria-label="Select field" formControlName="poste">
                             <mat-option *ngFor="let p of postes" [value]="p">{{p}}</mat-option>
                         </mat-select>
                     </mat-form-field>
 
                     <mat-form-field appearance="outline">
                         <mat-label>Type de Contrat</mat-label>
-                        <mat-select formControlName="contrat">
+                        <mat-select aria-label="Select field" formControlName="contrat">
                             <mat-option *ngFor="let c of contrats" [value]="c">{{c}}</mat-option>
                         </mat-select>
                     </mat-form-field>
 
                     <mat-form-field appearance="outline">
                         <mat-label>Date d'embauche</mat-label>
-                        <input matInput [matDatepicker]="picker" formControlName="dateEmbauche">
+                        <input aria-label="Input" title="Input" matInput [matDatepicker]="picker" formControlName="dateEmbauche">
                         <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
                         <mat-datepicker #picker></mat-datepicker>
                     </mat-form-field>
 
                     <mat-form-field appearance="outline">
                         <mat-label>Salaire de base (MAD)</mat-label>
-                        <input matInput type="number" formControlName="salaireBase">
+                        <input aria-label="Input" title="Input" matInput type="number" formControlName="salaireBase">
                         <mat-icon matPrefix class="mr-2">payments</mat-icon>
                     </mat-form-field>
 
                     <mat-form-field appearance="outline">
                         <mat-label>Statut</mat-label>
-                        <mat-select formControlName="statut">
+                        <mat-select aria-label="Select field" formControlName="statut">
                             <mat-option *ngFor="let s of statuts" [value]="s">{{s}}</mat-option>
                         </mat-select>
                     </mat-form-field>
 
                     <mat-form-field appearance="outline">
                         <mat-label>Enfants à charge</mat-label>
-                        <input matInput type="number" formControlName="childrenCount">
+                        <input aria-label="Input" title="Input" matInput type="number" formControlName="childrenCount">
                         <mat-icon matSuffix>child_care</mat-icon>
                     </mat-form-field>
 
                     <mat-form-field appearance="outline">
                         <mat-label>Situation Familiale</mat-label>
-                        <mat-select formControlName="familyStatus">
+                        <mat-select aria-label="Select field" formControlName="familyStatus">
                             <mat-option value="CELIBATAIRE">Célibataire</mat-option>
                             <mat-option value="MARIE">Marié(e)</mat-option>
                             <mat-option value="DIVORCE">Divorcé(e)</mat-option>
@@ -151,7 +151,7 @@
 
                     <mat-form-field appearance="outline">
                         <mat-label>Mode de Paiement</mat-label>
-                        <mat-select formControlName="paymentMode">
+                        <mat-select aria-label="Select field" formControlName="paymentMode">
                             <mat-option value="VIREMENT">Virement Bancaire</mat-option>
                             <mat-option value="ESPECES">Espèces</mat-option>
                         </mat-select>

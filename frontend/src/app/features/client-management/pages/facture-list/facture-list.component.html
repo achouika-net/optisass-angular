@@ -1,20 +1,20 @@
 <div class="facture-list-container">
     <div class="header-actions">
         <h2>Factures & Devis</h2>
-        <button mat-stroked-button color="primary" class="mr-2" (click)="printList()">
+        <button type="button" mat-stroked-button color="primary" class="mr-2" (click)="printList()">
             <mat-icon>print</mat-icon>
             Imprimer la liste
         </button>
-        <button mat-raised-button color="primary" [matMenuTriggerFor]="createMenu">
+        <button type="button" mat-raised-button color="primary" [matMenuTriggerFor]="createMenu">
             <mat-icon>add</mat-icon>
             Nouveau Document
         </button>
         <mat-menu #createMenu="matMenu">
-            <button mat-menu-item [routerLink]="['/p/clients/factures/new']"
+            <button type="button" mat-menu-item [routerLink]="['/p/clients/factures/new']"
                 [queryParams]="{ clientId: clientId, type: 'DEVIS' }">
                 <mat-icon>description</mat-icon> Nouveau Devis
             </button>
-            <button mat-menu-item (click)="createAvoir()">
+            <button type="button" mat-menu-item (click)="createAvoir()">
                 <mat-icon>receipt</mat-icon> Nouvel Avoir
             </button>
         </mat-menu>
@@ -87,32 +87,32 @@
                             </span>
                         </td>
                         <td>
-                            <button mat-icon-button [matMenuTriggerFor]="menu" class="action-menu-trigger">
+                            <button type="button" mat-icon-button [matMenuTriggerFor]="menu" class="action-menu-trigger">
                                 <mat-icon>more_vert</mat-icon>
                             </button>
                             <mat-menu #menu="matMenu">
-                                <button mat-menu-item [routerLink]="['/p/clients/factures', facture.id]"
+                                <button type="button" mat-menu-item [routerLink]="['/p/clients/factures', facture.id]"
                                     [queryParams]="{mode: 'view'}">
                                     <mat-icon>visibility</mat-icon>
                                     <span>Voir</span>
                                 </button>
-                                <button mat-menu-item [routerLink]="['/p/clients/factures', facture.id]"
+                                <button type="button" mat-menu-item [routerLink]="['/p/clients/factures', facture.id]"
                                     *ngIf="canEdit(facture)">
                                     <mat-icon>edit</mat-icon>
                                     <span>Modifier</span>
                                 </button>
-                                <button mat-menu-item (click)="printFacture(facture)">
+                                <button type="button" mat-menu-item (click)="printFacture(facture)">
                                     <mat-icon>print</mat-icon>
                                     <span>Imprimer</span>
                                 </button>
                                 <mat-divider *ngIf="canExchange(facture)"></mat-divider>
-                                <button mat-menu-item (click)="openExchangeDialog(facture)"
+                                <button type="button" mat-menu-item (click)="openExchangeDialog(facture)"
                                     *ngIf="canExchange(facture)">
                                     <mat-icon>swap_horiz</mat-icon>
                                     <span>Retour / Échange</span>
                                 </button>
                                 <mat-divider *ngIf="canDelete(facture)"></mat-divider>
-                                <button mat-menu-item class="delete-action" (click)="deleteFacture(facture)"
+                                <button type="button" mat-menu-item class="delete-action" (click)="deleteFacture(facture)"
                                     *ngIf="canDelete(facture)">
                                     <mat-icon>delete</mat-icon>
                                     <span>Supprimer</span>

@@ -71,10 +71,10 @@
           </th>
           <td mat-cell *matCellDef="let element">
             <div class="flex gap-3">
-              <button mat-icon-button class="text-primary" [routerLink]="[element.id]">
+              <button type="button" mat-icon-button class="text-primary" [routerLink]="[element.id]">
                 <mat-icon>visibility</mat-icon>
               </button>
-              <button
+              <button type="button"
                 mat-icon-button
                 class="text-error"
                 (click)="$event.stopPropagation(); deleteWarehouse(element.id)"

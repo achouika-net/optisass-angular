@@ -9,7 +9,7 @@
       class="cursor-pointer brightness-0 invert" />
     }
 
-    <button mat-icon-button class="flex size-12 items-center justify-center" (click)="toggleSidenav(sidenav)">
+    <button type="button" mat-icon-button class="flex size-12 items-center justify-center" (click)="toggleSidenav(sidenav)">
       <mat-icon class="text-[28px]">
         {{ isMobile() ? 'menu' : isCollapsed() ? 'chevron_right' : 'chevron_left' }}
       </mat-icon>

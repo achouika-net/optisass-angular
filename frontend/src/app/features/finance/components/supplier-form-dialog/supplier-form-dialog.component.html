@@ -5,7 +5,7 @@
                 {{ isViewMode ? 'Détails du Fournisseur' : (isEditMode ? 'Modifier Fournisseur' : 'Nouveau Fournisseur')
                 }}
             </h2>
-            <button mat-icon-button (click)="onCancel()" *ngIf="dialogRef">
+            <button type="button" mat-icon-button (click)="onCancel()" *ngIf="dialogRef">
                 <mat-icon>close</mat-icon>
             </button>
         </div>
@@ -68,9 +68,9 @@
                             </div>
 
                             <div class="flex justify-end mt-4">
-                                <button mat-stroked-button color="primary" (click)="onCancel()" class="mr-2">{{
+                                <button type="button" mat-stroked-button color="primary" (click)="onCancel()" class="mr-2">{{
                                     isViewMode ? 'Fermer' : 'Annuler' }}</button>
-                                <button mat-raised-button color="primary" matStepperNext>
+                                <button type="button" mat-raised-button color="primary" matStepperNext>
                                     Suivant <mat-icon>arrow_forward</mat-icon>
                                 </button>
                             </div>
@@ -102,7 +102,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4" formGroupName="convention">
                                 <mat-form-field appearance="outline">
                                     <mat-label>Modalités de paiement</mat-label>
-                                    <mat-select formControlName="modalitePaiement" multiple>
+                                    <mat-select aria-label="Select field" formControlName="modalitePaiement" multiple>
                                         <mat-option *ngFor="let mode of modalitesPaiement" [value]="mode">{{ mode
                                             }}</mat-option>
                                     </mat-select>
@@ -110,17 +110,17 @@
 
                                 <mat-form-field appearance="outline">
                                     <mat-label>Échéances de paiement</mat-label>
-                                    <mat-select formControlName="echeancePaiement" multiple>
+                                    <mat-select aria-label="Select field" formControlName="echeancePaiement" multiple>
                                         <mat-option *ngFor="let e of echeancesPaiement" [value]="e">{{ e }}</mat-option>
                                     </mat-select>
                                 </mat-form-field>
                             </div>
 
                             <div class="flex justify-between mt-4">
-                                <button mat-button matStepperPrevious>
+                                <button type="button" mat-button matStepperPrevious>
                                     <mat-icon>arrow_back</mat-icon> Précédent
                                 </button>
-                                <button mat-raised-button color="primary" matStepperNext>
+                                <button type="button" mat-raised-button color="primary" matStepperNext>
                                     Suivant <mat-icon>arrow_forward</mat-icon>
                                 </button>
                             </div>
@@ -158,7 +158,7 @@
 
                                 <mat-form-field appearance="outline" class="md:col-span-2">
                                     <mat-label>Adresse</mat-label>
-                                    <textarea matInput formControlName="adresse" rows="2"></textarea>
+                                    <textarea aria-label="Textarea" title="Textarea" matInput formControlName="adresse" rows="2"></textarea>
                                 </mat-form-field>
                             </div>
 
@@ -178,7 +178,7 @@
 
                                     <div class="flex justify-between items-center mb-4 border-b pb-2">
                                         <h4 class="font-bold text-indigo-600 uppercase">Contact #{{ i + 1 }}</h4>
-                                        <button mat-icon-button color="warn" (click)="removeContact(i)"
+                                        <button type="button" mat-icon-button color="warn" (click)="removeContact(i)"
                                             *ngIf="!isViewMode" matTooltip="Supprimer ce contact">
                                             <mat-icon>delete</mat-icon>
                                         </button>
@@ -187,11 +187,11 @@
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <mat-form-field appearance="outline">
                                             <mat-label>Nom *</mat-label>
-                                            <input matInput formControlName="nom">
+                                            <input aria-label="Input" title="Input" matInput formControlName="nom">
                                         </mat-form-field>
                                         <mat-form-field appearance="outline">
                                             <mat-label>Prénom</mat-label>
-                                            <input matInput formControlName="prenom">
+                                            <input aria-label="Input" title="Input" matInput formControlName="prenom">
                                         </mat-form-field>
                                         <mat-form-field appearance="outline">
                                             <mat-label>Fonction</mat-label>
@@ -203,25 +203,25 @@
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                                         <mat-form-field appearance="outline">
                                             <mat-label>Téléphone</mat-label>
-                                            <input matInput formControlName="telephone">
+                                            <input aria-label="Input" title="Input" matInput formControlName="telephone">
                                         </mat-form-field>
                                         <mat-form-field appearance="outline">
                                             <mat-label>Email</mat-label>
-                                            <input matInput formControlName="email">
+                                            <input aria-label="Input" title="Input" matInput formControlName="email">
                                         </mat-form-field>
                                     </div>
 
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                                         <mat-form-field appearance="outline">
                                             <mat-label>Canal préféré</mat-label>
-                                            <mat-select formControlName="canal">
+                                            <mat-select aria-label="Select field" formControlName="canal">
                                                 <mat-option *ngFor="let c of canauxCommunication" [value]="c">{{ c
                                                     }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="md:col-span-2">
                                             <mat-label>Sujets de contact</mat-label>
-                                            <mat-select formControlName="taches" multiple>
+                                            <mat-select aria-label="Select field" formControlName="taches" multiple>
                                                 <mat-option *ngFor="let t of tachesContact" [value]="t">{{ t
                                                     }}</mat-option>
                                             </mat-select>
@@ -237,10 +237,10 @@
                             </div>
 
                             <div class="flex justify-between mt-8 border-t pt-6">
-                                <button mat-button matStepperPrevious>
+                                <button type="button" mat-button matStepperPrevious>
                                     <mat-icon>arrow_back</mat-icon> Précédent
                                 </button>
-                                <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="form.invalid"
+                                <button type="button" mat-raised-button color="primary" (click)="onSubmit()" [disabled]="form.invalid"
                                     class="!px-12" *ngIf="!isViewMode">
                                     {{ isEditMode ? 'Enregistrer les modifications' : 'Créer le Fournisseur' }}
                                 </button>

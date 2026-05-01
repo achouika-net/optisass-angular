@@ -6,7 +6,7 @@
                 <h2>{{ entrepot.nom }}</h2>
             </mat-card-title>
             <div class="header-actions">
-                <button mat-button (click)="goBack()" class="back-button">
+                <button type="button" mat-button (click)="goBack()" class="back-button">
                     <mat-icon>arrow_back</mat-icon>
                     <span>Retour</span>
                 </button>
@@ -45,7 +45,7 @@
             </mat-card-title>
             <div class="header-actions">
 
-                <button mat-raised-button color="accent" (click)="navigateToAddProduct()">
+                <button type="button" mat-raised-button color="accent" (click)="navigateToAddProduct()">
                     <mat-icon>add_shopping_cart</mat-icon>
                     ADD Produit
                 </button>
@@ -55,9 +55,9 @@
             <!-- Filters -->
             <div class="filters-container">
 
-                <mat-form-field appearance="outline" class="dense-form-field" style="width: 200px;">
+                <mat-form-field appearance="outline" class="dense-form-field w-[200px]">
                     <mat-label>Période</mat-label>
-                    <mat-select [(ngModel)]="selectedPeriod" (selectionChange)="onPeriodChange()">
+                    <mat-select aria-label="Select field" [(ngModel)]="selectedPeriod" (selectionChange)="onPeriodChange()">
                         <mat-option value="all">Tout le temps</mat-option>
                         <mat-option value="today">Aujourd'hui</mat-option>
                         <mat-option value="week">Cette semaine</mat-option>
@@ -66,7 +66,7 @@
                     </mat-select>
                 </mat-form-field>
 
-                <mat-form-field appearance="outline" class="dense-form-field" style="width: 280px;"
+                <mat-form-field appearance="outline" class="dense-form-field w-[280px]"
                     *ngIf="selectedPeriod === 'custom'">
                     <mat-label>Sélectionner dates</mat-label>
                     <mat-date-range-input [rangePicker]="picker">
@@ -77,9 +77,9 @@
                     <mat-date-range-picker #picker></mat-date-range-picker>
                 </mat-form-field>
 
-                <mat-form-field appearance="outline" class="dense-form-field" style="width: 200px;">
+                <mat-form-field appearance="outline" class="dense-form-field w-[200px]">
                     <mat-label>Entrepôt Source</mat-label>
-                    <mat-select [(ngModel)]="selectedSourceWarehouse" (selectionChange)="applyFilter()">
+                    <mat-select aria-label="Select field" [(ngModel)]="selectedSourceWarehouse" (selectionChange)="applyFilter()">
                         <mat-option [value]="null">Tous</mat-option>
                         <mat-option *ngFor="let src of sourceWarehouses" [value]="src">{{ src }}</mat-option>
                     </mat-select>
@@ -93,8 +93,8 @@
                 <ng-container matColumnDef="designation">
                     <th mat-header-cell *matHeaderCellDef>Désignation</th>
                     <td mat-cell *matCellDef="let product">
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <div class="flex">
+                            <div class="flex">
                                 <strong>{{ product.designation }}</strong>
                                 <span *ngIf="product.specificData?.pendingIncoming" class="badge-incoming"
                                     [class.shipped]="product.specificData.pendingIncoming.status === 'SHIPPED'">
@@ -153,42 +153,42 @@
 
                 <!-- Actions Column -->
                 <ng-container matColumnDef="actions">
-                    <th mat-header-cell *matHeaderCellDef style="text-align: right;">Actions</th>
-                    <td mat-cell *matCellDef="let p" style="text-align: right;">
-                        <button mat-icon-button [matMenuTriggerFor]="menu">
+                    <th mat-header-cell *matHeaderCellDef class="text-right">Actions</th>
+                    <td mat-cell *matCellDef="let p" class="text-right">
+                        <button type="button" mat-icon-button [matMenuTriggerFor]="menu">
                             <mat-icon>more_vert</mat-icon>
                         </button>
                         <mat-menu #menu="matMenu">
-                            <button mat-menu-item (click)="openHistory(p)">
+                            <button type="button" mat-menu-item (click)="openHistory(p)">
                                 <mat-icon class="premium-menu-icon-view">history</mat-icon>
                                 <span>Historique</span>
                             </button>
                             <mat-divider></mat-divider>
 
                             <!-- Contextual Transfer Actions -->
-                            <button mat-menu-item (click)="initiateTransfer(p)" *ngIf="!hasPendingTransferToCurrent(p)">
-                                <mat-icon style="color: #6366f1 !important;">swap_horiz</mat-icon>
+                            <button type="button" mat-menu-item (click)="initiateTransfer(p)" *ngIf="!hasPendingTransferToCurrent(p)">
+                                <mat-icon class="text-[#6366f1 !important]">swap_horiz</mat-icon>
                                 <span>Transférer</span>
                             </button>
 
-                            <button mat-menu-item (click)="shipTransfer(p)" *ngIf="canShip(p)">
-                                <mat-icon style="color: #f59e0b !important;">local_shipping</mat-icon>
+                            <button type="button" mat-menu-item (click)="shipTransfer(p)" *ngIf="canShip(p)">
+                                <mat-icon class="text-[#f59e0b !important]">local_shipping</mat-icon>
                                 <span>Expédier</span>
                             </button>
 
-                            <button mat-menu-item (click)="cancelTransfer(p)" *ngIf="canCancel(p)">
+                            <button type="button" mat-menu-item (click)="cancelTransfer(p)" *ngIf="canCancel(p)">
                                 <mat-icon class="premium-menu-icon-delete">cancel</mat-icon>
                                 <span>Annuler Transfert</span>
                             </button>
 
-                            <button mat-menu-item (click)="receiveTransfer(p)" *ngIf="canReceive(p)">
-                                <mat-icon style="color: #10b981 !important;">check_circle</mat-icon>
+                            <button type="button" mat-menu-item (click)="receiveTransfer(p)" *ngIf="canReceive(p)">
+                                <mat-icon class="text-[#10b981 !important]">check_circle</mat-icon>
                                 <span>Confirmer Réception</span>
                             </button>
 
                             <mat-divider></mat-divider>
                             <!-- Edit (Standard) -->
-                            <button mat-menu-item [routerLink]="['/p/stock', p.id]"
+                            <button type="button" mat-menu-item [routerLink]="['/p/stock', p.id]"
                                 [disabled]="hasPendingTransferToCurrent(p)">
                                 <mat-icon>edit</mat-icon>
                                 <span>Modifier</span>
@@ -206,7 +206,7 @@
             <div *ngIf="!entrepot.produits || entrepot.produits.length === 0" class="no-data">
                 <mat-icon>inventory_2</mat-icon>
                 <p>Aucun produit dans cet entrepôt</p>
-                <button mat-raised-button color="accent">
+                <button type="button" mat-raised-button color="accent">
                     <mat-icon>add</mat-icon>
                     ADD le premier produit
                 </button>

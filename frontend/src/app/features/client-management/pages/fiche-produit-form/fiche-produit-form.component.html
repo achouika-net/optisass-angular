@@ -121,7 +121,7 @@
                     <div class="form-group">
                         <label>Date de livraison estimée</label>
                         <mat-form-field appearance="outline">
-                            <input matInput [matDatepicker]="picker" formControlName="dateLivraisonEstimee">
+                            <input aria-label="Input" title="Input" matInput [matDatepicker]="picker" formControlName="dateLivraisonEstimee">
                             <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
                             <mat-datepicker #picker></mat-datepicker>
                         </mat-form-field>

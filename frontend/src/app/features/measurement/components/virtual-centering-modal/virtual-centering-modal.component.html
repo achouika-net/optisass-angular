@@ -3,7 +3,7 @@
         <mat-icon>camera_alt</mat-icon>
         Centrage Virtuel - Mesure Automatique
     </h2>
-    <button mat-icon-button (click)="cancel()" class="close-btn">
+    <button type="button" mat-icon-button (click)="cancel()" class="close-btn">
         <mat-icon>close</mat-icon>
     </button>
 </div>
@@ -27,17 +27,17 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-    <button mat-button (click)="cancel()">Annuler</button>
+    <button type="button" mat-button (click)="cancel()">Annuler</button>
 
     @if (!isCaptured) {
-    <button mat-raised-button color="primary" (click)="captureMeasurement()">
+    <button type="button" mat-raised-button color="primary" (click)="captureMeasurement()">
         📷 Capturer
     </button>
     } @else {
-    <button mat-stroked-button color="warn" (click)="retakeMeasurement()">
+    <button type="button" mat-stroked-button color="warn" (click)="retakeMeasurement()">
         🔄 Reprendre
     </button>
-    <button mat-raised-button color="accent" (click)="validateMeasurement()">
+    <button type="button" mat-raised-button color="accent" (click)="validateMeasurement()">
         ✓ Valider les Mesures
     </button>
     }

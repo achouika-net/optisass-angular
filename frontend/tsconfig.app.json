@@ -4,6 +4,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./out-tsc/app",
+    "forceConsistentCasingInFileNames": true,
     "types": ["node", "three"]
   },
   "include": [

@@ -8,7 +8,7 @@
     <!-- Name -->
     <mat-form-field appFieldControlLabel class="col-span-full">
       <mat-label>{{ 'stock.entry.supplierInfo.name' | translate }}</mat-label>
-      <input matInput [formField]="supplierField().name" />
+      <input title="Input" aria-label="Input field" matInput [formField]="supplierField().name" />
       <mat-icon matPrefix>store</mat-icon>
     </mat-form-field>
 
@@ -22,14 +22,14 @@
     <!-- Phone -->
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'stock.entry.supplierInfo.phone' | translate }}</mat-label>
-      <input matInput type="tel" [formField]="supplierField().phone" />
+      <input title="Input" aria-label="Input field" matInput type="tel" [formField]="supplierField().phone" />
       <mat-icon matPrefix>phone</mat-icon>
     </mat-form-field>
 
     <!-- Email -->
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'stock.entry.supplierInfo.email' | translate }}</mat-label>
-      <input matInput type="email" [formField]="supplierField().email" />
+      <input title="Input" aria-label="Input field" matInput type="email" [formField]="supplierField().email" />
       <mat-icon matPrefix>email</mat-icon>
     </mat-form-field>
 
@@ -43,25 +43,25 @@
     <!-- ICE -->
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'stock.entry.supplierInfo.ice' | translate }}</mat-label>
-      <input matInput [formField]="supplierField().ice" />
+      <input title="Input" aria-label="Input field" matInput [formField]="supplierField().ice" />
     </mat-form-field>
 
     <!-- Tax ID -->
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'stock.entry.supplierInfo.taxId' | translate }}</mat-label>
-      <input matInput [formField]="supplierField().taxId" />
+      <input title="Input" aria-label="Input field" matInput [formField]="supplierField().taxId" />
     </mat-form-field>
 
     <!-- Trade Register -->
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'stock.entry.supplierInfo.tradeRegister' | translate }}</mat-label>
-      <input matInput [formField]="supplierField().tradeRegister" />
+      <input title="Input" aria-label="Input field" matInput [formField]="supplierField().tradeRegister" />
     </mat-form-field>
 
     <!-- SIRET -->
     <mat-form-field appFieldControlLabel>
       <mat-label>{{ 'stock.entry.supplierInfo.siret' | translate }}</mat-label>
-      <input matInput [formField]="supplierField().siret" />
+      <input title="Input" aria-label="Input field" matInput [formField]="supplierField().siret" />
     </mat-form-field>
   </div>
 </div>
