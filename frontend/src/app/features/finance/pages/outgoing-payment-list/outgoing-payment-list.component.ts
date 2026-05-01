@@ -144,7 +144,8 @@ export class OutgoingPaymentListComponent implements OnInit {
         type: '',
         startDate: '',
         endDate: '',
-        centreId: ''
+        centreId: '',
+        dateType: 'ECHEANCE'
     };
     selectedPeriod: string = 'THIS_MONTH';
     constructor(
@@ -198,11 +199,13 @@ export class OutgoingPaymentListComponent implements OnInit {
 
             const start = params.get('startDate');
             const end = params.get('endDate');
+            const dateType = params.get('dateType');
             if (start && end) {
-                console.log(`[PAYMENTS-NAV] Applying external date range: ${start} to ${end}`);
+                console.log(`[PAYMENTS-NAV] Applying external date range: ${start} to ${end} (dateType: ${dateType})`);
                 this.filters.startDate = new Date(start);
                 this.filters.endDate = new Date(end);
                 this.selectedPeriod = 'CUSTOM';
+                if (dateType) this.filters.dateType = dateType;
             }
 
             this.pageIndex = 0;

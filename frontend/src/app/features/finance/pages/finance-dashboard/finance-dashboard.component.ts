@@ -457,14 +457,15 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         });
     }
 
-    goToPayments(tab: 'OUTGOING' | 'INCOMING') {
+    goToPayments(tab: 'OUTGOING' | 'INCOMING', dateType: 'EMISSION' | 'ECHEANCE' = 'ECHEANCE') {
         const dates = this.getDateRange();
         this.router.navigate(['/p/finance/payments'], {
             queryParams: {
                 tab: tab,
                 startDate: dates.start,
                 endDate: dates.end,
-                mode: 'PAIEMENTS'
+                mode: 'PAIEMENTS',
+                dateType: dateType
             }
         });
     }

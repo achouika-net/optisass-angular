@@ -120,7 +120,7 @@
             </mat-card>
 
             <!-- Dépenses -->
-            <mat-card class="kpi-card border-l-4 border-orange-500 clickable-card" (click)="goToPayments('OUTGOING')">
+            <mat-card class="kpi-card border-l-4 border-orange-500 clickable-card" (click)="goToPayments('OUTGOING', 'EMISSION')">
                 <div class="metric-label flex items-center justify-center gap-1">
                     Dépenses du Mois
                     <mat-icon class="!text-xs text-gray-400"
@@ -149,7 +149,7 @@
             </mat-card>
 
             <!-- Plafond -->
-            <mat-card class="kpi-card border-l-4 border-purple-500 clickable-card" (click)="goToPayments('OUTGOING')">
+            <mat-card class="kpi-card border-l-4 border-purple-500 clickable-card" (click)="goToPayments('OUTGOING', 'ECHEANCE')">
                 <div class="metric-label flex items-center justify-center gap-1">
                     Contrôle Plafond Dépenses
                     <mat-icon class="!text-xs text-gray-400"

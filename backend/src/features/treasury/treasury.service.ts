@@ -18,7 +18,8 @@ export class TreasuryService {
   ];
 
   private readonly ACTIVE_STATUSES = [
-    'VALIDE', 'VALIDEE', 'VALIDÉ', 'VALIDÉE', 'PAYEE', 'PAYÉ', 'PAYÉE', 'SOLDEE', 'SOLDÉ', 'SOLDÉE', 'ENCAISSE', 'ENCAISSÉ', 'ENCAISSÉE', 'PARTIEL'
+    'VALIDE', 'VALIDEE', 'VALIDÉ', 'VALIDÉE', 'PAYEE', 'PAYÉ', 'PAYÉE', 'SOLDEE', 'SOLDÉ', 'SOLDÉE', 'ENCAISSE', 'ENCAISSÉ', 'ENCAISSÉE', 'PARTIEL',
+    'A_PAYER', 'EN_ATTENTE', 'VALIDEE'
   ];
 
   constructor(private prisma: PrismaService) { }
@@ -30,6 +31,7 @@ export class TreasuryService {
     startDateStr?: string,
     endDateStr?: string,
   ) {
+    const normalizedCentreId = centreId && centreId !== '' ? centreId : undefined;
     let startDate: Date;
     let endDate: Date;
 
@@ -55,7 +57,8 @@ export class TreasuryService {
         by: ['categorie'],
         where: {
           date: { gte: startDate, lte: endDate },
-          centreId: centreId,
+          centreId: normalizedCentreId,
+          factureFournisseurId: null, // Avoid double counting with Facture table
         } as any,
         _sum: { montant: true },
       }),
@@ -145,7 +148,8 @@ export class TreasuryService {
       this.prisma.depense.aggregate({
         where: {
           date: { gte: startDate, lte: endDate },
-          ...(centreId ? { centreId } : {}),
+          centreId: normalizedCentreId,
+          factureFournisseurId: null, // Avoid double counting with Facture table
         },
         _sum: { montant: true },
       }),
@@ -155,7 +159,7 @@ export class TreasuryService {
         by: ['type'],
         where: {
           dateEmission: { gte: startDate, lte: endDate },
-          ...(centreId ? { centreId } : {}),
+          centreId: normalizedCentreId,
         },
         _sum: { montantTTC: true },
       }),
@@ -166,7 +170,7 @@ export class TreasuryService {
         where: {
           dateEmission: { gte: startDate, lte: endDate },
           factureFournisseurId: null,
-          ...(centreId ? { centreId } : {}),
+          centreId: normalizedCentreId,
         },
         _sum: { montantTTC: true },
       }),
@@ -205,6 +209,11 @@ export class TreasuryService {
         else cat = 'ACHAT STOCK (Divers)';
       }
 
+      // Merge generic 'FACTURE' or 'AUTRE' into 'ACHAT STOCK (Divers)' if it's high value and looks like stock
+      if (cat === 'FACTURE' || cat === 'AUTRE') {
+         // Special case for the 17064 issue if needed, but let's keep it clean
+      }
+
       combinedCategoriesMap.set(
         cat,
         (combinedCategoriesMap.get(cat) || 0) + amount,
@@ -241,8 +250,9 @@ export class TreasuryService {
       );
     });
 
-    // Total Engaged (Invoices + Direct)
-    const totalEngaged = totalInvoicesTTC + totalDirectExpensesValue;
+    // Total Engaged (Invoices + Direct + BLs) - FIXED to avoid double counting
+    const totalBLTTC = blBreakdown.reduce((sum, b) => sum + Number(b._sum.montantTTC || 0), 0);
+    const totalEngaged = totalInvoicesTTC + totalDirectExpensesValue + totalBLTTC;
 
     // 3. Process Scheduled Payments (Echeances) - FOR CASH FLOW ONLY
     let totalScheduledCashed = 0;
@@ -252,11 +262,7 @@ export class TreasuryService {
       const rawType = (e.factureFournisseur?.type || e.bonLivraison?.type || e.depense?.categorie || 'AUTRE');
       const type = rawType.toUpperCase().replace(/_/g, ' ');
       
-      const isInventory = this.INVENTORY_PURCHASE_TYPES.some(t => type.includes(t.toUpperCase().replace(/_/g, ' ')));
-      const isOperational = this.OPERATIONAL_PURCHASE_TYPES.some(t => type.includes(t.toUpperCase().replace(/_/g, ' ')));
-
-      if (e.factureFournisseur && !isInventory && !isOperational) return;
-      if (e.bonLivraison && !isInventory && !isOperational) return;
+      if (e.depense) return; // Skip if linked to a Depense record to avoid double counting with totalDirectExpensesValue
 
       const amount = Number(e.montant || 0);
       const status = (e.statut || '').toUpperCase();
@@ -266,17 +272,6 @@ export class TreasuryService {
         totalOutgoingPending += amount;
       } else if (isCashed) {
         totalScheduledCashed += amount;
-        
-        // Add to pie chart categories for Paid items
-        let cat = rawType;
-        if (isInventory) {
-          if (type.includes('MONTURE')) cat = 'ACHAT MONTURES';
-          else if (type.includes('VERRE')) cat = 'ACHAT VERRES';
-          else if (type.includes('LENTILLE')) cat = 'ACHAT LENTILLES';
-          else if (type.includes('ACCESSOIRE')) cat = 'ACHAT ACCESSOIRES';
-          else cat = 'ACHAT STOCK (Divers)';
-        }
-        combinedCategoriesMap.set(cat, (combinedCategoriesMap.get(cat) || 0) + amount);
       }
     });
 
@@ -337,6 +332,8 @@ export class TreasuryService {
     const balance = totalIncoming - totalExpenses;
     const balanceReal = totalIncomingCashed - totalExpensesCashed;
 
+    // 4. Category breakdown is already calculated in the first part of the method
+    
     const stockCategories = Array.from(combinedCategoriesMap.entries())
       .filter(([name]) =>
         inventoryTypes.some(
@@ -360,32 +357,24 @@ export class TreasuryService {
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
 
-    const alerts = await this.getPendingAlerts(centreId);
+    const alerts = await this.getPendingAlerts(normalizedCentreId);
 
     const countChequeCoffre = monthlyPaiements.filter(
       (p) => p.statut === 'EN_ATTENTE' && ['CHEQUE', 'LCN'].includes(p.mode),
     ).length;
 
-    const totalBLTTC = blBreakdown.reduce((sum, b) => sum + Number(b._sum.montantTTC || 0), 0);
-    const totalEngagedActual = totalInvoicesTTC + totalDirectExpensesValue + totalBLTTC;
 
     return {
       month,
       year,
-      totalExpenses: totalEngagedActual,   // Orange card: NEW engagements of the month
-      totalEngaged: totalEngagedActual,
+      totalExpenses: totalEngaged,   // Orange card: NEW engagements of the month
+      totalEngaged: totalEngaged,
       totalIncoming,
       totalExpensesCashed,
       totalIncomingCashed,
       balance,
       balanceReal,
-      totalScheduled: totalExpensesCashed, // Purple card "amount" part shows what's already regulated? 
-      // Wait, usually the purple card title shows the full volume against the ceiling.
-      // If the user wants to see the 900, but still track the 6900...
-      // Let's keep totalScheduled as 900 (regulated) but show totalPlannedOutgoing elsewhere if needed.
-      // ACTUALLY: The user wants "Dépenses du mois" to be the totality. 
-      // So Orange = 6900.
-      // Purple card should probably also show 6900 against the ceiling of 50000.
+      totalScheduled: totalExpensesCashed, 
       totalScheduledVolume: totalPlannedOutgoing, 
       totalIncomingPending: incomingPendingStandard - incomingPendingAvoir,
       totalOutgoingPending,
@@ -429,12 +418,15 @@ export class TreasuryService {
     source?: string;
     centreId?: string;
     mode?: string;
+    dateType?: 'EMISSION' | 'ECHEANCE';
     page?: number;
     limit?: number;
   }) {
+    const normalizedCentreId = filters.centreId && filters.centreId !== '' ? filters.centreId : undefined;
     const page = Number(filters.page) || 1;
     const limit = Number(filters.limit) || 50;
     const skip = (page - 1) * limit;
+    const dateType = filters.dateType || 'ECHEANCE';
 
     if (
       filters.mode &&
@@ -454,10 +446,10 @@ export class TreasuryService {
         where.dateEcheance = dateRange;
       }
 
-      if (filters.centreId) {
+      if (normalizedCentreId) {
         where.OR = [
-          { factureFournisseur: { centreId: filters.centreId } },
-          { depense: { centreId: filters.centreId } },
+          { factureFournisseur: { centreId: normalizedCentreId } },
+          { depense: { centreId: normalizedCentreId } },
         ];
       }
 
@@ -521,8 +513,8 @@ export class TreasuryService {
     let blEcheanceWhere = `WHERE 1=1 `; // NEW branch for BonLivraison
     const sqlParams: any[] = [];
 
-    if (filters.centreId) {
-      sqlParams.push(filters.centreId);
+    if (normalizedCentreId) {
+      sqlParams.push(normalizedCentreId);
       depenseWhere += `AND d."centreId" = $${sqlParams.length} `;
       echeanceWhere += `AND ff."centreId" = $${sqlParams.length} `;
       blEcheanceWhere += `AND bl."centreId" = $${sqlParams.length} `;
@@ -541,15 +533,27 @@ export class TreasuryService {
     }
     if (filters.startDate) {
       sqlParams.push(new Date(filters.startDate));
-      depenseWhere += `AND COALESCE(d."dateEcheance", d.date) >= $${sqlParams.length} `;
-      echeanceWhere += `AND ep."dateEcheance" >= $${sqlParams.length} `;
-      blEcheanceWhere += `AND ep."dateEcheance" >= $${sqlParams.length} `;
+      if (dateType === 'EMISSION') {
+        depenseWhere += `AND d.date >= $${sqlParams.length} `;
+        echeanceWhere += `AND ff."dateEmission" >= $${sqlParams.length} `;
+        blEcheanceWhere += `AND bl."dateEmission" >= $${sqlParams.length} `;
+      } else {
+        depenseWhere += `AND COALESCE(d."dateEcheance", d.date) >= $${sqlParams.length} `;
+        echeanceWhere += `AND ep."dateEcheance" >= $${sqlParams.length} `;
+        blEcheanceWhere += `AND ep."dateEcheance" >= $${sqlParams.length} `;
+      }
     }
     if (filters.endDate) {
       sqlParams.push(new Date(filters.endDate));
-      depenseWhere += `AND COALESCE(d."dateEcheance", d.date) <= $${sqlParams.length} `;
-      echeanceWhere += `AND ep."dateEcheance" <= $${sqlParams.length} `;
-      blEcheanceWhere += `AND ep."dateEcheance" <= $${sqlParams.length} `;
+      if (dateType === 'EMISSION') {
+        depenseWhere += `AND d.date <= $${sqlParams.length} `;
+        echeanceWhere += `AND ff."dateEmission" <= $${sqlParams.length} `;
+        blEcheanceWhere += `AND bl."dateEmission" <= $${sqlParams.length} `;
+      } else {
+        depenseWhere += `AND COALESCE(d."dateEcheance", d.date) <= $${sqlParams.length} `;
+        echeanceWhere += `AND ep."dateEcheance" <= $${sqlParams.length} `;
+        blEcheanceWhere += `AND ep."dateEcheance" <= $${sqlParams.length} `;
+      }
     }
     if (filters.source === 'FACTURE') {
       depenseWhere += `AND 1=0 `;
@@ -888,7 +892,9 @@ export class TreasuryService {
   }
 
   async getYearlyProjection(year: number, centreId?: string) {
+    const normalizedCentreId = centreId && centreId !== '' ? centreId : undefined;
     const months = Array.from({ length: 12 }, (_, i) => i + 1);
+    
     const results = await Promise.all(months.map(async month => {
       const startDate = new Date(Date.UTC(year, month - 1, 1));
       const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
@@ -898,20 +904,35 @@ export class TreasuryService {
           where: {
             dateEcheance: { gte: startDate, lte: endDate },
             statut: { not: 'ANNULE' },
-            ...(centreId ? { OR: [{ depense: { centreId } }, { factureFournisseur: { centreId } }] } : { OR: [{ depense: { isNot: null } }, { factureFournisseur: { isNot: null } }] }),
+            depense: null, 
+            ...(normalizedCentreId
+              ? {
+                  OR: [
+                    { factureFournisseur: { centreId: normalizedCentreId } },
+                    { bonLivraison: { centreId: normalizedCentreId } },
+                  ],
+                }
+              : {
+                  OR: [
+                    { factureFournisseur: { isNot: null } },
+                    { bonLivraison: { isNot: null } },
+                  ],
+                }),
           },
           _sum: { montant: true },
         }),
         this.prisma.depense.aggregate({
           where: {
             date: { gte: startDate, lte: endDate },
-            ...(centreId ? { centreId } : {}),
+            statut: { not: 'ANNULE' },
+            centreId: normalizedCentreId,
           },
           _sum: { montant: true },
         })
       ]);
 
-      return Number(echeancesSum._sum?.montant || 0) + Number(directSum._sum?.montant || 0);
+      const total = Number(echeancesSum._sum?.montant || 0) + Number(directSum._sum?.montant || 0);
+      return total;
     }));
 
     return results.map((total, i) => ({ month: i + 1, totalExpenses: total }));
