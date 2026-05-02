@@ -42,6 +42,22 @@ interface TreasuryDataRow {
   dateEmission?: Date;
 }
 
+interface PrismaFactureRow {
+  id: string;
+  dateEmission: Date | null;
+  createdAt: Date;
+  numero: string;
+  type: string;
+  client: {
+    nom: string | null;
+    prenom: string | null;
+    raisonSociale: string | null;
+  } | null;
+  totalTTC: number | null;
+  resteAPayer: number | null;
+  statut: string;
+}
+
 /**
  * TreasuryService handles all financial reporting and treasury logic.
  */
@@ -610,7 +626,7 @@ export class TreasuryService {
           COALESCE(SUM(CASE WHEN statut IN ('ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ', 'SOLDE', 'DÉCAISSÉ', 'DECAISSE') THEN montant ELSE 0 END), 0)::float as paid
         FROM (${outgoingsQuery.query}) as c
       `,
-      ...(outgoingsQuery.params as any),
+      ...(outgoingsQuery.params as unknown as any[]),
     );
 
     const outgoingsStats = outgoingsStatsResult[0] || { total: 0, paid: 0 };
@@ -709,12 +725,12 @@ export class TreasuryService {
         deposited: number;
         paid: number;
       }[]
-    >(statsQuery, ...sqlParams);
+    >(statsQuery, ...(sqlParams as unknown as any[]));
 
     const dataQuery = `${sqlBase.query} ORDER BY date DESC LIMIT ${limit} OFFSET ${skip}`;
     const results = await this.prisma.$queryRawUnsafe<TreasuryDataRow[]>(
       dataQuery,
-      ...sqlParams,
+      ...(sqlParams as unknown as any[]),
     );
 
     const statsData = statsResult[0] || {
@@ -739,7 +755,7 @@ export class TreasuryService {
       SELECT COALESCE(SUM(montant), 0)::float as total, COALESCE(SUM("montantHT"), 0)::float as ht
       FROM (${accrualBase.query}) as c
     `,
-      ...(accrualBase.params as any),
+      ...(accrualBase.params as unknown as any[]),
     );
 
     const accrualStats = accrualStatsResult[0] || { total: 0, ht: 0 };
@@ -1000,7 +1016,7 @@ export class TreasuryService {
         skip,
         take: limit,
       }),
-    ])) as [AggResult, AggResult, AggResult, TreasuryDataRow[]];
+    ])) as [AggResult, AggResult, AggResult, PrismaFactureRow[]];
 
     const totalTTC =
       (factureAgg._sum.totalTTC || 0) +
@@ -1020,18 +1036,26 @@ export class TreasuryService {
     });
 
     return {
-      data: data.map((f) => ({
-        id: f.id,
-        date: (f.dateEmission || f.createdAt) as Date,
-        libelle: this.cleanText(`Facture ${f.numero as string}`),
-        numero: f.numero,
-        type: f.type,
-        client: f.client,
-        totalTTC: Number(f.totalTTC || 0),
-        resteAPayer: Number(f.resteAPayer || 0),
-        statut: f.statut,
-        source: 'FACTURE_CLIENT',
-      })),
+      data: data.map(
+        (f: PrismaFactureRow) =>
+          ({
+            id: f.id,
+            date: f.dateEmission || f.createdAt,
+            libelle: this.cleanText(`Facture ${f.numero}`),
+            numero: f.numero,
+            type: f.type,
+            client: f.client,
+            totalTTC: Number(f.totalTTC || 0),
+            resteAPayer: Number(f.resteAPayer || 0),
+            statut: f.statut,
+            source: 'FACTURE_CLIENT',
+            fournisseur: f.client
+              ? f.client.raisonSociale ||
+                `${f.client.nom || ''} ${f.client.prenom || ''}`.trim()
+              : 'N/A',
+            montant: Number(f.totalTTC || 0),
+          }) as TreasuryDataRow,
+      ),
       total: totalCount,
       subtotals: {
         totalTTC: Number(totalTTC.toFixed(2)),
@@ -1066,7 +1090,7 @@ export class TreasuryService {
         SELECT COALESCE(SUM(montant), 0)::float as total
         FROM (${outgoingsQuery.query}) as c
       `,
-          ...outgoingsQuery.params,
+          ...(outgoingsQuery.params as unknown as any[]),
         );
 
         return Number(stats[0]?.total || 0);
