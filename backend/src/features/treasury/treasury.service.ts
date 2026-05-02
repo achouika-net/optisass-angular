@@ -218,7 +218,7 @@ export class TreasuryService {
         LEFT JOIN "FactureFournisseur" inv_d ON d."factureFournisseurId" = inv_d.id
         LEFT JOIN "Fournisseur" ff_d ON inv_d."fournisseurId" = ff_d.id
         LEFT JOIN "EcheancePaiement" ep_d ON d."echeanceId" = ep_d.id
-        ${depenseWhere}
+        ${depenseWhere} AND d."factureFournisseurId" IS NULL AND d."bonLivraisonId" IS NULL
         UNION ALL
         SELECT 
           ff.id, ff."dateEmission" as date, ff."numeroFacture" as libelle, 
