@@ -200,7 +200,54 @@ export class TreasuryService {
       blEcheanceWhere += `AND ep.type IN (${inClause}) `;
     }
 
-    const query = `
+    let query = '';
+    if (filters.dateType === 'EMISSION') {
+      query = `
+        SELECT 
+          d.id, d.date, COALESCE(d.description, d.categorie) as libelle, d.categorie as type, 
+          COALESCE(f.nom, ff_d.nom, 'N/A') as fournisseur, d.montant, 'ENCAISSE' as statut, 'DEPENSE' as source, 
+          'DEPENSE' as "sourceRaw", d."modePaiement" as "methodePaiement", d.reference as "numeroPiece", 
+          CASE WHEN UPPER(TRIM(COALESCE(d."modePaiement", ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') 
+                 OR UPPER(TRIM(COALESCE(ep_d.type, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') THEN 'CAISSE' 
+               ELSE COALESCE(ep_d.banque, 'CAISSE') END as banque, 
+          COALESCE(d."dateEcheance", d.date) as "dateEcheance", 
+          d.date as "dateEncaissement", d.montant as "montantHT", NULL as "echeanceId",
+          COALESCE(d."dateEcheance", d.date) as "datePiece"
+        FROM "Depense" d
+        LEFT JOIN "Fournisseur" f ON d."fournisseurId" = f.id
+        LEFT JOIN "FactureFournisseur" inv_d ON d."factureFournisseurId" = inv_d.id
+        LEFT JOIN "Fournisseur" ff_d ON inv_d."fournisseurId" = ff_d.id
+        LEFT JOIN "EcheancePaiement" ep_d ON d."echeanceId" = ep_d.id
+        ${depenseWhere}
+        UNION ALL
+        SELECT 
+          ff.id, ff."dateEmission" as date, ff."numeroFacture" as libelle, 
+          ff.type as type, COALESCE(f_ff.nom, 'N/A') as fournisseur, ff."montantTTC" as montant, ff.statut as statut, 
+          'Facture ' || ff."numeroFacture" as source, 'FACTURE' as "sourceRaw",
+          'NON_DEFINI' as "methodePaiement", ff."numeroFacture" as "numeroPiece", 
+          'BANQUE' as banque, 
+          ff."dateEcheance" as "dateEcheance", NULL as "dateEncaissement", 
+          ff."montantHT" as "montantHT", 
+          NULL as "echeanceId", ff."dateEmission" as "datePiece"
+        FROM "FactureFournisseur" ff
+        LEFT JOIN "Fournisseur" f_ff ON ff."fournisseurId" = f_ff.id
+        ${echeanceWhere.replace(/ep\.statut/g, 'ff.statut').replace(/ep\.type/g, 'ff.type')}
+        UNION ALL
+        SELECT 
+          bl.id, bl."dateEmission" as date, bl."numeroBL" as libelle, 
+          bl.type as type, COALESCE(f_bl.nom, 'N/A') as fournisseur, bl."montantTTC" as montant, bl.statut as statut, 
+          'BL ' || bl."numeroBL" as source, 'BL' as "sourceRaw",
+          'NON_DEFINI' as "methodePaiement", bl."numeroBL" as "numeroPiece", 
+          'BANQUE' as banque, 
+          bl."dateEcheance" as "dateEcheance", NULL as "dateEncaissement", 
+          bl."montantHT" as "montantHT", 
+          NULL as "echeanceId", bl."dateEmission" as "datePiece"
+        FROM "BonLivraison" bl
+        LEFT JOIN "Fournisseur" f_bl ON bl."fournisseurId" = f_bl.id
+        ${blEcheanceWhere.replace(/ep\.statut/g, 'bl.statut').replace(/ep\.type/g, 'bl.type')}
+      `;
+    } else {
+      query = `
         SELECT 
           d.id, d.date, COALESCE(d.description, d.categorie) as libelle, d.categorie as type, 
           COALESCE(f.nom, ff_d.nom, 'N/A') as fournisseur, d.montant, 'ENCAISSE' as statut, 'DEPENSE' as source, 
@@ -250,6 +297,7 @@ export class TreasuryService {
         ${blEcheanceWhere}
         AND NOT EXISTS (SELECT 1 FROM "Depense" d_idx WHERE d_idx."echeanceId" = ep.id)
       `;
+    }
 
     return { query, params: sqlParams };
   }
