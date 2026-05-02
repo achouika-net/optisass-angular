@@ -1123,7 +1123,9 @@ export class TreasuryService {
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       console.error(`[TREASURY-SERV] Error updating echeance ${id}:`, msg);
-      throw new Error(`Échéance introuvable ou erreur de mise Ã  jour (${msg})`);
+      throw new Error(
+        `\u00c9ch\u00e9ance introuvable ou erreur de mise \u00e0 jour (${msg})`,
+      );
     }
   }
 
