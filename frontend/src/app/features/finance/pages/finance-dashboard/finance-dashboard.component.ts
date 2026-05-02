@@ -160,6 +160,41 @@ Chart.register(...registerables);
     }
     .tag-24h { background: #fee2e2; color: #9b1c1c; }
     .tag-48h { background: #ffedd5; color: #9a3412; }
+
+    .bank-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+    .bank-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        border-radius: 16px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition: all 0.2s ease;
+    }
+    .bank-card:hover {
+        background: white;
+        transform: translateY(-3px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    }
+    .bank-name {
+        font-size: 11px;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .bank-value {
+        font-size: 18px;
+        font-weight: 800;
+        color: #1e293b;
+    }
   `]
 
 })
@@ -311,7 +346,7 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
 
         forkJoin({
             monthly: this.financeService.getTreasurySummary(yearToUse, monthToUse, centreId, dates.start, dates.end),
-            yearly: this.financeService.getYearlyProjection(yearToUse, centreId)
+            yearly: this.financeService.getYearlyProjection(yearToUse, centreId, Date.now())
         }).subscribe({
             next: ({ monthly, yearly }) => {
                 this.zone.run(() => {
@@ -457,7 +492,7 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         });
     }
 
-    goToPayments(tab: 'OUTGOING' | 'INCOMING', dateType: 'EMISSION' | 'ECHEANCE' = 'ECHEANCE') {
+    goToPayments(tab: 'OUTGOING' | 'INCOMING', dateType: 'EMISSION' | 'ECHEANCE' = 'ECHEANCE', statut?: string, modePaiement?: string) {
         const dates = this.getDateRange();
         this.router.navigate(['/p/finance/payments'], {
             queryParams: {
@@ -465,7 +500,9 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
                 startDate: dates.start,
                 endDate: dates.end,
                 mode: 'PAIEMENTS',
-                dateType: dateType
+                dateType: dateType,
+                statut: statut || undefined,
+                modePaiement: modePaiement || undefined
             }
         });
     }

@@ -174,9 +174,10 @@ export class FinanceService {
         return this.http.get<any>(`${this.apiUrl}/treasury/summary`, { params });
     }
 
-    getYearlyProjection(year: number, centreId?: string): Observable<any[]> {
+    getYearlyProjection(year: number, centreId?: string, _t?: number): Observable<any[]> {
         let params = new HttpParams().set('year', year.toString());
         if (centreId) params = params.set('centreId', centreId);
+        if (_t) params = params.set('_t', _t.toString());
         return this.http.get<any[]>(`${this.apiUrl}/treasury/projection`, { params });
     }
 

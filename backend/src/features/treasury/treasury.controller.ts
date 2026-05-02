@@ -57,6 +57,7 @@ export class TreasuryController {
     @Query('statut') statut?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('dateType') dateType?: string,
   ) {
     return this.treasuryService.getConsolidatedIncomings({
       clientId,
@@ -67,6 +68,7 @@ export class TreasuryController {
       statut,
       page,
       limit,
+      dateType: dateType as any,
     });
   }
 
@@ -81,6 +83,8 @@ export class TreasuryController {
     @Query('mode') mode?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('dateType') dateType?: string,
+    @Query('statut') statut?: string,
   ) {
     return this.treasuryService.getConsolidatedOutgoings({
       fournisseurId,
@@ -92,6 +96,8 @@ export class TreasuryController {
       mode,
       page,
       limit,
+      dateType: dateType as any,
+      statut,
     });
   }
 
