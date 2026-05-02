@@ -507,6 +507,10 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         });
     }
 
+    goToCaisse() {
+        this.router.navigate(['/p/finance/caisse']);
+    }
+
     get percentageUsed(): number {
         if (!this.summary || this.monthlyThreshold === 0) return 0;
         const amountToCheck = this.summary.totalScheduledVolume !== undefined ? this.summary.totalScheduledVolume : this.summary.totalExpenses;

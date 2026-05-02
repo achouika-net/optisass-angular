@@ -133,7 +133,7 @@
             </mat-card>
 
             <!-- Solde -->
-            <mat-card class="kpi-card border-l-4 clickable-card" (click)="goToPayments('OUTGOING', 'ECHEANCE', 'PAYE', 'ESPECES,CARTE')"
+            <mat-card class="kpi-card border-l-4 clickable-card" (click)="goToCaisse()"
                 [ngClass]="summary.balanceReal >= 0 ? 'border-blue-500' : 'border-red-500'">
                 <div class="metric-label flex items-center justify-center gap-1">
                     Solde Réel (Espèces + Cartes)
