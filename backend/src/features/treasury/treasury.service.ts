@@ -16,7 +16,7 @@ interface AggResult {
   _count: { _all: number };
 }
 
-interface TreasuryDataRow {
+export interface TreasuryDataRow {
   id: string;
   date: Date;
   libelle: string;
@@ -40,6 +40,7 @@ interface TreasuryDataRow {
   resteAPayer?: number;
   createdAt?: Date;
   dateEmission?: Date;
+  datePiece?: Date;
 }
 
 interface PrismaFactureRow {
@@ -57,6 +58,8 @@ interface PrismaFactureRow {
   resteAPayer: number | null;
   statut: string;
 }
+
+type QueryParam = string | number | Date | boolean | null | undefined;
 
 /**
  * TreasuryService handles all financial reporting and treasury logic.
@@ -206,7 +209,8 @@ export class TreasuryService {
                  OR UPPER(TRIM(COALESCE(ep_d.type, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') THEN 'CAISSE' 
                ELSE COALESCE(ep_d.banque, 'CAISSE') END as banque, 
           COALESCE(d."dateEcheance", d.date) as "dateEcheance", 
-          d.date as "dateEncaissement", d.montant as "montantHT", NULL as "echeanceId"
+          d.date as "dateEncaissement", d.montant as "montantHT", NULL as "echeanceId",
+          COALESCE(d."dateEcheance", d.date) as "datePiece"
         FROM "Depense" d
         LEFT JOIN "Fournisseur" f ON d."fournisseurId" = f.id
         LEFT JOIN "FactureFournisseur" inv_d ON d."factureFournisseurId" = inv_d.id
@@ -223,7 +227,7 @@ export class TreasuryService {
                ELSE COALESCE(ep.banque, 'BANQUE') END as banque, 
           ep."dateEcheance", ep."dateEncaissement", 
           (ep.montant * (ff."montantHT" / NULLIF(ff."montantTTC", 0))) as "montantHT", 
-          ep.id as "echeanceId"
+          ep.id as "echeanceId", ep."dateEcheance" as "datePiece"
         FROM "EcheancePaiement" ep
         INNER JOIN "FactureFournisseur" ff ON ep."factureFournisseurId" = ff.id
         LEFT JOIN "Fournisseur" f_ff ON ff."fournisseurId" = f_ff.id
@@ -239,7 +243,7 @@ export class TreasuryService {
                ELSE COALESCE(ep.banque, 'BANQUE') END as banque, 
           ep."dateEcheance", ep."dateEncaissement", 
           (ep.montant * (bl."montantHT" / NULLIF(bl."montantTTC", 0))) as "montantHT", 
-          ep.id as "echeanceId"
+          ep.id as "echeanceId", ep."dateEcheance" as "datePiece"
         FROM "EcheancePaiement" ep
         INNER JOIN "BonLivraison" bl ON ep."bonLivraisonId" = bl.id
         LEFT JOIN "Fournisseur" f_bl ON bl."fournisseurId" = f_bl.id
@@ -626,7 +630,7 @@ export class TreasuryService {
           COALESCE(SUM(CASE WHEN statut IN ('ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ', 'SOLDE', 'DÉCAISSÉ', 'DECAISSE') THEN montant ELSE 0 END), 0)::float as paid
         FROM (${outgoingsQuery.query}) as c
       `,
-      ...(outgoingsQuery.params as unknown as any[]),
+      ...(outgoingsQuery.params as QueryParam[]),
     );
 
     const outgoingsStats = outgoingsStatsResult[0] || { total: 0, paid: 0 };
@@ -725,12 +729,12 @@ export class TreasuryService {
         deposited: number;
         paid: number;
       }[]
-    >(statsQuery, ...(sqlParams as unknown as any[]));
+    >(statsQuery, ...(sqlParams as QueryParam[]));
 
     const dataQuery = `${sqlBase.query} ORDER BY date DESC LIMIT ${limit} OFFSET ${skip}`;
     const results = await this.prisma.$queryRawUnsafe<TreasuryDataRow[]>(
       dataQuery,
-      ...(sqlParams as unknown as any[]),
+      ...(sqlParams as QueryParam[]),
     );
 
     const statsData = statsResult[0] || {
@@ -755,7 +759,7 @@ export class TreasuryService {
       SELECT COALESCE(SUM(montant), 0)::float as total, COALESCE(SUM("montantHT"), 0)::float as ht
       FROM (${accrualBase.query}) as c
     `,
-      ...(accrualBase.params as unknown as any[]),
+      ...(accrualBase.params as QueryParam[]),
     );
 
     const accrualStats = accrualStatsResult[0] || { total: 0, ht: 0 };
@@ -778,6 +782,7 @@ export class TreasuryService {
         dateEncaissement: r.dateEncaissement,
         montantHT: Number(r.montantHT || 0),
         echeanceId: r.echeanceId,
+        datePiece: r.datePiece,
       })),
       total: statsData.total,
       subtotals: {
@@ -868,21 +873,24 @@ export class TreasuryService {
         deposited: number;
         paid: number;
       }[]
-    >(statsQuery, ...sqlParams);
+    >(statsQuery, ...(sqlParams as QueryParam[]));
 
     const dataQuery = `
       SELECT 
         p.id, p.date, f.numero as libelle, p.mode as type, 
         c.nom || ' ' || COALESCE(c.prenom, '') as fournisseur, p.montant, p.statut, 
-        'FACTURE_CLIENT' as source, p.mode as "modePaiement", p.reference, p.banque, 
+        'FACTURE_CLIENT' as source, p.mode as "methodePaiement", p.reference as "numeroPiece", 
+        CASE WHEN UPPER(TRIM(COALESCE(p.mode, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE') THEN 'CAISSE'
+             ELSE COALESCE(p.banque, 'BANQUE') END as banque, 
         p."dateVersement" as "dateEcheance", p."dateVersement" as "dateEncaissement", 
+        p."dateVersement" as "datePiece",
         f."totalTTC" as "montantHT"
       ${baseQuery}
       ORDER BY p.date DESC LIMIT ${limit} OFFSET ${skip}
     `;
     const results = await this.prisma.$queryRawUnsafe<TreasuryDataRow[]>(
       dataQuery,
-      ...sqlParams,
+      ...(sqlParams as QueryParam[]),
     );
     const statsData = stats[0] || {
       total: 0,
@@ -898,6 +906,7 @@ export class TreasuryService {
         date: r.date,
         libelle: this.cleanText(r.libelle),
         fournisseur: this.cleanText(r.fournisseur),
+        client: this.cleanText(r.fournisseur),
         montant: Number(r.montant || 0),
         statut: r.statut,
         source: r.source,
@@ -908,6 +917,7 @@ export class TreasuryService {
         dateEncaissement: r.dateEncaissement,
         montantHT: Number(r.montantHT || 0),
         echeanceId: r.echeanceId,
+        datePiece: r.datePiece,
       })),
       total: statsData.total,
       subtotals: {
@@ -1090,7 +1100,7 @@ export class TreasuryService {
         SELECT COALESCE(SUM(montant), 0)::float as total
         FROM (${outgoingsQuery.query}) as c
       `,
-          ...(outgoingsQuery.params as unknown as any[]),
+          ...(outgoingsQuery.params as QueryParam[]),
         );
 
         return Number(stats[0]?.total || 0);
@@ -1113,7 +1123,7 @@ export class TreasuryService {
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       console.error(`[TREASURY-SERV] Error updating echeance ${id}:`, msg);
-      throw new Error(`Échéance introuvable ou erreur de mise à jour (${msg})`);
+      throw new Error(`Échéance introuvable ou erreur de mise Ã  jour (${msg})`);
     }
   }
 
@@ -1199,14 +1209,14 @@ export class TreasuryService {
       .replace(/imm[^\s]diat/gi, 'immédiat')
       .replace(/[^\x20-\x7E\xA0-\xFF]/g, (char) => {
         const map: Record<string, string> = {
-          '†': 'é',
-          '‡': 'â',
-          ˆ: 'ê',
-          '‰': 'ë',
-          Š: 'è',
-          '‹': 'ï',
-          Œ: 'î',
-          '·': 'ô',
+          '\u2020': '\u00e9', // † -> é
+          '\u2021': '\u00e2', // ‡ -> â
+          '\u02c6': '\u00ea', // ˆ -> ê
+          '\u2030': '\u00eb', // ‰ -> ë
+          '\u0160': '\u00e8', // Š -> è
+          '\u2039': '\u00ef', // ‹ -> ï
+          '\u0152': '\u00ee', // Œ -> î
+          '\u00b7': '\u00f4', // · -> ô
         };
         return map[char] || ' ';
       })
