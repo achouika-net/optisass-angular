@@ -92,7 +92,7 @@
     <div *ngIf="summary && !loading">
         <div class="kpi-grid">
             <!-- Recettes -->
-            <mat-card class="kpi-card border-l-4 border-green-500 clickable-card" (click)="goToPayments('INCOMING')">
+            <mat-card class="kpi-card border-l-4 border-green-500 clickable-card" (click)="goToPayments('INCOMING', 'ECHEANCE', 'ENCAISSE')">
                 <div class="metric-label flex items-center justify-center gap-1">
                     Recettes (Cash+Banque+En coffre)
                     <mat-icon class="!text-xs text-gray-400"
@@ -133,7 +133,7 @@
             </mat-card>
 
             <!-- Solde -->
-            <mat-card class="kpi-card border-l-4 clickable-card" (click)="goToPayments('OUTGOING')"
+            <mat-card class="kpi-card border-l-4 clickable-card" (click)="goToPayments('OUTGOING', 'ECHEANCE', 'PAYE', 'ESPECES,CARTE')"
                 [ngClass]="summary.balanceReal >= 0 ? 'border-blue-500' : 'border-red-500'">
                 <div class="metric-label flex items-center justify-center gap-1">
                     Solde Réel (Espèces + Cartes)
@@ -187,6 +187,8 @@
                 </div>
             </mat-card>
         </div>
+
+        <!-- Bank Summary Removed -->
 
         <!-- Alerts Section -->
         <div class="alert-card"

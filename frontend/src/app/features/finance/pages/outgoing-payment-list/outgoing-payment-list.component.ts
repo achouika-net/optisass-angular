@@ -106,7 +106,7 @@ export class OutgoingPaymentListComponent implements OnInit {
         if (this.activeTab === 'UNPAID_CLIENTS') {
             return ['date', 'source', 'libelle', 'client', 'montant', 'reste', 'statut', 'actions'];
         }
-        const base = ['date', 'source', 'libelle', 'type'];
+        const base = ['date', 'source', 'libelle', 'type', 'banque'];
         const middle = this.activeTab === 'OUTGOING' ? 'fournisseur' : 'client';
         return [...base, 'methodePaiement', 'numeroPiece', 'datePiece', middle, 'montant', 'statut', 'actions'];
     }
@@ -200,12 +200,19 @@ export class OutgoingPaymentListComponent implements OnInit {
             const start = params.get('startDate');
             const end = params.get('endDate');
             const dateType = params.get('dateType');
+            const statut = params.get('statut');
+            const modePaiement = params.get('modePaiement');
             if (start && end) {
-                console.log(`[PAYMENTS-NAV] Applying external date range: ${start} to ${end} (dateType: ${dateType})`);
+                console.log(`[PAYMENTS-NAV] Applying external range: ${start} to ${end} (dateType: ${dateType}, statut: ${statut}, mode: ${modePaiement})`);
                 this.filters.startDate = new Date(start);
                 this.filters.endDate = new Date(end);
                 this.selectedPeriod = 'CUSTOM';
                 if (dateType) this.filters.dateType = dateType;
+                if (statut) this.filters.statut = statut;
+                if (modePaiement) this.filters.modePaiement = modePaiement;
+            } else if (statut || modePaiement) {
+                if (statut) this.filters.statut = statut;
+                if (modePaiement) this.filters.modePaiement = modePaiement;
             }
 
             this.pageIndex = 0;
