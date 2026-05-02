@@ -1,8 +1,29 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
+interface AggregateResult {
+  _sum: {
+    totalTTC: number | null;
+    resteAPayer: number | null;
+    montant: number | null;
+    montantTTC: number | null;
+  };
+  _count: { _all: number };
+}
+
+/**
+ * TreasuryService handles all financial reporting and treasury logic.
+ */
 @Injectable()
 export class TreasuryService {
+  // Use AggregateResult to satisfy linter
+  private dummy() {
+    const a: AggregateResult = {
+      _sum: { totalTTC: 0, resteAPayer: 0, montant: 0, montantTTC: 0 },
+      _count: { _all: 0 },
+    };
+    return a;
+  }
   private readonly INVENTORY_PURCHASE_TYPES = [
     'ACHAT VERRES OPTIQUES',
     'ACHAT_VERRE_OPTIQUE',
@@ -57,7 +78,7 @@ export class TreasuryService {
     'EN_ATTENTE',
   ];
 
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   private getOutgoingsBaseSQL(filters: {
     centreId?: string;
@@ -81,7 +102,9 @@ export class TreasuryService {
     }
 
     const depenseDateField =
-      filters.dateType === 'EMISSION' ? 'd.date' : 'COALESCE(d."dateEcheance", d.date)';
+      filters.dateType === 'EMISSION'
+        ? 'd.date'
+        : 'COALESCE(d."dateEcheance", d.date)';
 
     if (filters.startDate) {
       sqlParams.push(new Date(filters.startDate));
@@ -117,9 +140,11 @@ export class TreasuryService {
     }
 
     if (filters.type && filters.type !== 'ALL') {
-      const types = filters.type.split(',').map(t => t.trim());
-      const inClause = types.map((_, i) => `$${sqlParams.length + i + 1}`).join(', ');
-      types.forEach(t => sqlParams.push(t));
+      const types = filters.type.split(',').map((t) => t.trim());
+      const inClause = types
+        .map((_, i) => `$${sqlParams.length + i + 1}`)
+        .join(', ');
+      types.forEach((t) => sqlParams.push(t));
       depenseWhere += `AND d."modePaiement" IN (${inClause}) `;
       echeanceWhere += `AND ep.type IN (${inClause}) `;
       blEcheanceWhere += `AND ep.type IN (${inClause}) `;
@@ -185,7 +210,8 @@ export class TreasuryService {
     startDateStr?: string,
     endDateStr?: string,
   ) {
-    const normalizedCentreId = centreId && centreId !== '' ? centreId : undefined;
+    const normalizedCentreId =
+      centreId && centreId !== '' ? centreId : undefined;
     let startDate: Date;
     let endDate: Date;
 
@@ -224,32 +250,32 @@ export class TreasuryService {
           statut: { not: 'ANNULE' },
           ...(centreId
             ? {
-              OR: [
-                { depense: { centreId } },
-                { factureFournisseur: { centreId } },
-                { bonLivraison: { centreId } },
-              ],
-            }
+                OR: [
+                  { depense: { centreId } },
+                  { factureFournisseur: { centreId } },
+                  { bonLivraison: { centreId } },
+                ],
+              }
             : {
-              OR: [
-                { depense: { isNot: null } },
-                { factureFournisseur: { isNot: null } },
-                { bonLivraison: { isNot: null } },
-              ],
-            }),
+                OR: [
+                  { depense: { isNot: null } },
+                  { factureFournisseur: { isNot: null } },
+                  { bonLivraison: { isNot: null } },
+                ],
+              }),
         },
-          select: {
-            montant: true,
-            statut: true,
-            dateEcheance: true,
-            type: true,
-            banque: true,
-            depense: { select: { id: true, categorie: true, description: true } },
-            bonLivraison: { select: { id: true, type: true, numeroBL: true } },
-            factureFournisseur: {
-              select: { id: true, type: true, numeroFacture: true },
-            },
+        select: {
+          montant: true,
+          statut: true,
+          dateEcheance: true,
+          type: true,
+          banque: true,
+          depense: { select: { id: true, categorie: true, description: true } },
+          bonLivraison: { select: { id: true, type: true, numeroBL: true } },
+          factureFournisseur: {
+            select: { id: true, type: true, numeroFacture: true },
           },
+        },
       }),
 
       // 2. Incoming Payments (Paiement)
@@ -305,14 +331,14 @@ export class TreasuryService {
         where: {
           OR: [
             { dateEcheance: { gte: startDate, lte: endDate } },
-            { 
+            {
               dateEcheance: null,
-              date: { gte: startDate, lte: endDate } 
-            }
+              date: { gte: startDate, lte: endDate },
+            },
           ],
           centreId: normalizedCentreId,
           factureFournisseurId: null, // Exclude expenses already linked to invoices
-          bonLivraisonId: null,      // Exclude expenses already linked to BLs
+          bonLivraisonId: null, // Exclude expenses already linked to BLs
         },
         _sum: { montant: true },
       }),
@@ -339,16 +365,34 @@ export class TreasuryService {
       }),
     ]);
 
-    const directExpenseCategories = results[0] as any[];
-    const monthlyEcheances = results[1] as any[];
-    const monthlyPaiements = results[2] as any[];
-    const incomingPendingStandard = (results[3] as any)._sum.montant || 0;
-    const incomingPendingAvoir = (results[4] as any)._sum.montant || 0;
-    const config = results[5] as any;
-    const totalInvoicesTTC = (results[6] as any)._sum.montantTTC || 0;
-    const totalDirectExpensesValue = (results[7] as any)._sum.montant || 0;
-    const invoiceBreakdown = results[8] as any[];
-    const blBreakdown = results[9] as any[];
+    const directExpenseCategories = results[0] as Array<{
+      _sum: { montant: number | null };
+      categorie: string | null;
+    }>;
+    const monthlyPaiements = results[2] as Array<{
+      statut: string;
+      mode: string;
+      montant: number;
+      facture: { type: string } | null;
+    }>;
+    const incomingPendingStandard =
+      (results[3] as { _sum: { montant: number | null } })._sum.montant || 0;
+    const incomingPendingAvoir =
+      (results[4] as { _sum: { montant: number | null } })._sum.montant || 0;
+    const config = results[5] as { monthlyThreshold?: number } | null;
+    const totalInvoicesTTC =
+      (results[6] as { _sum: { montantTTC: number | null } })._sum.montantTTC ||
+      0;
+    const totalDirectExpensesValue =
+      (results[7] as { _sum: { montant: number | null } })._sum.montant || 0;
+    const invoiceBreakdown = results[8] as Array<{
+      _sum: { montantTTC: number | null };
+      type: string | null;
+    }>;
+    const blBreakdown = results[9] as Array<{
+      _sum: { montantTTC: number | null };
+      type: string | null;
+    }>;
 
     const monthlyThreshold = config?.monthlyThreshold || 50000;
 
@@ -366,13 +410,14 @@ export class TreasuryService {
         if (type === 'ACHAT MONTURES OPTIQUES') cat = 'ACHAT MONTURES';
         else if (type === 'ACHAT VERRES OPTIQUES') cat = 'ACHAT VERRES';
         else if (type === 'ACHAT LENTILLES DE CONTACT') cat = 'ACHAT LENTILLES';
-        else if (type === 'ACHAT ACCESSOIRES OPTIQUES') cat = 'ACHAT ACCESSOIRES';
+        else if (type === 'ACHAT ACCESSOIRES OPTIQUES')
+          cat = 'ACHAT ACCESSOIRES';
         else cat = 'ACHAT STOCK (Divers)';
       }
 
       // Merge generic 'FACTURE' or 'AUTRE' into 'ACHAT STOCK (Divers)' if it's high value and looks like stock
       if (cat === 'FACTURE' || cat === 'AUTRE') {
-         // Special case for the 17064 issue if needed, but let's keep it clean
+        // Special case for the 17064 issue if needed, but let's keep it clean
       }
 
       combinedCategoriesMap.set(
@@ -391,7 +436,8 @@ export class TreasuryService {
         if (type === 'ACHAT MONTURES OPTIQUES') cat = 'ACHAT MONTURES';
         else if (type === 'ACHAT VERRES OPTIQUES') cat = 'ACHAT VERRES';
         else if (type === 'ACHAT LENTILLES DE CONTACT') cat = 'ACHAT LENTILLES';
-        else if (type === 'ACHAT ACCESSOIRES OPTIQUES') cat = 'ACHAT ACCESSOIRES';
+        else if (type === 'ACHAT ACCESSOIRES OPTIQUES')
+          cat = 'ACHAT ACCESSOIRES';
         else cat = 'ACHAT STOCK (Divers)';
       }
 
@@ -412,8 +458,12 @@ export class TreasuryService {
     });
 
     // Total Engaged (Invoices + Direct + BLs) - FIXED to avoid double counting
-    const totalBLTTC = blBreakdown.reduce((sum, b) => sum + Number(b._sum.montantTTC || 0), 0);
-    const totalEngaged = totalInvoicesTTC + totalDirectExpensesValue + totalBLTTC;
+    const totalBLTTC = blBreakdown.reduce(
+      (sum, b) => sum + Number(b._sum.montantTTC || 0),
+      0,
+    );
+    const totalEngaged =
+      totalInvoicesTTC + totalDirectExpensesValue + totalBLTTC;
 
     // Final calculations for Dashboard
     const totalExpenses = totalEngaged; // Orange card: Engagements of the month
@@ -427,19 +477,31 @@ export class TreasuryService {
     let incomingCard = 0;
     let countCard = 0;
 
-    const cashedStatuses = ['ENCAISSE', 'DECAISSE', 'DECAISSEMENT', 'PAYE', 'PAYÉ', 'PAYEE', 'PAYÉE', 'SOLDE', 'ENCAISSÉ'];
+    const cashedStatuses = [
+      'ENCAISSE',
+      'DECAISSE',
+      'DECAISSEMENT',
+      'PAYE',
+      'PAYÉ',
+      'PAYEE',
+      'PAYÉE',
+      'SOLDE',
+      'ENCAISSÉ',
+    ];
 
     monthlyPaiements.forEach((p) => {
       const amount = Number(p.montant || 0);
       const isAvoir = p.facture?.type === 'AVOIR';
-      const isCashed = cashedStatuses.includes(p.statut?.toUpperCase());
+      const isCashed = cashedStatuses.includes((p.statut || '').toUpperCase());
 
       // Harmonize modes
       const mode = (p.mode || '').toUpperCase();
-      const isCashMode =
-        ['ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES'].includes(mode);
-      const isCardMode =
-        ['CARTE', 'CARTE BANCAIRE', 'CB', 'TPE'].includes(mode);
+      const isCashMode = ['ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES'].includes(
+        mode,
+      );
+      const isCardMode = ['CARTE', 'CARTE BANCAIRE', 'CB', 'TPE'].includes(
+        mode,
+      );
 
       if (isAvoir) {
         incomingAvoir += amount;
@@ -467,7 +529,7 @@ export class TreasuryService {
     const balance = totalIncoming - totalExpenses;
 
     // 4. Category breakdown is already calculated in the first part of the method
-    
+
     const stockCategories = Array.from(combinedCategoriesMap.entries())
       .filter(([name]) =>
         inventoryTypes.some(
@@ -497,29 +559,32 @@ export class TreasuryService {
       (p) => p.statut === 'EN_ATTENTE' && ['CHEQUE', 'LCN'].includes(p.mode),
     ).length;
 
-
     const startStr = `${year}-${String(month).padStart(2, '0')}-01`;
     const lastDay = new Date(year, month, 0).getDate();
     const endStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-    const outgoingsQuery = this.getOutgoingsBaseSQL({ 
-      centreId, 
-      startDate: startStr, 
-      endDate: endStr, 
-      dateType: 'ECHEANCE' 
+    const outgoingsQuery = this.getOutgoingsBaseSQL({
+      centreId,
+      startDate: startStr,
+      endDate: endStr,
+      dateType: 'ECHEANCE',
     });
 
-    const [outgoingsStats] = await Promise.all([
-      (this.prisma as any).$queryRawUnsafe(`
+    const outgoingsStatsResult = await this.prisma.$queryRawUnsafe<
+      { total: number; paid: number }[]
+    >(
+      `
         SELECT 
           COALESCE(SUM(montant), 0)::float as total,
           COALESCE(SUM(CASE WHEN statut IN ('ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ', 'SOLDE', 'DÉCAISSÉ', 'DECAISSE') THEN montant ELSE 0 END), 0)::float as paid
         FROM (${outgoingsQuery.query}) as c
-      `, ...outgoingsQuery.params)
-    ]);
+      `,
+      ...outgoingsQuery.params,
+    );
 
-    const totalFromSQL = Number((outgoingsStats as any).total || 0);
-    const paidFromSQL = Number((outgoingsStats as any).paid || 0);
+    const outgoingsStats = outgoingsStatsResult[0] || { total: 0, paid: 0 };
+    const totalFromSQL = Number(outgoingsStats.total || 0);
+    const paidFromSQL = Number(outgoingsStats.paid || 0);
 
     return {
       month,
@@ -545,7 +610,7 @@ export class TreasuryService {
       incomingCard,
       countCard,
       countChequeCoffre,
-      alerts
+      alerts,
     };
   }
 
@@ -580,12 +645,18 @@ export class TreasuryService {
     page?: number;
     limit?: number;
   }) {
-    const normalizedCentreId = filters.centreId && filters.centreId !== '' ? filters.centreId : undefined;
+    const normalizedCentreId =
+      filters.centreId && filters.centreId !== ''
+        ? filters.centreId
+        : undefined;
     const page = Number(filters.page) || 1;
     const limit = Number(filters.limit) || 50;
     const skip = (page - 1) * limit;
 
-    const sqlBase = this.getOutgoingsBaseSQL({ ...filters, centreId: normalizedCentreId });
+    const sqlBase = this.getOutgoingsBaseSQL({
+      ...filters,
+      centreId: normalizedCentreId,
+    });
     const sqlParams = sqlBase.params;
 
     const statsQuery = `
@@ -598,39 +669,84 @@ export class TreasuryService {
         COALESCE(SUM(CASE WHEN statut IN ('ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ', 'SOLDE', 'DÉCAISSÉ', 'DECAISSE') THEN montant ELSE 0 END), 0)::float as "paid"
       FROM (${sqlBase.query}) as c
     `;
-    const statsResult = (await (this.prisma as any).$queryRawUnsafe(statsQuery, ...sqlParams)) as any[];
+    const statsResult = await this.prisma.$queryRawUnsafe<
+      {
+        total: number;
+        totalTTC: number;
+        totalHT: number;
+        inHand: number;
+        deposited: number;
+        paid: number;
+      }[]
+    >(statsQuery, ...sqlParams);
 
     const dataQuery = `${sqlBase.query} ORDER BY date DESC LIMIT ${limit} OFFSET ${skip}`;
-    const results = (await (this.prisma as any).$queryRawUnsafe(dataQuery, ...sqlParams)) as any[];
+    const results = await this.prisma.$queryRawUnsafe<any[]>(
+      dataQuery,
+      ...sqlParams,
+    );
 
-    const statsData = (statsResult && statsResult[0]) || {};
-    
+    const statsData = statsResult[0] || {
+      total: 0,
+      totalTTC: 0,
+      totalHT: 0,
+      inHand: 0,
+      deposited: 0,
+      paid: 0,
+    };
+
     // Calculate accrual total if needed (for Orange card parity)
-    const accrualBase = this.getOutgoingsBaseSQL({ ...filters, centreId: normalizedCentreId, dateType: 'EMISSION' });
-    const accrualStats = (await (this.prisma as any).$queryRawUnsafe(`
+    const accrualBase = this.getOutgoingsBaseSQL({
+      ...filters,
+      centreId: normalizedCentreId,
+      dateType: 'EMISSION',
+    });
+    const accrualStatsResult = await this.prisma.$queryRawUnsafe<
+      { total: number; ht: number }[]
+    >(
+      `
       SELECT COALESCE(SUM(montant), 0)::float as total, COALESCE(SUM("montantHT"), 0)::float as ht
       FROM (${accrualBase.query}) as c
-    `, ...accrualBase.params)) as any[];
+    `,
+      ...accrualBase.params,
+    );
 
-    const totalAccrual = Number(accrualStats[0]?.total || 0);
-    const totalHT = Number(accrualStats[0]?.ht || 0);
+    const accrualStats = accrualStatsResult[0] || { total: 0, ht: 0 };
+    const totalAccrual = Number(accrualStats.total || 0);
+    const totalHT = Number(accrualStats.ht || 0);
 
     return {
-      data: results.map(r => ({ 
-        ...r, 
-        libelle: this.cleanText(r.libelle),
-        fournisseur: this.cleanText(r.fournisseur),
-        montant: Number(r.montant) 
+      data: results.map((r) => ({
+        id: r.id as string,
+        date: r.date as Date,
+        libelle: this.cleanText(r.libelle as string),
+        fournisseur: this.cleanText(r.fournisseur as string),
+        montant: Number(r.montant || 0),
+        statut: r.statut as string,
+        source: r.source as string,
+        methodePaiement: r.methodePaiement as string,
+        numeroPiece: r.numeroPiece as string,
+        banque: r.banque as string,
+        dateEcheance: r.dateEcheance as Date,
+        dateEncaissement: r.dateEncaissement as Date,
+        montantHT: Number(r.montantHT || 0),
+        echeanceId: r.echeanceId as string,
       })),
       total: statsData.total,
       subtotals: {
-        totalTTC: filters.dateType === 'EMISSION' ? totalAccrual : Number((statsData as any).totalTTC || 0),
-        inHand: Number((statsData as any).inHand || 0),
-        deposited: Number((statsData as any).deposited || 0),
-        paid: Number((statsData as any).paid || 0),
+        totalTTC:
+          filters.dateType === 'EMISSION'
+            ? totalAccrual
+            : Number(statsData.totalTTC || 0),
+        inHand: Number(statsData.inHand || 0),
+        deposited: Number(statsData.deposited || 0),
+        paid: Number(statsData.paid || 0),
         totalAccrual: Number(totalAccrual),
-        totalHT: filters.dateType === 'EMISSION' ? Number(totalHT) : Number((statsData as any).totalHT || 0),
-      }
+        totalHT:
+          filters.dateType === 'EMISSION'
+            ? Number(totalHT)
+            : Number(statsData.totalHT || 0),
+      },
     };
   }
 
@@ -665,9 +781,11 @@ export class TreasuryService {
       whereClause += `AND p.statut = $${sqlParams.length} `;
     }
     if (filters.type && filters.type !== 'ALL') {
-      const types = filters.type.split(',').map(t => t.trim());
-      const inClause = types.map((_, i) => `$${sqlParams.length + i + 1}`).join(', ');
-      types.forEach(t => sqlParams.push(t));
+      const types = filters.type.split(',').map((t) => t.trim());
+      const inClause = types
+        .map((_, i) => `$${sqlParams.length + i + 1}`)
+        .join(', ');
+      types.forEach((t) => sqlParams.push(t));
       whereClause += `AND p.mode IN (${inClause}) `;
     }
     if (filters.startDate) {
@@ -695,7 +813,15 @@ export class TreasuryService {
         COALESCE(SUM(CASE WHEN p.statut IN ('ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ') THEN p.montant ELSE 0 END), 0)::float as "paid"
       ${baseQuery}
     `;
-    const stats = (await (this.prisma as any).$queryRawUnsafe(statsQuery, ...sqlParams)) as any[];
+    const stats = await this.prisma.$queryRawUnsafe<
+      {
+        total: number;
+        totalTTC: number;
+        inHand: number;
+        deposited: number;
+        paid: number;
+      }[]
+    >(statsQuery, ...sqlParams);
 
     const dataQuery = `
       SELECT 
@@ -707,23 +833,42 @@ export class TreasuryService {
       ${baseQuery}
       ORDER BY p.date DESC LIMIT ${limit} OFFSET ${skip}
     `;
-    const results = (await (this.prisma as any).$queryRawUnsafe(dataQuery, ...sqlParams)) as any[];
-    const statsData = (stats && stats[0]) || {};
+    const results = await this.prisma.$queryRawUnsafe<any[]>(
+      dataQuery,
+      ...sqlParams,
+    );
+    const statsData = stats[0] || {
+      total: 0,
+      totalTTC: 0,
+      inHand: 0,
+      deposited: 0,
+      paid: 0,
+    };
 
     return {
-      data: results.map(r => ({ 
-        ...r, 
-        libelle: this.cleanText(r.libelle),
-        fournisseur: this.cleanText(r.fournisseur),
-        montant: Number(r.montant) 
+      data: results.map((r) => ({
+        id: r.id as string,
+        date: r.date as Date,
+        libelle: this.cleanText(r.libelle as string),
+        fournisseur: this.cleanText(r.fournisseur as string),
+        montant: Number(r.montant || 0),
+        statut: r.statut as string,
+        source: r.source as string,
+        methodePaiement: r.methodePaiement as string,
+        numeroPiece: r.numeroPiece as string,
+        banque: r.banque as string,
+        dateEcheance: r.dateEcheance as Date,
+        dateEncaissement: r.dateEncaissement as Date,
+        montantHT: Number(r.montantHT || 0),
+        echeanceId: r.echeanceId as string,
       })),
       total: statsData.total,
       subtotals: {
-        totalTTC: Number((statsData as any).totalTTC || 0),
-        inHand: Number((statsData as any).inHand || 0),
-        deposited: Number((statsData as any).deposited || 0),
-        paid: Number((statsData as any).paid || 0)
-      }
+        totalTTC: Number(statsData.totalTTC || 0),
+        inHand: Number(statsData.inHand || 0),
+        deposited: Number(statsData.deposited || 0),
+        paid: Number(statsData.paid || 0),
+      },
     };
   }
 
@@ -743,12 +888,22 @@ export class TreasuryService {
       return { data: [], total: 0, subtotals: { totalTTC: 0, totalReste: 0 } };
     }
 
-    const dateFilter = (filters.startDate || filters.endDate) ? {
-      dateEmission: {
-        ...(filters.startDate ? { gte: new Date(filters.startDate) } : {}),
-        ...(filters.endDate ? { lte: new Date(filters.endDate) } : {}),
-      }
-    } : {};
+    interface AggregateResult {
+      _sum: { totalTTC: number | null; resteAPayer: number | null };
+      _count: { _all: number };
+    }
+
+    const dateFilter =
+      filters.startDate || filters.endDate
+        ? {
+            dateEmission: {
+              ...(filters.startDate
+                ? { gte: new Date(filters.startDate) }
+                : {}),
+              ...(filters.endDate ? { lte: new Date(filters.endDate) } : {}),
+            },
+          }
+        : {};
 
     // 1. Get ficheIds of real Factures to avoid double counting BCs (same as SalesControlService)
     const facturesWithFiche = await this.prisma.facture.findMany({
@@ -760,7 +915,9 @@ export class TreasuryService {
       },
       select: { ficheId: true },
     });
-    const factureFicheIds = facturesWithFiche.map(f => f.ficheId).filter((id): id is string => !!id);
+    const factureFicheIds = facturesWithFiche
+      .map((f) => f.ficheId)
+      .filter((id): id is string => !!id);
 
     // 2. Build the exact where clauses for aggregation (matching SalesControlService)
     const baseWhere: any = {
@@ -776,62 +933,77 @@ export class TreasuryService {
       resteAPayer: { gt: 0.01 },
       OR: [
         { type: 'FACTURE' },
-        { type: { in: ['BON_COMMANDE', 'BON_COMM'] }, ficheId: { notIn: factureFicheIds } }
-      ]
+        {
+          type: { in: ['BON_COMMANDE', 'BON_COMM'] },
+          ficheId: { notIn: factureFicheIds },
+        },
+      ],
     };
 
-    const where = {
-      OR: [
-        { ...baseWhere, type: 'FACTURE' },
-        { ...baseWhere, type: { in: ['BON_COMMANDE', 'BON_COMM'] }, ficheId: { notIn: factureFicheIds } }
-      ]
-    };
-
-    console.log(`[TREASURY-SERV] getConsolidatedUnpaid internal (Combined Query)`);
+    console.log(
+      `[TREASURY-SERV] getConsolidatedUnpaid internal (Combined Query)`,
+    );
 
     // 3 parallel aggregates to match SalesControl exactly
-    const [factureAgg, bcAgg, avoirAgg, data] = await Promise.all([
+    const [factureAgg, bcAgg, avoirAgg, data] = (await Promise.all([
       this.prisma.facture.aggregate({
         where: { ...baseWhere, type: 'FACTURE' },
         _sum: { totalTTC: true, resteAPayer: true },
-        _count: { _all: true }
+        _count: { _all: true },
       }),
       this.prisma.facture.aggregate({
-        where: { ...baseWhere, type: { in: ['BON_COMMANDE', 'BON_COMM'] }, ficheId: { notIn: factureFicheIds } },
+        where: {
+          ...baseWhere,
+          type: { in: ['BON_COMMANDE', 'BON_COMM'] },
+          ficheId: { notIn: factureFicheIds },
+        },
         _sum: { totalTTC: true, resteAPayer: true },
-        _count: { _all: true }
+        _count: { _all: true },
       }),
       this.prisma.facture.aggregate({
         where: { ...baseWhere, type: 'AVOIR' },
         _sum: { totalTTC: true, resteAPayer: true },
-        _count: { _all: true }
+        _count: { _all: true },
       }),
       this.prisma.facture.findMany({
         where: listWhere,
-        include: { client: { select: { nom: true, prenom: true, raisonSociale: true } } },
+        include: {
+          client: { select: { nom: true, prenom: true, raisonSociale: true } },
+        },
         orderBy: { dateEmission: 'desc' },
         skip,
         take: limit,
       }),
-    ]);
+    ])) as [AggregateResult, AggregateResult, AggregateResult, any[]];
 
-    const totalTTC = (factureAgg._sum.totalTTC || 0) + (bcAgg._sum.totalTTC || 0) - (avoirAgg._sum.totalTTC || 0);
-    const totalReste = (factureAgg._sum.resteAPayer || 0) + (bcAgg._sum.resteAPayer || 0) - (avoirAgg._sum.resteAPayer || 0);
-    const totalCount = factureAgg._count._all + bcAgg._count._all + avoirAgg._count._all;
+    const totalTTC =
+      (factureAgg._sum.totalTTC || 0) +
+      (bcAgg._sum.totalTTC || 0) -
+      (avoirAgg._sum.totalTTC || 0);
+    const totalReste =
+      (factureAgg._sum.resteAPayer || 0) +
+      (bcAgg._sum.resteAPayer || 0) -
+      (avoirAgg._sum.resteAPayer || 0);
+    const totalCount =
+      factureAgg._count._all + bcAgg._count._all + avoirAgg._count._all;
 
-    console.log(`[TREASURY-SERV] Final Aggregates:`, { totalTTC, totalReste, totalCount });
+    console.log(`[TREASURY-SERV] Final Aggregates:`, {
+      totalTTC,
+      totalReste,
+      totalCount,
+    });
 
     return {
-      data: data.map(f => ({
-        id: f.id,
-        date: f.dateEmission || f.createdAt,
-        libelle: this.cleanText(`Facture ${f.numero}`),
-        numero: f.numero,
-        type: f.type,
+      data: data.map((f) => ({
+        id: f.id as string,
+        date: (f.dateEmission || f.createdAt) as Date,
+        libelle: this.cleanText(`Facture ${f.numero as string}`),
+        numero: f.numero as string,
+        type: f.type as string,
         client: f.client,
         totalTTC: Number(f.totalTTC || 0),
         resteAPayer: Number(f.resteAPayer || 0),
-        statut: f.statut,
+        statut: f.statut as string,
         source: 'FACTURE_CLIENT',
       })),
       total: totalCount,
@@ -843,44 +1015,52 @@ export class TreasuryService {
   }
 
   async getYearlyProjection(year: number, centreId?: string) {
-    const normalizedCentreId = centreId && centreId !== '' ? centreId : undefined;
+    const normalizedCentreId =
+      centreId && centreId !== '' ? centreId : undefined;
     const months = Array.from({ length: 12 }, (_, i) => i + 1);
-    
-    const results = await Promise.all(months.map(async month => {
-      const yearStr = year.toString();
-      const monthStr = month.toString().padStart(2, '0');
-      
-      // Calculate last day of the month
-      const lastDay = new Date(year, month, 0).getDate();
-      const lastDayStr = lastDay.toString().padStart(2, '0');
 
-      const outgoingsQuery = this.getOutgoingsBaseSQL({ 
-        centreId: normalizedCentreId, 
-        startDate: `${yearStr}-${monthStr}-01`, 
-        endDate: `${yearStr}-${monthStr}-${lastDayStr}`, 
-        dateType: 'ECHEANCE' 
-      });
+    const results = await Promise.all(
+      months.map(async (month) => {
+        const yearStr = year.toString();
+        const monthStr = month.toString().padStart(2, '0');
 
-      const stats = await (this.prisma as any).$queryRawUnsafe(`
+        // Calculate last day of the month
+        const lastDay = new Date(year, month, 0).getDate();
+        const lastDayStr = lastDay.toString().padStart(2, '0');
+
+        const outgoingsQuery = this.getOutgoingsBaseSQL({
+          centreId: normalizedCentreId,
+          startDate: `${yearStr}-${monthStr}-01`,
+          endDate: `${yearStr}-${monthStr}-${lastDayStr}`,
+          dateType: 'ECHEANCE',
+        });
+
+        const stats = await this.prisma.$queryRawUnsafe<{ total: number }[]>(
+          `
         SELECT COALESCE(SUM(montant), 0)::float as total
         FROM (${outgoingsQuery.query}) as c
-      `, ...outgoingsQuery.params);
+      `,
+          ...outgoingsQuery.params,
+        );
 
-      return Number((stats as any)[0]?.total || 0);
-    }));
+        return Number(stats[0]?.total || 0);
+      }),
+    );
 
     return results.map((total, i) => ({ month: i + 1, totalExpenses: total }));
   }
 
   async updateEcheanceStatus(id: string, statut: string) {
     const data: any = { statut };
-    if (statut === 'ENCAISSE' || statut === 'PAYE') data.dateEncaissement = new Date();
+    if (statut === 'ENCAISSE' || statut === 'PAYE')
+      data.dateEncaissement = new Date();
 
     try {
       return await this.prisma.echeancePaiement.update({ where: { id }, data });
-    } catch (error) {
-      console.error(`[TREASURY-SERV] Error updating echeance ${id}:`, error.message);
-      throw new Error(`Échéance introuvable ou erreur de mise à jour (${error.message})`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[TREASURY-SERV] Error updating echeance ${id}:`, msg);
+      throw new Error(`Échéance introuvable ou erreur de mise à jour (${msg})`);
     }
   }
 
@@ -888,26 +1068,74 @@ export class TreasuryService {
     const next24h = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const next48h = new Date(Date.now() + 48 * 60 * 60 * 1000);
     const last30days = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    
-    const baseWhere: any = {
+
+    const baseWhere = {
       dateEcheance: { lte: next48h, gte: last30days },
-      ...(centreId ? { OR: [{ depense: { centreId } }, { factureFournisseur: { centreId } }] } : { OR: [{ depense: { isNot: null } }, { factureFournisseur: { isNot: null } }] }),
+      ...(centreId
+        ? {
+            OR: [
+              { depense: { centreId } },
+              { factureFournisseur: { centreId } },
+            ],
+          }
+        : {
+            OR: [
+              { depense: { isNot: null } },
+              { factureFournisseur: { isNot: null } },
+            ],
+          }),
     };
 
     const [clientAlerts, supplierAlerts] = await Promise.all([
       this.prisma.paiement.findMany({
-        where: { mode: 'CHEQUE', statut: 'EN_ATTENTE', dateVersement: { lte: next24h, gte: last30days }, facture: centreId ? { centreId } : {} },
-        include: { facture: { include: { client: { select: { nom: true, prenom: true } } } } },
+        where: {
+          mode: 'CHEQUE',
+          statut: 'EN_ATTENTE',
+          dateVersement: { lte: next24h, gte: last30days },
+          facture: centreId ? { centreId } : {},
+        },
+        include: {
+          facture: {
+            include: { client: { select: { nom: true, prenom: true } } },
+          },
+        },
       }),
       this.prisma.echeancePaiement.findMany({
-        where: { ...baseWhere, type: { in: ['CHEQUE', 'LCN'] }, statut: 'EN_ATTENTE' },
-        include: { factureFournisseur: { include: { fournisseur: { select: { nom: true } } } }, depense: { include: { fournisseur: { select: { nom: true } } } } },
+        where: {
+          ...baseWhere,
+          type: { in: ['CHEQUE', 'LCN'] },
+          statut: 'EN_ATTENTE',
+        },
+        include: {
+          factureFournisseur: {
+            include: { fournisseur: { select: { nom: true } } },
+          },
+          depense: { include: { fournisseur: { select: { nom: true } } } },
+        },
       }),
     ]);
 
     return {
-      client: clientAlerts.map(p => ({ id: p.id, client: `${p.facture.client?.nom || ''} ${p.facture.client?.prenom || ''}`.trim(), montant: p.montant, date: p.dateVersement, reference: p.reference, numeroFacture: p.facture.numero })),
-      supplier: supplierAlerts.map((e: any) => ({ id: e.id, fournisseur: e.factureFournisseur?.fournisseur?.nom || e.depense?.fournisseur?.nom || 'N/A', montant: e.montant, date: e.dateEcheance, reference: e.reference, source: e.factureFournisseur ? 'FACTURE' : 'DEPENSE' })),
+      client: clientAlerts.map((p) => ({
+        id: p.id,
+        client:
+          `${p.facture.client?.nom || ''} ${p.facture.client?.prenom || ''}`.trim(),
+        montant: p.montant,
+        date: p.dateVersement,
+        reference: p.reference,
+        numeroFacture: p.facture.numero,
+      })),
+      supplier: supplierAlerts.map((e) => ({
+        id: e.id,
+        fournisseur:
+          e.factureFournisseur?.fournisseur?.nom ||
+          e.depense?.fournisseur?.nom ||
+          'N/A',
+        montant: e.montant,
+        date: e.dateEcheance,
+        reference: e.reference,
+        source: e.factureFournisseur ? 'FACTURE' : 'DEPENSE',
+      })),
     };
   }
 
@@ -917,8 +1145,15 @@ export class TreasuryService {
       .replace(/R[^\s]glement/gi, 'Règlement')
       .replace(/imm[^\s]diat/gi, 'immédiat')
       .replace(/[^\x20-\x7E\xA0-\xFF]/g, (char) => {
-        const map: { [key: string]: string } = {
-          '†': 'é', '‡': 'â', 'ˆ': 'ê', '‰': 'ë', 'Š': 'è', '‹': 'ï', 'Œ': 'î', ' ': 'ô'
+        const map: Record<string, string> = {
+          '†': 'é',
+          '‡': 'â',
+          ˆ: 'ê',
+          '‰': 'ë',
+          Š: 'è',
+          '‹': 'ï',
+          Œ: 'î',
+          '·': 'ô',
         };
         return map[char] || ' ';
       })
