@@ -1255,8 +1255,9 @@ export class TreasuryService {
   private cleanText(text: string): string {
     if (!text) return 'N/A';
     return text
-      .replace(/R[^\s]glement/gi, 'Règlement')
-      .replace(/imm[^\s]diat/gi, 'immédiat')
+      .replace(/r[\W_]*glement/gi, 'Règlement')
+      .replace(/imm[\W_]*diat/gi, 'immédiat')
+      .replace(/d[\W_]*pense/gi, 'dépense')
       .replace(/[^\x20-\x7E\xA0-\xFF]/g, (char) => {
         const map: Record<string, string> = {
           '\u2020': '\u00e9', // † -> é
@@ -1270,7 +1271,7 @@ export class TreasuryService {
         };
         return map[char] || ' ';
       })
-      .replace(/r glement/gi, 'Règlement')
-      .replace(/imm diat/gi, 'immédiat');
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 }
