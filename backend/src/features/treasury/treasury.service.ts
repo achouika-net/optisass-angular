@@ -11,6 +11,37 @@ interface AggregateResult {
   _count: { _all: number };
 }
 
+interface AggResult {
+  _sum: { totalTTC: number | null; resteAPayer: number | null };
+  _count: { _all: number };
+}
+
+interface TreasuryDataRow {
+  id: string;
+  date: Date;
+  libelle: string;
+  type?: string;
+  fournisseur: string;
+  montant: number;
+  statut: string;
+  source: string;
+  methodePaiement?: string;
+  numeroPiece?: string;
+  banque?: string;
+  dateEcheance?: Date;
+  dateEncaissement?: Date;
+  montantHT?: number;
+  echeanceId?: string;
+  modePaiement?: string;
+  reference?: string;
+  numero?: string;
+  client?: { nom?: string; prenom?: string; raisonSociale?: string } | null;
+  totalTTC?: number;
+  resteAPayer?: number;
+  createdAt?: Date;
+  dateEmission?: Date;
+}
+
 /**
  * TreasuryService handles all financial reporting and treasury logic.
  */
@@ -579,7 +610,7 @@ export class TreasuryService {
           COALESCE(SUM(CASE WHEN statut IN ('ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ', 'SOLDE', 'DÉCAISSÉ', 'DECAISSE') THEN montant ELSE 0 END), 0)::float as paid
         FROM (${outgoingsQuery.query}) as c
       `,
-      ...outgoingsQuery.params,
+      ...(outgoingsQuery.params as any),
     );
 
     const outgoingsStats = outgoingsStatsResult[0] || { total: 0, paid: 0 };
@@ -681,7 +712,7 @@ export class TreasuryService {
     >(statsQuery, ...sqlParams);
 
     const dataQuery = `${sqlBase.query} ORDER BY date DESC LIMIT ${limit} OFFSET ${skip}`;
-    const results = await this.prisma.$queryRawUnsafe<any[]>(
+    const results = await this.prisma.$queryRawUnsafe<TreasuryDataRow[]>(
       dataQuery,
       ...sqlParams,
     );
@@ -708,7 +739,7 @@ export class TreasuryService {
       SELECT COALESCE(SUM(montant), 0)::float as total, COALESCE(SUM("montantHT"), 0)::float as ht
       FROM (${accrualBase.query}) as c
     `,
-      ...accrualBase.params,
+      ...(accrualBase.params as any),
     );
 
     const accrualStats = accrualStatsResult[0] || { total: 0, ht: 0 };
@@ -717,20 +748,20 @@ export class TreasuryService {
 
     return {
       data: results.map((r) => ({
-        id: r.id as string,
-        date: r.date as Date,
-        libelle: this.cleanText(r.libelle as string),
-        fournisseur: this.cleanText(r.fournisseur as string),
+        id: r.id,
+        date: r.date,
+        libelle: this.cleanText(r.libelle),
+        fournisseur: this.cleanText(r.fournisseur),
         montant: Number(r.montant || 0),
-        statut: r.statut as string,
-        source: r.source as string,
-        methodePaiement: r.methodePaiement as string,
-        numeroPiece: r.numeroPiece as string,
-        banque: r.banque as string,
-        dateEcheance: r.dateEcheance as Date,
-        dateEncaissement: r.dateEncaissement as Date,
+        statut: r.statut,
+        source: r.source,
+        methodePaiement: r.methodePaiement,
+        numeroPiece: r.numeroPiece,
+        banque: r.banque,
+        dateEcheance: r.dateEcheance,
+        dateEncaissement: r.dateEncaissement,
         montantHT: Number(r.montantHT || 0),
-        echeanceId: r.echeanceId as string,
+        echeanceId: r.echeanceId,
       })),
       total: statsData.total,
       subtotals: {
@@ -833,7 +864,7 @@ export class TreasuryService {
       ${baseQuery}
       ORDER BY p.date DESC LIMIT ${limit} OFFSET ${skip}
     `;
-    const results = await this.prisma.$queryRawUnsafe<any[]>(
+    const results = await this.prisma.$queryRawUnsafe<TreasuryDataRow[]>(
       dataQuery,
       ...sqlParams,
     );
@@ -847,20 +878,20 @@ export class TreasuryService {
 
     return {
       data: results.map((r) => ({
-        id: r.id as string,
-        date: r.date as Date,
-        libelle: this.cleanText(r.libelle as string),
-        fournisseur: this.cleanText(r.fournisseur as string),
+        id: r.id,
+        date: r.date,
+        libelle: this.cleanText(r.libelle),
+        fournisseur: this.cleanText(r.fournisseur),
         montant: Number(r.montant || 0),
-        statut: r.statut as string,
-        source: r.source as string,
-        methodePaiement: r.methodePaiement as string,
-        numeroPiece: r.numeroPiece as string,
-        banque: r.banque as string,
-        dateEcheance: r.dateEcheance as Date,
-        dateEncaissement: r.dateEncaissement as Date,
+        statut: r.statut,
+        source: r.source,
+        methodePaiement: r.methodePaiement,
+        numeroPiece: r.numeroPiece,
+        banque: r.banque,
+        dateEcheance: r.dateEcheance,
+        dateEncaissement: r.dateEncaissement,
         montantHT: Number(r.montantHT || 0),
-        echeanceId: r.echeanceId as string,
+        echeanceId: r.echeanceId,
       })),
       total: statsData.total,
       subtotals: {
@@ -886,11 +917,6 @@ export class TreasuryService {
 
     if (!filters.centreId) {
       return { data: [], total: 0, subtotals: { totalTTC: 0, totalReste: 0 } };
-    }
-
-    interface AggregateResult {
-      _sum: { totalTTC: number | null; resteAPayer: number | null };
-      _count: { _all: number };
     }
 
     const dateFilter =
@@ -920,7 +946,7 @@ export class TreasuryService {
       .filter((id): id is string => !!id);
 
     // 2. Build the exact where clauses for aggregation (matching SalesControlService)
-    const baseWhere: any = {
+    const baseWhere: Record<string, any> = {
       centreId: filters.centreId,
       statut: { notIn: ['ANNULEE', 'ARCHIVE'] },
       ...dateFilter,
@@ -974,7 +1000,7 @@ export class TreasuryService {
         skip,
         take: limit,
       }),
-    ])) as [AggregateResult, AggregateResult, AggregateResult, any[]];
+    ])) as [AggResult, AggResult, AggResult, TreasuryDataRow[]];
 
     const totalTTC =
       (factureAgg._sum.totalTTC || 0) +
@@ -995,15 +1021,15 @@ export class TreasuryService {
 
     return {
       data: data.map((f) => ({
-        id: f.id as string,
+        id: f.id,
         date: (f.dateEmission || f.createdAt) as Date,
         libelle: this.cleanText(`Facture ${f.numero as string}`),
-        numero: f.numero as string,
-        type: f.type as string,
+        numero: f.numero,
+        type: f.type,
         client: f.client,
         totalTTC: Number(f.totalTTC || 0),
         resteAPayer: Number(f.resteAPayer || 0),
-        statut: f.statut as string,
+        statut: f.statut,
         source: 'FACTURE_CLIENT',
       })),
       total: totalCount,
@@ -1051,12 +1077,15 @@ export class TreasuryService {
   }
 
   async updateEcheanceStatus(id: string, statut: string) {
-    const data: any = { statut };
+    const updateData: { statut: string; dateEncaissement?: Date } = { statut };
     if (statut === 'ENCAISSE' || statut === 'PAYE')
-      data.dateEncaissement = new Date();
+      updateData.dateEncaissement = new Date();
 
     try {
-      return await this.prisma.echeancePaiement.update({ where: { id }, data });
+      return await this.prisma.echeancePaiement.update({
+        where: { id },
+        data: updateData,
+      });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       console.error(`[TREASURY-SERV] Error updating echeance ${id}:`, msg);
