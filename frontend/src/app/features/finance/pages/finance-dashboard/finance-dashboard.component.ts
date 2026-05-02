@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, ViewChild, ElementRef, NgZone, effect } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ViewChild, ElementRef, NgZone, effect, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -7,6 +7,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatDividerModule } from '@angular/material/divider';
 
 import { FormsModule } from '@angular/forms';
 import { FinanceService } from '../../services/finance.service';
@@ -39,7 +41,9 @@ Chart.register(...registerables);
         MatChipsModule,
         MatDatepickerModule,
         MatNativeDateModule,
-        MatInputModule
+        MatInputModule,
+        MatDialogModule,
+        MatDividerModule
     ],
     templateUrl: './finance-dashboard.component.html',
     styles: [`
@@ -200,6 +204,7 @@ Chart.register(...registerables);
 })
 export class FinanceDashboardComponent implements OnInit, AfterViewInit {
     @ViewChild('healthChart') healthChartRef!: ElementRef;
+    @ViewChild('soldeDetailDialog') soldeDetailDialog!: TemplateRef<any>;
 
     private healthChart: Chart | null = null;
 
@@ -234,7 +239,8 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         private store: Store,
         private zone: NgZone,
         private cd: ChangeDetectorRef,
-        private router: Router
+        private router: Router,
+        private dialog: MatDialog
     ) {
         // Reactivity to center changes
         effect(() => {
@@ -507,8 +513,16 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         });
     }
 
-    goToCaisse() {
-        this.router.navigate(['/p/finance/caisse']);
+    openSoldeDetailDialog() {
+        this.dialog.open(this.soldeDetailDialog, {
+            width: '500px',
+            data: { summary: this.summary }
+        });
+    }
+
+    getMonthName(monthNum: number): string {
+        const m = this.availableMonths.find(m => m.value === monthNum);
+        return m ? m.label : '';
     }
 
     get percentageUsed(): number {
