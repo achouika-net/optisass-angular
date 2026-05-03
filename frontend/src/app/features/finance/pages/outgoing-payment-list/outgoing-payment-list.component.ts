@@ -471,9 +471,9 @@ export class OutgoingPaymentListComponent implements OnInit {
 
     openInvoiceDialog(invoice?: SupplierInvoice, viewMode: boolean = false) {
         const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
-            width: '1400px',
-            maxWidth: '98vw',
-            maxHeight: '98vh',
+            width: '1100px',
+            maxWidth: '95vw',
+            maxHeight: '90vh',
             data: { invoice, viewMode, isBL: false }
         });
 
@@ -508,13 +508,13 @@ export class OutgoingPaymentListComponent implements OnInit {
         if (payment.source === 'FACTURE') {
             this.financeService.getInvoice(payment.id).subscribe(invoice => {
                 const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
-                    width: '1400px',
-                    maxWidth: '98vw',
-                    maxHeight: '95vh',
+                    width: '1100px',
+                    maxWidth: '95vw',
+                    maxHeight: '90vh',
                     data: {
                         invoice: {
                             ...invoice,
-                            viewMode // Passing it in data too if component supports it, or handle in component
+                            viewMode
                         }
                     }
                 });
@@ -533,7 +533,7 @@ export class OutgoingPaymentListComponent implements OnInit {
             // Expenses
             this.financeService.getExpense(payment.id).subscribe(expense => {
                 const dialogRef = this.dialog.open(ExpenseFormDialogComponent, {
-                    width: '800px',
+                    width: '750px',
                     maxWidth: '95vw',
                     data: { expense, viewMode }
                 });

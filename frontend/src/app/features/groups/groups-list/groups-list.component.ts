@@ -96,8 +96,8 @@ export class GroupsListComponent implements OnInit {
 
     openCreateDialog(): void {
         const dialogRef = this.dialog.open(GroupFormDialogComponent, {
-            width: '680px',
-            maxWidth: '680px',
+            width: '550px',
+            maxWidth: '95vw',
             data: null
         });
 
@@ -110,8 +110,8 @@ export class GroupsListComponent implements OnInit {
 
     openEditDialog(groupe: Groupe): void {
         const dialogRef = this.dialog.open(GroupFormDialogComponent, {
-            width: '680px',
-            maxWidth: '680px',
+            width: '550px',
+            maxWidth: '95vw',
             data: groupe
         });
 

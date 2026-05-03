@@ -73,7 +73,6 @@ export class SidebarComponent implements OnInit {
   readonly shipmentCount$ = this.monitor.getPendingShipmentCount();
   readonly receptionCount$ = this.monitor.getWaitingReceptionCount();
   readonly fundingCount$ = this.monitor.getFundingRequestCount();
-  readonly portfolioCount$ = this.monitor.getPortfolioCount();
 
 
   /** Menu principal filtré (link, sub avec children valides) */

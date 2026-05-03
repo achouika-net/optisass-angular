@@ -59,10 +59,6 @@ export const routes: Routes = [
         loadComponent: () => import('../reports/sales-control-report/sales-control-report.component').then(m => m.SalesControlReportComponent)
     },
     {
-        path: 'portfolio',
-        loadComponent: () => import('./pages/portfolio-management/portfolio-management.component').then(m => m.PortfolioManagementComponent)
-    },
-    {
         path: 'caisse',
         children: [
             { path: '', loadComponent: () => import('./caisse/pages/caisse-list/caisse-list.component').then(m => m.CaisseListComponent) },

@@ -401,9 +401,9 @@ export class SupplierInvoiceListComponent implements OnInit {
     }
 
     const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
-      width: '1400px',
-      maxWidth: '98vw',
-      maxHeight: '95vh',
+      width: '1100px',
+      maxWidth: '95vw',
+      maxHeight: '90vh',
       data: {
         isGrouping: true,
         prefilledData: {
@@ -429,9 +429,9 @@ export class SupplierInvoiceListComponent implements OnInit {
 
   openInvoiceDialog(invoice?: SupplierInvoice, viewMode: boolean = false) {
     const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
-      width: '1400px',
-      maxWidth: '98vw',
-      maxHeight: '98vh',
+      width: '1100px',
+      maxWidth: '95vw',
+      maxHeight: '90vh',
       data: { invoice, viewMode, isBL: (invoice as any)?.numeroBL !== undefined || this.listMode === 'BL' }
     });
 

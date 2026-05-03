@@ -205,6 +205,22 @@ Chart.register(...registerables);
         font-weight: 800;
         color: #1e293b;
     }
+
+    /* Dialog Table Styles */
+    .dialog-container table td {
+        white-space: nowrap;
+        padding: 12px 16px !important;
+    }
+    .dialog-container .mat-mdc-tab-body-content {
+        overflow-x: auto !important;
+    }
+    .mat-column-datePiece { width: 140px; }
+    .mat-column-numeroPiece { width: 120px; }
+    .mat-column-fournisseur, .mat-column-client { min-width: 250px; }
+    .mat-column-type { min-width: 300px; }
+    .mat-column-montant { width: 130px; text-align: right; }
+    .mat-column-methodePaiement { width: 100px; text-align: center; }
+    .mat-column-statut { width: 120px; text-align: center; }
   `]
 
 })
@@ -576,9 +592,10 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         });
 
         this.dialog.open(this.soldeDetailDialog, {
-            width: '98vw',
-            maxWidth: '1400px',
-            height: '90vh',
+            width: '1400px',
+            maxWidth: '98vw',
+            height: 'auto',
+            maxHeight: '85vh',
             data: { summary: this.summary }
         });
     }

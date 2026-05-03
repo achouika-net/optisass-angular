@@ -770,7 +770,7 @@ export class PaymentListComponent implements OnInit {
     createNewPayment() {
         // 1. Select Invoice
         const dialogRef = this.dialog.open(InvoiceSelectionDialogComponent, {
-            width: '1000px',
+            width: '800px',
             maxWidth: '95vw',
             data: {
                 clientId: this.clientId,

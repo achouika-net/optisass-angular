@@ -622,16 +622,18 @@ export class InvoiceFormDialogComponent implements OnInit {
         if (!this.parentInvoice) return;
         this.dialogRef.close();
         this.dialog.open(InvoiceFormDialogComponent, {
-            width: '1400px',
-            maxWidth: '98vw',
+            width: '1100px',
+            maxWidth: '95vw',
+            maxHeight: '90vh',
             data: { invoice: this.parentInvoice, viewMode: true }
         });
     }
 
     viewChildBL(bl: SupplierInvoice) {
         this.dialog.open(InvoiceFormDialogComponent, {
-            width: '1400px',
-            maxWidth: '98vw',
+            width: '1100px',
+            maxWidth: '95vw',
+            maxHeight: '90vh',
             data: { invoice: bl, viewMode: true, isBL: true }
         });
     }
