@@ -37,6 +37,7 @@
                 <th>Fournisseur</th>
                 <th *ngIf="listMode === 'BL'">Client / Fiche</th>
                 <th>Type</th>
+                <th>Mode</th>
                 <th>Statut</th>
                 <th class="text-right">Montant TTC</th>
             </tr>
@@ -55,21 +56,22 @@
                     <span *ngIf="row.fiche?.numero" class="sub-text">(Fiche : {{ row.fiche?.numero }})</span>
                 </td>
                 <td>{{ formatType($any(row).categorieBL || row.type) }}</td>
+                <td>{{ getPaymentType(row) }}</td>
                 <td>{{ row.statut }}</td>
                 <td class="text-right font-bold">{{ row.montantTTC | number:'1.2-2' }}</td>
             </tr>
         </tbody>
         <tfoot>
             <tr class="total-row">
-                <td [attr.colspan]="listMode === 'BL' ? 6 : 5" class="text-right font-bold uppercase tracking-wider">Total Période (TTC)</td>
+                <td [attr.colspan]="listMode === 'BL' ? 7 : 6" class="text-right font-bold uppercase tracking-wider">Total Période (TTC)</td>
                 <td class="text-right font-bold">{{ stats.totalTTC | number:'1.2-2' }}</td>
             </tr>
             <tr class="paid-row" *ngIf="listMode === 'BL'">
-                <td [attr.colspan]="listMode === 'BL' ? 6 : 5" class="text-right font-bold uppercase tracking-wider text-green-700">Total Payé</td>
+                <td [attr.colspan]="listMode === 'BL' ? 7 : 6" class="text-right font-bold uppercase tracking-wider text-green-700">Total Payé</td>
                 <td class="text-right font-bold text-green-700">{{ stats.totalPaid | number:'1.2-2' }}</td>
             </tr>
             <tr class="remaining-row" *ngIf="listMode === 'BL'">
-                <td [attr.colspan]="listMode === 'BL' ? 6 : 5" class="text-right font-bold uppercase tracking-wider text-orange-700">Reste à Régler</td>
+                <td [attr.colspan]="listMode === 'BL' ? 7 : 6" class="text-right font-bold uppercase tracking-wider text-orange-700">Reste à Régler</td>
                 <td class="text-right font-bold text-orange-700">{{ stats.totalRemaining | number:'1.2-2' }}</td>
             </tr>
         </tfoot>

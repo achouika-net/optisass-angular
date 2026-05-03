@@ -212,7 +212,7 @@ export class SupplierInvoiceListComponent implements OnInit {
 
     updateColumns() {
         if (this.listMode === 'BL') {
-            this.displayedColumns = ['select', 'date', 'numero', 'fournisseur', 'client', 'ficheMedicale', 'type', 'statut', 'montant', 'actions'];
+            this.displayedColumns = ['select', 'date', 'numero', 'fournisseur', 'client', 'ficheMedicale', 'type', 'paiement', 'statut', 'montant', 'actions'];
         } else {
             this.displayedColumns = ['date', 'numero', 'fournisseur', 'type', 'paiement', 'pieces', 'echeance_dates', 'statut', 'montant', 'actions'];
         }
