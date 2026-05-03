@@ -145,7 +145,9 @@ export class OutgoingPaymentListComponent implements OnInit {
         startDate: '',
         endDate: '',
         centreId: '',
-        dateType: 'ECHEANCE'
+        dateType: 'ECHEANCE',
+        modePaiement: '',
+        statut: 'ALL'
     };
     selectedPeriod: string = 'THIS_MONTH';
     constructor(
@@ -240,7 +242,7 @@ export class OutgoingPaymentListComponent implements OnInit {
             return `${year}-${month}-${day}`;
         };
 
-        const params = {
+        const params: any = {
             ...this.filters,
             startDate: formatDate(this.filters.startDate),
             endDate: formatDate(this.filters.endDate),
@@ -248,6 +250,11 @@ export class OutgoingPaymentListComponent implements OnInit {
             limit: this.pageSize,
             _t: Date.now()
         };
+
+        // Map modePaiement to mode for backend
+        if (this.filters.modePaiement) {
+            params.mode = this.filters.modePaiement;
+        }
 
         let request$: Observable<any>;
         if (this.activeTab === 'OUTGOING') {

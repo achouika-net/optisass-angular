@@ -137,6 +137,8 @@ export class TreasuryService {
     source?: string;
     statut?: string;
     type?: string;
+    mode?: string;
+    fournisseurId?: string;
     dateType?: 'EMISSION' | 'ECHEANCE';
   }) {
     const sqlParams: any[] = [];
@@ -164,8 +166,8 @@ export class TreasuryService {
         blEcheanceWhere += `AND bl."dateEmission" >= $${sqlParams.length} `;
       } else {
         depenseWhere += `AND ${depenseDateField} >= $${sqlParams.length} `;
-        echeanceWhere += `AND ep."dateEcheance" >= $${sqlParams.length} `;
-        blEcheanceWhere += `AND ep."dateEcheance" >= $${sqlParams.length} `;
+        echeanceWhere += `AND COALESCE(ep."dateEncaissement", ep."dateEcheance") >= $${sqlParams.length} `;
+        blEcheanceWhere += `AND COALESCE(ep."dateEncaissement", ep."dateEcheance") >= $${sqlParams.length} `;
       }
     }
 
@@ -177,127 +179,200 @@ export class TreasuryService {
         blEcheanceWhere += `AND bl."dateEmission" <= $${sqlParams.length} `;
       } else {
         depenseWhere += `AND ${depenseDateField} <= $${sqlParams.length} `;
-        echeanceWhere += `AND ep."dateEcheance" <= $${sqlParams.length} `;
-        blEcheanceWhere += `AND ep."dateEcheance" <= $${sqlParams.length} `;
+        echeanceWhere += `AND COALESCE(ep."dateEncaissement", ep."dateEcheance") <= $${sqlParams.length} `;
+        blEcheanceWhere += `AND COALESCE(ep."dateEncaissement", ep."dateEcheance") <= $${sqlParams.length} `;
       }
     }
 
     if (filters.statut && filters.statut !== 'ALL') {
-      sqlParams.push(filters.statut);
-      depenseWhere += `AND d.statut = $${sqlParams.length} `;
-      echeanceWhere += `AND ep.statut = $${sqlParams.length} `;
-      blEcheanceWhere += `AND ep.statut = $${sqlParams.length} `;
+      if (filters.statut === 'PAYE') {
+        const paidStatuses = [
+          'PAYEE',
+          'PAYÉ',
+          'PAYÉE',
+          'ENCAISSE',
+          'ENCAISSÉ',
+          'VALIDE',
+          'VALIDÉ',
+        ];
+        const inClause = paidStatuses
+          .map((_, i) => `$${sqlParams.length + i + 1}`)
+          .join(', ');
+        paidStatuses.forEach((s) => sqlParams.push(s));
+        depenseWhere += `AND d.statut IN (${inClause}) `;
+        echeanceWhere += `AND ep.statut IN (${inClause}) `;
+        blEcheanceWhere += `AND ep.statut IN (${inClause}) `;
+      } else if (filters.statut === 'EN_ATTENTE') {
+        const pendingStatuses = [
+          'EN_ATTENTE',
+          'PREVU',
+          'PRÉVU',
+          'BROUILLON',
+          'PORTEFEUILLE',
+        ];
+        const inClause = pendingStatuses
+          .map((_, i) => `$${sqlParams.length + i + 1}`)
+          .join(', ');
+        pendingStatuses.forEach((s) => sqlParams.push(s));
+        depenseWhere += `AND d.statut IN (${inClause}) `;
+        echeanceWhere += `AND ep.statut IN (${inClause}) `;
+        blEcheanceWhere += `AND ep.statut IN (${inClause}) `;
+      } else {
+        sqlParams.push(filters.statut);
+        depenseWhere += `AND d.statut = $${sqlParams.length} `;
+        echeanceWhere += `AND ep.statut = $${sqlParams.length} `;
+        blEcheanceWhere += `AND ep.statut = $${sqlParams.length} `;
+      }
+    }
+
+    if (filters.fournisseurId) {
+      sqlParams.push(filters.fournisseurId);
+      depenseWhere += `AND d."fournisseurId" = $${sqlParams.length} `;
+      echeanceWhere += `AND ff."fournisseurId" = $${sqlParams.length} `;
+      blEcheanceWhere += `AND bl."fournisseurId" = $${sqlParams.length} `;
     }
 
     if (filters.type && filters.type !== 'ALL') {
-      const types = filters.type.split(',').map((t) => t.trim());
-      const inClause = types
-        .map((_, i) => `$${sqlParams.length + i + 1}`)
-        .join(', ');
-      types.forEach((t) => sqlParams.push(t));
-      depenseWhere += `AND d."modePaiement" IN (${inClause}) `;
-      echeanceWhere += `AND ep.type IN (${inClause}) `;
-      blEcheanceWhere += `AND ep.type IN (${inClause}) `;
+      sqlParams.push(filters.type);
+      depenseWhere += `AND d.categorie = $${sqlParams.length} `;
+      echeanceWhere += `AND ff.type = $${sqlParams.length} `;
+      blEcheanceWhere += `AND bl.type = $${sqlParams.length} `;
+    }
+
+    if (filters.mode && filters.mode !== 'ALL') {
+      sqlParams.push(filters.mode);
+      depenseWhere += `AND d."modePaiement" = $${sqlParams.length} `;
+      echeanceWhere += `AND ep.type = $${sqlParams.length} `;
+      blEcheanceWhere += `AND ep.type = $${sqlParams.length} `;
     }
 
     let query = '';
+    const parts: string[] = [];
+
+    const includeDepense = !filters.source || filters.source === 'DEPENSE';
+    const includeFacture = !filters.source || filters.source === 'FACTURE';
+    const includeBL =
+      !filters.source ||
+      filters.source === 'FACTURE' ||
+      filters.source === 'BL';
+
     if (filters.dateType === 'EMISSION') {
-      query = `
-        SELECT 
-          d.id, d.date, COALESCE(d.description, d.categorie) as libelle, d.categorie as type, 
-          COALESCE(f.nom, ff_d.nom, 'N/A') as fournisseur, d.montant, 'ENCAISSE' as statut, 'DEPENSE' as source, 
-          'DEPENSE' as "sourceRaw", d."modePaiement" as "methodePaiement", d.reference as "numeroPiece", 
-          CASE WHEN UPPER(TRIM(COALESCE(d."modePaiement", ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') 
-                 OR UPPER(TRIM(COALESCE(ep_d.type, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') THEN 'CAISSE' 
-               ELSE COALESCE(ep_d.banque, 'CAISSE') END as banque, 
-          COALESCE(d."dateEcheance", d.date) as "dateEcheance", 
-          d.date as "dateEncaissement", d.montant as "montantHT", NULL as "echeanceId",
-          COALESCE(d."dateEcheance", d.date) as "datePiece"
-        FROM "Depense" d
-        LEFT JOIN "Fournisseur" f ON d."fournisseurId" = f.id
-        LEFT JOIN "FactureFournisseur" inv_d ON d."factureFournisseurId" = inv_d.id
-        LEFT JOIN "Fournisseur" ff_d ON inv_d."fournisseurId" = ff_d.id
-        LEFT JOIN "EcheancePaiement" ep_d ON d."echeanceId" = ep_d.id
-        ${depenseWhere} AND d."factureFournisseurId" IS NULL AND d."bonLivraisonId" IS NULL
-        UNION ALL
-        SELECT 
-          ff.id, ff."dateEmission" as date, ff."numeroFacture" as libelle, 
-          ff.type as type, COALESCE(f_ff.nom, 'N/A') as fournisseur, ff."montantTTC" as montant, ff.statut as statut, 
-          'Facture ' || ff."numeroFacture" as source, 'FACTURE' as "sourceRaw",
-          'NON_DEFINI' as "methodePaiement", ff."numeroFacture" as "numeroPiece", 
-          'BANQUE' as banque, 
-          ff."dateEcheance" as "dateEcheance", NULL as "dateEncaissement", 
-          ff."montantHT" as "montantHT", 
-          NULL as "echeanceId", ff."dateEmission" as "datePiece"
-        FROM "FactureFournisseur" ff
-        LEFT JOIN "Fournisseur" f_ff ON ff."fournisseurId" = f_ff.id
-        ${echeanceWhere.replace(/ep\.statut/g, 'ff.statut').replace(/ep\.type/g, 'ff.type')}
-        UNION ALL
-        SELECT 
-          bl.id, bl."dateEmission" as date, bl."numeroBL" as libelle, 
-          bl.type as type, COALESCE(f_bl.nom, 'N/A') as fournisseur, bl."montantTTC" as montant, bl.statut as statut, 
-          'BL ' || bl."numeroBL" as source, 'BL' as "sourceRaw",
-          'NON_DEFINI' as "methodePaiement", bl."numeroBL" as "numeroPiece", 
-          'BANQUE' as banque, 
-          bl."dateEcheance" as "dateEcheance", NULL as "dateEncaissement", 
-          bl."montantHT" as "montantHT", 
-          NULL as "echeanceId", bl."dateEmission" as "datePiece"
-        FROM "BonLivraison" bl
-        LEFT JOIN "Fournisseur" f_bl ON bl."fournisseurId" = f_bl.id
-        ${blEcheanceWhere.replace(/ep\.statut/g, 'bl.statut').replace(/ep\.type/g, 'bl.type')}
-      `;
+      if (includeDepense) {
+        parts.push(`
+          SELECT 
+            d.id, d.date, COALESCE(d.description, d.categorie) as libelle, d.categorie as type, 
+            COALESCE(f.nom, ff_d.nom, 'N/A') as fournisseur, d.montant, 'ENCAISSE' as statut, 'DEPENSE' as source, 
+            'DEPENSE' as "sourceRaw", d."modePaiement" as "methodePaiement", d.reference as "numeroPiece", 
+            CASE WHEN UPPER(TRIM(COALESCE(d."modePaiement", ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') 
+                   OR UPPER(TRIM(COALESCE(ep_d.type, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') THEN 'CAISSE' 
+                 ELSE COALESCE(ep_d.banque, 'CAISSE') END as banque, 
+            COALESCE(d."dateEcheance", d.date) as "dateEcheance", 
+            d.date as "dateEncaissement", d.montant as "montantHT", NULL as "echeanceId",
+            COALESCE(d."dateEcheance", d.date) as "datePiece"
+          FROM "Depense" d
+          LEFT JOIN "Fournisseur" f ON d."fournisseurId" = f.id
+          LEFT JOIN "FactureFournisseur" inv_d ON d."factureFournisseurId" = inv_d.id
+          LEFT JOIN "Fournisseur" ff_d ON inv_d."fournisseurId" = ff_d.id
+          LEFT JOIN "EcheancePaiement" ep_d ON d."echeanceId" = ep_d.id
+          ${depenseWhere} AND d."factureFournisseurId" IS NULL AND d."bonLivraisonId" IS NULL
+        `);
+      }
+      if (includeFacture) {
+        parts.push(`
+          SELECT 
+            ff.id, ff."dateEmission" as date, ff."numeroFacture" as libelle, 
+            ff.type as type, COALESCE(f_ff.nom, 'N/A') as fournisseur, ff."montantTTC" as montant, ff.statut as statut, 
+            'Facture ' || ff."numeroFacture" as source, 'FACTURE' as "sourceRaw",
+            'NON_DEFINI' as "methodePaiement", ff."numeroFacture" as "numeroPiece", 
+            'BANQUE' as banque, 
+            ff."dateEcheance" as "dateEcheance", NULL as "dateEncaissement", 
+            ff."montantHT" as "montantHT", 
+            NULL as "echeanceId", ff."dateEmission" as "datePiece"
+          FROM "FactureFournisseur" ff
+          LEFT JOIN "Fournisseur" f_ff ON ff."fournisseurId" = f_ff.id
+          ${echeanceWhere.replace(/ep\.statut/g, 'ff.statut').replace(/ep\.type/g, 'ff.type')}
+        `);
+      }
+      if (includeBL) {
+        parts.push(`
+          SELECT 
+            bl.id, bl."dateEmission" as date, bl."numeroBL" as libelle, 
+            bl.type as type, COALESCE(f_bl.nom, 'N/A') as fournisseur, bl."montantTTC" as montant, bl.statut as statut, 
+            'BL ' || bl."numeroBL" as source, 'BL' as "sourceRaw",
+            'NON_DEFINI' as "methodePaiement", bl."numeroBL" as "numeroPiece", 
+            'BANQUE' as banque, 
+            bl."dateEcheance" as "dateEcheance", NULL as "dateEncaissement", 
+            bl."montantHT" as "montantHT", 
+            NULL as "echeanceId", bl."dateEmission" as "datePiece"
+          FROM "BonLivraison" bl
+          LEFT JOIN "Fournisseur" f_bl ON bl."fournisseurId" = f_bl.id
+          ${blEcheanceWhere.replace(/ep\.statut/g, 'bl.statut').replace(/ep\.type/g, 'bl.type')}
+        `);
+      }
+      query = parts.join(' UNION ALL ');
     } else {
-      query = `
-        SELECT 
-          d.id, d.date, COALESCE(d.description, d.categorie) as libelle, d.categorie as type, 
-          COALESCE(f.nom, ff_d.nom, 'N/A') as fournisseur, d.montant, 'ENCAISSE' as statut, 'DEPENSE' as source, 
-          'DEPENSE' as "sourceRaw", d."modePaiement" as "methodePaiement", d.reference as "numeroPiece", 
-          CASE WHEN UPPER(TRIM(COALESCE(d."modePaiement", ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') 
-                 OR UPPER(TRIM(COALESCE(ep_d.type, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') THEN 'CAISSE' 
-               ELSE COALESCE(ep_d.banque, 'CAISSE') END as banque, 
-          COALESCE(d."dateEcheance", d.date) as "dateEcheance", 
-          d.date as "dateEncaissement", d.montant as "montantHT", NULL as "echeanceId",
-          COALESCE(d."dateEcheance", d.date) as "datePiece"
-        FROM "Depense" d
-        LEFT JOIN "Fournisseur" f ON d."fournisseurId" = f.id
-        LEFT JOIN "FactureFournisseur" inv_d ON d."factureFournisseurId" = inv_d.id
-        LEFT JOIN "Fournisseur" ff_d ON inv_d."fournisseurId" = ff_d.id
-        LEFT JOIN "EcheancePaiement" ep_d ON d."echeanceId" = ep_d.id
-        ${depenseWhere}
-        UNION ALL
-        SELECT 
-          ff.id, ep."dateEcheance" as date, ff."numeroFacture" || ' (' || ep.type || ')' as libelle, 
-          ff.type as type, COALESCE(f_ff.nom, 'N/A') as fournisseur, ep.montant, ep.statut, 
-          'Facture ' || ff."numeroFacture" as source, 'FACTURE' as "sourceRaw",
-          ep.type as "methodePaiement", COALESCE(ep.reference, ff."numeroFacture") as "numeroPiece", 
-          CASE WHEN UPPER(TRIM(COALESCE(ep.type, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') THEN 'CAISSE' 
-               ELSE COALESCE(ep.banque, 'BANQUE') END as banque, 
-          ep."dateEcheance", ep."dateEncaissement", 
-          (ep.montant * (ff."montantHT" / NULLIF(ff."montantTTC", 0))) as "montantHT", 
-          ep.id as "echeanceId", ep."dateEcheance" as "datePiece"
-        FROM "EcheancePaiement" ep
-        INNER JOIN "FactureFournisseur" ff ON ep."factureFournisseurId" = ff.id
-        LEFT JOIN "Fournisseur" f_ff ON ff."fournisseurId" = f_ff.id
-        ${echeanceWhere}
-        AND NOT EXISTS (SELECT 1 FROM "Depense" d_idx WHERE d_idx."echeanceId" = ep.id)
-        UNION ALL
-        SELECT 
-          bl.id, ep."dateEcheance" as date, bl."numeroBL" || ' (' || ep.type || ')' as libelle, 
-          bl.type as type, COALESCE(f_bl.nom, 'N/A') as fournisseur, ep.montant, ep.statut, 
-          'BL ' || bl."numeroBL" as source, 'BL' as "sourceRaw",
-          ep.type as "methodePaiement", COALESCE(ep.reference, bl."numeroBL") as "numeroPiece", 
-          CASE WHEN UPPER(TRIM(COALESCE(ep.type, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') THEN 'CAISSE' 
-               ELSE COALESCE(ep.banque, 'BANQUE') END as banque, 
-          ep."dateEcheance", ep."dateEncaissement", 
-          (ep.montant * (bl."montantHT" / NULLIF(bl."montantTTC", 0))) as "montantHT", 
-          ep.id as "echeanceId", ep."dateEcheance" as "datePiece"
-        FROM "EcheancePaiement" ep
-        INNER JOIN "BonLivraison" bl ON ep."bonLivraisonId" = bl.id
-        LEFT JOIN "Fournisseur" f_bl ON bl."fournisseurId" = f_bl.id
-        ${blEcheanceWhere}
-        AND NOT EXISTS (SELECT 1 FROM "Depense" d_idx WHERE d_idx."echeanceId" = ep.id)
-      `;
+      if (includeDepense) {
+        parts.push(`
+          SELECT 
+            d.id, d.date, COALESCE(d.description, d.categorie) as libelle, d.categorie as type, 
+            COALESCE(f.nom, ff_d.nom, 'N/A') as fournisseur, d.montant, 'ENCAISSE' as statut, 'DEPENSE' as source, 
+            'DEPENSE' as "sourceRaw", d."modePaiement" as "methodePaiement", d.reference as "numeroPiece", 
+            CASE WHEN UPPER(TRIM(COALESCE(d."modePaiement", ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') 
+                   OR UPPER(TRIM(COALESCE(ep_d.type, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') THEN 'CAISSE' 
+                 ELSE COALESCE(ep_d.banque, 'CAISSE') END as banque, 
+            COALESCE(d."dateEcheance", d.date) as "dateEcheance", 
+            d.date as "dateEncaissement", d.montant as "montantHT", NULL as "echeanceId",
+            COALESCE(d."dateEcheance", d.date) as "datePiece"
+          FROM "Depense" d
+          LEFT JOIN "Fournisseur" f ON d."fournisseurId" = f.id
+          LEFT JOIN "FactureFournisseur" inv_d ON d."factureFournisseurId" = inv_d.id
+          LEFT JOIN "Fournisseur" ff_d ON inv_d."fournisseurId" = ff_d.id
+          LEFT JOIN "EcheancePaiement" ep_d ON d."echeanceId" = ep_d.id
+          ${depenseWhere}
+        `);
+      }
+      if (includeFacture) {
+        parts.push(`
+          SELECT 
+            ff.id, COALESCE(ep."dateEncaissement", ep."dateEcheance") as date, ff."numeroFacture" || ' (' || ep.type || ')' as libelle, 
+            ff.type as type, COALESCE(f_ff.nom, 'N/A') as fournisseur, ep.montant, ep.statut, 
+            'Facture ' || ff."numeroFacture" as source, 'FACTURE' as "sourceRaw",
+            ep.type as "methodePaiement", COALESCE(ep.reference, ff."numeroFacture") as "numeroPiece", 
+            CASE WHEN UPPER(TRIM(COALESCE(ep.type, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') THEN 'CAISSE' 
+                 ELSE COALESCE(ep.banque, 'BANQUE') END as banque, 
+            ep."dateEcheance", ep."dateEncaissement", 
+            (ep.montant * (ff."montantHT" / NULLIF(ff."montantTTC", 0))) as "montantHT", 
+            ep.id as "echeanceId", COALESCE(ep."dateEncaissement", ep."dateEcheance") as "datePiece"
+          FROM "EcheancePaiement" ep
+          INNER JOIN "FactureFournisseur" ff ON ep."factureFournisseurId" = ff.id
+          LEFT JOIN "Fournisseur" f_ff ON ff."fournisseurId" = f_ff.id
+          ${echeanceWhere}
+          AND NOT EXISTS (SELECT 1 FROM "Depense" d_idx WHERE d_idx."echeanceId" = ep.id)
+        `);
+      }
+      if (includeBL) {
+        parts.push(`
+          SELECT 
+            bl.id, COALESCE(ep."dateEncaissement", ep."dateEcheance") as date, bl."numeroBL" || ' (' || ep.type || ')' as libelle, 
+            bl.type as type, COALESCE(f_bl.nom, 'N/A') as fournisseur, ep.montant, ep.statut, 
+            'BL ' || bl."numeroBL" as source, 'BL' as "sourceRaw",
+            ep.type as "methodePaiement", COALESCE(ep.reference, bl."numeroBL") as "numeroPiece", 
+            CASE WHEN UPPER(TRIM(COALESCE(ep.type, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') THEN 'CAISSE' 
+                 ELSE COALESCE(ep.banque, 'BANQUE') END as banque, 
+            ep."dateEcheance", ep."dateEncaissement", 
+            (ep.montant * (bl."montantHT" / NULLIF(bl."montantTTC", 0))) as "montantHT", 
+            ep.id as "echeanceId", COALESCE(ep."dateEncaissement", ep."dateEcheance") as "datePiece"
+          FROM "EcheancePaiement" ep
+          INNER JOIN "BonLivraison" bl ON ep."bonLivraisonId" = bl.id
+          LEFT JOIN "Fournisseur" f_bl ON bl."fournisseurId" = f_bl.id
+          ${blEcheanceWhere}
+          AND NOT EXISTS (SELECT 1 FROM "Depense" d_idx WHERE d_idx."echeanceId" = ep.id)
+        `);
+      }
+      query = parts.join(' UNION ALL ');
     }
+
+    return { query, params: sqlParams };
 
     return { query, params: sqlParams };
   }
@@ -675,7 +750,7 @@ export class TreasuryService {
       `
         SELECT 
           COALESCE(SUM(montant), 0)::float as total,
-          COALESCE(SUM(CASE WHEN statut IN ('ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ', 'SOLDE', 'DÉCAISSÉ', 'DECAISSE') THEN montant ELSE 0 END), 0)::float as paid
+          COALESCE(SUM(CASE WHEN statut IN ('ENCAISSE', 'ENCAISSÉ', 'ENCAISSÉE', 'PAYE', 'PAYÉ', 'PAYEE', 'PAYÉE', 'VALIDE', 'VALIDÉ', 'VALIDÉE', 'SOLDE', 'SOLDÉ', 'SOLDÉE', 'DÉCAISSÉ', 'DECAISSE') THEN montant ELSE 0 END), 0)::float as paid
         FROM (${outgoingsQuery.query}) as c
       `,
       ...(outgoingsQuery.params as QueryParam[]),
@@ -765,7 +840,7 @@ export class TreasuryService {
         COALESCE(SUM("montantHT"), 0)::float as "totalHT",
         COALESCE(SUM(CASE WHEN statut IN ('EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON', 'NON_PAYEE', 'A_PAYER') THEN montant ELSE 0 END), 0)::float as "inHand",
         COALESCE(SUM(CASE WHEN statut IN ('REMIS_EN_BANQUE', 'DEPOSE', 'DÉPOSÉ') THEN montant ELSE 0 END), 0)::float as "deposited",
-        COALESCE(SUM(CASE WHEN statut IN ('ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ', 'SOLDE', 'DÉCAISSÉ', 'DECAISSE') THEN montant ELSE 0 END), 0)::float as "paid"
+        COALESCE(SUM(CASE WHEN statut IN ('ENCAISSE', 'ENCAISSÉ', 'ENCAISSÉE', 'PAYE', 'PAYÉ', 'PAYEE', 'PAYÉE', 'VALIDE', 'VALIDÉ', 'VALIDÉE', 'SOLDE', 'SOLDÉ', 'SOLDÉE', 'DÉCAISSÉ', 'DECAISSE') THEN montant ELSE 0 END), 0)::float as "paid"
       FROM (${sqlBase.query}) as c
     `;
     const statsResult = await this.prisma.$queryRawUnsafe<
@@ -854,6 +929,7 @@ export class TreasuryService {
     centreId?: string;
     clientId?: string;
     type?: string;
+    mode?: string;
     statut?: string;
     startDate?: string;
     endDate?: string;
@@ -877,11 +953,44 @@ export class TreasuryService {
       whereClause += `AND f."clientId" = $${sqlParams.length} `;
     }
     if (filters.statut && filters.statut !== 'ALL') {
-      sqlParams.push(filters.statut);
-      whereClause += `AND p.statut = $${sqlParams.length} `;
+      if (filters.statut === 'PAYE') {
+        const paidStatuses = [
+          'PAYEE',
+          'PAYÉ',
+          'PAYÉE',
+          'ENCAISSE',
+          'ENCAISSÉ',
+          'VALIDE',
+          'VALIDÉ',
+        ];
+        const inClause = paidStatuses
+          .map((_, i) => `$${sqlParams.length + i + 1}`)
+          .join(', ');
+        paidStatuses.forEach((s) => sqlParams.push(s));
+        whereClause += `AND p.statut IN (${inClause}) `;
+      } else if (filters.statut === 'EN_ATTENTE') {
+        const pendingStatuses = [
+          'EN_ATTENTE',
+          'PREVU',
+          'PRÉVU',
+          'BROUILLON',
+          'PORTEFEUILLE',
+          'EN_COURS',
+        ];
+        const inClause = pendingStatuses
+          .map((_, i) => `$${sqlParams.length + i + 1}`)
+          .join(', ');
+        pendingStatuses.forEach((s) => sqlParams.push(s));
+        whereClause += `AND p.statut IN (${inClause}) `;
+      } else {
+        sqlParams.push(filters.statut);
+        whereClause += `AND p.statut = $${sqlParams.length} `;
+      }
     }
-    if (filters.type && filters.type !== 'ALL') {
-      const types = filters.type.split(',').map((t) => t.trim());
+
+    const modeVal = filters.mode || filters.type;
+    if (modeVal && modeVal !== 'ALL') {
+      const types = modeVal.split(',').map((t) => t.trim());
       const inClause = types
         .map((_, i) => `$${sqlParams.length + i + 1}`)
         .join(', ');
@@ -1268,6 +1377,7 @@ export class TreasuryService {
           '\u2039': '\u00ef', // ‹ -> ï
           '\u0152': '\u00ee', // Œ -> î
           '\u00b7': '\u00f4', // · -> ô
+          '\u00bf': '\u00e8', // ¿ -> è (common mojibake)
         };
         return map[char] || ' ';
       })

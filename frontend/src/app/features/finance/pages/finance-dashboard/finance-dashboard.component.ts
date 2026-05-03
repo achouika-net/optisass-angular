@@ -9,6 +9,9 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatTableModule } from '@angular/material/table';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { FormsModule } from '@angular/forms';
 import { FinanceService } from '../../services/finance.service';
@@ -43,7 +46,10 @@ Chart.register(...registerables);
         MatNativeDateModule,
         MatInputModule,
         MatDialogModule,
-        MatDividerModule
+        MatDividerModule,
+        MatTableModule,
+        MatTabsModule,
+        MatProgressSpinnerModule
     ],
     templateUrl: './finance-dashboard.component.html',
     styles: [`
@@ -513,9 +519,66 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         });
     }
 
+    incomingItems: any[] = [];
+    outgoingItems: any[] = [];
+    isLoadingDialogData = false;
+    displayedColumnsIncoming = ['datePiece', 'numeroPiece', 'client', 'montant', 'methodePaiement', 'statut'];
+    displayedColumnsOutgoing = ['datePiece', 'numeroPiece', 'fournisseur', 'type', 'montant', 'methodePaiement', 'statut'];
+
     openSoldeDetailDialog() {
+        this.isLoadingDialogData = true;
+        this.incomingItems = [];
+        this.outgoingItems = [];
+
+        let startDate: string | undefined;
+        let endDate: string | undefined;
+
+        if (this.selectedMonth > 0) {
+            startDate = new Date(this.selectedYear, this.selectedMonth - 1, 1).toISOString();
+            endDate = new Date(this.selectedYear, this.selectedMonth, 0, 23, 59, 59).toISOString();
+        } else {
+            startDate = new Date(this.selectedYear, 0, 1).toISOString();
+            endDate = new Date(this.selectedYear, 11, 31, 23, 59, 59).toISOString();
+        }
+
+        const filters = {
+            startDate,
+            endDate,
+            centreId: this.currentCentre()?.id,
+            limit: 1000 // Get all for the month
+        };
+
+        forkJoin({
+            incoming: this.financeService.getConsolidatedIncomings(filters),
+            outgoing: this.financeService.getConsolidatedOutgoings(filters)
+        }).subscribe({
+            next: (res) => {
+                const cashedStatuses = [
+                    'ENCAISSE', 'DECAISSE', 'DECAISSEMENT', 'PAYE', 'PAYÉ', 'PAYEE', 
+                    'PAYÉE', 'SOLDE', 'ENCAISSÉ', 'VALIDE', 'VALIDÉ'
+                ];
+                
+                this.incomingItems = res.incoming.data.filter(i => 
+                    cashedStatuses.includes((i.statut || '').toUpperCase())
+                );
+                
+                this.outgoingItems = res.outgoing.data.filter(i => 
+                    cashedStatuses.includes((i.statut || '').toUpperCase())
+                );
+                
+                this.isLoadingDialogData = false;
+                this.cd.detectChanges();
+            },
+            error: () => {
+                this.isLoadingDialogData = false;
+                this.cd.detectChanges();
+            }
+        });
+
         this.dialog.open(this.soldeDetailDialog, {
-            width: '500px',
+            width: '98vw',
+            maxWidth: '1400px',
+            height: '90vh',
             data: { summary: this.summary }
         });
     }
@@ -552,6 +615,16 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         const diff = d.getTime() - now.getTime();
         // Alert if date is between now and X hours in the future
         return diff > 0 && diff <= hours * 60 * 60 * 1000;
+    }
+
+    getStatusClass(status: string) {
+        if (!status) return 'bg-slate-50 text-slate-700';
+        status = status.toUpperCase();
+        if (['EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON'].some(s => status.includes(s))) return 'bg-blue-50 text-blue-700 border border-blue-100';
+        if (['BANQUE', 'DEPOS'].some(s => status.includes(s))) return 'bg-amber-50 text-amber-700 border border-amber-100';
+        if (['ENCAISSE', 'PAYE', 'VALIDE', 'SOLDE', 'DECAISSE', 'DÉCAISSÉ', 'PAYÉ', 'VALIDÉ', 'ENCAISSÉ'].some(s => status.includes(s))) return 'bg-emerald-50 text-emerald-700 border border-emerald-100';
+        if (status.includes('REJET')) return 'bg-red-50 text-red-700 border border-red-100';
+        return 'bg-slate-50 text-slate-700';
     }
 }
 

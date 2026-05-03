@@ -393,23 +393,23 @@ model Fournisseur {
 }
 
 model Convention {
-  id                 String   @id @default(uuid())
-  nom                String   @unique
-  description        String?
-  contact            String?
-  email              String?
-  telephone          String?
-  adresse            String?
-  remiseType         String   // "PERCENTAGE" or "FLAT_AMOUNT"
+  id                        String   @id @default(uuid())
+  nom                       String   @unique
+  description               String?
+  contact                   String?
+  email                     String?
+  telephone                 String?
+  adresse                   String?
+  remiseType                String // "PERCENTAGE" or "FLAT_AMOUNT"
   remiseValeur              Float    @default(0)
-  montantForfaitaire        Float?   // Optional flat amount for frame + glasses
+  montantForfaitaire        Float? // Optional flat amount for frame + glasses
   remiseForfaitaire         Boolean  @default(false)
   montantForfaitaireMonture Float    @default(0)
   montantForfaitaireVerre   Float    @default(0)
   notes                     String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  clients            Client[]
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  clients                   Client[]
 }
 
 model Depense {
@@ -785,16 +785,16 @@ model PayrollConfig {
 }
 
 model CompanySettings {
-  id        String   @id @default(uuid())
-  name      String
-  logoUrl   String?
-  address   String?
-  phone     String?
-  email     String?
-  website   String?
-  ice       String?
-  rc        String?
-  identifiantFiscal String? @map("if")
+  id                String   @id @default(uuid())
+  name              String
+  logoUrl           String?
+  address           String?
+  phone             String?
+  email             String?
+  website           String?
+  ice               String?
+  rc                String?
+  identifiantFiscal String?  @map("if")
   patente           String?
   cnss              String?
   inpeCode          String?
@@ -856,22 +856,22 @@ model RewardRedemption {
 }
 
 model VirtualTryon {
-  id                String   @id @default(uuid())
-  productId         String
-  clientId          String?
-  centreId          String
-  cameraImageUrl    String
-  resultImageUrl    String
-  confidenceScore   Float    @default(0)
-  faceFrame         Json?    // Stores face landmarks, expressions, age, gender
-  productType       String   @default("GLASSES") // GLASSES, SUNGLASSES, CONTACT_LENS, FRAME, LENS
-  tryonDuration     Int      @default(0) // seconds
-  notes             String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  product           Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
-  centre            Centre   @relation(fields: [centreId], references: [id], onDelete: Restrict)
-  client            Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  id              String   @id @default(uuid())
+  productId       String
+  clientId        String?
+  centreId        String
+  cameraImageUrl  String
+  resultImageUrl  String
+  confidenceScore Float    @default(0)
+  faceFrame       Json? // Stores face landmarks, expressions, age, gender
+  productType     String   @default("GLASSES") // GLASSES, SUNGLASSES, CONTACT_LENS, FRAME, LENS
+  tryonDuration   Int      @default(0) // seconds
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  centre          Centre   @relation(fields: [centreId], references: [id], onDelete: Restrict)
+  client          Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
 
   @@index([centreId])
   @@index([clientId])

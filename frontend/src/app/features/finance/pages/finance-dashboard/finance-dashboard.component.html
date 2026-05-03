@@ -2,8 +2,8 @@
     <!-- Header -->
     <div class="dashboard-header">
         <div class="title-section">
-            <h1>Trésorerie & Plafonds</h1>
-            <p class="subtitle">Suivi des flux financiers et contrôle des plafonds</p>
+            <h1>Tresorerie & Plafonds</h1>
+            <p class="subtitle">Suivi des flux financiers et controle des plafonds</p>
         </div>
         <div class="actions-section">
             <button type="button" mat-flat-button color="primary" (click)="loadData()" [disabled]="loading">
@@ -17,7 +17,7 @@
     <div class="filter-toolbar glass">
         <div class="period-chips">
             <button type="button" mat-button class="chip-btn" [class.active]="filterType === 'ALL'"
-                (click)="setFilterType('ALL')">Toute la période</button>
+                (click)="setFilterType('ALL')">Toute la periode</button>
             <button type="button" mat-button class="chip-btn" [class.active]="filterType === 'DAILY'"
                 (click)="setFilterType('DAILY')">Aujourd'hui</button>
             <button type="button" mat-button class="chip-btn" [class.active]="filterType === 'MONTHLY'"
@@ -25,7 +25,7 @@
             <button type="button" mat-button class="chip-btn" [class.active]="filterType === 'YEARLY'"
                 (click)="setFilterType('YEARLY')">Annuel</button>
             <button type="button" mat-button class="chip-btn" [class.active]="filterType === 'CUSTOM'"
-                (click)="setFilterType('CUSTOM')">Personnalisé</button>
+                (click)="setFilterType('CUSTOM')">Personnalise</button>
         </div>
 
         <div class="filter-controls">
@@ -43,15 +43,15 @@
                 <ng-container *ngSwitchCase="'MONTHLY'">
                     <mat-form-field appearance="outline" class="density-compact month-field">
                         <mat-label>Mois</mat-label>
-                        <mat-select aria-label="Select field" [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()"
-                            title="Sélectionner le mois">
+                        <mat-select aria-label="Select month" [(ngModel)]="selectedMonth" (selectionChange)="onFilterChange()"
+                            title="Selectionner le mois">
                             <mat-option *ngFor="let m of availableMonths" [value]="m.value">{{ m.label }}</mat-option>
                         </mat-select>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="density-compact year-field">
-                        <mat-label>Année</mat-label>
-                        <mat-select aria-label="Select field" [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
-                            title="Sélectionner l'année">
+                        <mat-label>Annee</mat-label>
+                        <mat-select aria-label="Select year" [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
+                            title="Selectionner l'annee">
                             <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
                         </mat-select>
                     </mat-form-field>
@@ -59,9 +59,9 @@
 
                 <!-- Yearly -->
                 <mat-form-field appearance="outline" class="density-compact year-field" *ngSwitchCase="'YEARLY'">
-                    <mat-label>Année</mat-label>
-                    <mat-select aria-label="Select field" [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
-                        title="Sélectionner l'année">
+                    <mat-label>Annee</mat-label>
+                    <mat-select aria-label="Select year" [(ngModel)]="selectedYear" (selectionChange)="onFilterChange()"
+                        title="Selectionner l'annee">
                         <mat-option *ngFor="let y of availableYears" [value]="y">{{ y }}</mat-option>
                     </mat-select>
                 </mat-form-field>
@@ -71,7 +71,7 @@
                     <mat-form-field appearance="outline" class="density-compact">
                         <mat-label>Du</mat-label>
                         <input matInput [matDatepicker]="sPicker" [(ngModel)]="customStartDate"
-                            (dateChange)="onFilterChange()" title="Date de début" placeholder="JJ/MM/AAAA">
+                            (dateChange)="onFilterChange()" title="Date de debut" placeholder="JJ/MM/AAAA">
                         <mat-datepicker-toggle matSuffix [for]="sPicker"></mat-datepicker-toggle>
                         <mat-datepicker #sPicker></mat-datepicker>
                     </mat-form-field>
@@ -87,7 +87,7 @@
         </div>
     </div>
 
-    <div *ngIf="loading" class="text-center p-10">Chargement des données...</div>
+    <div *ngIf="loading" class="text-center p-10">Chargement des donnees...</div>
 
     <div *ngIf="summary && !loading">
         <div class="kpi-grid">
@@ -96,12 +96,12 @@
                 <div class="metric-label flex items-center justify-center gap-1">
                     Recettes (Cash+Banque+En coffre)
                     <mat-icon class="!text-xs text-gray-400"
-                        matTooltip="Total de tous les paiements enregistrés ce mois (Espèces + Carte + Chèques en coffre).">help_outline</mat-icon>
+                        matTooltip="Total de tous les paiements enregistres ce mois (Especes + Carte + Cheques en coffre).">help_outline</mat-icon>
                 </div>
                 <div class="metric-value text-green-600">{{ summary.totalIncoming | number:'1.2-2' }} DH</div>
                 <div class="flex flex-col gap-1 text-sm text-gray-500 font-medium">
                     <div class="flex justify-between px-4">
-                        <span>Espèces:</span>
+                        <span>Especes:</span>
                         <span class="text-green-700">{{ summary.incomingCash | number:'1.2-2' }} DH</span>
                     </div>
                     <div class="flex justify-between px-4">
@@ -111,7 +111,7 @@
                         </span>
                     </div>
                     <div class="flex justify-between px-4 pt-1 border-t border-gray-100 mt-1">
-                        <span>En coffre (Chèques/LCN):</span>
+                        <span>En coffre (Cheques/LCN):</span>
                         <span class="text-orange-600">
                             {{ summary.totalIncomingPending | number:'1.2-2' }} DH
                         </span>
@@ -119,16 +119,16 @@
                 </div>
             </mat-card>
 
-            <!-- Dépenses -->
+            <!-- Depenses -->
             <mat-card class="kpi-card border-l-4 border-orange-500 clickable-card" (click)="goToPayments('OUTGOING', 'EMISSION')">
                 <div class="metric-label flex items-center justify-center gap-1">
-                    Dépenses du Mois
+                    Depenses du Mois
                     <mat-icon class="!text-xs text-gray-400"
-                        matTooltip="Total des nouvelles factures, BL et dépenses créés ce mois-ci.">help_outline</mat-icon>
+                        matTooltip="Total des nouvelles factures, BL et depenses crees ce mois-ci.">help_outline</mat-icon>
                 </div>
                 <div class="metric-value text-orange-600">{{ summary.totalExpenses | number:'1.2-2' }} DH</div>
                 <div class="text-sm text-gray-400 italic text-center mt-2">
-                    Engagements créés ce mois
+                    Engagements crees ce mois
                 </div>
             </mat-card>
 
@@ -136,24 +136,24 @@
             <mat-card class="kpi-card border-l-4 clickable-card" (click)="openSoldeDetailDialog()"
                 [ngClass]="summary.balanceReal >= 0 ? 'border-blue-500' : 'border-red-500'">
                 <div class="metric-label flex items-center justify-center gap-1">
-                    Solde Réel (Espèces + Cartes)
+                    Solde Reel (Especes + Cartes)
                     <mat-icon class="!text-xs text-gray-400"
-                        matTooltip="Liquidité totale déjà encaissée (Espèces + Cartes Bancaires) moins les dépenses déjà réglées.">help_outline</mat-icon>
+                        matTooltip="Liquidite totale deja encaissee (Especes + Cartes Bancaires) moins les depenses deja reglees.">help_outline</mat-icon>
                 </div>
                 <div class="metric-value" [ngClass]="summary.balanceReal >= 0 ? 'text-blue-600' : 'text-red-600'">
                     {{ summary.balanceReal | number:'1.2-2' }} DH
                 </div>
                 <div class="text-sm text-gray-500">
-                    Projeté (fin de mois): <span class="font-bold">{{ summary.balance | number:'1.2-2' }} DH</span>
+                    Projete (fin de mois): <span class="font-bold">{{ summary.balance | number:'1.2-2' }} DH</span>
                 </div>
             </mat-card>
 
             <!-- Plafond -->
             <mat-card class="kpi-card border-l-4 border-purple-500 clickable-card" (click)="goToPayments('OUTGOING', 'ECHEANCE')">
                 <div class="metric-label flex items-center justify-center gap-1">
-                    Contrôle Plafond Dépenses
+                    Controle Plafond Depenses
                     <mat-icon class="!text-xs text-gray-400"
-                        matTooltip="Volume total des paiements prévus ce mois (déjà réglés + à venir), quel que soit la date de la facture originale.">help_outline</mat-icon>
+                        matTooltip="Volume total des paiements prevus ce mois (deja regles + a venir), quel que soit la date de la facture originale.">help_outline</mat-icon>
                 </div>
                 <div class="metric-value" [ngClass]="percentageUsed > 100 ? 'text-red-500' : 'text-purple-600'">
                     {{ (summary.totalScheduledVolume ?? summary.totalScheduled) | number:'1.2-2' }} DH
@@ -163,7 +163,7 @@
                         <span>{{ percentageUsed.toFixed(1) }}% du plafond</span>
                         <div class="flex items-center gap-1">
                             <span *ngIf="!editingThreshold">Max: {{ monthlyThreshold | number }} DH</span>
-                            <input aria-label="Input" title="Input" *ngIf="editingThreshold" type="number" [(ngModel)]="newThreshold"
+                            <input aria-label="New threshold" title="New threshold" *ngIf="editingThreshold" type="number" [(ngModel)]="newThreshold"
                                 class="w-16 border rounded px-1 text-xs" (keyup.enter)="saveThreshold()">
                             <button type="button" mat-icon-button class="!w-4 !h-4"
                                 (click)="editingThreshold ? saveThreshold() : toggleEditThreshold()">
@@ -176,11 +176,11 @@
                     
                     <div class="flex flex-col gap-1 text-sm text-gray-500 font-medium border-t pt-3">
                         <div class="flex justify-between">
-                            <span>Réglé:</span>
+                            <span>Regle:</span>
                             <span class="text-green-700">{{ summary.totalExpensesCashed | number:'1.2-2' }} DH</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>À débiter (Chèques/LCN):</span>
+                            <span>A debiter (Cheques/LCN):</span>
                             <span class="text-purple-600">{{ summary.totalOutgoingPending | number:'1.2-2' }} DH</span>
                         </div>
                     </div>
@@ -188,14 +188,12 @@
             </mat-card>
         </div>
 
-        <!-- Bank Summary Removed -->
-
         <!-- Alerts Section -->
         <div class="alert-card"
             *ngIf="summary?.alerts && (summary.alerts.client?.length || summary.alerts.supplier?.length)">
             <div class="flex items-center gap-2 mb-4">
                 <mat-icon class="text-red-500">warning</mat-icon>
-                <h2 class="text-lg font-bold text-red-700 m-0">Alertes de Trésorerie (Chèques/LCN à encaisser)</h2>
+                <h2 class="text-lg font-bold text-red-700 m-0">Alertes de Tresorerie (Cheques/LCN a encaisser)</h2>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -207,7 +205,7 @@
                     <div class="alert-item" *ngFor="let alert of summary.alerts.client">
                         <div class="flex flex-col">
                             <span class="font-bold text-sm text-gray-800">{{ alert.client }}</span>
-                            <span class="text-xs text-gray-500">Réf: {{ alert.numeroFacture }} - {{ alert.reference
+                            <span class="text-xs text-gray-500">Ref: {{ alert.numeroFacture }} - {{ alert.reference
                                 }}</span>
                         </div>
                         <div class="flex flex-col items-end">
@@ -220,7 +218,7 @@
                 <!-- Supplier Alerts -->
                 <div *ngIf="summary.alerts.supplier?.length">
                     <h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-1">
-                        <mat-icon class="text-xs">store</mat-icon> À Débiter Fournisseurs (48h)
+                        <mat-icon class="text-xs">store</mat-icon> A Debiter Fournisseurs (48h)
                     </h3>
                     <div class="alert-item" *ngFor="let alert of summary.alerts.supplier">
                         <div class="flex flex-col">
@@ -238,21 +236,21 @@
 
 
         <div class="charts-grid">
-            <!-- Dépenses par Catégorie -->
+            <!-- Depenses par Categorie -->
             <mat-card class="chart-card">
                 <mat-card-header class="!px-6 !pt-6">
                     <mat-card-title class="!text-xl !font-bold flex items-center gap-2">
                         <mat-icon class="text-indigo-500">pie_chart</mat-icon>
-                        Répartition des Dépenses
+                        Repartition des Depenses
                     </mat-card-title>
                 </mat-card-header>
                 <mat-card-content class="!p-6">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8" *ngIf="(summary?.stockCategories?.length || summary?.expenseCategories?.length); else noData">
-                        <!-- Section: Coût d'achat -->
+                        <!-- Section: Cout d'achat -->
                         <div class="p-4 rounded-2xl bg-red-50/50 border border-red-100">
                             <h3 class="text-sm font-bold text-red-600 uppercase tracking-wider mb-4 flex items-center gap-2">
                                 <mat-icon class="text-base">inventory_2</mat-icon>
-                                Coût d'achat (Stock)
+                                Cout d'achat (Stock)
                             </h3>
                             <div *ngIf="summary?.stockCategories?.length; else noStock" class="space-y-4">
                                 <div *ngFor="let cat of summary?.stockCategories; let i = index" class="w-full">
@@ -272,16 +270,16 @@
                             <ng-template #noStock>
                                 <div class="flex flex-col items-center py-8 text-gray-400">
                                     <mat-icon class="mb-2 opacity-20 scale-125">inventory</mat-icon>
-                                    <p class="text-xs italic">Aucun achat de stock détecté</p>
+                                    <p class="text-xs italic">Aucun achat de stock detecte</p>
                                 </div>
                             </ng-template>
                         </div>
 
-                        <!-- Section: Détail dépenses -->
+                        <!-- Section: Detail depenses -->
                         <div class="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100">
                             <h3 class="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-4 flex items-center gap-2">
                                 <mat-icon class="text-base">receipt_long</mat-icon>
-                                Détail des dépenses
+                                Detail des depenses
                             </h3>
                             <div *ngIf="summary?.expenseCategories?.length; else noExpenses" class="space-y-4">
                                 <div *ngFor="let cat of summary?.expenseCategories; let i = index" class="w-full">
@@ -301,7 +299,7 @@
                             <ng-template #noExpenses>
                                 <div class="flex flex-col items-center py-8 text-gray-400">
                                     <mat-icon class="mb-2 opacity-20 scale-125">receipt</mat-icon>
-                                    <p class="text-xs italic">Aucune dépense opérationnelle détectée</p>
+                                    <p class="text-xs italic">Aucune depense operationnelle detectee</p>
                                 </div>
                             </ng-template>
                         </div>
@@ -309,18 +307,18 @@
                     <ng-template #noData>
                         <div class="flex flex-col items-center justify-center h-[300px] text-gray-400">
                             <mat-icon class="text-[48px] w-[48px] h-[48px]">pie_chart_outline</mat-icon>
-                            <p class="mt-2 text-sm italic">Aucune dépense pour cette période</p>
+                            <p class="mt-2 text-sm italic">Aucune depense pour cette periode</p>
                         </div>
                     </ng-template>
                 </mat-card-content>
             </mat-card>
 
-            <!-- Santé Financière (Annuel) -->
+            <!-- Sante Financiere (Annuel) -->
             <mat-card class="chart-card">
                 <mat-card-header class="!px-6 !pt-6 pb-4">
                     <mat-card-title class="!text-xl !font-bold flex items-center gap-2">
                         <mat-icon class="text-green-600">bar_chart</mat-icon>
-                        Santé Financière ({{ currentYear }})
+                        Sante Financiere ({{ currentYear }})
                     </mat-card-title>
                 </mat-card-header>
                 <mat-card-content class="!p-6">
@@ -334,56 +332,232 @@
 </div>
 
 <ng-template #soldeDetailDialog let-data>
-    <h2 mat-dialog-title class="!text-xl !font-bold text-gray-800 border-b pb-4">
-        Détail du Solde Réel
-    </h2>
-    <mat-dialog-content class="!pt-6 !pb-6">
-        <div class="flex flex-col gap-4">
-            <div class="flex justify-between items-center p-4 bg-green-50 border border-green-100 rounded-xl">
-                <div class="flex items-center gap-3">
-                    <div class="p-2 bg-green-100 rounded-lg text-green-600">
-                        <mat-icon class="!text-xl">arrow_downward</mat-icon>
+    <div class="dialog-container flex flex-col h-full bg-slate-50">
+        <h2 mat-dialog-title class="!text-2xl !font-bold text-gray-800 border-b bg-white pb-4 px-6 flex justify-between items-center shadow-sm">
+            <div class="flex items-center gap-3">
+                <mat-icon class="text-blue-600 scale-125">account_balance_wallet</mat-icon>
+                <span>Journal de Caisse & Detail du Solde ({{ getMonthName(selectedMonth) }} {{ selectedYear }})</span>
+            </div>
+            <button mat-icon-button mat-dialog-close aria-label="Close dialog" class="hover:bg-red-50 hover:text-red-600 transition-colors">
+                <mat-icon>close</mat-icon>
+            </button>
+        </h2>
+        
+        <mat-dialog-content class="!p-6 flex-grow overflow-auto">
+            <!-- Summary Header - Premium Style -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="p-6 bg-white border-l-4 border-emerald-500 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                    <div class="text-xs text-gray-500 font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+                        <mat-icon class="text-emerald-500 text-sm">trending_up</mat-icon>
+                        Recettes (Encaissees)
                     </div>
-                    <div>
-                        <div class="text-sm text-green-800 font-semibold">Total Recettes Encaissées</div>
-                        <div class="text-xs text-green-600 mt-1">Espèces + Cartes (Entrants)</div>
-                    </div>
+                    <div class="text-2xl font-black text-emerald-600">+ {{ data.summary.totalIncomingCashed | number:'1.2-2' }} DH</div>
                 </div>
-                <div class="text-lg font-bold text-green-700">
-                    + {{ data.summary.totalIncomingCashed | number:'1.2-2' }} DH
+                <div class="p-6 bg-white border-l-4 border-rose-500 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                    <div class="text-xs text-gray-500 font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+                        <mat-icon class="text-rose-500 text-sm">trending_down</mat-icon>
+                        Depenses (Reglees)
+                    </div>
+                    <div class="text-2xl font-black text-rose-600">- {{ data.summary.totalExpensesCashed | number:'1.2-2' }} DH</div>
+                </div>
+                <div class="p-6 rounded-xl shadow-lg border border-white/20 transform transition-transform hover:scale-[1.02]" 
+                     [ngClass]="data.summary.balanceReal >= 0 ? 'bg-gradient-to-br from-blue-600 to-indigo-700' : 'bg-gradient-to-br from-red-600 to-rose-700'">
+                    <div class="text-xs text-white/80 font-bold uppercase tracking-widest mb-2">Solde Reel Final</div>
+                    <div class="text-2xl font-black text-white">{{ data.summary.balanceReal | number:'1.2-2' }} DH</div>
                 </div>
             </div>
 
-            <div class="flex justify-between items-center p-4 bg-red-50 border border-red-100 rounded-xl">
-                <div class="flex items-center gap-3">
-                    <div class="p-2 bg-red-100 rounded-lg text-red-600">
-                        <mat-icon class="!text-xl">arrow_upward</mat-icon>
-                    </div>
-                    <div>
-                        <div class="text-sm text-red-800 font-semibold">Total Dépenses Réglées</div>
-                        <div class="text-xs text-red-600 mt-1">Espèces + Cartes (Sortants)</div>
-                    </div>
-                </div>
-                <div class="text-lg font-bold text-red-700">
-                    - {{ data.summary.totalExpensesCashed | number:'1.2-2' }} DH
-                </div>
-            </div>
+            <!-- Detailed Tabs -->
+            <mat-tab-group class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+                <mat-tab label="Journal des Recettes (Flux Entrants)">
+                    <ng-template matTabContent>
+                        <div class="p-0 overflow-x-auto">
+                            <div *ngIf="isLoadingDialogData" class="flex justify-center p-12">
+                                <mat-spinner diameter="50"></mat-spinner>
+                            </div>
+                            
+                            <table mat-table [dataSource]="incomingItems" class="w-full" *ngIf="!isLoadingDialogData && incomingItems.length > 0">
+                                <ng-container matColumnDef="datePiece">
+                                    <th mat-header-cell *matHeaderCellDef class="!font-bold bg-slate-50 text-slate-600 uppercase text-xs">Date</th>
+                                    <td mat-cell *matCellDef="let item" class="py-4">
+                                        <div class="flex flex-col">
+                                            <span class="font-medium text-slate-700">{{ (item.datePiece || item.date) | date:'dd/MM/yyyy' }}</span>
+                                            <span class="text-[10px] text-slate-400">{{ (item.datePiece || item.date) | date:'HH:mm' }}</span>
+                                        </div>
+                                    </td>
+                                </ng-container>
 
-            <mat-divider class="!my-2"></mat-divider>
+                                <ng-container matColumnDef="numeroPiece">
+                                    <th mat-header-cell *matHeaderCellDef class="!font-bold bg-slate-50 text-slate-600 uppercase text-xs">Ref / Facture</th>
+                                    <td mat-cell *matCellDef="let item">
+                                        <span class="px-2 py-1 bg-slate-100 rounded text-xs font-mono font-bold text-slate-600 border border-slate-200">
+                                            {{ item.numeroPiece || item.libelle || 'REF-' + item.id.substring(0,6) }}
+                                        </span>
+                                    </td>
+                                </ng-container>
 
-            <div class="flex justify-between items-center p-5 rounded-xl shadow-sm"
-                 [ngClass]="data.summary.balanceReal >= 0 ? 'bg-blue-600' : 'bg-red-600'">
-                <div class="text-white">
-                    <div class="text-lg font-bold">Solde Réel Final</div>
-                    <div class="text-sm opacity-90 mt-1">Recettes - Dépenses</div>
-                </div>
-                <div class="text-2xl font-black text-white">
-                    {{ data.summary.balanceReal | number:'1.2-2' }} DH
-                </div>
-            </div>
-        </div>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end" class="!px-6 !pb-6 border-t pt-4">
-        <button mat-flat-button mat-dialog-close color="primary" class="!rounded-lg !px-8">Fermer</button>
-    </mat-dialog-actions>
+                                <ng-container matColumnDef="client">
+                                    <th mat-header-cell *matHeaderCellDef class="!font-bold bg-slate-50 text-slate-600 uppercase text-xs">Client / Source</th>
+                                    <td mat-cell *matCellDef="let item">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
+                                                {{ (item.client || item.libelle).substring(0,1) }}
+                                            </div>
+                                            <span class="font-semibold text-slate-700">{{ item.client || item.libelle }}</span>
+                                        </div>
+                                    </td>
+                                </ng-container>
+
+                                <ng-container matColumnDef="montant">
+                                    <th mat-header-cell *matHeaderCellDef class="!font-bold bg-slate-50 text-slate-600 uppercase text-xs text-right">Montant</th>
+                                    <td mat-cell *matCellDef="let item" class="text-right">
+                                        <div class="font-bold text-emerald-600">{{ item.montant | number:'1.2-2' }} DH</div>
+                                    </td>
+                                </ng-container>
+
+                                <ng-container matColumnDef="methodePaiement">
+                                    <th mat-header-cell *matHeaderCellDef class="!font-bold bg-slate-50 text-slate-600 uppercase text-xs">Mode</th>
+                                    <td mat-cell *matCellDef="let item">
+                                        <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded border" 
+                                              [ngClass]="{
+                                                'bg-emerald-50 text-emerald-600 border-emerald-100': ['ESPECES', 'LIQUIDE', 'CASH'].includes(item.methodePaiement?.toUpperCase()),
+                                                'bg-indigo-50 text-indigo-600 border-indigo-100': ['CHEQUE', 'LCN'].includes(item.methodePaiement?.toUpperCase()),
+                                                'bg-amber-50 text-amber-600 border-amber-100': ['VIREMENT', 'CARTE', 'CB'].includes(item.methodePaiement?.toUpperCase()),
+                                                'bg-slate-50 text-slate-600 border-slate-100': !item.methodePaiement
+                                              }">
+                                            {{ item.methodePaiement || 'AUTRE' }}
+                                        </span>
+                                    </td>
+                                </ng-container>
+
+                                <ng-container matColumnDef="statut">
+                                    <th mat-header-cell *matHeaderCellDef class="!font-bold bg-slate-50 text-slate-600 uppercase text-xs">Statut</th>
+                                    <td mat-cell *matCellDef="let item">
+                                        <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase shadow-sm" [ngClass]="getStatusClass(item.statut)">
+                                            {{ item.statut }}
+                                        </span>
+                                    </td>
+                                </ng-container>
+
+                                <tr mat-header-row *matHeaderRowDef="displayedColumnsIncoming"></tr>
+                                <tr mat-row *matRowDef="let row; columns: displayedColumnsIncoming;" class="hover:bg-slate-50 transition-colors border-b last:border-0"></tr>
+                            </table>
+
+                            <div *ngIf="!isLoadingDialogData && incomingItems.length === 0" class="p-20 text-center text-gray-400">
+                                <mat-icon class="scale-[2] mb-6 opacity-20">receipt</mat-icon>
+                                <p class="text-lg italic font-medium">Aucune recette encaissee sur cette periode</p>
+                            </div>
+                        </div>
+                    </ng-template>
+                </mat-tab>
+
+                <mat-tab label="Journal des Depenses (Flux Sortants)">
+                    <ng-template matTabContent>
+                        <div class="p-0 overflow-x-auto">
+                            <div *ngIf="isLoadingDialogData" class="flex justify-center p-12">
+                                <mat-spinner diameter="50"></mat-spinner>
+                            </div>
+                            
+                            <table mat-table [dataSource]="outgoingItems" class="w-full" *ngIf="!isLoadingDialogData && outgoingItems.length > 0">
+                                <ng-container matColumnDef="datePiece">
+                                    <th mat-header-cell *matHeaderCellDef class="!font-bold bg-slate-50 text-slate-600 uppercase text-xs">Date</th>
+                                    <td mat-cell *matCellDef="let item" class="py-4">
+                                        <div class="flex flex-col">
+                                            <span class="font-medium text-slate-700">{{ (item.datePiece || item.date) | date:'dd/MM/yyyy' }}</span>
+                                            <span class="text-[10px] text-slate-400">{{ (item.datePiece || item.date) | date:'HH:mm' }}</span>
+                                        </div>
+                                    </td>
+                                </ng-container>
+
+                                <ng-container matColumnDef="numeroPiece">
+                                    <th mat-header-cell *matHeaderCellDef class="!font-bold bg-slate-50 text-slate-600 uppercase text-xs">Ref / Facture</th>
+                                    <td mat-cell *matCellDef="let item">
+                                        <span class="px-2 py-1 bg-slate-100 rounded text-xs font-mono font-bold text-slate-600 border border-slate-200">
+                                            {{ item.numeroPiece || item.reference || 'REF-' + item.id.substring(0,6) }}
+                                        </span>
+                                    </td>
+                                </ng-container>
+
+                                <ng-container matColumnDef="fournisseur">
+                                    <th mat-header-cell *matHeaderCellDef class="!font-bold bg-slate-50 text-slate-600 uppercase text-xs">Fournisseur / Libelle</th>
+                                    <td mat-cell *matCellDef="let item">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-9 h-9 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-sm border border-slate-200 shadow-sm">
+                                                {{ (item.fournisseur || item.libelle).substring(0,1) }}
+                                            </div>
+                                            <div class="flex flex-col">
+                                                <span class="font-bold text-slate-700 leading-none mb-1">{{ item.fournisseur || item.libelle }}</span>
+                                                <span class="text-[10px] text-slate-400 font-medium uppercase tracking-tighter">{{ item.source }}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </ng-container>
+
+                                <ng-container matColumnDef="type">
+                                    <th mat-header-cell *matHeaderCellDef class="!font-bold bg-slate-50 text-slate-600 uppercase text-xs">Categorie / Nature</th>
+                                    <td mat-cell *matCellDef="let item">
+                                        <div class="flex flex-col py-2">
+                                            <span class="text-sm font-bold text-slate-800 mb-0.5">
+                                                {{ (item.type && !item.type.includes('DIVERS') ? item.type.replace('_', ' ') : (item.libelle || 'AUTRE')) }}
+                                            </span>
+                                            <span *ngIf="item.libelle && item.type && item.libelle !== item.type && item.libelle !== item.numeroPiece" 
+                                                  class="text-[11px] text-blue-500 font-medium italic">
+                                                {{ item.libelle }}
+                                            </span>
+                                        </div>
+                                    </td>
+                                </ng-container>
+
+                                <ng-container matColumnDef="montant">
+                                    <th mat-header-cell *matHeaderCellDef class="!font-bold bg-slate-50 text-slate-600 uppercase text-xs text-right">Montant</th>
+                                    <td mat-cell *matCellDef="let item" class="text-right">
+                                        <div class="font-bold text-rose-600">{{ item.montant | number:'1.2-2' }} DH</div>
+                                    </td>
+                                </ng-container>
+
+                                <ng-container matColumnDef="methodePaiement">
+                                    <th mat-header-cell *matHeaderCellDef class="!font-bold bg-slate-50 text-slate-600 uppercase text-xs">Mode</th>
+                                    <td mat-cell *matCellDef="let item">
+                                        <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded border" 
+                                              [ngClass]="{
+                                                'bg-emerald-50 text-emerald-600 border-emerald-100': ['ESPECES', 'LIQUIDE', 'CASH'].includes(item.methodePaiement?.toUpperCase()),
+                                                'bg-indigo-50 text-indigo-600 border-indigo-100': ['CHEQUE', 'LCN'].includes(item.methodePaiement?.toUpperCase()),
+                                                'bg-amber-50 text-amber-600 border-amber-100': ['VIREMENT', 'CARTE', 'CB'].includes(item.methodePaiement?.toUpperCase()),
+                                                'bg-slate-50 text-slate-600 border-slate-100': !item.methodePaiement
+                                              }">
+                                            {{ item.methodePaiement || 'AUTRE' }}
+                                        </span>
+                                    </td>
+                                </ng-container>
+
+                                <ng-container matColumnDef="statut">
+                                    <th mat-header-cell *matHeaderCellDef class="!font-bold bg-slate-50 text-slate-600 uppercase text-xs">Statut</th>
+                                    <td mat-cell *matCellDef="let item">
+                                        <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase shadow-sm" [ngClass]="getStatusClass(item.statut)">
+                                            {{ item.statut }}
+                                        </span>
+                                    </td>
+                                </ng-container>
+
+                                <tr mat-header-row *matHeaderRowDef="displayedColumnsOutgoing"></tr>
+                                <tr mat-row *matRowDef="let row; columns: displayedColumnsOutgoing;" class="hover:bg-slate-50 transition-colors border-b last:border-0"></tr>
+                            </table>
+
+                            <div *ngIf="!isLoadingDialogData && outgoingItems.length === 0" class="p-20 text-center text-gray-400">
+                                <mat-icon class="scale-[2] mb-6 opacity-20">payments</mat-icon>
+                                <p class="text-lg italic font-medium">Aucune depense reglee sur cette periode</p>
+                            </div>
+                        </div>
+                    </ng-template>
+                </mat-tab>
+            </mat-tab-group>
+        </mat-dialog-content>
+        
+        <mat-dialog-actions align="end" class="!px-6 !py-4 bg-white border-t">
+            <button mat-button mat-dialog-close class="!rounded-xl !px-6 !py-2 !font-bold text-slate-500 hover:bg-slate-100">Fermer</button>
+            <button mat-flat-button color="primary" (click)="loadData()" class="!rounded-xl !px-8 !py-2 !font-bold shadow-blue-200 shadow-lg">
+                <mat-icon class="mr-2">refresh</mat-icon> Actualiser les donnees
+            </button>
+        </mat-dialog-actions>
+    </div>
 </ng-template>
