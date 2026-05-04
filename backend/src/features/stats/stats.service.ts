@@ -560,10 +560,21 @@ export class StatsService {
       else if (type === 'produit') fichesStats.produit += count;
     });
 
-    const productsStats: any = {};
+    const normalizeProductType = (rawType: string): string => {
+      const t = rawType.toUpperCase();
+      if (t.includes('MONTURE_OPTIQUE') || t === 'MON') return 'MON';
+      if (t.includes('MONTURE_SOLAIRE') || t === 'SOL') return 'SOL';
+      if (t.includes('LENTILLE') || t === 'LEN') return 'LEN';
+      if (t.includes('ACCESSOIRE') || t === 'ACC') return 'ACC';
+      if (t.includes('VERRE') || t === 'V') return 'V';
+      return rawType;
+    };
+
+    const productsStats: Record<string, number> = {};
     productsBreakdown.forEach((group: any) => {
-      const type = group.typeArticle || 'NON_DÉFINI';
-      productsStats[type] = group._count?._all || 0;
+      const rawType = group.typeArticle || 'NON_DÉFINI';
+      const type = normalizeProductType(rawType);
+      productsStats[type] = (productsStats[type] || 0) + (group._count?._all || 0);
     });
 
     return {
