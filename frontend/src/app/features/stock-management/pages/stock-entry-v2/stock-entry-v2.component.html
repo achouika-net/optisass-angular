@@ -511,15 +511,15 @@
                     <div class="bg-white rounded-lg shadow border border-gray-200">
                         <table mat-table [dataSource]="productsSubject" class="w-full">
                             <ng-container matColumnDef="reference">
-                                <th mat-header-cell *matHeaderCellDef> Référence </th>
-                                <td mat-cell *matCellDef="let element">
+                                <th mat-header-cell *matHeaderCellDef class="w-36 px-2"> Référence </th>
+                                <td mat-cell *matCellDef="let element" class="px-2">
                                     <div class="flex flex-col gap-1">
                                         <input aria-label="Input" title="Input" [(ngModel)]="element.reference" (input)="onDescriptionChange(element)"
-                                            class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-blue-900 font-bold">
+                                            class="w-full min-w-[120px] bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded p-0 text-sm text-blue-900 font-bold truncate">
 
                                         <!-- STOCK STATUS BADGE -->
                                         <div *ngIf="element.existingStock !== undefined">
-                                            <span class="badge" [ngClass]="getStockStatus(element.existingStock).class">
+                                            <span class="badge text-[10px] px-1 py-0" [ngClass]="getStockStatus(element.existingStock).class">
                                                 {{ getStockStatus(element.existingStock).label }} ({{
                                                 element.existingStock }})
                                             </span>
@@ -529,43 +529,43 @@
                             </ng-container>
 
                             <ng-container matColumnDef="marque">
-                                <th mat-header-cell *matHeaderCellDef> Marque </th>
-                                <td mat-cell *matCellDef="let element">
+                                <th mat-header-cell *matHeaderCellDef class="w-40 px-2"> Marque </th>
+                                <td mat-cell *matCellDef="let element" class="px-2">
                                     <input aria-label="Input" title="Input" [(ngModel)]="element.marque" (input)="updateProduct(element)"
-                                        class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 uppercase font-bold text-slate-500">
+                                        class="w-full min-w-[120px] bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded p-0 text-xs uppercase font-bold text-slate-500 truncate">
                                 </td>
                             </ng-container>
 
                             <ng-container matColumnDef="codeBarre">
-                                <th mat-header-cell *matHeaderCellDef> Code </th>
-                                <td mat-cell *matCellDef="let element">
+                                <th mat-header-cell *matHeaderCellDef class="w-28 px-2"> Code </th>
+                                <td mat-cell *matCellDef="let element" class="px-2">
                                     <input aria-label="Input" title="Input" [(ngModel)]="element.codeBarre" (input)="updateProduct(element)"
-                                        class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs font-mono text-gray-600">
+                                        class="w-full min-w-[90px] bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded p-0 text-xs font-mono text-gray-600 truncate">
                                 </td>
                             </ng-container>
 
                             <ng-container matColumnDef="nom">
-                                <th mat-header-cell *matHeaderCellDef> Désignation & Caractéristiques </th>
-                                <td mat-cell *matCellDef="let element">
-                                    <div class="flex flex-col py-2">
+                                <th mat-header-cell *matHeaderCellDef class="px-2 w-64"> Désignation & Caractéristiques </th>
+                                <td mat-cell *matCellDef="let element" class="px-2">
+                                    <div class="flex flex-col py-1">
                                         <!-- Main Row: Designation -->
                                         <input [(ngModel)]="element.nom" (input)="onDescriptionChange(element)"
-                                            class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 font-medium text-gray-800"
+                                            class="w-full max-w-[250px] bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded p-0 font-medium text-gray-800 text-sm truncate"
                                             placeholder="Désignation du produit">
 
                                         <!-- Sub-Row: Smart Characteristics -->
-                                        <div class="flex flex-wrap items-center gap-2 mt-1 px-1">
+                                        <div class="flex flex-wrap items-center gap-1 mt-1">
                                             <!-- Color Badge -->
                                             <div *ngIf="element.couleur"
-                                                class="flex items-center gap-1 bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-bold border border-slate-200">
-                                                <mat-icon class="text-[12px] h-3 w-3">palette</mat-icon>
+                                                class="flex items-center gap-0.5 bg-slate-100 text-slate-600 px-1 py-0 rounded text-[9px] font-bold border border-slate-200">
+                                                <mat-icon class="text-[10px] h-2.5 w-2.5 leading-none">palette</mat-icon>
                                                 {{element.couleur}}
                                             </div>
 
                                             <!-- Size Badge (Calibre/Pont) -->
                                             <div *ngIf="element.calibre || element.pont"
-                                                class="flex items-center gap-1 bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-blue-100">
-                                                <mat-icon class="text-[12px] h-3 w-3">straighten</mat-icon>
+                                                class="flex items-center gap-0.5 bg-blue-50 text-blue-700 px-1 py-0 rounded text-[9px] font-bold border border-blue-100">
+                                                <mat-icon class="text-[10px] h-2.5 w-2.5 leading-none">straighten</mat-icon>
                                                 <span *ngIf="element.calibre">{{element.calibre}}</span>
                                                 <span *ngIf="element.calibre && element.pont"
                                                     class="ops-sep text-blue-300">□</span>
@@ -574,41 +574,41 @@
 
                                             <!-- Material Badge -->
                                             <div *ngIf="element.materiau"
-                                                class="flex items-center gap-1 bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-orange-100 uppercase">
-                                                <mat-icon class="text-[12px] h-3 w-3">category</mat-icon>
+                                                class="flex items-center gap-0.5 bg-orange-50 text-orange-700 px-1 py-0 rounded text-[9px] font-bold border border-orange-100 uppercase">
+                                                <mat-icon class="text-[10px] h-2.5 w-2.5 leading-none">category</mat-icon>
                                                 {{element.materiau}}
                                             </div>
 
                                             <!-- Shape/Gender Badge -->
                                             <div *ngIf="element.forme || element.genre"
-                                                class="flex items-center gap-1 bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-purple-100 uppercase">
-                                                <mat-icon class="text-[12px] h-3 w-3">auto_awesome</mat-icon>
+                                                class="flex items-center gap-0.5 bg-purple-50 text-purple-700 px-1 py-0 rounded text-[9px] font-bold border border-purple-100 uppercase">
+                                                <mat-icon class="text-[10px] h-2.5 w-2.5 leading-none">auto_awesome</mat-icon>
                                                 {{element.forme}} {{element.genre ? '('+element.genre+')' : ''}}
                                             </div>
 
                                             <!-- Manual Inputs for Quick Edit -->
                                             <div
-                                                class="ml-auto flex items-center gap-2 opacity-0 hover:opacity-100 transition-opacity whitespace-nowrap bg-white/80 backdrop-blur-sm p-1 rounded-sm shadow-sm border border-gray-100">
+                                                class="ml-auto flex items-center gap-1 opacity-0 hover:opacity-100 transition-opacity whitespace-nowrap bg-white/90 backdrop-blur-sm p-0.5 rounded-sm shadow-sm border border-gray-100 absolute right-2 z-10">
                                                 <input [(ngModel)]="element.couleur" (input)="updateProduct(element)"
                                                     placeholder="Coul."
-                                                    class="w-10 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400">
+                                                    class="w-8 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400">
                                                 <input [(ngModel)]="element.calibre" (input)="updateProduct(element)"
                                                     placeholder="Cal."
-                                                    class="w-6 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 text-center">
+                                                    class="w-5 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 text-center">
                                                 <input [(ngModel)]="element.pont" (input)="updateProduct(element)"
                                                     placeholder="Pt"
-                                                    class="w-6 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 text-center">
+                                                    class="w-5 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 text-center">
 
-                                                <div class="h-3 w-[1px] bg-gray-300 mx-1"></div>
+                                                <div class="h-2 w-[1px] bg-gray-300 mx-0.5"></div>
 
                                                 <input [(ngModel)]="element.materiau" (input)="updateProduct(element)"
                                                     placeholder="Matériau"
-                                                    class="w-14 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 capitalize">
+                                                    class="w-12 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 capitalize">
                                                 <input [(ngModel)]="element.forme" (input)="updateProduct(element)"
                                                     placeholder="Forme"
-                                                    class="w-14 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 capitalize">
+                                                    class="w-12 text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 capitalize">
                                                 <select aria-label="Select" title="Select" [(ngModel)]="element.genre" (change)="updateProduct(element)"
-                                                    class="text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 outline-none">
+                                                    class="text-[9px] p-0 border-b border-gray-200 bg-transparent focus:border-blue-400 outline-none w-12">
                                                     <option [value]="undefined">Genre?</option>
                                                     <option value="HOMME">H</option>
                                                     <option value="FEMME">F</option>
@@ -623,10 +623,10 @@
 
 
                             <ng-container matColumnDef="categorie">
-                                <th mat-header-cell *matHeaderCellDef> Catégorie </th>
-                                <td mat-cell *matCellDef="let element">
+                                <th mat-header-cell *matHeaderCellDef class="w-28 px-2"> Catégorie </th>
+                                <td mat-cell *matCellDef="let element" class="px-2">
                                     <select aria-label="Select" title="Select" [(ngModel)]="element.categorie" (change)="updateProduct(element)"
-                                        class="bg-transparent border-none text-xs focus:ring-1 focus:ring-blue-400 rounded cursor-pointer font-bold text-gray-500">
+                                        class="w-full bg-transparent border-none text-xs p-0 focus:ring-1 focus:ring-blue-400 rounded cursor-pointer font-bold text-gray-500">
                                         <option *ngFor="let type of productTypes" [value]="type">
                                             {{ formatTypeLabel(type) }}
                                         </option>
@@ -635,91 +635,95 @@
                             </ng-container>
 
                             <ng-container matColumnDef="entrepotId">
-                                <th mat-header-cell *matHeaderCellDef> Entrepôt </th>
-                                <td mat-cell *matCellDef="let element">
+                                <th mat-header-cell *matHeaderCellDef class="w-32 px-2"> Entrepôt </th>
+                                <td mat-cell *matCellDef="let element" class="px-2">
                                     <select aria-label="Select" title="Select" [(ngModel)]="element.entrepotId" (change)="updateProduct(element)"
-                                        class="bg-transparent border-none text-xs focus:ring-1 focus:ring-blue-400 rounded cursor-pointer font-black text-blue-700">
+                                        class="w-full bg-transparent border-none text-xs p-0 focus:ring-1 focus:ring-blue-400 rounded cursor-pointer font-black text-blue-700">
                                         <option *ngFor="let w of entrepots$ | async" [value]="w.id">{{w.nom}}</option>
                                     </select>
                                 </td>
                             </ng-container>
 
                             <ng-container matColumnDef="quantite">
-                                <th mat-header-cell *matHeaderCellDef class="text-center"> Qte </th>
-                                <td mat-cell *matCellDef="let element" class="text-center">
+                                <th mat-header-cell *matHeaderCellDef class="w-12 text-center px-1"> Qte </th>
+                                <td mat-cell *matCellDef="let element" class="text-center px-1">
                                     <input aria-label="Input" title="Input" type="number" [(ngModel)]="element.quantite" (input)="updateProduct(element)"
-                                        class="w-12 bg-transparent border-none text-center focus:ring-1 focus:ring-blue-400 rounded font-bold">
+                                        class="w-12 p-0 bg-transparent border-none text-center focus:ring-1 focus:ring-blue-400 rounded text-sm font-bold">
                                 </td>
                             </ng-container>
 
                             <ng-container matColumnDef="prixAchat">
-                                <th mat-header-cell *matHeaderCellDef class="text-right"> P.Achat (Est.) </th>
-                                <td mat-cell *matCellDef="let element" class="text-right">
+                                <th mat-header-cell *matHeaderCellDef class="w-24 text-right px-2"> P.Achat </th>
+                                <td mat-cell *matCellDef="let element" class="text-right px-2">
                                     <input aria-label="Input" title="Input" type="text" [ngModel]="element.prixAchat | number:'1.2-2'"
                                         (change)="element.prixAchat = parseInputPrice($event.target.value); updateProduct(element)"
-                                        class="w-24 bg-transparent border-none text-right focus:ring-1 focus:ring-blue-400 rounded text-gray-500 font-medium">
+                                        class="w-20 p-0 bg-transparent border-none text-right focus:ring-1 focus:ring-blue-400 rounded text-gray-600 text-sm font-medium">
                                 </td>
                             </ng-container>
 
                             <ng-container matColumnDef="tva">
-                                <th mat-header-cell *matHeaderCellDef class="text-center"> TVA </th>
-                                <td mat-cell *matCellDef="let element" class="text-center">
+                                <th mat-header-cell *matHeaderCellDef class="w-12 text-center px-1"> TVA </th>
+                                <td mat-cell *matCellDef="let element" class="text-center px-1">
                                     <select aria-label="Select" title="Select" [(ngModel)]="element.tva" (change)="updateProduct(element)"
-                                        class="bg-transparent border-none text-xs focus:ring-1 focus:ring-blue-400 rounded cursor-pointer">
+                                        class="w-12 p-0 bg-transparent border-none text-xs focus:ring-1 focus:ring-blue-400 rounded cursor-pointer">
                                         <option *ngFor="let rate of tvaOptions" [value]="rate">{{rate}}%</option>
                                     </select>
                                 </td>
                             </ng-container>
 
 
-                            <ng-container matColumnDef="prixVente">
-                                <th mat-header-cell *matHeaderCellDef class="text-right"> Tarification </th>
-                                <td mat-cell *matCellDef="let element" class="text-right align-top pt-2">
-                                    <div class="flex flex-col items-end gap-1">
-                                        <input aria-label="Input" title="Input" type="text" [ngModel]="element.prixVente | number:'1.2-2'"
-                                            (change)="element.prixVente = parseInputPrice($event.target.value); updateProduct(element)"
-                                            class="w-24 bg-transparent border-none text-right focus:ring-1 focus:ring-green-400 rounded text-green-700 font-bold p-0 leading-none">
-
+                            <ng-container matColumnDef="coefficient">
+                                <th mat-header-cell *matHeaderCellDef class="w-28 text-center px-1"> Coef/Marge </th>
+                                <td mat-cell *matCellDef="let element" class="text-center align-middle px-1">
+                                    <div class="flex flex-col items-center gap-1 py-1">
                                         <!-- Individual Pricing Settings -->
-                                        <div class="flex items-center justify-end gap-1 mt-1 bg-gray-50 p-1 rounded border border-gray-100">
+                                        <div class="flex items-center justify-center gap-1 bg-gray-50 px-1 py-1 rounded-lg border border-gray-200 shadow-sm w-max mx-auto">
                                             <select aria-label="Select mode" title="Select mode" [(ngModel)]="element.modePrix" (change)="updateProduct(element)"
-                                                class="text-[10px] font-bold p-0 border-none bg-transparent text-gray-700 outline-none w-auto focus:ring-0 cursor-pointer">
-                                                <option value="COEFF">Coef (x)</option>
-                                                <option value="FIXE">Marge (+DH)</option>
+                                                class="text-xs font-bold p-0 border-none bg-transparent text-gray-700 outline-none w-16 focus:ring-0 cursor-pointer">
+                                                <option value="COEFF">Coef</option>
+                                                <option value="FIXE">Marge</option>
                                             </select>
                                             
                                             <input aria-label="Input coeff" title="Input coeff" *ngIf="element.modePrix === 'COEFF'" type="number" [(ngModel)]="element.coefficient" (input)="updateProduct(element)"
-                                                class="w-10 text-[11px] p-0 border-b border-gray-300 bg-transparent text-right font-bold text-blue-600 focus:border-blue-500 outline-none" step="0.1">
+                                                class="w-14 text-sm p-0 border-b-2 border-blue-200 bg-transparent text-center font-black text-blue-700 focus:border-blue-500 outline-none transition-colors" step="0.1">
                                                 
                                             <input aria-label="Input marge" title="Input marge" *ngIf="element.modePrix === 'FIXE'" type="number" [(ngModel)]="element.margeFixe" (input)="updateProduct(element)"
-                                                class="w-12 text-[11px] p-0 border-b border-gray-300 bg-transparent text-right font-bold text-blue-600 focus:border-blue-500 outline-none">
+                                                class="w-14 text-sm p-0 border-b-2 border-blue-200 bg-transparent text-center font-black text-blue-700 focus:border-blue-500 outline-none transition-colors">
                                         </div>
 
                                         <!-- PROFIT MARGIN BADGE -->
-                                        <span class="badge mt-0.5"
+                                        <span class="badge text-xs px-1.5 py-0.5 mt-0.5"
                                             [class.success]="calculateMargin(element.prixAchat, element.prixVente) > 30"
                                             [class.warning]="calculateMargin(element.prixAchat, element.prixVente) > 0 && calculateMargin(element.prixAchat, element.prixVente) <= 30"
                                             [class.danger]="calculateMargin(element.prixAchat, element.prixVente) <= 0">
-                                            Marge: {{ calculateMargin(element.prixAchat, element.prixVente) |
-                                            number:'1.0-0' }}%
+                                            {{ calculateMargin(element.prixAchat, element.prixVente) | number:'1.0-0' }}%
                                         </span>
                                     </div>
                                 </td>
                             </ng-container>
 
+                            <ng-container matColumnDef="prixVente">
+                                <th mat-header-cell *matHeaderCellDef class="w-24 text-right px-2"> Prix Vente </th>
+                                <td mat-cell *matCellDef="let element" class="text-right align-middle px-2">
+                                    <input aria-label="Input" title="Input" type="text" [ngModel]="element.prixVente | number:'1.2-2'"
+                                        (change)="element.prixVente = parseInputPrice($event.target.value); updateProduct(element)"
+                                        class="w-20 bg-transparent border-none p-0 text-right focus:ring-1 focus:ring-green-400 rounded text-green-700 text-sm font-black">
+                                </td>
+                            </ng-container>
+
                             <ng-container matColumnDef="actions">
-                                <th mat-header-cell *matHeaderCellDef class="w-28 text-center"> Actions </th>
-                                <td mat-cell *matCellDef="let element">
-                                    <div class="flex items-center justify-center gap-2">
+                                <th mat-header-cell *matHeaderCellDef class="w-24 text-center px-1"> Actions </th>
+                                <td mat-cell *matCellDef="let element" class="px-1">
+                                    <div class="flex items-center justify-center gap-1">
                                         <button mat-mini-fab color="primary"
-                                            class="!w-9 !h-9 !bg-blue-50 !text-blue-600 hover:!bg-blue-600 hover:!text-white border border-blue-100 transition-all shadow-none"
+                                            class="!w-7 !h-7 !bg-blue-50 !text-blue-600 hover:!bg-blue-600 hover:!text-white border border-blue-100 transition-all shadow-none"
                                             (click)="splitProduct(element)" matTooltip="Scinder la ligne" type="button">
-                                            <mat-icon class="scale-90">call_split</mat-icon>
+                                            <mat-icon class="text-[14px]">call_split</mat-icon>
                                         </button>
                                         <button mat-mini-fab color="warn"
-                                            class="!w-9 !h-9 !bg-red-50 !text-red-500 hover:!bg-red-600 hover:!text-white border border-red-100 transition-all shadow-none"
+                                            class="!w-7 !h-7 !bg-red-50 !text-red-500 hover:!bg-red-600 hover:!text-white border border-red-100 transition-all shadow-none"
                                             (click)="removeProduct(element.tempId)" matTooltip="Supprimer" type="button">
-                                            <mat-icon class="scale-90">delete_outline</mat-icon>
+                                            <mat-icon class="text-[14px]">delete_outline</mat-icon>
                                         </button>
                                     </div>
                                 </td>
