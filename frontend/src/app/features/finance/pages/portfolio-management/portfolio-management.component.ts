@@ -469,16 +469,22 @@ export class PortfolioManagementComponent implements OnInit {
   }
 
   updateStatus(item: any, newStatut: string) {
+    // For outgoings, we must use the echeanceId if it exists, otherwise fallback to id
+    const idToUse = item.echeanceId || item.id;
+
     const request = item.source === 'FACTURE_CLIENT'
       ? this.financeService.validatePayment(item.id, newStatut)
-      : this.financeService.validateEcheance(item.id, newStatut);
+      : this.financeService.validateEcheance(idToUse, newStatut);
 
     request.subscribe({
       next: () => {
         this.snackBar.open('Opération validée', 'OK', { duration: 2000 });
         this.loadData();
       },
-      error: () => this.snackBar.open('Erreur lors de la validation', 'OK')
+      error: (err) => {
+        console.error('Validation error:', err);
+        this.snackBar.open('Erreur lors de la validation', 'OK');
+      }
     });
   }
 }
