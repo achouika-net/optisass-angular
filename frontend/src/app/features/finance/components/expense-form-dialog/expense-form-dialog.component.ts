@@ -76,7 +76,7 @@ export class ExpenseFormDialogComponent implements OnInit {
     // Supplier Autocomplete
     supplierCtrl = new FormControl('');
     filteredSuppliers!: Observable<Supplier[]>;
-    paymentMethods = ['ESPECES', 'CHEQUE', 'LCN', 'VIREMENT', 'CARTE'];
+    paymentMethods = ['ESPECES', 'CHEQUE', 'LCN', 'VIREMENT', 'CARTE', 'PRISE_EN_CHARGE'];
 
     constructor(
         private fb: FormBuilder,

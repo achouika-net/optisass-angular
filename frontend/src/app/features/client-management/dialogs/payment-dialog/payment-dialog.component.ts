@@ -23,7 +23,7 @@ export interface PaymentDialogData {
 export interface Payment {
     date: Date;
     montant: number;
-    mode: 'ESPECES' | 'CARTE' | 'CHEQUE' | 'VIREMENT' | 'LCN' | 'AUTRE';
+    mode: 'ESPECES' | 'CARTE' | 'CHEQUE' | 'VIREMENT' | 'LCN' | 'PRISE_EN_CHARGE' | 'AUTRE';
     reference?: string;
     notes?: string;
     // New fields
@@ -70,6 +70,7 @@ export class PaymentDialogComponent {
         { value: 'CHEQUE', label: 'Chèque' },
         { value: 'LCN', label: 'LCN' },
         { value: 'VIREMENT', label: 'Virement' },
+        { value: 'PRISE_EN_CHARGE', label: 'Prise en charge' },
         { value: 'AUTRE', label: 'Autre' }
     ];
 

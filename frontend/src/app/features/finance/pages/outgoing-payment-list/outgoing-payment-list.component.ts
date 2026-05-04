@@ -126,7 +126,10 @@ export class OutgoingPaymentListComponent implements OnInit {
         totalTTC: 0,
         totalHT: 0,
         totalReste: 0,
-        count: 0
+        count: 0,
+        inHand: 0,
+        deposited: 0,
+        paid: 0
     };
 
     suppliers: Supplier[] = [];
@@ -318,6 +321,11 @@ export class OutgoingPaymentListComponent implements OnInit {
         this.subtotals.totalTTC = res.subtotals?.totalTTC || 0;
         this.subtotals.totalHT = res.subtotals?.totalHT || 0;
         this.subtotals.totalReste = res.subtotals?.totalReste || 0;
+        
+        // Portfolio metrics
+        this.subtotals.inHand = res.subtotals?.inHand || 0;
+        this.subtotals.deposited = res.subtotals?.deposited || 0;
+        this.subtotals.paid = res.subtotals?.paid || 0;
 
         // Note: calculatePageSubtotals is no longer called here to avoid overwriting global totals
         console.log(`[PAYMENTS-PROC] Subtotals mapped:`, this.subtotals);
@@ -634,5 +642,25 @@ export class OutgoingPaymentListComponent implements OnInit {
 
     trackByPayment(index: number, item: any): string {
         return item.id + item.source;
+    }
+
+    updateStatus(item: any, newStatut: string) {
+        // For outgoings, we must use the echeanceId if it exists, otherwise fallback to id
+        const idToUse = item.echeanceId || item.id;
+
+        const request = item.source === 'FACTURE_CLIENT'
+            ? this.financeService.validatePayment(item.id, newStatut)
+            : this.financeService.validateEcheance(idToUse, newStatut);
+
+        request.subscribe({
+            next: () => {
+                this.snackBar.open('Opération validée', 'OK', { duration: 2000 });
+                this.loadPayments();
+            },
+            error: (err) => {
+                console.error('Validation error:', err);
+                this.snackBar.open('Erreur lors de la validation', 'OK');
+            }
+        });
     }
 }

@@ -31,13 +31,14 @@
     </mat-tab-group>
 
     <!-- Subtotals Summary Cards (Visible for relevant tabs) -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 mt-6" *ngIf="['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS', 'FACTURES', 'BL'].includes(activeTab)">
+    <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6 mt-6" *ngIf="['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS', 'FACTURES', 'BL'].includes(activeTab)">
         <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
             <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Nombre d'opérations</span>
             <span class="text-2xl font-black text-slate-800">{{ subtotals.count }}</span>
         </div>
 
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center"
+            *ngIf="!['INCOMING', 'OUTGOING'].includes(activeTab)">
             <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total TTC</span>
             <span class="text-2xl font-black"
                 [ngClass]="(activeTab === 'OUTGOING' || activeTab === 'FACTURES' || activeTab === 'BL') ? 'text-red-600' : 'text-green-600'">
@@ -45,8 +46,24 @@
             </span>
         </div>
 
+        <!-- Portfolio Management Cards (Added for Unified View) -->
+        <ng-container *ngIf="['INCOMING', 'OUTGOING'].includes(activeTab)">
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-500 flex flex-col justify-center">
+                <span class="text-blue-600 text-xs uppercase font-bold tracking-wider mb-1">À Venir / Portefeuille</span>
+                <span class="text-2xl font-black text-blue-700">{{ subtotals.inHand | number:'1.2-2' }} DH</span>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-500 flex flex-col justify-center">
+                <span class="text-orange-600 text-xs uppercase font-bold tracking-wider mb-1">Remis / Déposé</span>
+                <span class="text-2xl font-black text-orange-700">{{ subtotals.deposited | number:'1.2-2' }} DH</span>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500 flex flex-col justify-center">
+                <span class="text-green-600 text-xs uppercase font-bold tracking-wider mb-1">Total Payé / Encaissé</span>
+                <span class="text-2xl font-black text-green-700">{{ subtotals.paid | number:'1.2-2' }} DH</span>
+            </div>
+        </ng-container>
+
         <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center"
-            *ngIf="['OUTGOING', 'FACTURES', 'BL'].includes(activeTab)">
+            *ngIf="['FACTURES', 'BL'].includes(activeTab)">
             <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total HT</span>
             <span class="text-2xl font-black text-slate-700">
                 {{ subtotals.totalHT | number:'1.2-2' }} DH
@@ -58,14 +75,6 @@
             <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total Reste à Payer</span>
             <span class="text-2xl font-black text-orange-600">
                 {{ subtotals.totalReste | number:'1.2-2' }} DH
-            </span>
-        </div>
-
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center"
-            *ngIf="activeTab === 'INCOMING'">
-            <span class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Paiements Validés (Encaissements)</span>
-            <span class="text-2xl font-black text-green-700">
-                {{ subtotals.totalTTC | number:'1.2-2' }} DH
             </span>
         </div>
     </div>
@@ -115,6 +124,7 @@
                             <mat-option value="CHEQUE">Chèque</mat-option>
                             <mat-option value="LCN">LCN</mat-option>
                             <mat-option value="VIREMENT">Virement</mat-option>
+                            <mat-option value="PRISE_EN_CHARGE">Prise en charge</mat-option>
                         </mat-select>
                     </mat-form-field>
 
@@ -283,8 +293,9 @@
                     <ng-container matColumnDef="statut">
                         <th mat-header-cell *matHeaderCellDef>Statut</th>
                         <td mat-cell *matCellDef="let p">
-                            <span class="px-2 py-1 rounded text-xs font-medium" [ngClass]="getStatusClass(p.statut)">
-                                {{ p.statut }}
+                            <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight" 
+                                  [ngClass]="getStatusClass(p.statut)">
+                                {{ (p.statut || '').replace('_', ' ') }}
                             </span>
                         </td>
                     </ng-container>
@@ -301,10 +312,15 @@
                                         <mat-icon class="text-purple-600">visibility</mat-icon>
                                         <span>Visualiser</span>
                                     </button>
-                                    <button type="button" mat-menu-item (click)="validatePayment(p)"
-                                        *ngIf="(activeTab === 'INCOMING' || activeTab === 'OUTGOING') && p.statut === 'EN_ATTENTE'">
+                                    <button type="button" mat-menu-item (click)="updateStatus(p, 'REMIS_EN_BANQUE')"
+                                        *ngIf="(activeTab === 'INCOMING' || activeTab === 'OUTGOING') && (p.statut === 'EN_ATTENTE' || p.statut === 'PORTEFEUILLE')">
+                                        <mat-icon class="text-orange-600">account_balance</mat-icon>
+                                        <span>Remettre en Banque</span>
+                                    </button>
+                                    <button type="button" mat-menu-item (click)="updateStatus(p, 'ENCAISSE')"
+                                        *ngIf="(activeTab === 'INCOMING' || activeTab === 'OUTGOING') && p.statut !== 'ENCAISSE' && p.statut !== 'PAYE'">
                                         <mat-icon class="text-green-600">check_circle</mat-icon>
-                                        <span>Valider/Encaisser</span>
+                                        <span>Confirmer Encaissement</span>
                                     </button>
                                     <button type="button" mat-menu-item (click)="viewDetail(p, false)"
                                         *ngIf="activeTab === 'OUTGOING'">

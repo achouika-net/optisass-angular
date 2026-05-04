@@ -99,12 +99,13 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
 
                 <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
                   <mat-label>Type</mat-label>
-                  <mat-select [(ngModel)]="modeFilter" (ngModelChange)="loadData()">
-                    <mat-option value="CHEQUE,LCN,VIREMENT,ESPECES">Tous les modes</mat-option>
+                    <mat-select [(ngModel)]="modeFilter" (ngModelChange)="loadData()">
+                    <mat-option value="CHEQUE,LCN,VIREMENT,ESPECES,PRISE_EN_CHARGE">Tous les modes</mat-option>
                     <mat-option value="CHEQUE">Chèque uniquement</mat-option>
                     <mat-option value="LCN">LCN uniquement</mat-option>
                     <mat-option value="VIREMENT">Virement uniquement</mat-option>
                     <mat-option value="ESPECES">Espèces uniquement</mat-option>
+                    <mat-option value="PRISE_EN_CHARGE">Prise en charge uniquement</mat-option>
                   </mat-select>
                 </mat-form-field>
               </div>
@@ -219,11 +220,12 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
                   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
                     <mat-label>Type</mat-label>
                     <mat-select [(ngModel)]="modeFilter" (ngModelChange)="loadData()">
-                      <mat-option value="CHEQUE,LCN,VIREMENT,ESPECES">Tous les modes</mat-option>
+                      <mat-option value="CHEQUE,LCN,VIREMENT,ESPECES,PRISE_EN_CHARGE">Tous les modes</mat-option>
                       <mat-option value="CHEQUE">Chèque uniquement</mat-option>
                       <mat-option value="LCN">LCN uniquement</mat-option>
                       <mat-option value="VIREMENT">Virement uniquement</mat-option>
                       <mat-option value="ESPECES">Espèces uniquement</mat-option>
+                      <mat-option value="PRISE_EN_CHARGE">Prise en charge uniquement</mat-option>
                     </mat-select>
                   </mat-form-field>
                 </div>
@@ -358,7 +360,7 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
 export class PortfolioManagementComponent implements OnInit {
   items: any[] = [];
   statusFilter = 'ALL';
-  modeFilter = 'CHEQUE,LCN';
+  modeFilter = 'CHEQUE,LCN,PRISE_EN_CHARGE';
   activeTabId = 0;
   loading = false;
   totals = { inHand: 0, deposited: 0, paid: 0 };

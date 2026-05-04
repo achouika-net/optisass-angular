@@ -34,12 +34,12 @@
 
                 <!-- Référence (Hide for ESPECES) -->
                 <mat-form-field appearance="outline" *ngIf="form.get('mode')?.value !== 'ESPECES'">
-                    <mat-label>Référence</mat-label>
-                    <input matInput formControlName="reference" placeholder="Num chèque/LCN ...">
+                    <mat-label>{{ form.get('mode')?.value === 'PRISE_EN_CHARGE' ? 'N° Prise en Charge / Organisme' : 'Référence' }}</mat-label>
+                    <input title="Référence" aria-label="Référence du paiement" matInput formControlName="reference" [placeholder]="form.get('mode')?.value === 'PRISE_EN_CHARGE' ? 'Ex: CNOPS / 12345' : 'Num chèque/LCN ...'">
                 </mat-form-field>
 
-                <!-- Nouvelles options pour Cheque/LCN/Virement -->
-                <ng-container *ngIf="['CHEQUE', 'LCN', 'VIREMENT'].includes(form.get('mode')?.value)">
+                <!-- Nouvelles options pour Cheque/LCN/Virement/PEC -->
+                <ng-container *ngIf="['CHEQUE', 'LCN', 'VIREMENT', 'PRISE_EN_CHARGE'].includes(form.get('mode')?.value)">
                     <!-- Banque Autocomplete -->
                     <mat-form-field appearance="outline">
                         <mat-label>Banque</mat-label>
@@ -54,7 +54,7 @@
                     <!-- Date Versement -->
                     <mat-form-field appearance="outline" class="compact-date-field">
                         <mat-label>Date de Versement</mat-label>
-                        <input matInput [matDatepicker]="pickerVers" formControlName="dateVersement"
+                        <input title="Date de Versement" aria-label="Date de versement" matInput [matDatepicker]="pickerVers" formControlName="dateVersement"
                             placeholder="JJ/MM/AAAA">
                         <mat-datepicker-toggle matIconSuffix [for]="pickerVers"></mat-datepicker-toggle>
                         <mat-datepicker #pickerVers class="custom-calendar"></mat-datepicker>
@@ -64,13 +64,13 @@
                     <div class="full-width identity-section">
                         <mat-form-field appearance="outline">
                             <mat-label>Nom / Émetteur (Tiers si différent du client)</mat-label>
-                            <input matInput formControlName="tiersNom" placeholder="Nom sur le chèque">
+                            <input title="Nom de l'émetteur" aria-label="Nom de l'émetteur" matInput formControlName="tiersNom" placeholder="Nom sur le chèque">
                         </mat-form-field>
 
                         <!-- Show CIN (Always visible now per user request, validation depends on name match) -->
                         <mat-form-field appearance="outline">
                             <mat-label>C.I.N / Pièce d'identité</mat-label>
-                            <input matInput formControlName="tiersCin" placeholder="Numéro pièce d'identité">
+                            <input title="CIN du tiers" aria-label="Numéro de pièce d'identité du tiers" matInput formControlName="tiersCin" placeholder="Numéro pièce d'identité">
                             <mat-error *ngIf="form.get('tiersCin')?.hasError('required')">
                                 Obligatoire pour tiers hors famille
                             </mat-error>
