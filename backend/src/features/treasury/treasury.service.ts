@@ -931,6 +931,7 @@ export class TreasuryService {
         montant: Number(r.montant || 0),
         statut: r.statut,
         source: r.source,
+        type: r.type,
         methodePaiement: r.methodePaiement,
         numeroPiece: r.numeroPiece,
         banque: r.banque,

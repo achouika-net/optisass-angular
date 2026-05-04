@@ -114,7 +114,6 @@
                             <mat-option *ngFor="let t of types" [value]="t">{{ t }}</mat-option>
                         </mat-select>
                     </mat-form-field>
-
                     <mat-form-field appearance="outline" *ngIf="activeTab === 'OUTGOING' || activeTab === 'INCOMING'">
                         <mat-label>Mode de Paiement</mat-label>
                         <mat-select aria-label="Select field" [(ngModel)]="filters.modePaiement" (ngModelChange)="applyFilters(true)">
@@ -192,14 +191,9 @@
                         <td mat-cell *matCellDef="let p">{{ (p.date || p.dateEmission) | date:'dd/MM/yyyy' }}</td>
                     </ng-container>
 
-                    <ng-container matColumnDef="source">
-                        <th mat-header-cell *matHeaderCellDef>Source</th>
-                        <td mat-cell *matCellDef="let p">
-                            <span class="px-2 py-1 rounded text-xs font-medium"
-                                [ngClass]="getSourceClass(p.sourceRaw || p.source)">
-                                {{ p.source }}
-                            </span>
-                        </td>
+                    <ng-container matColumnDef="type">
+                        <th mat-header-cell *matHeaderCellDef>Catégorie</th>
+                        <td mat-cell *matCellDef="let p">{{ p.type }}</td>
                     </ng-container>
 
                     <ng-container matColumnDef="libelle">
@@ -215,10 +209,7 @@
                         </td>
                     </ng-container>
 
-                    <ng-container matColumnDef="type">
-                        <th mat-header-cell *matHeaderCellDef>Type</th>
-                        <td mat-cell *matCellDef="let p">{{ p.type }}</td>
-                    </ng-container>
+
                     
                     <ng-container matColumnDef="banque">
                         <th mat-header-cell *matHeaderCellDef>Banque / Caisse</th>

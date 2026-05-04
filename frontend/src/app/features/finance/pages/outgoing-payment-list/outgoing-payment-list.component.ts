@@ -104,9 +104,9 @@ export class OutgoingPaymentListComponent implements OnInit {
 
     get displayedColumns(): string[] {
         if (this.activeTab === 'UNPAID_CLIENTS') {
-            return ['date', 'source', 'libelle', 'client', 'montant', 'reste', 'statut', 'actions'];
+            return ['date', 'type', 'libelle', 'client', 'montant', 'reste', 'statut', 'actions'];
         }
-        const base = ['date', 'source', 'libelle', 'type', 'banque'];
+        const base = ['date', 'type', 'libelle', 'banque'];
         const middle = this.activeTab === 'OUTGOING' ? 'fournisseur' : 'client';
         return [...base, 'methodePaiement', 'numeroPiece', 'datePiece', middle, 'montant', 'statut', 'actions'];
     }
