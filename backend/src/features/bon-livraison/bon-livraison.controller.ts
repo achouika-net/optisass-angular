@@ -32,6 +32,8 @@ export class BonLivraisonController {
         @Query('page') page?: number,
         @Query('limit') limit?: number,
         @Query('categorieBL') categorieBL?: string,
+        @Query('facturation') facturation?: string,
+        @Query('factureFournisseurId') factureFournisseurId?: string,
     ) {
         return this.bonLivraisonService.findAll({
             fournisseurId,
@@ -44,6 +46,8 @@ export class BonLivraisonController {
             page,
             limit,
             categorieBL,
+            facturation,
+            factureFournisseurId,
         });
     }
 

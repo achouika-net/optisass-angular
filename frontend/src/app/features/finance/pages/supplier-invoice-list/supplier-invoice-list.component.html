@@ -8,6 +8,9 @@
             <button type="button" mat-raised-button color="primary" (click)="openInvoiceDialog()">
                 <mat-icon>add</mat-icon> {{ listMode === 'BL' ? 'Saisir BL' : 'Nouvelle Facture' }}
             </button>
+            <button type="button" mat-stroked-button (click)="generateSupplierStatement()" *ngIf="filters.fournisseurId">
+                <mat-icon>assessment</mat-icon> Relevé Fournisseur
+            </button>
             <button type="button" mat-stroked-button (click)="printList()">
                 <mat-icon>print</mat-icon> Imprimer la liste
             </button>
@@ -57,7 +60,7 @@
                 </td>
                 <td>{{ formatType($any(row).categorieBL || row.type) }}</td>
                 <td>{{ getPaymentType(row) }}</td>
-                <td>{{ row.statut }}</td>
+                <td>{{ $any(row).factureFournisseur?.statut || row.statut }}</td>
                 <td class="text-right font-bold">{{ row.montantTTC | number:'1.2-2' }}</td>
             </tr>
         </tbody>
@@ -80,7 +83,7 @@
 
 <div class="container" [class.container-sub]="isSubComponent">
     <!-- Summary Recap -->
-    <div class="summary-recap mb-6" *ngIf="listMode === 'BL' && !loading && !isSubComponent">
+    <div class="summary-recap mb-6" *ngIf="listMode === 'BL' && !loading">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <mat-card class="recap-card !shadow-none !border !border-blue-100 bg-blue-50/30">
                 <mat-card-content class="flex items-center gap-4 !p-4">
@@ -88,7 +91,7 @@
                         <mat-icon>assessment</mat-icon>
                     </div>
                     <div>
-                        <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">Total Période (TTC)</div>
+                        <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">Total Bons de Livraison</div>
                         <div class="text-xl font-bold text-blue-800">{{ stats.totalTTC | number:'1.2-2' }} DH</div>
                     </div>
                 </mat-card-content>
@@ -112,7 +115,7 @@
                         <mat-icon>pending_actions</mat-icon>
                     </div>
                     <div>
-                        <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">Reste à Régler</div>
+                        <div class="text-xs text-gray-500 font-medium uppercase tracking-wider">Reliquat (Reste à payer)</div>
                         <div class="text-xl font-bold text-orange-800">{{ stats.totalRemaining | number:'1.2-2' }} DH</div>
                     </div>
                 </mat-card-content>
@@ -135,6 +138,25 @@
                     <mat-label>Période</mat-label>
                     <mat-select aria-label="Select field" [value]="selectedPeriod()" (selectionChange)="selectedPeriod.set($event.value)">
                         <mat-option *ngFor="let p of periods" [value]="p.value">{{p.label}}</mat-option>
+                    </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="dense-field">
+                    <mat-label>Statut</mat-label>
+                    <mat-select aria-label="Select field" [(ngModel)]="filters.statut" (ngModelChange)="applyFilters()">
+                        <mat-option value="">Tous les statuts</mat-option>
+                        <mat-option value="PAYEE">Payé</mat-option>
+                        <mat-option value="EN_ATTENTE">En attente</mat-option>
+                        <mat-option value="PARTIELLE">Partiel</mat-option>
+                    </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="dense-field" *ngIf="listMode === 'BL'">
+                    <mat-label>Facturation</mat-label>
+                    <mat-select aria-label="Select field" [(ngModel)]="filters.facturation" (ngModelChange)="applyFilters()">
+                        <mat-option value="">Tout (Hist.)</mat-option>
+                        <mat-option value="EN_ATTENTE">En attente (Non groupés)</mat-option>
+                        <mat-option value="FACTURE">Facturés (Groupés)</mat-option>
                     </mat-select>
                 </mat-form-field>
 
@@ -187,6 +209,21 @@
             <mat-icon class="text-gray-300 text-[48px] w-[48px] h-[48px]">inventory_2</mat-icon>
             <p>Aucun document trouvé pour cette période.</p>
         </div>
+
+         <div class="bg-blue-50 border border-blue-100 p-2 mb-2 rounded flex items-center justify-center gap-2 text-sm" 
+              *ngIf="selection.hasValue() && isAllSelected() && totalCount > invoices.length && !selectAllResults">
+             <span>Les {{ invoices.length }} BL de cette page sont sélectionnés.</span>
+             <button mat-button color="primary" class="!px-2 !min-w-0" (click)="toggleSelectAllResults(true)">
+                 Sélectionner les <b>{{ totalCount }}</b> BL correspondants aux filtres
+             </button>
+         </div>
+         <div class="bg-blue-600 text-white p-2 mb-2 rounded flex items-center justify-center gap-2 text-sm" 
+              *ngIf="selectAllResults">
+             <span>Tous les <b>{{ totalCount }}</b> BL sont sélectionnés.</span>
+             <button mat-button class="!text-white !px-2 !min-w-0 underline" (click)="toggleSelectAllResults(false)">
+                 Annuler la sélection globale
+             </button>
+         </div>
 
         <table mat-table [dataSource]="invoices" *ngIf="!loading && invoices.length > 0">
 
@@ -273,13 +310,24 @@
                 </td>
             </ng-container>
 
+            <!-- Linked Invoice Column -->
+            <ng-container matColumnDef="facture">
+                <th mat-header-cell *matHeaderCellDef> Facture </th>
+                <td mat-cell *matCellDef="let element">
+                    <span class="text-blue-600 font-medium" *ngIf="element.factureFournisseur">
+                        {{element.factureFournisseur.numeroFacture}}
+                    </span>
+                    <span class="text-gray-400" *ngIf="!element.factureFournisseur">-</span>
+                </td>
+            </ng-container>
+
             <!-- Statut Column -->
             <ng-container matColumnDef="statut">
                 <th mat-header-cell *matHeaderCellDef> Statut </th>
                 <td mat-cell *matCellDef="let element">
-                    <span [ngClass]="getStatusClass(element.statut)"
+                    <span [ngClass]="getStatusClass($any(element).factureFournisseur?.statut || element.statut)"
                         class="statut-chip px-2 py-1 rounded-full font-semibold">
-                        {{element.statut}}
+                        {{$any(element).factureFournisseur?.statut || element.statut}}
                     </span>
                     <div *ngIf="element.parentInvoiceId || element.factureFournisseurId"
                         class="text-xs text-blue-600 font-medium">Groupé</div>
@@ -313,9 +361,7 @@
                         </button>
                         <button type="button" mat-menu-item (click)="openPaymentDialog(element)" *ngIf="element.statut !== 'PAYEE'">
                             <mat-icon class="text-[#2e7d32 !important]">payments</mat-icon>
-                            <span>{{ (element.type === 'ACHAT_VERRE_OPTIQUE' && listMode === 'BL') ? (
-                                $any(element).numeroBL || element.numeroFacture ) : (element.numeroFacture ||
-                                $any(element).numeroBL) }}</span>
+                            <span>Payer</span>
                         </button>
                         <mat-divider></mat-divider>
                         <button type="button" mat-menu-item *ngIf="element.pieceJointeUrl">

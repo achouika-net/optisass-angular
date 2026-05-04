@@ -39,7 +39,6 @@ model Client {
   contacts             Json?
   convention           Json?
   conventionId         String?
-  conventionData       Convention?          @relation(fields: [conventionId], references: [id])
   parrainId            String?
   centreId             String?
   titre                String?
@@ -47,6 +46,7 @@ model Client {
   groupeId             String?
   bonsLivraison        BonLivraison[]
   centre               Centre?              @relation(fields: [centreId], references: [id])
+  conventionData       Convention?          @relation(fields: [conventionId], references: [id])
   groupe               Groupe?              @relation(fields: [groupeId], references: [id])
   parrain              Client?              @relation("Parrainage", fields: [parrainId], references: [id])
   filleuls             Client[]             @relation("Parrainage")
@@ -64,6 +64,7 @@ model Client {
 
 model Fiche {
   id                   String               @id @default(uuid())
+  numero               Int                  @default(autoincrement())
   dateCreation         DateTime             @default(now())
   statut               String
   type                 String
@@ -72,7 +73,6 @@ model Fiche {
   montantPaye          Float                @default(0)
   clientId             String
   content              Json
-  numero               Int                  @default(autoincrement())
   bonsLivraison        BonLivraison[]
   facture              Facture?
   supplierInvoices     FactureFournisseur[]
@@ -168,8 +168,8 @@ model Groupe {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   type        String?  @default("FAMILY")
-  centres     Centre[]
   clients     Client[]
+  centres     Centre[]
 }
 
 model Centre {
@@ -181,12 +181,11 @@ model Centre {
   codePostal           String?
   telephone            String?
   email                String?
-  groupeId             String
+  groupeId             String?
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   bonsLivraison        BonLivraison[]
   caisses              Caisse[]
-  groupe               Groupe               @relation(fields: [groupeId], references: [id], onDelete: Cascade)
   clients              Client[]
   commissionRules      CommissionRule[]
   depenses             Depense[]
@@ -196,6 +195,7 @@ model Centre {
   facturesFournisseurs FactureFournisseur[]
   journeesCaisse       JourneeCaisse[]
   virtualTryons        VirtualTryon[]
+  groupe               Groupe?              @relation(fields: [groupeId], references: [id])
 
   @@unique([groupeId, nom])
 }
@@ -247,8 +247,8 @@ model Product {
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   mouvements           MouvementStock[]
-  virtualTryons        VirtualTryon[]
   entrepot             Entrepot         @relation(fields: [entrepotId], references: [id])
+  virtualTryons        VirtualTryon[]
 
   @@unique([codeInterne, entrepotId])
   @@unique([codeBarres, entrepotId])
@@ -278,9 +278,9 @@ model MouvementStock {
   datePeremption        DateTime?
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
+  userId                String?
   factureFournisseurId  String?
   bonLivraisonId        String?
-  userId                String?
   bonLivraison          BonLivraison?       @relation(fields: [bonLivraisonId], references: [id])
   entrepotDestination   Entrepot?           @relation("EntrepotDestination", fields: [entrepotDestinationId], references: [id])
   entrepotSource        Entrepot?           @relation("EntrepotSource", fields: [entrepotSourceId], references: [id])
@@ -400,15 +400,15 @@ model Convention {
   email                     String?
   telephone                 String?
   adresse                   String?
-  remiseType                String // "PERCENTAGE" or "FLAT_AMOUNT"
+  remiseType                String
   remiseValeur              Float    @default(0)
-  montantForfaitaire        Float? // Optional flat amount for frame + glasses
-  remiseForfaitaire         Boolean  @default(false)
-  montantForfaitaireMonture Float    @default(0)
-  montantForfaitaireVerre   Float    @default(0)
+  montantForfaitaire        Float?
   notes                     String?
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
+  montantForfaitaireMonture Float    @default(0)
+  montantForfaitaireVerre   Float    @default(0)
+  remiseForfaitaire         Boolean  @default(false)
   clients                   Client[]
 }
 
@@ -423,7 +423,6 @@ model Depense {
   justificatifUrl      String?
   centreId             String
   factureFournisseurId String?              @unique
-  bonLivraisonId       String?              @unique
   echeanceId           String?              @unique
   creePar              String?
   validePar            String?
@@ -435,6 +434,7 @@ model Depense {
   creeParId            String?
   valideParId          String?
   employeeId           String?
+  bonLivraisonId       String?              @unique
   demandeAlimentation  DemandeAlimentation?
   bonLivraison         BonLivraison?        @relation(fields: [bonLivraisonId], references: [id], onDelete: Cascade)
   centre               Centre               @relation(fields: [centreId], references: [id])
@@ -461,14 +461,14 @@ model FactureFournisseur {
   statut           String             @default("A_PAYER")
   type             String             @default("ACHAT_STOCK")
   fournisseurId    String
-  quantite         Float?
-  referenceInterne String?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   centreId         String?
-  clientId         String?
   pieceJointeUrl   String?
+  clientId         String?
   ficheId          String?
+  referenceInterne String?
+  quantite         Float?
   childBLs         BonLivraison[]
   depenses         Depense?
   echeances        EcheancePaiement[]
@@ -629,13 +629,13 @@ model DemandeAlimentation {
   id              String        @id @default(uuid())
   montant         Float
   depenseId       String?       @unique
-  paiementId      String?       @unique
   journeeCaisseId String
   statut          String        @default("EN_ATTENTE")
   createdAt       DateTime      @default(now())
   validatedAt     DateTime?
   validatedBy     String?
   remarque        String?
+  paiementId      String?       @unique
   depense         Depense?      @relation(fields: [depenseId], references: [id], onDelete: Cascade)
   journeeCaisse   JourneeCaisse @relation(fields: [journeeCaisseId], references: [id])
   paiement        Paiement?     @relation(fields: [paiementId], references: [id], onDelete: Cascade)
@@ -678,9 +678,9 @@ model Employee {
   updatedAt                 DateTime         @updatedAt
   photoUrl                  String?
   childrenCount             Int              @default(0)
+  familyStatus              String           @default("CELIBATAIRE")
   paymentMode               String           @default("VIREMENT")
   socialSecurityAffiliation Boolean          @default(true)
-  familyStatus              String           @default("CELIBATAIRE")
   attendance                Attendance[]
   commissions               Commission[]
   depenses                  Depense[]
@@ -738,24 +738,24 @@ model Payroll {
   mois                     String
   annee                    Int
   salaireBase              Float
+  primes                   Float    @default(0)
   commissions              Float    @default(0)
   heuresSup                Float    @default(0)
   retenues                 Float    @default(0)
+  avances                  Float    @default(0)
+  grossSalary              Float    @default(0)
+  socialSecurityDeduction  Float    @default(0)
+  healthInsuranceDeduction Float    @default(0)
+  incomeTaxDeduction       Float    @default(0)
+  professionalExpenses     Float    @default(0)
+  taxableNet               Float    @default(0)
+  employerCharges          Float    @default(0)
   netAPayer                Float
   statut                   String   @default("BROUILLON")
   pdfUrl                   String?
   expenseId                String?  @unique
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
-  employerCharges          Float    @default(0)
-  grossSalary              Float    @default(0)
-  healthInsuranceDeduction Float    @default(0)
-  incomeTaxDeduction       Float    @default(0)
-  primes                   Float    @default(0)
-  professionalExpenses     Float    @default(0)
-  socialSecurityDeduction  Float    @default(0)
-  taxableNet               Float    @default(0)
-  avances                  Float    @default(0)
   employee                 Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   expense                  Depense? @relation(fields: [expenseId], references: [id])
 }
@@ -765,23 +765,23 @@ model PayrollConfig {
   annee                 Int      @unique
   socialSecurityRate_S  Float    @default(4.48)
   socialSecurityRate_P  Float    @default(8.98)
+  familyAllowanceRate_P Float    @default(6.40)
+  trainingRate_P        Float    @default(1.60)
   socialSecurityCap     Float    @default(6000)
   healthInsuranceRate_S Float    @default(2.26)
   healthInsuranceRate_P Float    @default(4.11)
   profExpensesRate      Float    @default(20)
   profExpensesCap       Float    @default(2500)
+  profExpensesThreshold Float?   @default(78000)
+  profExpensesRateLow   Float?   @default(35)
+  profExpensesRateHigh  Float?   @default(25)
+  profExpensesCapLow    Float?   @default(30000)
+  profExpensesCapHigh   Float?   @default(35000)
   incomeTaxBrackets     Json
   familyDeduction       Float    @default(30)
+  familyDeductionCap    Float    @default(180)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
-  familyAllowanceRate_P Float    @default(6.40)
-  trainingRate_P        Float    @default(1.60)
-  familyDeductionCap    Float    @default(180)
-  profExpensesCapHigh   Float?   @default(35000)
-  profExpensesCapLow    Float?   @default(30000)
-  profExpensesRateHigh  Float?   @default(25)
-  profExpensesRateLow   Float?   @default(35)
-  profExpensesThreshold Float?   @default(78000)
 }
 
 model CompanySettings {
@@ -791,17 +791,17 @@ model CompanySettings {
   address           String?
   phone             String?
   email             String?
-  website           String?
   ice               String?
   rc                String?
-  identifiantFiscal String?  @map("if")
   patente           String?
-  cnss              String?
-  inpeCode          String?
-  rib               String?
-  bank              String?
   updatedAt         DateTime @updatedAt
   cachetUrl         String?
+  bank              String?
+  identifiantFiscal String?  @map("if")
+  rib               String?
+  website           String?
+  cnss              String?
+  inpeCode          String?
 }
 
 model GlassBrand {
@@ -863,15 +863,15 @@ model VirtualTryon {
   cameraImageUrl  String
   resultImageUrl  String
   confidenceScore Float    @default(0)
-  faceFrame       Json? // Stores face landmarks, expressions, age, gender
-  productType     String   @default("GLASSES") // GLASSES, SUNGLASSES, CONTACT_LENS, FRAME, LENS
-  tryonDuration   Int      @default(0) // seconds
+  faceFrame       Json?
+  productType     String   @default("GLASSES")
+  tryonDuration   Int      @default(0)
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  product         Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
-  centre          Centre   @relation(fields: [centreId], references: [id], onDelete: Restrict)
-  client          Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  centre          Centre   @relation(fields: [centreId], references: [id])
+  client          Client?  @relation(fields: [clientId], references: [id])
+  product         Product  @relation(fields: [productId], references: [id])
 
   @@index([centreId])
   @@index([clientId])

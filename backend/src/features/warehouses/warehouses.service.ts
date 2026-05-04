@@ -88,7 +88,10 @@ export class WarehousesService {
     // We can add a flag to them if needed, but existing frontend logic
     // checks specificData.pendingTransfer?.targetWarehouseId so it will auto-detect them as 'incoming'
     // if we just add them to the list.
-    const allProducts = [...entrepot.produits, ...incomingProducts];
+    const allProducts = [
+      ...(entrepot as unknown as { produits: unknown[] }).produits,
+      ...incomingProducts,
+    ];
 
     return {
       ...entrepot,
@@ -133,7 +136,7 @@ export class WarehousesService {
           },
         },
       });
-    } catch (error) {
+    } catch {
       throw new NotFoundException(`Entrepot with ID ${id} not found`);
     }
   }
@@ -144,7 +147,7 @@ export class WarehousesService {
         where: { id },
       });
       return { message: `Entrepot with ID ${id} deleted successfully` };
-    } catch (error) {
+    } catch {
       throw new NotFoundException(`Entrepot with ID ${id} not found`);
     }
   }

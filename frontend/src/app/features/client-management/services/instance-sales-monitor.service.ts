@@ -26,6 +26,7 @@ export class InstanceSalesMonitorService {
     private pendingShipmentCount$ = new BehaviorSubject<number>(0);
     private waitingReceptionCount$ = new BehaviorSubject<number>(0);
     private fundingRequestCount$ = new BehaviorSubject<number>(0);
+    private portfolioCount$ = new BehaviorSubject<number>(0);
 
 
     private notifiedSales = new Set<string>();
@@ -126,11 +127,14 @@ export class InstanceSalesMonitorService {
             switchMap((center: any) => {
                 const centreId = center?.id;
                 return forkJoin({
-                    funding: this.financeService.getFundingRequestsCount(centreId)
+                    funding: this.financeService.getFundingRequestsCount(centreId),
+                    portfolio: this.financeService.getPendingTreasuryAlerts(centreId)
                 }).pipe(
-                    tap(({ funding }) => {
+                    tap(({ funding, portfolio }) => {
                         this.ngZone.run(() => {
                             this.fundingRequestCount$.next(funding);
+                            const portCount = (portfolio.client?.length || 0) + (portfolio.supplier?.length || 0);
+                            this.portfolioCount$.next(portCount);
                         });
                     }),
                     catchError(err => {
@@ -271,6 +275,7 @@ export class InstanceSalesMonitorService {
     }
 
     getFundingRequestCount(): Observable<number> { return this.fundingRequestCount$.asObservable(); }
+    getPortfolioCount(): Observable<number> { return this.portfolioCount$.asObservable(); }
 
 
     clearNotification(saleId: string): void { this.notifiedSales.delete(saleId); }

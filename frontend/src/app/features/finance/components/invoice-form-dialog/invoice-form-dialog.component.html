@@ -328,12 +328,12 @@
                         </form>
 
                         <div class="flex justify-end mt-6">
-                            <button type="button" mat-raised-button color="primary" matStepperNext [disabled]="detailsGroup.invalid"
+                            <button type="button" mat-raised-button color="primary" (click)="nextStep()"
                                 class="!px-8" *ngIf="!isBLMode">
                                 Suivant : Planifier Paiement <mat-icon>arrow_forward</mat-icon>
                             </button>
                             <button type="button" mat-raised-button color="primary" (click)="onSubmit()"
-                                [disabled]="detailsGroup.invalid" class="!px-8" *ngIf="isBLMode && !isViewMode">
+                                class="!px-8" *ngIf="isBLMode && !isViewMode">
                                 <mat-icon>save</mat-icon> Enregistrer le BL
                             </button>
                         </div>
@@ -354,6 +354,10 @@
                                                 class="font-bold text-gray-800">{{ detailsGroup.get('montantTTC')?.value
                                                 |
                                                 number:'1.2-2' }} MAD</span></p>
+                                        <p class="text-xs text-green-600 font-medium" *ngIf="data?.prefilledData?.totalPaye > 0">
+                                            <mat-icon class="text-xs align-middle">info</mat-icon> 
+                                            {{ data.prefilledData.totalPaye | number:'1.2-2' }} MAD ont déjà été payés sur les BL (repris automatiquement).
+                                        </p>
                                     </div>
                                     <div class="flex gap-2">
                                         <button type="button" mat-stroked-button color="accent" (click)="manualApplyConditions()"
@@ -401,7 +405,7 @@
                                             </mat-form-field>
 
                                             <mat-form-field appearance="outline" class="dense-field"
-                                                *ngIf="$any(eg).get('type')?.value !== 'ESPECES'">
+                                                *ngIf="$any(eg).get('type')?.value !== 'ESPECES' && $any(eg).get('type')?.value !== 'VIREMENT'">
                                                 <mat-label>N° Pièce</mat-label>
                                                 <input matInput formControlName="reference" placeholder="N° Chèque/LCN">
                                             </mat-form-field>
@@ -448,7 +452,7 @@
                                         <button type="button" mat-button (click)="onCancel()">{{ isViewMode ? 'Fermer' : 'Annuler'
                                             }}</button>
                                         <button type="button" mat-raised-button color="primary" (click)="onSubmit()"
-                                            [disabled]="form.invalid" class="!px-10" *ngIf="!isViewMode">
+                                            class="!px-10" *ngIf="!isViewMode">
                                             <mat-icon>save</mat-icon> {{ isBLMode ? 'Enregistrer le BL' :
                                             (data?.isGrouping
                                             ?

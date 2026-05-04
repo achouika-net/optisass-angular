@@ -116,6 +116,7 @@ export class FinanceService {
     getBonLivraisons(filters?: {
         fournisseurId?: string;
         statut?: string;
+        facturation?: string;
         clientId?: string;
         centreId?: string;
         categorieBL?: string;
@@ -128,6 +129,7 @@ export class FinanceService {
         let params = new HttpParams();
         if (filters?.fournisseurId) params = params.set('fournisseurId', filters.fournisseurId);
         if (filters?.statut) params = params.set('statut', filters.statut);
+        if (filters?.facturation) params = params.set('facturation', filters.facturation);
         if (filters?.clientId) params = params.set('clientId', filters.clientId);
         if (filters?.centreId) params = params.set('centreId', filters.centreId);
         if (filters?.categorieBL) params = params.set('categorieBL', filters.categorieBL);

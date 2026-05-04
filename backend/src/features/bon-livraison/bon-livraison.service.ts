@@ -90,14 +90,26 @@ export class BonLivraisonService {
         page?: number;
         limit?: number;
         categorieBL?: string;
+        facturation?: string;
+        factureFournisseurId?: string;
     }) {
-        const { fournisseurId, statut, clientId, centreId, ficheId, startDate, endDate, page, limit, categorieBL } = filters;
+        const { fournisseurId, statut, clientId, centreId, ficheId, startDate, endDate, page, limit, categorieBL, facturation, factureFournisseurId } = filters;
         const whereClause: any = {};
 
         if (fournisseurId) whereClause.fournisseurId = fournisseurId;
         if (statut) whereClause.statut = statut;
         if (clientId) whereClause.clientId = clientId;
         if (centreId) whereClause.centreId = centreId;
+        
+        // Handle facturation status filter
+        if (facturation === 'FACTURE') {
+            whereClause.factureFournisseurId = { not: null };
+        } else if (facturation === 'EN_ATTENTE') {
+            whereClause.factureFournisseurId = null;
+        } else if (factureFournisseurId) {
+            whereClause.factureFournisseurId = factureFournisseurId;
+        }
+
         if (ficheId) whereClause.ficheId = ficheId;
         if (categorieBL) whereClause.categorieBL = categorieBL;
 
@@ -144,7 +156,7 @@ export class BonLivraisonService {
                         },
                     },
                     fiche: { select: { id: true, numero: true, type: true } },
-                    factureFournisseur: { select: { id: true, numeroFacture: true } },
+                    factureFournisseur: { select: { id: true, numeroFacture: true, statut: true } },
                 },
                 orderBy: { dateEmission: 'desc' },
                 skip,
@@ -195,27 +207,39 @@ export class BonLivraisonService {
             }),
         );
 
-        // Calculate stats on enriched data
-        const finalStats = enrichedData.reduce(
-            (acc: any, curr: any) => {
-                acc.totalTTC += curr.montantTTC || 0;
-                const paidEcheances = (curr.echeances || [])
-                    .filter((e: any) => e.statut === 'ENCAISSE')
-                    .reduce((sum: number, e: any) => sum + e.montant, 0);
-                const directPaid = (curr.depense && (curr.depense.statut === 'VALIDE' || curr.depense.statut === 'VALIDEE')) ? curr.depense.montant : 0;
-                acc.totalPaid += paidEcheances + directPaid;
-                return acc;
-            },
-            { totalTTC: 0, totalPaid: 0 },
-        );
+        // Calculate global stats for ALL filtered items (not just the current page)
+        const allItemsForStats = await this.prisma.bonLivraison.findMany({
+            where: whereClause,
+            select: {
+                montantTTC: true,
+                depense: { select: { montant: true, statut: true } },
+                echeances: {
+                    where: { statut: 'ENCAISSE' },
+                    select: { montant: true }
+                }
+            }
+        });
+
+        const globalStats = allItemsForStats.reduce((acc, bl) => {
+            acc.totalTTC += bl.montantTTC || 0;
+            const paidEcheances = bl.echeances.reduce((sum, e) => sum + e.montant, 0);
+            const directPaid = (bl.depense && (bl.depense.statut === 'VALIDE' || bl.depense.statut === 'VALIDEE')) ? bl.depense.montant : 0;
+            
+            // Avoid double counting: Use the maximum of direct payment or scheduled payments, 
+            // capped at montantTTC to prevent data inconsistencies from showing negative reliquat.
+            const totalPaidForBL = Math.min(bl.montantTTC, Math.max(directPaid, paidEcheances));
+            
+            acc.totalPaid += totalPaidForBL;
+            return acc;
+        }, { totalTTC: 0, totalPaid: 0 });
 
         return {
             data: enrichedData,
             total,
             stats: {
-                totalTTC: Math.round(finalStats.totalTTC * 100) / 100,
-                totalPaid: Math.round(finalStats.totalPaid * 100) / 100,
-                totalRemaining: Math.round((finalStats.totalTTC - finalStats.totalPaid) * 100) / 100,
+                totalTTC: Math.round(globalStats.totalTTC * 100) / 100,
+                totalPaid: Math.round(globalStats.totalPaid * 100) / 100,
+                totalRemaining: Math.round((globalStats.totalTTC - globalStats.totalPaid) * 100) / 100,
             },
         };
     }

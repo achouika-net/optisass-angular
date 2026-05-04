@@ -134,23 +134,24 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
   `]
 })
 export class SupplierInvoiceListComponent implements OnInit {
-  @Input() listMode: 'INVOICE' | 'BL' = 'BL';
-  @Input() showHeader = true;
-  @Input() isSubComponent = false;
-  @Output() statsUpdated = new EventEmitter<any>();
+  @Input() public listMode: 'INVOICE' | 'BL' = 'BL';
+  @Input() public showHeader = true;
+  @Input() public isSubComponent = false;
+  @Output() public statsUpdated = new EventEmitter<any>();
 
-  invoices: SupplierInvoice[] = [];
-  displayedColumns: string[] = [];
-  loading = false;
-  currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
-  selection = new SelectionModel<SupplierInvoice>(true, []);
+  public invoices: SupplierInvoice[] = [];
+  public displayedColumns: string[] = [];
+  public loading = false;
+  public currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
+  public selection = new SelectionModel<SupplierInvoice>(true, []);
 
-  totalCount = 0;
-  pageIndex = 0;
-  pageSize = 10;
+  public totalCount = 0;
+  public pageIndex = 0;
+  public pageSize = 10;
+  public selectAllResults = false;
 
-  selectedPeriod = signal<string>('this-month');
-  periods = [
+  public selectedPeriod = signal<string>('this-month');
+  public periods = [
     { value: 'all', label: 'Toutes les périodes' },
     { value: 'today', label: "Aujourd'hui" },
     { value: 'this-month', label: 'Ce mois-ci' },
@@ -159,19 +160,21 @@ export class SupplierInvoiceListComponent implements OnInit {
     { value: 'custom', label: 'Plage personnalisée' }
   ];
 
-  suppliers: any[] = [];
-  filters = {
+  public suppliers: any[] = [];
+  public filters = {
     fournisseurId: '',
+    statut: '',
+    facturation: 'EN_ATTENTE',
     startDate: null as Date | null,
     endDate: null as Date | null
   };
 
-  stats = {
+  public stats = {
     totalTTC: 0,
     totalPaid: 0,
     totalRemaining: 0
   };
-  printDate = new Date();
+  public printDate = new Date();
 
   constructor(
     private financeService: FinanceService,
@@ -182,21 +185,17 @@ export class SupplierInvoiceListComponent implements OnInit {
     private store: Store,
     private cdr: ChangeDetectorRef
   ) {
-    // Unified effect to react to center or period changes
     effect(() => {
       const center = this.currentCentre();
-      const period = this.selectedPeriod(); // Explicit dependency
-
+      const period = this.selectedPeriod();
       if (center?.id) {
         this.loadInvoices();
       }
     });
   }
 
-  ngOnInit(): void {
+  public ngOnInit(): void {
     this.loadSuppliers();
-
-    // Subscribe to query params to detect if we should show BL or Invoices
     this.route.queryParams.subscribe(params => {
       if (params['tab'] === 'BL') {
         this.listMode = 'BL';
@@ -204,75 +203,81 @@ export class SupplierInvoiceListComponent implements OnInit {
         this.listMode = 'INVOICE';
       }
       this.updateColumns();
-      // Changing listMode will be picked up by the effect (indirectly) if we reload
-      // But since we want immediate refresh:
+      this.selectAllResults = false;
       this.loadInvoices();
     });
   }
 
-    updateColumns() {
-        if (this.listMode === 'BL') {
-            this.displayedColumns = ['select', 'date', 'numero', 'fournisseur', 'client', 'ficheMedicale', 'type', 'paiement', 'statut', 'montant', 'actions'];
-        } else {
-            this.displayedColumns = ['date', 'numero', 'fournisseur', 'type', 'paiement', 'pieces', 'echeance_dates', 'statut', 'montant', 'actions'];
-        }
+  public updateColumns() {
+    if (this.listMode === 'BL') {
+      this.displayedColumns = ['select', 'date', 'numero', 'fournisseur', 'client', 'ficheMedicale', 'type', 'paiement', 'facture', 'statut', 'montant', 'actions'];
+    } else {
+      this.displayedColumns = ['date', 'numero', 'fournisseur', 'type', 'paiement', 'pieces', 'echeance_dates', 'statut', 'montant', 'actions'];
     }
+  }
 
-    getPaymentType(element: SupplierInvoice): string {
-        if (!element.echeances || element.echeances.length === 0) return '-';
-        const types = Array.from(new Set(element.echeances.map(e => e.type)));
-        if (types.length === 1) return types[0];
-        return 'MIXTE';
+  public getPaymentType(element: SupplierInvoice): string {
+    if (!element.echeances || element.echeances.length === 0) return '-';
+    const types = Array.from(new Set(element.echeances.map(e => e.type)));
+    if (types.length === 1) return types[0];
+    return 'MIXTE';
+  }
+
+  public getPieceCount(element: any): number {
+    if (element.childBLs && element.childBLs.length > 0) {
+      return element.childBLs.length;
     }
+    return element.echeances?.length || 0;
+  }
 
-    getPieceCount(element: SupplierInvoice): number {
-        return element.echeances?.length || 0;
+  public getPieceDates(element: SupplierInvoice): string {
+    if (!element.echeances || element.echeances.length === 0) return '-';
+    const sorted = [...element.echeances].sort((a, b) => 
+      new Date(a.dateEcheance).getTime() - new Date(b.dateEcheance).getTime()
+    );
+    if (sorted.length > 3) {
+      const first = new Date(sorted[0].dateEcheance);
+      const last = new Date(sorted[sorted.length - 1].dateEcheance);
+      return `${this.formatDateShort(first)}...${this.formatDateShort(last)} (${sorted.length})`;
     }
+    return sorted.map(e => this.formatDateShort(new Date(e.dateEcheance))).join(', ');
+  }
 
-    getPieceDates(element: SupplierInvoice): string {
-        if (!element.echeances || element.echeances.length === 0) return '-';
-        return element.echeances.map(e => {
-            const date = new Date(e.dateEcheance);
-            return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-        }).join(', ');
-    }
+  private formatDateShort(date: Date): string {
+    return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+  }
 
-  applyFilters() {
+  public applyFilters() {
     this.loadInvoices();
   }
 
-  resetFilters() {
+  public resetFilters() {
     this.selectedPeriod.set('all');
     this.filters = {
       fournisseurId: '',
+      statut: '',
+      facturation: 'EN_ATTENTE',
       startDate: null,
       endDate: null
     };
     this.loadInvoices();
   }
 
-  loadSuppliers() {
+  public loadSuppliers() {
     this.financeService.getSuppliers().subscribe(data => this.suppliers = data);
   }
 
-  loadInvoices() {
+  public loadInvoices() {
     const center = this.currentCentre();
-    if (!center?.id) {
-      console.warn('⚠️ [SupplierInvoiceList] No active center, skipping load.');
-      return;
-    }
-
+    if (!center?.id) return;
     this.loading = true;
     this.cdr.markForCheck();
     let startDate: string | undefined;
     let endDate: string | undefined;
-
     const now = new Date();
     if (this.selectedPeriod() === 'today') {
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-      startDate = todayStart.toISOString();
-      endDate = todayEnd.toISOString();
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString();
+      endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
     } else if (this.selectedPeriod() === 'this-month') {
       startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
       endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
@@ -290,42 +295,37 @@ export class SupplierInvoiceListComponent implements OnInit {
         endDate = end.toISOString();
       }
     }
-
     const serviceCall = this.listMode === 'BL'
       ? this.financeService.getBonLivraisons({
-        centreId: center?.id,
-        fournisseurId: this.filters.fournisseurId || undefined,
-        startDate,
-        endDate,
-        page: this.pageIndex + 1,
-        limit: this.pageSize
-      })
+          centreId: center.id,
+          fournisseurId: this.filters.fournisseurId || undefined,
+          statut: this.filters.statut || undefined,
+          facturation: this.filters.facturation || undefined,
+          startDate,
+          endDate,
+          page: this.pageIndex + 1,
+          limit: this.pageSize
+        })
       : this.financeService.getInvoices({
-        centreId: center?.id,
-        fournisseurId: this.filters.fournisseurId || undefined,
-        startDate,
-        endDate,
-        page: this.pageIndex + 1,
-        limit: this.pageSize
-      });
-
+          centreId: center.id,
+          fournisseurId: this.filters.fournisseurId || undefined,
+          statut: this.filters.statut || undefined,
+          startDate,
+          endDate,
+          page: this.pageIndex + 1,
+          limit: this.pageSize
+        });
     (serviceCall as any).subscribe({
       next: (res: any) => {
         if (res && res.data !== undefined) {
           this.invoices = res.data || [];
           this.totalCount = Number(res.total);
-          
-          let calcTTC = 0;
-          let calcHT = 0;
-          let calcReste = 0;
-
-          // Process the items to compute or augment stats
+          let calcTTC = 0; let calcHT = 0; let calcReste = 0;
           this.invoices.forEach(inv => {
             calcTTC += (inv.montantTTC || 0);
             calcHT += (inv.montantHT || 0);
             calcReste += ((inv as any).resteAPayer || 0);
           });
-
           if (res.stats) {
             this.stats = res.stats;
             this.statsUpdated.emit({
@@ -345,80 +345,109 @@ export class SupplierInvoiceListComponent implements OnInit {
         this.loading = false;
         this.printDate = new Date();
         this.selection.clear();
+        this.selectAllResults = false;
         this.cdr.detectChanges();
       },
       error: (err: any) => {
-        console.error('Erreur chargement données', err);
         this.snackBar.open('Erreur lors du chargement des données', 'Fermer', { duration: 3000 });
         this.loading = false;
       }
     });
   }
 
-  onPageChange(event: any) {
+  public onPageChange(event: any) {
     this.pageIndex = event.pageIndex;
     this.pageSize = event.pageSize;
+    this.selectAllResults = false;
     this.loadInvoices();
   }
 
-  isAllSelected() {
-    const numSelected = this.selection.selected.length;
-    const numRows = this.invoices.length;
-    return numSelected === numRows;
+  public isAllSelected() {
+    return this.selection.selected.length === this.invoices.length;
   }
 
-  masterToggle() {
-    this.isAllSelected() ?
-      this.selection.clear() :
+  public masterToggle() {
+    if (this.isAllSelected()) {
+      this.selection.clear();
+      this.selectAllResults = false;
+    } else {
       this.invoices.forEach(row => this.selection.select(row));
+    }
   }
 
-  groupSelectedBLs() {
-    if (this.selection.selected.length < 2) {
+  public toggleSelectAllResults(val: boolean) {
+    this.selectAllResults = val;
+    if (!val) this.selection.clear();
+  }
+
+  public async groupSelectedBLs() {
+    if (this.selection.selected.length < 2 && !this.selectAllResults) {
       this.snackBar.open('Veuillez sélectionner au moins 2 BL pour les grouper', 'Fermer', { duration: 3000 });
       return;
     }
-
-    // Totalize for the new invoice
-    const totalTTC = Math.round(this.selection.selected.reduce((sum, bl) => sum + bl.montantTTC, 0) * 100) / 100;
-    const totalHT = Math.round(this.selection.selected.reduce((sum, bl) => sum + bl.montantHT, 0) * 100) / 100;
-    const totalTVA = Math.round(this.selection.selected.reduce((sum, bl) => sum + bl.montantTVA, 0) * 100) / 100;
-
-    // Calculate already paid amount from child BLs
-    const totalPaye = Math.round(this.selection.selected.reduce((sum, bl) => {
-      if (bl.statut === 'PAYEE') return sum + bl.montantTTC;
-      if (bl.statut === 'PARTIELLE' && bl.echeances) {
-        return sum + bl.echeances.filter(e => e.statut === 'ENCAISSE').reduce((s, e) => s + e.montant, 0);
+    this.loading = true;
+    let selectedBLs = this.selection.selected;
+    if (this.selectAllResults) {
+      try {
+        const res = await (this.financeService.getBonLivraisons({
+          centreId: this.currentCentre()?.id,
+          fournisseurId: this.filters.fournisseurId || undefined,
+          statut: this.filters.statut || undefined,
+          startDate: this.filters.startDate?.toISOString(),
+          endDate: this.filters.endDate?.toISOString(),
+          page: 1,
+          limit: 2000
+        }).toPromise() as any);
+        selectedBLs = res.data || [];
+      } catch (error) {
+        this.snackBar.open('Erreur lors de la récupération de tous les BL', 'Fermer', { duration: 3000 });
+        this.loading = false;
+        return;
       }
-      return sum;
+    }
+    this.loading = false;
+    if (selectedBLs.length < 2) {
+      this.snackBar.open('Veuillez sélectionner au moins 2 BL pour les grouper', 'Fermer', { duration: 3000 });
+      return;
+    }
+    const totalTTC = Math.round(selectedBLs.reduce((sum, bl) => sum + bl.montantTTC, 0) * 100) / 100;
+    const totalHT = Math.round(selectedBLs.reduce((sum, bl) => sum + bl.montantHT, 0) * 100) / 100;
+    const totalTVA = Math.round(selectedBLs.reduce((sum, bl) => sum + bl.montantTVA, 0) * 100) / 100;
+    let lastPaidBLDate: Date | null = null;
+    const totalPaye = Math.round(selectedBLs.reduce((sum, bl) => {
+      let paidOnThisBL = 0;
+      if (bl.statut === 'PAYEE') paidOnThisBL = bl.montantTTC;
+      else if (bl.statut === 'PARTIELLE' && bl.echeances) {
+        paidOnThisBL = bl.echeances.filter(e => e.statut === 'ENCAISSE').reduce((s, e) => s + e.montant, 0);
+      }
+      if (paidOnThisBL > 0) {
+        const blDate = new Date(bl.dateEmission);
+        if (!lastPaidBLDate || blDate > lastPaidBLDate) lastPaidBLDate = blDate;
+      }
+      return sum + paidOnThisBL;
     }, 0) * 100) / 100;
-
-    const supplierId = this.selection.selected[0].fournisseurId;
-
-    if (this.selection.selected.some(bl => bl.fournisseurId !== supplierId)) {
+    const supplierId = selectedBLs[0].fournisseurId;
+    const existingEcheances: any[] = [];
+    selectedBLs.forEach(bl => { if (bl.echeances) existingEcheances.push(...bl.echeances); });
+    if (selectedBLs.some(bl => bl.fournisseurId !== supplierId)) {
       this.snackBar.open('Tous les BL doivent appartenir au même fournisseur', 'Fermer', { duration: 3000 });
       return;
     }
-
     const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
-      width: '1100px',
-      maxWidth: '95vw',
-      maxHeight: '90vh',
+      width: '1100px', maxWidth: '95vw', maxHeight: '90vh',
       data: {
         isGrouping: true,
         prefilledData: {
-          fournisseurId: supplierId,
-          montantTTC: totalTTC,
-          montantHT: totalHT,
+          fournisseurId: supplierId, 
+          montantTTC: totalTTC, 
+          montantHT: totalHT, 
           montantTVA: totalTVA,
-          totalPaye: totalPaye, // Pass the already paid amount
-          type: 'ACHAT_GROUPE',
-          numeroFacture: `GROUPE-${new Date().getTime()}`
+          totalPaye, lastPaidBLDate, echeances: existingEcheances,
+          type: 'ACHAT_GROUPE', numeroFacture: ''
         },
-        blIds: this.selection.selected.map(bl => bl.id)
+        blIds: selectedBLs.map(bl => bl.id)
       }
     });
-
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
         this.loadInvoices();
@@ -427,49 +456,32 @@ export class SupplierInvoiceListComponent implements OnInit {
     });
   }
 
-  openInvoiceDialog(invoice?: SupplierInvoice, viewMode: boolean = false) {
+  public openInvoiceDialog(invoice?: SupplierInvoice, viewMode: boolean = false) {
     const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
-      width: '1100px',
-      maxWidth: '95vw',
-      maxHeight: '90vh',
+      width: '1100px', maxWidth: '95vw', maxHeight: '90vh',
       data: { invoice, viewMode, isBL: (invoice as any)?.numeroBL !== undefined || this.listMode === 'BL' }
     });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        this.loadInvoices();
-      }
-    });
+    dialogRef.afterClosed().subscribe(result => { if (result) this.loadInvoices(); });
   }
 
-  openExpenseDialog() {
-    const dialogRef = this.dialog.open(ExpenseFormDialogComponent, {
-      width: '800px',
-      maxWidth: '95vw',
-      data: {}
-    });
-
+  public openExpenseDialog() {
+    const dialogRef = this.dialog.open(ExpenseFormDialogComponent, { width: '800px', maxWidth: '95vw', data: {} });
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
         this.router.navigate(['/p/gestion-depenses/expenses']);
-        this.snackBar.open('Dépense enregistrée. Vous avez été redirigé vers la liste des dépenses.', 'Fermer', { duration: 5000 });
+        this.snackBar.open('Dépense enregistrée.', 'Fermer', { duration: 5000 });
       }
     });
   }
 
-  openPaymentDialog(invoice: SupplierInvoice) {
-    // If the invoice is already paid, notify the user
+  public openPaymentDialog(invoice: SupplierInvoice) {
     if (invoice.statut === 'PAYEE') {
-      this.snackBar.open('Cette facture est déjà payée', 'Fermer', { duration: 3000 });
+      this.snackBar.open('Déjà payée', 'Fermer', { duration: 3000 });
       return;
     }
-
-    // Find first pending echeance
     const pendingEcheance = invoice.echeances?.find(e => e.statut === 'EN_ATTENTE');
-
     const isBL = (invoice as any).numeroBL !== undefined || this.listMode === 'BL';
     const numero = (invoice as any).numeroBL || invoice.numeroFacture;
-
     const dialogRef = this.dialog.open(ExpenseFormDialogComponent, {
       width: '600px',
       data: {
@@ -478,7 +490,7 @@ export class SupplierInvoiceListComponent implements OnInit {
           factureFournisseurId: isBL ? undefined : invoice.id,
           bonLivraisonId: isBL ? invoice.id : undefined,
           echeanceId: pendingEcheance?.id,
-          montant: invoice.montantTTC, // Default to full amount
+          montant: invoice.montantTTC,
           categorie: invoice.type || 'ACHAT_STOCK',
           description: `Paiement ${isBL ? 'BL' : 'Facture'} ${numero}`,
           date: new Date().toISOString(),
@@ -488,52 +500,30 @@ export class SupplierInvoiceListComponent implements OnInit {
         }
       }
     });
-
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
         this.loadInvoices();
-        this.snackBar.open('Paiement enregistré avec succès', 'Fermer', { duration: 3000 });
+        this.snackBar.open('Paiement enregistré', 'Fermer', { duration: 3000 });
       }
     });
   }
 
-  deleteInvoice(invoice: SupplierInvoice) {
+  public deleteInvoice(invoice: SupplierInvoice) {
     const isBL = (invoice as any).numeroBL !== undefined || this.listMode === 'BL';
     const numero = (invoice as any).numeroBL || invoice.numeroFacture;
-    const typeLabel = isBL ? 'le BL' : 'la facture';
-
-    if (confirm(`Êtes-vous sûr de vouloir supprimer ${typeLabel} ${numero} ?`)) {
-      const deleteCall = isBL
-        ? this.financeService.deleteBonLivraison(invoice.id!)
-        : this.financeService.deleteInvoice(invoice.id!);
-
-      deleteCall.subscribe({
+    if (confirm(`Supprimer ${isBL ? 'le BL' : 'la facture'} ${numero} ?`)) {
+      (isBL ? this.financeService.deleteBonLivraison(invoice.id!) : this.financeService.deleteInvoice(invoice.id!))
+      .subscribe({
         next: () => {
-          this.snackBar.open(`${isBL ? 'BL supprimé' : 'Facture supprimée'}`, 'Fermer', { duration: 3000 });
+          this.snackBar.open('Supprimé', 'Fermer', { duration: 3000 });
           this.loadInvoices();
         },
-        error: (err) => {
-          console.error(err);
-          this.snackBar.open('Erreur lors de la suppression', 'Fermer', { duration: 3000 });
-        }
+        error: (err) => this.snackBar.open('Erreur lors de la suppression', 'Fermer', { duration: 3000 })
       });
     }
   }
 
-  createInvoice(data: any) {
-    this.financeService.createInvoice(data).subscribe({
-      next: () => {
-        this.snackBar.open('Facture enregistrée avec succès', 'OK', { duration: 3000 });
-        this.loadInvoices();
-      },
-      error: (err) => {
-        console.error(err);
-        this.snackBar.open('Erreur lors de l’enregistrement', 'Fermer', { duration: 3000 });
-      }
-    });
-  }
-
-  getStatusClass(statut: string): string {
+  public getStatusClass(statut: string): string {
     switch (statut) {
       case 'PAYEE': return 'bg-green-100 text-green-800';
       case 'PARTIELLE': return 'bg-orange-100 text-orange-800';
@@ -543,68 +533,52 @@ export class SupplierInvoiceListComponent implements OnInit {
     }
   }
 
-  formatType(type: string): string {
+  public formatType(type: string): string {
     if (!type) return '-';
-    // Remove "ACHAT_" prefix and replace underscores with spaces
     const cleaned = type.replace('ACHAT_', '').replace(/_/g, ' ');
-    // Return capitalized first letter
     return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase();
   }
 
-  formatClientName(client: any): string {
+  public formatClientName(client: any): string {
     if (!client) return '-';
-    // Handle both cases: string (legacy) or object
     if (typeof client === 'string') return client;
     return `${client.nom || ''} ${client.prenom || ''}`.trim() || '-';
   }
 
-  getSupplierName(id: string): string {
+  public getSupplierName(id: string): string {
     const s = this.suppliers.find(sup => sup.id === id);
     return s ? s.nom : id;
   }
 
-  getPeriodLabel(value: string): string {
+  public getPeriodLabel(value: string): string {
     const p = this.periods.find(per => per.value === value);
     return p ? p.label : value;
   }
 
-  getTotalTTC(): number {
-    return this.invoices.reduce((acc, inv) => acc + (inv.montantTTC || 0), 0);
-  }
+  public getToday(): Date { return new Date(); }
 
-  getToday(): Date {
-    return new Date();
-  }
-
-  printList() {
+  public printList() {
     this.printDate = new Date();
     this.cdr.detectChanges();
-
-    // 1. Get the print layout element
     const printContent = document.querySelector('.print-layout');
-    if (!printContent) {
-      console.error('❌ [Print] Print layout element not found');
-      window.print();
-      return;
-    }
-
-    // 2. Clone it and prepare for isolation
+    if (!printContent) { window.print(); return; }
     const clone = printContent.cloneNode(true) as HTMLElement;
     clone.classList.add('print-isolated');
-
-    // 3. Mark body as printing and append clone
     document.body.classList.add('is-printing-report');
     document.body.appendChild(clone);
-
-    // 4. Trigger print
     setTimeout(() => {
       window.print();
-
-      // 5. Cleanup after the print dialog is closed
       document.body.classList.remove('is-printing-report');
-      if (document.body.contains(clone)) {
-        document.body.removeChild(clone);
-      }
+      if (document.body.contains(clone)) document.body.removeChild(clone);
     }, 100);
+  }
+
+  public generateSupplierStatement() {
+    if (!this.filters.fournisseurId) {
+      this.snackBar.open('Sélectionnez un fournisseur', 'OK', { duration: 3000 });
+      return;
+    }
+    this.printDate = new Date();
+    this.printList();
   }
 }

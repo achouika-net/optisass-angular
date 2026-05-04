@@ -11,7 +11,7 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatStepperModule } from '@angular/material/stepper';
+import { MatStepperModule, MatStepper } from '@angular/material/stepper';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
@@ -21,7 +21,7 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
 import { Supplier, SupplierInvoice, Echeance } from '../../models/finance.models';
 import { FinanceService } from '../../services/finance.service';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
-import { Observable, of, forkJoin, BehaviorSubject } from 'rxjs';
+import { Observable, of, forkJoin, BehaviorSubject, combineLatest } from 'rxjs';
 import { map, startWith, switchMap, catchError, debounceTime, tap } from 'rxjs/operators';
 import { CeilingWarningDialogComponent } from '../ceiling-warning-dialog/ceiling-warning-dialog.component';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
@@ -119,6 +119,7 @@ interface AttachmentFile {
   `]
 })
 export class InvoiceFormDialogComponent implements OnInit {
+    @ViewChild('stepper') stepper!: MatStepper;
     form: FormGroup;
     isEditMode: boolean;
     isViewMode: boolean = false;
@@ -127,6 +128,7 @@ export class InvoiceFormDialogComponent implements OnInit {
     selectedSupplier: Supplier | null = null;
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
     currentMonth = new Date().getMonth() + 1;
+    private suppliersSubject = new BehaviorSubject<Supplier[]>([]);
 
     invoiceTypes = [
         'ACHAT_VERRE_OPTIQUE', 'ACHAT_MONTURES_OPTIQUE', 'ACHAT_MONTURES_SOLAIRE',
@@ -294,6 +296,14 @@ export class InvoiceFormDialogComponent implements OnInit {
     }
 
     ngOnInit() {
+        // Initialize filters BEFORE any service calls to avoid NG0100
+        this.setupSupplierFilter();
+        this.setupClientFilter();
+        this.filteredTypes = this.detailsGroup.get('type')!.valueChanges.pipe(
+            startWith(''),
+            map(value => this._filterTypes(value || ''))
+        );
+
         this.loadCentres();
         console.log('[InvoiceForm] VERSION CHECK: Aggressive Rounding & Sync Date Update ACTIVE');
         this.loadSuppliers();
@@ -427,10 +437,6 @@ export class InvoiceFormDialogComponent implements OnInit {
         });
 
 
-        this.filteredTypes = this.detailsGroup.get('type')!.valueChanges.pipe(
-            startWith(''),
-            map(value => this._filterTypes(value || ''))
-        );
 
         this.supplierCtrl.valueChanges.subscribe(value => {
             if (typeof value === 'object' && value && 'id' in (value as any)) {
@@ -455,8 +461,6 @@ export class InvoiceFormDialogComponent implements OnInit {
             }
         });
 
-        // Setup Client Autocomplete Logic
-        this.setupClientFilter();
 
         // If Type changes, sync category if in BL mode
         this.detailsGroup.get('type')?.valueChanges.subscribe(type => {
@@ -476,26 +480,38 @@ export class InvoiceFormDialogComponent implements OnInit {
             }
         });
 
-        // SPECIAL CASE: Consolidating BLs - Auto-add paid echeance if some BLs are paid
-        if (this.data?.isGrouping && this.data.prefilledData?.totalPaye > 0) {
-            const paidAmount = this.data.prefilledData.totalPaye;
-            const remaining = Math.max(0, this.detailsGroup.get('montantTTC')?.value - paidAmount);
-
+        // SPECIAL CASE: Consolidating BLs - Use existing echeances if provided, otherwise add a placeholder
+        if (this.data?.isGrouping) {
             this.echeances.clear();
-            // 1. Add the paid part
-            this.addEcheance({
-                type: 'ESPECES',
-                dateEcheance: this.detailsGroup.get('dateEmission')?.value || new Date(),
-                montant: paidAmount,
-                statut: 'ENCAISSE',
-                reference: 'REPRIS_DES_BL'
-            });
-            // 2. Add the remaining part if any
-            if (remaining > 0) {
+            const prefilledEcheances = this.data.prefilledData?.echeances;
+            
+            if (prefilledEcheances && prefilledEcheances.length > 0) {
+                // 1. Add all existing echeances from the BLs
+                prefilledEcheances.forEach((e: any) => this.addEcheance(e));
+            } else if (this.data.prefilledData?.totalPaye > 0) {
+                // 2. Legacy fallback: Add a placeholder if no actual echeances were passed
+                const paidAmount = this.data.prefilledData.totalPaye;
+                const historicalDate = this.data.prefilledData.lastPaidBLDate || this.detailsGroup.get('dateEmission')?.value || new Date();
+                
+                this.addEcheance({
+                    type: 'ESPECES',
+                    dateEcheance: historicalDate,
+                    montant: paidAmount,
+                    statut: 'ENCAISSE',
+                    reference: 'REPRIS_DES_BL'
+                });
+            }
+
+            // 3. Add the remaining part if the total doesn't match
+            const currentTotal = this.echeances.getRawValue().reduce((sum: number, e: any) => sum + (Number(e.montant) || 0), 0);
+            const targetTotal = this.detailsGroup.get('montantTTC')?.value;
+            const remaining = Math.max(0, targetTotal - currentTotal);
+
+            if (remaining > 1) { // Only add if more than 1 DH difference
                 this.addEcheance({
                     type: 'CHEQUE',
                     dateEcheance: this.detailsGroup.get('dateEcheance')?.value || new Date(),
-                    montant: remaining,
+                    montant: Math.round(remaining * 100) / 100,
                     statut: 'EN_ATTENTE'
                 });
             }
@@ -507,6 +523,7 @@ export class InvoiceFormDialogComponent implements OnInit {
         this.financeService.getSuppliers().subscribe({
             next: (data) => {
                 this.suppliers = data;
+                this.suppliersSubject.next(data);
                 this.setupSupplierFilter();
 
                 const currentId = this.detailsGroup.get('fournisseurId')?.value;
@@ -531,19 +548,23 @@ export class InvoiceFormDialogComponent implements OnInit {
 
     setupSupplierFilter() {
         if (!this.filteredSuppliers) {
-            this.filteredSuppliers = this.supplierCtrl.valueChanges.pipe(
-                startWith(''),
-                map(value => {
+            this.filteredSuppliers = combineLatest([
+                this.supplierCtrl.valueChanges.pipe(startWith(this.supplierCtrl.value || '')),
+                this.suppliersSubject
+            ]).pipe(
+                map(([value, suppliers]) => {
                     const name = typeof value === 'string' ? value : (value as any)?.nom;
-                    return name ? this._filterSuppliers(name as string) : this.suppliers.slice();
+                    return name ? this._filterSuppliers(name as string, suppliers) : suppliers.slice();
                 })
             );
+            this.cdr.detectChanges();
         }
     }
 
-    private _filterSuppliers(name: string): Supplier[] {
+    private _filterSuppliers(name: string, list?: Supplier[]): Supplier[] {
         const filterValue = name.toLowerCase();
-        return this.suppliers.filter((option: Supplier) => option.nom.toLowerCase().includes(filterValue));
+        const suppliers = list || this.suppliers;
+        return suppliers.filter((option: Supplier) => option.nom.toLowerCase().includes(filterValue));
     }
 
     displayFn(supplier: any): string {
@@ -838,27 +859,38 @@ export class InvoiceFormDialogComponent implements OnInit {
             banque: [echeance?.banque || (this.selectedSupplier?.banque || ''), Validators.required]
         });
         group.get('type')?.valueChanges.subscribe(type => {
-            const banqueCtrl = group.get('banque');
-            if (type === 'ESPECES') {
-                banqueCtrl?.clearValidators();
-                banqueCtrl?.disable({ emitEvent: false });
-            } else {
-                banqueCtrl?.setValidators([Validators.required]);
-                banqueCtrl?.enable({ emitEvent: false });
-            }
-            banqueCtrl?.updateValueAndValidity();
+            this.syncBanqueValidator(group, type);
         });
+
+        // Initialize validator state immediately
+        this.syncBanqueValidator(group, group.get('type')?.value);
+        
         this.echeances.push(group);
+    }
+
+    private syncBanqueValidator(group: FormGroup, type: string) {
+        const banqueCtrl = group.get('banque');
+        if (type === 'ESPECES' || type === 'VIREMENT') {
+            banqueCtrl?.clearValidators();
+            if (type === 'ESPECES') banqueCtrl?.disable({ emitEvent: false });
+            else banqueCtrl?.enable({ emitEvent: false });
+            group.get('reference')?.setValue(group.get('reference')?.value || '', { emitEvent: false });
+        } else {
+            banqueCtrl?.setValidators([Validators.required]);
+            banqueCtrl?.enable({ emitEvent: false });
+        }
+        banqueCtrl?.updateValueAndValidity();
     }
 
     removeEcheance(index: number) { this.echeances.removeAt(index); }
 
     onSubmit() {
+        console.log('[InvoiceForm] Submission started. Mode:', this.isBLMode ? 'BL' : 'Invoice', 'Grouping:', !!this.data?.isGrouping);
+        
         if (this.isBLMode) {
             this.detailsGroup.get('numeroBL')?.setValidators([Validators.required]);
             this.detailsGroup.get('numeroFacture')?.clearValidators();
             
-            // Client link is MANDATORY for BL ONLY if it is of type ACHAT_VERRE_OPTIQUE or ACHAT_LENTILLES
             const currentType = this.detailsGroup.get('type')?.value;
             const needsClient = ['ACHAT_VERRE_OPTIQUE', 'ACHAT_LENTILLES'].includes(String(currentType));
             
@@ -872,43 +904,51 @@ export class InvoiceFormDialogComponent implements OnInit {
         } else {
             this.detailsGroup.get('numeroFacture')?.setValidators([Validators.required]);
             this.detailsGroup.get('numeroBL')?.clearValidators();
-            
-            // Client link is OPTIONAL for Factures (it's for accounting)
             this.detailsGroup.get('clientId')?.clearValidators();
             this.detailsGroup.get('ficheId')?.clearValidators();
         }
-        
-        this.detailsGroup.get('numeroBL')?.updateValueAndValidity();
         this.detailsGroup.get('numeroFacture')?.updateValueAndValidity();
+        this.detailsGroup.get('numeroBL')?.updateValueAndValidity();
         this.detailsGroup.get('clientId')?.updateValueAndValidity();
         this.detailsGroup.get('ficheId')?.updateValueAndValidity();
 
-        // Change: Check only the relevant group based on the mode
-        const mainGroup = this.isBLMode ? this.detailsGroup : this.form;
-        
-        if (mainGroup.invalid) {
-            const invalidFields = [];
-            const controls = (mainGroup as FormGroup).controls;
-            for (const name in controls) {
-                if (controls[name].invalid) invalidFields.push(name);
-            }
-            console.error('[InvoiceForm] Invalid fields:', invalidFields);
-            console.error('[InvoiceForm] Invalid form section:', mainGroup.value);
-            this.detailsGroup.markAllAsTouched();
-            if (!this.isBLMode) this.paymentGroup.markAllAsTouched();
+        if (this.detailsGroup.invalid || this.paymentGroup.invalid) {
+            const invalidFields: string[] = [];
+            const findInvalid = (group: FormGroup | FormArray, prefix = '') => {
+                Object.keys((group as any).controls).forEach(key => {
+                    const c = (group as any).get(key);
+                    if (c?.invalid) {
+                        if (c instanceof FormGroup || c instanceof FormArray) findInvalid(c, `${prefix}${key} > `);
+                        else invalidFields.push(`${prefix}${key}`);
+                    }
+                });
+            };
+            findInvalid(this.detailsGroup, 'Détails > ');
+            findInvalid(this.paymentGroup, 'Paiement > ');
+
+            console.error('[InvoiceForm] Validation failed:', invalidFields);
+            this.snackBar.open(`Champs requis manquants : ${invalidFields.join(', ')}`, 'Fermer', { duration: 7000 });
             
-            this.snackBar.open('Veuillez remplir tous les champs obligatoires (*)', 'Fermer', { duration: 3000 });
+            if (this.detailsGroup.invalid && this.stepper) {
+                this.stepper.selectedIndex = 0;
+            } else if (this.paymentGroup.invalid && this.stepper) {
+                this.stepper.selectedIndex = 1;
+            }
             return;
         }
 
-        const isValid = this.isBLMode ? this.detailsGroup.valid : this.form.valid;
-        if (isValid) {
-            this.submitting = true;
-            this.handleSupplierAndSave();
-        } else {
+        console.log('[InvoiceForm] Form is valid. Proceeding to save...');
+        this.submitting = true;
+        this.handleSupplierAndSave();
+    }
+
+    nextStep() {
+        if (this.detailsGroup.invalid) {
             this.detailsGroup.markAllAsTouched();
-            this.snackBar.open('Veuillez remplir tous les champs obligatoires', 'Fermer', { duration: 3000 });
+            this.snackBar.open('Veuillez remplir les champs obligatoires de cette étape', 'Fermer', { duration: 4000 });
+            return;
         }
+        this.stepper.next();
     }
 
     private handleSupplierAndSave() {
@@ -940,62 +980,85 @@ export class InvoiceFormDialogComponent implements OnInit {
     }
 
     private async prepareAndSaveInvoice() {
-        const detailsData = this.detailsGroup.value;
-        const paymentData = this.paymentGroup.value;
-        const invoiceData: any = {
-            ...detailsData,
-            ...paymentData,
-            fournisseurId: detailsData.fournisseurId || null,
-            dateEcheance: detailsData.dateEcheance || undefined,
-            montantHT: Number(detailsData.montantHT),
-            montantTVA: Number(detailsData.montantTVA),
-            montantTTC: Number(detailsData.montantTTC),
-            clientId: detailsData.clientId || undefined,
-            ficheId: detailsData.ficheId || undefined
-        };
-
-        if (this.isBLMode) {
-            delete invoiceData.numeroFacture;
-            invoiceData.numeroBL = detailsData.numeroBL;
-        } else {
-            delete invoiceData.numeroBL;
-            invoiceData.numeroFacture = detailsData.numeroFacture;
+        console.log('[InvoiceForm] Preparing payload...');
+        const details = this.detailsGroup.getRawValue();
+        const payment = this.paymentGroup.getRawValue();
+        
+        // Ensure numeroFacture is present if required
+        if (!this.isBLMode && !details.numeroFacture) {
+             console.error('[InvoiceForm] Missing numeroFacture in payload preparation');
+             this.snackBar.open('Le numéro de facture est obligatoire', 'Fermer', { duration: 4000 });
+             this.submitting = false;
+             return;
         }
+        try {
+            console.log('[InvoiceForm] Preparing data for save...');
+            const detailsData = details;
+            const paymentData = payment;
+            const invoiceData: any = {
+                ...detailsData,
+                ...paymentData,
+                fournisseurId: detailsData.fournisseurId || null,
+                dateEcheance: detailsData.dateEcheance || undefined,
+                montantHT: Number(detailsData.montantHT),
+                montantTVA: Number(detailsData.montantTVA),
+                montantTTC: Number(detailsData.montantTTC),
+                clientId: detailsData.clientId || undefined,
+                ficheId: detailsData.ficheId || undefined
+            };
 
-        const newAttachments: any[] = [];
-        const existingAttachments: string[] = [];
-        for (const file of this.attachmentFiles) {
-            if (file.file) {
-                const base64 = await this.fileToBase64(file.file);
-                newAttachments.push({ base64, name: file.name });
-            } else if (file.preview) {
-                existingAttachments.push(String(file.preview));
+            if (this.isBLMode) {
+                delete invoiceData.numeroFacture;
+                invoiceData.numeroBL = detailsData.numeroBL;
+            } else {
+                delete invoiceData.numeroBL;
+                invoiceData.numeroFacture = detailsData.numeroFacture;
             }
+
+            // Process Attachments
+            const newAttachments: any[] = [];
+            const existingAttachments: string[] = [];
+            for (const file of this.attachmentFiles) {
+                if (file.file) {
+                    const base64 = await this.fileToBase64(file.file);
+                    newAttachments.push({ base64, name: file.name });
+                } else if (file.preview) {
+                    existingAttachments.push(String(file.preview));
+                }
+            }
+            invoiceData.newAttachments = newAttachments;
+            invoiceData.existingAttachments = existingAttachments;
+
+            console.log('[InvoiceForm] Sending data to service...', invoiceData);
+
+            if (this.data?.isGrouping && this.data.blIds) {
+                console.log('[InvoiceForm] Mode: Grouping BLs', this.data.blIds);
+                this.financeService.groupBLsToInvoice(this.data.blIds, invoiceData).subscribe({
+                    next: (result) => {
+                        this.snackBar.open('Documents groupés avec succès', 'Fermer', { duration: 3000 });
+                        this.finalize(result);
+                    },
+                    error: (err) => {
+                        this.submitting = false;
+                        const msg = this.getErrorMessage(err);
+                        this.snackBar.open(msg || 'Erreur lors du groupement des documents', 'Fermer', { duration: 7000 });
+                        this.cdr.detectChanges();
+                    }
+                });
+                return;
+            }
+
+            this.saveInvoice(invoiceData);
+        } catch (error) {
+            console.error('[InvoiceForm] Error during preparation:', error);
+            this.submitting = false;
+            this.snackBar.open('Erreur technique lors de la préparation des données', 'Fermer', { duration: 5000 });
+            this.cdr.detectChanges();
         }
-        invoiceData.newAttachments = newAttachments;
-        invoiceData.existingAttachments = existingAttachments;
-        this.saveInvoice(invoiceData);
     }
 
     private saveInvoice(invoiceData: any) {
         delete invoiceData.tauxTVA;
-
-        if (this.data?.isGrouping && this.data.blIds) {
-            // SPECIAL CASE: Consolidating BLs into one Invoice
-            this.financeService.groupBLsToInvoice(this.data.blIds, invoiceData).subscribe({
-                next: (result) => {
-                    this.snackBar.open('Documents groupés avec succès', 'Fermer', { duration: 3000 });
-                    this.finalize(result);
-                },
-                error: (err) => {
-                    this.submitting = false;
-                    this.cdr.detectChanges();
-                    const msg = this.getErrorMessage(err);
-                    this.snackBar.open(msg || 'Erreur lors du groupement des documents', 'Fermer', { duration: 7000 });
-                }
-            });
-            return;
-        }
 
         if (this.isEditMode) {
             const id = this.route.snapshot.paramMap.get('id') || this.data?.invoice?.id;

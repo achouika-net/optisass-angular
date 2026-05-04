@@ -149,6 +149,12 @@ export const MENU: MenuItem[] = [
         route: 'finance/accounting',
       },
       {
+        label: 'Portefeuille',
+        icon: 'wallet',
+        type: 'subchild',
+        route: 'finance/portfolio',
+      },
+      {
         label: "Demandes d'alimentation",
         icon: 'request_quote',
         type: 'subchild',
@@ -160,13 +166,6 @@ export const MENU: MenuItem[] = [
         type: 'subchild',
         route: 'finance/payments',
         queryParams: { tab: 'OUTGOING' }
-      },
-      {
-        label: 'Historique des encaissements',
-        icon: 'payments',
-        type: 'subchild',
-        route: 'finance/payments',
-        queryParams: { tab: 'INCOMING' }
       },
     ],
   },

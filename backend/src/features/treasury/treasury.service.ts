@@ -240,10 +240,43 @@ export class TreasuryService {
     }
 
     if (filters.mode && filters.mode !== 'ALL') {
-      sqlParams.push(filters.mode);
-      depenseWhere += `AND d."modePaiement" = $${sqlParams.length} `;
-      echeanceWhere += `AND ep.type = $${sqlParams.length} `;
-      blEcheanceWhere += `AND ep.type = $${sqlParams.length} `;
+      const modes = filters.mode.split(',').map((m) => m.trim().toUpperCase());
+      const allModes: string[] = [];
+      for (const m of modes) {
+        if (m === 'CHEQUE')
+          allModes.push(
+            'CHEQUE',
+            'Chèque',
+            'CHÈQUE',
+            'Chéque',
+            'Ch├¿que',
+            'CHÉQUE',
+          );
+        else if (m === 'LCN')
+          allModes.push('LCN', 'EFFET', 'Effet', 'TR traite', 'Traite');
+        else if (m === 'ESPECES' || m === 'LIQUIDE')
+          allModes.push(
+            'ESPECES',
+            'Espèces',
+            'Liquide',
+            'CASH',
+            'LIQUIDE',
+            'ESPÈCES',
+            'ESPÈCE',
+            'ESPECE',
+          );
+        else if (m === 'VIREMENT') allModes.push('VIREMENT', 'Virement');
+        else allModes.push(m);
+      }
+
+      const inClause = allModes
+        .map((_, i) => `$${sqlParams.length + i + 1}`)
+        .join(', ');
+      allModes.forEach((m) => sqlParams.push(m));
+
+      depenseWhere += `AND d."modePaiement" IN (${inClause}) `;
+      echeanceWhere += `AND ep.type IN (${inClause}) `;
+      blEcheanceWhere += `AND ep.type IN (${inClause}) `;
     }
 
     let query = '';
@@ -274,7 +307,7 @@ export class TreasuryService {
           LEFT JOIN "FactureFournisseur" inv_d ON d."factureFournisseurId" = inv_d.id
           LEFT JOIN "Fournisseur" ff_d ON inv_d."fournisseurId" = ff_d.id
           LEFT JOIN "EcheancePaiement" ep_d ON d."echeanceId" = ep_d.id
-          ${depenseWhere} AND d."factureFournisseurId" IS NULL AND d."bonLivraisonId" IS NULL
+          ${depenseWhere} AND d."echeanceId" IS NULL
         `);
       }
       if (includeFacture) {
@@ -307,6 +340,7 @@ export class TreasuryService {
           FROM "BonLivraison" bl
           LEFT JOIN "Fournisseur" f_bl ON bl."fournisseurId" = f_bl.id
           ${blEcheanceWhere.replace(/ep\.statut/g, 'bl.statut').replace(/ep\.type/g, 'bl.type')}
+          AND bl."factureFournisseurId" IS NULL
         `);
       }
       query = parts.join(' UNION ALL ');
@@ -328,7 +362,7 @@ export class TreasuryService {
           LEFT JOIN "FactureFournisseur" inv_d ON d."factureFournisseurId" = inv_d.id
           LEFT JOIN "Fournisseur" ff_d ON inv_d."fournisseurId" = ff_d.id
           LEFT JOIN "EcheancePaiement" ep_d ON d."echeanceId" = ep_d.id
-          ${depenseWhere}
+          ${depenseWhere} AND d."echeanceId" IS NULL
         `);
       }
       if (includeFacture) {
@@ -347,7 +381,6 @@ export class TreasuryService {
           INNER JOIN "FactureFournisseur" ff ON ep."factureFournisseurId" = ff.id
           LEFT JOIN "Fournisseur" f_ff ON ff."fournisseurId" = f_ff.id
           ${echeanceWhere}
-          AND NOT EXISTS (SELECT 1 FROM "Depense" d_idx WHERE d_idx."echeanceId" = ep.id)
         `);
       }
       if (includeBL) {
@@ -366,7 +399,7 @@ export class TreasuryService {
           INNER JOIN "BonLivraison" bl ON ep."bonLivraisonId" = bl.id
           LEFT JOIN "Fournisseur" f_bl ON bl."fournisseurId" = f_bl.id
           ${blEcheanceWhere}
-          AND NOT EXISTS (SELECT 1 FROM "Depense" d_idx WHERE d_idx."echeanceId" = ep.id)
+          AND bl."factureFournisseurId" IS NULL
         `);
       }
       query = parts.join(' UNION ALL ');
@@ -990,11 +1023,39 @@ export class TreasuryService {
 
     const modeVal = filters.mode || filters.type;
     if (modeVal && modeVal !== 'ALL') {
-      const types = modeVal.split(',').map((t) => t.trim());
-      const inClause = types
+      const modes = modeVal.split(',').map((m) => m.trim().toUpperCase());
+      const allModes: string[] = [];
+      for (const m of modes) {
+        if (m === 'CHEQUE')
+          allModes.push(
+            'CHEQUE',
+            'Chèque',
+            'CHÈQUE',
+            'Chéque',
+            'Ch├¿que',
+            'CHÉQUE',
+          );
+        else if (m === 'LCN')
+          allModes.push('LCN', 'EFFET', 'Effet', 'TR traite', 'Traite');
+        else if (m === 'ESPECES' || m === 'LIQUIDE')
+          allModes.push(
+            'ESPECES',
+            'Espèces',
+            'Liquide',
+            'CASH',
+            'LIQUIDE',
+            'ESPÈCES',
+            'ESPÈCE',
+            'ESPECE',
+          );
+        else if (m === 'VIREMENT') allModes.push('VIREMENT', 'Virement');
+        else allModes.push(m);
+      }
+
+      const inClause = allModes
         .map((_, i) => `$${sqlParams.length + i + 1}`)
         .join(', ');
-      types.forEach((t) => sqlParams.push(t));
+      allModes.forEach((m) => sqlParams.push(m));
       whereClause += `AND p.mode IN (${inClause}) `;
     }
     if (filters.startDate) {

@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSupplierInvoiceDto } from './dto/create-supplier-invoice.dto';
 import { ProductsService } from '../products/products.service';
@@ -7,6 +12,39 @@ import { normalizeToUTCNoon } from '../../shared/utils/date-utils';
 import * as path from 'path';
 import { StorageService } from '../../common/storage/storage.service';
 
+interface EcheanceInput {
+  type: string;
+  dateEcheance: Date | string;
+  dateEncaissement?: Date | string | null;
+  montant: number;
+  statut: string;
+  reference?: string | null;
+  banque?: string | null;
+  remarque?: string | null;
+  id?: string;
+}
+
+interface InvoiceInput {
+  numeroFacture: string;
+  dateEmission: Date | string;
+  dateEcheance?: Date | string;
+  montantHT: number;
+  montantTVA: number;
+  montantTTC: number;
+  statut: string;
+  type: string;
+  fournisseurId: string;
+  centreId?: string;
+  clientId?: string;
+  ficheId?: string;
+  pieceJointeUrl?: string | null;
+  echeances?: EcheanceInput[];
+  newAttachments?: { base64: string; name: string }[];
+  existingAttachments?: string[];
+  base64File?: string;
+  fileName?: string;
+}
+
 @Injectable()
 export class SupplierInvoicesService {
   constructor(
@@ -14,13 +52,13 @@ export class SupplierInvoicesService {
     private productsService: ProductsService,
     private expensesService: ExpensesService,
     private storage: StorageService,
-  ) { }
+  ) {}
 
   async create(createDto: CreateSupplierInvoiceDto) {
     const { echeances, base64File, fileName, ...inputData } = createDto;
 
     // Clean inputData: Prisma will crash if we pass unknown fields (like directPayment or newAttachments from frontend)
-    const invoiceData: any = {
+    const invoiceData: Partial<Prisma.FactureFournisseurCreateInput> = {
       numeroFacture: inputData.numeroFacture,
       dateEmission: normalizeToUTCNoon(inputData.dateEmission) as Date,
       dateEcheance: normalizeToUTCNoon(inputData.dateEcheance),
@@ -29,22 +67,28 @@ export class SupplierInvoicesService {
       montantTTC: Number(inputData.montantTTC),
       statut: inputData.statut,
       type: inputData.type,
-      fournisseurId: inputData.fournisseurId,
-      centreId: inputData.centreId,
-      clientId: inputData.clientId,
-      ficheId: inputData.ficheId,
+      fournisseur: { connect: { id: inputData.fournisseurId } },
+      centre: inputData.centreId
+        ? { connect: { id: inputData.centreId } }
+        : undefined,
+      client: inputData.clientId
+        ? { connect: { id: inputData.clientId } }
+        : undefined,
+      fiche: inputData.ficheId
+        ? { connect: { id: inputData.ficheId } }
+        : undefined,
       pieceJointeUrl: inputData.pieceJointeUrl || '',
     };
 
     // Robust duplicate check
     const existingInvoice = await this.checkExistence(
-      invoiceData.fournisseurId,
-      invoiceData.numeroFacture,
+      inputData.fournisseurId,
+      inputData.numeroFacture,
     );
 
     if (existingInvoice) {
       console.log(
-        `[INVOICE] Update existing invoice ${existingInvoice.numeroFacture} for supplier ${invoiceData.fournisseurId}`,
+        `[INVOICE] Update existing invoice ${existingInvoice.numeroFacture} for supplier ${inputData.fournisseurId}`,
       );
       return this.update(existingInvoice.id, createDto);
     }
@@ -54,11 +98,15 @@ export class SupplierInvoicesService {
     if (base64File && fileName) {
       const fileExt = path.extname(fileName) || '.jpg';
       const safeName = `inv_${Date.now()}${fileExt}`;
-      pieceJointeUrl = await this.storage.uploadBase64(base64File, 'invoices', safeName);
+      pieceJointeUrl = await this.storage.uploadBase64(
+        base64File,
+        'invoices',
+        safeName,
+      );
     }
 
     const status = this.calculateInvoiceStatus(
-      invoiceData.montantTTC,
+      Number(inputData.montantTTC),
       echeances || [],
     );
 
@@ -67,27 +115,27 @@ export class SupplierInvoicesService {
       echeances && echeances.length > 0
         ? echeances
         : [
-          {
-            type: 'ESPECES',
-            dateEcheance: normalizeToUTCNoon(
-              invoiceData.dateEcheance || new Date(),
-            ) as Date,
-            montant: invoiceData.montantTTC,
-            statut: 'EN_ATTENTE',
-          },
-        ];
+            {
+              type: 'ESPECES',
+              dateEcheance: normalizeToUTCNoon(
+                inputData.dateEcheance || new Date(),
+              ) as Date,
+              montant: Number(inputData.montantTTC),
+              statut: 'EN_ATTENTE',
+            },
+          ];
 
     try {
       return await this.prisma.factureFournisseur.create({
         data: {
-          ...invoiceData,
+          ...(invoiceData as Prisma.FactureFournisseurCreateInput),
           pieceJointeUrl,
           statut: status,
           echeances: {
-            create: finalEcheances.map((e) => ({
+            create: finalEcheances.map((e: EcheanceInput) => ({
               type: e.type,
-              dateEcheance: normalizeToUTCNoon(e.dateEcheance) as Date,
-              montant: e.montant,
+              dateEcheance: normalizeToUTCNoon(e.dateEcheance) || new Date(),
+              montant: Number(e.montant || 0),
               statut: e.statut,
               reference: e.reference || null,
               banque: e.banque || null,
@@ -128,7 +176,7 @@ export class SupplierInvoicesService {
       page,
       limit,
     } = filters;
-    const whereClause: any = {};
+    const whereClause: Prisma.FactureFournisseurWhereInput = {};
 
     if (fournisseurId) whereClause.fournisseurId = fournisseurId;
     if (statut) whereClause.statut = statut;
@@ -145,12 +193,13 @@ export class SupplierInvoicesService {
     const skip = page && limit ? (Number(page) - 1) * Number(limit) : undefined;
     const take = limit ? Number(limit) : 10;
 
-    const [data, total] = await Promise.all([
+    const [data, total, allItemsForStats] = await Promise.all([
       this.prisma.factureFournisseur.findMany({
         where: whereClause,
         include: {
           fournisseur: { select: { id: true, nom: true } },
           echeances: true,
+          childBLs: { select: { id: true } },
           client: { select: { id: true, nom: true, prenom: true } },
           fiche: { select: { id: true, numero: true, type: true } },
         },
@@ -159,10 +208,42 @@ export class SupplierInvoicesService {
         take,
       }),
       this.prisma.factureFournisseur.count({ where: whereClause }),
+      this.prisma.factureFournisseur.findMany({
+        where: whereClause,
+        select: {
+          montantTTC: true,
+          echeances: {
+            where: { statut: 'ENCAISSE' },
+            select: { montant: true },
+          },
+        },
+      }),
     ]);
 
+    const globalStats = allItemsForStats.reduce(
+      (acc, inv) => {
+        acc.totalTTC += inv.montantTTC || 0;
+        const paidEcheances = inv.echeances.reduce(
+          (sum, e) => sum + e.montant,
+          0,
+        );
+        acc.totalPaid += Math.min(inv.montantTTC, paidEcheances);
+        return acc;
+      },
+      { totalTTC: 0, totalPaid: 0 },
+    );
 
-    return { data, total };
+    return {
+      data,
+      total,
+      stats: {
+        totalTTC: Math.round(globalStats.totalTTC * 100) / 100,
+        totalPaid: Math.round(globalStats.totalPaid * 100) / 100,
+        totalRemaining:
+          Math.round((globalStats.totalTTC - globalStats.totalPaid) * 100) /
+          100,
+      },
+    };
   }
 
   async findOne(id: string) {
@@ -196,24 +277,30 @@ export class SupplierInvoicesService {
     });
   }
 
-  async update(id: string, updateDto: any) {
+  async update(id: string, updateDto: InvoiceInput) {
     const { echeances, base64File, fileName, ...invoiceData } = updateDto;
 
     // Clean invoiceData to remove unwanted circular or extra relation objects
-    const cleanedInvoiceData: any = {
+    const cleanedInvoiceData: Partial<Prisma.FactureFournisseurUpdateInput> = {
       numeroFacture: invoiceData.numeroFacture,
-      dateEmission: normalizeToUTCNoon(invoiceData.dateEmission),
+      dateEmission: normalizeToUTCNoon(invoiceData.dateEmission) || new Date(),
       dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance),
-      montantHT: invoiceData.montantHT,
-      montantTVA: invoiceData.montantTVA,
-      montantTTC: invoiceData.montantTTC,
+      montantHT: Number(invoiceData.montantHT),
+      montantTVA: Number(invoiceData.montantTVA),
+      montantTTC: Number(invoiceData.montantTTC),
       statut: invoiceData.statut,
       type: invoiceData.type,
       pieceJointeUrl: invoiceData.pieceJointeUrl,
-      fournisseurId: invoiceData.fournisseurId,
-      centreId: invoiceData.centreId,
-      clientId: invoiceData.clientId,
-      ficheId: invoiceData.ficheId,
+      fournisseur: { connect: { id: invoiceData.fournisseurId } },
+      centre: invoiceData.centreId
+        ? { connect: { id: invoiceData.centreId } }
+        : undefined,
+      client: invoiceData.clientId
+        ? { connect: { id: invoiceData.clientId } }
+        : undefined,
+      fiche: invoiceData.ficheId
+        ? { connect: { id: invoiceData.ficheId } }
+        : undefined,
     };
 
     // Handle File Attachment Update (Multi-file support)
@@ -242,7 +329,11 @@ export class SupplierInvoicesService {
       if (attachment.base64 && attachment.name) {
         const fileExt = path.extname(attachment.name) || '.jpg';
         const safeName = `inv_${Date.now()}_${Math.round(Math.random() * 1000)}${fileExt}`;
-        const url = await this.storage.uploadBase64(attachment.base64, 'invoices', safeName);
+        const url = await this.storage.uploadBase64(
+          attachment.base64,
+          'invoices',
+          safeName,
+        );
         finalUrls.push(url);
       }
     }
@@ -251,7 +342,11 @@ export class SupplierInvoicesService {
     if (newAttachments.length === 0 && base64File && fileName) {
       const fileExt = path.extname(fileName) || '.jpg';
       const safeName = `inv_update_${Date.now()}${fileExt}`;
-      const url = await this.storage.uploadBase64(base64File, 'invoices', safeName);
+      const url = await this.storage.uploadBase64(
+        base64File,
+        'invoices',
+        safeName,
+      );
       finalUrls.push(url);
     }
 
@@ -274,7 +369,7 @@ export class SupplierInvoicesService {
       }
 
       const status = this.calculateInvoiceStatus(
-        cleanedInvoiceData.montantTTC || 0,
+        Number(cleanedInvoiceData.montantTTC || 0),
         echeances || [],
       );
       cleanedInvoiceData.statut = status;
@@ -285,17 +380,20 @@ export class SupplierInvoicesService {
           ...cleanedInvoiceData,
           echeances: echeances
             ? {
-              create: echeances.map((e: any) => ({
-                type: e.type,
-                dateEcheance: normalizeToUTCNoon(e.dateEcheance) as Date,
-                dateEncaissement: normalizeToUTCNoon(e.dateEncaissement),
-                montant: e.montant,
-                statut: e.statut,
-                reference: e.reference || null,
-                banque: e.banque || null,
-                remarque: e.remarque || null,
-              })),
-            }
+                create: echeances.map(
+                  (e: EcheanceInput) => ({
+                    type: e.type,
+                    dateEcheance:
+                      normalizeToUTCNoon(e.dateEcheance) || new Date(),
+                    dateEncaissement: normalizeToUTCNoon(e.dateEncaissement),
+                    montant: Number(e.montant || 0),
+                    statut: e.statut,
+                    reference: e.reference || null,
+                    banque: e.banque || null,
+                    remarque: e.remarque || null,
+                  }),
+                ),
+              }
             : undefined,
         },
         include: {
@@ -305,7 +403,10 @@ export class SupplierInvoicesService {
     });
   }
 
-  private calculateInvoiceStatus(totalTTC: number, echeances: any[]): string {
+  private calculateInvoiceStatus(
+    totalTTC: number,
+    echeances: EcheanceInput[],
+  ): string {
     if (!echeances || echeances.length === 0) return 'EN_ATTENTE';
 
     // Filter out cancelled ones
@@ -344,7 +445,7 @@ export class SupplierInvoicesService {
 
       // 1. Charger les dépenses liées pour nettoyage de trésorerie
       const linkedExpenses = await tx.depense.findMany({
-        where: { factureFournisseurId: id }
+        where: { factureFournisseurId: id },
       });
 
       for (const expense of linkedExpenses) {
@@ -357,7 +458,9 @@ export class SupplierInvoicesService {
       });
 
       // 3. Revert stock movements
-      const productIds = Array.from(new Set(invoice.mouvementsStock.map((m) => m.produitId as string)));
+      const productIds = Array.from(
+        new Set(invoice.mouvementsStock.map((m) => m.produitId)),
+      );
       await tx.mouvementStock.deleteMany({
         where: { factureFournisseurId: id },
       });
@@ -383,16 +486,16 @@ export class SupplierInvoicesService {
     startDate?: string,
     endDate?: string,
   ) {
-    const whereClause: any = {
+    const whereClause: Prisma.FactureFournisseurWhereInput = {
       fournisseurId: fournisseurId,
       statut: { not: 'ANNULEE' },
-      parentInvoiceId: null, // Only top-level documents to avoid double counting debt
     };
 
     if (startDate || endDate) {
-      whereClause.dateEmission = {};
-      if (startDate) whereClause.dateEmission.gte = new Date(startDate);
-      if (endDate) whereClause.dateEmission.lte = new Date(endDate);
+      const dateFilter: Prisma.DateTimeFilter = {};
+      if (startDate) dateFilter.gte = new Date(startDate);
+      if (endDate) dateFilter.lte = new Date(endDate);
+      whereClause.dateEmission = dateFilter;
     }
 
     const invoices = await this.prisma.factureFournisseur.findMany({
@@ -408,7 +511,6 @@ export class SupplierInvoicesService {
     for (const invoice of invoices) {
       totalTTC += invoice.montantTTC;
 
-      // Calculate paid amount from echeances
       if (invoice.echeances) {
         const paidEcheances = invoice.echeances.filter(
           (e) => e.statut === 'ENCAISSE',
@@ -416,12 +518,6 @@ export class SupplierInvoicesService {
         const paidAmount = paidEcheances.reduce((sum, e) => sum + e.montant, 0);
         totalPaye += paidAmount;
       }
-
-      // If invoices are marked PAYEE manually but no echeances?
-      // We assume echeances are the source of truth for payment,
-      // but if status is PAYEE and paidAmount is 0, maybe we should count full amount?
-      // Let's stick to echeances for accuracy, or if status is PAYEE assume full if no echeances exist?
-      // For now, let's rely on echeances for calculation.
     }
 
     return {
@@ -433,8 +529,49 @@ export class SupplierInvoicesService {
     };
   }
 
-  async groupBLsToInvoice(blIds: string[], targetInvoiceData: any) {
-    const { echeances, newAttachments, ...invoiceData } = targetInvoiceData;
+  async groupBLsToInvoice(blIds: string[], targetInvoiceData: InvoiceInput) {
+    const { echeances, newAttachments } = targetInvoiceData;
+
+    // Clean invoiceData: Prisma will crash if we pass unknown fields
+    const invoiceData = {
+      numeroFacture: targetInvoiceData.numeroFacture?.trim() || '',
+      dateEmission:
+        normalizeToUTCNoon(targetInvoiceData.dateEmission) || new Date(),
+      dateEcheance: normalizeToUTCNoon(targetInvoiceData.dateEcheance),
+      montantHT: Number(targetInvoiceData.montantHT || 0),
+      montantTVA: Number(targetInvoiceData.montantTVA || 0),
+      montantTTC: Number(targetInvoiceData.montantTTC || 0),
+      type: targetInvoiceData.type || 'ACHAT_STOCK',
+      fournisseurId: targetInvoiceData.fournisseurId,
+      centreId: targetInvoiceData.centreId,
+      clientId: targetInvoiceData.clientId || null,
+      ficheId: targetInvoiceData.ficheId || null,
+      pieceJointeUrl: targetInvoiceData.pieceJointeUrl || '',
+    };
+
+    if (!invoiceData.dateEmission) {
+      throw new BadRequestException(
+        "La date d'émission est invalide ou manquante.",
+      );
+    }
+
+    if (!blIds || blIds.length === 0) {
+      throw new BadRequestException('Aucun BL sélectionné pour le groupement.');
+    }
+
+    // Robust duplicate check
+    const existing = await this.checkExistence(
+      invoiceData.fournisseurId,
+      invoiceData.numeroFacture,
+    );
+    if (existing) {
+      console.warn(
+        `[GROUP] Duplicate invoice number detected: ${invoiceData.numeroFacture} for supplier ${invoiceData.fournisseurId}`,
+      );
+      throw new ConflictException(
+        `Une facture avec le numéro "${invoiceData.numeroFacture || 'vide'}" existe déjà pour ce fournisseur.`,
+      );
+    }
 
     // Handle Attachments (Shared logic with create/update)
     let finalPieceJointeUrl = invoiceData.pieceJointeUrl || '';
@@ -445,7 +582,11 @@ export class SupplierInvoicesService {
         if (attachment.base64 && attachment.name) {
           const fileExt = path.extname(attachment.name) || '.jpg';
           const safeName = `grouped_${Date.now()}_${Math.round(Math.random() * 1000)}${fileExt}`;
-          const url = await this.storage.uploadBase64(attachment.base64, 'invoices', safeName);
+          const url = await this.storage.uploadBase64(
+            attachment.base64,
+            'invoices',
+            safeName,
+          );
           urls.push(url);
         }
       }
@@ -453,52 +594,74 @@ export class SupplierInvoicesService {
     }
 
     const status = this.calculateInvoiceStatus(
-      invoiceData.montantTTC,
+      Number(invoiceData.montantTTC),
       echeances || [],
     );
 
     return this.prisma.$transaction(async (tx) => {
-      // 1. Create the consolidated invoice
-      const invoice = await tx.factureFournisseur.create({
-        data: {
-          ...invoiceData,
-          pieceJointeUrl: finalPieceJointeUrl,
-          isBL: false,
-          statut: status,
-          dateEmission: normalizeToUTCNoon(invoiceData.dateEmission) as Date,
-          dateEcheance: normalizeToUTCNoon(invoiceData.dateEcheance),
-          // Link all BLs to this new invoice
-          childBLs: {
-            connect: blIds.map((id) => ({ id })),
+      try {
+        // 1. Create the consolidated invoice
+        const invoice = await tx.factureFournisseur.create({
+          data: {
+            ...invoiceData,
+            pieceJointeUrl: finalPieceJointeUrl,
+            statut: status,
+            dateEmission: invoiceData.dateEmission,
+            dateEcheance: invoiceData.dateEcheance,
+            // Link all BLs to this new invoice
+            childBLs: {
+              connect: blIds.map((id) => ({ id })),
+            },
+            echeances: echeances && echeances.length > 0
+              ? {
+                  create: echeances
+                    .filter((e: EcheanceInput) => {
+                      // Skip if this looks like a payment already on the BLs (to avoid duplicates)
+                      // The UI usually pre-fills these, so we don't want to create them again
+                      // if we are going to move them anyway.
+                      // Note: This is a heuristic, but IDs would be better if available.
+                      return !e.id; 
+                    })
+                    .map((e: EcheanceInput) => ({
+                      type: e.type,
+                      dateEcheance: normalizeToUTCNoon(e.dateEcheance) || new Date(),
+                      montant: Number(e.montant || 0),
+                      statut: e.statut,
+                      reference: e.reference || null,
+                      banque: e.banque || null,
+                    })),
+                }
+              : undefined,
           },
-          // Create echeances
-          echeances: echeances
-            ? {
-              create: echeances.map((e: any) => ({
-                type: e.type,
-                dateEcheance: normalizeToUTCNoon(e.dateEcheance) as Date,
-                montant: e.montant,
-                statut: e.statut,
-                reference: e.reference || null,
-                banque: e.banque || null,
-              })),
-            }
-            : undefined,
-        },
-        include: {
-          childBLs: true,
-          echeances: true,
-          fournisseur: true,
-        },
-      });
+          include: {
+            childBLs: true,
+            echeances: true,
+            fournisseur: true,
+          },
+        });
 
-      // 2. [Bonus] Update grouped BLs status to VALIDEE to distinguish them
-      await tx.factureFournisseur.updateMany({
-        where: { id: { in: blIds } },
-        data: { statut: 'VALIDEE' },
-      });
+        // 2. Update grouped BLs status to VALIDEE and link them
+        await tx.bonLivraison.updateMany({
+          where: { id: { in: blIds } },
+          data: { 
+            statut: 'VALIDEE',
+            factureFournisseurId: invoice.id 
+          },
+        });
 
-      return invoice;
+        // 3. Move all existing payments from BLs to this new invoice
+        // This preserves treasury history and reconciliation
+        await tx.echeancePaiement.updateMany({
+          where: { bonLivraisonId: { in: blIds } },
+          data: { factureFournisseurId: invoice.id },
+        });
+
+        console.log('[GROUP] Successfully created invoice', invoice.id);
+        return invoice;
+      } catch (txError) {
+        console.error('[GROUP] TRANSACTION FAILED:', txError);
+        throw txError;
+      }
     });
   }
 }

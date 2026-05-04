@@ -61,8 +61,14 @@ export class SupplierInvoicesController {
   }
 
   @Post('group')
-  groupToInvoice(@Body() body: { blIds: string[]; targetInvoiceData: any }) {
-    return this.service.groupBLsToInvoice(body.blIds, body.targetInvoiceData);
+  async groupToInvoice(@Body() body: { blIds: string[]; targetInvoiceData: any }) {
+    try {
+      console.log('[GROUP] Request received for', body.blIds?.length, 'BLs');
+      return await this.service.groupBLsToInvoice(body.blIds, body.targetInvoiceData);
+    } catch (error) {
+      console.error('[GROUP] CRITICAL ERROR:', error);
+      throw error;
+    }
   }
 
   @Get(':id')

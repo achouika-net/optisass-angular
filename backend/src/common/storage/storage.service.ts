@@ -9,7 +9,7 @@ export class StorageService implements OnModuleInit {
   private bucket: string;
   private publicEndpoint: string;
   private minioReady = false;
-  private localUploadDir = '/app/uploads';
+  private localUploadDir = path.join(process.cwd(), 'uploads');
 
   constructor() {
     const endPoint = process.env.MINIO_ENDPOINT || 'localhost';
