@@ -10,6 +10,7 @@ import { FactureService, Facture } from '../../services/facture.service';
 import { InvoiceSelectionDialogComponent } from '../../dialogs/invoice-selection-dialog/invoice-selection-dialog.component';
 import { PaymentDialogComponent, Payment } from '../../dialogs/payment-dialog/payment-dialog.component';
 import { PaiementService, CreatePaiementDto } from '../../services/paiement.service';
+import { ClientManagementService } from '../../services/client.service';
 
 interface PaymentRow {
     id?: string; // Payment ID if available, or generated
@@ -545,16 +546,27 @@ export class PaymentListComponent implements OnInit {
     stats = { totalTTC: 0, totalPaye: 0, resteAPayer: 0 };
     toDate = new Date(); // Used for header date in global print
     isLoading: boolean = false;
+    fullClient: any = null; // Store the full client object here
 
     constructor(
         private factureService: FactureService,
         private paiementService: PaiementService,
         private dialog: MatDialog,
         private snackBar: MatSnackBar,
-        private cdr: ChangeDetectorRef
+        private cdr: ChangeDetectorRef,
+        private clientService: ClientManagementService
     ) { }
 
     ngOnInit() {
+        if (this.clientId) {
+            this.clientService.getClient(this.clientId).subscribe({
+                next: (client) => {
+                    this.fullClient = client;
+                },
+                error: (err) => console.error('Failed to fetch full client data for payment list', err)
+            });
+        }
+        
         if (!this.factures) {
             this.loadPayments();
         } else {
@@ -563,6 +575,10 @@ export class PaymentListComponent implements OnInit {
     }
 
     ngOnChanges(changes: SimpleChanges) {
+        if (changes['clientId'] && this.clientId && !changes['clientId'].firstChange) {
+             this.clientService.getClient(this.clientId).subscribe(client => this.fullClient = client);
+        }
+        
         if (changes['factures'] && this.factures) {
             this.processInjectedFactures(this.factures);
         } else if ((changes['clientId'] || changes['ficheId']) && !this.factures) {
@@ -798,7 +814,8 @@ export class PaymentListComponent implements OnInit {
         const dialogRef = this.dialog.open(PaymentDialogComponent, {
             maxWidth: '90vw',
             data: {
-                resteAPayer: resteAPayer
+                resteAPayer: resteAPayer,
+                client: this.fullClient || facture.client
             }
         });
 
@@ -893,6 +910,8 @@ export class PaymentListComponent implements OnInit {
             'CARTE': 'Carte',
             'CHEQUE': 'Chèque',
             'VIREMENT': 'Virement',
+            'LCN': 'LCN',
+            'PRISE_EN_CHARGE': 'Prise en charge',
             'AUTRE': 'Autre',
             'FIDELIO': 'Fidelio (Points)'
         };

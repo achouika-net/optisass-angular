@@ -38,8 +38,8 @@
                     <input title="Référence" aria-label="Référence du paiement" matInput formControlName="reference" [placeholder]="form.get('mode')?.value === 'PRISE_EN_CHARGE' ? 'Ex: CNOPS / 12345' : 'Num chèque/LCN ...'">
                 </mat-form-field>
 
-                <!-- Nouvelles options pour Cheque/LCN/Virement/PEC -->
-                <ng-container *ngIf="['CHEQUE', 'LCN', 'VIREMENT', 'PRISE_EN_CHARGE'].includes(form.get('mode')?.value)">
+                <!-- Nouvelles options pour Cheque/LCN/Virement -->
+                <ng-container *ngIf="['CHEQUE', 'LCN', 'VIREMENT'].includes(form.get('mode')?.value)">
                     <!-- Banque Autocomplete -->
                     <mat-form-field appearance="outline">
                         <mat-label>Banque</mat-label>
@@ -76,8 +76,10 @@
                             </mat-error>
                         </mat-form-field>
                     </div>
+                </ng-container>
 
-                    <!-- Pièce Jointe -->
+                <!-- Pièce Jointe (Visible pour Cheque/LCN/Virement ET Prise en Charge) -->
+                <ng-container *ngIf="['CHEQUE', 'LCN', 'VIREMENT', 'PRISE_EN_CHARGE'].includes(form.get('mode')?.value)">
                     <div class="full-width attachment-section">
                         <label class="attachment-label">Pièce Jointe (Scan/Photo)</label>
 

@@ -116,6 +116,18 @@
                             {{ summary.totalIncomingPending | number:'1.2-2' }} DH
                         </span>
                     </div>
+                    <div class="flex justify-between px-4 pt-1 border-t border-purple-100 mt-1" *ngIf="summary.incomingPriseEnCharge > 0">
+                        <span class="text-purple-600 font-semibold">Prise en charge:</span>
+                        <div class="flex items-center gap-2">
+                            <span *ngIf="summary.countPriseEnCharge > 0"
+                                class="text-xs bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-bold">
+                                {{ summary.countPriseEnCharge }}
+                            </span>
+                            <span class="text-purple-600 font-bold">
+                                {{ summary.incomingPriseEnCharge | number:'1.2-2' }} DH
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </mat-card>
 

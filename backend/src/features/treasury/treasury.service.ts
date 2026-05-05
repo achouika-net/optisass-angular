@@ -504,6 +504,7 @@ export class TreasuryService {
       this.prisma.paiement.aggregate({
         where: {
           statut: 'EN_ATTENTE',
+          mode: { in: ['CHEQUE', 'LCN', 'Chèque', 'CHÈQUE', 'Chéque', 'CHÉQUE'] },
           facture: {
             type: { not: 'AVOIR' },
             ...(centreId ? { centreId } : {}),
@@ -516,6 +517,7 @@ export class TreasuryService {
       this.prisma.paiement.aggregate({
         where: {
           statut: 'EN_ATTENTE',
+          mode: { in: ['CHEQUE', 'LCN', 'Chèque', 'CHÈQUE', 'Chéque', 'CHÉQUE'] },
           facture: { type: 'AVOIR', ...(centreId ? { centreId } : {}) },
         },
         _sum: { montant: true },
@@ -683,6 +685,8 @@ export class TreasuryService {
     let incomingCash = 0;
     let incomingCard = 0;
     let countCard = 0;
+    let incomingPriseEnCharge = 0;
+    let countPriseEnCharge = 0;
 
     const cashedStatuses = [
       'ENCAISSE',
@@ -709,9 +713,11 @@ export class TreasuryService {
       const isCardMode = ['CARTE', 'CARTE BANCAIRE', 'CB', 'TPE'].includes(
         mode,
       );
+      const isPriseEnCharge = mode === 'PRISE_EN_CHARGE';
 
       if (isAvoir) {
         incomingAvoir += amount;
+        if (isPriseEnCharge) incomingPriseEnCharge -= amount;
         if (isCashed) {
           incomingCashedAvoir += amount;
           if (isCashMode) incomingCash -= amount;
@@ -719,6 +725,10 @@ export class TreasuryService {
         }
       } else {
         incomingStandard += amount;
+        if (isPriseEnCharge) {
+          incomingPriseEnCharge += amount;
+          countPriseEnCharge++;
+        }
         if (isCashed) {
           incomingCashedStandard += amount;
           if (isCashMode) incomingCash += amount;
@@ -816,6 +826,8 @@ export class TreasuryService {
       incomingCash,
       incomingCard,
       countCard,
+      incomingPriseEnCharge,
+      countPriseEnCharge,
       countChequeCoffre,
       alerts,
     };

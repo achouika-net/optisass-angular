@@ -381,11 +381,14 @@ export class JourneeCaisseService {
       grossVentesEspeces: 0,
       grossVentesCarte: 0,
       grossVentesCheque: 0,
+      grossVentesPriseEnCharge: 0,
       netVentesEspeces: 0,
       netVentesCarte: 0,
       netVentesCheque: 0,
+      netVentesPriseEnCharge: 0,
       nbVentesCarte: 0,
       nbVentesCheque: 0,
+      nbVentesPriseEnCharge: 0,
       totalInterneIn: 0,
       totalOutflows: 0,
       totalOutflowsCash: 0,
@@ -409,6 +412,10 @@ export class JourneeCaisseService {
             stats.grossVentesCheque += amount;
             stats.netVentesCheque += amount;
             stats.nbVentesCheque += count;
+          } else if (moyenPaiement === 'PRISE_EN_CHARGE') {
+            stats.grossVentesPriseEnCharge += amount;
+            stats.netVentesPriseEnCharge += amount;
+            stats.nbVentesPriseEnCharge += count;
           }
         } else if (typeOperation === 'INTERNE' && (moyenPaiement === 'ESPECES' || moyenPaiement === 'ESPECE')) {
           stats.totalInterneIn += amount;
@@ -429,6 +436,8 @@ export class JourneeCaisseService {
             moyenPaiement === 'CHÈQUE'
           )
             stats.netVentesCheque -= amount;
+          else if (moyenPaiement === 'PRISE_EN_CHARGE')
+            stats.netVentesPriseEnCharge -= amount;
         }
       }
     });
@@ -441,8 +450,10 @@ export class JourneeCaisseService {
     let centreVentesEspeces = 0;
     let centreVentesCarte = 0;
     let centreVentesCheque = 0;
+    let centreVentesPriseEnCharge = 0;
     let centreNbVentesCarte = 0;
     let centreNbVentesCheque = 0;
+    let centreNbVentesPriseEnCharge = 0;
 
     // Global Center Stats (For Depenses/Petty Cash AND Mixte registers to show context)
     if (isDepenses || isMixte) {
@@ -493,6 +504,9 @@ export class JourneeCaisseService {
         ) {
           centreVentesCheque += amount;
           centreNbVentesCheque += count;
+        } else if (stat.moyenPaiement === 'PRISE_EN_CHARGE') {
+          centreVentesPriseEnCharge += amount;
+          centreNbVentesPriseEnCharge += count;
         }
       });
     }
@@ -508,19 +522,21 @@ export class JourneeCaisseService {
         centre: (journee as any).centre,
       },
       fondInitial: journee.fondInitial || 0,
-      // Recettes Card (Center-wide for context if Petty Cash. For Mixed/Primary, show own receipts)
-      totalRecettes: isDepenses
-        ? centreVentesEspeces + centreVentesCarte + centreVentesCheque
-        : stats.netVentesEspeces + stats.netVentesCarte + stats.netVentesCheque,
+      // Recettes Card
+      totalRecettes: isDepenses 
+        ? stats.totalInterneIn 
+        : stats.netVentesEspeces + stats.netVentesCarte + stats.netVentesCheque + stats.netVentesPriseEnCharge,
       recettesDetails: {
-        espaces: isDepenses ? centreVentesEspeces : stats.netVentesEspeces,
-        carte: isDepenses ? centreVentesCarte : stats.netVentesCarte,
-        cheque: isDepenses ? centreVentesCheque : stats.netVentesCheque,
-        enCoffre: isDepenses ? centreVentesCheque : stats.netVentesCheque,
+        espaces: isDepenses ? stats.totalInterneIn : stats.netVentesEspeces, // Alimentation arrives in cash
+        carte: isDepenses ? 0 : stats.netVentesCarte,
+        cheque: isDepenses ? 0 : stats.netVentesCheque,
+        priseEnCharge: isDepenses ? 0 : stats.netVentesPriseEnCharge,
+        enCoffre: isDepenses ? 0 : stats.netVentesCheque,
         // NEW: Counts
-        carteCount: isDepenses ? centreNbVentesCarte : stats.nbVentesCarte,
-        chequeCount: isDepenses ? centreNbVentesCheque : stats.nbVentesCheque,
-        enCoffreCount: isDepenses ? centreNbVentesCheque : stats.nbVentesCheque,
+        carteCount: isDepenses ? 0 : stats.nbVentesCarte,
+        chequeCount: isDepenses ? 0 : stats.nbVentesCheque,
+        priseEnChargeCount: isDepenses ? 0 : stats.nbVentesPriseEnCharge,
+        enCoffreCount: isDepenses ? 0 : stats.nbVentesCheque,
       },
       // Sales Cards (Gross local session)
       totalVentesEspeces: stats.grossVentesEspeces,

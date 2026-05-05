@@ -37,7 +37,7 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
       <div class="dashboard-header">
         <div class="title-section">
           <h1>Gestion du Portefeuille</h1>
-          <p class="subtitle">Suivi des encaissements et décaissements (Chèques & LCN)</p>
+          <p class="subtitle">Suivi des encaissements et décaissements</p>
         </div>
         
         <div class="flex items-center gap-3">
@@ -100,12 +100,11 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
                 <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
                   <mat-label>Type</mat-label>
                     <mat-select [(ngModel)]="modeFilter" (ngModelChange)="loadData()">
-                    <mat-option value="CHEQUE,LCN,VIREMENT,ESPECES,PRISE_EN_CHARGE">Tous les modes</mat-option>
+                    <mat-option value="CHEQUE,LCN,VIREMENT,ESPECES">Tous les modes</mat-option>
                     <mat-option value="CHEQUE">Chèque uniquement</mat-option>
                     <mat-option value="LCN">LCN uniquement</mat-option>
                     <mat-option value="VIREMENT">Virement uniquement</mat-option>
                     <mat-option value="ESPECES">Espèces uniquement</mat-option>
-                    <mat-option value="PRISE_EN_CHARGE">Prise en charge uniquement</mat-option>
                   </mat-select>
                 </mat-form-field>
               </div>
@@ -220,12 +219,11 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
                   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
                     <mat-label>Type</mat-label>
                     <mat-select [(ngModel)]="modeFilter" (ngModelChange)="loadData()">
-                      <mat-option value="CHEQUE,LCN,VIREMENT,ESPECES,PRISE_EN_CHARGE">Tous les modes</mat-option>
+                      <mat-option value="CHEQUE,LCN,VIREMENT,ESPECES">Tous les modes</mat-option>
                       <mat-option value="CHEQUE">Chèque uniquement</mat-option>
                       <mat-option value="LCN">LCN uniquement</mat-option>
                       <mat-option value="VIREMENT">Virement uniquement</mat-option>
                       <mat-option value="ESPECES">Espèces uniquement</mat-option>
-                      <mat-option value="PRISE_EN_CHARGE">Prise en charge uniquement</mat-option>
                     </mat-select>
                   </mat-form-field>
                 </div>
@@ -319,6 +317,111 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
                 </table>
              </ng-template>
           </mat-tab>
+
+          <mat-tab label="Prise en Charge">
+            <ng-template matTabContent>
+              <div class="p-6 border-b border-slate-50">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full max-w-sm">
+                  <mat-label>Filtrer par statut</mat-label>
+                  <mat-select [(ngModel)]="pecStatusFilter" (ngModelChange)="loadPecData()">
+                    <mat-option value="ALL">Tous les statuts</mat-option>
+                    <mat-option value="EN_ATTENTE">En attente</mat-option>
+                    <mat-option value="ENCAISSE">Encaissé</mat-option>
+                    <mat-option value="PAYE">Payé</mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+
+              <!-- PEC KPIs -->
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-6">
+                <div class="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                  <div class="text-xs font-semibold text-purple-500 uppercase tracking-wide mb-1">En attente</div>
+                  <div class="text-xl font-black text-purple-700">{{ pecTotals.inHand | number:'1.2-2' }} DH</div>
+                </div>
+                <div class="bg-amber-50 rounded-xl p-4 border border-amber-100">
+                  <div class="text-xs font-semibold text-amber-500 uppercase tracking-wide mb-1">Déposé</div>
+                  <div class="text-xl font-black text-amber-700">{{ pecTotals.deposited | number:'1.2-2' }} DH</div>
+                </div>
+                <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+                  <div class="text-xs font-semibold text-emerald-500 uppercase tracking-wide mb-1">Encaissé</div>
+                  <div class="text-xl font-black text-emerald-700">{{ pecTotals.paid | number:'1.2-2' }} DH</div>
+                </div>
+              </div>
+
+              <table mat-table [dataSource]="pecItems" class="w-full">
+                <ng-container matColumnDef="date">
+                  <th mat-header-cell *matHeaderCellDef>Date Op.</th>
+                  <td mat-cell *matCellDef="let item" class="font-medium text-slate-600">
+                    {{ item.date | date:'dd/MM/yyyy' }}
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="reference">
+                  <th mat-header-cell *matHeaderCellDef>Réf / Organisme</th>
+                  <td mat-cell *matCellDef="let item">
+                    <div class="flex flex-col">
+                      <span class="font-bold text-slate-900">{{ item.reference || 'N/A' }}</span>
+                      <span class="text-[10px] text-purple-600 font-bold uppercase">PRISE EN CHARGE</span>
+                    </div>
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="client">
+                  <th mat-header-cell *matHeaderCellDef>Client</th>
+                  <td mat-cell *matCellDef="let item">
+                    <div class="flex flex-col">
+                      <span class="font-medium">{{ item.client }}</span>
+                      <span class="text-[10px] text-slate-400 italic">{{ item.libelle }}</span>
+                    </div>
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="montant">
+                  <th mat-header-cell *matHeaderCellDef class="text-right">Montant</th>
+                  <td mat-cell *matCellDef="let item" class="text-right font-black text-purple-700">
+                    {{ item.montant | number:'1.2-2' }} DH
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="statut">
+                  <th mat-header-cell *matHeaderCellDef>Statut</th>
+                  <td mat-cell *matCellDef="let item">
+                    <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight" 
+                          [ngClass]="getStatusClass(item.statut)">
+                      {{ item.statut.replace('_', ' ') }}
+                    </span>
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="actions">
+                  <th mat-header-cell *matHeaderCellDef></th>
+                  <td mat-cell *matCellDef="let item" class="text-right">
+                    <button mat-icon-button [matMenuTriggerFor]="pecMenu">
+                      <mat-icon>more_vert</mat-icon>
+                    </button>
+                    <mat-menu #pecMenu="matMenu">
+                      <button mat-menu-item (click)="updateStatus(item, 'REMIS_EN_BANQUE')" *ngIf="item.statut === 'EN_ATTENTE' || item.statut === 'PORTEFEUILLE'">
+                        <mat-icon class="text-orange-600">account_balance</mat-icon>
+                        <span>Remettre en Banque</span>
+                      </button>
+                      <button mat-menu-item (click)="updateStatus(item, 'ENCAISSE')" *ngIf="item.statut !== 'ENCAISSE'">
+                        <mat-icon class="text-green-600">check_circle</mat-icon>
+                        <span>Confirmer Encaissement</span>
+                      </button>
+                    </mat-menu>
+                  </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="displayedColumnsPec"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumnsPec;" class="hover:bg-slate-50 transition-colors"></tr>
+              </table>
+
+              <div *ngIf="pecItems.length === 0 && !loading" class="p-12 text-center text-slate-400">
+                <mat-icon class="scale-150 mb-4 opacity-20">search_off</mat-icon>
+                <p>Aucune prise en charge trouvée pour ces critères.</p>
+              </div>
+            </ng-template>
+          </mat-tab>
         </mat-tab-group>
       </mat-card>
     </div>
@@ -360,7 +463,7 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
 export class PortfolioManagementComponent implements OnInit {
   items: any[] = [];
   statusFilter = 'ALL';
-  modeFilter = 'CHEQUE,LCN,PRISE_EN_CHARGE';
+  modeFilter = 'CHEQUE,LCN';
   activeTabId = 0;
   loading = false;
   totals = { inHand: 0, deposited: 0, paid: 0 };
@@ -378,6 +481,12 @@ export class PortfolioManagementComponent implements OnInit {
 
   displayedColumnsIncoming = ['date', 'client', 'montant', 'reference', 'banque', 'statut', 'datePrevue', 'dateEncaissement', 'actions'];
   displayedColumnsOutgoing = ['dateCreation', 'client', 'montant', 'reference', 'banque', 'statut', 'valeur', 'dateEncaissement', 'actions'];
+
+  // Prise en Charge tab
+  pecItems: any[] = [];
+  pecTotals = { inHand: 0, deposited: 0, paid: 0 };
+  pecStatusFilter = 'ALL';
+  displayedColumnsPec = ['date', 'client', 'montant', 'reference', 'statut', 'actions'];
 
   constructor(
     private financeService: FinanceService,
@@ -406,7 +515,11 @@ export class PortfolioManagementComponent implements OnInit {
 
   onTabChange(event: any) {
     this.activeTabId = event.index;
-    this.loadData();
+    if (this.activeTabId === 2) {
+      this.loadPecData();
+    } else {
+      this.loadData();
+    }
   }
 
   loadData() {
@@ -450,6 +563,48 @@ export class PortfolioManagementComponent implements OnInit {
       },
       error: () => {
         this.snackBar.open('Erreur lors du chargement des données', 'Fermer');
+        this.loading = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  loadPecData() {
+    this.loading = true;
+
+    let startDate: string | undefined;
+    let endDate: string | undefined;
+
+    if (this.currentMonth > 0) {
+      startDate = new Date(this.currentYear, this.currentMonth - 1, 1).toISOString();
+      endDate = new Date(this.currentYear, this.currentMonth, 0, 23, 59, 59).toISOString();
+    } else {
+      startDate = new Date(this.currentYear, 0, 1).toISOString();
+      endDate = new Date(this.currentYear, 11, 31, 23, 59, 59).toISOString();
+    }
+
+    const filters = {
+      mode: 'PRISE_EN_CHARGE',
+      statut: this.pecStatusFilter,
+      startDate,
+      endDate,
+      centreId: this.currentCentre()?.id,
+      limit: 200
+    };
+
+    this.financeService.getConsolidatedIncomings(filters).subscribe({
+      next: (res: any) => {
+        this.pecItems = res.data;
+        this.pecTotals = {
+          inHand: res.subtotals.inHand || 0,
+          deposited: res.subtotals.deposited || 0,
+          paid: res.subtotals.paid || 0
+        };
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.snackBar.open('Erreur lors du chargement des prises en charge', 'Fermer');
         this.loading = false;
         this.cdr.detectChanges();
       }

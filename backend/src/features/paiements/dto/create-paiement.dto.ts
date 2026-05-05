@@ -25,7 +25,7 @@ export class CreatePaiementDto {
 
   @IsNotEmpty()
   @IsString()
-  @IsEnum(['ESPECES', 'ESPECE', 'CARTE', 'CHEQUE', 'CHÈQUE', 'VIREMENT', 'LCN', 'AUTRE'], {
+  @IsEnum(['ESPECES', 'ESPECE', 'CARTE', 'CHEQUE', 'CHÈQUE', 'VIREMENT', 'LCN', 'PRISE_EN_CHARGE', 'AUTRE'], {
     message: 'Mode de paiement invalide',
   })
   mode: string;

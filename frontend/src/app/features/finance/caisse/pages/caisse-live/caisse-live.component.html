@@ -60,6 +60,16 @@
                             <b class="text-orange-600">{{ resume.recettesDetails.enCoffre | number:'1.2-2' }} DH</b>
                         </div>
                     </div>
+                    <div class="detail-row pt-2 mt-1 border-t border-dashed border-purple-200">
+                        <span class="text-purple-600">Prise en charge:</span>
+                        <div class="flex items-center gap-2">
+                            <span *ngIf="resume.recettesDetails.priseEnChargeCount > 0"
+                                class="text-xs bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-bold">
+                                {{ resume.recettesDetails.priseEnChargeCount }}
+                            </span>
+                            <b class="text-purple-600">{{ resume.recettesDetails.priseEnCharge | number:'1.2-2' }} DH</b>
+                        </div>
+                    </div>
                 </div>
             </mat-card-content>
         </mat-card>

@@ -135,6 +135,17 @@ export class PaymentDialogComponent {
             refControl?.clearValidators();
             refControl?.setValue('');
         }
+        
+        if (mode === 'PRISE_EN_CHARGE' && this.data.client && this.data.client.couvertureSociale) {
+            const type = this.data.client.couvertureSociale.type || '';
+            const num = this.data.client.couvertureSociale.numeroAdhesion || '';
+            const prefilledText = [type, num].filter(Boolean).join(' / ');
+            
+            if (prefilledText && !refControl?.value) {
+                refControl?.setValue(prefilledText);
+            }
+        }
+        
         // Logic will be handled in template heavily, but validators here:
         if (['CHEQUE', 'LCN', 'VIREMENT'].includes(mode)) {
             // Maybe require things?

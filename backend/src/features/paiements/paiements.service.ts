@@ -174,6 +174,7 @@ export class PaiementsService {
           'CHÈQUE',
           'VIREMENT',
           'LCN',
+          'PRISE_EN_CHARGE',
         ];
         if (acceptedModes.includes(createPaiementDto.mode)) {
           try {
@@ -829,7 +830,7 @@ export class PaiementsService {
   async repairOrphanOperations() {
     const orphanPayments = await this.prisma.paiement.findMany({
       where: {
-        mode: { in: ['ESPECES', 'CARTE', 'CHEQUE'] },
+        mode: { in: ['ESPECES', 'ESPECE', 'CARTE', 'CHEQUE', 'CHÈQUE', 'VIREMENT', 'LCN', 'PRISE_EN_CHARGE'] },
         operationCaisseId: null,
       },
       include: {
@@ -882,13 +883,15 @@ export class PaiementsService {
           const operation = await tx.operationCaisse.create({
             data: {
               journeeCaisseId: journee.id,
-              type: 'VENTE',
+              type: 'ENCAISSEMENT',
+              typeOperation: 'COMPTABLE',
               moyenPaiement: payment.mode,
               montant: Math.abs(payment.montant),
               reference: (payment as any).facture?.numero || '',
               motif: `Réparation: Paiement ${payment.mode}`,
               utilisateur: userName,
               userId: userId,
+              factureId: payment.factureId,
             },
           });
 
@@ -910,7 +913,9 @@ export class PaiementsService {
               totalVentesCarte:
                 payment.mode === 'CARTE' ? { increment: montant } : undefined,
               totalVentesCheque:
-                payment.mode === 'CHEQUE' ? { increment: montant } : undefined,
+                payment.mode === 'CHEQUE' || payment.mode === 'CHÈQUE' || payment.mode === 'LCN'
+                  ? { increment: montant }
+                  : undefined,
             },
           });
 

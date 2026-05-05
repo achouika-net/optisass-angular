@@ -174,9 +174,11 @@ export interface JourneeResume {
         espaces: number;
         carte: number;
         cheque: number;
+        priseEnCharge: number;
         enCoffre: number;
         carteCount: number;
         chequeCount: number;
+        priseEnChargeCount: number;
         enCoffreCount: number;
     };
     totalInterne: number;
