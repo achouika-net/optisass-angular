@@ -47,14 +47,30 @@ export interface PaymentMethodStat {
 export class StatsService {
   private readonly INVENTORY_PURCHASE_TYPES = [
     'ACHAT VERRES OPTIQUES',
+    'ACHAT_VERRE_OPTIQUE',
+    'ACHAT_VERRES_OPTIQUES',
+    'ACHAT VERRE OPTIQUE',
+    'ACHAT_VERRE_OPTIQUES',
     'ACHAT MONTURES OPTIQUES',
+    'ACHAT_MONTURE_OPTIQUE',
+    'ACHAT_MONTURES_OPTIQUES',
+    'ACHAT MONTURE OPTIQUE',
     'ACHAT LENTILLES DE CONTACT',
+    'ACHAT_LENTILLES',
+    'ACHAT_LENTILLES_DE_CONTACT',
+    'ACHAT LENTILLES',
     'ACHAT ACCESSOIRES OPTIQUES',
+    'ACHAT_ACCESSOIRES',
+    'ACHAT_ACCESSOIRES_OPTIQUES',
+    'ACHAT ACCESSOIRES',
     'ACHAT_STOCK',
+    'ACHAT STOCK',
+    'ACHAT_STOCK_DIVERS',
   ];
 
   private readonly OPERATIONAL_PURCHASE_TYPES = [
     'ELECTRICITE',
+    'ÉLECTRICITÉ',
     'INTERNET',
     'ASSURANCE',
     'FRAIS BANCAIRES',
@@ -62,6 +78,10 @@ export class StatsService {
     'REGLEMENT CONSOMMATION EAU',
     'REGLEMENT SALAIRS OPTIQUES',
     'LOYER',
+    'FRAIS_GENERAUX',
+    'FRAIS GENERAUX',
+    'AUTRES',
+    'AUTRES FRAIS',
   ];
 
   private readonly ACTIVE_STATUSES = [
@@ -752,7 +772,12 @@ export class StatsService {
       // ─────────────────────────────────────────────────────────────────────
       const [expensesAgg, purchaseExpensesAgg] = await Promise.all([
         this.prisma.depense.aggregate({
-          where: { date: { gte: start, lte: end }, ...centreFilter },
+          where: {
+            date: { gte: start, lte: end },
+            factureFournisseurId: null,
+            bonLivraisonId: null,
+            ...centreFilter,
+          },
           _sum: { montant: true },
         }),
         this.prisma.factureFournisseur.aggregate({
@@ -776,7 +801,12 @@ export class StatsService {
       const [expenseBreakdown, purchaseBreakdown] = await Promise.all([
         this.prisma.depense.groupBy({
           by: ['categorie'],
-          where: { date: { gte: start, lte: end }, ...centreFilter },
+          where: {
+            date: { gte: start, lte: end },
+            factureFournisseurId: null,
+            bonLivraisonId: null,
+            ...centreFilter,
+          },
           _sum: { montant: true },
         }),
         this.prisma.factureFournisseur.groupBy({
