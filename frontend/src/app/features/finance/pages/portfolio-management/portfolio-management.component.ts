@@ -15,6 +15,7 @@ import { FormsModule } from '@angular/forms';
 import { ChangeDetectorRef, effect } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-portfolio-management',
@@ -83,7 +84,7 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
       </div>
 
       <mat-card class="main-card">
-        <mat-tab-group (selectedTabChange)="onTabChange($event)">
+        <mat-tab-group [selectedIndex]="activeTabId" (selectedTabChange)="onTabChange($event)">
           <mat-tab label="Encaissements (Clients)">
             <ng-template matTabContent>
               <div class="p-6 border-b border-slate-50 grid grid-cols-1 lg:grid-cols-2 gap-4 items-center">
@@ -100,11 +101,12 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
                 <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
                   <mat-label>Type</mat-label>
                     <mat-select [(ngModel)]="modeFilter" (ngModelChange)="loadData()">
-                    <mat-option value="CHEQUE,LCN,VIREMENT,ESPECES">Tous les modes</mat-option>
+                    <mat-option value="CHEQUE,LCN,VIREMENT,ESPECES,PRISE_EN_CHARGE">Tous les modes</mat-option>
                     <mat-option value="CHEQUE">Chèque uniquement</mat-option>
                     <mat-option value="LCN">LCN uniquement</mat-option>
                     <mat-option value="VIREMENT">Virement uniquement</mat-option>
                     <mat-option value="ESPECES">Espèces uniquement</mat-option>
+                    <mat-option value="PRISE_EN_CHARGE">Prise en charge uniquement</mat-option>
                   </mat-select>
                 </mat-form-field>
               </div>
@@ -199,7 +201,7 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
 
               <div *ngIf="items.length === 0 && !loading" class="p-12 text-center text-slate-400">
                 <mat-icon class="scale-150 mb-4 opacity-20">search_off</mat-icon>
-                <p>Aucun chèque ou LCN trouvé pour ces critères.</p>
+                <p>Aucun élément trouvé pour ces critères.</p>
               </div>
             </ng-template>
           </mat-tab>
@@ -463,7 +465,7 @@ import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.sele
 export class PortfolioManagementComponent implements OnInit {
   items: any[] = [];
   statusFilter = 'ALL';
-  modeFilter = 'CHEQUE,LCN';
+  modeFilter = 'CHEQUE,LCN,VIREMENT,ESPECES,PRISE_EN_CHARGE';
   activeTabId = 0;
   loading = false;
   totals = { inHand: 0, deposited: 0, paid: 0 };
@@ -492,7 +494,8 @@ export class PortfolioManagementComponent implements OnInit {
     private financeService: FinanceService,
     private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef,
-    private store: Store
+    private store: Store,
+    private route: ActivatedRoute
   ) {
     // Reactivity to center changes
     effect(() => {
@@ -510,7 +513,21 @@ export class PortfolioManagementComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.loadData();
+    this.route.queryParams.subscribe(params => {
+      if (params['tab'] === 'INCOMING') {
+        this.activeTabId = 0;
+      } else if (params['tab'] === 'OUTGOING') {
+        this.activeTabId = 1;
+      } else if (params['tab'] === 'PEC') {
+        this.activeTabId = 2;
+      }
+
+      if (params['modePaiement'] === 'PRISE_EN_CHARGE' || params['mode'] === 'PEC') {
+        this.activeTabId = 2;
+      }
+
+      this.onTabChange({ index: this.activeTabId });
+    });
   }
 
   onTabChange(event: any) {
@@ -619,8 +636,8 @@ export class PortfolioManagementComponent implements OnInit {
     if (!status) return 'bg-slate-50 text-slate-700';
     status = status.toUpperCase();
     if (['EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON'].some(s => status.includes(s))) return 'bg-blue-50 text-blue-700 border border-blue-100';
-    if (['BANQUE', 'DEPOS'].some(s => status.includes(s))) return 'bg-amber-50 text-amber-700 border border-amber-100';
-    if (['ENCAISSE', 'PAYE', 'VALIDE'].some(s => status.includes(s))) return 'bg-emerald-50 text-emerald-700 border border-emerald-100';
+    if (['BANQUE', 'DEPOS', 'DÉPOS'].some(s => status.includes(s))) return 'bg-amber-50 text-amber-700 border border-amber-100';
+    if (['ENCAISSE', 'PAYE', 'PAYÉ', 'VALIDE', 'VALIDÉ'].some(s => status.includes(s))) return 'bg-emerald-50 text-emerald-700 border border-emerald-100';
     if (status.includes('REJET')) return 'bg-red-50 text-red-700 border border-red-100';
     return 'bg-slate-50 text-slate-700';
   }

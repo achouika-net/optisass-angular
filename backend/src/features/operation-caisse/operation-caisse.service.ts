@@ -184,10 +184,10 @@ export class OperationCaisseService {
       `[Caisse-Operation] findByJournee: ID=${journeeId}, start=${startDate}, end=${endDate}`,
     );
 
-    // 1. Get the caisse ID from the journee to allow cross-session fetching if date filter is used
+    // 1. Get the caisse ID and type from the journee to allow cross-session fetching
     const journee = await this.prisma.journeeCaisse.findUnique({
       where: { id: journeeId },
-      select: { caisseId: true },
+      include: { caisse: { select: { id: true, type: true } } },
     });
 
     if (!journee) throw new NotFoundException('Journée introuvable');
@@ -211,13 +211,28 @@ export class OperationCaisseService {
       }
     }
 
-    // If date filter is provided, we fetch across ALL sessions for this caisse
-    const where: any = {
-      ...(hasFilter
-        ? { journeeCaisse: { caisseId: journee.caisseId } }
-        : { journeeCaisseId: journeeId }),
-      ...(hasFilter ? { createdAt: dateFilter } : {}),
-    };
+    const isPrincipalOrMixte = journee.caisse.type === 'PRINCIPALE' || journee.caisse.type === 'MIXTE';
+    
+    // Default: current session only. 
+    // IF Principal/Mixte and NO date filter, we aggregate everything from TODAY.
+    let where: any = { journeeCaisseId: journeeId };
+    
+    if (isPrincipalOrMixte && !hasFilter) {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      
+      where = {
+        journeeCaisse: { caisseId: journee.caisseId },
+        createdAt: { gte: todayStart, lte: todayEnd }
+      };
+    } else if (hasFilter) {
+      where = {
+        journeeCaisse: { caisseId: journee.caisseId },
+        createdAt: dateFilter
+      };
+    }
 
     console.log(
       '[Caisse-Operation] FINAL PRISMA WHERE:',

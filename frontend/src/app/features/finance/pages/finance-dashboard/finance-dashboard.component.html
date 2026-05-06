@@ -92,7 +92,7 @@
     <div *ngIf="summary && !loading">
         <div class="kpi-grid">
             <!-- Recettes -->
-            <mat-card class="kpi-card border-l-4 border-green-500 clickable-card" (click)="goToPayments('INCOMING', 'ECHEANCE', 'ENCAISSE')">
+            <mat-card class="kpi-card border-l-4 border-green-500 clickable-card" (click)="goToPayments('INCOMING', 'ECHEANCE', 'ALL')">
                 <div class="metric-label flex items-center justify-center gap-1">
                     Recettes (Cash+Banque+En coffre)
                     <mat-icon class="!text-xs text-gray-400"
@@ -116,7 +116,9 @@
                             {{ summary.totalIncomingPending | number:'1.2-2' }} DH
                         </span>
                     </div>
-                    <div class="flex justify-between px-4 pt-1 border-t border-purple-100 mt-1" *ngIf="summary.incomingPriseEnCharge > 0">
+                    <div class="flex justify-between px-4 pt-1 border-t border-purple-100 mt-1 cursor-pointer hover:bg-purple-50 transition-colors" 
+                         *ngIf="summary.incomingPriseEnCharge > 0"
+                         (click)="$event.stopPropagation(); goToPayments('INCOMING', 'ECHEANCE', 'ALL', 'PRISE_EN_CHARGE')">
                         <span class="text-purple-600 font-semibold">Prise en charge:</span>
                         <div class="flex items-center gap-2">
                             <span *ngIf="summary.countPriseEnCharge > 0"

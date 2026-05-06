@@ -517,10 +517,33 @@ export class TreasuryService {
       this.prisma.paiement.aggregate({
         where: {
           statut: 'EN_ATTENTE',
-          mode: { in: ['CHEQUE', 'LCN', 'Chèque', 'CHÈQUE', 'Chéque', 'CHÉQUE'] },
+          mode: {
+            in: ['CHEQUE', 'LCN', 'Chèque', 'CHÈQUE', 'Chéque', 'CHÉQUE'],
+          },
           facture: { type: 'AVOIR', ...(centreId ? { centreId } : {}) },
         },
         _sum: { montant: true },
+      }),
+
+      // 4b. Global Pending Prise en Charge (Added to fix visibility)
+      this.prisma.paiement.aggregate({
+        where: {
+          statut: { in: ['EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS'] },
+          mode: {
+            in: [
+              'PRISE_EN_CHARGE',
+              'PRISE EN CHARGE',
+              'PEC',
+              'PRISE_EN_CHARGE_CLIENT',
+            ],
+          },
+          facture: {
+            type: { not: 'AVOIR' },
+            ...(centreId ? { centreId } : {}),
+          },
+        },
+        _sum: { montant: true },
+        _count: { _all: true },
       }),
 
       // 5. Configuration
@@ -588,17 +611,21 @@ export class TreasuryService {
       (results[3] as { _sum: { montant: number | null } })._sum.montant || 0;
     const incomingPendingAvoir =
       (results[4] as { _sum: { montant: number | null } })._sum.montant || 0;
-    const config = results[5] as { monthlyThreshold?: number } | null;
+    const pendingPEC = results[5] as {
+      _sum: { montant: number | null };
+      _count: { _all: number };
+    };
+    const config = results[6] as { monthlyThreshold?: number } | null;
     const totalInvoicesTTC =
-      (results[6] as { _sum: { montantTTC: number | null } })._sum.montantTTC ||
+      (results[7] as { _sum: { montantTTC: number | null } })._sum.montantTTC ||
       0;
     const totalDirectExpensesValue =
-      (results[7] as { _sum: { montant: number | null } })._sum.montant || 0;
-    const invoiceBreakdown = results[8] as Array<{
+      (results[8] as { _sum: { montant: number | null } })._sum.montant || 0;
+    const invoiceBreakdown = results[9] as Array<{
       _sum: { montantTTC: number | null };
       type: string | null;
     }>;
-    const blBreakdown = results[9] as Array<{
+    const blBreakdown = results[10] as Array<{
       _sum: { montantTTC: number | null };
       type: string | null;
     }>;
@@ -616,10 +643,25 @@ export class TreasuryService {
       const amount = Number(b._sum.montantTTC || 0);
       let cat = type;
       if (isInventory) {
-        if (type === 'ACHAT MONTURES OPTIQUES') cat = 'ACHAT MONTURES';
-        else if (type === 'ACHAT VERRES OPTIQUES') cat = 'ACHAT VERRES';
-        else if (type === 'ACHAT LENTILLES DE CONTACT') cat = 'ACHAT LENTILLES';
-        else if (type === 'ACHAT ACCESSOIRES OPTIQUES')
+        if (
+          type === 'ACHAT MONTURES OPTIQUES' ||
+          type === 'ACHAT_MONTURE_OPTIQUE'
+        )
+          cat = 'ACHAT MONTURES';
+        else if (
+          type === 'ACHAT VERRES OPTIQUES' ||
+          type === 'ACHAT_VERRE_OPTIQUE'
+        )
+          cat = 'ACHAT VERRES';
+        else if (
+          type === 'ACHAT LENTILLES DE CONTACT' ||
+          type === 'ACHAT_LENTILLE_CONTACT'
+        )
+          cat = 'ACHAT LENTILLES';
+        else if (
+          type === 'ACHAT ACCESSOIRES OPTIQUES' ||
+          type === 'ACHAT_ACCESSOIRE_OPTIQUE'
+        )
           cat = 'ACHAT ACCESSOIRES';
         else cat = 'ACHAT STOCK (Divers)';
       }
@@ -642,10 +684,25 @@ export class TreasuryService {
       const amount = Number(b._sum.montantTTC || 0);
       let cat = type;
       if (isInventory) {
-        if (type === 'ACHAT MONTURES OPTIQUES') cat = 'ACHAT MONTURES';
-        else if (type === 'ACHAT VERRES OPTIQUES') cat = 'ACHAT VERRES';
-        else if (type === 'ACHAT LENTILLES DE CONTACT') cat = 'ACHAT LENTILLES';
-        else if (type === 'ACHAT ACCESSOIRES OPTIQUES')
+        if (
+          type === 'ACHAT MONTURES OPTIQUES' ||
+          type === 'ACHAT_MONTURE_OPTIQUE'
+        )
+          cat = 'ACHAT MONTURES';
+        else if (
+          type === 'ACHAT VERRES OPTIQUES' ||
+          type === 'ACHAT_VERRE_OPTIQUE'
+        )
+          cat = 'ACHAT VERRES';
+        else if (
+          type === 'ACHAT LENTILLES DE CONTACT' ||
+          type === 'ACHAT_LENTILLE_CONTACT'
+        )
+          cat = 'ACHAT LENTILLES';
+        else if (
+          type === 'ACHAT ACCESSOIRES OPTIQUES' ||
+          type === 'ACHAT_ACCESSOIRE_OPTIQUE'
+        )
           cat = 'ACHAT ACCESSOIRES';
         else cat = 'ACHAT STOCK (Divers)';
       }
@@ -685,8 +742,8 @@ export class TreasuryService {
     let incomingCash = 0;
     let incomingCard = 0;
     let countCard = 0;
-    let incomingPriseEnCharge = 0;
-    let countPriseEnCharge = 0;
+    let incomingPriseEnChargeMonthly = 0;
+    let countPriseEnChargeMonthly = 0;
 
     const cashedStatuses = [
       'ENCAISSE',
@@ -706,18 +763,21 @@ export class TreasuryService {
       const isCashed = cashedStatuses.includes((p.statut || '').toUpperCase());
 
       // Harmonize modes
-      const mode = (p.mode || '').toUpperCase();
+      const mode = (p.mode || '').toUpperCase().trim();
       const isCashMode = ['ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES'].includes(
         mode,
       );
       const isCardMode = ['CARTE', 'CARTE BANCAIRE', 'CB', 'TPE'].includes(
         mode,
       );
-      const isPriseEnCharge = mode === 'PRISE_EN_CHARGE';
+      const isPriseEnCharge =
+        mode === 'PRISE_EN_CHARGE' ||
+        mode === 'PRISE EN CHARGE' ||
+        mode === 'PEC';
 
       if (isAvoir) {
         incomingAvoir += amount;
-        if (isPriseEnCharge) incomingPriseEnCharge -= amount;
+        if (isPriseEnCharge) incomingPriseEnChargeMonthly -= amount;
         if (isCashed) {
           incomingCashedAvoir += amount;
           if (isCashMode) incomingCash -= amount;
@@ -726,8 +786,8 @@ export class TreasuryService {
       } else {
         incomingStandard += amount;
         if (isPriseEnCharge) {
-          incomingPriseEnCharge += amount;
-          countPriseEnCharge++;
+          incomingPriseEnChargeMonthly += amount;
+          countPriseEnChargeMonthly++;
         }
         if (isCashed) {
           incomingCashedStandard += amount;
@@ -826,8 +886,10 @@ export class TreasuryService {
       incomingCash,
       incomingCard,
       countCard,
-      incomingPriseEnCharge,
-      countPriseEnCharge,
+      incomingPriseEnCharge: incomingPriseEnChargeMonthly, // Use monthly counters
+      countPriseEnCharge: countPriseEnChargeMonthly,
+      totalPendingPEC: Number(pendingPEC._sum.montant || 0), // Global pending for reference
+      countPendingPEC: pendingPEC._count._all,
       countChequeCoffre,
       alerts,
     };
@@ -1062,6 +1124,12 @@ export class TreasuryService {
             'ESPECE',
           );
         else if (m === 'VIREMENT') allModes.push('VIREMENT', 'Virement');
+        else if (
+          m === 'PRISE_EN_CHARGE' ||
+          m === 'PRISE EN CHARGE' ||
+          m === 'PEC'
+        )
+          allModes.push('PRISE_EN_CHARGE', 'PRISE EN CHARGE', 'PEC');
         else allModes.push(m);
       }
 
@@ -1072,20 +1140,26 @@ export class TreasuryService {
       whereClause += `AND p.mode IN (${inClause}) `;
     }
     if (filters.startDate) {
-      sqlParams.push(new Date(filters.startDate));
+      const start = new Date(filters.startDate);
+      start.setHours(0, 0, 0, 0);
+      sqlParams.push(start);
       whereClause += `AND p.date >= $${sqlParams.length} `;
     }
     if (filters.endDate) {
-      sqlParams.push(new Date(filters.endDate));
+      const end = new Date(filters.endDate);
+      end.setHours(23, 59, 59, 999);
+      sqlParams.push(end);
       whereClause += `AND p.date <= $${sqlParams.length} `;
     }
-
     const baseQuery = `
       FROM "Paiement" p
-      INNER JOIN "Facture" f ON p."factureId" = f.id
-      INNER JOIN "Client" c ON f."clientId" = c.id
+      LEFT JOIN "Facture" f ON p."factureId" = f.id
+      LEFT JOIN "Client" c ON f."clientId" = c.id
       ${whereClause}
     `;
+
+    console.log(`[TREASURY-DEBUG] whereClause:`, whereClause);
+    console.log(`[TREASURY-DEBUG] sqlParams:`, sqlParams);
 
     const statsQuery = `
       SELECT 
@@ -1106,16 +1180,17 @@ export class TreasuryService {
       }[]
     >(statsQuery, ...(sqlParams as QueryParam[]));
 
+
     const dataQuery = `
       SELECT 
-        p.id, p.date, f.numero as libelle, p.mode as type, 
-        c.nom || ' ' || COALESCE(c.prenom, '') as fournisseur, p.montant, p.statut, 
+        p.id, p.date, COALESCE(f.numero, 'N/A') as libelle, p.mode as type, 
+        COALESCE(c.nom || ' ' || COALESCE(c.prenom, ''), 'Inconnu') as fournisseur, p.montant, p.statut, 
         'FACTURE_CLIENT' as source, p.mode as "methodePaiement", p.reference as "numeroPiece", 
         CASE WHEN UPPER(TRIM(COALESCE(p.mode, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE') THEN 'CAISSE'
              ELSE COALESCE(p.banque, 'BANQUE') END as banque, 
         p."dateVersement" as "dateEcheance", p."dateVersement" as "dateEncaissement", 
         p."dateVersement" as "datePiece",
-        f."totalTTC" as "montantHT"
+        COALESCE(f."totalTTC", p.montant) as "montantHT"
       ${baseQuery}
       ORDER BY p.date DESC LIMIT ${limit} OFFSET ${skip}
     `;
@@ -1130,11 +1205,14 @@ export class TreasuryService {
       deposited: 0,
       paid: 0,
     };
+    console.log('[TREASURY-DEBUG] Stats returned:', statsData);
+    console.log(`[TREASURY-DEBUG] Stats:`, statsData);
 
     return {
       data: results.map((r) => ({
         id: r.id,
         date: r.date,
+        type: r.type,
         libelle: this.cleanText(r.libelle),
         fournisseur: this.cleanText(r.fournisseur),
         client: this.cleanText(r.fournisseur),
@@ -1142,7 +1220,9 @@ export class TreasuryService {
         statut: r.statut,
         source: r.source,
         methodePaiement: r.methodePaiement,
+        modePaiement: r.methodePaiement,
         numeroPiece: r.numeroPiece,
+        reference: r.numeroPiece,
         banque: r.banque,
         dateEcheance: r.dateEcheance,
         dateEncaissement: r.dateEncaissement,

@@ -361,17 +361,34 @@ export class JourneeCaisseService {
 
     console.timeEnd('GetResume-Step1-Metadata');
 
-    // 2. Aggregate Local Stats (Current Session) - Database side
+    // 2. Aggregate Local Stats (Current Session OR Today for Principal/Mixte) - Database side
     console.time('GetResume-Step2-LocalStats');
+    
+    const isPrincipalOrMixte = (journee.caisse as any).type === 'PRINCIPALE' || (journee.caisse as any).type === 'MIXTE';
+    
+    // Default: current session only. 
+    // IF Principal/Mixte and NO date filter, we aggregate everything from TODAY to avoid "losing" payments made in a previous session of the same day.
+    let localWhere: any = { journeeCaisseId: id };
+    if (isPrincipalOrMixte && Object.keys(dateFilter).length === 0) {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      
+      localWhere = {
+        journeeCaisse: { caisseId: journee.caisseId },
+        createdAt: { gte: todayStart, lte: todayEnd }
+      };
+    } else if (Object.keys(dateFilter).length > 0) {
+      localWhere = {
+        journeeCaisse: { caisseId: journee.caisseId },
+        createdAt: dateFilter
+      };
+    }
+
     const localAggregates = await this.prisma.operationCaisse.groupBy({
       by: ['type', 'typeOperation', 'moyenPaiement'],
-      where: {
-        // If dateFilter is provided, aggregate across ALL sessions for this specific caisse
-        ...(Object.keys(dateFilter).length > 0
-          ? { journeeCaisse: { caisseId: journee.caisseId } }
-          : { journeeCaisseId: id }),
-        ...(Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {}),
-      },
+      where: localWhere,
       _sum: { montant: true },
       _count: { id: true },
     });

@@ -573,10 +573,18 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
                     'ENCAISSE', 'DECAISSE', 'DECAISSEMENT', 'PAYE', 'PAYÉ', 'PAYEE', 
                     'PAYÉE', 'SOLDE', 'ENCAISSÉ', 'VALIDE', 'VALIDÉ'
                 ];
-                
-                this.incomingItems = res.incoming.data.filter(i => 
-                    cashedStatuses.includes((i.statut || '').toUpperCase())
-                );
+
+                this.incomingItems = res.incoming.data.filter(i => {
+                    const statut = (i.statut || '').toUpperCase();
+                    const isCashed = cashedStatuses.includes(statut);
+                    // Handle both name variants just in case
+                    const mode = (i.modePaiement || i.methodePaiement || '').toUpperCase().trim();
+                    const isPEC = mode === 'PRISE_EN_CHARGE' || mode === 'PRISE EN CHARGE' || mode === 'PEC';
+                    const isPendingCheque = ['CHEQUE', 'LCN'].includes(mode) && statut === 'EN_ATTENTE';
+                    
+                    // Show if cashed OR if it's a pending PEC or Cheque (relevant for treasury visibility)
+                    return isCashed || isPEC || isPendingCheque;
+                });
                 
                 this.outgoingItems = res.outgoing.data.filter(i => 
                     cashedStatuses.includes((i.statut || '').toUpperCase())

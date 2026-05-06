@@ -581,6 +581,7 @@ export class StatsService {
       totalProducts,
       totalClients,
       totalRevenue: profitData.revenue,
+      totalRecettes: profitData.totalRecettes,
       // In Advanced Stats, "Total Dépenses" should represent all outgoing costs (COGS + OpEx)
       // to be consistent with the Net Profit calculation.
       totalExpenses: profitData.cogs + profitData.expenses,
@@ -619,6 +620,31 @@ export class StatsService {
       // même déduplication que getDashboardData() → garantit que :
       //    revenue (HT) × 1.2  ≡  CA Global TTC (Contrôle des Ventes)
       // ─────────────────────────────────────────────────────────────────────
+
+      // 0. Recettes (Cash Flow entrant réel)
+      const receiptsAgg = await this.prisma.paiement.aggregate({
+        where: {
+          date: { gte: start, lte: end },
+          ...(tenantId ? { facture: { centreId: tenantId } } : {}),
+          statut: {
+            in: [
+              'ENCAISSE',
+              'ENCAISSÉ',
+              'ENCAISSÉE',
+              'PAYE',
+              'PAYÉ',
+              'PAYEE',
+              'PAYÉE',
+              'SOLDE',
+              'SOLDEE',
+              'VALIDÉ',
+              'VALIDE',
+            ],
+          },
+        },
+        _sum: { montant: true },
+      });
+      const totalRecettes = receiptsAgg._sum.montant || 0;
 
       // 1a. ficheIds des FACTURES validées → dépistage des BCs déjà convertis
       const facturesWithFiche = await this.prisma.facture.findMany({
@@ -838,13 +864,13 @@ export class StatsService {
       );
 
       return {
-        revenue,   // Revenu HT  (= caTTC / 1.2 → cohérent avec Contrôle des Ventes)
-        caTTC,     // CA Global TTC  (= revenue × 1.2, identique à Contrôle des Ventes)
+        revenue,
+        totalRecettes,
+        caTTC,
         cogs: rawCogs,
         expenses: totalExpenses,
-        grossProfit: revenue - rawCogs,
-        netProfit,
-        expensesBreakdown: formattedBreakdown,
+        netProfit: revenue - rawCogs - totalExpenses,
+        expenseBreakdown: formattedBreakdown,
         cogsBreakdown: formattedCogsBreakdown,
         analysis: {
           grossMarginRate: revenue ? ((revenue - rawCogs) / revenue) * 100 : 0,
