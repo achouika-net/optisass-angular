@@ -870,7 +870,7 @@ export class StatsService {
         cogs: rawCogs,
         expenses: totalExpenses,
         netProfit: revenue - rawCogs - totalExpenses,
-        expenseBreakdown: formattedBreakdown,
+        expensesBreakdown: formattedBreakdown,
         cogsBreakdown: formattedCogsBreakdown,
         analysis: {
           grossMarginRate: revenue ? ((revenue - rawCogs) / revenue) * 100 : 0,
