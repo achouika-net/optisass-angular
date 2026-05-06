@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MediaPipeEngineService } from '../../services/mediapipe-engine.service';
 import { CalibrationService } from '../../services/calibration.service';
 import { ExpSmoother } from '../../utils/smoothing.util';
-import { Measurement, Point } from '../../models/measurement.model';
+import { Measurement, Point, Pupils } from '../../models/measurement.model';
 
 @Component({
     selector: 'app-camera-view',
@@ -397,6 +397,39 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
         }
     }
 
+    /**
+     * Automatically position all measurement lines based on face landmarks
+     */
+    private autoPositionLines(pts: Point[], pupils: Pupils): void {
+        if (!pts || pts.length < 468) return;
+
+        // 1. Red Lines (Frame Height)
+        // Top: Eyebrow level (using landmarks above eyes)
+        const topY = Math.min(pts[70].y, pts[300].y, pts[107].y, pts[336].y);
+        // Bottom: Cheekbone level (landmarks below eyes)
+        const bottomY = Math.max(pts[111].y, pts[340].y, pts[213].y, pts[433].y);
+
+        this.frameTopY = topY;
+        this.frameBottomY = bottomY;
+
+        // 2. Blue Lines (Pupil Height)
+        // Default to the bottom of the frame as requested
+        this.frameBottomLeftY = bottomY;
+        this.frameBottomRightY = bottomY;
+
+        // 3. Orange Lines (Frame Width) - Already handled by 234/454 but we ensure offsets are reset if not manual
+        if (!this.hasManualFrameAdjustment) {
+            this.frameLeftOffset = 0;
+            this.frameRightOffset = 0;
+        }
+
+        // 4. Diagonal Purple Arrow (Useful Diameter)
+        // Position it from a corner of the frame to the opposite corner of one lens
+        const frameCenterX = (pts[234].x + pts[454].x) / 2;
+        this.diagonalP1 = { x: frameCenterX, y: topY }; // Start at bridge top
+        this.diagonalP2 = { x: pts[454].x, y: bottomY }; // End at bottom-right outer corner
+    }
+
     startDetectionLoop(): void {
         // Safety: Prevent multiple loops
         if (this.detectionFrameId) {
@@ -436,10 +469,10 @@ export class CameraViewComponent implements OnInit, AfterViewInit, OnDestroy {
                             result.pupils.right = smoothedRight;
 
                             // Init Lines
-                            if (this.frameBottomLeftY === 0) this.frameBottomLeftY = result.pupils.left.y + 50;
-                            if (this.frameBottomRightY === 0) this.frameBottomRightY = result.pupils.right.y + 50;
-                            if (this.frameTopY === 0) this.frameTopY = Math.max(20, result.pupils.left.y - 150);
-                            if (this.frameBottomY === 0) this.frameBottomY = Math.min(700, result.pupils.left.y + 150);
+                            // Auto-position lines based on landmarks if not already done or manually adjusted
+                            if (result.landmarks && !this.hasManualFrameAdjustment) {
+                                this.autoPositionLines(result.landmarks, result.pupils);
+                            }
 
                             // Calibration Landmarks
                             if (result.landmarks) {
