@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { CommonModule, AsyncPipe } from '@angular/common';
+import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -18,11 +18,12 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { ActivatedRoute } from '@angular/router';
 import { BehaviorSubject, Observable, of } from 'rxjs';
-import { catchError, debounceTime, distinctUntilChanged, shareReplay, switchMap, tap } from 'rxjs/operators';
+import { catchError, debounceTime, delay, distinctUntilChanged, map, shareReplay, switchMap, tap } from 'rxjs/operators';
 import { Product, ProductType, ProductFilters, StockStats } from '../../../../shared/interfaces/product.interface';
 import { Entrepot } from '../../../../shared/interfaces/warehouse.interface';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { StockAlimentationDialogComponent, AlimentationResult } from '../../components/stock-alimentation-dialog/stock-alimentation-dialog.component';
 import { StockAlimentationService, BulkAlimentationPayload } from '../../services/stock-alimentation.service';
 import { CeilingWarningDialogComponent } from '../../../finance/components/ceiling-warning-dialog/ceiling-warning-dialog.component';
@@ -42,6 +43,12 @@ import { BulkStockTransferDialogComponent } from '../../dialogs/bulk-stock-trans
 import { StockMovementHistoryDialogComponent } from '../../dialogs/stock-movement-history-dialog/stock-movement-history-dialog.component';
 import { StockTransferDialogComponent } from '../../dialogs/stock-transfer-dialog/stock-transfer-dialog.component';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { TypeFiche, StatutFiche } from '../../../client-management/models/fiche-client.model';
+import { GlassIndex } from '../../../../core/models/glass-parameters.model';
+import { GlassParametersService } from '../../../client-management/services/glass-parameters.service';
+import { FicheService } from '../../../client-management/services/fiche.service';
+import { ClientManagementService } from '../../../client-management/services/client.service';
+import { combineLatest, startWith, take } from 'rxjs';
 
 export interface StagedProduct {
     id?: string; // If existing product found
@@ -85,6 +92,7 @@ export interface StagedProduct {
     standalone: true,
     imports: [
         CommonModule,
+        AsyncPipe,
         ReactiveFormsModule,
         FormsModule,
         MatCardModule,
@@ -103,7 +111,8 @@ export interface StagedProduct {
         MatDialogModule,
         MatDatepickerModule,
         MatMenuModule,
-        MatSlideToggleModule
+        MatSlideToggleModule,
+        MatAutocompleteModule
     ],
     templateUrl: './stock-entry-v2.component.html',
     styleUrls: ['./stock-entry-v2.component.scss']
@@ -113,6 +122,18 @@ export class StockEntryV2Component implements OnInit {
     entryForm: FormGroup;
     documentForm: FormGroup;
     batchPricingForm: FormGroup;
+
+    // Data lists (Moved up for better IDE visibility)
+    public glassBrands$!: Observable<any[]>;
+    public glassMaterials$!: Observable<any[]>;
+    public glassIndices$!: Observable<any[]>;
+    public glassTreatments$!: Observable<any[]>;
+
+    // Fiche & Client Search State
+    clientSearchCtrl = new FormControl('');
+    clients$: Observable<any[]> = of([]);
+    ficheSearchCtrl = new FormControl('');
+    fiches$: Observable<any[]> = of([]);
 
     // List of common Moroccan TVA rates
     tvaOptions = [20, 14, 10, 7, 0];
@@ -131,6 +152,7 @@ export class StockEntryV2Component implements OnInit {
     showOcrData = false;
     detectedLines: any[] = [];
     suppliersList: any[] = []; // Local cache for OCR matching
+    rawOcrResult: any = null; // Debug: store last raw response
 
     // New OCR Logic Properties
     splitLines: any[] = [];
@@ -190,7 +212,10 @@ export class StockEntryV2Component implements OnInit {
         private dialog: MatDialog,
         private store: Store,
         private route: ActivatedRoute,
-        private stockService: StockAlimentationService
+        private stockService: StockAlimentationService,
+        private ficheService: FicheService,
+        private clientService: ClientManagementService,
+        private glassService: GlassParametersService
     ) {
         this.entryForm = this.fb.group({
             reference: [''], // Not required if codeBarre present
@@ -204,7 +229,11 @@ export class StockEntryV2Component implements OnInit {
             modePrix: ['FIXE', Validators.required], // FIXE or COEFF
             coefficient: [2.5],
             margeFixe: [0],
-            prixVente: [0, Validators.required]
+            prixVente: [0, Validators.required],
+            glassBrandId: [''],
+            glassMaterialId: [''],
+            glassIndexId: [''],
+            glassTreatmentIds: [[]]
         });
 
         this.documentForm = this.fb.group({
@@ -214,7 +243,9 @@ export class StockEntryV2Component implements OnInit {
             date: [new Date()],
             file: [null],
             centreId: [null],
-            entrepotId: [''] // Facultatif
+            entrepotId: [''], // Facultatif
+            clientId: [''],
+            ficheId: ['']
         });
 
         this.batchPricingForm = this.fb.group({
@@ -242,6 +273,13 @@ export class StockEntryV2Component implements OnInit {
                 return of([]);
             })
         );
+        
+        // Initialize glass observables
+        const glassData$ = this.glassService.getAll().pipe(shareReplay(1));
+        this.glassBrands$ = glassData$.pipe(map((d: any) => d.brands));
+        this.glassMaterials$ = glassData$.pipe(map((d: any) => d.materials));
+        this.glassIndices$ = glassData$.pipe(map((d: any) => d.materials.flatMap((m: any) => m.indices)));
+        this.glassTreatments$ = glassData$.pipe(map((d: any) => d.treatments));
 
         // Load warehouses for current centre
         const center = this.currentCentre();
@@ -254,6 +292,55 @@ export class StockEntryV2Component implements OnInit {
             },
             error: (err) => console.error('Error loading warehouses:', err)
         });
+
+        // Initialize Client Search logic
+        this.clients$ = this.clientSearchCtrl.valueChanges.pipe(
+            debounceTime(300),
+            distinctUntilChanged(),
+            switchMap(value => {
+                if (!value || typeof value !== 'string' || value.length < 2) return of([]);
+                return this.clientService.searchClients({ nom: value }).pipe(catchError(() => of([])));
+            }),
+            shareReplay(1)
+        );
+
+        // Watch for Document Number changes to auto-link with Finance BLs
+        this.documentForm.get('numero')!.valueChanges.pipe(
+            debounceTime(500),
+            distinctUntilChanged()
+        ).subscribe(value => {
+            if (value && value.length >= 3) {
+                this.searchExistingFinanceBL(value);
+            }
+        });
+
+        // Initialize Fiche Search logic (linked to selected client if any)
+        this.fiches$ = combineLatest([
+            this.ficheSearchCtrl.valueChanges.pipe(startWith('')),
+            this.documentForm.get('clientId')!.valueChanges.pipe(startWith(''))
+        ]).pipe(
+            debounceTime(300),
+            switchMap(([query, clientId]) => {
+                if (clientId) {
+                    return this.ficheService.getFichesByClient(clientId).pipe(
+                        map(fiches => fiches.filter(f => 
+                            f.statut === StatutFiche.COMMANDE || 
+                            (f.numero && f.numero.toString().includes(query))
+                        ))
+                    );
+                }
+                if (query && query.length >= 2) {
+                    return this.ficheService.getAllFiches().pipe(
+                        map(fiches => fiches.filter(f => 
+                            (f.numero && f.numero.toString().includes(query)) || 
+                            (f.clientId && f.clientId.toLowerCase().includes(query.toLowerCase()))
+                        ).slice(0, 10))
+                    );
+                }
+                return of([]);
+            }),
+            shareReplay(1)
+        );
 
         // Auto-calculate selling price when Purchase Price, Coef or Fixed Margin changes
         this.entryForm.valueChanges.subscribe(val => {
@@ -271,8 +358,12 @@ export class StockEntryV2Component implements OnInit {
             }
         });
 
-        // Inverse: If Prix Vente changes manually in Coeff mode (optional UX choice: update coef?)
-        // For now, let's keep Coeff master if Mode IS Coeff.
+        // Glass Parameter Listeners to auto-generate Name and Fixed Price
+        this.entryForm.get('glassBrandId')?.valueChanges.subscribe(() => this.generateGlassName());
+        this.entryForm.get('glassMaterialId')?.valueChanges.subscribe(() => this.generateGlassName());
+        this.entryForm.get('glassIndexId')?.valueChanges.subscribe(() => this.generateGlassName());
+        this.entryForm.get('glassTreatmentIds')?.valueChanges.subscribe(() => this.generateGlassName());
+
         this.searchBulkProducts();
 
         // Initial patch for centreId
@@ -284,17 +375,29 @@ export class StockEntryV2Component implements OnInit {
         // Handle prefilled data from query params
         this.route.queryParams.subscribe(params => {
             if (params['prefillInvoice'] || params['prefillSupplier']) {
+                const invoiceNum = params['prefillInvoice'] || '';
+                
                 this.documentForm.patchValue({
-                    numero: params['prefillInvoice'] || '',
+                    numero: invoiceNum,
                     fournisseurId: params['prefillSupplier'] || '',
                     date: params['prefillDate'] ? new Date(params['prefillDate']) : new Date()
                 });
 
-                if (params['prefillInvoice']) {
+                if (invoiceNum) {
                     this.skipPaymentPrompt = true;
+                    // FORCE SEARCH: Ensure we pull the full BL record (Client, Fiche, etc.)
+                    this.searchExistingFinanceBL(invoiceNum);
                 }
 
-                this.snackBar.open('Données de la facture pré-remplies', 'OK', { duration: 3000 });
+                this.snackBar.open('Données du document importées', 'OK', { duration: 3000 });
+            }
+
+            if (params['prefillFicheId']) {
+                this.prefillFromFiche(params['prefillFicheId'], {
+                    type: params['prefillType'],
+                    source: params['prefillSource'],
+                    total: params['prefillTotal']
+                });
             }
         });
 
@@ -322,6 +425,243 @@ export class StockEntryV2Component implements OnInit {
 
     getTotalBasketValue(): number {
         return this.stagedProducts.reduce((acc, p) => acc + (p.prixAchat * p.quantite), 0);
+    }
+
+    /**
+     * Search for an existing BL in the Finance module and auto-fill if found
+     */
+    searchExistingFinanceBL(numeroBL: string) {
+        console.log('🔍 Searching for existing Finance BL:', numeroBL);
+        this.financeService.getBonLivraisons({ numeroBL: numeroBL } as any).subscribe({
+            next: (response) => {
+                const bl = response.data.find(b => b.numeroBL === numeroBL);
+                if (bl) {
+                    console.log('✅ Found existing Finance BL:', bl);
+                    this.snackBar.open(`BL #${bl.numeroBL} trouvé. Importation des données...`, 'OK', { duration: 3000 });
+                    
+                    // 1. Update Document Form
+                    this.documentForm.patchValue({
+                        fournisseurId: bl.fournisseurId,
+                        type: 'BL',
+                        clientId: bl.clientId,
+                        ficheId: bl.ficheId,
+                        date: bl.dateEmission ? new Date(bl.dateEmission) : new Date()
+                    }, { emitEvent: false });
+
+                    // 2. Update Search Controls labels
+                    if (bl.client) {
+                        this.clientSearchCtrl.setValue(`${bl.client.nom || ''} ${bl.client.prenom || ''}`, { emitEvent: false });
+                    }
+                    if (bl.fiche) {
+                        this.ficheSearchCtrl.setValue(`BC #${bl.fiche.numero || 'N/A'} - ${bl.fiche.type}`, { emitEvent: false });
+                    }
+
+                    // 3. Set Category and trigger lens pre-fill if applicable
+                    if (bl.categorieBL === 'ACHAT_VERRE_OPTIQUE' || (bl.fiche && bl.fiche.type === TypeFiche.MONTURE)) {
+                        this.entryForm.patchValue({ categorie: 'VERRE' });
+                        if (bl.ficheId) {
+                            this.prefillFromFiche(bl.ficheId, { total: bl.montantTTC, source: 'FINANCE_LINK' });
+                        }
+                    } else if (bl.fiche && bl.fiche.type === TypeFiche.LENTILLES) {
+                        this.entryForm.patchValue({ categorie: 'LENTILLE' });
+                        if (bl.ficheId) {
+                            this.prefillFromFiche(bl.ficheId, { total: bl.montantTTC, source: 'FINANCE_LINK' });
+                        }
+                    }
+                }
+            },
+            error: (err) => console.error('Error searching for Finance BL:', err)
+        });
+    }
+
+    onClientSelected(event: MatAutocompleteSelectedEvent) {
+        const client = event.option.value;
+        if (client && client.id) {
+            this.documentForm.patchValue({ clientId: client.id, ficheId: '' });
+            this.ficheSearchCtrl.setValue('', { emitEvent: false });
+            this.clientSearchCtrl.setValue(`${client.nom || ''} ${client.prenom || ''}`, { emitEvent: false });
+        }
+    }
+
+    onFicheSelected(event: MatAutocompleteSelectedEvent) {
+        const fiche = event.option.value;
+        if (fiche && fiche.id) {
+            this.documentForm.patchValue({ 
+                ficheId: fiche.id,
+                type: 'BL' // Auto-set as Delivery Note
+            });
+
+            // If it's a frame/lens sheet, auto-set category to VERRE
+            if (fiche.type === TypeFiche.MONTURE) {
+                this.entryForm.patchValue({ categorie: 'VERRE' });
+            } else if (fiche.type === TypeFiche.LENTILLES) {
+                this.entryForm.patchValue({ categorie: 'LENTILLE' });
+            }
+
+            this.prefillFromFiche(fiche.id, {
+                source: 'MANUAL_LINK'
+            });
+            this.ficheSearchCtrl.setValue(`BC #${fiche.numero || 'N/A'} - ${fiche.type}`, { emitEvent: false });
+        }
+    }
+
+    prefillFromFiche(ficheId: string, options: { type?: string, source?: string, total?: any } = {}) {
+        const type = options.type || '';
+        const isVerreDoc = ['ACHAT_VERRE_OPTIQUE', 'ACHAT_VERRES_OPTIQUE', 'VERRE_OPTIQUE'].includes(type);
+        const isLentilleDoc = ['ACHAT_LENTILLE', 'ACHAT_LENTILLES', 'LENTILLE'].includes(type);
+        const isGenericDoc = ['FACTURE', 'BL', 'ACHAT_STOCK', 'AUTRE', ''].includes(type);
+
+        // Auto-set document type
+        const upperType = type.toUpperCase();
+        if (upperType === 'BL' || upperType.includes('LIVRAISON') || options.source === 'BL' || options.source === 'MANUAL_LINK') {
+            this.documentForm.patchValue({ type: 'BL' });
+            console.log('📋 Prefill: Document type set to BL');
+        } else {
+            this.documentForm.patchValue({ type: 'FACTURE' });
+            console.log('📋 Prefill: Document type set to FACTURE');
+        }
+        
+        console.log(`🔍 [Prefill] Fetching fiche detail for ID: ${ficheId}`);
+        this.ficheService.getFicheById(ficheId).subscribe((fiche: any) => {
+            if (fiche) {
+                console.log('📄 [Prefill] Fiche loaded:', fiche);
+                const isVerre = isVerreDoc || (isGenericDoc && fiche.type === TypeFiche.MONTURE);
+                const isLentille = isLentilleDoc || (isGenericDoc && fiche.type === TypeFiche.LENTILLES);
+                
+                console.log(`🎯 [Prefill] Logic: isVerre=${isVerre}, isLentille=${isLentille}, FicheType=${fiche.type}`);
+
+                // Try to match supplier if present in fiche
+                if (fiche.fournisseur && this.suppliersList) {
+                    const matchedSupplier = this.suppliersList.find(s => 
+                        s.nom.toLowerCase().includes(fiche.fournisseur.toLowerCase())
+                    );
+                    if (matchedSupplier) {
+                        this.documentForm.patchValue({ fournisseurId: matchedSupplier.id });
+                        console.log('✅ [Prefill] Supplier matched:', matchedSupplier.nom);
+                    }
+                }
+
+                let prefillData: any = {};
+                const totalStr = options.total;
+                const total = totalStr ? Number(totalStr) : (fiche.montantTotal || 0);
+                // For lenses, we usually have 2 units. So unitary price is total/2.
+                const prixUnitaire = total > 0 ? total / 2 : 0;
+
+                if (isVerre && (fiche.type === TypeFiche.MONTURE || (fiche as any).verres)) {
+                    const verres = (fiche as any).verres;
+                    if (!verres) {
+                        console.warn('⚠️ [Prefill] Expected verres details but found none on fiche');
+                        return;
+                    }
+
+                    const traits = verres.traitement ? verres.traitement.join(' ') : '';
+                    prefillData = {
+                        categorie: 'VERRE',
+                        nom: `Verre ${verres.type || ''} ${verres.indice || ''} ${traits}`.trim(),
+                        quantite: 2,
+                        prixAchat: parseFloat(prixUnitaire.toFixed(2)),
+                        marque: verres.marque || ''
+                    };
+
+                    console.log('👓 [Prefill] Preparing Glass Entry:', prefillData);
+
+                    this.glassService.getAll().subscribe((p: any) => {
+                        console.log('🧬 [Prefill] Matching glass parameters against DB...');
+                        
+                        const brand = p.brands.find((b: any) => 
+                            verres.marque && (b.name.toLowerCase().includes(verres.marque.toLowerCase()) || verres.marque.toLowerCase().includes(b.name.toLowerCase()))
+                        );
+                        
+                        const index = p.materials.flatMap((m: any) => m.indices).find((i: any) => 
+                            verres.indice && (i.label.toLowerCase().includes(verres.indice.toLowerCase()) || verres.indice.toLowerCase().includes(i.label.toLowerCase()))
+                        );
+                        
+                        const material = p.materials.find((m: any) => m.indices.some((idx: any) => idx.id === index?.id));
+                        
+                        let matchedTreatments: string[] = [];
+                        if (verres.traitement && Array.isArray(verres.traitement)) {
+                            matchedTreatments = p.treatments.filter((t: any) => 
+                                verres.traitement.some((vt: string) => t.name.toLowerCase().includes(vt.toLowerCase()) || vt.toLowerCase().includes(t.name.toLowerCase()))
+                            ).map((t: any) => t.id);
+                        }
+
+                        console.log('✨ [Prefill] Match results:', { brand: brand?.name, material: material?.name, index: index?.label, treatmentsCount: matchedTreatments.length });
+
+                        this.entryForm.patchValue({
+                            ...prefillData,
+                            glassBrandId: brand?.id || '',
+                            glassMaterialId: material?.id || '',
+                            glassIndexId: index?.id || '',
+                            glassTreatmentIds: matchedTreatments
+                        });
+
+                        this.generateGlassName();
+                        
+                        // Small delay to let reactive forms update (quantities, prices)
+                        setTimeout(() => {
+                            console.log('🚀 [Prefill] Forcing add to basket...');
+                            this.forceAddProduct();
+                        }, 800);
+                    });
+
+                } else if (isLentille && (fiche.type === TypeFiche.LENTILLES || (fiche as any).lentilles)) {
+                    const lentilles = (fiche as any).lentilles;
+                    prefillData = {
+                        categorie: 'LENTILLE',
+                        nom: `Lentille ${lentilles.type || ''} ${lentilles.usage || ''}`.trim(),
+                        quantite: 2,
+                        prixAchat: parseFloat(prixUnitaire.toFixed(2))
+                    };
+                    this.entryForm.patchValue(prefillData);
+                    setTimeout(() => this.forceAddProduct(), 800);
+                }
+            }
+        });
+    }
+
+    generateGlassName() {
+        const val = this.entryForm.getRawValue();
+        if (val.categorie !== 'VERRE') return;
+
+        combineLatest([
+            this.glassBrands$,
+            this.glassMaterials$,
+            this.glassIndices$,
+            this.glassTreatments$
+        ]).pipe(take(1)).subscribe(([brands, materials, indices, treatments]) => {
+            const brand = brands.find(b => b.id === val.glassBrandId);
+            const material = materials.find(m => m.id === val.glassMaterialId);
+            const index = indices.find(i => i.id === val.glassIndexId);
+            const selectedTraits = treatments.filter(t => val.glassTreatmentIds?.includes(t.id));
+
+            let name = 'Verre';
+            if (brand) name += ` ${brand.name}`;
+            if (index) name += ` ${index.label}`;
+            if (selectedTraits.length > 0) {
+                name += ` (${selectedTraits.map(t => t.name).join(', ')})`;
+            }
+
+            // CALCUL DU PRIX DE VENTE FIXE (Depuis la DB)
+            let fixedSellingPrice = index?.price || 0;
+            selectedTraits.forEach(t => fixedSellingPrice += t.price || 0);
+
+            this.entryForm.patchValue({ 
+                nom: name,
+                prixVente: fixedSellingPrice,
+                modePrix: 'FIXE', // Les verres utilisent des prix fixes configurés
+                margeFixe: 0      // On réinitialise la marge manuelle pour les verres
+            }, { emitEvent: false });
+        });
+    }
+
+    forceAddProduct() {
+        const val = this.entryForm.getRawValue();
+        const designation = val.nom || val.reference || 'Produit';
+        
+        this.addProduct();
+        
+        // Confirmation feedback
+        this.snackBar.open(`✅ ${designation} ajouté au panier`, 'OK', { duration: 3000 });
     }
     setupDuplicateCheck() {
         this.documentForm.valueChanges.pipe(
@@ -418,15 +758,19 @@ export class StockEntryV2Component implements OnInit {
         if (this.entryForm.invalid) return;
 
         const val = this.entryForm.getRawValue();
+        const isVerre = val.categorie === 'VERRE';
 
-        // Validation: Must have at least a reference OR a barcode
-        if (!val.reference?.trim() && !val.codeBarre?.trim()) {
+        // Validation: Must have at least a reference OR a barcode (Bypassed for VERRE)
+        if (!isVerre && !val.reference?.trim() && !val.codeBarre?.trim()) {
             this.snackBar.open('Veuillez saisir une référence ou un code-barres', 'OK', { duration: 3000 });
             return;
         }
 
-        // Backend fallback: if no reference, use codeBarre as reference
-        const finalRef = val.reference?.trim() || val.codeBarre?.trim() || '';
+        // Backend fallback: if no reference, use codeBarre or name (for glasses) as reference
+        let finalRef = val.reference?.trim() || val.codeBarre?.trim() || '';
+        if (isVerre && !finalRef) {
+            finalRef = val.nom || 'VERRE_PREFILL';
+        }
 
         const globalWh = this.documentForm.get('entrepotId')?.value;
 
@@ -463,7 +807,11 @@ export class StockEntryV2Component implements OnInit {
             coefficient: 2.5,
             margeFixe: 0,
             prixVente: 0,
-            codeBarre: ''
+            codeBarre: '',
+            glassBrandId: '',
+            glassMaterialId: '',
+            glassIndexId: '',
+            glassTreatmentIds: []
         });
 
         this.foundProduct = null;
@@ -600,6 +948,7 @@ export class StockEntryV2Component implements OnInit {
             }
 
             this.analyzedText = result.text || '';
+            this.rawOcrResult = result; // Store for debug view
             console.log(`📦 OCR: Data received from ${result.source || 'LOCAL (Tesseract)'}`, result);
 
             // Handle n8n array response wrapper
@@ -609,14 +958,24 @@ export class StockEntryV2Component implements OnInit {
             const invNum = data.numero_facture || data.invoiceNumber || data.facture?.numero;
             const invDate = data.date_facture || data.invoiceDate || data.facture?.date;
             const supplier = data.fournisseur || data.supplierName || data.fournisseur?.nom;
+            const docType = data.type_document || data.documentType || '';
 
             if (invNum) {
                 this.documentForm.patchValue({ numero: invNum });
-                console.log('📋 OCR: Numéro facture détecté:', invNum);
+                console.log('📋 OCR: Numéro pièce détecté:', invNum);
             }
             if (invDate) {
                 this.documentForm.patchValue({ date: new Date(invDate) });
-                console.log('📋 OCR: Date facture détectée:', invDate);
+                console.log('📋 OCR: Date pièce détectée:', invDate);
+            }
+
+            // Auto-detect document type from OCR
+            if (docType.toUpperCase().includes('LIVRAISON') || docType.toUpperCase().includes('BL') || this.analyzedText.toUpperCase().includes('BON DE LIVRAISON')) {
+                this.documentForm.patchValue({ type: 'BL' });
+                console.log('📋 OCR: Type détecté: Bon de Livraison');
+            } else if (docType.toUpperCase().includes('FACTURE') || this.analyzedText.toUpperCase().includes('FACTURE')) {
+                this.documentForm.patchValue({ type: 'FACTURE' });
+                console.log('📋 OCR: Type détecté: Facture');
             }
 
             if (supplier) {
@@ -635,18 +994,25 @@ export class StockEntryV2Component implements OnInit {
             // NEW: Ultra-flexible article detection (Search for any array of articles)
             const findArticles = (obj: any): any[] | null => {
                 if (!obj || typeof obj !== 'object') return null;
+                
                 // If it's already an array of articles, return it
                 if (Array.isArray(obj)) {
-                    const looksLikeArticles = obj.length > 0 && typeof obj[0] === 'object' && (obj[0].reference || obj[0].designation || obj[0].marque);
-                    return looksLikeArticles ? obj : null;
+                    const looksLikeArticles = obj.length > 0 && typeof obj[0] === 'object' && (obj[0].reference || obj[0].designation || obj[0].marque || obj[0].description);
+                    if (looksLikeArticles) return obj;
                 }
 
-                if (Array.isArray(obj.articles)) return obj.articles;
-                if (Array.isArray(obj.items)) return obj.items;
-                if (Array.isArray(obj.produits)) return obj.produits;
+                // Check common keys
+                const commonKeys = ['articles', 'items', 'produits', 'lignes', 'rows', 'data'];
+                for (const key of commonKeys) {
+                    if (Array.isArray(obj[key])) {
+                        const result = findArticles(obj[key]);
+                        if (result) return result;
+                    }
+                }
 
+                // Recursive search for ANY array of objects
                 for (const key in obj) {
-                    if (typeof obj[key] === 'object') {
+                    if (obj[key] && typeof obj[key] === 'object' && !commonKeys.includes(key)) {
                         const result = findArticles(obj[key]);
                         if (result) return result;
                     }
@@ -920,41 +1286,42 @@ export class StockEntryV2Component implements OnInit {
     // --- CAMERA / IA BRIDGE ---
 
     addIntelligentArticles(articles: any[]) {
+        if (!articles || !Array.isArray(articles)) {
+            console.error('❌ addIntelligentArticles: Input is not an array', articles);
+            return;
+        }
+
+        console.log('✨ addIntelligentArticles: Processing', articles.length, 'items');
         const newProducts: StagedProduct[] = [];
         const globalWh = this.documentForm.get('entrepotId')?.value;
         const defaultTva = this.entryForm.get('tva')?.value || 20;
 
-        articles.forEach(art => {
-            if (!art || typeof art !== 'object') {
-                console.warn('⚠️ OCR: Ignoring invalid/null item in list', art);
-                return;
+        articles.forEach((art, index) => {
+            if (!art || typeof art !== 'object') return;
+
+            // Permissive mapping
+            let ref = art.reference || art.ref || art.model || art.modele || art.code || 'SANS-REF';
+            let marque = art.marque || art.brand || art.fabricant || 'Sans Marque';
+            let des = art.designation || art.nom || art.name || art.description || '';
+            let qte = parseFloat(art.quantite || art.qte || art.quantity || 1) || 1;
+            
+            // Reconstruct designation if empty or short
+            if (!des || des.length < 5) {
+                des = `${marque} ${ref}`.trim();
+            }
+            if (!des || des === 'Sans Marque SANS-REF') {
+                des = art.designation_brute || 'Article ' + (index + 1);
             }
 
-            // Clean designation: "Marque + Reference"
-            // AI might send the full line in designation_brute, we prefer to reconstruct a clean one
-            const rawRef = (art.reference || '').trim();
-            const rawBrand = (art.marque || '').trim();
-
-            let des = rawRef;
-            if (rawBrand && !rawRef.toUpperCase().startsWith(rawBrand.toUpperCase())) {
-                des = `${rawBrand} ${rawRef}`;
-            }
-
-            des = des.trim();
-
-            if (!des || des.length < 3) {
-                des = art.designation_brute || 'SANS DESIGNATION';
-            }
-
-            let pu = art.prix_unitaire;
-            // Robust Parsing (Local Backup)
+            let pu = art.prix_unitaire || art.prix_achat || art.price || art.pu || 0;
+            // Robust Parsing
             if (typeof pu === 'string') {
                 pu = parseFloat(pu.replace(/[^0-9,.-]/g, "").replace(",", ".")) || 0;
             } else {
                 pu = Number(pu) || 0;
             }
 
-            console.log(`💰 OCR DEBUG: Ref=${art.reference}, RawPrice=${art.prix_unitaire}, Parsed=${pu}`);
+            console.log(`💰 OCR DEBUG: Ref=${ref}, RawPrice=${art.prix_unitaire}, Parsed=${pu}`);
 
             // Robust Remise Parsing
             let discount = art.remise;
@@ -964,37 +1331,29 @@ export class StockEntryV2Component implements OnInit {
                 discount = Number(discount) || 0;
             }
 
-            console.log(`📉 OCR DEBUG REMISE: Brut=${art.remise}, Nettoye=${discount}`);
-
-            const finalCost = pu * (1 - (discount / 100));
-
-            // Intelligent Brand Recovery (Brand vs Prefix)
-            let finalMarque = art.marque || 'Sans Marque';
-            const rawDes = (art.designation_brute || '').toUpperCase();
-
-            // If the extracted brand is suspiciously short (prefix-like) or generic
-            if (finalMarque.length <= 3) {
-                const brandsInDes = ['IRIS', 'RAINBOW', 'VOGUE', 'RAY-BAN', 'GUCCI', 'PRADA', 'OAKLEY', 'CARVEN', 'POLICE'];
-                const found = brandsInDes.find(b => rawDes.includes(b));
-                if (found) {
-                    finalMarque = found;
-                }
+            // Calculate final cost if discount exists
+            let finalCost = pu;
+            if (discount > 0) {
+                finalCost = pu * (1 - (discount / 100));
             }
+
+            // Detect category
+            const categorie = this.resolveCategory(art.categorie || art.type, des);
 
             const product: StagedProduct = {
                 tempId: crypto.randomUUID(),
-                reference: art.reference || 'SANS-REF',
-                codeBarre: art.code || art.code_barre || '', // Mapping du code (EAN/Interne)
-                marque: finalMarque,
+                reference: ref,
+                codeBarre: art.code || art.code_barre || '',
                 nom: des,
-                categorie: this.resolveCategory(art.categorie, des),
-                nomClient: art.nom_client,
+                marque: marque,
+                categorie: categorie,
                 entrepotId: globalWh,
-                quantite: art.quantite || 1,
+                quantite: qte,
                 prixAchat: parseFloat(finalCost.toFixed(2)),
                 tva: defaultTva,
                 modePrix: 'COEFF',
                 coefficient: 2.5,
+                margeFixe: 0,
                 prixVente: parseFloat((finalCost * 2.5).toFixed(2)),
                 couleur: art.couleur,
                 calibre: art.calibre?.toString(),
@@ -1009,6 +1368,7 @@ export class StockEntryV2Component implements OnInit {
 
         this.stagedProducts = [...this.stagedProducts, ...newProducts];
         this.productsSubject.next(this.stagedProducts);
+        this.snackBar.open(`✅ ${newProducts.length} articles extraits par l'IA !`, 'OK', { duration: 5000 });
     }
 
     private resolveCategory(inputCategory: string | undefined, designation: string): string {

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Delete, Param, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Body, Delete, Param, Patch, Req } from '@nestjs/common';
 import { GlassParametersService } from './glass-parameters.service';
 
 @Controller('glass-parameters')
@@ -82,5 +82,32 @@ export class GlassParametersController {
   @Delete('treatments/:id')
   deleteTreatment(@Param('id') id: string) {
     return this.service.deleteTreatment(id);
+  }
+
+  // Stock Management
+  @Post('indices/:id/stock')
+  updateIndexStock(
+    @Param('id') id: string,
+    @Body() body: { delta: number; motif: string },
+    @Req() req: any,
+  ) {
+    return this.service.updateIndexStock(id, body.delta, body.motif, req.user?.id);
+  }
+
+  @Post('treatments/:id/stock')
+  updateTreatmentStock(
+    @Param('id') id: string,
+    @Body() body: { delta: number; motif: string },
+    @Req() req: any,
+  ) {
+    return this.service.updateTreatmentStock(id, body.delta, body.motif, req.user?.id);
+  }
+
+  @Get(':type/:id/history')
+  getStockHistory(
+    @Param('type') type: 'index' | 'treatment',
+    @Param('id') id: string,
+  ) {
+    return this.service.getStockHistory(type, id);
   }
 }

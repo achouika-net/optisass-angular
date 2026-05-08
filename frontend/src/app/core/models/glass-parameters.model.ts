@@ -3,6 +3,7 @@ export interface GlassIndex {
   value: number;
   label: string;
   price: number;
+  quantite: number;
   materialId: string;
 }
 
@@ -21,6 +22,7 @@ export interface GlassTreatment {
   id: string;
   name: string;
   price: number;
+  quantite: number;
 }
 
 export interface GlassParameters {

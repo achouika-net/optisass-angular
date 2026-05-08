@@ -466,7 +466,7 @@ export class SupplierInvoicesService {
       });
 
       await Promise.all(
-        productIds.map((pid) => this.productsService.syncProductState(pid, tx)),
+        productIds.filter((pid): pid is string => pid !== null).map((pid) => this.productsService.syncProductState(pid, tx)),
       );
 
       // 4. Delete linked echeances

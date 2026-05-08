@@ -172,23 +172,6 @@ export class OcrService {
                     if (allItems.length > 0) {
                         data = { articles: allItems };
                         console.log(`✨ OCR: Extracted ${allItems.length} unique items via Hybrid Parser V4.`);
-
-                        // Log détaillé des champs manquants pour debugging
-                        allItems.forEach((item, idx) => {
-                            const missing = [];
-                            if (!item.couleur) missing.push('couleur');
-                            if (!item.calibre) missing.push('calibre');
-                            if (!item.pont) missing.push('pont');
-                            if (!item.materiau) missing.push('materiau');
-                            if (!item.forme) missing.push('forme');
-                            if (!item.genre) missing.push('genre');
-
-                            if (missing.length > 0) {
-                                console.warn(`⚠️ OCR: Article ${idx + 1} (${item.reference || item.marque}) manque: ${missing.join(', ')}`);
-                            } else {
-                                console.log(`✅ OCR: Article ${idx + 1} (${item.reference || item.marque}) - Données RPM complètes`);
-                            }
-                        });
                     }
                 }
 
@@ -196,23 +179,22 @@ export class OcrService {
                 if (!data) {
                     const extractJsonRecursive = (obj: any): any => {
                         if (!obj) return null;
-                        if (obj.articles || obj.items) return obj;
-
-                        // Si c'est un tableau de données direct
+                        
+                        // If it's already an array of articles, return it
                         if (Array.isArray(obj)) {
-                            const firstItem = obj[0];
-                            if (firstItem && typeof firstItem === 'object' && (firstItem.reference || firstItem.marque)) {
-                                return { articles: obj }; // Wrap it
-                            }
-                            return extractJsonRecursive(obj[0]);
+                            const looksLikeArticles = obj.length > 0 && typeof obj[0] === 'object' && (obj[0].reference || obj[0].designation || obj[0].marque || obj[0].description);
+                            if (looksLikeArticles) return { articles: obj };
+                            // If first is an object, recurse into it
+                            if (obj[0] && typeof obj[0] === 'object') return extractJsonRecursive(obj[0]);
                         }
+
+                        if (obj.articles || obj.items || obj.produits) return obj;
 
                         if (typeof obj === 'string') {
                             try {
                                 const parsed = JSON.parse(obj);
                                 return extractJsonRecursive(parsed);
                             } catch (e) {
-                                // Si c'est une string JSON qui contient un objet
                                 const match = obj.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
                                 if (match) {
                                     try { return extractJsonRecursive(JSON.parse(match[0])); } catch (e) { }
@@ -231,8 +213,10 @@ export class OcrService {
                     data = extractJsonRecursive(n8nResponse);
                 }
 
-                // No action needed here, just ensuring clean flow
-                // data is already populated by step 1 (multi) or step 2 (recursive fallback)
+                // If still no structured data, but we have a response object, return the whole thing
+                if (!data && typeof n8nResponse === 'object') {
+                    data = n8nResponse;
+                }
 
                 // Si le résultat est un tableau (liste d'articles directe), on l'enveloppe
                 if (Array.isArray(data)) {

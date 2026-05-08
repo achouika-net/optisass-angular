@@ -123,6 +123,7 @@ export class FinanceService {
         factureFournisseurId?: string;
         startDate?: string;
         endDate?: string;
+        numeroBL?: string;
         page?: number;
         limit?: number;
     }): Observable<BonLivraisonListResponse> {
@@ -136,6 +137,7 @@ export class FinanceService {
         if (filters?.factureFournisseurId) params = params.set('factureFournisseurId', filters.factureFournisseurId);
         if (filters?.startDate) params = params.set('startDate', filters.startDate);
         if (filters?.endDate) params = params.set('endDate', filters.endDate);
+        if (filters?.numeroBL) params = params.set('numeroBL', filters.numeroBL);
         if (filters?.page) params = params.set('page', filters.page.toString());
         if (filters?.limit) params = params.set('limit', filters.limit.toString());
 

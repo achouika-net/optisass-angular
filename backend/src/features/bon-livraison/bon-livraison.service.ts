@@ -57,7 +57,7 @@ export class BonLivraisonService {
 
         const finalEcheances = echeances || [];
 
-        return this.prisma.bonLivraison.create({
+        const bl = await this.prisma.bonLivraison.create({
             data: {
                 ...blData,
                 pieceJointeUrl,
@@ -77,6 +77,99 @@ export class BonLivraisonService {
                 fournisseur: true,
             },
         });
+
+        // Handle Stock Movements (Entry from Fiche)
+        if (bl.ficheId) {
+            await this.handleGlassStockEntry(bl);
+        }
+
+        return bl;
+    }
+
+    private async handleGlassStockEntry(bl: any) {
+        if (!bl.ficheId) return;
+
+        const fiche = await this.prisma.fiche.findUnique({ where: { id: bl.ficheId } });
+        if (!fiche) return;
+
+        const content = (fiche.content as any) || {};
+        const verres = content.verres || {};
+        if (!verres) return;
+
+        // Check if movement already exists to avoid double-counting
+        const existing = await this.prisma.mouvementStock.findFirst({
+            where: { bonLivraisonId: bl.id, type: 'ENTREE', glassIndexId: { not: null } }
+        });
+        if (existing) return;
+
+        const itemsToProcess: Array<{ type: 'index' | 'treatment'; id: string; label: string }> = [];
+
+        // Find Indices and Treatments by label
+        const findIndex = async (val?: string, mat?: string) => {
+            if (!val) return null;
+            return this.prisma.glassIndex.findFirst({
+                where: {
+                    OR: [{ value: val }, { label: val }],
+                    material: mat ? { name: mat } : undefined
+                }
+            });
+        };
+
+        const findTreatment = async (name?: string) => {
+            if (!name) return null;
+            return this.prisma.glassTreatment.findUnique({ where: { name } });
+        };
+
+        // Helper to process a pair of glasses or single side
+        const processGlass = async (indice?: string, matiere?: string, treatment?: any) => {
+            const idx = await findIndex(indice, matiere);
+            if (idx) itemsToProcess.push({ type: 'index', id: idx.id, label: idx.label || idx.value });
+
+            const treats = Array.isArray(treatment) ? treatment : [treatment];
+            for (const tName of treats) {
+                if (typeof tName !== 'string') continue;
+                const treat = await findTreatment(tName);
+                if (treat) itemsToProcess.push({ type: 'treatment', id: treat.id, label: treat.name });
+            }
+        };
+
+        if (verres.differentODOG) {
+            await processGlass(verres.indiceOD, verres.matiereOD, verres.traitementOD);
+            await processGlass(verres.indiceOG, verres.matiereOG, verres.traitementOG);
+        } else {
+            // 2 glasses
+            await processGlass(verres.indice, verres.matiere, verres.traitement);
+            const count = itemsToProcess.length;
+            for (let i = 0; i < count; i++) {
+                itemsToProcess.push({ ...itemsToProcess[i] });
+            }
+        }
+
+        // Apply movements
+        for (const item of itemsToProcess) {
+            if (item.type === 'index') {
+                await this.prisma.glassIndex.update({
+                    where: { id: item.id },
+                    data: { quantite: { increment: 1 } }
+                });
+            } else {
+                await this.prisma.glassTreatment.update({
+                    where: { id: item.id },
+                    data: { quantite: { increment: 1 } }
+                });
+            }
+
+            await this.prisma.mouvementStock.create({
+                data: {
+                    type: 'ENTREE',
+                    quantite: 1,
+                    bonLivraisonId: bl.id,
+                    glassIndexId: item.type === 'index' ? item.id : null,
+                    glassTreatmentId: item.type === 'treatment' ? item.id : null,
+                    motif: `Réception Verres - BL ${bl.numeroBL} (Fiche ${fiche.numero})`,
+                }
+            });
+        }
     }
 
     async findAll(filters: {
@@ -92,11 +185,14 @@ export class BonLivraisonService {
         categorieBL?: string;
         facturation?: string;
         factureFournisseurId?: string;
+        numeroBL?: string;
     }) {
-        const { fournisseurId, statut, clientId, centreId, ficheId, startDate, endDate, page, limit, categorieBL, facturation, factureFournisseurId } = filters;
+        const { fournisseurId, statut, clientId, centreId, ficheId, startDate, endDate, page, limit, categorieBL, facturation, factureFournisseurId, numeroBL } = filters;
         const whereClause: any = {};
 
         if (fournisseurId) whereClause.fournisseurId = fournisseurId;
+        if (numeroBL) whereClause.numeroBL = numeroBL;
+        if (statut) whereClause.statut = statut;
         if (statut) whereClause.statut = statut;
         if (clientId) whereClause.clientId = clientId;
         if (centreId) whereClause.centreId = centreId;
@@ -342,7 +438,7 @@ export class BonLivraisonService {
             });
 
             await Promise.all(
-                productIds.map(pid => this.productsService.syncProductState(pid, tx))
+                productIds.filter((pid): pid is string => pid !== null).map(pid => this.productsService.syncProductState(pid, tx))
             );
 
             // 3. Delete linked echeances

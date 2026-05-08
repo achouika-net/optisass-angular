@@ -1246,7 +1246,10 @@ export class InvoiceFormDialogComponent implements OnInit {
                             queryParams: {
                                 prefillInvoice: res.numeroBL || res.numeroFacture,
                                 prefillSupplier: res.fournisseurId,
-                                prefillDate: res.dateEmission
+                                prefillDate: res.dateEmission,
+                                prefillFicheId: res.ficheId,
+                                prefillType: res.type,
+                                prefillTotal: res.montantTTC || res.montantHT
                             }
                         });
                         return;

@@ -106,6 +106,7 @@
                     <tr class="text-left bg-indigo-50 border-b-2 border-indigo-100">
                       <th class="p-4 font-bold text-slate-500 uppercase tracking-wider text-xs col-indice">Indice</th>
                       <th class="p-4 font-bold text-slate-500 uppercase tracking-wider text-xs col-price">Prix de base Client</th>
+                      <th class="p-4 font-bold text-slate-500 uppercase tracking-wider text-xs col-stock">Stock</th>
                       <th class="p-4 font-bold text-slate-500 uppercase tracking-wider text-xs text-center col-actions">Actions</th>
                     </tr>
                   </thead>
@@ -124,10 +125,23 @@
                           </button>
                         </div>
                       </td>
+                      <td class="p-4 col-stock">
+                        <div class="flex items-center gap-2">
+                          <span class="font-bold" [class.text-red-500]="idx.quantite <= 0">{{ idx.quantite || 0 }}</span>
+                          <button type="button" mat-icon-button (click)="adjustStock('index', idx.id, idx.value)" title="Ajuster le stock">
+                            <mat-icon class="text-slate-400">add_box</mat-icon>
+                          </button>
+                        </div>
+                      </td>
                       <td class="p-4 text-center col-actions">
-                        <button type="button" mat-icon-button color="warn" (click)="deleteIndex(idx.id)" class="opacity-60 hover:opacity-100">
-                          <mat-icon class="icon-small">delete_outline</mat-icon>
-                        </button>
+                        <div class="flex justify-center gap-1">
+                          <button type="button" mat-icon-button color="accent" (click)="viewHistory('index', idx.id, idx.value)" title="Historique">
+                            <mat-icon class="icon-small">history</mat-icon>
+                          </button>
+                          <button type="button" mat-icon-button color="warn" (click)="deleteIndex(idx.id)" class="opacity-60 hover:opacity-100">
+                            <mat-icon class="icon-small">delete_outline</mat-icon>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   </tbody>
@@ -188,10 +202,25 @@
                 </td>
               </ng-container>
 
+              <ng-container matColumnDef="stock">
+                <th mat-header-cell *matHeaderCellDef>Stock</th>
+                <td mat-cell *matCellDef="let t">
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold" [class.text-red-500]="t.quantite <= 0">{{ t.quantite || 0 }}</span>
+                    <button type="button" mat-icon-button (click)="adjustStock('treatment', t.id, t.name)" title="Ajuster le stock">
+                      <mat-icon class="text-slate-400">add_box</mat-icon>
+                    </button>
+                  </div>
+                </td>
+              </ng-container>
+
               <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef class="w-24 text-center">Actions</th>
                 <td mat-cell *matCellDef="let t">
-                  <div class="flex justify-center">
+                  <div class="flex justify-center gap-1">
+                    <button type="button" mat-icon-button color="accent" (click)="viewHistory('treatment', t.id, t.name)" title="Historique">
+                      <mat-icon class="icon-small">history</mat-icon>
+                    </button>
                     <button type="button" mat-icon-button color="warn" class="hover:bg-red-50" (click)="deleteTreatment(t.id)">
                       <mat-icon>delete_outline</mat-icon>
                     </button>
@@ -199,8 +228,8 @@
                 </td>
               </ng-container>
 
-              <tr mat-header-row *matHeaderRowDef="['name', 'price', 'actions']"></tr>
-              <tr mat-row *matRowDef="let row; columns: ['name', 'price', 'actions']"></tr>
+              <tr mat-header-row *matHeaderRowDef="['name', 'price', 'stock', 'actions']"></tr>
+              <tr mat-row *matRowDef="let row; columns: ['name', 'price', 'stock', 'actions']"></tr>
             </table>
             
             <div *ngIf="treatments.length === 0 && !loading" class="empty-state p-16">

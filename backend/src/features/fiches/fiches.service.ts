@@ -919,7 +919,94 @@ ${centreName ? `(${centreName})` : ''}`,
       },
     });
 
+    // Handle Stock Movements (Exit)
+    // Trigger when status changes to 'LIVRE' or 'FACTURE' and hasn't been done yet
+    if (['FACTURE', 'LIVRE'].includes(updated.statut)) {
+      await this.handleGlassStockExit(updated);
+    }
+
     return this.unpackContent(updated);
+  }
+
+  private async handleGlassStockExit(fiche: any) {
+    const content = (fiche.content as unknown as FicheContent) || {};
+    const verres = content.verres || {};
+    if (!verres) return;
+
+    // Check if movement already exists to avoid double-counting
+    const existing = await this.prisma.mouvementStock.findFirst({
+      where: { motif: { contains: `Fiche ${fiche.numero}` }, type: 'SORTIE' }
+    });
+    if (existing) return;
+
+    const itemsToProcess: Array<{ type: 'index' | 'treatment'; id: string; label: string }> = [];
+
+    // Find Indices and Treatments by label
+    const findIndex = async (val?: string, mat?: string) => {
+      if (!val) return null;
+      return this.prisma.glassIndex.findFirst({
+        where: {
+          OR: [{ value: val }, { label: val }],
+          material: mat ? { name: mat } : undefined
+        }
+      });
+    };
+
+    const findTreatment = async (name?: string) => {
+      if (!name) return null;
+      return this.prisma.glassTreatment.findUnique({ where: { name } });
+    };
+
+    // Helper to process a pair of glasses or single side
+    const processGlass = async (indice?: string, matiere?: string, treatment?: any) => {
+      const idx = await findIndex(indice, matiere);
+      if (idx) itemsToProcess.push({ type: 'index', id: idx.id, label: idx.label || idx.value });
+
+      const treats = Array.isArray(treatment) ? treatment : [treatment];
+      for (const tName of treats) {
+        if (typeof tName !== 'string') continue;
+        const treat = await findTreatment(tName);
+        if (treat) itemsToProcess.push({ type: 'treatment', id: treat.id, label: treat.name });
+      }
+    };
+
+    if (verres.differentODOG) {
+      await processGlass(verres.indiceOD, verres.matiereOD, verres.traitementOD);
+      await processGlass(verres.indiceOG, verres.matiereOG, verres.traitementOG);
+    } else {
+      // 2 glasses
+      await processGlass(verres.indice, verres.matiere, verres.traitement);
+      // We duplicate the items because there are 2 glasses
+      const count = itemsToProcess.length;
+      for (let i = 0; i < count; i++) {
+        itemsToProcess.push({ ...itemsToProcess[i] });
+      }
+    }
+
+    // Apply movements
+    for (const item of itemsToProcess) {
+      if (item.type === 'index') {
+        await this.prisma.glassIndex.update({
+          where: { id: item.id },
+          data: { quantite: { decrement: 1 } }
+        });
+      } else {
+        await this.prisma.glassTreatment.update({
+          where: { id: item.id },
+          data: { quantite: { decrement: 1 } }
+        });
+      }
+
+      await this.prisma.mouvementStock.create({
+        data: {
+          type: 'SORTIE',
+          quantite: -1,
+          glassIndexId: item.type === 'index' ? item.id : null,
+          glassTreatmentId: item.type === 'treatment' ? item.id : null,
+          motif: `Sortie Stock - Fiche ${fiche.numero} (${item.label})`,
+        }
+      });
+    }
   }
 
   async remove(id: string) {

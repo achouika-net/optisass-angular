@@ -67,8 +67,12 @@ class AllocationDto {
   calibre?: string;
 
   @IsOptional()
+  @IsOptional()
   @IsString()
   pont?: string;
+
+  @IsOptional()
+  specificData?: any;
 }
 
 export class BulkAlimentationDto {

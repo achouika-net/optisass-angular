@@ -172,4 +172,58 @@ export class GlassParametersService {
   async deleteTreatment(id: string) {
     return this.prisma.glassTreatment.delete({ where: { id } });
   }
+
+  // Stock Management
+  async updateIndexStock(id: string, delta: number, motif: string, userId?: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const index = await tx.glassIndex.update({
+        where: { id },
+        data: { quantite: { increment: delta } },
+        include: { material: true }
+      });
+
+      await tx.mouvementStock.create({
+        data: {
+          type: delta > 0 ? 'ENTREE' : 'SORTIE',
+          quantite: delta,
+          glassIndexId: id,
+          motif: motif || 'Mise à jour manuelle du stock',
+          userId: userId || null,
+        }
+      });
+
+      return index;
+    });
+  }
+
+  async updateTreatmentStock(id: string, delta: number, motif: string, userId?: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const treatment = await tx.glassTreatment.update({
+        where: { id },
+        data: { quantite: { increment: delta } },
+      });
+
+      await tx.mouvementStock.create({
+        data: {
+          type: delta > 0 ? 'ENTREE' : 'SORTIE',
+          quantite: delta,
+          glassTreatmentId: id,
+          motif: motif || 'Mise à jour manuelle du stock',
+          userId: userId || null,
+        }
+      });
+
+      return treatment;
+    });
+  }
+
+  async getStockHistory(type: 'index' | 'treatment', id: string) {
+    return this.prisma.mouvementStock.findMany({
+      where: type === 'index' 
+        ? { glassIndexId: id } 
+        : { glassTreatmentId: id },
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { id: true, prenom: true, nom: true } } }
+    });
+  }
 }

@@ -29,6 +29,7 @@ export interface BulkAlimentationPayload {
         genre?: string;
         calibre?: string;
         pont?: string;
+        specificData?: any;
     }[];
 }
 

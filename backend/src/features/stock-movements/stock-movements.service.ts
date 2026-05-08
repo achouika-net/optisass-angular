@@ -199,6 +199,7 @@ export class StockMovementsService {
                 statut: 'DISPONIBLE',
                 entrepotId: alloc.warehouseId,
                 specificData: {
+                  ...(alloc.specificData || {}),
                   materiau: alloc.materiau,
                   forme: alloc.forme,
                   genre: alloc.genre,
@@ -229,6 +230,7 @@ export class StockMovementsService {
               prixVenteTTC: Number(alloc.prixVente) * (1 + Number(alloc.tva) / 100),
               specificData: {
                 ...(targetProduct.specificData as any || {}),
+                ...(alloc.specificData || {}),
                 materiau: alloc.materiau,
                 forme: alloc.forme,
                 genre: alloc.genre,

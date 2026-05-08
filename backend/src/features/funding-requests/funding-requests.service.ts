@@ -66,7 +66,7 @@ export class FundingRequestsService {
         throw new BadRequestException('Cette demande a déjà été traitée');
       }
 
-      // 2. Find the Main Register. Prioritize MIXTE if both are open.
+      // 2. Find candidate Main Registers
       const candidateCaisses = await tx.caisse.findMany({
         where: {
           centreId: request.journeeCaisse.centreId,
@@ -75,30 +75,43 @@ export class FundingRequestsService {
         },
       });
 
-      const mainCaisse = candidateCaisses.find(c => c.type === 'MIXTE') || candidateCaisses[0];
-
-      if (!mainCaisse) {
+      if (candidateCaisses.length === 0) {
         throw new BadRequestException(
-          'Aucune caisse principale active trouvée pour ce centre',
+          'Aucune caisse principale ou mixte active trouvée pour ce centre',
         );
       }
 
-      // 3. Find the Open Session for the Main Register
-      const mainSession = await tx.journeeCaisse.findFirst({
+      // 3. Find the Open Session for any Main Register
+      const caisseIds = candidateCaisses.map(c => c.id);
+      const openSessions = await tx.journeeCaisse.findMany({
         where: {
-          caisseId: mainCaisse.id,
+          caisseId: { in: caisseIds },
           statut: 'OUVERTE',
         },
+        include: { caisse: true }
       });
 
-      if (!mainSession) {
+      if (openSessions.length === 0) {
         throw new BadRequestException(
-          'La caisse principale doit être ouverte pour approuver une alimentation',
+          'Une caisse principale ou mixte doit être ouverte pour approuver une alimentation',
         );
       }
 
+      // Prioritize MIXTE if both are open
+      const mainSession = openSessions.find(s => s.caisse.type === 'MIXTE') || openSessions[0];
+      const mainCaisse = mainSession.caisse;
+
       const amount = request.montant;
-      const utilisateur = validatorId || 'Système';
+      
+      let utilisateur = 'Système';
+      if (validatorId) {
+        const user = await tx.user.findUnique({ where: { id: validatorId } });
+        if (user) {
+          utilisateur = `${user.prenom} ${user.nom}`.trim();
+        } else {
+          utilisateur = validatorId;
+        }
+      }
 
       // 4. Create Operations (Mimic Transfer logic but within this transaction)
 
