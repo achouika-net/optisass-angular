@@ -3,6 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import * as fs from 'fs';
 import { Prisma, Paiement, Facture } from '@prisma/client';
@@ -10,6 +12,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePaiementDto } from './dto/create-paiement.dto';
 import { UpdatePaiementDto } from './dto/update-paiement.dto';
 import { StockAvailabilityService } from '../factures/stock-availability.service';
+import { FacturesService } from '../factures/factures.service';
 
 import { CommissionService } from '../personnel/commission.service';
 
@@ -19,6 +22,7 @@ export class PaiementsService {
     private prisma: PrismaService,
     private stockAvailabilityService: StockAvailabilityService,
     private commissionService: CommissionService,
+    @Inject(forwardRef(() => FacturesService)) private facturesService: FacturesService,
   ) {}
 
   /**
@@ -164,6 +168,11 @@ export class PaiementsService {
           where: { id: factureId },
           data: updateData,
         });
+
+        // [FIX] Ensure stock is decremented if the DEVIS was transformed to BON_COMM
+        if (facture.type === 'DEVIS' && updateData.type === 'BON_COMM') {
+          await this.facturesService.decrementStockForInvoice(tx, updatedFacture, userId);
+        }
 
         // 6. HANDLE CAISSE INTEGRATION (within transaction)
         const acceptedModes = [
@@ -830,7 +839,18 @@ export class PaiementsService {
   async repairOrphanOperations() {
     const orphanPayments = await this.prisma.paiement.findMany({
       where: {
-        mode: { in: ['ESPECES', 'ESPECE', 'CARTE', 'CHEQUE', 'CHÈQUE', 'VIREMENT', 'LCN', 'PRISE_EN_CHARGE'] },
+        mode: {
+          in: [
+            'ESPECES',
+            'ESPECE',
+            'CARTE',
+            'CHEQUE',
+            'CHÈQUE',
+            'VIREMENT',
+            'LCN',
+            'PRISE_EN_CHARGE',
+          ],
+        },
         operationCaisseId: null,
       },
       include: {
@@ -913,7 +933,9 @@ export class PaiementsService {
               totalVentesCarte:
                 payment.mode === 'CARTE' ? { increment: montant } : undefined,
               totalVentesCheque:
-                payment.mode === 'CHEQUE' || payment.mode === 'CHÈQUE' || payment.mode === 'LCN'
+                payment.mode === 'CHEQUE' ||
+                payment.mode === 'CHÈQUE' ||
+                payment.mode === 'LCN'
                   ? { increment: montant }
                   : undefined,
             },

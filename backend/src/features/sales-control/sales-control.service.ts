@@ -7,7 +7,7 @@ export class SalesControlService {
   constructor(
     private prisma: PrismaService,
     private facturesService: FacturesService,
-  ) { }
+  ) {}
 
   // Tab 1: Bons de Commande = "Ventes sans facture" (type BON_COMMANDE)
   async getBrouillonWithPayments(
@@ -30,7 +30,7 @@ export class SalesControlService {
         type: { in: ['BON_COMMANDE', 'BON_COMM'] },
         OR: [
           { notes: { not: { contains: 'Remplacée par' } } },
-          { notes: null }
+          { notes: null },
         ],
         ...(start || end ? { dateEmission: { gte: start, lte: end } } : {}),
       },
@@ -163,29 +163,35 @@ export class SalesControlService {
   }
 
   // Validate invoice - handles both DEVIS→BC and BC→FACTURE transitions
-  async validateInvoice(id: string) {
+  async validateInvoice(id: string, userId?: string) {
     const currentDoc = await this.prisma.facture.findUnique({ where: { id } });
     if (!currentDoc) throw new Error(`Document ${id} not found`);
 
     if (currentDoc.type === 'BON_COMMANDE' || currentDoc.type === 'BON_COMM') {
-      return this.facturesService.update({
-        where: { id },
-        data: {
-          type: 'FACTURE' as any,
-          statut: 'VALIDE',
-          proprietes: { forceFiscal: true },
+      return this.facturesService.update(
+        {
+          where: { id },
+          data: {
+            type: 'FACTURE' as any,
+            statut: 'VALIDE',
+            proprietes: { forceFiscal: true },
+          },
         },
-      });
+        userId,
+      );
     }
 
-    return this.facturesService.update({
-      where: { id },
-      data: {
-        type: 'BON_COMM' as any,
-        statut: 'VENTE_EN_INSTANCE',
-        proprietes: { forceStockDecrement: true },
+    return this.facturesService.update(
+      {
+        where: { id },
+        data: {
+          type: 'BON_COMM' as any,
+          statut: 'VENTE_EN_INSTANCE',
+          proprietes: { forceStockDecrement: true },
+        },
       },
-    });
+      userId,
+    );
   }
 
   // Consolidated dashboard data - Optimized for high performance
@@ -269,7 +275,7 @@ export class SalesControlService {
           ficheId: { notIn: factureFicheIds },
           OR: [
             { notes: { not: { contains: 'Remplacée par' } } },
-            { notes: null }
+            { notes: null },
           ],
           ...dateFilter,
         },
@@ -361,9 +367,11 @@ export class SalesControlService {
     paymentAgg.forEach((p) => {
       const rawMode = (p.mode || 'AUTRE').toUpperCase();
       let mode = rawMode;
-      
+
       // Grouping rules
-      if (['ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE'].includes(rawMode)) {
+      if (
+        ['ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE'].includes(rawMode)
+      ) {
         mode = 'ESPÈCES';
       } else if (['CARTE', 'CB', 'TPE', 'CARTE BANCAIRE'].includes(rawMode)) {
         mode = 'CARTE';
@@ -375,10 +383,12 @@ export class SalesControlService {
       mergedPayments.set(mode, current + (p._sum.montant || 0));
     });
 
-    const payments = Array.from(mergedPayments.entries()).map(([methode, total]) => ({
-      methode,
-      total,
-    }));
+    const payments = Array.from(mergedPayments.entries()).map(
+      ([methode, total]) => ({
+        methode,
+        total,
+      }),
+    );
 
     const totalEncaissePeriod = payments.reduce((sum, p) => sum + p.total, 0);
 
