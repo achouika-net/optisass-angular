@@ -72,6 +72,10 @@ class AllocationDto {
   pont?: string;
 
   @IsOptional()
+  @IsUUID()
+  ficheId?: string;
+
+  @IsOptional()
   specificData?: any;
 }
 
@@ -103,6 +107,14 @@ export class BulkAlimentationDto {
   @IsOptional()
   @IsString()
   fileName?: string;
+
+  @IsOptional()
+  @IsUUID()
+  ficheId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  userId?: string;
 
   @IsArray()
   @ValidateNested({ each: true })

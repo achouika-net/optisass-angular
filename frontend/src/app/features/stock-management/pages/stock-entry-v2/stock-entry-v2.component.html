@@ -255,7 +255,19 @@
                                         </p>
                                     </div>
                                 </div>
-
+                                <div class="flex flex-col">
+                                    <h1 class="text-2xl font-bold text-slate-800 leading-none">Alimentation de Stock V2</h1>
+                                    <span class="text-[10px] font-bold text-blue-600 tracking-widest uppercase mt-1 flex items-center gap-1">
+                                        <mat-icon class="scale-50 h-4 w-4">verified</mat-icon> v2.1 Stable
+                                    </span>
+                                </div>
+                                <div class="h-8 w-[1px] bg-slate-200"></div>
+                                <div class="flex gap-2">
+                                    <button mat-stroked-button color="primary" class="h-9 px-4 rounded-lg"
+                                        (click)="resetAll()">
+                                        <mat-icon class="scale-90">restart_alt</mat-icon> Réinitialiser
+                                    </button>
+                                </div>
                                 <div class="flex items-center gap-3">
                                     <button mat-flat-button
                                         class="!bg-white/10 !text-white hover:!bg-white/20 !rounded-full !px-4"
@@ -609,7 +621,7 @@
                     </div>
 
                     <div class="bg-white rounded-lg shadow border border-gray-200">
-                        <table mat-table [dataSource]="productsSubject" class="w-full">
+                        <table mat-table [dataSource]="dataSource" class="w-full">
                             <ng-container matColumnDef="reference">
                                 <th mat-header-cell *matHeaderCellDef class="w-36 px-2"> Référence </th>
                                 <td mat-cell *matCellDef="let element" class="px-2">
@@ -743,6 +755,17 @@
                             </ng-container>
 
 
+                            <ng-container matColumnDef="nomClient">
+                                <th mat-header-cell *matHeaderCellDef class="w-44 px-2"> Dossier </th>
+                                <td mat-cell *matCellDef="let element" class="px-2">
+                                    <div *ngIf="element.nomClient" class="flex items-center gap-1.5 bg-blue-50 text-blue-800 px-2 py-1 rounded-lg border border-blue-100/50">
+                                        <mat-icon class="text-[14px] h-3.5 w-3.5 leading-none">account_circle</mat-icon>
+                                        <span class="text-[11px] font-bold truncate max-w-[150px]" [matTooltip]="element.nomClient">{{ element.nomClient }}</span>
+                                    </div>
+                                    <span *ngIf="!element.nomClient" class="text-[10px] text-gray-400 italic">Libre (Hors dossier)</span>
+                                </td>
+                            </ng-container>
+
                             <ng-container matColumnDef="categorie">
                                 <th mat-header-cell *matHeaderCellDef class="w-28 px-2"> Catégorie </th>
                                 <td mat-cell *matCellDef="let element" class="px-2">
@@ -760,6 +783,7 @@
                                 <td mat-cell *matCellDef="let element" class="px-2">
                                     <select aria-label="Select" title="Select" [(ngModel)]="element.entrepotId" (change)="updateProduct(element)"
                                         class="w-full bg-transparent border-none text-xs p-0 focus:ring-1 focus:ring-blue-400 rounded cursor-pointer font-black text-blue-700">
+                                        <option [value]="''">Stock central</option>
                                         <option *ngFor="let w of entrepots$ | async" [value]="w.id">{{w.nom}}</option>
                                     </select>
                                 </td>
@@ -798,7 +822,7 @@
                                 <td mat-cell *matCellDef="let element" class="text-center align-middle px-1">
                                     <div class="flex flex-col items-center gap-1 py-1">
                                         <!-- Individual Pricing Settings -->
-                                        <div class="flex items-center justify-center gap-1 bg-gray-50 px-1 py-1 rounded-lg border border-gray-200 shadow-sm w-max mx-auto">
+                                        <div *ngIf="element.categorie !== 'VERRE'" class="flex items-center justify-center gap-1 bg-gray-50 px-1 py-1 rounded-lg border border-gray-200 shadow-sm w-max mx-auto">
                                             <select aria-label="Select mode" title="Select mode" [(ngModel)]="element.modePrix" (change)="updateProduct(element)"
                                                 class="text-xs font-bold p-0 border-none bg-transparent text-gray-700 outline-none w-16 focus:ring-0 cursor-pointer">
                                                 <option value="COEFF">Coef</option>
@@ -810,6 +834,11 @@
                                                 
                                             <input aria-label="Input marge" title="Input marge" *ngIf="element.modePrix === 'FIXE'" type="number" [(ngModel)]="element.margeFixe" (input)="updateProduct(element)"
                                                 class="w-14 text-sm p-0 border-b-2 border-blue-200 bg-transparent text-center font-black text-blue-700 focus:border-blue-500 outline-none transition-colors">
+                                        </div>
+
+                                        <!-- Placeholder or Status for Glasses -->
+                                        <div *ngIf="element.categorie === 'VERRE'" class="text-[10px] text-blue-500 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                                            Prix Paramétré
                                         </div>
 
                                         <!-- PROFIT MARGIN BADGE -->

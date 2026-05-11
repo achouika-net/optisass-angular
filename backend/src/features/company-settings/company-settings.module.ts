@@ -4,9 +4,9 @@ import { CompanySettingsController } from './company-settings.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
-    imports: [PrismaModule],
-    controllers: [CompanySettingsController],
-    providers: [CompanySettingsService],
-    exports: [CompanySettingsService],
+  imports: [PrismaModule],
+  controllers: [CompanySettingsController],
+  providers: [CompanySettingsService],
+  exports: [CompanySettingsService],
 })
-export class CompanySettingsModule { }
+export class CompanySettingsModule {}

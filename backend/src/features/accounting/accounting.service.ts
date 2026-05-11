@@ -9,7 +9,7 @@ const PDFDocument = require('pdfkit');
 export class AccountingService {
   private readonly logger = new Logger(AccountingService.name);
 
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   // Default Mapping (Plan Comptable Marocain)
   private readonly CONFIG = {
@@ -58,7 +58,9 @@ export class AccountingService {
 
     // BUG-007 FIX: Ensure centreId is always provided (security)
     if (!centreId || centreId === 'ALL' || centreId === '') {
-      throw new Error('Export Sage requires specific centre ID (no ALL export allowed)');
+      throw new Error(
+        'Export Sage requires specific centre ID (no ALL export allowed)',
+      );
     }
 
     const [invoices, payments, expenses] = await Promise.all([

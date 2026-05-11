@@ -8,9 +8,15 @@ import { BonLivraisonModule } from '../bon-livraison/bon-livraison.module';
 import { LoyaltyModule } from '../loyalty/loyalty.module';
 
 @Module({
-  imports: [PrismaModule, ClientsModule, ProductsModule, BonLivraisonModule, LoyaltyModule],
+  imports: [
+    PrismaModule,
+    ClientsModule,
+    ProductsModule,
+    BonLivraisonModule,
+    LoyaltyModule,
+  ],
   controllers: [ImportsController],
   providers: [ImportsService],
   exports: [ImportsService],
 })
-export class ImportsModule { }
+export class ImportsModule {}

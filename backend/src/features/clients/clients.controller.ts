@@ -86,7 +86,6 @@ export class ClientsController {
   }
 
   @Put(':id')
-
   async update(
     @Param('id') id: string,
     @Body() updateClientDto: UpdateClientDto,

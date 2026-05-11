@@ -110,7 +110,8 @@ export class OperationCaisseService {
             data: {
               totalComptable: { increment: operation.montant },
               totalVentesEspeces:
-                (operation.moyenPaiement === 'ESPECES' || operation.moyenPaiement === 'ESPECE')
+                operation.moyenPaiement === 'ESPECES' ||
+                operation.moyenPaiement === 'ESPECE'
                   ? { increment: operation.montant }
                   : undefined,
               totalVentesCarte:
@@ -143,7 +144,8 @@ export class OperationCaisseService {
             data: {
               totalComptable: { decrement: operation.montant },
               totalVentesEspeces:
-                (operation.moyenPaiement === 'ESPECES' || operation.moyenPaiement === 'ESPECE')
+                operation.moyenPaiement === 'ESPECES' ||
+                operation.moyenPaiement === 'ESPECE'
                   ? { decrement: operation.montant }
                   : undefined,
               totalVentesCarte:
@@ -163,7 +165,8 @@ export class OperationCaisseService {
             where: { id: operation.journeeCaisseId },
             data: {
               totalDepenses:
-                (operation.moyenPaiement === 'ESPECES' || operation.moyenPaiement === 'ESPECE')
+                operation.moyenPaiement === 'ESPECES' ||
+                operation.moyenPaiement === 'ESPECE'
                   ? { increment: operation.montant }
                   : undefined,
               totalTransfertsDepenses:
@@ -211,26 +214,27 @@ export class OperationCaisseService {
       }
     }
 
-    const isPrincipalOrMixte = journee.caisse.type === 'PRINCIPALE' || journee.caisse.type === 'MIXTE';
-    
-    // Default: current session only. 
+    const isPrincipalOrMixte =
+      journee.caisse.type === 'PRINCIPALE' || journee.caisse.type === 'MIXTE';
+
+    // Default: current session only.
     // IF Principal/Mixte and NO date filter, we aggregate everything from TODAY.
     let where: any = { journeeCaisseId: journeeId };
-    
+
     if (isPrincipalOrMixte && !hasFilter) {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const todayEnd = new Date();
       todayEnd.setHours(23, 59, 59, 999);
-      
+
       where = {
         journeeCaisse: { caisseId: journee.caisseId },
-        createdAt: { gte: todayStart, lte: todayEnd }
+        createdAt: { gte: todayStart, lte: todayEnd },
       };
     } else if (hasFilter) {
       where = {
         journeeCaisse: { caisseId: journee.caisseId },
-        createdAt: dateFilter
+        createdAt: dateFilter,
       };
     }
 

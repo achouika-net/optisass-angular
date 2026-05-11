@@ -10,9 +10,11 @@ import { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
-  private async generateNextTransferNumber(tx?: any): Promise<string> {
+  private async generateNextTransferNumber(
+    tx?: Prisma.TransactionClient,
+  ): Promise<string> {
     const year = new Date().getFullYear();
     const prisma = tx || this.prisma;
 
@@ -87,9 +89,15 @@ export class ProductsService {
         ...mainAndRelationalFields
       } = createProductDto;
 
+      // Type-safe specific data construction
+      const specificDataTyped = (specificData || {}) as Record<
+        string,
+        Prisma.InputJsonValue
+      >;
+
       // Construct specificData object from flat fields
-      const newSpecificData = {
-        ...specificData,
+      const newSpecificData: Record<string, Prisma.InputJsonValue> = {
+        ...specificDataTyped,
         // Monture
         ...(categorie && { categorie }),
         ...(genre && { genre }),
@@ -203,7 +211,7 @@ export class ProductsService {
       codeBarres?: string;
     },
   ) {
-    const where: any = {};
+    const where: Prisma.ProductWhereInput = {};
 
     if (!centreId && !entrepotId && !globalSearch) return []; // Isolation
     if (entrepotId) {
@@ -339,7 +347,12 @@ export class ProductsService {
       ...mainFields
     } = updateProductDto;
 
-    const specificFieldsUpdate = {
+    const specificDataTyped = (specificData || {}) as Record<
+      string,
+      Prisma.InputJsonValue
+    >;
+
+    const specificFieldsUpdate: Record<string, Prisma.InputJsonValue> = {
       // Monture
       ...(categorie && { categorie }),
       ...(genre && { genre }),
@@ -389,7 +402,7 @@ export class ProductsService {
       // Accessoire
       ...(categorieAccessoire && { categorieAccessoire }),
       ...(sousCategorie && { sousCategorie }),
-      ...specificData,
+      ...specificDataTyped,
     };
 
     // If we have specific fields to update, we need to merge them with existing JSON
@@ -400,13 +413,14 @@ export class ProductsService {
     // Strategy: If specific fields are present, we update the whole specificData object.
     // Ideally we should merge.
 
-    const dataToUpdate: any = { ...mainFields };
+    const dataToUpdate: Prisma.ProductUpdateInput = { ...mainFields };
 
     if (Object.keys(specificFieldsUpdate).length > 0) {
       // Fetch current to merge
       const current = await this.prisma.product.findUnique({ where: { id } });
       if (current) {
-        const currentSpecific = (current.specificData as object) || {};
+        const currentSpecific =
+          (current.specificData as Record<string, Prisma.InputJsonValue>) || {};
         dataToUpdate.specificData = {
           ...currentSpecific,
           ...specificFieldsUpdate,
@@ -459,8 +473,10 @@ export class ProductsService {
 
     const linkedInvoice = allInvoices.find((inv) => {
       const lines = (
-        typeof inv.lignes === 'string' ? JSON.parse(inv.lignes) : inv.lignes
-      ) as any[];
+        typeof inv.lignes === 'string'
+          ? JSON.parse(inv.lignes)
+          : (inv.lignes as unknown)
+      ) as Array<{ productId?: string }>;
       return lines.some((line) => line.productId === id);
     });
 
@@ -488,7 +504,7 @@ export class ProductsService {
       entrepotId?: string;
       couleur?: string;
     },
-    tx?: any,
+    tx?: Prisma.TransactionClient,
   ) {
     const {
       designation,
@@ -1115,7 +1131,7 @@ export class ProductsService {
         throw error;
       throw new BadRequestException(
         error.message ||
-        'Une erreur est survenue lors de la mise à jour du stock',
+          'Une erreur est survenue lors de la mise à jour du stock',
       );
     }
   }
@@ -1418,17 +1434,17 @@ export class ProductsService {
 
     const where: Prisma.MouvementStockWhereInput = {
       type: type
-        ? (type as any)
+        ? (type as string)
         : {
-          in: [
-            'TRANSFERT_INIT',
-            'TRANSFERT_SORTIE',
-            'TRANSFERT_ENTREE',
-            'RECEPTION',
-            'TRANSFERT_ANNULE',
-            'EXPEDITION',
-          ],
-        },
+            in: [
+              'TRANSFERT_INIT',
+              'TRANSFERT_SORTIE',
+              'TRANSFERT_ENTREE',
+              'RECEPTION',
+              'TRANSFERT_ANNULE',
+              'EXPEDITION',
+            ],
+          },
     };
 
     if (startDate || endDate) {

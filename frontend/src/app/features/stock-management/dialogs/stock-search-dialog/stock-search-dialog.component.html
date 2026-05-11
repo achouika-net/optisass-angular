@@ -116,7 +116,8 @@
                         <div class="location-badge"
                             [class.bg-yellow-100]="selectedWarehouseId && element.entrepotId !== selectedWarehouseId">
                             <mat-icon inline class="text-xs mr-1">store</mat-icon>
-                            {{ element.entrepot?.nom }} ({{ element.entrepot?.centre?.nom || 'Inconnu' }})
+                            {{ element.entrepot?.nom }} ({{ element.entrepot?.centre?.nom || 'Entrepôt non spécifié' }})
+
                         </div>
                     </td>
                 </ng-container>

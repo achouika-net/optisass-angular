@@ -3,7 +3,7 @@ import { TreasuryService } from './treasury.service';
 
 @Controller('treasury')
 export class TreasuryController {
-  constructor(private readonly treasuryService: TreasuryService) { }
+  constructor(private readonly treasuryService: TreasuryService) {}
 
   @Get('consolidated-unpaid-final')
   getConsolidatedUnpaid(
@@ -14,7 +14,14 @@ export class TreasuryController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    console.log(`[TREASURY-CONT] getConsolidatedUnpaid called. Params:`, { clientId, startDate, endDate, centreId, page, limit });
+    console.log(`[TREASURY-CONT] getConsolidatedUnpaid called. Params:`, {
+      clientId,
+      startDate,
+      endDate,
+      centreId,
+      page,
+      limit,
+    });
     return this.treasuryService.getConsolidatedUnpaid({
       clientId,
       startDate,

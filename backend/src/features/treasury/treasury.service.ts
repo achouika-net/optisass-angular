@@ -504,7 +504,9 @@ export class TreasuryService {
       this.prisma.paiement.aggregate({
         where: {
           statut: 'EN_ATTENTE',
-          mode: { in: ['CHEQUE', 'LCN', 'Chèque', 'CHÈQUE', 'Chéque', 'CHÉQUE'] },
+          mode: {
+            in: ['CHEQUE', 'LCN', 'Chèque', 'CHÈQUE', 'Chéque', 'CHÉQUE'],
+          },
           facture: {
             type: { not: 'AVOIR' },
             ...(centreId ? { centreId } : {}),
@@ -1179,7 +1181,6 @@ export class TreasuryService {
         paid: number;
       }[]
     >(statsQuery, ...(sqlParams as QueryParam[]));
-
 
     const dataQuery = `
       SELECT 

@@ -226,7 +226,12 @@ export class PayslipService {
       doc.on('end', async () => {
         try {
           const buffer = Buffer.concat(chunks);
-          const url = await this.storage.uploadBuffer(buffer, 'payslips', fileName, 'application/pdf');
+          const url = await this.storage.uploadBuffer(
+            buffer,
+            'payslips',
+            fileName,
+            'application/pdf',
+          );
           resolve(url);
         } catch (err) {
           reject(err);

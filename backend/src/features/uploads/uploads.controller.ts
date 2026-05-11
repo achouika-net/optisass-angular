@@ -1,4 +1,10 @@
-import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { extname } from 'path';
@@ -9,12 +15,14 @@ export class UploadsController {
   constructor(private readonly storage: StorageService) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor('file', {
-    storage: memoryStorage(),
-    limits: {
-      fileSize: 20 * 1024 * 1024, // 20 MB max file size
-    }
-  }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: {
+        fileSize: 20 * 1024 * 1024, // 20 MB max file size
+      },
+    }),
+  )
   async uploadFile(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Aucun fichier fourni');

@@ -27,7 +27,7 @@ export class StorageService implements OnModuleInit {
       accessKey,
       secretKey,
     });
-    
+
     // Ensure local fallback directory exists
     if (!fs.existsSync(this.localUploadDir)) {
       try {
@@ -59,14 +59,19 @@ export class StorageService implements OnModuleInit {
             JSON.stringify(policy),
           );
         } catch (policyError) {
-          console.warn('⚠️ MinIO: Failed to set bucket policy. Uploads may not be publicly accessible.', policyError);
+          console.warn(
+            '⚠️ MinIO: Failed to set bucket policy. Uploads may not be publicly accessible.',
+            policyError,
+          );
         }
       }
       this.minioReady = true;
       console.log(`✅ MinIO storage ready — bucket: ${this.bucket}`);
     } catch (error) {
       this.minioReady = false;
-      console.warn('⚠️ MinIO storage NOT ready (connection refused). Falling back to local filesystem in /app/uploads.');
+      console.warn(
+        '⚠️ MinIO storage NOT ready (connection refused). Falling back to local filesystem in /app/uploads.',
+      );
     }
   }
 
@@ -80,7 +85,7 @@ export class StorageService implements OnModuleInit {
     contentType?: string,
   ): Promise<string> {
     const objectName = `${folder}/${fileName}`;
-    
+
     if (this.minioReady) {
       try {
         await this.client.putObject(
@@ -91,7 +96,10 @@ export class StorageService implements OnModuleInit {
           contentType ? { 'Content-Type': contentType } : undefined,
         );
       } catch (error) {
-        console.error(`❌ MinIO upload failed for ${objectName}, falling back to local filesystem:`, error);
+        console.error(
+          `❌ MinIO upload failed for ${objectName}, falling back to local filesystem:`,
+          error,
+        );
         this.writeLocalFallback(folder, objectName, buffer);
       }
     } else {
@@ -127,7 +135,7 @@ export class StorageService implements OnModuleInit {
   getPublicUrl(filePath: string): string {
     if (filePath.startsWith('http')) return filePath;
     const objectName = filePath.replace(/^\/uploads\//, '');
-    
+
     if (this.minioReady) {
       return `${this.publicEndpoint}/${this.bucket}/${objectName}`;
     } else {
@@ -135,7 +143,11 @@ export class StorageService implements OnModuleInit {
     }
   }
 
-  private writeLocalFallback(folder: string, objectName: string, buffer: Buffer): void {
+  private writeLocalFallback(
+    folder: string,
+    objectName: string,
+    buffer: Buffer,
+  ): void {
     const targetDir = path.join(this.localUploadDir, folder);
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });

@@ -13,7 +13,7 @@ import { CreateExpenseDto } from './dto/create-expense.dto';
 
 @Controller('expenses')
 export class ExpensesController {
-  constructor(private readonly expensesService: ExpensesService) { }
+  constructor(private readonly expensesService: ExpensesService) {}
 
   @Post()
   create(@Body() createExpenseDto: CreateExpenseDto) {
@@ -28,7 +28,13 @@ export class ExpensesController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.expensesService.findAll(centreId, startDate, endDate, page, limit);
+    return this.expensesService.findAll(
+      centreId,
+      startDate,
+      endDate,
+      page,
+      limit,
+    );
   }
 
   @Get(':id')

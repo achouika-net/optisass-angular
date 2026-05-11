@@ -82,13 +82,13 @@ export class FundingRequestsService {
       }
 
       // 3. Find the Open Session for any Main Register
-      const caisseIds = candidateCaisses.map(c => c.id);
+      const caisseIds = candidateCaisses.map((c) => c.id);
       const openSessions = await tx.journeeCaisse.findMany({
         where: {
           caisseId: { in: caisseIds },
           statut: 'OUVERTE',
         },
-        include: { caisse: true }
+        include: { caisse: true },
       });
 
       if (openSessions.length === 0) {
@@ -98,11 +98,12 @@ export class FundingRequestsService {
       }
 
       // Prioritize MIXTE if both are open
-      const mainSession = openSessions.find(s => s.caisse.type === 'MIXTE') || openSessions[0];
+      const mainSession =
+        openSessions.find((s) => s.caisse.type === 'MIXTE') || openSessions[0];
       const mainCaisse = mainSession.caisse;
 
       const amount = request.montant;
-      
+
       let utilisateur = 'Système';
       if (validatorId) {
         const user = await tx.user.findUnique({ where: { id: validatorId } });

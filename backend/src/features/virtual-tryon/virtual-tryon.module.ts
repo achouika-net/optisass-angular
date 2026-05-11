@@ -4,8 +4,8 @@ import { VirtualTryonService } from './virtual-tryon.service';
 import { VirtualTryonController } from './virtual-tryon.controller';
 
 @Module({
-    providers: [VirtualTryonService, PrismaService],
-    controllers: [VirtualTryonController],
-    exports: [VirtualTryonService],
+  providers: [VirtualTryonService, PrismaService],
+  controllers: [VirtualTryonController],
+  exports: [VirtualTryonService],
 })
-export class VirtualTryonModule { }
+export class VirtualTryonModule {}

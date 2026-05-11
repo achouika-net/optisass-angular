@@ -1,100 +1,100 @@
 import {
-    IsString,
-    IsNumber,
-    IsDateString,
-    IsOptional,
-    IsUUID,
-    IsArray,
-    ValidateNested,
+  IsString,
+  IsNumber,
+  IsDateString,
+  IsOptional,
+  IsUUID,
+  IsArray,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class CreateEcheanceDto {
-    @IsString()
-    type: string;
+  @IsString()
+  type: string;
 
-    @IsDateString()
-    dateEcheance: string;
+  @IsDateString()
+  dateEcheance: string;
 
-    @IsNumber()
-    montant: number;
+  @IsNumber()
+  montant: number;
 
-    @IsOptional()
-    @IsString()
-    reference?: string;
+  @IsOptional()
+  @IsString()
+  reference?: string;
 
-    @IsOptional()
-    @IsString()
-    banque?: string;
+  @IsOptional()
+  @IsString()
+  banque?: string;
 
-    @IsString()
-    statut: string;
+  @IsString()
+  statut: string;
 }
 
 export class CreateBonLivraisonDto {
-    @IsString()
-    numeroBL: string;
+  @IsString()
+  numeroBL: string;
 
-    @IsDateString()
-    dateEmission: string;
+  @IsDateString()
+  dateEmission: string;
 
-    @IsOptional()
-    @IsDateString()
-    dateEcheance?: string;
+  @IsOptional()
+  @IsDateString()
+  dateEcheance?: string;
 
-    @IsNumber()
-    montantHT: number;
+  @IsNumber()
+  montantHT: number;
 
-    @IsNumber()
-    montantTVA: number;
+  @IsNumber()
+  montantTVA: number;
 
-    @IsNumber()
-    montantTTC: number;
+  @IsNumber()
+  montantTTC: number;
 
-    @IsString()
-    statut: string;
+  @IsString()
+  statut: string;
 
-    @IsString()
-    type: string;
+  @IsString()
+  type: string;
 
-    @IsOptional()
-    @IsString()
-    pieceJointeUrl?: string;
+  @IsOptional()
+  @IsString()
+  pieceJointeUrl?: string;
 
-    @IsUUID()
-    fournisseurId: string;
+  @IsUUID()
+  fournisseurId: string;
 
-    @IsOptional()
-    @IsUUID()
-    centreId?: string;
+  @IsOptional()
+  @IsUUID()
+  centreId?: string;
 
-    @IsOptional()
-    @IsUUID()
-    clientId?: string;
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
 
-    @IsOptional()
-    @IsUUID()
-    ficheId?: string;
+  @IsOptional()
+  @IsUUID()
+  ficheId?: string;
 
-    @IsOptional()
-    @IsString()
-    categorieBL?: string;
+  @IsOptional()
+  @IsString()
+  categorieBL?: string;
 
-    @IsOptional()
-    @IsUUID()
-    factureFournisseurId?: string;
+  @IsOptional()
+  @IsUUID()
+  factureFournisseurId?: string;
 
-    @IsOptional()
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => CreateEcheanceDto)
-    echeances?: CreateEcheanceDto[];
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateEcheanceDto)
+  echeances?: CreateEcheanceDto[];
 
-    @IsOptional()
-    @IsString()
-    base64File?: string;
+  @IsOptional()
+  @IsString()
+  base64File?: string;
 
-    @IsOptional()
-    @IsString()
-    fileName?: string;
+  @IsOptional()
+  @IsString()
+  fileName?: string;
 }

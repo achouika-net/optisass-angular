@@ -13,7 +13,7 @@ export class ImportsService {
   constructor(
     private prisma: PrismaService,
     private loyaltyService: LoyaltyService,
-  ) { }
+  ) {}
 
   // Normalize invoice number (Triggering re-compilation)
   private normalizeInvoiceNum(num: any): string {
@@ -374,7 +374,10 @@ export class ImportsService {
               results.success++;
             })
             .catch((err) => {
-              console.error(`Update failed for client ID ${upd.id}:`, err.message);
+              console.error(
+                `Update failed for client ID ${upd.id}:`,
+                err.message,
+              );
               results.failed++;
               results.errors.push(`Client ID ${upd.id}: ${err.message}`);
             }),
@@ -605,7 +608,8 @@ export class ImportsService {
       });
 
       log(
-        `Searching for clients in batch... (${codes.size
+        `Searching for clients in batch... (${
+          codes.size
         } codes, ${names.size} names)`,
       );
 
@@ -743,7 +747,7 @@ export class ImportsService {
                 : null,
             codePostal:
               typeof mappedRow.codePostal === 'string' &&
-                mappedRow.codePostal.trim()
+              mappedRow.codePostal.trim()
                 ? mappedRow.codePostal.trim()
                 : typeof mappedRow.codePostal === 'number'
                   ? String(mappedRow.codePostal)
@@ -949,7 +953,10 @@ export class ImportsService {
             select: { id: true, numero: true, clientId: true },
           });
           existing.forEach((ex) =>
-            ficheLookupMap.set(`${ex.clientId}_${String(ex.numero).trim()}`, ex),
+            ficheLookupMap.set(
+              `${ex.clientId}_${String(ex.numero).trim()}`,
+              ex,
+            ),
           );
         }
         log(`Found ${ficheLookupMap.size} existing Fiches in the database.`);
@@ -1424,16 +1431,23 @@ export class ImportsService {
           const totalAmount = parseNum(pm.montantTotal) || 0;
 
           // --- LOGICAL MAPPING FOR DOCUMENT TYPE ---
-          const rawValide = String(pm.valide ?? '').toLowerCase().trim();
-          const rawFacture = String(pm.facture ?? '').toLowerCase().trim();
+          const rawValide = String(pm.valide ?? '')
+            .toLowerCase()
+            .trim();
+          const rawFacture = String(pm.facture ?? '')
+            .toLowerCase()
+            .trim();
 
-          const isFauxValide = ['faux', 'false', 'non', 'no', '0'].includes(rawValide) || pm.valide === false;
+          const isFauxValide =
+            ['faux', 'false', 'non', 'no', '0'].includes(rawValide) ||
+            pm.valide === false;
 
           // Default to true. Only DEVIS if explicitly FALSE.
           const isValide = !isFauxValide;
 
           const isFacture =
-            ['vrai', 'true', 'oui', 'yes', '1'].includes(rawFacture) || pm.facture === true;
+            ['vrai', 'true', 'oui', 'yes', '1'].includes(rawFacture) ||
+            pm.facture === true;
 
           const hasInvoiceNum = !!(pm.numero || pm.fiche_id || pm.numero_fiche);
 
@@ -1470,7 +1484,9 @@ export class ImportsService {
           }
 
           // ROBUST NUMERO PARSING FOR FICHE
-          const ficheNumero = this.robustParseFicheNumber(pm.numero || pm.fiche_id || pm.numero_fiche);
+          const ficheNumero = this.robustParseFicheNumber(
+            pm.numero || pm.fiche_id || pm.numero_fiche,
+          );
 
           // Use the parsed number if available, otherwise let the DB auto-increment (by not providing it?)
           // Prisma createMany doesn't support omitting auto-increment fields easily if we mix them?
@@ -1509,7 +1525,10 @@ export class ImportsService {
             fichesToCreate.push(ficheObject);
             // Add new fiche to the lookup map so subsequent rows in the *same* import batch find it
             if (ficheNumero && clientId) {
-              ficheLookupMap.set(`${clientId}_${String(ficheNumero).trim()}`, ficheObject);
+              ficheLookupMap.set(
+                `${clientId}_${String(ficheNumero).trim()}`,
+                ficheObject,
+              );
             }
           }
           // ─────────────────────────────────────────────────────────────
@@ -1566,7 +1585,12 @@ export class ImportsService {
                 _acompte: totalPaye, // Temporary field for post-bulk payment creation
                 lignes: (() => {
                   const lines: any[] = [];
-                  const addLine = (desc: string, qte: number, price: number, typeArticle?: string) => {
+                  const addLine = (
+                    desc: string,
+                    qte: number,
+                    price: number,
+                    typeArticle?: string,
+                  ) => {
                     if (price > 0 || desc) {
                       lines.push({
                         description: desc || 'Article',
@@ -1596,7 +1620,8 @@ export class ImportsService {
                   // 2. Verres
                   if (content.verres) {
                     const prixVerres =
-                      (content.verres.prixOD || 0) + (content.verres.prixOG || 0);
+                      (content.verres.prixOD || 0) +
+                      (content.verres.prixOG || 0);
                     // Relax condition: even if price is 0, if marque exists, add it
                     if (prixVerres > 0 || content.verres.marque) {
                       const desc =
@@ -1615,19 +1640,32 @@ export class ImportsService {
                       content.lentilles.od?.marque ||
                       content.lentilles.og?.marque
                     ) {
-                      addLine('Lentilles de contact', 1, prixLentilles, 'LENTILLES');
+                      addLine(
+                        'Lentilles de contact',
+                        1,
+                        prixLentilles,
+                        'LENTILLES',
+                      );
                     }
                   }
 
                   // 4. Produits
                   if (content.produits && Array.isArray(content.produits)) {
                     content.produits.forEach((p: any) => {
-                      addLine(p.designation, p.quantite, p.prixUnitaire, 'ACCESSOIRE');
+                      addLine(
+                        p.designation,
+                        p.quantite,
+                        p.prixUnitaire,
+                        'ACCESSOIRE',
+                      );
                     });
                   }
 
                   // 5. Autres Equipements
-                  if (content.equipements && Array.isArray(content.equipements)) {
+                  if (
+                    content.equipements &&
+                    Array.isArray(content.equipements)
+                  ) {
                     content.equipements.forEach((eq: any, idx: number) => {
                       if (eq.monture) {
                         const desc =
@@ -1684,7 +1722,9 @@ export class ImportsService {
           data: ficheChunk,
           skipDuplicates: true,
         });
-        console.log(`   [Fiches] Chunk ${i / CHUNK_SIZE + 1}: Requested ${ficheChunk.length}, Persisted ${result.count}`);
+        console.log(
+          `   [Fiches] Chunk ${i / CHUNK_SIZE + 1}: Requested ${ficheChunk.length}, Persisted ${result.count}`,
+        );
       } catch (ficheErr: any) {
         console.error('❌ Fiche chunk insert error:', ficheErr.message);
       }
@@ -1700,19 +1740,28 @@ export class ImportsService {
             data: factureChunk.map(({ _acompte, ...rest }: any) => rest),
             skipDuplicates: true,
           });
-          console.log(`   [Factures] Chunk ${i / CHUNK_SIZE + 1}: Requested ${factureChunk.length}, Persisted ${result.count}`);
+          console.log(
+            `   [Factures] Chunk ${i / CHUNK_SIZE + 1}: Requested ${factureChunk.length}, Persisted ${result.count}`,
+          );
         } catch (factureErr: any) {
           console.error('❌ Facture chunk insert error:', factureErr.message);
           // Log specific error for debugging
           try {
             const fs = require('fs');
-            fs.writeFileSync('facture-error-dump.json', JSON.stringify({
-              message: factureErr.message,
-              code: factureErr.code,
-              meta: factureErr.meta,
-              sample: factureChunk[0]
-            }, null, 2));
-          } catch (e) { }
+            fs.writeFileSync(
+              'facture-error-dump.json',
+              JSON.stringify(
+                {
+                  message: factureErr.message,
+                  code: factureErr.code,
+                  meta: factureErr.meta,
+                  sample: factureChunk[0],
+                },
+                null,
+                2,
+              ),
+            );
+          } catch (e) {}
         }
       }
 
@@ -1720,7 +1769,9 @@ export class ImportsService {
       // With thousands of invoices, awarding points individually would issue tens of thousands
       // of transactions, overwhelming the connection pool.
       // Loyalty points should be awarded individually when invoices are created one-by-one in normal use.
-      console.log(`✅ Skipping loyalty points for bulk import (${facturesToCreate.length} factures).`);
+      console.log(
+        `✅ Skipping loyalty points for bulk import (${facturesToCreate.length} factures).`,
+      );
     }
 
     // --- NEW: Process acompte into Paiement records for all created factures ---
@@ -2263,8 +2314,14 @@ export class ImportsService {
                 montant: montantTTC,
                 dateEcheance: dateEmission,
                 type: row[mapping.modePaiement] || 'ESPECES',
-                statut: (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES' ? 'ENCAISSE' : 'EN_ATTENTE',
-                dateEncaissement: (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES' ? dateEmission : null,
+                statut:
+                  (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES'
+                    ? 'ENCAISSE'
+                    : 'EN_ATTENTE',
+                dateEncaissement:
+                  (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES'
+                    ? dateEmission
+                    : null,
               },
             });
 
@@ -2300,21 +2357,21 @@ export class ImportsService {
         while (true) {
           const exists = isBL
             ? await this.prisma.bonLivraison.findUnique({
-              where: {
-                fournisseurId_numeroBL: {
-                  fournisseurId: supplier.id,
-                  numeroBL: finalNum,
+                where: {
+                  fournisseurId_numeroBL: {
+                    fournisseurId: supplier.id,
+                    numeroBL: finalNum,
+                  },
                 },
-              },
-            })
+              })
             : await this.prisma.factureFournisseur.findUnique({
-              where: {
-                fournisseurId_numeroFacture: {
-                  fournisseurId: supplier.id,
-                  numeroFacture: finalNum,
+                where: {
+                  fournisseurId_numeroFacture: {
+                    fournisseurId: supplier.id,
+                    numeroFacture: finalNum,
+                  },
                 },
-              },
-            });
+              });
           if (!exists) break;
           finalNum = `${numeroFacture}_${dupIndex++}`;
         }
@@ -2386,13 +2443,13 @@ export class ImportsService {
                   let closestFiche = clientFiches[0];
                   let minDiff = Math.abs(
                     new Date(clientFiches[0].dateCreation).getTime() -
-                    dateEmission.getTime(),
+                      dateEmission.getTime(),
                   );
 
                   for (const f of clientFiches as any[]) {
                     const diff = Math.abs(
                       new Date(f.dateCreation).getTime() -
-                      dateEmission.getTime(),
+                        dateEmission.getTime(),
                     );
                     if (diff < minDiff) {
                       minDiff = diff;
@@ -2458,8 +2515,14 @@ export class ImportsService {
                 montant: montantTTC || 0,
                 dateEcheance: dateEcheance || dateEmission,
                 type: row[mapping.modePaiement] || 'ESPECES',
-                statut: (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES' ? 'ENCAISSE' : 'EN_ATTENTE',
-                dateEncaissement: (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES' ? (dateEcheance || dateEmission) : null,
+                statut:
+                  (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES'
+                    ? 'ENCAISSE'
+                    : 'EN_ATTENTE',
+                dateEncaissement:
+                  (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES'
+                    ? dateEcheance || dateEmission
+                    : null,
               },
             });
           } else {
@@ -2488,8 +2551,14 @@ export class ImportsService {
                 montant: montantTTC || 0,
                 dateEcheance: dateEcheance || dateEmission,
                 type: row[mapping.modePaiement] || 'ESPECES',
-                statut: (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES' ? 'ENCAISSE' : 'EN_ATTENTE',
-                dateEncaissement: (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES' ? (dateEcheance || dateEmission) : null,
+                statut:
+                  (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES'
+                    ? 'ENCAISSE'
+                    : 'EN_ATTENTE',
+                dateEncaissement:
+                  (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES'
+                    ? dateEcheance || dateEmission
+                    : null,
               },
             });
           }
@@ -2537,8 +2606,8 @@ export class ImportsService {
         const codeFournisseur = row[mapping.codeFournisseur];
         const numeroFacture = this.normalizeInvoiceNum(
           row[mapping.numeroFacture] ||
-          row[mapping.npiece] ||
-          row[mapping.facture],
+            row[mapping.npiece] ||
+            row[mapping.facture],
         );
         const referenceReglement = row[mapping.reference];
         const dateReglement =
@@ -2898,8 +2967,21 @@ export class ImportsService {
 
     // Bulk pre-fetch existing factures and fiches
     const factureNums = data
-      .filter((row) => row[mapping.numero] || row['Fiche'] || row['fiche'] || row[mapping.fiche_id])
-      .map((row) => String(row[mapping.numero] || row['Fiche'] || row['fiche'] || row[mapping.fiche_id]).trim());
+      .filter(
+        (row) =>
+          row[mapping.numero] ||
+          row['Fiche'] ||
+          row['fiche'] ||
+          row[mapping.fiche_id],
+      )
+      .map((row) =>
+        String(
+          row[mapping.numero] ||
+            row['Fiche'] ||
+            row['fiche'] ||
+            row[mapping.fiche_id],
+        ).trim(),
+      );
 
     const ficheNums: number[] = data
       .map((row) => {
@@ -2921,7 +3003,11 @@ export class ImportsService {
             {
               numero: {
                 in: chunk.map((n) =>
-                  n.startsWith('Fact-') ? n.replace(/^Fact-/, '') : n.startsWith('BC-') ? n.replace(/^BC-/, '') : n,
+                  n.startsWith('Fact-')
+                    ? n.replace(/^Fact-/, '')
+                    : n.startsWith('BC-')
+                      ? n.replace(/^BC-/, '')
+                      : n,
                 ),
               },
             },
@@ -2939,7 +3025,7 @@ export class ImportsService {
       const simpleNum = f.numero.replace(/^(Fact-|BC-|FAC-)/, '');
       if (!factureLookupMap.has(simpleNum)) factureLookupMap.set(simpleNum, f);
 
-      const parts = simpleNum.split(/[^0-9]/).filter(p => p.length > 0);
+      const parts = simpleNum.split(/[^0-9]/).filter((p) => p.length > 0);
       if (parts.length > 0) {
         const pureNum = parts[0];
         const year = parts.length > 1 ? parts[1] : null;
@@ -2954,8 +3040,10 @@ export class ImportsService {
         }
 
         // Map with prefixes too
-        if (!factureLookupMap.has(`Fact-${pureNum}`)) factureLookupMap.set(`Fact-${pureNum}`, f);
-        if (!factureLookupMap.has(`BC-${pureNum}`)) factureLookupMap.set(`BC-${pureNum}`, f);
+        if (!factureLookupMap.has(`Fact-${pureNum}`))
+          factureLookupMap.set(`Fact-${pureNum}`, f);
+        if (!factureLookupMap.has(`BC-${pureNum}`))
+          factureLookupMap.set(`BC-${pureNum}`, f);
       }
     });
 
@@ -2986,7 +3074,11 @@ export class ImportsService {
         }
         // Also map the robustly parsed fiche number to its facture
         const robustFicheNum = this.robustParseFicheNumber(f.numero);
-        if (robustFicheNum && f.facture && !factureLookupMap.has(robustFicheNum)) {
+        if (
+          robustFicheNum &&
+          f.facture &&
+          !factureLookupMap.has(robustFicheNum)
+        ) {
           factureLookupMap.set(robustFicheNum, f.facture);
         }
       }
@@ -3034,7 +3126,8 @@ export class ImportsService {
           client = clientByName.get(nomClient.toLowerCase().trim()) || null;
 
         // ROBUST NUMERO PARSING
-        const rawFicheRef = row['Fiche'] || row['fiche'] || row[mapping.fiche_id];
+        const rawFicheRef =
+          row['Fiche'] || row['fiche'] || row[mapping.fiche_id];
         const inputFicheNum = this.robustParseFicheNumber(rawFicheRef) || NaN;
 
         let existingFacture = factureLookupMap.get(numero);
@@ -3055,8 +3148,12 @@ export class ImportsService {
           if (parts.length > 0) {
             numericPartStr = parts[0];
           }
-          const dateEmissionForYear = this.parseDate(row[mapping.dateEmission]) || new Date();
-          const yearSuffix = dateEmissionForYear.getFullYear().toString().substring(2);
+          const dateEmissionForYear =
+            this.parseDate(row[mapping.dateEmission]) || new Date();
+          const yearSuffix = dateEmissionForYear
+            .getFullYear()
+            .toString()
+            .substring(2);
 
           existingFacture =
             factureLookupMap.get(`Fact-${numero}`) ||
@@ -3086,7 +3183,10 @@ export class ImportsService {
 
         // RESTORE THE FACT- PREFIX LOGIC
         let invoiceNumero = numero;
-        if (!invoiceNumero.startsWith('Fact-') && !invoiceNumero.startsWith('BC-')) {
+        if (
+          !invoiceNumero.startsWith('Fact-') &&
+          !invoiceNumero.startsWith('BC-')
+        ) {
           invoiceNumero = `Fact-${invoiceNumero}`;
         }
 
@@ -3103,7 +3203,9 @@ export class ImportsService {
         } else {
           // User said "changer et non pas ajouter". We log a warning if not found.
           results.failed++;
-          results.errors.push(`Row ${index + 1}: Aucun document correspondant trouvé pour le Dossier ${rawFicheRef || numero}`);
+          results.errors.push(
+            `Row ${index + 1}: Aucun document correspondant trouvé pour le Dossier ${rawFicheRef || numero}`,
+          );
         }
       } catch (error) {
         results.failed++;
@@ -3477,7 +3579,7 @@ export class ImportsService {
           'import_skips_factures.log',
           `[SUPPLIER_MATCH] Row ${index + 1}: ${msg} \n`,
         );
-      } catch (e) { }
+      } catch (e) {}
       console.log(`[SupplierMatch] ${msg} `);
     };
 

@@ -259,7 +259,8 @@ export class StockSearchDialogComponent implements OnInit {
         if (this.selectedWarehouseId) {
             const wh = this.warehouses.find(w => w.id === this.selectedWarehouseId);
             if (wh && wh.centreId !== this.currentCenter?.id) {
-                return wh.centre?.nom || 'Inconnu';
+                return wh.centre?.nom || 'Entrepôt non spécifié';
+
             }
         }
         return '';

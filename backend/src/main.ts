@@ -12,28 +12,30 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   // Security: Use Helmet for security headers
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:', 'https:'],
-        fontSrc: ["'self'"],
-        connectSrc: ["'self'", 'https:'],
-        frameSrc: ["'none'"],
-        objectSrc: ["'none'"],
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:', 'https:'],
+          fontSrc: ["'self'"],
+          connectSrc: ["'self'", 'https:'],
+          frameSrc: ["'none'"],
+          objectSrc: ["'none'"],
+        },
       },
-    },
-    hsts: {
-      maxAge: 31536000, // 1 year
-      includeSubDomains: true,
-      preload: true,
-    },
-    frameguard: { action: 'deny' },
-    noSniff: true,
-    xssFilter: true,
-  }));
+      hsts: {
+        maxAge: 31536000, // 1 year
+        includeSubDomains: true,
+        preload: true,
+      },
+      frameguard: { action: 'deny' },
+      noSniff: true,
+      xssFilter: true,
+    }),
+  );
 
   // Set the limit for incoming JSON and URL-encoded data to support large imports
   app.use(json({ limit: '50mb' }));
@@ -108,7 +110,9 @@ async function bootstrap() {
   console.log('║   🚀 OptiSaas ERP - Version 3.0 (Security Hardened)  ║');
   console.log('╠═══════════════════════════════════════════════════════╣');
   console.log(`║   Port: ${port}${' '.repeat(50 - `Port: ${port}`.length)}║`);
-  console.log(`║   Environment: ${process.env.NODE_ENV || 'development'}${' '.repeat(43 - `Environment: ${process.env.NODE_ENV || 'development'}`.length)}║`);
+  console.log(
+    `║   Environment: ${process.env.NODE_ENV || 'development'}${' '.repeat(43 - `Environment: ${process.env.NODE_ENV || 'development'}`.length)}║`,
+  );
   console.log('║   Security: Helmet + JWT + Rate Limit + Audit Log     ║');
   console.log('╚═══════════════════════════════════════════════════════╝');
   console.log('');

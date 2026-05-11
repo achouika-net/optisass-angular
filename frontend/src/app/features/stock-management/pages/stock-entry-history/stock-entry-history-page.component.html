@@ -198,8 +198,11 @@
                                         <div class="detail-section">
                                             <h4>Détails Document</h4>
                                             <div class="detail-info">
-                                                <p><span>Créé le:</span> {{ element.createdAt | date:'dd/MM HH:mm' }}
-                                                </p>
+                                                <p><span>Créé le:</span> {{ element.createdAt | date:'dd/MM HH:mm' }}</p>
+                                                <p><span>Auteur:</span> {{ (element.mouvementsStock && (['system', 'System', 'SYSTEM'].includes(element.mouvementsStock[0]?.utilisateur) ? 'Système' : element.mouvementsStock[0]?.utilisateur)) || 'Système' }}</p>
+
+
+
                                                 <p *ngIf="element.pieceJointeUrl">
                                                     <span>Justificatif:</span>
                                                     <a [href]="getAttachmentUrl(element.pieceJointeUrl)" target="_blank"
@@ -211,9 +214,9 @@
                                             <div class="warehouse-distribution mt-4">
                                                 <h4>Répartition Entrepôts</h4>
                                                 <div class="chips-container">
-                                                    <div class="chip" *ngFor="let w of getWarehouseSummary(element)">
-                                                        <span class="chip-name">{{ w.name }}</span>
-                                                        <span class="chip-count">{{ w.count }}</span>
+                                                    <div class="warehouse-item" *ngFor="let item of getWarehouseSummary(element)">
+                                                        <span class="warehouse-name" [class.text-red-500]="item.name === 'Entrepôt non spécifié'">{{ item.name }}</span>
+                                                        <span class="warehouse-count">{{ item.count }}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -390,7 +393,9 @@
 
                         <ng-container matColumnDef="utilisateur">
                             <th mat-header-cell *matHeaderCellDef> Utilisateur </th>
-                            <td mat-cell *matCellDef="let element"> {{ element.utilisateur }} </td>
+                            <td mat-cell *matCellDef="let element"> {{ ['system', 'System', 'SYSTEM'].includes(element.utilisateur) ? 'Système' : (element.utilisateur || 'Système') }} </td>
+
+
                         </ng-container>
 
                         <ng-container matColumnDef="itemsCount">
@@ -481,7 +486,9 @@
                                                             </span>
                                                         </td>
                                                         <td class="text-gray-600 italic small-text">{{ m.motif || '--' }}</td>
-                                                        <td class="text-gray-500 small-text">{{ m.utilisateur || '--' }}</td>
+                                                        <td class="text-gray-500 small-text">{{ (['system', 'System', 'SYSTEM'].includes(m.utilisateur) ? 'Système' : m.utilisateur) || 'Système' }}</td>
+
+
                                                     </tr>
                                                 </tbody>
                                             </table>

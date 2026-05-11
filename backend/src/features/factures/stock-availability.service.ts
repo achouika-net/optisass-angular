@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -46,7 +43,13 @@ export class StockAvailabilityService {
                     },
                     {
                       OR: [
-                        { codeInterne: (line.reference || line.codeInterne || '').trim() },
+                        {
+                          codeInterne: (
+                            line.reference ||
+                            line.codeInterne ||
+                            ''
+                          ).trim(),
+                        },
                         { codeBarres: (line.codeBarres || '').trim() },
                       ],
                     },
@@ -57,7 +60,11 @@ export class StockAvailabilityService {
             {
               OR: [
                 { entrepot: { centreId: localCentreId } },
-                { entrepot: { nom: { contains: 'PRINCIPAL', mode: 'insensitive' } } }, // Fallback to principal warehouse if specifically allowed
+                {
+                  entrepot: {
+                    nom: { contains: 'PRINCIPAL', mode: 'insensitive' },
+                  },
+                }, // Fallback to principal warehouse if specifically allowed
               ],
             },
           ],
@@ -68,28 +75,35 @@ export class StockAvailabilityService {
       // [FIX] Account for stock already decremented for THIS document
       let alreadyTakenQty = 0;
       const props = (facture.proprietes as any) || {};
-      if (props.stockDecremented === true || props.stockDecremented === 'true') {
+      if (
+        props.stockDecremented === true ||
+        props.stockDecremented === 'true'
+      ) {
         // If stock was already decremented, then for THIS invoice, the requested qty is "available"
         // because it was already taken from the shelf.
         alreadyTakenQty = requestedQty;
       }
 
-      const availableQty = (localProduct?.quantiteActuelle || 0) + alreadyTakenQty;
+      const availableQty =
+        (localProduct?.quantiteActuelle || 0) + alreadyTakenQty;
       const isAvailableLocally = availableQty >= requestedQty;
 
       if (!isAvailableLocally) {
         // 2. Search in other centers
         // Use the most specific identifier for cross-center search
-        const identifier = (line.reference || line.codeInterne || line.designation || line.description || '').trim();
-        
+        const identifier = (
+          line.reference ||
+          line.codeInterne ||
+          line.designation ||
+          line.description ||
+          ''
+        ).trim();
+
         const otherCentersStock = await this.prisma.product.findMany({
           where: {
             AND: [
               {
-                OR: [
-                  { designation: identifier },
-                  { codeInterne: identifier },
-                ],
+                OR: [{ designation: identifier }, { codeInterne: identifier }],
               },
               { entrepot: { centreId: { not: localCentreId } } },
               { quantiteActuelle: { gt: 0 } },

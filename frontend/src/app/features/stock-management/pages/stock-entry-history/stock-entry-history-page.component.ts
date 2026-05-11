@@ -259,7 +259,7 @@ export class StockEntryHistoryPageComponent implements OnInit {
     getWarehouseSummary(element: any): any[] {
         const summary = new Map<string, number>();
         element.mouvementsStock?.forEach((m: any) => {
-            const warehouseName = m.entrepotDestination?.nom || 'Inconnu';
+            const warehouseName = m.entrepotDestination?.nom || m.entrepotSource?.nom || 'Entrepôt non spécifié';
             const current = summary.get(warehouseName) || 0;
             summary.set(warehouseName, current + m.quantite);
         });
@@ -267,7 +267,9 @@ export class StockEntryHistoryPageComponent implements OnInit {
     }
 
     getFicheNumero(movement: any): string {
-        const doc = movement.facture || movement.bonLivraison;
+        const item = (movement.mouvementsStock && movement.mouvementsStock.length > 0) ? movement.mouvementsStock[0] : movement;
+        if (!item) return '--';
+        const doc = item.facture || item.bonLivraison || item.factureFournisseur;
         if (doc?.fiche?.numero) {
             const num = doc.fiche.numero;
             const date = doc.fiche.dateCreation;
@@ -278,11 +280,13 @@ export class StockEntryHistoryPageComponent implements OnInit {
             }
             return `n° ${num}`;
         }
-        return (movement.facture?.numero || (movement.bonLivraison as any)?.numeroBL) || '--';
+        return (item.facture?.numero || (item.bonLivraison as any)?.numeroBL || (item.factureFournisseur as any)?.numeroFacture) || '--';
     }
 
     getClientName(movement: any): string {
-        const client = movement.facture?.client || movement.bonLivraison?.client;
+        const item = (movement.mouvementsStock && movement.mouvementsStock.length > 0) ? movement.mouvementsStock[0] : movement;
+        if (!item) return '--';
+        const client = item.facture?.client || item.bonLivraison?.client || item.factureFournisseur?.client;
         if (!client) return '--';
 
         if (client.raisonSociale) return client.raisonSociale;

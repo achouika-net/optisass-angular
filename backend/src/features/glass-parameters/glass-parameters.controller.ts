@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Delete, Param, Patch, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Delete,
+  Param,
+  Patch,
+  Req,
+} from '@nestjs/common';
 import { GlassParametersService } from './glass-parameters.service';
 
 @Controller('glass-parameters')
@@ -75,7 +84,10 @@ export class GlassParametersController {
   }
 
   @Patch('treatments/:id')
-  updateTreatment(@Param('id') id: string, @Body() data: { name?: string; price?: number }) {
+  updateTreatment(
+    @Param('id') id: string,
+    @Body() data: { name?: string; price?: number },
+  ) {
     return this.service.updateTreatment(id, data);
   }
 
@@ -91,7 +103,12 @@ export class GlassParametersController {
     @Body() body: { delta: number; motif: string },
     @Req() req: any,
   ) {
-    return this.service.updateIndexStock(id, body.delta, body.motif, req.user?.id);
+    return this.service.updateIndexStock(
+      id,
+      body.delta,
+      body.motif,
+      req.user?.id,
+    );
   }
 
   @Post('treatments/:id/stock')
@@ -100,7 +117,12 @@ export class GlassParametersController {
     @Body() body: { delta: number; motif: string },
     @Req() req: any,
   ) {
-    return this.service.updateTreatmentStock(id, body.delta, body.motif, req.user?.id);
+    return this.service.updateTreatmentStock(
+      id,
+      body.delta,
+      body.motif,
+      req.user?.id,
+    );
   }
 
   @Get(':type/:id/history')

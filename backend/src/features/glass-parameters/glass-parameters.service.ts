@@ -7,8 +7,18 @@ export class GlassParametersService {
 
   async seedInitialData() {
     const brands = [
-      'Essilor', 'Zeiss', 'Hoya', 'Nikon', 'Rodenstock', 'Seiko',
-      'BBGR', 'Optiswiss', 'Shamir', 'Kodak', 'Generic', 'Autre'
+      'Essilor',
+      'Zeiss',
+      'Hoya',
+      'Nikon',
+      'Rodenstock',
+      'Seiko',
+      'BBGR',
+      'Optiswiss',
+      'Shamir',
+      'Kodak',
+      'Generic',
+      'Autre',
     ];
 
     const materials = {
@@ -16,32 +26,32 @@ export class GlassParametersService {
         '1.50 (Standard)': 200,
         '1.56': 250,
         '1.60': 350,
-        '1.67': 500
+        '1.67': 500,
       },
-      'Polycarbonate': {
-        '1.59': 400
+      Polycarbonate: {
+        '1.59': 400,
       },
-      'Trivex': {
-        '1.53': 450
+      Trivex: {
+        '1.53': 450,
       },
-      'Minéral': {
+      Minéral: {
         '1.523': 150,
         '1.60': 300,
         '1.70': 500,
         '1.80': 800,
-        '1.90': 1200
+        '1.90': 1200,
       },
       'Organique MR-8': {
-        '1.60': 500
+        '1.60': 500,
       },
       'Organique MR-7': {
-        '1.67': 700
+        '1.67': 700,
       },
       'Blue Cut Mass': {
         '1.56': 400,
         '1.60': 600,
-        '1.67': 800
-      }
+        '1.67': 800,
+      },
     };
 
     const treatments = {
@@ -53,9 +63,9 @@ export class GlassParametersService {
       'Teinté (Solaire - Gris)': 150,
       'Teinté (Solaire - Brun)': 150,
       'Teinté (Solaire - Vert)': 150,
-      'Polarisé': 400,
-      'Miroité': 250,
-      'Hydrophobe': 100,
+      Polarisé: 400,
+      Miroité: 250,
+      Hydrophobe: 100,
     };
 
     // Seed Brands
@@ -63,7 +73,7 @@ export class GlassParametersService {
       await this.prisma.glassBrand.upsert({
         where: { name },
         update: {},
-        create: { name }
+        create: { name },
       });
     }
 
@@ -72,7 +82,7 @@ export class GlassParametersService {
       const material = await this.prisma.glassMaterial.upsert({
         where: { name: matName },
         update: {},
-        create: { name: matName }
+        create: { name: matName },
       });
 
       for (const [idxValue, price] of Object.entries(indices)) {
@@ -80,16 +90,16 @@ export class GlassParametersService {
           where: {
             materialId_value: {
               materialId: material.id,
-              value: idxValue
-            }
+              value: idxValue,
+            },
           },
           update: { price },
           create: {
             materialId: material.id,
             value: idxValue,
             label: idxValue,
-            price
-          }
+            price,
+          },
         });
       }
     }
@@ -99,7 +109,7 @@ export class GlassParametersService {
       await this.prisma.glassTreatment.upsert({
         where: { name },
         update: { price },
-        create: { name, price }
+        create: { name, price },
       });
     }
 
@@ -138,13 +148,21 @@ export class GlassParametersService {
   }
 
   // Indices
-  async createIndex(materialId: string, value: string, label?: string, price?: number) {
+  async createIndex(
+    materialId: string,
+    value: string,
+    label?: string,
+    price?: number,
+  ) {
     return this.prisma.glassIndex.create({
       data: { materialId, value, label, price: price || 0 },
     });
   }
 
-  async updateIndex(id: string, data: { value?: string; label?: string; price?: number }) {
+  async updateIndex(
+    id: string,
+    data: { value?: string; label?: string; price?: number },
+  ) {
     return this.prisma.glassIndex.update({
       where: { id },
       data,
@@ -174,12 +192,17 @@ export class GlassParametersService {
   }
 
   // Stock Management
-  async updateIndexStock(id: string, delta: number, motif: string, userId?: string) {
+  async updateIndexStock(
+    id: string,
+    delta: number,
+    motif: string,
+    userId?: string,
+  ) {
     return this.prisma.$transaction(async (tx) => {
       const index = await tx.glassIndex.update({
         where: { id },
         data: { quantite: { increment: delta } },
-        include: { material: true }
+        include: { material: true },
       });
 
       await tx.mouvementStock.create({
@@ -189,14 +212,19 @@ export class GlassParametersService {
           glassIndexId: id,
           motif: motif || 'Mise à jour manuelle du stock',
           userId: userId || null,
-        }
+        },
       });
 
       return index;
     });
   }
 
-  async updateTreatmentStock(id: string, delta: number, motif: string, userId?: string) {
+  async updateTreatmentStock(
+    id: string,
+    delta: number,
+    motif: string,
+    userId?: string,
+  ) {
     return this.prisma.$transaction(async (tx) => {
       const treatment = await tx.glassTreatment.update({
         where: { id },
@@ -210,7 +238,7 @@ export class GlassParametersService {
           glassTreatmentId: id,
           motif: motif || 'Mise à jour manuelle du stock',
           userId: userId || null,
-        }
+        },
       });
 
       return treatment;
@@ -219,11 +247,9 @@ export class GlassParametersService {
 
   async getStockHistory(type: 'index' | 'treatment', id: string) {
     return this.prisma.mouvementStock.findMany({
-      where: type === 'index' 
-        ? { glassIndexId: id } 
-        : { glassTreatmentId: id },
+      where: type === 'index' ? { glassIndexId: id } : { glassTreatmentId: id },
       orderBy: { createdAt: 'desc' },
-      include: { user: { select: { id: true, prenom: true, nom: true } } }
+      include: { user: { select: { id: true, prenom: true, nom: true } } },
     });
   }
 }

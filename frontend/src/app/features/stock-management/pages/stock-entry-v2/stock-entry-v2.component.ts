@@ -7,7 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatTableModule } from '@angular/material/table';
+import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -18,7 +18,8 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { ActivatedRoute } from '@angular/router';
 import { BehaviorSubject, Observable, of } from 'rxjs';
-import { catchError, debounceTime, delay, distinctUntilChanged, map, shareReplay, switchMap, tap } from 'rxjs/operators';
+import { catchError, debounceTime, delay, distinctUntilChanged, map, shareReplay, switchMap, tap, first, take, timeout } from 'rxjs/operators';
+
 import { Product, ProductType, ProductFilters, StockStats } from '../../../../shared/interfaces/product.interface';
 import { Entrepot } from '../../../../shared/interfaces/warehouse.interface';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -32,7 +33,7 @@ import { InvoiceFormDialogComponent } from '../../../finance/components/invoice-
 import { CameraCaptureDialogComponent } from '../../../../shared/components/camera-capture/camera-capture-dialog.component';
 import { OcrService } from '../../../../core/services/ocr.service';
 import { Store } from '@ngrx/store';
-import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
+import { UserCurrentCentreSelector, UserIdSelector } from '../../../../core/store/auth/auth.selectors';
 import { FinanceService } from '../../../finance/services/finance.service';
 import { Supplier } from '../../../finance/models/finance.models';
 import { ProductService } from '../../services/product.service';
@@ -48,7 +49,7 @@ import { GlassIndex } from '../../../../core/models/glass-parameters.model';
 import { GlassParametersService } from '../../../client-management/services/glass-parameters.service';
 import { FicheService } from '../../../client-management/services/fiche.service';
 import { ClientManagementService } from '../../../client-management/services/client.service';
-import { combineLatest, startWith, take } from 'rxjs';
+import { combineLatest, startWith } from 'rxjs';
 
 export interface StagedProduct {
     id?: string; // If existing product found
@@ -85,9 +86,12 @@ export interface StagedProduct {
 
     // IA Detection
     nomClient?: string; // If detected in BL
+
+    // Internal prefill tracking (used for deduplication)
+    _prefillFicheId?: string | null;
 }
 
-@Component({
+@Component({ // [DIAGNOSTIC] Triggering frontend rebuild
     selector: 'app-stock-entry-v2',
     standalone: true,
     imports: [
@@ -135,16 +139,20 @@ export class StockEntryV2Component implements OnInit {
     ficheSearchCtrl = new FormControl('');
     fiches$: Observable<any[]> = of([]);
 
+    private _pendingPrefillFicheId: string | null = null;
+    private _pendingPrefillClientName: string | null = null;
+
     // List of common Moroccan TVA rates
     tvaOptions = [20, 14, 10, 7, 0];
 
     // Staging Data
     stagedProducts: StagedProduct[] = [];
-    productsSubject = new BehaviorSubject<StagedProduct[]>([]);
-    displayedColumns: string[] = ['codeBarre', 'reference', 'marque', 'nom', 'categorie', 'entrepotId', 'quantite', 'prixAchat', 'tva', 'coefficient', 'prixVente', 'actions'];
+    dataSource = new MatTableDataSource<StagedProduct>([]);
+    displayedColumns: string[] = ['codeBarre', 'reference', 'marque', 'nom', 'nomClient', 'categorie', 'entrepotId', 'quantite', 'prixAchat', 'tva', 'coefficient', 'prixVente', 'actions'];
 
-    // OCR State
     ocrProcessing = false;
+    private glassData$!: Observable<any>;
+
     ocrError: string | null = null;
     analyzedText = '';
     useIntelligentOcr = true; // Par défaut, on utilise n8n
@@ -194,6 +202,7 @@ export class StockEntryV2Component implements OnInit {
     skipPaymentPrompt = false;
 
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
+    currentUser = this.store.selectSignal(UserIdSelector);
     ProductType = ProductType;
 
     entrepots$ = new BehaviorSubject<Entrepot[]>([]);
@@ -269,17 +278,25 @@ export class StockEntryV2Component implements OnInit {
             }),
             catchError((err: any) => {
                 console.error('[StockEntryV2] Error loading suppliers:', err);
-                this.snackBar.open('Erreur lors du chargement des fournisseurs', 'OK', { duration: 5000 });
+                setTimeout(() => this.snackBar.open('Erreur lors du chargement des fournisseurs', 'OK', { duration: 5000 }));
                 return of([]);
             })
         );
         
         // Initialize glass observables
-        const glassData$ = this.glassService.getAll().pipe(shareReplay(1));
-        this.glassBrands$ = glassData$.pipe(map((d: any) => d.brands));
-        this.glassMaterials$ = glassData$.pipe(map((d: any) => d.materials));
-        this.glassIndices$ = glassData$.pipe(map((d: any) => d.materials.flatMap((m: any) => m.indices)));
-        this.glassTreatments$ = glassData$.pipe(map((d: any) => d.treatments));
+        this.glassData$ = this.glassService.getAll().pipe(
+            shareReplay(1),
+            catchError(err => {
+                console.error('❌ [StockEntryV2] Fatal error loading glass data:', err);
+                return of({ brands: [], materials: [], treatments: [] });
+            })
+        );
+
+        this.glassBrands$ = this.glassData$.pipe(map((d: any) => d.brands));
+        this.glassMaterials$ = this.glassData$.pipe(map((d: any) => d.materials));
+        this.glassIndices$ = this.glassData$.pipe(map((d: any) => d.materials.flatMap((m: any) => m.indices)));
+        this.glassTreatments$ = this.glassData$.pipe(map((d: any) => d.treatments));
+
 
         // Load warehouses for current centre
         const center = this.currentCentre();
@@ -289,8 +306,14 @@ export class StockEntryV2Component implements OnInit {
             next: (data) => {
                 console.log('Warehouses loaded:', data);
                 this.entrepots$.next(data);
+                
+                // Auto-select first warehouse if none selected
+                if (data && data.length > 0 && !this.documentForm.get('entrepotId')?.value) {
+                    this.documentForm.patchValue({ entrepotId: data[0].id });
+                }
             },
             error: (err) => console.error('Error loading warehouses:', err)
+
         });
 
         // Initialize Client Search logic
@@ -321,12 +344,14 @@ export class StockEntryV2Component implements OnInit {
         ]).pipe(
             debounceTime(300),
             switchMap(([query, clientId]) => {
+                console.log(`🔍 [FicheSearch] Query: "${query}", ClientId: ${clientId}`);
                 if (clientId) {
                     return this.ficheService.getFichesByClient(clientId).pipe(
                         map(fiches => fiches.filter(f => 
                             f.statut === StatutFiche.COMMANDE || 
                             (f.numero && f.numero.toString().includes(query))
-                        ))
+                        )),
+                        catchError(() => of([]))
                     );
                 }
                 if (query && query.length >= 2) {
@@ -334,7 +359,8 @@ export class StockEntryV2Component implements OnInit {
                         map(fiches => fiches.filter(f => 
                             (f.numero && f.numero.toString().includes(query)) || 
                             (f.clientId && f.clientId.toLowerCase().includes(query.toLowerCase()))
-                        ).slice(0, 10))
+                        ).slice(0, 10)),
+                        catchError(() => of([]))
                     );
                 }
                 return of([]);
@@ -373,7 +399,7 @@ export class StockEntryV2Component implements OnInit {
         }
 
         // Handle prefilled data from query params
-        this.route.queryParams.subscribe(params => {
+        this.route.queryParams.pipe(take(1)).subscribe(params => {
             if (params['prefillInvoice'] || params['prefillSupplier']) {
                 const invoiceNum = params['prefillInvoice'] || '';
                 
@@ -381,18 +407,26 @@ export class StockEntryV2Component implements OnInit {
                     numero: invoiceNum,
                     fournisseurId: params['prefillSupplier'] || '',
                     date: params['prefillDate'] ? new Date(params['prefillDate']) : new Date()
-                });
+                }, { emitEvent: false });
 
                 if (invoiceNum) {
                     this.skipPaymentPrompt = true;
                     // FORCE SEARCH: Ensure we pull the full BL record (Client, Fiche, etc.)
+                    // NOTE: searchExistingFinanceBL already calls prefillFromFiche internally
+                    // so we must NOT also call it from prefillFicheId to avoid double-adding.
                     this.searchExistingFinanceBL(invoiceNum);
+                } else if (params['prefillFicheId']) {
+                    // Only prefill from fiche if there's no BL search (to avoid duplicate)
+                    this.prefillFromFiche(params['prefillFicheId'], {
+                        type: params['prefillType'],
+                        source: params['prefillSource'],
+                        total: params['prefillTotal']
+                    });
                 }
 
-                this.snackBar.open('Données du document importées', 'OK', { duration: 3000 });
-            }
-
-            if (params['prefillFicheId']) {
+                setTimeout(() => this.snackBar.open('Données du document importées', 'OK', { duration: 3000 }));
+            } else if (params['prefillFicheId']) {
+                // No invoice in params, safe to prefill from fiche directly
                 this.prefillFromFiche(params['prefillFicheId'], {
                     type: params['prefillType'],
                     source: params['prefillSource'],
@@ -432,12 +466,12 @@ export class StockEntryV2Component implements OnInit {
      */
     searchExistingFinanceBL(numeroBL: string) {
         console.log('🔍 Searching for existing Finance BL:', numeroBL);
-        this.financeService.getBonLivraisons({ numeroBL: numeroBL } as any).subscribe({
+        this.financeService.getBonLivraisons({ numeroBL: numeroBL } as any).pipe(take(1)).subscribe({
             next: (response) => {
-                const bl = response.data.find(b => b.numeroBL === numeroBL);
+                const bl = response.data.find((b: any) => b.numeroBL === numeroBL);
                 if (bl) {
                     console.log('✅ Found existing Finance BL:', bl);
-                    this.snackBar.open(`BL #${bl.numeroBL} trouvé. Importation des données...`, 'OK', { duration: 3000 });
+                    setTimeout(() => this.snackBar.open(`BL #${bl.numeroBL} trouvé. Importation des données...`, 'OK', { duration: 3000 }));
                     
                     // 1. Update Document Form
                     this.documentForm.patchValue({
@@ -457,15 +491,21 @@ export class StockEntryV2Component implements OnInit {
                     }
 
                     // 3. Set Category and trigger lens pre-fill if applicable
-                    if (bl.categorieBL === 'ACHAT_VERRE_OPTIQUE' || (bl.fiche && bl.fiche.type === TypeFiche.MONTURE)) {
+                    const docType = bl.categorieBL || 'BL';
+                    if (docType.includes('VERRE') || (bl.fiche && bl.fiche.type === TypeFiche.MONTURE)) {
                         this.entryForm.patchValue({ categorie: 'VERRE' });
                         if (bl.ficheId) {
-                            this.prefillFromFiche(bl.ficheId, { total: bl.montantTTC, source: 'FINANCE_LINK' });
+                            this.prefillFromFiche(bl.ficheId, { total: bl.montantTTC, source: 'FINANCE_LINK', type: docType });
                         }
-                    } else if (bl.fiche && bl.fiche.type === TypeFiche.LENTILLES) {
+                    } else if (docType.includes('LENTILLE') || (bl.fiche && bl.fiche.type === TypeFiche.LENTILLES)) {
                         this.entryForm.patchValue({ categorie: 'LENTILLE' });
                         if (bl.ficheId) {
-                            this.prefillFromFiche(bl.ficheId, { total: bl.montantTTC, source: 'FINANCE_LINK' });
+                            this.prefillFromFiche(bl.ficheId, { total: bl.montantTTC, source: 'FINANCE_LINK', type: docType });
+                        }
+                    } else {
+                        // Generic fallback
+                        if (bl.ficheId) {
+                            this.prefillFromFiche(bl.ficheId, { total: bl.montantTTC, source: 'FINANCE_LINK', type: docType });
                         }
                     }
                 }
@@ -479,7 +519,9 @@ export class StockEntryV2Component implements OnInit {
         if (client && client.id) {
             this.documentForm.patchValue({ clientId: client.id, ficheId: '' });
             this.ficheSearchCtrl.setValue('', { emitEvent: false });
-            this.clientSearchCtrl.setValue(`${client.nom || ''} ${client.prenom || ''}`, { emitEvent: false });
+            const fullName = `${client.nom || ''} ${client.prenom || ''}`.trim();
+            this.clientSearchCtrl.setValue(fullName, { emitEvent: false });
+            this._pendingPrefillClientName = fullName;
         }
     }
 
@@ -490,133 +532,245 @@ export class StockEntryV2Component implements OnInit {
                 ficheId: fiche.id,
                 type: 'BL' // Auto-set as Delivery Note
             });
-
-            // If it's a frame/lens sheet, auto-set category to VERRE
-            if (fiche.type === TypeFiche.MONTURE) {
-                this.entryForm.patchValue({ categorie: 'VERRE' });
-            } else if (fiche.type === TypeFiche.LENTILLES) {
-                this.entryForm.patchValue({ categorie: 'LENTILLE' });
-            }
-
+            console.log('✅ [StockEntryV2] Fiche selected:', fiche.id, fiche.type);
             this.prefillFromFiche(fiche.id, {
                 source: 'MANUAL_LINK'
             });
             this.ficheSearchCtrl.setValue(`BC #${fiche.numero || 'N/A'} - ${fiche.type}`, { emitEvent: false });
+            
+            if (fiche.client) {
+                this._pendingPrefillClientName = `${fiche.client.nom || ''} ${fiche.client.prenom || ''}`.trim();
+            }
         }
     }
 
-    prefillFromFiche(ficheId: string, options: { type?: string, source?: string, total?: any } = {}) {
-        const type = options.type || '';
-        const isVerreDoc = ['ACHAT_VERRE_OPTIQUE', 'ACHAT_VERRES_OPTIQUE', 'VERRE_OPTIQUE'].includes(type);
-        const isLentilleDoc = ['ACHAT_LENTILLE', 'ACHAT_LENTILLES', 'LENTILLE'].includes(type);
-        const isGenericDoc = ['FACTURE', 'BL', 'ACHAT_STOCK', 'AUTRE', ''].includes(type);
+    private _isPrefilling = false;
 
-        // Auto-set document type
-        const upperType = type.toUpperCase();
-        if (upperType === 'BL' || upperType.includes('LIVRAISON') || options.source === 'BL' || options.source === 'MANUAL_LINK') {
-            this.documentForm.patchValue({ type: 'BL' });
-            console.log('📋 Prefill: Document type set to BL');
-        } else {
-            this.documentForm.patchValue({ type: 'FACTURE' });
-            console.log('📋 Prefill: Document type set to FACTURE');
+    prefillFromFiche(ficheId: string, options: { type?: string, source?: string, total?: any } = {}) {
+        if (this._isPrefilling) return;
+        this._isPrefilling = true;
+
+        console.log(`🚀 [Prefill] Starting prefill for Fiche ID: ${ficheId}`, options);
+        setTimeout(() => this.snackBar.open('Importation des produits depuis le dossier...', 'Patientez', { duration: 2000 }));
+        
+        try {
+            // Immediate deduplication: Remove any existing items from THIS fiche to avoid duplicates
+            const originalCount = this.stagedProducts.length;
+            this.stagedProducts = this.stagedProducts.filter(p => p._prefillFicheId !== ficheId);
+            if (this.stagedProducts.length !== originalCount) {
+                console.log(`🧹 [Prefill] Removed ${originalCount - this.stagedProducts.length} duplicate items for this fiche`);
+                this.dataSource.data = [...this.stagedProducts];
+            }
+
+            const type = options.type || '';
+            const isVerreDoc = ['ACHAT_VERRE_OPTIQUE', 'ACHAT_VERRES_OPTIQUE', 'VERRE_OPTIQUE'].includes(type.toUpperCase());
+            const isLentilleDoc = ['ACHAT_LENTILLE', 'ACHAT_LENTILLES', 'LENTILLE'].includes(type.toUpperCase());
+            const isGenericDoc = ['FACTURE', 'BL', 'ACHAT_STOCK', 'AUTRE', ''].includes(type.toUpperCase());
+    
+            this.ficheService.getFicheById(ficheId).pipe(
+                timeout(8000),
+                catchError(err => {
+                    console.error('❌ [Prefill] Error fetching fiche:', err);
+                    this.snackBar.open('Erreur: Dossier introuvable ou inaccessible', 'Fermer', { duration: 5000 });
+                    this._isPrefilling = false;
+                    return of(null);
+                })
+            ).subscribe({
+                next: (fiche: any) => {
+                    if (!fiche) return;
+
+                    // Capture client name for dossier linking
+                    if (fiche.client) {
+                        this._pendingPrefillClientName = `${fiche.client.nom || ''} ${fiche.client.prenom || ''}`.trim();
+                        console.log('👤 [Prefill] Linked to client:', this._pendingPrefillClientName);
+                    }
+
+                    const ficheType = (fiche.type || '').toUpperCase();
+                    const hasVerres = !!fiche.verres;
+                    const hasLentilles = !!fiche.lentilles;
+                    const hasMonture = !!fiche.monture;
+                    
+                    // Logic: If it's a generic document or we forced a link, we check everything the fiche has
+                    const isGeneric = ['FACTURE', 'BL', 'ACHAT_STOCK', 'AUTRE', ''].includes(type.toUpperCase());
+                    const forceVerre = type.toUpperCase().includes('VERRE') || type.toUpperCase().includes('GLASS');
+                    const forceLentille = type.toUpperCase().includes('LENTILLE') || type.toUpperCase().includes('LENS');
+
+                    console.log(`🎯 [Prefill] Logic: isGeneric=${isGeneric}, FicheType=${ficheType}, hasVerres=${hasVerres}, hasMonture=${hasMonture}`);
+                    const total = options.total || 0;
+                    // --- Prefill Execution ---
+                    let productsAdded = false;
+
+                    // 1. Handle Glasses (Verres)
+                    if (forceVerre || (isGeneric && hasVerres)) {
+                        const verres = fiche.verres;
+                        if (verres) {
+                            productsAdded = true;
+                            const isDifferentODOG = verres.differentODOG === true;
+                            
+                            // Get glass data (brands, etc.)
+                            const data$ = (this.glassData$ || of({ brands: [], materials: [], treatments: [] })).pipe(
+                                take(1),
+                                timeout(5000),
+                                catchError(() => of({ brands: [], materials: [], treatments: [] }))
+                            );
+
+                            data$.subscribe((p: any) => {
+                                console.log('🔍 [Prefill] Glass Data available:', {
+                                    materialsCount: p.materials?.length,
+                                    treatmentsCount: p.treatments?.length
+                                });
+
+                                const buildPrefill = (marque: string, indice: string, traitement: any, side: string, qty: number) => {
+                                    const tArr = Array.isArray(traitement) ? traitement : (traitement ? [traitement] : []);
+                                    const traits = tArr.join(' ');
+                                    const nom = `Verre ${marque || ''} ${indice || ''} ${traits}`.trim() || `Verre ${side}`;
+                                    
+                                    // Purchase price from BL (divided by 2 for OD/OG)
+                                    const prixAchatHT = total > 0 ? total / 2 : 0;
+
+                                    // Selling price from parameters
+                                    let prixVenteConfigured = 0;
+                                    const searchIdx = (indice || '').replace(',', '.').toLowerCase();
+                                    
+                                    // Robust Index Search
+                                    const allIndices = p.materials.flatMap((m: any) => m.indices);
+                                    const foundIndex = allIndices.find((i: any) => {
+                                        const label = i.label.replace(',', '.').toLowerCase();
+                                        return label === searchIdx || searchIdx.includes(label) || label.includes(searchIdx);
+                                    });
+                                    
+                                    if (foundIndex) {
+                                        prixVenteConfigured += (foundIndex.price || 0);
+                                        console.log(`✅ [Prefill] Found Index: ${foundIndex.label} | Price: ${foundIndex.price}`);
+                                        
+                                        // Add treatments
+                                        const foundTraits = p.treatments.filter((t: any) => 
+                                            tArr.some((vt: string) => {
+                                                const vtl = vt.toLowerCase();
+                                                const tl = t.name.toLowerCase();
+                                                return tl.includes(vtl) || vtl.includes(tl);
+                                            })
+                                        );
+                                        const treatPrice = foundTraits.reduce((acc: number, t: any) => acc + (t.price || 0), 0);
+                                        prixVenteConfigured += treatPrice;
+                                        if (foundTraits.length > 0) {
+                                            console.log(`✅ [Prefill] Found ${foundTraits.length} Treatments | Total Price: ${treatPrice}`);
+                                        }
+                                    } else {
+                                        console.warn(`⚠️ [Prefill] Index not found for: "${indice}"`);
+                                    }
+
+                                    // NEW: Price from Fiche (Dossier Client)
+                                    let prixFromFiche = 0;
+                                    if (side === 'OD') prixFromFiche = parseFloat(String(verres.prixOD || 0));
+                                    else if (side === 'OG') prixFromFiche = parseFloat(String(verres.prixOG || 0));
+                                    else if (side === 'PAIRE') prixFromFiche = parseFloat(String(verres.prix || 0));
+
+                                    // Priority: 1. Fiche Price, 2. Parameter Price, 3. Purchase Price
+                                    const finalPrixVente = prixFromFiche > 0 ? prixFromFiche : (prixVenteConfigured > 0 ? prixVenteConfigured : prixAchatHT);
+                                    const margeToReachTarget = finalPrixVente - prixAchatHT;
+
+                                    if (prixFromFiche > 0) {
+                                        console.log(`💎 [Prefill] Using Price from Fiche for ${side}: ${prixFromFiche}`);
+                                    }
+
+                                    console.log(`💰 [Prefill] Final Pricing for ${side}: P.Achat=${prixAchatHT}, P.Vente=${finalPrixVente}`);
+
+                                    return {
+                                        categorie: 'VERRE',
+                                        nom,
+                                        quantite: qty,
+                                        prixAchat: parseFloat(prixAchatHT.toFixed(2)),
+                                        prixVente: parseFloat(finalPrixVente.toFixed(2)),
+                                        margeFixe: parseFloat(margeToReachTarget.toFixed(2)),
+                                        tva: 20,
+                                        modePrix: 'FIXE',
+                                        marque: marque || '',
+                                        reference: `${marque || 'VERRE'}-${indice || 'INDEX'}`.toUpperCase()
+                                    };
+                                };
+
+                                if (isDifferentODOG) {
+                                    this.entryForm.patchValue(buildPrefill(verres.marqueOD || verres.marque, verres.indiceOD || verres.indice, verres.traitementOD || verres.traitement, 'OD', 1));
+                                    this.addProduct(ficheId);
+                                    setTimeout(() => {
+                                        this.entryForm.patchValue(buildPrefill(verres.marqueOG || verres.marque, verres.indiceOG || verres.indice, verres.traitementOG || verres.traitement, 'OG', 1));
+                                        this.addProduct(ficheId);
+                                    }, 400);
+                                } else {
+                                    this.entryForm.patchValue(buildPrefill(verres.marque, verres.indice, verres.traitement, 'PAIRE', 2));
+                                    this.addProduct(ficheId);
+                                }
+                            });
+                        }
+                    }
+
+                    // 2. Handle Frame (Monture)
+                    if (isGeneric && hasMonture) {
+                        productsAdded = true;
+                        setTimeout(() => {
+                            this.prefillFrame(fiche, ficheId);
+                        }, 1000);
+                    }
+
+                    // 3. Handle Lentilles
+                    if (forceLentille || (isGeneric && hasLentilles)) {
+                        productsAdded = true;
+                        const lentilles = fiche.lentilles;
+                        const nom = `Lentille ${lentilles?.type || ''} ${lentilles?.usage || ''}`.trim() || 'Lentille Fiche';
+                        this.entryForm.patchValue({
+                            categorie: 'LENTILLE',
+                            nom,
+                            quantite: 2,
+                            prixAchat: 0,
+                            prixVente: 0,
+                            tva: 20,
+                            modePrix: 'FIXE'
+                        });
+                        this.addProduct(ficheId);
+                    }
+
+                    if (!productsAdded) {
+                        console.warn('⚠️ [Prefill] No products matching criteria were found in this fiche');
+                        this.snackBar.open('Dossier vide ou incompatible avec ce type de document', 'OK', { duration: 3000 });
+                    }
+                    this._isPrefilling = false;
+                },
+                error: (err: any) => {
+                    console.error('❌ [Prefill] Observable error:', err);
+                    this._isPrefilling = false;
+                }
+            });
+        } catch (err) {
+            console.error('❌ [Prefill] Fatal error during prefill:', err);
+            this.snackBar.open('Erreur lors du pré-remplissage automatique', 'Fermer', { duration: 5000 });
+            this._isPrefilling = false;
+        }
+    }
+
+    private prefillFrame(fiche: any, ficheId: string) {
+        const monture = fiche.monture;
+        const prefMonture = {
+            categorie: 'MONTURE_OPTIQUE',
+            nom: `${monture.marque || ''} ${monture.modele || ''}`.trim() || 'Monture Fiche',
+            marque: monture.marque || '',
+            reference: monture.modele || '',
+            codeBarre: monture.codeBarre || '',
+            quantite: 1,
+            prixAchat: 0,
+            prixVente: parseFloat(String(monture.prix || 0)),
+            tva: 20,
+            modePrix: 'FIXE'
+        };
+        
+        if (prefMonture.prixVente > 0) {
+            console.log(`💎 [Prefill] Using Frame Price from Fiche: ${prefMonture.prixVente}`);
         }
         
-        console.log(`🔍 [Prefill] Fetching fiche detail for ID: ${ficheId}`);
-        this.ficheService.getFicheById(ficheId).subscribe((fiche: any) => {
-            if (fiche) {
-                console.log('📄 [Prefill] Fiche loaded:', fiche);
-                const isVerre = isVerreDoc || (isGenericDoc && fiche.type === TypeFiche.MONTURE);
-                const isLentille = isLentilleDoc || (isGenericDoc && fiche.type === TypeFiche.LENTILLES);
-                
-                console.log(`🎯 [Prefill] Logic: isVerre=${isVerre}, isLentille=${isLentille}, FicheType=${fiche.type}`);
-
-                // Try to match supplier if present in fiche
-                if (fiche.fournisseur && this.suppliersList) {
-                    const matchedSupplier = this.suppliersList.find(s => 
-                        s.nom.toLowerCase().includes(fiche.fournisseur.toLowerCase())
-                    );
-                    if (matchedSupplier) {
-                        this.documentForm.patchValue({ fournisseurId: matchedSupplier.id });
-                        console.log('✅ [Prefill] Supplier matched:', matchedSupplier.nom);
-                    }
-                }
-
-                let prefillData: any = {};
-                const totalStr = options.total;
-                const total = totalStr ? Number(totalStr) : (fiche.montantTotal || 0);
-                // For lenses, we usually have 2 units. So unitary price is total/2.
-                const prixUnitaire = total > 0 ? total / 2 : 0;
-
-                if (isVerre && (fiche.type === TypeFiche.MONTURE || (fiche as any).verres)) {
-                    const verres = (fiche as any).verres;
-                    if (!verres) {
-                        console.warn('⚠️ [Prefill] Expected verres details but found none on fiche');
-                        return;
-                    }
-
-                    const traits = verres.traitement ? verres.traitement.join(' ') : '';
-                    prefillData = {
-                        categorie: 'VERRE',
-                        nom: `Verre ${verres.type || ''} ${verres.indice || ''} ${traits}`.trim(),
-                        quantite: 2,
-                        prixAchat: parseFloat(prixUnitaire.toFixed(2)),
-                        marque: verres.marque || ''
-                    };
-
-                    console.log('👓 [Prefill] Preparing Glass Entry:', prefillData);
-
-                    this.glassService.getAll().subscribe((p: any) => {
-                        console.log('🧬 [Prefill] Matching glass parameters against DB...');
-                        
-                        const brand = p.brands.find((b: any) => 
-                            verres.marque && (b.name.toLowerCase().includes(verres.marque.toLowerCase()) || verres.marque.toLowerCase().includes(b.name.toLowerCase()))
-                        );
-                        
-                        const index = p.materials.flatMap((m: any) => m.indices).find((i: any) => 
-                            verres.indice && (i.label.toLowerCase().includes(verres.indice.toLowerCase()) || verres.indice.toLowerCase().includes(i.label.toLowerCase()))
-                        );
-                        
-                        const material = p.materials.find((m: any) => m.indices.some((idx: any) => idx.id === index?.id));
-                        
-                        let matchedTreatments: string[] = [];
-                        if (verres.traitement && Array.isArray(verres.traitement)) {
-                            matchedTreatments = p.treatments.filter((t: any) => 
-                                verres.traitement.some((vt: string) => t.name.toLowerCase().includes(vt.toLowerCase()) || vt.toLowerCase().includes(t.name.toLowerCase()))
-                            ).map((t: any) => t.id);
-                        }
-
-                        console.log('✨ [Prefill] Match results:', { brand: brand?.name, material: material?.name, index: index?.label, treatmentsCount: matchedTreatments.length });
-
-                        this.entryForm.patchValue({
-                            ...prefillData,
-                            glassBrandId: brand?.id || '',
-                            glassMaterialId: material?.id || '',
-                            glassIndexId: index?.id || '',
-                            glassTreatmentIds: matchedTreatments
-                        });
-
-                        this.generateGlassName();
-                        
-                        // Small delay to let reactive forms update (quantities, prices)
-                        setTimeout(() => {
-                            console.log('🚀 [Prefill] Forcing add to basket...');
-                            this.forceAddProduct();
-                        }, 800);
-                    });
-
-                } else if (isLentille && (fiche.type === TypeFiche.LENTILLES || (fiche as any).lentilles)) {
-                    const lentilles = (fiche as any).lentilles;
-                    prefillData = {
-                        categorie: 'LENTILLE',
-                        nom: `Lentille ${lentilles.type || ''} ${lentilles.usage || ''}`.trim(),
-                        quantite: 2,
-                        prixAchat: parseFloat(prixUnitaire.toFixed(2))
-                    };
-                    this.entryForm.patchValue(prefillData);
-                    setTimeout(() => this.forceAddProduct(), 800);
-                }
-            }
-        });
+        console.log('➕ [Prefill] Adding Frame (Monture)...');
+        this.entryForm.patchValue(prefMonture);
+        this._pendingPrefillFicheId = ficheId; 
+        this.forceAddProduct();
     }
 
     generateGlassName() {
@@ -628,26 +782,42 @@ export class StockEntryV2Component implements OnInit {
             this.glassMaterials$,
             this.glassIndices$,
             this.glassTreatments$
-        ]).pipe(take(1)).subscribe(([brands, materials, indices, treatments]) => {
-            const brand = brands.find(b => b.id === val.glassBrandId);
-            const material = materials.find(m => m.id === val.glassMaterialId);
-            const index = indices.find(i => i.id === val.glassIndexId);
-            const selectedTraits = treatments.filter(t => val.glassTreatmentIds?.includes(t.id));
+        ]).pipe(take(1)).subscribe(([brands, materials, indices, treatments]: [any[], any[], any[], any[]]) => {
+            const brand = brands.find((b: any) => b.id === val.glassBrandId);
+            const material = materials.find((m: any) => m.id === val.glassMaterialId);
+            const index = indices.find((i: any) => i.id === val.glassIndexId);
+            const selectedTraits = treatments.filter((t: any) => val.glassTreatmentIds?.includes(t.id));
+
 
             let name = 'Verre';
-            if (brand) name += ` ${brand.name}`;
-            if (index) name += ` ${index.label}`;
+            let hasValidProperties = false;
+            
+            if (brand) {
+                name += ` ${brand.name}`;
+                hasValidProperties = true;
+            }
+            if (index) {
+                name += ` ${index.label}`;
+                hasValidProperties = true;
+            }
             if (selectedTraits.length > 0) {
-                name += ` (${selectedTraits.map(t => t.name).join(', ')})`;
+                name += ` (${selectedTraits.map((t: any) => t.name).join(', ')})`;
+                hasValidProperties = true;
             }
 
             // CALCUL DU PRIX DE VENTE FIXE (Depuis la DB)
             let fixedSellingPrice = index?.price || 0;
-            selectedTraits.forEach(t => fixedSellingPrice += t.price || 0);
+            selectedTraits.forEach((t: any) => fixedSellingPrice += t.price || 0);
+
+            // Ne pas écraser un 'nom' pré-rempli riche par un simple 'Verre' si on n'a rien matché
+            if (!hasValidProperties && val.nom && val.nom !== 'Verre' && val.nom.trim().length > 5) {
+                name = val.nom; // Keep the existing rich name
+            }
 
             this.entryForm.patchValue({ 
                 nom: name,
-                prixVente: fixedSellingPrice,
+                marque: brand ? brand.name : val.marque, // Update marque explicitly if a brand is resolved
+                prixVente: fixedSellingPrice > 0 ? fixedSellingPrice : val.prixVente,
                 modePrix: 'FIXE', // Les verres utilisent des prix fixes configurés
                 margeFixe: 0      // On réinitialise la marge manuelle pour les verres
             }, { emitEvent: false });
@@ -658,11 +828,13 @@ export class StockEntryV2Component implements OnInit {
         const val = this.entryForm.getRawValue();
         const designation = val.nom || val.reference || 'Produit';
         
-        this.addProduct();
+        // Pass the prefill ID if any
+        this.addProduct(this._pendingPrefillFicheId);
         
         // Confirmation feedback
-        this.snackBar.open(`✅ ${designation} ajouté au panier`, 'OK', { duration: 3000 });
+        setTimeout(() => this.snackBar.open(`✅ ${designation} ajouté au panier`, 'OK', { duration: 3000 }));
     }
+
     setupDuplicateCheck() {
         this.documentForm.valueChanges.pipe(
             debounceTime(500),
@@ -679,7 +851,7 @@ export class StockEntryV2Component implements OnInit {
         ).subscribe(res => {
             if (res && res.exists) {
                 this.duplicateInvoice = res.invoice;
-                this.snackBar.open(`Attention: La facture ${this.duplicateInvoice.numeroFacture} existe déjà pour ce fournisseur.`, 'Compris', { duration: 10000 });
+                setTimeout(() => this.snackBar.open(`Attention: La facture ${this.duplicateInvoice.numeroFacture} existe déjà pour ce fournisseur.`, 'Compris', { duration: 10000 }));
             } else {
                 this.duplicateInvoice = null;
             }
@@ -710,7 +882,7 @@ export class StockEntryV2Component implements OnInit {
             this.isSearching = false;
             if (results && results.length > 0) {
                 this.foundProduct = results[0];
-                this.snackBar.open(`Produit existant détecté : ${this.foundProduct.nom}`, 'OK', { duration: 2000 });
+                setTimeout(() => this.snackBar.open(`Produit existant détecté : ${this.foundProduct.nom}`, 'OK', { duration: 2000 }));
                 // We don't auto-patch to avoid overwriting user intent, 
                 // but we store it in foundProduct for addProduct.
             } else {
@@ -746,7 +918,7 @@ export class StockEntryV2Component implements OnInit {
         dialogRef.afterClosed().subscribe((result: any) => {
             if (result && result.success) {
                 this.stagedProducts = [];
-                this.productsSubject.next([]);
+                this.dataSource.data = [];
                 this.documentForm.reset({ type: 'FACTURE', date: new Date() });
             }
         });
@@ -754,15 +926,24 @@ export class StockEntryV2Component implements OnInit {
 
     // --- Staging Logic ---
 
-    addProduct() {
-        if (this.entryForm.invalid) return;
+    addProduct(prefillFicheId?: string | null) {
+        if (this.entryForm.invalid) {
+            console.error('⚠️ [StockEntryV2] Form invalid, cannot add product:', this.entryForm.errors);
+            const missing = Object.keys(this.entryForm.controls).filter(k => this.entryForm.controls[k].invalid);
+            console.log('📝 [StockEntryV2] Invalid fields:', missing);
+            setTimeout(() => this.snackBar.open(`Champs obligatoires manquants : ${missing.join(', ')}`, 'Fermer', { duration: 5000 }));
+            return;
+        }
+
+        console.log('📦 [StockEntryV2] Adding product to basket...', this.entryForm.getRawValue());
+
 
         const val = this.entryForm.getRawValue();
         const isVerre = val.categorie === 'VERRE';
 
         // Validation: Must have at least a reference OR a barcode (Bypassed for VERRE)
         if (!isVerre && !val.reference?.trim() && !val.codeBarre?.trim()) {
-            this.snackBar.open('Veuillez saisir une référence ou un code-barres', 'OK', { duration: 3000 });
+            setTimeout(() => this.snackBar.open('Veuillez saisir une référence ou un code-barres', 'OK', { duration: 3000 }));
             return;
         }
 
@@ -780,8 +961,14 @@ export class StockEntryV2Component implements OnInit {
             reference: finalRef,
             codeBarre: val.codeBarre,
             entrepotId: globalWh,
+            _prefillFicheId: prefillFicheId || undefined,
+            nomClient: this._pendingPrefillClientName || undefined,
             ...val
         };
+
+        // Keep pending prefill if it was used, so user can add more items for same client
+        // this._pendingPrefillFicheId = null; 
+        // this._pendingPrefillClientName = null;
 
         // If existing product, attach stock info and calculate WAP preview
         if (this.foundProduct) {
@@ -795,11 +982,47 @@ export class StockEntryV2Component implements OnInit {
             );
         }
 
-        this.stagedProducts = [...this.stagedProducts, product];
-        this.productsSubject.next(this.stagedProducts);
+        // [DEDUPLICATION] Check if product already exists in basket
+        const productRef = (product.reference || '').trim().toLowerCase();
+        const productCat = product.categorie;
+        const productCB = (product.codeBarre || '').trim();
+        const productFiche = product._prefillFicheId;
+
+        const existingIndex = this.stagedProducts.findIndex(p => {
+            const pRef = (p.reference || '').trim().toLowerCase();
+            const pCB = (p.codeBarre || '').trim();
+            return pRef === productRef && p.categorie === productCat && pCB === productCB && p._prefillFicheId === productFiche;
+        });
+
+        if (existingIndex !== -1) {
+            console.log('🔄 [StockEntryV2] Product exists, merging...', product.reference);
+            const updatedProducts = [...this.stagedProducts];
+            const existing = { ...updatedProducts[existingIndex] };
+            
+            existing.quantite = Number(existing.quantite) + Number(product.quantite);
+            existing.prixAchat = product.prixAchat;
+            existing.prixVente = product.prixVente;
+            existing.tva = product.tva;
+            
+            updatedProducts[existingIndex] = existing;
+            this.stagedProducts = updatedProducts;
+        } else {
+            console.log('➕ [StockEntryV2] Adding new product to basket:', product.reference);
+            this.stagedProducts = [...this.stagedProducts, product];
+        }
+
+        // Notify data source
+        this.dataSource.data = this.stagedProducts;
+        this.refreshStats();
+        console.log(`✅ [StockEntryV2] Product added! Basket size: ${this.stagedProducts.length}`);
+        this.scrollToBasket();
 
         this.entryForm.reset({
             categorie: 'MONTURE_OPTIQUE',
+            nom: '',
+            reference: '',
+            marque: '',
+            codeBarre: '',
             quantite: 1,
             prixAchat: 0,
             tva: 20,
@@ -807,7 +1030,6 @@ export class StockEntryV2Component implements OnInit {
             coefficient: 2.5,
             margeFixe: 0,
             prixVente: 0,
-            codeBarre: '',
             glassBrandId: '',
             glassMaterialId: '',
             glassIndexId: '',
@@ -819,12 +1041,13 @@ export class StockEntryV2Component implements OnInit {
 
     removeProduct(tempId: string) {
         this.stagedProducts = this.stagedProducts.filter(p => p.tempId !== tempId);
-        this.productsSubject.next(this.stagedProducts);
+        this.dataSource.data = [...this.stagedProducts];
+        this.refreshStats();
     }
 
     splitProduct(element: StagedProduct) {
         if (element.quantite <= 1) {
-            this.snackBar.open('Quantité insuffisante pour scinder', 'OK', { duration: 2000 });
+            setTimeout(() => this.snackBar.open('Quantité insuffisante pour scinder', 'OK', { duration: 2000 }));
             return;
         }
 
@@ -841,9 +1064,9 @@ export class StockEntryV2Component implements OnInit {
         const index = this.stagedProducts.findIndex(p => p.tempId === element.tempId);
         this.stagedProducts.splice(index + 1, 0, clone);
         this.stagedProducts = [...this.stagedProducts];
-        this.productsSubject.next(this.stagedProducts);
+        this.dataSource.data = [...this.stagedProducts];
 
-        this.snackBar.open('Article scindé', 'OK', { duration: 2000 });
+        setTimeout(() => this.snackBar.open('Article scindé', 'OK', { duration: 2000 }));
     }
 
     updateProduct(element: StagedProduct) {
@@ -854,8 +1077,9 @@ export class StockEntryV2Component implements OnInit {
             element.prixVente = parseFloat((Number(element.prixAchat) + Number(element.margeFixe)).toFixed(2));
         }
 
-        // Notify subject
-        this.productsSubject.next(this.stagedProducts);
+        // Notify data source
+        this.dataSource.data = [...this.stagedProducts];
+        this.refreshStats();
     }
 
     applyBatchPricing() {
@@ -893,8 +1117,9 @@ export class StockEntryV2Component implements OnInit {
             }
         });
 
-        this.productsSubject.next(this.stagedProducts);
-        this.snackBar.open(`Paramètres appliqués à ${this.stagedProducts.length} article(s)`, 'OK', { duration: 2000 });
+        this.dataSource.data = [...this.stagedProducts];
+        this.refreshStats();
+        setTimeout(() => this.snackBar.open(`Paramètres appliqués à ${this.stagedProducts.length} article(s)`, 'OK', { duration: 2000 }));
     }
     // --- OCR Logic (Max Best Effort) ---
 
@@ -939,11 +1164,13 @@ export class StockEntryV2Component implements OnInit {
             if (result.error) {
                 this.ocrError = result.error;
                 this.ocrProcessing = false;
-                this.snackBar.open(`⚠️ ${result.error}`, 'Utiliser OCR Local', { duration: 10000 })
-                    .onAction().subscribe(() => {
-                        this.useIntelligentOcr = false;
-                        this.processOCR(file);
-                    });
+                setTimeout(() => {
+                    this.snackBar.open(`⚠️ ${result.error}`, 'Utiliser OCR Local', { duration: 10000 })
+                        .onAction().subscribe(() => {
+                            this.useIntelligentOcr = false;
+                            this.processOCR(file);
+                        });
+                });
                 return;
             }
 
@@ -1036,7 +1263,7 @@ export class StockEntryV2Component implements OnInit {
                 this.isIntelligentOcr = true;
                 this.addIntelligentArticles(items);
                 this.showOcrData = false;
-                this.snackBar.open(`✅ ${items.length} articles extraits par l'IA !`, 'OK', { duration: 5000 });
+                setTimeout(() => this.snackBar.open(`✅ ${items.length} articles extraits par l'IA !`, 'OK', { duration: 5000 }));
                 return;
             }
 
@@ -1071,9 +1298,9 @@ export class StockEntryV2Component implements OnInit {
                 this.showOcrData = true;
             }
 
-            this.snackBar.open(`✅ Analyse terminée : ${this.splitLines.length} ligne(s) brute(s) détectée(s)`, 'OK', {
+            setTimeout(() => this.snackBar.open(`✅ Analyse terminée : ${this.splitLines.length} ligne(s) brute(s) détectée(s)`, 'OK', {
                 duration: 3000
-            });
+            }));
 
         } catch (err: any) {
             console.error('OCR Failed', err);
@@ -1128,7 +1355,7 @@ export class StockEntryV2Component implements OnInit {
 
         this.maxColumns = Math.max(...this.splitLines.map(l => l.columns.length));
         this.initializeDefaultMappings();
-        this.snackBar.open(`Redécoupage effectué : ${strategy}`, 'OK', { duration: 2000 });
+        setTimeout(() => this.snackBar.open(`Redécoupage effectué : ${strategy}`, 'OK', { duration: 2000 }));
     }
 
     getColumnArray(): number[] {
@@ -1235,9 +1462,28 @@ export class StockEntryV2Component implements OnInit {
             addedCount++;
         });
 
-        // Add to basket
-        this.stagedProducts = [...this.stagedProducts, ...newProducts];
-        this.productsSubject.next(this.stagedProducts);
+        // Add to basket with deduplication
+        newProducts.forEach(product => {
+            const existingIndex = this.stagedProducts.findIndex(p => 
+                (p.reference || '').trim().toLowerCase() === (product.reference || '').trim().toLowerCase() && 
+                p.categorie === product.categorie &&
+                ((p.codeBarre || '').trim() === (product.codeBarre || '').trim()) &&
+                p._prefillFicheId === product._prefillFicheId
+            );
+
+            if (existingIndex !== -1) {
+                const existing = this.stagedProducts[existingIndex];
+                existing.quantite += product.quantite;
+                existing.prixAchat = product.prixAchat;
+                existing.prixVente = product.prixVente;
+            } else {
+                this.stagedProducts.push(product);
+            }
+        });
+
+        this.stagedProducts = [...this.stagedProducts]; // Trigger change detection
+        this.dataSource.data = [...this.stagedProducts];
+        this.scrollToBasket();
 
         // Close OCR panel or clear it?
         // Let's keep it visible or hide it? User might want to re-scan.
@@ -1246,7 +1492,7 @@ export class StockEntryV2Component implements OnInit {
         this.splitLines = [];
         this.showOcrData = false;
 
-        this.snackBar.open(`${addedCount} articles ajoutés au panier !`, 'OK', { duration: 3000 });
+        setTimeout(() => this.snackBar.open(`${addedCount} articles ajoutés au panier !`, 'OK', { duration: 3000 }));
     }
 
     createAndSelectSupplier(name: string) {
@@ -1263,7 +1509,7 @@ export class StockEntryV2Component implements OnInit {
         const sponsorRegex = new RegExp(`\\s+(${sponsors.join('|')})[\\s\\S]*`, 'i');
         cleanName = cleanName.replace(sponsorRegex, '').trim();
 
-        this.snackBar.open(`Création automatique du fournisseur : ${cleanName}...`, 'Patientez', { duration: 2000 });
+        setTimeout(() => this.snackBar.open(`Création automatique du fournisseur : ${cleanName}...`, 'Patientez', { duration: 2000 }));
 
         // Create with just the name as requested, avoiding validation errors on empty email
         this.financeService.createSupplier({ nom: cleanName }).subscribe({
@@ -1274,11 +1520,11 @@ export class StockEntryV2Component implements OnInit {
 
                 // 2. Select it
                 this.documentForm.patchValue({ fournisseurId: newSupplier.id });
-                this.snackBar.open(`Fournisseur créé et sélectionné : ${newSupplier.nom}`, 'OK', { duration: 3000 });
+                setTimeout(() => this.snackBar.open(`Fournisseur créé et sélectionné : ${newSupplier.nom}`, 'OK', { duration: 3000 }));
             },
             error: (err) => {
                 console.error('[OCR] Failed to create supplier:', err);
-                this.snackBar.open(`Erreur lors de la création du fournisseur ${cleanName}`, 'Fermer');
+                setTimeout(() => this.snackBar.open(`Erreur lors de la création du fournisseur ${cleanName}`, 'Fermer'));
             }
         });
     }
@@ -1367,8 +1613,8 @@ export class StockEntryV2Component implements OnInit {
         });
 
         this.stagedProducts = [...this.stagedProducts, ...newProducts];
-        this.productsSubject.next(this.stagedProducts);
-        this.snackBar.open(`✅ ${newProducts.length} articles extraits par l'IA !`, 'OK', { duration: 5000 });
+        this.dataSource.data = [...this.stagedProducts];
+        setTimeout(() => this.snackBar.open(`✅ ${newProducts.length} articles extraits par l'IA !`, 'OK', { duration: 5000 }));
     }
 
     private resolveCategory(inputCategory: string | undefined, designation: string): string {
@@ -1413,7 +1659,7 @@ export class StockEntryV2Component implements OnInit {
 
                 // Update Form
                 this.documentForm.patchValue({ file: file });
-                this.snackBar.open('Document scanné avec succès', 'OK', { duration: 2000 });
+                setTimeout(() => this.snackBar.open('Document scanné avec succès', 'OK', { duration: 2000 }));
 
                 // Trigger OCR
                 this.processOCR(file);
@@ -1570,12 +1816,12 @@ export class StockEntryV2Component implements OnInit {
         if (this.submitting) return;
 
         if (this.duplicateInvoice) {
-            this.snackBar.open('Opération impossible : Cette facture existe déjà pour ce fournisseur.', 'Compris', { duration: 5000 });
+            setTimeout(() => this.snackBar.open('Opération impossible : Cette facture existe déjà pour ce fournisseur.', 'Compris', { duration: 5000 }));
             return;
         }
 
         if (this.documentForm.invalid || this.stagedProducts.length === 0) {
-            this.snackBar.open('Veuillez compléter les informations du document et ajouter des produits', 'OK', { duration: 3000 });
+            setTimeout(() => this.snackBar.open('Veuillez compléter les informations du document et ajouter des produits', 'OK', { duration: 3000 }));
             return;
         }
 
@@ -1587,11 +1833,11 @@ export class StockEntryV2Component implements OnInit {
             allAllocations.push({
                 productId: p.id,
                 reference: p.reference,
-                codeBarre: p.codeBarre, // Nouveau: Passer le code barre propre
-                nom: p.nom.split(']')[0].split('1040')[0].trim(), // Nettoyage agressif des résidus OCR
+                codeBarre: p.codeBarre,
+                nom: p.nom.split(']')[0].split('1040')[0].trim(),
                 marque: p.marque,
                 categorie: p.categorie,
-                warehouseId: p.entrepotId,
+                warehouseId: p.entrepotId || centreId, // Use item warehouse or fallback to global/center
                 quantite: Number(p.quantite),
                 prixAchat: Number(p.prixAchat),
                 prixVente: Number(p.prixVente),
@@ -1601,7 +1847,8 @@ export class StockEntryV2Component implements OnInit {
                 genre: p.genre,
                 couleur: p.couleur,
                 calibre: p.calibre,
-                pont: p.pont
+                pont: p.pont,
+                ficheId: p._prefillFicheId // Send the specific ficheId for this product
             });
         });
 
@@ -1628,6 +1875,8 @@ export class StockEntryV2Component implements OnInit {
             centreId: centreId,
             base64File: base64File,
             fileName: fileName,
+            ficheId: doc.ficheId, // Inclus l'ID de la fiche pour la sortie auto
+            userId: this.currentUser() || undefined, // Send the current user ID
             allocations: allAllocations
         };
 
@@ -1713,7 +1962,7 @@ export class StockEntryV2Component implements OnInit {
             finalize(() => this.submitting = false)
         ).subscribe({
             next: (res: any) => {
-                this.snackBar.open('Stock alimenté avec succès !', 'OK', { duration: 3000 });
+                setTimeout(() => this.snackBar.open('Stock alimenté avec succès !', 'OK', { duration: 3000 }));
 
                 const completePayment = confirm('Stock alimenté. Souhaitez-vous maintenant compléter les modalités de paiement pour cette facture ?');
                 if (completePayment && res && res.id) {
@@ -1729,12 +1978,20 @@ export class StockEntryV2Component implements OnInit {
             },
             error: (err) => {
                 const msg = err.error?.message || 'Erreur lors de l\'enregistrement';
-                this.snackBar.open(msg, 'OK', { duration: 5000 });
+                setTimeout(() => this.snackBar.open(msg, 'OK', { duration: 5000 }));
             }
         });
     }
 
+    resetAll() {
+        if (confirm('Voulez-vous vraiment réinitialiser tout le formulaire et vider le panier ?')) {
+            this.resetAfterSave();
+            setTimeout(() => this.snackBar.open('Formulaire réinitialisé', 'OK', { duration: 3000 }));
+        }
+    }
+
     clearDocument() {
+
         if (confirm('Voulez-vous vraiment vider tout le panier ?')) {
             this.resetAfterSave();
         }
@@ -1742,8 +1999,29 @@ export class StockEntryV2Component implements OnInit {
 
     private resetAfterSave() {
         this.stagedProducts = [];
-        this.productsSubject.next([]);
+        this.dataSource.data = [];
+        this.entryForm.reset({
+            categorie: 'MONTURE_OPTIQUE',
+            nom: '',
+            reference: '',
+            marque: '',
+            codeBarre: '',
+            quantite: 1,
+            prixAchat: 0,
+            tva: 20,
+            modePrix: 'FIXE',
+            coefficient: 2.5,
+            margeFixe: 0,
+            prixVente: 0,
+            glassBrandId: '',
+            glassMaterialId: '',
+            glassIndexId: '',
+            glassTreatmentIds: []
+        });
         this.documentForm.reset({ type: 'FACTURE', date: new Date(), centreId: this.currentCentre()?.id });
+        this.clientSearchCtrl.setValue('');
+        this.ficheSearchCtrl.setValue('');
+        this._pendingPrefillFicheId = null;
         this.refreshStats();
     }
 
@@ -1776,5 +2054,14 @@ export class StockEntryV2Component implements OnInit {
         // Replace comma with dot and remove spaces
         const cleaned = value.toString().replace(/\s/g, '').replace(',', '.');
         return parseFloat(cleaned) || 0;
+    }
+
+    private scrollToBasket() {
+        setTimeout(() => {
+            const basketElement = document.querySelector('.basket-summary');
+            if (basketElement) {
+                basketElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 300);
     }
 }

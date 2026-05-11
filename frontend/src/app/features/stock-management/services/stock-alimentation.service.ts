@@ -12,6 +12,8 @@ export interface BulkAlimentationPayload {
     base64File?: string;
     fileName?: string;
     dateEcheance?: string;
+    ficheId?: string;
+    userId?: string;
     allocations: {
         productId?: string;
         reference: string;
@@ -29,6 +31,7 @@ export interface BulkAlimentationPayload {
         genre?: string;
         calibre?: string;
         pont?: string;
+        ficheId?: string;
         specificData?: any;
     }[];
 }

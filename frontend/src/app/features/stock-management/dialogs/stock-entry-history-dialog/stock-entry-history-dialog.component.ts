@@ -157,7 +157,7 @@ export class StockEntryHistoryDialogComponent implements OnInit {
     getWarehouseSummary(element: any): any[] {
         const summary = new Map<string, number>();
         element.mouvementsStock?.forEach((m: any) => {
-            const warehouseName = m.entrepotDestination?.nom || 'Inconnu';
+            const warehouseName = m.entrepotDestination?.nom || m.entrepotSource?.nom || 'Entrepôt non spécifié';
             const current = summary.get(warehouseName) || 0;
             summary.set(warehouseName, current + m.quantite);
         });

@@ -15,7 +15,10 @@ export class LoggerMiddleware implements NestMiddleware {
       const contentLength = response.get('content-length');
       const duration = Date.now() - start;
 
-      if ((method === 'POST' || method === 'PATCH') && originalUrl.includes('facture')) {
+      if (
+        (method === 'POST' || method === 'PATCH') &&
+        originalUrl.includes('facture')
+      ) {
         this.logger.log(`📦 [BODY] ${JSON.stringify(request.body)}`);
       }
 

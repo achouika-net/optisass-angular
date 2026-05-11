@@ -103,7 +103,7 @@ export class StatsService {
     'ANNULEE',
   ];
 
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async getRevenueEvolution(
     period: 'daily' | 'monthly' | 'yearly',
@@ -218,7 +218,7 @@ export class StatsService {
       },
       select: {
         lignes: true,
-        fiche: { select: { type: true } }
+        fiche: { select: { type: true } },
       },
     });
 
@@ -231,16 +231,18 @@ export class StatsService {
           // Support both imported lines (qte, prixUnitaireTTC) and regular lines (quantite, prixUnitaireHT)
           const qty = l.qte ?? l.quantite ?? 0;
           const price = l.prixUnitaireHT ?? l.prixUnitaireTTC ?? 0;
-          const lineTotal = l.totalHT ?? l.totalTTC ?? (qty * price);
+          const lineTotal = l.totalHT ?? l.totalTTC ?? qty * price;
 
           // Use typeArticle if set, otherwise infer from fiche type or description
           let type = l.typeArticle;
           if (!type && l.description) {
             const desc = String(l.description).toLowerCase();
-            if (desc.includes('verre') || desc.includes('verres')) type = 'VERRE';
+            if (desc.includes('verre') || desc.includes('verres'))
+              type = 'VERRE';
             else if (desc.includes('monture')) type = 'MONTURE';
             else if (desc.includes('lentille')) type = 'LENTILLES';
-            else if (desc.includes('produit') || desc.includes('accessoire')) type = 'ACCESSOIRE';
+            else if (desc.includes('produit') || desc.includes('accessoire'))
+              type = 'ACCESSOIRE';
           }
           if (!type && f.fiche?.type) {
             // Map fiche type to article category
@@ -527,8 +529,8 @@ export class StatsService {
       this.prisma.product.count({
         where: centreId
           ? {
-            entrepot: { centreId },
-          }
+              entrepot: { centreId },
+            }
           : {},
       }),
       this.prisma.client.count({
@@ -546,8 +548,8 @@ export class StatsService {
         by: ['typeArticle'],
         where: centreId
           ? {
-            entrepot: { centreId },
-          }
+              entrepot: { centreId },
+            }
           : {},
         _count: { _all: true },
       }),
@@ -594,7 +596,8 @@ export class StatsService {
     productsBreakdown.forEach((group: any) => {
       const rawType = group.typeArticle || 'NON_DÉFINI';
       const type = normalizeProductType(rawType);
-      productsStats[type] = (productsStats[type] || 0) + (group._count?._all || 0);
+      productsStats[type] =
+        (productsStats[type] || 0) + (group._count?._all || 0);
     });
 
     return {
@@ -615,23 +618,37 @@ export class StatsService {
   async getRealProfit(startDate?: string, endDate?: string, centreId?: string) {
     try {
       const tenantId =
-        centreId && centreId.trim() && centreId !== 'undefined' && centreId !== 'null' && centreId !== ''
+        centreId &&
+        centreId.trim() &&
+        centreId !== 'undefined' &&
+        centreId !== 'null' &&
+        centreId !== ''
           ? centreId
           : undefined;
       const start =
-        startDate && startDate !== 'undefined' && startDate !== 'null' && startDate !== ''
+        startDate &&
+        startDate !== 'undefined' &&
+        startDate !== 'null' &&
+        startDate !== ''
           ? new Date(startDate)
           : new Date(1970, 0, 1);
       const end =
-        endDate && endDate !== 'undefined' && endDate !== 'null' && endDate !== ''
+        endDate &&
+        endDate !== 'undefined' &&
+        endDate !== 'null' &&
+        endDate !== ''
           ? new Date(endDate)
           : new Date(3000, 0, 1);
 
       const centreFilter = tenantId ? { centreId: tenantId } : {};
-      const activeStatus = { statut: { notIn: ['ARCHIVE', 'ANNULEE'] as any[] } };
+      const activeStatus = {
+        statut: { notIn: ['ARCHIVE', 'ANNULEE'] as any[] },
+      };
       const dateFilter = { dateEmission: { gte: start, lte: end } };
 
-      console.log(`[STATS-PROFIT] Start: ${start.toISOString()}, End: ${end.toISOString()}, Tenant: ${tenantId}`);
+      console.log(
+        `[STATS-PROFIT] Start: ${start.toISOString()}, End: ${end.toISOString()}, Tenant: ${tenantId}`,
+      );
 
       // ─────────────────────────────────────────────────────────────────────
       // ÉTAPE 1 ► Source de vérité unique : même logique que SalesControlService
@@ -668,7 +685,13 @@ export class StatsService {
 
       // 1a. ficheIds des FACTURES validées → dépistage des BCs déjà convertis
       const facturesWithFiche = await this.prisma.facture.findMany({
-        where: { ...centreFilter, type: 'FACTURE', ficheId: { not: null }, ...activeStatus, ...dateFilter },
+        where: {
+          ...centreFilter,
+          type: 'FACTURE',
+          ficheId: { not: null },
+          ...activeStatus,
+          ...dateFilter,
+        },
         select: { ficheId: true },
       });
       const factureFicheIds = facturesWithFiche
@@ -680,7 +703,12 @@ export class StatsService {
         // Factures officielles
         this.prisma.facture.aggregate({
           _sum: { totalTTC: true },
-          where: { ...centreFilter, type: 'FACTURE', ...activeStatus, ...dateFilter },
+          where: {
+            ...centreFilter,
+            type: 'FACTURE',
+            ...activeStatus,
+            ...dateFilter,
+          },
         }),
         // Bons de Commande non encore facturés (déduplication DB)
         this.prisma.facture.aggregate({
@@ -700,7 +728,12 @@ export class StatsService {
         // Avoirs (à soustraire du CA)
         this.prisma.facture.aggregate({
           _sum: { totalTTC: true },
-          where: { ...centreFilter, type: 'AVOIR', ...activeStatus, ...dateFilter },
+          where: {
+            ...centreFilter,
+            type: 'AVOIR',
+            ...activeStatus,
+            ...dateFilter,
+          },
         }),
       ]);
 
@@ -732,17 +765,24 @@ export class StatsService {
       const allFicheIds = [
         ...new Set([
           ...factureFicheIds,
-          ...(await this.prisma.facture.findMany({
-            where: {
-              ...centreFilter,
-              type: { in: ['BON_COMMANDE', 'BON_COMM'] },
-              ...activeStatus,
-              ficheId: { notIn: factureFicheIds, not: null },
-              OR: [{ notes: { not: { contains: 'Remplacée par' } } }, { notes: null }],
-              ...dateFilter,
-            },
-            select: { ficheId: true },
-          })).map((d) => d.ficheId).filter((id): id is string => !!id),
+          ...(
+            await this.prisma.facture.findMany({
+              where: {
+                ...centreFilter,
+                type: { in: ['BON_COMMANDE', 'BON_COMM'] },
+                ...activeStatus,
+                ficheId: { notIn: factureFicheIds, not: null },
+                OR: [
+                  { notes: { not: { contains: 'Remplacée par' } } },
+                  { notes: null },
+                ],
+                ...dateFilter,
+              },
+              select: { ficheId: true },
+            })
+          )
+            .map((d) => d.ficheId)
+            .filter((id): id is string => !!id),
         ]),
       ];
 
@@ -791,7 +831,8 @@ export class StatsService {
       ]);
 
       const totalExpenses =
-        (expensesAgg._sum.montant || 0) + (purchaseExpensesAgg._sum.montantTTC || 0);
+        (expensesAgg._sum.montant || 0) +
+        (purchaseExpensesAgg._sum.montantTTC || 0);
 
       // ─────────────────────────────────────────────────────────────────────
       // ÉTAPE 4 ► Ventilations détaillées (breakdown)
@@ -823,11 +864,17 @@ export class StatsService {
       const combinedBreakdownMap = new Map<string, number>();
       expenseBreakdown.forEach((e) => {
         const key = e.categorie || 'AUTRES';
-        combinedBreakdownMap.set(key, (combinedBreakdownMap.get(key) || 0) + (e._sum.montant || 0));
+        combinedBreakdownMap.set(
+          key,
+          (combinedBreakdownMap.get(key) || 0) + (e._sum.montant || 0),
+        );
       });
       purchaseBreakdown.forEach((p) => {
         const key = p.type || 'AUTRES CHARGES';
-        combinedBreakdownMap.set(key, (combinedBreakdownMap.get(key) || 0) + (p._sum.montantTTC || 0));
+        combinedBreakdownMap.set(
+          key,
+          (combinedBreakdownMap.get(key) || 0) + (p._sum.montantTTC || 0),
+        );
       });
       const formattedBreakdown = Array.from(combinedBreakdownMap.entries())
         .map(([category, amount]) => ({
@@ -849,31 +896,47 @@ export class StatsService {
         ${tenantId ? Prisma.sql`AND f."centreId" = ${tenantId}` : Prisma.sql``}
         GROUP BY p."typeArticle"
       `;
-      const cogsBreakdownResult = await this.prisma.$queryRaw<any[]>(cogsBreakdownQuery);
+      const cogsBreakdownResult =
+        await this.prisma.$queryRaw<any[]>(cogsBreakdownQuery);
       const cogsMap = new Map<string, number>();
       cogsBreakdownResult.forEach((r) => {
         const cat = r.category || 'AUTRES STOCKS';
-        cogsMap.set(cat, (cogsMap.get(cat) || 0) + Math.abs(Number(r.amount || 0)));
+        cogsMap.set(
+          cat,
+          (cogsMap.get(cat) || 0) + Math.abs(Number(r.amount || 0)),
+        );
       });
       if (allFicheIds.length > 0) {
-        const linkedBlsBreakdown = await this.prisma.factureFournisseur.groupBy({
-          by: ['type'],
-          where: { ficheId: { in: allFicheIds } },
-          _sum: { montantTTC: true },
-        });
+        const linkedBlsBreakdown = await this.prisma.factureFournisseur.groupBy(
+          {
+            by: ['type'],
+            where: { ficheId: { in: allFicheIds } },
+            _sum: { montantTTC: true },
+          },
+        );
         linkedBlsBreakdown.forEach((b) => {
           const cat = b.type || 'ACHAT_VERRE_LIE';
           cogsMap.set(cat, (cogsMap.get(cat) || 0) + (b._sum.montantTTC || 0));
         });
       }
       if (cogsMap.size === 0 && rawCogs > 0) {
-        const inventoryPurchases = await this.prisma.factureFournisseur.groupBy({
-          by: ['type'],
-          where: { dateEmission: { gte: start, lte: end }, type: { in: this.INVENTORY_PURCHASE_TYPES }, ...centreFilter },
-          _sum: { montantTTC: true },
-        });
+        const inventoryPurchases = await this.prisma.factureFournisseur.groupBy(
+          {
+            by: ['type'],
+            where: {
+              dateEmission: { gte: start, lte: end },
+              type: { in: this.INVENTORY_PURCHASE_TYPES },
+              ...centreFilter,
+            },
+            _sum: { montantTTC: true },
+          },
+        );
         inventoryPurchases.forEach((p) => {
-          cogsMap.set(p.type || 'AUTRES STOCKS', (cogsMap.get(p.type || 'AUTRES STOCKS') || 0) + (p._sum.montantTTC || 0));
+          cogsMap.set(
+            p.type || 'AUTRES STOCKS',
+            (cogsMap.get(p.type || 'AUTRES STOCKS') || 0) +
+              (p._sum.montantTTC || 0),
+          );
         });
       }
       const formattedCogsBreakdown = Array.from(cogsMap.entries())
@@ -919,14 +982,16 @@ export class StatsService {
     endDate?: string,
     centreId?: string,
   ) {
-    console.log(`[StatsService] getProfitEvolution called with: period=${period}, start=${startDate}, end=${endDate}`);
+    console.log(
+      `[StatsService] getProfitEvolution called with: period=${period}, start=${startDate}, end=${endDate}`,
+    );
     try {
       const tenantId =
         centreId &&
-          centreId.trim() &&
-          centreId !== 'undefined' &&
-          centreId !== 'null' &&
-          centreId !== ''
+        centreId.trim() &&
+        centreId !== 'undefined' &&
+        centreId !== 'null' &&
+        centreId !== ''
           ? centreId
           : undefined;
 
@@ -942,14 +1007,17 @@ export class StatsService {
           where: {
             centreId: tenantId || undefined,
             statut: { notIn: ['ARCHIVE'] },
-            type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR', 'DEVIS'] },
+            type: {
+              in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR', 'DEVIS'],
+            },
           },
           _min: { dateEmission: true },
           _max: { dateEmission: true },
         });
 
         if (!start) {
-          const minDate = range._min.dateEmission || new Date(new Date().getFullYear(), 0, 1);
+          const minDate =
+            range._min.dateEmission || new Date(new Date().getFullYear(), 0, 1);
           start = new Date(minDate);
           start.setHours(0, 0, 0, 0);
         }
@@ -960,9 +1028,14 @@ export class StatsService {
         }
       }
 
-      console.log(`[StatsService] Final range for evolution: ${start.toISOString()} to ${end.toISOString()}`);
+      console.log(
+        `[StatsService] Final range for evolution: ${start.toISOString()} to ${end.toISOString()}`,
+      );
 
-      const monthsMap = new Map<string, { revenue: number; cogs: number; expenses: number }>();
+      const monthsMap = new Map<
+        string,
+        { revenue: number; cogs: number; expenses: number }
+      >();
 
       const formatKey = (date: Date) => {
         if (period === 'daily') {
@@ -991,11 +1064,20 @@ export class StatsService {
           type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR'] },
           ...(tenantId ? { centreId: tenantId } : {}),
         },
-        select: { dateEmission: true, totalHT: true, totalTTC: true, type: true, ficheId: true, notes: true },
+        select: {
+          dateEmission: true,
+          totalHT: true,
+          totalTTC: true,
+          type: true,
+          ficheId: true,
+          notes: true,
+        },
       });
 
       const facturesWithFicheIds = new Set(
-        facturesRaw.filter(f => f.type === 'FACTURE' && f.ficheId).map(f => f.ficheId)
+        facturesRaw
+          .filter((f) => f.type === 'FACTURE' && f.ficheId)
+          .map((f) => f.ficheId),
       );
 
       facturesRaw.forEach((f) => {
@@ -1004,7 +1086,8 @@ export class StatsService {
 
         // Skip if BC is factured/deduplicated via fiche
         const isBC = f.type === 'BON_COMMANDE' || f.type === 'BON_COMM';
-        const isFacturedViaFiche = isBC && f.ficheId && facturesWithFicheIds.has(f.ficheId);
+        const isFacturedViaFiche =
+          isBC && f.ficheId && facturesWithFicheIds.has(f.ficheId);
 
         // Skip if BC is factured via notes (for anonymous clients)
         const isFacturedViaNote = isBC && f.notes?.includes('Remplacée par');
@@ -1048,7 +1131,9 @@ export class StatsService {
         if (!monthsMap.has(key)) return;
         const entry = monthsMap.get(key)!;
 
-        const isInventory = this.INVENTORY_PURCHASE_TYPES.includes(f.type || '');
+        const isInventory = this.INVENTORY_PURCHASE_TYPES.includes(
+          f.type || '',
+        );
         if (isInventory) {
           entry.cogs += f.montantTTC || 0;
         } else {
@@ -1066,7 +1151,9 @@ export class StatsService {
         }))
         .sort((a, b) => a.month.localeCompare(b.month));
 
-      console.log(`[StatsService] getProfitEvolution returning ${sortedResult.length} data points`);
+      console.log(
+        `[StatsService] getProfitEvolution returning ${sortedResult.length} data points`,
+      );
       return sortedResult;
     } catch (error) {
       console.error('[Stats-Profit] Evolution Error:', error);

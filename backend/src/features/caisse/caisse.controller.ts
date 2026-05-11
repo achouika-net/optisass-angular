@@ -13,7 +13,7 @@ import { UpdateCaisseDto } from './dto/update-caisse.dto';
 
 @Controller('caisse')
 export class CaisseController {
-  constructor(private readonly caisseService: CaisseService) { }
+  constructor(private readonly caisseService: CaisseService) {}
 
   @Post()
   create(@Body() createCaisseDto: CreateCaisseDto) {

@@ -380,19 +380,17 @@ export class SupplierInvoicesService {
           ...cleanedInvoiceData,
           echeances: echeances
             ? {
-                create: echeances.map(
-                  (e: EcheanceInput) => ({
-                    type: e.type,
-                    dateEcheance:
-                      normalizeToUTCNoon(e.dateEcheance) || new Date(),
-                    dateEncaissement: normalizeToUTCNoon(e.dateEncaissement),
-                    montant: Number(e.montant || 0),
-                    statut: e.statut,
-                    reference: e.reference || null,
-                    banque: e.banque || null,
-                    remarque: e.remarque || null,
-                  }),
-                ),
+                create: echeances.map((e: EcheanceInput) => ({
+                  type: e.type,
+                  dateEcheance:
+                    normalizeToUTCNoon(e.dateEcheance) || new Date(),
+                  dateEncaissement: normalizeToUTCNoon(e.dateEncaissement),
+                  montant: Number(e.montant || 0),
+                  statut: e.statut,
+                  reference: e.reference || null,
+                  banque: e.banque || null,
+                  remarque: e.remarque || null,
+                })),
               }
             : undefined,
         },
@@ -466,7 +464,9 @@ export class SupplierInvoicesService {
       });
 
       await Promise.all(
-        productIds.filter((pid): pid is string => pid !== null).map((pid) => this.productsService.syncProductState(pid, tx)),
+        productIds
+          .filter((pid): pid is string => pid !== null)
+          .map((pid) => this.productsService.syncProductState(pid, tx)),
       );
 
       // 4. Delete linked echeances
@@ -612,26 +612,28 @@ export class SupplierInvoicesService {
             childBLs: {
               connect: blIds.map((id) => ({ id })),
             },
-            echeances: echeances && echeances.length > 0
-              ? {
-                  create: echeances
-                    .filter((e: EcheanceInput) => {
-                      // Skip if this looks like a payment already on the BLs (to avoid duplicates)
-                      // The UI usually pre-fills these, so we don't want to create them again
-                      // if we are going to move them anyway.
-                      // Note: This is a heuristic, but IDs would be better if available.
-                      return !e.id; 
-                    })
-                    .map((e: EcheanceInput) => ({
-                      type: e.type,
-                      dateEcheance: normalizeToUTCNoon(e.dateEcheance) || new Date(),
-                      montant: Number(e.montant || 0),
-                      statut: e.statut,
-                      reference: e.reference || null,
-                      banque: e.banque || null,
-                    })),
-                }
-              : undefined,
+            echeances:
+              echeances && echeances.length > 0
+                ? {
+                    create: echeances
+                      .filter((e: EcheanceInput) => {
+                        // Skip if this looks like a payment already on the BLs (to avoid duplicates)
+                        // The UI usually pre-fills these, so we don't want to create them again
+                        // if we are going to move them anyway.
+                        // Note: This is a heuristic, but IDs would be better if available.
+                        return !e.id;
+                      })
+                      .map((e: EcheanceInput) => ({
+                        type: e.type,
+                        dateEcheance:
+                          normalizeToUTCNoon(e.dateEcheance) || new Date(),
+                        montant: Number(e.montant || 0),
+                        statut: e.statut,
+                        reference: e.reference || null,
+                        banque: e.banque || null,
+                      })),
+                  }
+                : undefined,
           },
           include: {
             childBLs: true,
@@ -643,9 +645,9 @@ export class SupplierInvoicesService {
         // 2. Update grouped BLs status to VALIDEE and link them
         await tx.bonLivraison.updateMany({
           where: { id: { in: blIds } },
-          data: { 
+          data: {
             statut: 'VALIDEE',
-            factureFournisseurId: invoice.id 
+            factureFournisseurId: invoice.id,
           },
         });
 

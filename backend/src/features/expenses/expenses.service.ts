@@ -5,7 +5,7 @@ import { normalizeToUTCNoon } from '../../shared/utils/date-utils';
 
 @Injectable()
 export class ExpensesService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async create(createExpenseDto: CreateExpenseDto) {
     const { reference, dateEcheance, fournisseurId, banque, ...data } =
@@ -239,12 +239,15 @@ export class ExpensesService {
         });
 
         // Strategy: Prefer DEPENSES or MIXTE registers for expenses
-        const openSession = openJournees.find(j => j.caisse.type === 'DEPENSES') || 
-                            openJournees.find(j => j.caisse.type === 'MIXTE') || 
-                            openJournees[0];
+        const openSession =
+          openJournees.find((j) => j.caisse.type === 'DEPENSES') ||
+          openJournees.find((j) => j.caisse.type === 'MIXTE') ||
+          openJournees[0];
 
         if (openSession) {
-          console.log(`[ExpensesService] Linked to caisse session ${openSession.id} (${openSession.caisse.nom})`);
+          console.log(
+            `[ExpensesService] Linked to caisse session ${openSession.id} (${openSession.caisse.nom})`,
+          );
           // Check funds ONLY for Cash
           let sufficientFunds = true;
           if (data.modePaiement === 'ESPECES') {
@@ -290,7 +293,10 @@ export class ExpensesService {
             });
 
             // Update session totals ONLY for Cash (ESPECES)
-            if (data.modePaiement === 'ESPECES' || data.modePaiement === 'ESPECE') {
+            if (
+              data.modePaiement === 'ESPECES' ||
+              data.modePaiement === 'ESPECE'
+            ) {
               await tx.journeeCaisse.update({
                 where: { id: openSession.id },
                 data: {
@@ -299,7 +305,10 @@ export class ExpensesService {
               });
             }
           }
-        } else if (data.modePaiement === 'ESPECES' || data.modePaiement === 'ESPECE') {
+        } else if (
+          data.modePaiement === 'ESPECES' ||
+          data.modePaiement === 'ESPECE'
+        ) {
           throw new BadRequestException(
             'Aucune caisse ouverte appropriée (DEPENSES/MIXTE) trouvée pour ce centre.',
           );
@@ -310,7 +319,13 @@ export class ExpensesService {
     });
   }
 
-  async findAll(centreId?: string, startDate?: string, endDate?: string, page?: number, limit?: number) {
+  async findAll(
+    centreId?: string,
+    startDate?: string,
+    endDate?: string,
+    page?: number,
+    limit?: number,
+  ) {
     const whereClause: any = {};
 
     if (centreId) {
@@ -420,39 +435,42 @@ export class ExpensesService {
   public async cleanupTreasuryImpact(expenseId: string, tx: any) {
     const expense = await tx.depense.findUnique({
       where: { id: expenseId },
-      include: { 
+      include: {
         creeParUser: true,
-        echeance: true 
-      }
+        echeance: true,
+      },
     });
 
     if (!expense) return;
 
     // 1. Find the related OperationCaisse
     const operation = await tx.operationCaisse.findFirst({
-      where: { reference: expenseId }
+      where: { reference: expenseId },
     });
 
     if (operation) {
       // 2. If it was a cash expense, decrement totalDepenses in JourneeCaisse
-      if (operation.moyenPaiement === 'ESPECES' || operation.moyenPaiement === 'ESPECE') {
+      if (
+        operation.moyenPaiement === 'ESPECES' ||
+        operation.moyenPaiement === 'ESPECE'
+      ) {
         await tx.journeeCaisse.update({
           where: { id: operation.journeeCaisseId },
           data: {
-            totalDepenses: { decrement: operation.montant }
-          }
+            totalDepenses: { decrement: operation.montant },
+          },
         });
       }
 
       // 3. Delete the operation
       await tx.operationCaisse.delete({
-        where: { id: operation.id }
+        where: { id: operation.id },
       });
     }
 
     // 4. Handle DemandeAlimentation (if any)
     await tx.demandeAlimentation.deleteMany({
-      where: { depenseId: expenseId }
+      where: { depenseId: expenseId },
     });
   }
 
@@ -461,14 +479,15 @@ export class ExpensesService {
       // 1. Fetch expense with links before deletion
       const expense = await tx.depense.findUnique({
         where: { id },
-        include: { echeance: true }
+        include: { echeance: true },
       });
 
       if (!expense) return null;
 
       const echeanceId = expense.echeanceId;
       const blId = expense.bonLivraisonId || expense.echeance?.bonLivraisonId;
-      const factureId = expense.factureFournisseurId || expense.echeance?.factureFournisseurId;
+      const factureId =
+        expense.factureFournisseurId || expense.echeance?.factureFournisseurId;
 
       // 2. Impact cleanup (Treasury)
       await this.cleanupTreasuryImpact(id, tx);
@@ -480,7 +499,7 @@ export class ExpensesService {
           data: {
             statut: 'EN_ATTENTE',
             dateEncaissement: null,
-          }
+          },
         });
       }
 
@@ -508,9 +527,9 @@ export class ExpensesService {
   private async syncBonLivraisonStatus(blId: string, tx: any) {
     const bl = await tx.bonLivraison.findUnique({
       where: { id: blId },
-      include: { 
+      include: {
         echeances: true,
-        depense: true 
+        depense: true,
       },
     });
 
@@ -521,11 +540,14 @@ export class ExpensesService {
         .reduce((sum, e) => sum + e.montant, 0);
 
       // Check for standalone expense (if any remains)
-      const directPaid = (bl.depense && (bl.depense.statut === 'VALIDE' || bl.depense.statut === 'VALIDEE')) 
-        ? bl.depense.montant 
-        : 0;
+      const directPaid =
+        bl.depense &&
+        (bl.depense.statut === 'VALIDE' || bl.depense.statut === 'VALIDEE')
+          ? bl.depense.montant
+          : 0;
 
-      const totalPaid = Math.round((totalPaidEcheances + directPaid) * 100) / 100;
+      const totalPaid =
+        Math.round((totalPaidEcheances + directPaid) * 100) / 100;
       const roundedTotalTTC = Math.round(bl.montantTTC * 100) / 100;
 
       let newStatus = 'EN_ATTENTE';
@@ -535,7 +557,9 @@ export class ExpensesService {
         newStatus = 'PARTIELLE';
       } else {
         const hasScheduled = activeEcheances.some(
-          (e) => (e.type === 'CHEQUE' || e.type === 'LCN') && e.statut === 'EN_ATTENTE',
+          (e) =>
+            (e.type === 'CHEQUE' || e.type === 'LCN') &&
+            e.statut === 'EN_ATTENTE',
         );
         newStatus = hasScheduled ? 'PARTIELLE' : 'EN_ATTENTE';
       }
@@ -553,24 +577,27 @@ export class ExpensesService {
   private async syncFactureFournisseurStatus(factureId: string, tx: any) {
     const facture = await tx.factureFournisseur.findUnique({
       where: { id: factureId },
-      include: { 
+      include: {
         echeances: true,
-        depenses: true // Note: FactureFournisseur can have multiple depenses
+        depenses: true, // Note: FactureFournisseur can have multiple depenses
       },
     });
 
     if (facture) {
-      const activeEcheances = facture.echeances.filter((e) => e.statut !== 'ANNULE');
+      const activeEcheances = facture.echeances.filter(
+        (e) => e.statut !== 'ANNULE',
+      );
       const totalPaidEcheances = activeEcheances
         .filter((e) => e.statut === 'ENCAISSE')
         .reduce((sum, e) => sum + e.montant, 0);
 
       // Sum all directly linked valid expenses
       const totalDirectExpenses = (facture.depenses || [])
-        .filter(d => d.statut === 'VALIDE' || d.statut === 'VALIDEE')
+        .filter((d) => d.statut === 'VALIDE' || d.statut === 'VALIDEE')
         .reduce((sum, d) => sum + d.montant, 0);
 
-      const totalPaid = Math.round((totalPaidEcheances + totalDirectExpenses) * 100) / 100;
+      const totalPaid =
+        Math.round((totalPaidEcheances + totalDirectExpenses) * 100) / 100;
       const roundedTotalTTC = Math.round(facture.montantTTC * 100) / 100;
 
       let newStatus = 'EN_ATTENTE';
@@ -580,7 +607,9 @@ export class ExpensesService {
         newStatus = 'PARTIELLE';
       } else {
         const hasScheduled = activeEcheances.some(
-          (e) => (e.type === 'CHEQUE' || e.type === 'LCN') && e.statut === 'EN_ATTENTE',
+          (e) =>
+            (e.type === 'CHEQUE' || e.type === 'LCN') &&
+            e.statut === 'EN_ATTENTE',
         );
         newStatus = hasScheduled ? 'PARTIELLE' : 'EN_ATTENTE';
       }

@@ -363,10 +363,12 @@ export class JourneeCaisseService {
 
     // 2. Aggregate Local Stats (Current Session OR Today for Principal/Mixte) - Database side
     console.time('GetResume-Step2-LocalStats');
-    
-    const isPrincipalOrMixte = (journee.caisse as any).type === 'PRINCIPALE' || (journee.caisse as any).type === 'MIXTE';
-    
-    // Default: current session only. 
+
+    const isPrincipalOrMixte =
+      (journee.caisse as any).type === 'PRINCIPALE' ||
+      (journee.caisse as any).type === 'MIXTE';
+
+    // Default: current session only.
     // IF Principal/Mixte and NO date filter, we aggregate everything from TODAY to avoid "losing" payments made in a previous session of the same day.
     let localWhere: any = { journeeCaisseId: id };
     if (isPrincipalOrMixte && Object.keys(dateFilter).length === 0) {
@@ -374,15 +376,15 @@ export class JourneeCaisseService {
       todayStart.setHours(0, 0, 0, 0);
       const todayEnd = new Date();
       todayEnd.setHours(23, 59, 59, 999);
-      
+
       localWhere = {
         journeeCaisse: { caisseId: journee.caisseId },
-        createdAt: { gte: todayStart, lte: todayEnd }
+        createdAt: { gte: todayStart, lte: todayEnd },
       };
     } else if (Object.keys(dateFilter).length > 0) {
       localWhere = {
         journeeCaisse: { caisseId: journee.caisseId },
-        createdAt: dateFilter
+        createdAt: dateFilter,
       };
     }
 
@@ -425,7 +427,11 @@ export class JourneeCaisseService {
             stats.grossVentesCarte += amount;
             stats.netVentesCarte += amount;
             stats.nbVentesCarte += count;
-          } else if (moyenPaiement === 'CHEQUE' || moyenPaiement === 'LCN' || moyenPaiement === 'CHÈQUE') {
+          } else if (
+            moyenPaiement === 'CHEQUE' ||
+            moyenPaiement === 'LCN' ||
+            moyenPaiement === 'CHÈQUE'
+          ) {
             stats.grossVentesCheque += amount;
             stats.netVentesCheque += amount;
             stats.nbVentesCheque += count;
@@ -434,7 +440,10 @@ export class JourneeCaisseService {
             stats.netVentesPriseEnCharge += amount;
             stats.nbVentesPriseEnCharge += count;
           }
-        } else if (typeOperation === 'INTERNE' && (moyenPaiement === 'ESPECES' || moyenPaiement === 'ESPECE')) {
+        } else if (
+          typeOperation === 'INTERNE' &&
+          (moyenPaiement === 'ESPECES' || moyenPaiement === 'ESPECE')
+        ) {
           stats.totalInterneIn += amount;
         }
       } else if (type === 'DECAISSEMENT') {
@@ -509,7 +518,10 @@ export class JourneeCaisseService {
       globalStats.forEach((stat) => {
         const amount = stat._sum.montant || 0;
         const count = stat._count.id || 0;
-        if (stat.moyenPaiement === 'ESPECES' || stat.moyenPaiement === 'ESPECE') {
+        if (
+          stat.moyenPaiement === 'ESPECES' ||
+          stat.moyenPaiement === 'ESPECE'
+        ) {
           centreVentesEspeces += amount;
         } else if (stat.moyenPaiement === 'CARTE') {
           centreVentesCarte += amount;
@@ -540,9 +552,12 @@ export class JourneeCaisseService {
       },
       fondInitial: journee.fondInitial || 0,
       // Recettes Card
-      totalRecettes: isDepenses 
-        ? stats.totalInterneIn 
-        : stats.netVentesEspeces + stats.netVentesCarte + stats.netVentesCheque + stats.netVentesPriseEnCharge,
+      totalRecettes: isDepenses
+        ? stats.totalInterneIn
+        : stats.netVentesEspeces +
+          stats.netVentesCarte +
+          stats.netVentesCheque +
+          stats.netVentesPriseEnCharge,
       recettesDetails: {
         espaces: isDepenses ? stats.totalInterneIn : stats.netVentesEspeces, // Alimentation arrives in cash
         carte: isDepenses ? 0 : stats.netVentesCarte,

@@ -557,10 +557,11 @@ export class PayrollService {
     annee?: number,
     centreId?: string,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
   ) {
     const now = new Date();
-    const effectiveMois = mois || (now.getMonth() + 1).toString().padStart(2, '0');
+    const effectiveMois =
+      mois || (now.getMonth() + 1).toString().padStart(2, '0');
     const effectiveAnnee = annee && !isNaN(annee) ? annee : now.getFullYear();
 
     const currentWhere: any = {

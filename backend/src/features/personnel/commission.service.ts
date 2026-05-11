@@ -5,7 +5,7 @@ import { UpdateCommissionRuleDto } from './dto/update-commission-rule.dto';
 
 @Injectable()
 export class CommissionService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async createRule(dto: CreateCommissionRuleDto) {
     return this.prisma.commissionRule.create({ data: dto });
@@ -166,9 +166,7 @@ export class CommissionService {
           continue;
         }
 
-        const montantCom = Number(
-          (lineAmount * (rule.taux / 100)).toFixed(2)
-        );
+        const montantCom = Number((lineAmount * (rule.taux / 100)).toFixed(2));
 
         // Validate commission is positive and finite
         if (!isFinite(montantCom) || montantCom < 0) {

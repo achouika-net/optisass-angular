@@ -91,7 +91,9 @@ export class PersonnelController {
 
   @Post('commission-rules/bulk-upsert')
   upsertCommissionRulesBulk(@Body() rules: any[]) {
-    console.log(`📦 [PersonnelController] Received bulk upsert for ${rules.length} rules`);
+    console.log(
+      `📦 [PersonnelController] Received bulk upsert for ${rules.length} rules`,
+    );
     return this.commissionService.upsertBulkRules(rules);
   }
 
@@ -115,7 +117,9 @@ export class PersonnelController {
 
   @Delete('commission-rules/by-poste/:poste')
   deleteCommissionRulesByPoste(@Param('poste') poste: string) {
-    console.log(`🗑️ [PersonnelController] Deleting all rules for poste: ${poste}`);
+    console.log(
+      `🗑️ [PersonnelController] Deleting all rules for poste: ${poste}`,
+    );
     return this.commissionService.deleteRulesByPoste(poste);
   }
 

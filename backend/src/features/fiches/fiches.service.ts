@@ -30,13 +30,29 @@ interface EyeData {
   secretionLacrimale?: string | number;
 }
 
+export interface BCItem {
+  date: Date | string;
+  numero: string;
+  fournisseur: string;
+  motive: string;
+  isCurrent?: boolean;
+}
+
+export interface HistoryItem extends BCItem {
+  ficheId: string;
+  ficheNumero: number;
+  ficheType: string;
+  clientDisplayName: string;
+  clientName: string;
+}
+
 interface FicheContent {
   suiviCommande?: {
     fournisseur?: string;
     referenceCommande?: string;
     dateCommande?: Date | string;
     nextBcMotive?: string;
-    bcHistorique?: any[];
+    bcHistorique?: BCItem[];
   };
   ordonnance?: {
     od?: EyeData;
@@ -69,10 +85,10 @@ interface FicheContent {
     marqueOG?: string;
     matiereOG?: string;
     fournisseurOG?: string;
-    traitementOD?: any;
-    traitementOG?: any;
-    traitement?: any;
-    traitements?: any;
+    traitementOD?: string | string[] | null;
+    traitementOG?: string | string[] | null;
+    traitement?: string | string[] | null;
+    traitements?: string | string[] | null;
     indiceOD?: string;
     indice?: string;
     indiceOG?: string;
@@ -80,6 +96,9 @@ interface FicheContent {
     usage?: string;
     preconisationIA_OD?: string;
     preconisationIA_OG?: string;
+    prixOD?: number | string;
+    prixOG?: number | string;
+    prix?: number | string;
   };
   montage?: {
     od?: EyeData;
@@ -99,40 +118,41 @@ interface FicheContent {
     taille?: string;
     modele?: string;
     type?: string;
+    prix?: number | string;
   };
-  bcHistorique?: any[];
+  bcHistorique?: BCItem[];
   configImage?: string;
   virtualCenteringUrl?: string;
   observations?: string;
   remarques?: string;
   preconisationIA_OD?: string;
   preconisationIA_OG?: string;
-  // Legacy fields for Excel imports
-  OD_Sph1?: any;
-  OD_Cyl1?: any;
-  OD_Axe1?: any;
-  OD_Add1?: any;
-  prescOD_EP?: any;
-  prescOD_H?: any;
-  prescOD_Diam?: any;
-  OG_Sph1?: any;
-  OG_Cyl1?: any;
-  OG_Axe1?: any;
-  OG_Add1?: any;
-  prescOG_EP?: any;
-  prescOG_H?: any;
-  prescOG_Diam?: any;
-  Medecin?: any;
-  Prescripteur?: any;
-  Verre1D?: any;
-  Verre1G?: any;
-  PrixV1D?: any;
-  PrixV1G?: any;
-  MarqueM1?: any;
-  Marque?: any;
-  RefM1?: any;
-  Modele?: any;
-  PrixM1?: any;
+  // Legacy fields
+  OD_Sph1?: string | number | null;
+  OD_Cyl1?: string | number | null;
+  OD_Axe1?: string | number | null;
+  OD_Add1?: string | number | null;
+  prescOD_EP?: string | number | null;
+  prescOD_H?: string | number | null;
+  prescOD_Diam?: string | number | null;
+  OG_Sph1?: string | number | null;
+  OG_Cyl1?: string | number | null;
+  OG_Axe1?: string | number | null;
+  OG_Add1?: string | number | null;
+  prescOG_EP?: string | number | null;
+  prescOG_H?: string | number | null;
+  prescOG_Diam?: string | number | null;
+  Medecin?: string | null;
+  Prescripteur?: string | null;
+  Verre1D?: string | null;
+  Verre1G?: string | null;
+  PrixV1D?: number | string | null;
+  PrixV1G?: number | string | null;
+  MarqueM1?: string | null;
+  Marque?: string | null;
+  RefM1?: string | null;
+  Modele?: string | null;
+  PrixM1?: number | string | null;
 }
 
 @Injectable()
@@ -146,7 +166,6 @@ export class FichesService {
   ) {}
 
   async sendOrderEmail(id: string) {
-    // [FIX 5] Parallelize DB queries — all independent fetches run simultaneously
     const [fiche, companySettings] = await Promise.all([
       this.prisma.fiche.findUnique({
         where: { id },
@@ -156,9 +175,6 @@ export class FichesService {
     ]);
 
     if (!fiche) throw new BadRequestException('Fiche introuvable');
-    console.log(
-      `📧 [FichesService] Preparing order email for Fiche #${fiche.numero} (ID: ${id}) Type: ${fiche.type}`,
-    );
 
     const content = (fiche.content as unknown as FicheContent) || {};
     const suivi = content.suiviCommande || {};
@@ -169,14 +185,13 @@ export class FichesService {
       );
     }
 
-    // [FIX 5] Supplier lookup can only happen after we have fournisseur name
     const supplier = await this.prisma.fournisseur.findFirst({
       where: { nom: suivi.fournisseur },
     });
 
     if (!supplier || !supplier.email) {
       throw new BadRequestException(
-        `Email introuvable pour le fournisseur: ${suivi.fournisseur}. Veuillez configurer son adresse email.`,
+        `Email introuvable pour le fournisseur: ${suivi.fournisseur}.`,
       );
     }
 
@@ -186,16 +201,13 @@ export class FichesService {
       cachetUrl: companySettings?.cachetUrl || undefined,
     };
 
-    const clientName =
-      `${fiche.client.prenom || ''} ${fiche.client.nom || ''}`.trim();
+    const clientName = `${fiche.client.prenom || ''} ${
+      fiche.client.nom || ''
+    }`.trim();
     const bcNumber = suivi.referenceCommande || `BC-${fiche.numero}`;
     const date = new Date();
 
-    // Helper for formatting (+1.50, -0.75, etc.)
-    const formatSigned = (
-      val: string | number | null | undefined,
-      fallback = '0.00',
-    ) => {
+    const formatSigned = (val: any, fallback = '0.00') => {
       if (val === null || val === undefined || val === '') return fallback;
       const num = parseFloat(String(val).replace(/,/g, '.'));
       if (isNaN(num)) return String(val);
@@ -209,16 +221,16 @@ export class FichesService {
     if (fiche.type?.toUpperCase() === 'LENTILLES') {
       const lentilles = content.lentilles || {};
       const adaptation = content.adaptation || {};
-      const ordonnance = content.ordonnance || content.prescription || {};
+      const ordonnance =
+        content.ordonnance ||
+        content.prescription ||
+        ({} as Record<string, any>);
 
       const odL = lentilles.od || {};
       const ogL = lentilles.og || (lentilles.diffLentilles ? {} : odL);
-      const odP = ordonnance.od || {};
-      const ogP = ordonnance.og || {};
+      const odP = (ordonnance.od as EyeData) || {};
+      const ogP = (ordonnance.og as EyeData) || {};
 
-      console.log('📄 [FichesService] Generating LENS PDFs (parallel)...');
-
-      // [FIX 5] Generate both PDFs in parallel
       [bcPdf, techPdf] = await Promise.all([
         this.pdfService.generateLensPurchaseOrder({
           bcNumber,
@@ -323,15 +335,12 @@ export class FichesService {
       ]);
       techFileName = `Fiche_Technique_${bcNumber}.pdf`;
     } else {
-      // --- GLASSES (MONTURE) LOGIC ---
-      const ordonnance = content.ordonnance || {};
+      const ordonnance = (content.ordonnance || {}) as Record<string, any>;
       const verres = content.verres || {};
       const montage = content.montage || {};
       const monture = content.monture || {};
 
-      // Helper for Axe and Diameter calculation (Existing logic preserved)
-      const cleanAxe = (val: string | number | null | undefined) =>
-        String(val || '0').replace(/°/g, '');
+      const cleanAxe = (val: any) => String(val || '0').replace(/°/g, '');
       const getStdDiam = (d: number) => {
         const standards = [50, 55, 60, 65, 70, 75, 80, 85];
         return standards.find((s) => s >= d) || 85;
@@ -348,8 +357,8 @@ export class FichesService {
         return { od: isNaN(num) ? null : num, og: isNaN(num) ? null : num };
       };
 
-      const measuredRaw = ((montage as any).diametreEffectif ||
-        (montage as any).diagonalMm) as string;
+      const measuredRaw = (montage.diametreEffectif ||
+        montage.diagonalMm) as string;
       const measured = parseDualValue(measuredRaw);
       const safetyMargin = 3.0;
       const ordered = {
@@ -357,13 +366,13 @@ export class FichesService {
         og: measured.og ? getStdDiam(measured.og + safetyMargin) : 75,
       };
 
-      const getLensBrand = (m?: string, i?: string, f?: string) => {
-        const parts: string[] = [];
-        if (m) parts.push(m);
-        if (i) parts.push(i);
-        let str = parts.join(' ');
-        if (f) str += ` (${f})`;
-        return str.trim() || '-';
+      const getLensBrand = (
+        marque?: string,
+        matiere?: string,
+        fournisseur?: string,
+      ) => {
+        const parts = [marque, matiere, fournisseur].filter(Boolean);
+        return parts.length > 0 ? parts.join(' ').toUpperCase() : 'INCONNU';
       };
 
       const lensDetails = {
@@ -386,8 +395,8 @@ export class FichesService {
             verres.traitementOD || verres.traitement || verres.traitements;
           const tOG =
             verres.traitementOG || verres.traitement || verres.traitements;
-          const a1 = Array.isArray(tOD) ? tOD : [tOD];
-          const a2 = Array.isArray(tOG) ? tOG : [tOG];
+          const a1 = (Array.isArray(tOD) ? tOD : [tOD]) as string[];
+          const a2 = (Array.isArray(tOG) ? tOG : [tOG]) as string[];
           const merged = Array.from(new Set([...a1, ...a2].filter(Boolean)));
           return merged.length > 0
             ? merged.join(', ').toUpperCase()
@@ -408,9 +417,9 @@ export class FichesService {
         typeVerre: verres.type || '-',
       };
 
-      console.log('📄 [FichesService] Generating GLASSES PDFs (parallel)...');
+      const odP = (ordonnance.od as EyeData) || {};
+      const ogP = (ordonnance.og as EyeData) || {};
 
-      // [FIX 5] Generate both PDFs in parallel
       [bcPdf, techPdf] = await Promise.all([
         this.pdfService.generatePurchaseOrder({
           bcNumber,
@@ -420,21 +429,21 @@ export class FichesService {
           designation: branding.companyName,
           prescription: {
             od: {
-              sphere: formatSigned(ordonnance.od?.sphere),
-              cylindre: formatSigned(ordonnance.od?.cylindre),
-              axe: cleanAxe(ordonnance.od?.axe),
-              addition: formatSigned(ordonnance.od?.addition, '-'),
-              ep: String(montage.ecartPupillaireOD || ordonnance.od?.ep || '-'),
+              sphere: formatSigned(odP.sphere),
+              cylindre: formatSigned(odP.cylindre),
+              axe: cleanAxe(odP.axe),
+              addition: formatSigned(odP.addition, '-'),
+              ep: String(montage.ecartPupillaireOD || odP.ep || '-'),
               haut: String(montage.hauteurOD || '-'),
               diametre: String(ordered.od),
               diamUtile: measured.od ? String(measured.od) : '-',
             },
             og: {
-              sphere: formatSigned(ordonnance.og?.sphere),
-              cylindre: formatSigned(ordonnance.og?.cylindre),
-              axe: cleanAxe(ordonnance.og?.axe),
-              addition: formatSigned(ordonnance.og?.addition, '-'),
-              ep: String(montage.ecartPupillaireOG || ordonnance.og?.ep || '-'),
+              sphere: formatSigned(ogP.sphere),
+              cylindre: formatSigned(ogP.cylindre),
+              axe: cleanAxe(ogP.axe),
+              addition: formatSigned(ogP.addition, '-'),
+              ep: String(montage.ecartPupillaireOG || ogP.ep || '-'),
               haut: String(montage.hauteurOG || '-'),
               diametre: String(ordered.og),
               diamUtile: measured.og ? String(measured.og) : '-',
@@ -456,16 +465,16 @@ export class FichesService {
           magasinName: fiche.client?.centre?.nom || branding.companyName,
           prescription: {
             od: {
-              sphere: formatSigned(ordonnance.od?.sphere),
-              cylindre: formatSigned(ordonnance.od?.cylindre),
-              axe: cleanAxe(ordonnance.od?.axe),
-              addition: formatSigned(ordonnance.od?.addition, '-'),
+              sphere: formatSigned(odP.sphere),
+              cylindre: formatSigned(odP.cylindre),
+              axe: cleanAxe(odP.axe),
+              addition: formatSigned(odP.addition, '-'),
             },
             og: {
-              sphere: formatSigned(ordonnance.og?.sphere),
-              cylindre: formatSigned(ordonnance.og?.cylindre),
-              axe: cleanAxe(ordonnance.og?.axe),
-              addition: formatSigned(ordonnance.og?.addition, '-'),
+              sphere: formatSigned(ogP.sphere),
+              cylindre: formatSigned(ogP.cylindre),
+              axe: cleanAxe(ogP.axe),
+              addition: formatSigned(ogP.addition, '-'),
             },
           },
           ficheNumber: String(fiche.numero),
@@ -484,14 +493,17 @@ export class FichesService {
           verres: lensDetails,
           diametreConseille: `${ordered.od}/${ordered.og}`,
           technicalNote: {
-            mesure: (measuredRaw ||
+            mesure:
+              measuredRaw ||
               (measured.od && measured.og
                 ? `${measured.od}/${measured.og}`
-                : '65/70')) as string,
+                : '65/70'),
             safety: safetyMargin,
             intermediate:
               measured.od && measured.og
-                ? `${(measured.od + safetyMargin).toFixed(1)}/${(measured.og + safetyMargin).toFixed(1)} mm`
+                ? `${(measured.od + safetyMargin).toFixed(1)}/${(
+                    measured.og + safetyMargin
+                  ).toFixed(1)} mm`
                 : '-',
             ordered: `${ordered.od}/${ordered.og}`,
           },
@@ -520,7 +532,6 @@ export class FichesService {
     const centreEmail = fiche.client?.centre?.email || undefined;
     const centreName = fiche.client?.centre?.nom || undefined;
 
-    // 3. Send Email
     try {
       await this.mailerService.sendMailWithAttachment({
         to: supplier.email,
@@ -528,107 +539,65 @@ export class FichesService {
         replyTo: centreEmail,
         fromName: branding.companyName,
         subject: `[${branding.companyName}] Commande Optique - ${bcNumber} - Client: ${clientName}`,
-        text: `Bonjour,
-
-Veuillez trouver ci-joint les documents concernant la commande pour le client ${clientName} :
-- Le Bon de Commande (Réf: ${bcNumber})
-- ${fiche.type === 'LENTILLES' ? 'La Fiche Technique' : 'La Fiche de Montage'} avec les mesures techniques.
-
-Nous restons à votre disposition pour toute information complémentaire.
-
-Cordialement,
-L'équipe ${branding.companyName}
-${centreName ? `(${centreName})` : ''}`,
+        text: `Bonjour,\n\nVeuillez trouver ci-joint les documents concernant la commande pour le client ${clientName} :\n- Le Bon de Commande (Réf: ${bcNumber})\n- ${
+          fiche.type === 'LENTILLES'
+            ? 'La Fiche Technique'
+            : 'La Fiche de Montage'
+        } avec les mesures techniques.\n\nCordialement,\nL'équipe ${
+          branding.companyName
+        }\n${centreName ? `(${centreName})` : ''}`,
         attachments: [
-          {
-            filename: `Bon_de_Commande_${bcNumber}.pdf`,
-            content: bcPdf,
-          },
-          {
-            filename: techFileName,
-            content: techPdf,
-          },
+          { filename: `Bon_de_Commande_${bcNumber}.pdf`, content: bcPdf },
+          { filename: techFileName, content: techPdf },
         ],
       });
     } catch (error) {
-      console.error('❌ [FichesService] Email sending failed:', error);
       throw new BadRequestException(
-        `L'envoi de l'email a échoué: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+        `L'envoi de l'email a échoué: ${
+          error instanceof Error ? error.message : 'Erreur inconnue'
+        }`,
       );
     }
 
     return { success: true };
   }
 
-  async create(data: Prisma.FicheCreateInput) {
-    try {
-      console.log('💾 Attempting to save fiche to database...');
+  async create(
+    data: Prisma.FicheCreateInput | Prisma.FicheUncheckedCreateInput,
+    userId?: string,
+  ) {
+    let clientId: string | undefined;
+    const d = data as Record<string, unknown>;
+    if (d.clientId) {
+      clientId = d.clientId as string;
+    } else if (typeof d.client === 'object' && d.client) {
+      const conn = (d.client as Record<string, unknown>).connect as
+        | Record<string, string>
+        | undefined;
+      if (conn) clientId = conn.id;
+    }
 
-      // Extract clientId from the data (support both flat clientId and nested client.connect.id)
-      let clientId: string | undefined;
+    if (!clientId) throw new BadRequestException('Client ID is required');
 
-      // First check for flat clientId (what frontend sends)
-      if ((data as any).clientId) {
-        clientId = (data as any).clientId;
-        console.log('✅ Found clientId in flat structure:', clientId);
-      }
-      // Then check for nested client.connect.id structure
-      else if (
-        typeof data.client === 'object' &&
-        data.client &&
-        'connect' in data.client &&
-        (data.client as any).connect
-      ) {
-        clientId = (data.client as any).connect.id;
-        console.log('✅ Found clientId in nested structure:', clientId);
-      }
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId },
+    });
+    if (!client) throw new BadRequestException('Client not found');
 
-      if (!clientId) {
-        console.log(
-          '❌ No clientId found in data:',
-          JSON.stringify(data, null, 2),
-        );
-        throw new BadRequestException('Client ID is required');
-      }
+    if (client.statut === 'INACTIF' && client.typeClient !== 'anonyme') {
+      this.validateRequiredFields(client);
+    }
 
-      // check client
-      // 1. Fetch the client to check status
-      console.log('🔍 Verifying client existence for ID:', clientId);
-      const client = await this.prisma.client.findUnique({
-        where: { id: clientId },
-      });
+    const incomingContent = (d.content || d) as Record<string, unknown>;
+    const content = {
+      ...incomingContent,
+      ordonnance: incomingContent.ordonnance || incomingContent.prescription,
+      configImage:
+        incomingContent.configImage || incomingContent.virtualCenteringUrl,
+    };
 
-      if (!client) {
-        console.error('❌ Client not found for ID:', clientId);
-        throw new BadRequestException('Client not found');
-      }
-
-      // 2. If client is INACTIF, validate required fields (skip for anonymous)
-      if (client.statut === 'INACTIF' && client.typeClient !== 'anonyme') {
-        console.log('⚠️ Client is INACTIF, validating required fields...');
-        this.validateRequiredFields(client);
-      }
-
-      const looseData = data as any;
-      const incomingContent =
-        looseData.content && typeof looseData.content === 'object'
-          ? looseData.content
-          : looseData;
-
-      // Robust Content Mapping (Preserve all existing fields while ensuring mapping for critical ones)
-      const content = {
-        ...incomingContent,
-        ordonnance: incomingContent.ordonnance || incomingContent.prescription,
-        configImage:
-          incomingContent.configImage || incomingContent.virtualCenteringUrl, // [FIX] Store centering image
-      };
-
-      console.log(
-        `💾 [Backend CREATE] Fiche Type: ${data.type} | Content keys:`,
-        Object.keys(content),
-      );
-
-      const createData: Prisma.FicheUncheckedCreateInput = {
+    const result = await this.prisma.fiche.create({
+      data: {
         clientId: clientId,
         statut: data.statut,
         type: data.type,
@@ -636,102 +605,51 @@ ${centreName ? `(${centreName})` : ''}`,
         montantPaye: data.montantPaye || 0,
         dateLivraisonEstimee: data.dateLivraisonEstimee,
         content: content as Prisma.JsonObject,
-      };
+      },
+    });
 
-      const result = await this.prisma.fiche.create({
-        data: createData,
+    if (client.statut === 'INACTIF') {
+      await this.prisma.client.update({
+        where: { id: clientId },
+        data: { statut: 'ACTIF' },
       });
-      console.log('✅ Fiche saved successfully:', result.id);
+    }
 
-      // 4. If client was INACTIF, transition to ACTIF
-      if (client.statut === 'INACTIF') {
-        await this.prisma.client.update({
-          where: { id: clientId },
-          data: { statut: 'ACTIF' },
-        });
-        console.log('✅ Client status updated: INACTIF → ACTIF');
-      }
-
-      // 5. AUTOMATIC INVOICE GENERATION (BROUILLON)
-      console.log('🧾 Checking/Creating Draft Invoice for Fiche...');
-      try {
-        // Check if invoice already exists for this Fiche
-        const existingInvoice = await this.prisma.facture.findUnique({
-          where: { ficheId: result.id },
-        });
-
-        if (!existingInvoice) {
-          // AUTOMATIC INVOICE CREATION REMOVED
-          // Reason: Frontend creates detailed invoice immediately after (Scenario 2).
-          console.log(
-            'ℹ️ Automatic draft creation disabled to prevent duplicates.',
-          );
-        } else {
-          console.log(
-            'ℹ️ Invoice already exists for this Fiche, skipping creation.',
-          );
-        }
-      } catch (invError) {
-        console.error('⚠️ Failed to check invoice existence:', invError);
-      }
-
-      // 6. Award Loyalty Points for Folder Creation
-      console.log(
-        '💎 Triggering loyalty points for folder creation. Client:',
+    try {
+      await this.loyaltyService.awardPointsForFolderCreation(
         clientId,
-        'Fiche:',
         result.id,
       );
-      try {
-        await this.loyaltyService.awardPointsForFolderCreation(
-          clientId,
-          result.id,
-        );
-        console.log('✅ Loyalty points trigger finished.');
-      } catch (pError) {
-        console.error('⚠️ Failed to award loyalty points:', pError);
-      }
-
-      return this.unpackContent(result);
-    } catch (error) {
-      console.error('❌ ERROR saving fiche:');
-      console.error('Error:', error);
-      console.error(
-        'Error message:',
-        error instanceof Error ? error.message : String(error),
-      );
-      throw error;
+    } catch (e) {
+      console.error('Loyalty points error:', e);
     }
+
+    if (['FACTURE', 'LIVRE'].includes(result.statut)) {
+      await this.handleGlassStockExit(result, userId);
+    }
+
+    return this.unpackContent(result);
   }
 
-  private async validateRequiredFields(client: {
+  private validateRequiredFields(client: {
     id: string;
     dateNaissance?: Date | string | null;
     telephone?: string | null;
     ville?: string | null;
-    statut?: string;
-    typeClient?: string;
-  }): Promise<void> {
+  }): void {
     const missing: string[] = [];
-
     if (!client.dateNaissance) missing.push('Date de naissance');
     if (!client.telephone) missing.push('Téléphone');
     if (!client.ville) missing.push('Ville');
-
     if (missing.length > 0) {
       throw new BadRequestException({
-        message:
-          'Profil client incomplet. Veuillez compléter les champs requis avant de créer un dossier médical.',
+        message: 'Profil client incomplet.',
         missingFields: missing,
         clientId: client.id,
       });
     }
   }
 
-  /**
-   * Lean endpoint for BC History page.
-   * Optimized with server-side filtering and sorting.
-   */
   async findAllBcHistory(query: {
     startDate?: string;
     endDate?: string;
@@ -747,12 +665,8 @@ ${centreName ? `(${centreName})` : ''}`,
       if (startDate) where.dateCreation.gte = new Date(startDate);
       if (endDate) where.dateCreation.lte = new Date(endDate);
     }
-    if (centreId) {
-      where.client = { centreId };
-    }
+    if (centreId) where.client = { centreId };
 
-    // We fetch a bit more than the limit because one fiche can have multiple BC history entries
-    // But we limit the initial fetch to keep it fast.
     const fiches = await this.prisma.fiche.findMany({
       where,
       select: {
@@ -771,45 +685,40 @@ ${centreName ? `(${centreName})` : ''}`,
       skip: skip,
     });
 
-    const allHistory: any[] = [];
+    const allHistory: HistoryItem[] = [];
     for (const fiche of fiches) {
-      const content = (fiche.content as any) || {};
+      const content = (fiche.content as unknown as FicheContent) || {};
       const suivi = content.suiviCommande || {};
-      const clientData = fiche.client || {};
-      const displayName = (clientData as any).raisonSociale
-        ? (clientData as any).raisonSociale
-        : `${(clientData as any).prenom || ''} ${(clientData as any).nom || ''}`.trim();
+      const clientData = (fiche.client || {}) as Record<string, unknown>;
+      const displayName =
+        (clientData.raisonSociale as string) ||
+        `${(clientData.prenom as string) || ''} ${
+          (clientData.nom as string) || ''
+        }`.trim();
 
-      const legacyHistory: any[] = content.bcHistorique || [];
-      const suiviHistory: any[] = suivi.bcHistorique || [];
-
-      // De-duplicate by date+numero
-      const combined = [...suiviHistory];
-      legacyHistory.forEach((lh: any) => {
+      const combined = [...(suivi.bcHistorique || [])];
+      (content.bcHistorique || []).forEach((lh) => {
         if (
-          !combined.find((sh: any) => sh.date === lh.date && sh.numero === lh.numero)
-        ) {
+          !combined.find((sh) => sh.date === lh.date && sh.numero === lh.numero)
+        )
           combined.push(lh);
-        }
       });
 
-      // Include current reference if not already listed
-      const currentRef = suivi.referenceCommande;
       if (
-        currentRef &&
-        currentRef !== 'N/A' &&
-        !combined.find((h) => h.numero === currentRef)
+        suivi.referenceCommande &&
+        suivi.referenceCommande !== 'N/A' &&
+        !combined.find((h) => h.numero === suivi.referenceCommande)
       ) {
         combined.unshift({
           date: suivi.dateCommande || fiche.dateCreation,
-          numero: currentRef,
+          numero: suivi.referenceCommande,
           fournisseur: suivi.fournisseur || 'Non spécifié',
           motive: suivi.nextBcMotive || 'En cours',
           isCurrent: true,
         });
       }
 
-      combined.forEach((bc: any) => {
+      combined.forEach((bc) => {
         allHistory.push({
           date: bc.date,
           numero: bc.numero,
@@ -819,13 +728,11 @@ ${centreName ? `(${centreName})` : ''}`,
           ficheId: fiche.id,
           ficheNumero: fiche.numero,
           ficheType: fiche.type,
-          clientDisplayName: displayName || 'Client',
+          clientDisplayName: displayName,
           clientName: displayName,
         });
       });
     }
-
-    // Sort by date descending (already sorted by fiche date, but BC dates might differ)
     return allHistory.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     );
@@ -833,9 +740,7 @@ ${centreName ? `(${centreName})` : ''}`,
 
   async findAll(startDate?: string) {
     const where: Prisma.FicheWhereInput = {};
-    if (startDate) {
-      where.dateCreation = { gte: new Date(startDate) };
-    }
+    if (startDate) where.dateCreation = { gte: new Date(startDate) };
     const fiches = await this.prisma.fiche.findMany({
       where,
       include: { client: true },
@@ -846,165 +751,267 @@ ${centreName ? `(${centreName})` : ''}`,
 
   async findAllByClient(clientId: string, startDate?: string) {
     const where: Prisma.FicheWhereInput = { clientId };
-    if (startDate) {
-      where.dateCreation = { gte: new Date(startDate) };
-    }
-
-    // Optimize: Selected only needed fields for list view to avoid loading massive 'content' JSON
+    if (startDate) where.dateCreation = { gte: new Date(startDate) };
     const fiches = await this.prisma.fiche.findMany({
       where,
-      select: {
-        id: true,
-        numero: true,
-        dateCreation: true,
-        statut: true,
-        type: true,
-        montantTotal: true,
-        montantPaye: true,
-        clientId: true,
-        dateLivraisonEstimee: true,
-        // We still need some parts of content (like frame brand/model) for the list view
-        // But we exclude base64 images/PDFs by letting unpackContent handle a partial object
-        content: true,
-      },
       orderBy: { dateCreation: 'desc' },
     });
-
-    return fiches.map((f: Partial<Fiche>) => this.unpackContent(f, true));
+    return fiches.map((f: Fiche) => this.unpackContent(f, true));
   }
 
   async findOne(id: string) {
-    const fiche = await this.prisma.fiche.findUnique({
-      where: { id },
-    });
-    return fiche ? this.unpackContent(fiche) : null;
+    const fiche = await this.prisma.fiche.findUnique({ where: { id } });
+    return fiche
+      ? (this.unpackContent(fiche) as Record<string, unknown>)
+      : null;
   }
 
-  async update(id: string, updateFicheDto: any) {
-    console.log(`\n🔄 [Backend UPDATE] Fiche ${id}`);
-
-    const existingFiche = await this.prisma.fiche.findUnique({
-      where: { id },
-    });
-
-    if (!existingFiche) {
-      throw new Error(`Fiche with ID ${id} not found`);
-    }
+  async update(
+    id: string,
+    updateFicheDto: Record<string, unknown>,
+    userId?: string,
+  ) {
+    const existingFiche = await this.prisma.fiche.findUnique({ where: { id } });
+    if (!existingFiche) throw new Error(`Fiche with ID ${id} not found`);
 
     const { content: incomingContent, ...rest } = updateFicheDto;
-
-    // Robust Merging Strategy:
-    // Handle both cases: { content: { ... } } or flat { ordonnance: ..., configImage: ... }
-    const currentContent = (existingFiche.content as Record<string, any>) || {};
+    const currentContent =
+      (existingFiche.content as Record<string, unknown>) || {};
     const contentToMerge =
       incomingContent && typeof incomingContent === 'object'
-        ? incomingContent
-        : rest;
-
-    const mergedContent = {
-      ...currentContent,
-      ...contentToMerge,
-    };
-
-    console.log(
-      `💾 [Backend UPDATE] Merged content keys:`,
-      Object.keys(mergedContent),
-    );
+        ? (incomingContent as Record<string, unknown>)
+        : (rest as Record<string, unknown>);
+    const mergedContent = { ...currentContent, ...contentToMerge };
 
     const updated = await this.prisma.fiche.update({
       where: { id },
-      data: {
-        ...rest,
-        content: mergedContent,
-      },
+      data: { content: mergedContent as Prisma.JsonObject, ...rest },
+      include: { client: true, facture: true },
     });
 
-    // Handle Stock Movements (Exit)
-    // Trigger when status changes to 'LIVRE' or 'FACTURE' and hasn't been done yet
     if (['FACTURE', 'LIVRE'].includes(updated.statut)) {
-      await this.handleGlassStockExit(updated);
+      await this.handleGlassStockExit(updated, userId);
     }
-
-    return this.unpackContent(updated);
+    return this.unpackContent(updated) as Record<string, unknown>;
   }
 
-  private async handleGlassStockExit(fiche: any) {
-    const content = (fiche.content as unknown as FicheContent) || {};
-    const verres = content.verres || {};
-    if (!verres) return;
+  private async handleGlassStockExit(
+    fiche: Fiche & {
+      facture?: {
+        id: string;
+        lignes: Prisma.JsonValue;
+        numero: string;
+        statut: string;
+      } | null;
+    },
+    userId?: string,
+  ) {
+    const f = fiche;
+    const content = (f.content as unknown as FicheContent) || {};
+    const verres = content.verres;
+    const monture = content.monture || {};
 
-    // Check if movement already exists to avoid double-counting
-    const existing = await this.prisma.mouvementStock.findFirst({
-      where: { motif: { contains: `Fiche ${fiche.numero}` }, type: 'SORTIE' }
-    });
-    if (existing) return;
+    console.log(
+      `[FichesService] 🎬 Processing stock exit for Fiche ${f.numero}...`,
+    );
 
-    const itemsToProcess: Array<{ type: 'index' | 'treatment'; id: string; label: string }> = [];
+    let userDisplayName = 'Système';
+    if (userId) {
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
+      if (user) userDisplayName = `${user.prenom} ${user.nom}`;
+    }
 
-    // Find Indices and Treatments by label
-    const findIndex = async (val?: string, mat?: string) => {
-      if (!val) return null;
-      return this.prisma.glassIndex.findFirst({
-        where: {
-          OR: [{ value: val }, { label: val }],
-          material: mat ? { name: mat } : undefined
+    const itemsToProcess: Array<{
+      type: 'index' | 'treatment' | 'product';
+      id?: string;
+      label: string;
+      productId?: string;
+    }> = [];
+
+    // Safety: Check if the monture is already handled by FacturesService
+    let frameAlreadyInInvoice = false;
+    if (f.facture?.lignes) {
+      try {
+        const rawLines = f.facture.lignes;
+        const lines = (
+          typeof rawLines === 'string' ? JSON.parse(rawLines) : rawLines
+        ) as Record<string, unknown>[];
+
+        if (Array.isArray(lines)) {
+          frameAlreadyInInvoice = lines.some((l) => {
+            const lineProdId = l.productId as string | undefined;
+            const lineRef = l.reference as string | undefined;
+            const lineDesignation = l.designation as string | undefined;
+
+            const matchesRef =
+              lineProdId && monture.reference && lineRef === monture.reference;
+            const matchesDesignation =
+              lineDesignation &&
+              monture.marque &&
+              lineDesignation.includes(monture.marque);
+
+            return matchesRef || matchesDesignation;
+          });
         }
-      });
-    };
-
-    const findTreatment = async (name?: string) => {
-      if (!name) return null;
-      return this.prisma.glassTreatment.findUnique({ where: { name } });
-    };
-
-    // Helper to process a pair of glasses or single side
-    const processGlass = async (indice?: string, matiere?: string, treatment?: any) => {
-      const idx = await findIndex(indice, matiere);
-      if (idx) itemsToProcess.push({ type: 'index', id: idx.id, label: idx.label || idx.value });
-
-      const treats = Array.isArray(treatment) ? treatment : [treatment];
-      for (const tName of treats) {
-        if (typeof tName !== 'string') continue;
-        const treat = await findTreatment(tName);
-        if (treat) itemsToProcess.push({ type: 'treatment', id: treat.id, label: treat.name });
-      }
-    };
-
-    if (verres.differentODOG) {
-      await processGlass(verres.indiceOD, verres.matiereOD, verres.traitementOD);
-      await processGlass(verres.indiceOG, verres.matiereOG, verres.traitementOG);
-    } else {
-      // 2 glasses
-      await processGlass(verres.indice, verres.matiere, verres.traitement);
-      // We duplicate the items because there are 2 glasses
-      const count = itemsToProcess.length;
-      for (let i = 0; i < count; i++) {
-        itemsToProcess.push({ ...itemsToProcess[i] });
+      } catch (e) {
+        console.error('Error parsing invoice lines for duplicate check:', e);
       }
     }
 
-    // Apply movements
+    if (verres) {
+      const findIndex = async (val?: string, mat?: string) => {
+        if (!val) return null;
+        return this.prisma.glassIndex.findFirst({
+          where: {
+            OR: [{ value: val }, { label: val }],
+            material: mat ? { name: mat } : undefined,
+          },
+        });
+      };
+      const findTreatment = async (name?: string) => {
+        if (!name) return null;
+        return this.prisma.glassTreatment.findUnique({ where: { name } });
+      };
+
+      const processGlass = async (
+        indice?: string,
+        matiere?: string,
+        treatment?: string | string[] | null,
+      ) => {
+        const idx = await findIndex(indice, matiere);
+        if (idx) {
+          // Check for existing movement for THIS index
+          const exists = await this.prisma.mouvementStock.findFirst({
+            where: {
+              glassIndexId: idx.id,
+              motif: { contains: `Fiche n° ${f.numero}` },
+              type: 'SORTIE_VENTE',
+            },
+          });
+          if (!exists) {
+            itemsToProcess.push({
+              type: 'index',
+              id: idx.id,
+              label: idx.label || idx.value,
+            });
+          }
+        }
+        const treats = Array.isArray(treatment)
+          ? treatment
+          : treatment
+            ? [treatment]
+            : [];
+        for (const tName of treats) {
+          if (typeof tName !== 'string') continue;
+          const treat = await findTreatment(tName);
+          if (treat) {
+            // Check for existing movement for THIS treatment
+            const exists = await this.prisma.mouvementStock.findFirst({
+              where: {
+                glassTreatmentId: treat.id,
+                motif: { contains: `Fiche n° ${f.numero}` },
+                type: 'SORTIE_VENTE',
+              },
+            });
+            if (!exists) {
+              itemsToProcess.push({
+                type: 'treatment',
+                id: treat.id,
+                label: treat.name,
+              });
+            }
+          }
+        }
+      };
+
+      if (verres.differentODOG) {
+        await processGlass(
+          verres.indiceOD,
+          verres.matiereOD,
+          verres.traitementOD,
+        );
+        await processGlass(
+          verres.indiceOG,
+          verres.matiereOG,
+          verres.traitementOG,
+        );
+      } else {
+        await processGlass(verres.indice, verres.matiere, verres.traitement);
+        // Duplicate for both eyes if same
+        const currentCount = itemsToProcess.length;
+        for (let i = 0; i < currentCount; i++) {
+          itemsToProcess.push({ ...itemsToProcess[i] });
+        }
+      }
+    }
+
+    if (monture && monture.reference) {
+      // PER-ITEM DEDUPLICATION: Only skip if THIS SPECIFIC MONTURE already has a movement for this fiche/facture
+      const existingMontureMove = await this.prisma.mouvementStock.findFirst({
+        where: {
+          OR: [
+            { motif: { contains: `Fiche n° ${f.numero}` } },
+            { factureId: f.facture?.id },
+          ],
+          type: 'SORTIE_VENTE',
+          produit: {
+            OR: [
+              { codeInterne: monture.reference },
+              { codeBarres: monture.reference },
+            ],
+          },
+        },
+      });
+
+      if (!existingMontureMove && !frameAlreadyInInvoice) {
+        const product = await this.prisma.product.findFirst({
+          where: {
+            OR: [
+              { codeInterne: monture.reference },
+              { codeBarres: monture.reference },
+            ],
+          },
+        });
+        if (product) {
+          itemsToProcess.push({
+            type: 'product',
+            productId: product.id,
+            label:
+              `Monture ${monture.marque || ''} ${monture.reference}`.trim(),
+          });
+        }
+      }
+    }
+
     for (const item of itemsToProcess) {
-      if (item.type === 'index') {
+      if (item.type === 'index' && item.id) {
         await this.prisma.glassIndex.update({
           where: { id: item.id },
-          data: { quantite: { decrement: 1 } }
+          data: { quantite: { decrement: 1 } },
         });
-      } else {
+      } else if (item.type === 'treatment' && item.id) {
         await this.prisma.glassTreatment.update({
           where: { id: item.id },
-          data: { quantite: { decrement: 1 } }
+          data: { quantite: { decrement: 1 } },
+        });
+      } else if (item.type === 'product' && item.productId) {
+        await this.prisma.product.update({
+          where: { id: item.productId },
+          data: { quantiteActuelle: { decrement: 1 } },
         });
       }
-
       await this.prisma.mouvementStock.create({
         data: {
-          type: 'SORTIE',
+          type: 'SORTIE_VENTE',
           quantite: -1,
           glassIndexId: item.type === 'index' ? item.id : null,
           glassTreatmentId: item.type === 'treatment' ? item.id : null,
-          motif: `Sortie Stock - Fiche ${fiche.numero} (${item.label})`,
-        }
+          produitId: item.type === 'product' ? item.productId : null,
+          motif: `Sortie Stock - Fiche n° ${fiche.numero} (${item.label})`,
+          utilisateur: userDisplayName,
+          userId: userId || null,
+          dateMovement: new Date(),
+        },
       });
     }
   }
@@ -1012,25 +1019,24 @@ ${centreName ? `(${centreName})` : ''}`,
   async remove(id: string) {
     const fiche = await this.prisma.fiche.findUnique({ where: { id } });
     if (!fiche) throw new Error('Fiche introuvable');
-
-    // Prevent deletion if finalized
     if (['FACTURE', 'LIVRE', 'COMMANDE'].includes(fiche.statut)) {
-      throw new Error(
-        'Action refusée: Impossible de supprimer une fiche validée (Facturée/Livrée/Commandée).',
-      );
+      throw new Error('Action refusée: Fiche validée.');
     }
-
-    return this.prisma.fiche.delete({
-      where: { id },
-    });
+    return this.prisma.fiche.delete({ where: { id } });
   }
 
-  private unpackContent(fiche: Partial<Fiche>, summaryOnly = false) {
-    if (!fiche) return fiche;
-    let content = (fiche.content as unknown as FicheContent) || {};
+  private unpackContent(fiche: Fiche, summaryOnly = false): unknown {
+    if (!fiche || !fiche.content) return fiche;
+    let content: FicheContent;
+    try {
+      content = (typeof fiche.content === 'string'
+        ? JSON.parse(fiche.content)
+        : fiche.content) as unknown as FicheContent;
+    } catch {
+      return fiche;
+    }
 
-    // LEGACY MAPPING: If content is flat (from Excel), map to structured objects
-    if (content.OD_Sph1 !== undefined || content.Verre1D !== undefined) {
+    if (summaryOnly) {
       const mappedOrdonnance = {
         od: {
           sphere: content.OD_Sph1,
@@ -1052,7 +1058,6 @@ ${centreName ? `(${centreName})` : ''}`,
         },
         prescripteur: content.Medecin || content.Prescripteur,
       };
-
       const mappedVerres = {
         differentODOG: true,
         marqueOD: content.Verre1D,
@@ -1060,45 +1065,52 @@ ${centreName ? `(${centreName})` : ''}`,
         prixOD: content.PrixV1D,
         prixOG: content.PrixV1G,
       };
-
       const mappedMonture = {
         marque: content.MarqueM1 || content.Marque,
         modele: content.RefM1 || content.Modele,
         prix: content.PrixM1,
       };
-
       content = {
         ...content,
-        ordonnance: content.ordonnance || mappedOrdonnance,
-        verres: content.verres || mappedVerres,
-        monture: content.monture || mappedMonture,
+        ordonnance:
+          content.ordonnance ||
+          (mappedOrdonnance as unknown as { od: EyeData; og: EyeData }),
+        verres:
+          content.verres || (mappedVerres as unknown as FicheContent['verres']),
+        monture:
+          content.monture ||
+          (mappedMonture as unknown as FicheContent['monture']),
       };
     }
 
-    // Merge content properties to top level for legacy support, BUT prioritize DB fields (fiche)
-    // over whatever might be cached inside the content JSON (like empty numero strings).
-    let finalFiche: any = {
-      ...content, // Spread legacy content first
-      ...fiche, // Spread fiche from DB to ensure core fields (id, numero, dateCreation) are not overwritten
-      ordonnance: content.ordonnance || (fiche as any).ordonnance,
-      lentilles: content.lentilles || (fiche as any).lentilles,
-      adaptation: content.adaptation || (fiche as any).adaptation,
-      monture: content.monture || (fiche as any).monture,
-      verres: content.verres || (fiche as any).verres,
-      montage: content.montage || (fiche as any).montage,
-      suiviCommande: content.suiviCommande || (fiche as any).suiviCommande,
-      configImage: content.configImage || (fiche as any).configImage,
-      content: undefined,
-    };
+    if (content?.montage) {
+      if (content.montage.diametreEffectif)
+        content.montage.diametreEffectif = Number(
+          content.montage.diametreEffectif,
+        );
+      if (content.montage.diagonalMm)
+        content.montage.diagonalMm = Number(content.montage.diagonalMm);
+    }
 
-    const purgeBase64 = (obj: unknown): any => {
+    const ficheAny = fiche as Record<string, unknown>;
+    const finalFiche = {
+      ...(content as Record<string, unknown>),
+      ...fiche,
+      ordonnance: content.ordonnance || ficheAny.ordonnance,
+      lentilles: content.lentilles || ficheAny.lentilles,
+      adaptation: content.adaptation || ficheAny.adaptation,
+      monture: content.monture || ficheAny.monture,
+      verres: content.verres || ficheAny.verres,
+      montage: content.montage || ficheAny.montage,
+      suiviCommande: content.suiviCommande || ficheAny.suiviCommande,
+      configImage: content.configImage || ficheAny.configImage,
+      content: undefined,
+    } as Record<string, unknown>;
+
+    const purgeBase64 = (obj: unknown): unknown => {
       if (!obj || typeof obj !== 'object') return obj;
       if (obj instanceof Date) return obj;
-
-      if (Array.isArray(obj)) {
-        return obj.map((item) => purgeBase64(item));
-      }
-
+      if (Array.isArray(obj)) return obj.map((item) => purgeBase64(item));
       const result: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(obj)) {
         if (typeof value === 'string') {
@@ -1114,9 +1126,6 @@ ${centreName ? `(${centreName})` : ''}`,
       }
       return result;
     };
-
-    finalFiche = purgeBase64(finalFiche);
-
-    return finalFiche;
+    return purgeBase64(finalFiche);
   }
 }

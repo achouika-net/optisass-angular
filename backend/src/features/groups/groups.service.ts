@@ -1,11 +1,16 @@
-import { Injectable, NotFoundException, ConflictException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateGroupeDto } from './dto/create-groupe.dto';
 import { UpdateGroupeDto } from './dto/update-groupe.dto';
 
 @Injectable()
 export class GroupsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async create(createGroupeDto: CreateGroupeDto) {
     try {
@@ -13,7 +18,7 @@ export class GroupsService {
       if (!createGroupeDto.type) {
         createGroupeDto.type = 'WORK';
       }
-      
+
       return await this.prisma.groupe.create({
         data: createGroupeDto,
         include: {
@@ -24,7 +29,9 @@ export class GroupsService {
       if (error.code === 'P2002') {
         throw new ConflictException(`Un groupe avec ce nom existe déjà.`);
       }
-      throw new InternalServerErrorException('Erreur lors de la création du groupe');
+      throw new InternalServerErrorException(
+        'Erreur lors de la création du groupe',
+      );
     }
   }
 

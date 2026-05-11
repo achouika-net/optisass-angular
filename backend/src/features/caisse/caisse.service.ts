@@ -9,7 +9,7 @@ import { UpdateCaisseDto } from './dto/update-caisse.dto';
 
 @Injectable()
 export class CaisseService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async create(createCaisseDto: CreateCaisseDto) {
     console.log(

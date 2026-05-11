@@ -30,7 +30,7 @@ export class CentersService {
       console.error('[CENTERS-SERVICE] Error in findAll:', error);
       // Fallback to centers without relations if it fails due to relationship missing
       return this.prisma.centre.findMany({
-        where: groupeId ? { groupeId } : undefined
+        where: groupeId ? { groupeId } : undefined,
       });
     }
   }

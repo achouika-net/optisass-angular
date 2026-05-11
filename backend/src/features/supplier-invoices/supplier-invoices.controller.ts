@@ -13,7 +13,7 @@ import { CreateSupplierInvoiceDto } from './dto/create-supplier-invoice.dto';
 
 @Controller('supplier-invoices')
 export class SupplierInvoicesController {
-  constructor(private readonly service: SupplierInvoicesService) { }
+  constructor(private readonly service: SupplierInvoicesService) {}
 
   @Get('check-existence')
   async checkExistence(
@@ -61,10 +61,15 @@ export class SupplierInvoicesController {
   }
 
   @Post('group')
-  async groupToInvoice(@Body() body: { blIds: string[]; targetInvoiceData: any }) {
+  async groupToInvoice(
+    @Body() body: { blIds: string[]; targetInvoiceData: any },
+  ) {
     try {
       console.log('[GROUP] Request received for', body.blIds?.length, 'BLs');
-      return await this.service.groupBLsToInvoice(body.blIds, body.targetInvoiceData);
+      return await this.service.groupBLsToInvoice(
+        body.blIds,
+        body.targetInvoiceData,
+      );
     } catch (error) {
       console.error('[GROUP] CRITICAL ERROR:', error);
       throw error;

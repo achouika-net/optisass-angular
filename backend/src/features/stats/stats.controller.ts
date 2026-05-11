@@ -119,7 +119,14 @@ export class StatsController {
     @Query('endDate') endDate?: string,
     @Query('centreId') centreId?: string,
   ) {
-    console.log(`[StatsController] Incoming getProfitEvolution: period=${period}, centreId=${centreId}, range=${startDate} to ${endDate}`);
-    return this.statsService.getProfitEvolution(period, startDate, endDate, centreId);
+    console.log(
+      `[StatsController] Incoming getProfitEvolution: period=${period}, centreId=${centreId}, range=${startDate} to ${endDate}`,
+    );
+    return this.statsService.getProfitEvolution(
+      period,
+      startDate,
+      endDate,
+      centreId,
+    );
   }
 }

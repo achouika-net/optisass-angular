@@ -76,7 +76,6 @@ export class CreateSupplierInvoiceDto {
   @IsUUID()
   ficheId?: string;
 
-
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
