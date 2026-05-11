@@ -502,11 +502,32 @@ export class FacturesService implements OnModuleInit {
       }
     }
 
+    let resolvedUserId = userId;
+
+    // [FIX] Fallback 1: inherit userId from existing movements on this same invoice
+    if (!resolvedUserId) {
+      const existingMove = await tx.mouvementStock.findFirst({
+        where: { factureId: fullInvoice.id, userId: { not: null } },
+        select: { userId: true },
+        orderBy: { dateMovement: 'desc' },
+      });
+      if (existingMove?.userId) resolvedUserId = existingMove.userId;
+    }
+
+    // [FIX] Fallback 2: resolve from vendeurId → employee → user
+    if (!resolvedUserId && fullInvoice.vendeurId) {
+      const employee = await tx.employee.findUnique({
+        where: { id: fullInvoice.vendeurId },
+        select: { userId: true },
+      });
+      if (employee?.userId) resolvedUserId = employee.userId;
+    }
+
     let userDisplayName = 'Système';
-    if (userId) {
-      const user = await tx.user.findUnique({ where: { id: userId } });
+    if (resolvedUserId) {
+      const user = await tx.user.findUnique({ where: { id: resolvedUserId } });
       if (user) {
-        userDisplayName = `${user.prenom} ${user.nom}`;
+        userDisplayName = `${user.prenom} ${user.nom}`.trim() || user.email || userDisplayName;
       }
     }
 
@@ -569,7 +590,7 @@ export class FacturesService implements OnModuleInit {
             ? `Vente - Fiche n° ${invoiceFiche.numero} (${fullInvoice.statut})`
             : `Facturation ${fullInvoice.numero} (${fullInvoice.statut})`,
           utilisateur: userDisplayName,
-          userId: userId || null,
+          userId: resolvedUserId || null,
           dateMovement: new Date(),
         },
       });

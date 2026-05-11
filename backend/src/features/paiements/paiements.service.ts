@@ -169,8 +169,11 @@ export class PaiementsService {
           data: updateData,
         });
 
-        // [FIX] Ensure stock is decremented if the DEVIS was transformed to BON_COMM
-        if (facture.type === 'DEVIS' && updateData.type === 'BON_COMM') {
+        // [FIX] Ensure stock is decremented for all official documents receiving payment.
+        // Per-product idempotency in decrementStockForInvoice prevents duplicates.
+        const officialTypes = ['DEVIS', 'BON_COMM', 'BON_COMMANDE', 'FACTURE', 'BL'];
+        const effectiveType = (updateData.type as string) || facture.type;
+        if (officialTypes.includes(effectiveType) || officialTypes.includes(facture.type)) {
           await this.facturesService.decrementStockForInvoice(tx, updatedFacture, userId);
         }
 
