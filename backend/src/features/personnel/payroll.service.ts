@@ -495,24 +495,36 @@ export class PayrollService {
     amount: number,
     mode: string,
     centreId: string,
-    userId: string,
+    userId?: string,
   ) {
     const employee = await this.prisma.employee.findUnique({
       where: { id: employeeId },
     });
     if (!employee) throw new NotFoundException('Employé non trouvé');
 
-    return this.expensesService.create({
-      date: new Date().toISOString(),
-      montant: amount,
-      categorie: 'AVANCE_SALAIRE',
-      description: `Avance sur salaire - ${employee.nom} ${employee.prenom}`,
-      modePaiement: mode,
-      statut: 'VALIDEE',
-      centreId: centreId,
-      creePar: userId,
-      employeeId: employeeId,
-    } as any);
+    if (!centreId) {
+      throw new BadRequestException('ID du centre manquant');
+    }
+
+    try {
+      return await this.expensesService.create({
+        date: new Date().toISOString(),
+        montant: amount,
+        categorie: 'AVANCE_SALAIRE',
+        description: `Avance sur salaire - ${employee.nom} ${employee.prenom}`,
+        modePaiement: mode,
+        statut: 'VALIDEE',
+        centreId: centreId,
+        creePar: userId || 'Système',
+        employeeId: employeeId,
+      } as any);
+    } catch (error) {
+      console.error('❌ [PayrollService.recordAdvance] Error:', error);
+      if (error instanceof BadRequestException) throw error;
+      throw new BadRequestException(
+        `Erreur lors de l'enregistrement de l'avance: ${error.message}`,
+      );
+    }
   }
 
   async getTotalAdvances(

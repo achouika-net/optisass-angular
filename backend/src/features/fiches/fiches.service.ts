@@ -596,9 +596,22 @@ export class FichesService {
         incomingContent.configImage || incomingContent.virtualCenteringUrl,
     };
 
+    // Resolve employeeId from userId if provided
+    let sellerId: string | undefined = undefined;
+    if (userId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: { employee: true },
+      });
+      if (user?.employee) {
+        sellerId = user.employee.id;
+      }
+    }
+
     const result = await this.prisma.fiche.create({
       data: {
         clientId: clientId,
+        vendeurId: sellerId,
         statut: data.statut,
         type: data.type,
         montantTotal: data.montantTotal,
@@ -607,6 +620,15 @@ export class FichesService {
         content: content as Prisma.JsonObject,
       },
     });
+
+    // Trigger commission calculation for BC if configured
+    try {
+      const { CommissionService } = require('../personnel/commission.service');
+      const commissionService = new CommissionService(this.prisma);
+      await commissionService.calculateForFiche(result.id);
+    } catch (e) {
+      console.warn('Commission calculation for Fiche skipped or failed:', e.message);
+    }
 
     if (client.statut === 'INACTIF') {
       await this.prisma.client.update({

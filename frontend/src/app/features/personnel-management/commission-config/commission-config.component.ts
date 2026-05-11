@@ -147,6 +147,23 @@ import { CommissionRule } from '../../../shared/interfaces/employee.interface';
             text-transform: none;
             letter-spacing: normal;
         }
+
+        .settings-card {
+            border-radius: 16px;
+            background: #ffffff;
+        }
+
+        .hide-subscript ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+            display: none;
+        }
+
+        mat-form-field {
+            margin-top: 4px;
+        }
+
+        .matrix-table th {
+            white-space: nowrap;
+        }
     `]
 })
 export class CommissionConfigComponent implements OnInit {
@@ -157,7 +174,15 @@ export class CommissionConfigComponent implements OnInit {
     // Matrix data structure: { [poste]: { [typeProduit]: taux } }
     matrix: { [key: string]: { [key: string]: number } } = {};
     loading = false;
+    savingConfig = false;
     newPosteName = '';
+    activeTab: 'BC' | 'FACTURE' = 'BC';
+    
+    globalConfig = {
+        triggerType: 'FACTURE',
+        paymentCondition: 'SOLDE',
+        paymentConditionFacture: 'SOLDE'
+    };
 
     constructor(
         private personnelService: PersonnelService,
@@ -167,6 +192,41 @@ export class CommissionConfigComponent implements OnInit {
 
     ngOnInit(): void {
         this.loadRules();
+        this.loadGlobalConfig();
+    }
+
+    loadGlobalConfig(): void {
+        this.personnelService.getCommissionConfig().subscribe({
+            next: (config) => {
+                if (config) {
+                    this.globalConfig = {
+                        triggerType: config.triggerType || 'FACTURE',
+                        paymentCondition: config.paymentCondition || 'SOLDE',
+                        paymentConditionFacture: config.paymentConditionFacture || 'SOLDE'
+                    };
+                    this.cdr.markForCheck();
+                }
+            },
+            error: (err) => console.error('Error loading global config', err)
+        });
+    }
+
+    saveGlobalConfig(): void {
+        this.savingConfig = true;
+        this.cdr.markForCheck();
+        this.personnelService.updateCommissionConfig(this.globalConfig).subscribe({
+            next: () => {
+                this.snackBar.open('Règles de déclenchement mises à jour', 'OK', { duration: 3000 });
+                this.savingConfig = false;
+                this.cdr.markForCheck();
+            },
+            error: (err) => {
+                console.error('Error updating global config', err);
+                this.snackBar.open('Erreur lors de la mise à jour des réglages globaux', 'Fermer', { duration: 5000 });
+                this.savingConfig = false;
+                this.cdr.markForCheck();
+            }
+        });
     }
 
     private initializeMatrix(): void {
@@ -185,6 +245,7 @@ export class CommissionConfigComponent implements OnInit {
 
     loadRules(): void {
         this.loading = true;
+        this.cdr.markForCheck();
         this.personnelService.getCommissionRules().subscribe({
             next: (data) => {
                 this.rules = data;

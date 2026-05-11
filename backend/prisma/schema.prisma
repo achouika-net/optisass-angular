@@ -76,9 +76,13 @@ model Fiche {
   bonsLivraison        BonLivraison[]
   facture              Facture?
   supplierInvoices     FactureFournisseur[]
+  vendeurId            String?
   client               Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  vendeur              Employee?            @relation("VendeurFiches", fields: [vendeurId], references: [id])
+  commissions          Commission[]
 
   @@index([clientId])
+  @@index([vendeurId])
   @@index([type])
   @@index([statut])
   @@index([dateCreation])
@@ -693,6 +697,7 @@ model Employee {
   user                      User?            @relation(fields: [userId], references: [id])
   centres                   EmployeeCentre[]
   facturesVente             Facture[]        @relation("VendeurFactures")
+  fichesVente               Fiche[]          @relation("VendeurFiches")
   payrolls                  Payroll[]
 }
 
@@ -729,13 +734,15 @@ model CommissionRule {
 model Commission {
   id         String   @id @default(uuid())
   employeeId String
-  factureId  String
+  factureId  String?
+  ficheId    String?
   type       String
   montant    Float
   mois       String
   createdAt  DateTime @default(now())
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  facture    Facture  @relation(fields: [factureId], references: [id], onDelete: Cascade)
+  facture    Facture? @relation(fields: [factureId], references: [id], onDelete: Cascade)
+  fiche      Fiche?   @relation(fields: [ficheId], references: [id], onDelete: Cascade)
 }
 
 model Payroll {
@@ -887,4 +894,12 @@ model VirtualTryon {
   @@index([clientId])
   @@index([productId])
   @@index([createdAt])
+}
+
+model CommissionConfig {
+  id                       String   @id @default(uuid())
+  triggerType              String   @default("FACTURE")  // FACTURE, BC (legacy, kept for compatibility)
+  paymentCondition         String   @default("SOLDE")    // Condition pour BC : TOUT, PARTIEL, SOLDE
+  paymentConditionFacture  String   @default("SOLDE")    // Condition pour Facture : TOUT, PARTIEL, SOLDE
+  updatedAt                DateTime @updatedAt
 }

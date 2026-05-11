@@ -79,6 +79,14 @@ export class PersonnelService {
         return this.http.get<any[]>(`${this.apiUrl}/commissions/${employeeId}`, { params });
     }
 
+    getCommissionConfig(): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/commissions/config`);
+    }
+
+    updateCommissionConfig(dto: { triggerType?: string, paymentCondition?: string }): Observable<any> {
+        return this.http.patch<any>(`${this.apiUrl}/commissions/config`, dto);
+    }
+
     // --- Payroll ---
     getPayrolls(mois?: string, annee?: number, centreId?: string): Observable<Payroll[]> {
         const params: any = {};

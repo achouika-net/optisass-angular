@@ -570,8 +570,9 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         }).subscribe({
             next: (res) => {
                 const cashedStatuses = [
-                    'ENCAISSE', 'DECAISSE', 'DECAISSEMENT', 'PAYE', 'PAYÉ', 'PAYEE', 
-                    'PAYÉE', 'SOLDE', 'ENCAISSÉ', 'VALIDE', 'VALIDÉ'
+                    'ENCAISSE', 'ENCAISSÉ', 'ENCAISSÉE', 'PAYE', 'PAYÉ', 'PAYEE', 'PAYÉE',
+                    'VALIDE', 'VALIDÉ', 'VALIDÉE', 'SOLDE', 'SOLDÉ', 'SOLDÉE', 
+                    'DECAISSE', 'DÉCAISSÉ', 'DECAISSEMENT'
                 ];
 
                 this.incomingItems = res.incoming.data.filter(i => {

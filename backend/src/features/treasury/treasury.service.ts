@@ -130,6 +130,29 @@ export class TreasuryService {
 
   constructor(private prisma: PrismaService) {}
 
+  private readonly PAID_STATUSES = [
+    'ENCAISSE',
+    'ENCAISSÉ',
+    'ENCAISSÉE',
+    'PAYE',
+    'PAYÉ',
+    'PAYEE',
+    'PAYÉE',
+    'VALIDE',
+    'VALIDÉ',
+    'VALIDÉE',
+    'SOLDE',
+    'SOLDÉ',
+    'SOLDÉE',
+    'DECAISSE',
+    'DÉCAISSÉ',
+    'DECAISSEMENT',
+  ];
+
+  private getPaidStatusesSQL(): string {
+    return this.PAID_STATUSES.map((s) => `'${s}'`).join(', ');
+  }
+
   private getOutgoingsBaseSQL(filters: {
     centreId?: string;
     startDate?: string;
@@ -144,139 +167,80 @@ export class TreasuryService {
     const sqlParams: any[] = [];
     let depenseWhere = `WHERE 1=1 `;
     let echeanceWhere = `WHERE 1=1 `;
-    let blEcheanceWhere = `WHERE 1=1 `;
 
     if (filters.centreId) {
       sqlParams.push(filters.centreId);
       depenseWhere += `AND d."centreId" = $${sqlParams.length} `;
-      echeanceWhere += `AND ff."centreId" = $${sqlParams.length} `;
-      blEcheanceWhere += `AND bl."centreId" = $${sqlParams.length} `;
+      echeanceWhere += `AND COALESCE(ff."centreId", (SELECT "centreId" FROM "BonLivraison" WHERE id = ep."bonLivraisonId")) = $${sqlParams.length} `;
     }
 
     const depenseDateField =
-      filters.dateType === 'EMISSION'
-        ? 'd.date'
-        : 'COALESCE(d."dateEcheance", d.date)';
+      filters.dateType === 'EMISSION' ? 'd.date' : 'COALESCE(d."dateEcheance", d.date)';
 
     if (filters.startDate) {
       sqlParams.push(new Date(filters.startDate));
-      if (filters.dateType === 'EMISSION') {
-        depenseWhere += `AND d.date >= $${sqlParams.length} `;
-        echeanceWhere += `AND ff."dateEmission" >= $${sqlParams.length} `;
-        blEcheanceWhere += `AND bl."dateEmission" >= $${sqlParams.length} `;
-      } else {
-        depenseWhere += `AND ${depenseDateField} >= $${sqlParams.length} `;
-        echeanceWhere += `AND COALESCE(ep."dateEncaissement", ep."dateEcheance") >= $${sqlParams.length} `;
-        blEcheanceWhere += `AND COALESCE(ep."dateEncaissement", ep."dateEcheance") >= $${sqlParams.length} `;
-      }
+      depenseWhere += `AND ${depenseDateField} >= $${sqlParams.length} `;
+      // Always prioritize dateEncaissement for actual cash flow consistency
+      echeanceWhere += `AND COALESCE(ep."dateEncaissement", ff."dateEmission", ep."dateEcheance") >= $${sqlParams.length} `;
     }
 
     if (filters.endDate) {
       sqlParams.push(new Date(filters.endDate));
-      if (filters.dateType === 'EMISSION') {
-        depenseWhere += `AND d.date <= $${sqlParams.length} `;
-        echeanceWhere += `AND ff."dateEmission" <= $${sqlParams.length} `;
-        blEcheanceWhere += `AND bl."dateEmission" <= $${sqlParams.length} `;
-      } else {
-        depenseWhere += `AND ${depenseDateField} <= $${sqlParams.length} `;
-        echeanceWhere += `AND COALESCE(ep."dateEncaissement", ep."dateEcheance") <= $${sqlParams.length} `;
-        blEcheanceWhere += `AND COALESCE(ep."dateEncaissement", ep."dateEcheance") <= $${sqlParams.length} `;
-      }
+      depenseWhere += `AND ${depenseDateField} <= $${sqlParams.length} `;
+      // Always prioritize dateEncaissement for actual cash flow consistency
+      echeanceWhere += `AND COALESCE(ep."dateEncaissement", ff."dateEmission", ep."dateEcheance") <= $${sqlParams.length} `;
     }
 
     if (filters.statut && filters.statut !== 'ALL') {
       if (filters.statut === 'PAYE') {
         const paidStatuses = [
-          'PAYEE',
-          'PAYÉ',
-          'PAYÉE',
-          'ENCAISSE',
-          'ENCAISSÉ',
-          'VALIDE',
-          'VALIDÉ',
+          'PAYEE', 'PAYÉ', 'PAYÉE', 'ENCAISSE', 'ENCAISSÉ', 'VALIDE', 'VALIDÉ',
         ];
-        const inClause = paidStatuses
-          .map((_, i) => `$${sqlParams.length + i + 1}`)
-          .join(', ');
+        const inClause = paidStatuses.map((_, i) => `$${sqlParams.length + i + 1}`).join(', ');
         paidStatuses.forEach((s) => sqlParams.push(s));
         depenseWhere += `AND d.statut IN (${inClause}) `;
         echeanceWhere += `AND ep.statut IN (${inClause}) `;
-        blEcheanceWhere += `AND ep.statut IN (${inClause}) `;
       } else if (filters.statut === 'EN_ATTENTE') {
         const pendingStatuses = [
-          'EN_ATTENTE',
-          'PREVU',
-          'PRÉVU',
-          'BROUILLON',
-          'PORTEFEUILLE',
+          'EN_ATTENTE', 'PREVU', 'PRÉVU', 'BROUILLON', 'PORTEFEUILLE',
         ];
-        const inClause = pendingStatuses
-          .map((_, i) => `$${sqlParams.length + i + 1}`)
-          .join(', ');
+        const inClause = pendingStatuses.map((_, i) => `$${sqlParams.length + i + 1}`).join(', ');
         pendingStatuses.forEach((s) => sqlParams.push(s));
         depenseWhere += `AND d.statut IN (${inClause}) `;
         echeanceWhere += `AND ep.statut IN (${inClause}) `;
-        blEcheanceWhere += `AND ep.statut IN (${inClause}) `;
       } else {
         sqlParams.push(filters.statut);
         depenseWhere += `AND d.statut = $${sqlParams.length} `;
         echeanceWhere += `AND ep.statut = $${sqlParams.length} `;
-        blEcheanceWhere += `AND ep.statut = $${sqlParams.length} `;
       }
     }
 
     if (filters.fournisseurId) {
       sqlParams.push(filters.fournisseurId);
       depenseWhere += `AND d."fournisseurId" = $${sqlParams.length} `;
-      echeanceWhere += `AND ff."fournisseurId" = $${sqlParams.length} `;
-      blEcheanceWhere += `AND bl."fournisseurId" = $${sqlParams.length} `;
+      echeanceWhere += `AND COALESCE(ff."fournisseurId", (SELECT "fournisseurId" FROM "BonLivraison" WHERE id = ep."bonLivraisonId")) = $${sqlParams.length} `;
     }
 
     if (filters.type && filters.type !== 'ALL') {
       sqlParams.push(filters.type);
       depenseWhere += `AND d.categorie = $${sqlParams.length} `;
-      echeanceWhere += `AND ff.type = $${sqlParams.length} `;
-      blEcheanceWhere += `AND bl.type = $${sqlParams.length} `;
+      echeanceWhere += `AND COALESCE(ff.type, 'ACHAT_STOCK') = $${sqlParams.length} `;
     }
 
     if (filters.mode && filters.mode !== 'ALL') {
       const modes = filters.mode.split(',').map((m) => m.trim().toUpperCase());
       const allModes: string[] = [];
       for (const m of modes) {
-        if (m === 'CHEQUE')
-          allModes.push(
-            'CHEQUE',
-            'Chèque',
-            'CHÈQUE',
-            'Chéque',
-            'Ch├¿que',
-            'CHÉQUE',
-          );
-        else if (m === 'LCN')
-          allModes.push('LCN', 'EFFET', 'Effet', 'TR traite', 'Traite');
-        else if (m === 'ESPECES' || m === 'LIQUIDE')
-          allModes.push(
-            'ESPECES',
-            'Espèces',
-            'Liquide',
-            'CASH',
-            'LIQUIDE',
-            'ESPÈCES',
-            'ESPÈCE',
-            'ESPECE',
-          );
+        if (m === 'CHEQUE') allModes.push('CHEQUE', 'Chèque', 'CHÈQUE', 'Chéque', 'Ch├¿que', 'CHÉQUE');
+        else if (m === 'LCN') allModes.push('LCN', 'EFFET', 'Effet', 'TR traite', 'Traite');
+        else if (m === 'ESPECES' || m === 'LIQUIDE') allModes.push('ESPECES', 'Espèces', 'Liquide', 'CASH', 'LIQUIDE', 'ESPÈCES', 'ESPÈCE', 'ESPECE');
         else if (m === 'VIREMENT') allModes.push('VIREMENT', 'Virement');
         else allModes.push(m);
       }
-
-      const inClause = allModes
-        .map((_, i) => `$${sqlParams.length + i + 1}`)
-        .join(', ');
+      const inClause = allModes.map((_, i) => `$${sqlParams.length + i + 1}`).join(', ');
       allModes.forEach((m) => sqlParams.push(m));
-
       depenseWhere += `AND d."modePaiement" IN (${inClause}) `;
       echeanceWhere += `AND ep.type IN (${inClause}) `;
-      blEcheanceWhere += `AND ep.type IN (${inClause}) `;
     }
 
     let query = '';
@@ -284,133 +248,61 @@ export class TreasuryService {
 
     const includeDepense = !filters.source || filters.source === 'DEPENSE';
     const includeFacture = !filters.source || filters.source === 'FACTURE';
-    const includeBL =
-      !filters.source ||
-      filters.source === 'FACTURE' ||
-      filters.source === 'BL';
 
-    if (filters.dateType === 'EMISSION') {
-      if (includeDepense) {
-        parts.push(`
-          SELECT 
-            d.id, d.date, COALESCE(d.description, d.categorie) as libelle, d.categorie as type, 
-            COALESCE(f.nom, ff_d.nom, 'N/A') as fournisseur, d.montant, 'ENCAISSE' as statut, 'DEPENSE' as source, 
-            'DEPENSE' as "sourceRaw", d."modePaiement" as "methodePaiement", d.reference as "numeroPiece", 
-            CASE WHEN UPPER(TRIM(COALESCE(d."modePaiement", ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') 
-                   OR UPPER(TRIM(COALESCE(ep_d.type, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') THEN 'CAISSE' 
-                 ELSE COALESCE(ep_d.banque, 'CAISSE') END as banque, 
-            COALESCE(d."dateEcheance", d.date) as "dateEcheance", 
-            d.date as "dateEncaissement", d.montant as "montantHT", NULL as "echeanceId",
-            COALESCE(d."dateEcheance", d.date) as "datePiece"
-          FROM "Depense" d
-          LEFT JOIN "Fournisseur" f ON d."fournisseurId" = f.id
-          LEFT JOIN "FactureFournisseur" inv_d ON d."factureFournisseurId" = inv_d.id
-          LEFT JOIN "Fournisseur" ff_d ON inv_d."fournisseurId" = ff_d.id
-          LEFT JOIN "EcheancePaiement" ep_d ON d."echeanceId" = ep_d.id
-          ${depenseWhere} AND d."echeanceId" IS NULL
-        `);
-      }
-      if (includeFacture) {
-        parts.push(`
-          SELECT 
-            ff.id, ff."dateEmission" as date, ff."numeroFacture" as libelle, 
-            ff.type as type, COALESCE(f_ff.nom, 'N/A') as fournisseur, ff."montantTTC" as montant, ff.statut as statut, 
-            'Facture ' || ff."numeroFacture" as source, 'FACTURE' as "sourceRaw",
-            'NON_DEFINI' as "methodePaiement", ff."numeroFacture" as "numeroPiece", 
-            'BANQUE' as banque, 
-            ff."dateEcheance" as "dateEcheance", NULL as "dateEncaissement", 
-            ff."montantHT" as "montantHT", 
-            NULL as "echeanceId", ff."dateEmission" as "datePiece"
-          FROM "FactureFournisseur" ff
-          LEFT JOIN "Fournisseur" f_ff ON ff."fournisseurId" = f_ff.id
-          ${echeanceWhere.replace(/ep\.statut/g, 'ff.statut').replace(/ep\.type/g, 'ff.type')}
-        `);
-      }
-      if (includeBL) {
-        parts.push(`
-          SELECT 
-            bl.id, bl."dateEmission" as date, bl."numeroBL" as libelle, 
-            bl.type as type, COALESCE(f_bl.nom, 'N/A') as fournisseur, bl."montantTTC" as montant, bl.statut as statut, 
-            'BL ' || bl."numeroBL" as source, 'BL' as "sourceRaw",
-            'NON_DEFINI' as "methodePaiement", bl."numeroBL" as "numeroPiece", 
-            'BANQUE' as banque, 
-            bl."dateEcheance" as "dateEcheance", NULL as "dateEncaissement", 
-            bl."montantHT" as "montantHT", 
-            NULL as "echeanceId", bl."dateEmission" as "datePiece"
-          FROM "BonLivraison" bl
-          LEFT JOIN "Fournisseur" f_bl ON bl."fournisseurId" = f_bl.id
-          ${blEcheanceWhere.replace(/ep\.statut/g, 'bl.statut').replace(/ep\.type/g, 'bl.type')}
-          AND bl."factureFournisseurId" IS NULL
-        `);
-      }
-      query = parts.join(' UNION ALL ');
-    } else {
-      if (includeDepense) {
-        parts.push(`
-          SELECT 
-            d.id, d.date, COALESCE(d.description, d.categorie) as libelle, d.categorie as type, 
-            COALESCE(f.nom, ff_d.nom, 'N/A') as fournisseur, d.montant, 'ENCAISSE' as statut, 'DEPENSE' as source, 
-            'DEPENSE' as "sourceRaw", d."modePaiement" as "methodePaiement", d.reference as "numeroPiece", 
-            CASE WHEN UPPER(TRIM(COALESCE(d."modePaiement", ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') 
-                   OR UPPER(TRIM(COALESCE(ep_d.type, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') THEN 'CAISSE' 
-                 ELSE COALESCE(ep_d.banque, 'CAISSE') END as banque, 
-            COALESCE(d."dateEcheance", d.date) as "dateEcheance", 
-            d.date as "dateEncaissement", d.montant as "montantHT", NULL as "echeanceId",
-            COALESCE(d."dateEcheance", d.date) as "datePiece"
-          FROM "Depense" d
-          LEFT JOIN "Fournisseur" f ON d."fournisseurId" = f.id
-          LEFT JOIN "FactureFournisseur" inv_d ON d."factureFournisseurId" = inv_d.id
-          LEFT JOIN "Fournisseur" ff_d ON inv_d."fournisseurId" = ff_d.id
-          LEFT JOIN "EcheancePaiement" ep_d ON d."echeanceId" = ep_d.id
-          ${depenseWhere} AND d."echeanceId" IS NULL
-        `);
-      }
-      if (includeFacture) {
-        parts.push(`
-          SELECT 
-            ff.id, COALESCE(ep."dateEncaissement", ep."dateEcheance") as date, ff."numeroFacture" || ' (' || ep.type || ')' as libelle, 
-            ff.type as type, COALESCE(f_ff.nom, 'N/A') as fournisseur, ep.montant, ep.statut, 
-            'Facture ' || ff."numeroFacture" as source, 'FACTURE' as "sourceRaw",
-            ep.type as "methodePaiement", COALESCE(ep.reference, ff."numeroFacture") as "numeroPiece", 
-            CASE WHEN UPPER(TRIM(COALESCE(ep.type, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') THEN 'CAISSE' 
-                 ELSE COALESCE(ep.banque, 'BANQUE') END as banque, 
-            ep."dateEcheance", ep."dateEncaissement", 
-            (ep.montant * (ff."montantHT" / NULLIF(ff."montantTTC", 0))) as "montantHT", 
-            ep.id as "echeanceId", COALESCE(ep."dateEncaissement", ep."dateEcheance") as "datePiece"
-          FROM "EcheancePaiement" ep
-          INNER JOIN "FactureFournisseur" ff ON ep."factureFournisseurId" = ff.id
-          LEFT JOIN "Fournisseur" f_ff ON ff."fournisseurId" = f_ff.id
-          ${echeanceWhere}
-        `);
-      }
-      if (includeBL) {
-        parts.push(`
-          SELECT 
-            bl.id, COALESCE(ep."dateEncaissement", ep."dateEcheance") as date, bl."numeroBL" || ' (' || ep.type || ')' as libelle, 
-            bl.type as type, COALESCE(f_bl.nom, 'N/A') as fournisseur, ep.montant, ep.statut, 
-            'BL ' || bl."numeroBL" as source, 'BL' as "sourceRaw",
-            ep.type as "methodePaiement", COALESCE(ep.reference, bl."numeroBL") as "numeroPiece", 
-            CASE WHEN UPPER(TRIM(COALESCE(ep.type, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE', 'CASH/ESPECES', 'CASH/ESPÈCES') THEN 'CAISSE' 
-                 ELSE COALESCE(ep.banque, 'BANQUE') END as banque, 
-            ep."dateEcheance", ep."dateEncaissement", 
-            (ep.montant * (bl."montantHT" / NULLIF(bl."montantTTC", 0))) as "montantHT", 
-            ep.id as "echeanceId", COALESCE(ep."dateEncaissement", ep."dateEcheance") as "datePiece"
-          FROM "EcheancePaiement" ep
-          INNER JOIN "BonLivraison" bl ON ep."bonLivraisonId" = bl.id
-          LEFT JOIN "Fournisseur" f_bl ON bl."fournisseurId" = f_bl.id
-          ${blEcheanceWhere}
-          AND bl."factureFournisseurId" IS NULL
-          AND (
-               ep.statut IN ('ENCAISSE', 'ENCAISSÉ', 'ENCAISSÉE', 'PAYEE', 'PAYÉ', 'PAYÉE', 'VALIDE', 'VALIDÉ', 'VALIDÉE', 'SOLDE', 'SOLDÉ', 'SOLDÉE', 'DÉCAISSÉ', 'DECAISSE') 
-               OR (ep.reference IS NOT NULL AND TRIM(ep.reference) <> '')
-          )
-        `);
-      }
-      query = parts.join(' UNION ALL ');
+    const paidStatusesClause = this.getPaidStatusesSQL();
+
+    if (includeDepense) {
+      parts.push(`
+        SELECT 
+          d.id, ${depenseDateField} as date, COALESCE(d.description, d.categorie) as libelle, d.categorie as type, 
+          COALESCE(f.nom, ff_d.nom, 'N/A') as fournisseur, d.montant, 'ENCAISSE' as statut, 'DEPENSE' as source, 
+          'DEPENSE' as "sourceRaw", d."modePaiement" as "methodePaiement", d.reference as "numeroPiece", 
+          CASE WHEN UPPER(TRIM(COALESCE(d."modePaiement", ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE') 
+                 OR UPPER(TRIM(COALESCE(ep_d.type, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE') THEN 'CAISSE' 
+               ELSE COALESCE(ep_d.banque, 'CAISSE') END as banque, 
+          COALESCE(d."dateEcheance", d.date) as "dateEcheance", 
+          d.date as "dateEncaissement", d.montant as "montantHT", NULL as "echeanceId",
+          COALESCE(d."dateEcheance", d.date) as "datePiece"
+        FROM "Depense" d
+        LEFT JOIN "Fournisseur" f ON d."fournisseurId" = f.id
+        LEFT JOIN "FactureFournisseur" inv_d ON d."factureFournisseurId" = inv_d.id
+        LEFT JOIN "Fournisseur" ff_d ON inv_d."fournisseurId" = ff_d.id
+        LEFT JOIN "EcheancePaiement" ep_d ON d."echeanceId" = ep_d.id
+        ${depenseWhere} AND d."echeanceId" IS NULL
+      `);
     }
 
-    return { query, params: sqlParams };
+    if (includeFacture) {
+      parts.push(`
+        SELECT 
+          COALESCE(ff.id, ep.id) as id, 
+          ${filters.dateType === 'EMISSION' ? 'COALESCE(ep."dateEncaissement", ff."dateEmission", ep."dateEcheance")' : 'COALESCE(ep."dateEncaissement", ep."dateEcheance")'} as date, 
+          CASE WHEN ff.id IS NOT NULL THEN '[F] ' || ff."numeroFacture" || ' (' || ep.type || ')'
+               ELSE '[Paiement BL] ' || COALESCE(ep.reference, '') || ' (' || ep.type || ')' END as libelle, 
+          COALESCE(ff.type, 'ACHAT_STOCK') as type, 
+          COALESCE(f_ff.nom, 'N/A') as fournisseur, ep.montant, ep.statut, 
+          CASE WHEN ff.id IS NOT NULL THEN 'Facture ' || ff."numeroFacture" ELSE 'Paiement direct' END as source, 
+          'FACTURE' as "sourceRaw",
+          ep.type as "methodePaiement", COALESCE(ep.reference, ff."numeroFacture", '') as "numeroPiece", 
+          CASE WHEN UPPER(TRIM(COALESCE(ep.type, ''))) IN ('ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE') THEN 'CAISSE' 
+               ELSE COALESCE(ep.banque, 'BANQUE') END as banque, 
+          ep."dateEcheance", ep."dateEncaissement", 
+          CASE WHEN ff.id IS NOT NULL THEN (ep.montant * (ff."montantHT" / NULLIF(ff."montantTTC", 0))) 
+               ELSE ep.montant END as "montantHT", 
+          ep.id as "echeanceId", 
+          ${filters.dateType === 'EMISSION' ? 'COALESCE(ep."dateEncaissement", ff."dateEmission", ep."dateEcheance")' : 'COALESCE(ep."dateEncaissement", ep."dateEcheance")'} as "datePiece"
+        FROM "EcheancePaiement" ep
+        LEFT JOIN "FactureFournisseur" ff ON ep."factureFournisseurId" = ff.id
+        LEFT JOIN "Fournisseur" f_ff ON COALESCE(ff."fournisseurId", (SELECT "fournisseurId" FROM "BonLivraison" WHERE id = ep."bonLivraisonId")) = f_ff.id
+        ${echeanceWhere}
+        AND (
+             ep.statut IN (${paidStatusesClause}) 
+             OR (ep.reference IS NOT NULL AND ep.reference <> '' AND ep.reference <> ' ')
+        )
+      `);
+    }
 
+    query = parts.join(' UNION ALL ');
     return { query, params: sqlParams };
   }
 
@@ -449,7 +341,6 @@ export class TreasuryService {
         where: {
           date: { gte: startDate, lte: endDate },
           centreId: normalizedCentreId,
-          factureFournisseurId: null, // Avoid double counting with Facture table
         } as any,
         _sum: { montant: true },
       }),
@@ -554,59 +445,8 @@ export class TreasuryService {
 
       // 5. Configuration
       this.prisma.financeConfig.findFirst(),
-
-      // 6. Total Invoices for the period (Alignment with Stats)
-      this.prisma.factureFournisseur.aggregate({
-        where: {
-          dateEmission: { gte: startDate, lte: endDate },
-          ...(centreId ? { centreId } : {}),
-        },
-        _sum: { montantTTC: true },
-      }),
-
-      // 7. Total Direct Expenses for the period (Alignment with List/CashFlow)
-      this.prisma.depense.aggregate({
-        where: {
-          OR: [
-            { dateEcheance: { gte: startDate, lte: endDate } },
-            {
-              dateEcheance: null,
-              date: { gte: startDate, lte: endDate },
-            },
-          ],
-          centreId: normalizedCentreId,
-          factureFournisseurId: null, // Exclude expenses already linked to invoices
-          bonLivraisonId: null, // Exclude expenses already linked to BLs
-        },
-        _sum: { montant: true },
-      }),
-
-      // 8. Invoice Breakdown by Type
-      this.prisma.factureFournisseur.groupBy({
-        by: ['type'],
-        where: {
-          dateEmission: { gte: startDate, lte: endDate },
-          centreId: normalizedCentreId,
-        },
-        _sum: { montantTTC: true },
-      }),
-
-      // 9. BL Breakdown by Type (Not yet invoiced)
-      this.prisma.bonLivraison.groupBy({
-        by: ['type'],
-        where: {
-          dateEmission: { gte: startDate, lte: endDate },
-          factureFournisseurId: null,
-          centreId: normalizedCentreId,
-        },
-        _sum: { montantTTC: true },
-      }),
     ]);
 
-    const directExpenseCategories = results[0] as Array<{
-      _sum: { montant: number | null };
-      categorie: string | null;
-    }>;
     const monthlyPaiements = results[2] as Array<{
       statut: string;
       mode: string;
@@ -622,123 +462,59 @@ export class TreasuryService {
       _count: { _all: number };
     };
     const config = results[6] as { monthlyThreshold?: number } | null;
-    const totalInvoicesTTC =
-      (results[7] as { _sum: { montantTTC: number | null } })._sum.montantTTC ||
-      0;
-    const totalDirectExpensesValue =
-      (results[8] as { _sum: { montant: number | null } })._sum.montant || 0;
-    const invoiceBreakdown = results[9] as Array<{
-      _sum: { montantTTC: number | null };
-      type: string | null;
-    }>;
-    const blBreakdown = results[10] as Array<{
-      _sum: { montantTTC: number | null };
-      type: string | null;
-    }>;
 
     const monthlyThreshold = config?.monthlyThreshold || 50000;
 
     const inventoryTypes = this.INVENTORY_PURCHASE_TYPES;
-    const combinedCategoriesMap = new Map<string, number>();
 
-    // 1. Process Invoice Categories (Alignment with Stats)
-    invoiceBreakdown.forEach((b) => {
-      const type = b.type || 'AUTRE';
-      const isInventory = inventoryTypes.includes(type);
+    // 1. Process Categories and Totals using the standardized SQL logic
+    // This ensures that the Orange card (EMISSION) and Purple card (ECHEANCE) are consistent with the table.
+    
+    // Orange Card: Documents emitted this month (Only programmed ones as requested)
+    const startStr = `${year}-${String(month).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-      const amount = Number(b._sum.montantTTC || 0);
-      let cat = type;
-      if (isInventory) {
-        if (
-          type === 'ACHAT MONTURES OPTIQUES' ||
-          type === 'ACHAT_MONTURE_OPTIQUE'
-        )
-          cat = 'ACHAT MONTURES';
-        else if (
-          type === 'ACHAT VERRES OPTIQUES' ||
-          type === 'ACHAT_VERRE_OPTIQUE'
-        )
-          cat = 'ACHAT VERRES';
-        else if (
-          type === 'ACHAT LENTILLES DE CONTACT' ||
-          type === 'ACHAT_LENTILLE_CONTACT'
-        )
-          cat = 'ACHAT LENTILLES';
-        else if (
-          type === 'ACHAT ACCESSOIRES OPTIQUES' ||
-          type === 'ACHAT_ACCESSOIRE_OPTIQUE'
-        )
-          cat = 'ACHAT ACCESSOIRES';
-        else cat = 'ACHAT STOCK (Divers)';
-      }
-
-      // Merge generic 'FACTURE' or 'AUTRE' into 'ACHAT STOCK (Divers)' if it's high value and looks like stock
-      if (cat === 'FACTURE' || cat === 'AUTRE') {
-        // Special case for the 17064 issue if needed, but let's keep it clean
-      }
-
-      combinedCategoriesMap.set(
-        cat,
-        (combinedCategoriesMap.get(cat) || 0) + amount,
-      );
+    const emissionQuery = this.getOutgoingsBaseSQL({
+      centreId: normalizedCentreId,
+      startDate: startStr,
+      endDate: endStr,
+      dateType: 'EMISSION',
     });
 
-    // 1b. Process BL Categories (Non-invoiced)
-    blBreakdown.forEach((b) => {
-      const type = b.type || 'AUTRE';
-      const isInventory = inventoryTypes.includes(type);
-      const amount = Number(b._sum.montantTTC || 0);
-      let cat = type;
-      if (isInventory) {
-        if (
-          type === 'ACHAT MONTURES OPTIQUES' ||
-          type === 'ACHAT_MONTURE_OPTIQUE'
-        )
-          cat = 'ACHAT MONTURES';
-        else if (
-          type === 'ACHAT VERRES OPTIQUES' ||
-          type === 'ACHAT_VERRE_OPTIQUE'
-        )
-          cat = 'ACHAT VERRES';
-        else if (
-          type === 'ACHAT LENTILLES DE CONTACT' ||
-          type === 'ACHAT_LENTILLE_CONTACT'
-        )
-          cat = 'ACHAT LENTILLES';
-        else if (
-          type === 'ACHAT ACCESSOIRES OPTIQUES' ||
-          type === 'ACHAT_ACCESSOIRE_OPTIQUE'
-        )
-          cat = 'ACHAT ACCESSOIRES';
-        else cat = 'ACHAT STOCK (Divers)';
-      }
-
-      combinedCategoriesMap.set(
-        cat,
-        (combinedCategoriesMap.get(cat) || 0) + amount,
-      );
-    });
-
-    // 2. Process Direct Expense Categories
-    directExpenseCategories.forEach((c) => {
-      const amount = Number(c._sum.montant || 0);
-      const cat = c.categorie || 'AUTRES FRAIS';
-      combinedCategoriesMap.set(
-        cat,
-        (combinedCategoriesMap.get(cat) || 0) + amount,
-      );
-    });
-
-    // Total Engaged (Invoices + Direct + BLs) - FIXED to avoid double counting
-    const totalBLTTC = blBreakdown.reduce(
-      (sum, b) => sum + Number(b._sum.montantTTC || 0),
-      0,
+    const emissionStats = await this.prisma.$queryRawUnsafe<
+      { total: number; type: string; cat: string; source: string }[]
+    >(
+      `
+        SELECT montant as total, type, source as cat FROM (${emissionQuery.query}) as c
+      `,
+      ...(emissionQuery.params as QueryParam[]),
     );
-    const totalEngaged =
-      totalInvoicesTTC + totalDirectExpensesValue + totalBLTTC;
 
-    // Final calculations for Dashboard
-    const totalExpenses = totalEngaged; // Orange card: Engagements of the month
+    const combinedCategoriesMap = new Map<string, number>();
+    let totalEngaged = 0;
+
+    emissionStats.forEach((s) => {
+      const amount = Number(s.total || 0);
+      totalEngaged += amount;
+      
+      const type = s.type || 'AUTRE';
+      const isInventory = inventoryTypes.includes(type);
+      let cat = type;
+      if (isInventory) {
+        if (type === 'ACHAT MONTURES OPTIQUES' || type === 'ACHAT_MONTURE_OPTIQUE') cat = 'ACHAT MONTURES';
+        else if (type === 'ACHAT VERRES OPTIQUES' || type === 'ACHAT_VERRE_OPTIQUE') cat = 'ACHAT VERRES';
+        else if (type === 'ACHAT LENTILLES DE CONTACT' || type === 'ACHAT_LENTILLE_CONTACT') cat = 'ACHAT LENTILLES';
+        else if (type === 'ACHAT ACCESSOIRES OPTIQUES' || type === 'ACHAT_ACCESSOIRE_OPTIQUE') cat = 'ACHAT ACCESSOIRES';
+        else cat = 'ACHAT STOCK (Divers)';
+      } else {
+        cat = s.cat || 'DEPENSE';
+        if (cat.startsWith('Facture ')) cat = 'ACHAT STOCK (Divers)';
+      }
+      combinedCategoriesMap.set(cat, (combinedCategoriesMap.get(cat) || 0) + amount);
+    });
+
+    const totalExpenses = totalEngaged; // Orange card: Engagements of the month (Standardized)
 
     // 3. Process Incoming Payments (Paiement)
     let incomingStandard = 0;
@@ -842,10 +618,6 @@ export class TreasuryService {
       (p) => p.statut === 'EN_ATTENTE' && ['CHEQUE', 'LCN'].includes(p.mode),
     ).length;
 
-    const startStr = `${year}-${String(month).padStart(2, '0')}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    const endStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-
     const outgoingsQuery = this.getOutgoingsBaseSQL({
       centreId,
       startDate: startStr,
@@ -859,7 +631,7 @@ export class TreasuryService {
       `
         SELECT 
           COALESCE(SUM(montant), 0)::float as total,
-          COALESCE(SUM(CASE WHEN statut IN ('ENCAISSE', 'ENCAISSÉ', 'ENCAISSÉE', 'PAYE', 'PAYÉ', 'PAYEE', 'PAYÉE', 'VALIDE', 'VALIDÉ', 'VALIDÉE', 'SOLDE', 'SOLDÉ', 'SOLDÉE', 'DÉCAISSÉ', 'DECAISSE') THEN montant ELSE 0 END), 0)::float as paid
+          COALESCE(SUM(CASE WHEN statut IN (${this.getPaidStatusesSQL()}) THEN montant ELSE 0 END), 0)::float as paid
         FROM (${outgoingsQuery.query}) as c
       `,
       ...(outgoingsQuery.params as QueryParam[]),
@@ -953,7 +725,7 @@ export class TreasuryService {
         COALESCE(SUM("montantHT"), 0)::float as "totalHT",
         COALESCE(SUM(CASE WHEN statut IN ('EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON', 'NON_PAYEE', 'A_PAYER') THEN montant ELSE 0 END), 0)::float as "inHand",
         COALESCE(SUM(CASE WHEN statut IN ('REMIS_EN_BANQUE', 'DEPOSE', 'DÉPOSÉ') THEN montant ELSE 0 END), 0)::float as "deposited",
-        COALESCE(SUM(CASE WHEN statut IN ('ENCAISSE', 'ENCAISSÉ', 'ENCAISSÉE', 'PAYE', 'PAYÉ', 'PAYEE', 'PAYÉE', 'VALIDE', 'VALIDÉ', 'VALIDÉE', 'SOLDE', 'SOLDÉ', 'SOLDÉE', 'DÉCAISSÉ', 'DECAISSE') THEN montant ELSE 0 END), 0)::float as "paid"
+        COALESCE(SUM(CASE WHEN statut IN (${this.getPaidStatusesSQL()}) THEN montant ELSE 0 END), 0)::float as "paid"
       FROM (${sqlBase.query}) as c
     `;
     const statsResult = await this.prisma.$queryRawUnsafe<
@@ -1457,12 +1229,14 @@ export class TreasuryService {
             OR: [
               { depense: { centreId } },
               { factureFournisseur: { centreId } },
+              { bonLivraison: { centreId } },
             ],
           }
         : {
             OR: [
               { depense: { isNot: null } },
               { factureFournisseur: { isNot: null } },
+              { bonLivraison: { isNot: null } },
             ],
           }),
     };
@@ -1472,6 +1246,7 @@ export class TreasuryService {
         where: {
           mode: 'CHEQUE',
           statut: 'EN_ATTENTE',
+          reference: { not: null, notIn: [''] },
           dateVersement: { lte: next24h, gte: last30days },
           facture: centreId ? { centreId } : {},
         },
@@ -1486,12 +1261,14 @@ export class TreasuryService {
           ...baseWhere,
           type: { in: ['CHEQUE', 'LCN'] },
           statut: 'EN_ATTENTE',
+          reference: { not: null, notIn: [''] },
         },
         include: {
           factureFournisseur: {
             include: { fournisseur: { select: { nom: true } } },
           },
           depense: { include: { fournisseur: { select: { nom: true } } } },
+          bonLivraison: { include: { fournisseur: { select: { nom: true } } } },
         },
       }),
     ]);
@@ -1506,17 +1283,24 @@ export class TreasuryService {
         reference: p.reference,
         numeroFacture: p.facture.numero,
       })),
-      supplier: supplierAlerts.map((e) => ({
-        id: e.id,
-        fournisseur:
-          e.factureFournisseur?.fournisseur?.nom ||
-          e.depense?.fournisseur?.nom ||
-          'N/A',
-        montant: e.montant,
-        date: e.dateEcheance,
-        reference: e.reference,
-        source: e.factureFournisseur ? 'FACTURE' : 'DEPENSE',
-      })),
+      supplier: supplierAlerts.map((e) => {
+        let source = 'DEPENSE';
+        if (e.factureFournisseur) source = 'FACTURE';
+        else if (e.bonLivraison) source = 'BL';
+
+        return {
+          id: e.id,
+          fournisseur:
+            e.factureFournisseur?.fournisseur?.nom ||
+            e.depense?.fournisseur?.nom ||
+            e.bonLivraison?.fournisseur?.nom ||
+            'N/A',
+          montant: e.montant,
+          date: e.dateEcheance,
+          reference: e.reference,
+          source: source,
+        };
+      }),
     };
   }
 

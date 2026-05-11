@@ -23,7 +23,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { forkJoin, of } from 'rxjs';
 import { catchError, map, take } from 'rxjs/operators';
 import { Store } from '@ngrx/store';
-import { UserIdSelector } from '../../../core/store/auth/auth.selectors';
+import { UserIdSelector, UserCurrentCentreSelector } from '../../../core/store/auth/auth.selectors';
 
 export const MY_FORMATS = {
     parse: {
@@ -242,10 +242,16 @@ export class PayrollManagerComponent implements OnInit {
 
         dialogRef.afterClosed().subscribe(result => {
             if (result && result.employeeId) {
-                this.store.select(UserIdSelector).pipe(take(1)).subscribe(userId => {
-                    const centreId = this.employees.find(e => e.id === result.employeeId)?.centres?.[0]?.centreId;
+                forkJoin({
+                    userId: this.store.select(UserIdSelector).pipe(take(1)),
+                    currentCentre: this.store.select(UserCurrentCentreSelector).pipe(take(1))
+                }).subscribe(({ userId, currentCentre }) => {
+                    // Use the currently active centre from the session if available, 
+                    // otherwise fallback to the employee's first linked centre.
+                    const centreId = currentCentre?.id || this.employees.find(e => e.id === result.employeeId)?.centres?.[0]?.centreId;
+                    
                     if (!centreId) {
-                        this.snackBar.open('Impossible : Cet employé n\'a pas de centre affecté', 'Fermer', { duration: 3000 });
+                        this.snackBar.open('Impossible : Aucun centre de décaissement identifié', 'Fermer', { duration: 3000 });
                         return;
                     }
 
@@ -257,11 +263,11 @@ export class PayrollManagerComponent implements OnInit {
                     }).subscribe({
                         next: () => {
                             this.snackBar.open('Avance enregistrée avec succès', 'OK', { duration: 3000 });
-                            this.loadPayrolls(); // Refresh to see updated advance totals
+                            this.loadPayrolls(); 
                         },
                         error: (err) => {
                             console.error('Error recording advance', err);
-                            this.snackBar.open('Erreur : ' + (err.error?.message || 'Impossible d\'enregistrer l\'avance'), 'OK', { duration: 3000 });
+                            this.snackBar.open('Erreur : ' + (err.error?.message || 'Impossible d\'enregistrer l\'avance'), 'Fermer', { duration: 5000 });
                         }
                     });
                 });

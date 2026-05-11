@@ -71,46 +71,93 @@ export class CommissionService {
     });
   }
 
+  async getConfig() {
+    let config = await this.prisma.commissionConfig.findFirst();
+    if (!config) {
+      config = await this.prisma.commissionConfig.create({
+        data: { triggerType: 'FACTURE', paymentCondition: 'SOLDE', paymentConditionFacture: 'SOLDE' },
+      });
+    }
+    return config;
+  }
+
+  async updateConfig(dto: { triggerType?: string; paymentCondition?: string; paymentConditionFacture?: string }) {
+    const config = await this.getConfig();
+    return this.prisma.commissionConfig.update({
+      where: { id: config.id },
+      data: dto,
+    });
+  }
+
+  /**
+   * Calculates commissions for a specific fiche (BC).
+   */
+  async calculateForFiche(ficheId: string, tx?: any) {
+    const prisma = tx || this.prisma;
+    const config = await this.getConfig();
+
+    // If config says trigger on FACTURE, we don't calculate on Fiche unless explicitly called
+    if (config.triggerType !== 'BC') return null;
+
+    const fiche = await prisma.fiche.findUnique({
+      where: { id: ficheId },
+      include: { vendeur: true },
+    });
+
+    if (!fiche || !fiche.vendeurId || !fiche.vendeur) return null;
+
+    // Payment condition check
+    if (config.paymentCondition === 'SOLDE' && fiche.montantPaye < fiche.montantTotal) return null;
+    if (config.paymentCondition === 'PARTIEL' && fiche.montantPaye <= 0) return null;
+
+    const employee = fiche.vendeur;
+    const mois = fiche.dateCreation.toISOString().substring(0, 7);
+
+    // Get rules
+    const rules = await prisma.commissionRule.findMany({
+      where: {
+        poste: employee.poste,
+        OR: [{ centreId: null }], // Can be extended for center-specific rules
+      },
+    });
+
+    const lines = typeof fiche.content === 'string' ? JSON.parse(fiche.content as any) : (fiche.content as any).lignes || [];
+    if (!Array.isArray(lines)) return null;
+
+    return this.processLines(lines, employee, null, fiche.id, mois, rules, prisma);
+  }
+
   /**
    * Calculates commissions for a specific invoice.
-   * Should be called when an invoice is VALIDATED and PAID.
-   * BUG-003 FIX: Validate invoice amount strictly
    */
   async calculateForInvoice(factureId: string, tx?: any) {
     const prisma = tx || this.prisma;
+    const config = await this.getConfig();
+
     const facture = await prisma.facture.findUnique({
       where: { id: factureId },
       include: { vendeur: true },
     });
 
-    // BUG-003 FIX: Validate facture amount is positive and valid
     if (!facture || !facture.vendeurId || !facture.vendeur) return null;
 
-    // CRITICAL VALIDATION: Reject negative, zero, or non-finite amounts
-    if (!isFinite(facture.montantHT) || facture.montantHT <= 0) {
-      console.warn(
-        `⚠️ [COMMISSION] Rejeté pour facture ${factureId}: montantHT=${facture.montantHT} (invalide)`,
-      );
+    // If config says trigger on BC, we might want to skip Invoice to avoid duplicates
+    // unless the Invoice is the only place where final amounts are known.
+    // For now, let's respect the triggerType.
+    if (config.triggerType === 'BC') {
+      console.log(`[COMMISSION] Skipping Invoice ${factureId} because trigger is set to BC`);
       return null;
     }
 
-    // Validate status: only VALIDE or PAYEE can have commissions
-    if (!['VALIDE', 'PAYEE', 'SOLDEE'].includes(facture.statut)) {
-      console.warn(
-        `⚠️ [COMMISSION] Rejeté pour facture ${factureId}: statut=${facture.statut} (non eligible)`,
-      );
-      return null;
-    }
+    // Payment condition check
+    if (config.paymentCondition === 'SOLDE' && !['VALIDE', 'PAYEE', 'SOLDEE'].includes(facture.statut)) return null;
+    if (config.paymentCondition === 'PARTIEL' && !['VALIDE', 'PAYEE', 'SOLDEE', 'PARTIEL'].includes(facture.statut)) return null;
+
+    if (!isFinite(facture.totalHT) || facture.totalHT <= 0) return null;
 
     const employee = facture.vendeur;
-    const mois = facture.dateEmission.toISOString().substring(0, 7); // YYYY-MM
+    const mois = facture.dateEmission.toISOString().substring(0, 7);
 
-    // Delete existing commissions for this invoice to avoid doubles (Idempotency)
-    await prisma.commission.deleteMany({
-      where: { factureId: facture.id },
-    });
-
-    // Get rules for this employee's poste and centre
     const rules = await prisma.commissionRule.findMany({
       where: {
         poste: employee.poste,
@@ -118,27 +165,28 @@ export class CommissionService {
       },
     });
 
-    const lines =
-      typeof facture.lignes === 'string'
-        ? JSON.parse(facture.lignes)
-        : (facture.lignes as any[]);
+    const lines = typeof facture.lignes === 'string' ? JSON.parse(facture.lignes) : (facture.lignes as any[]);
     if (!Array.isArray(lines)) return null;
 
-    const results: any[] = [];
+    return this.processLines(lines, employee, facture.id, null, mois, rules, prisma);
+  }
 
+  private async processLines(lines: any[], employee: any, factureId: string | null, ficheId: string | null, mois: string, rules: any[], prisma: any) {
+    // Delete existing to avoid duplicates
+    if (factureId) {
+      await prisma.commission.deleteMany({ where: { factureId } });
+    } else if (ficheId) {
+      await prisma.commission.deleteMany({ where: { ficheId } });
+    }
+
+    const results: any[] = [];
     for (const line of lines) {
       let typeArticle: string | null = null;
-
       if (line.productId) {
-        const product = await prisma.product.findUnique({
-          where: { id: line.productId },
-        });
-        if (product) {
-          typeArticle = product.typeArticle;
-        }
+        const product = await prisma.product.findUnique({ where: { id: line.productId } });
+        if (product) typeArticle = product.typeArticle;
       }
 
-      // Fallback: If no product found or custom line, infer from description
       if (!typeArticle && line.description) {
         const desc = line.description.toUpperCase();
         if (desc.includes('MONTURE')) typeArticle = 'MONTURE';
@@ -147,40 +195,23 @@ export class CommissionService {
         else if (desc.includes('ACCESSOIRE')) typeArticle = 'ACCESSOIRE';
       }
 
-      // Find matching rule
-      const rule =
-        rules.find((r) => {
-          if (!typeArticle) return false;
-          const rType = r.typeProduit.toUpperCase();
-          const pType = typeArticle.toUpperCase();
-          return rType === pType || pType.startsWith(rType + '_');
-        }) || rules.find((r) => r.typeProduit === 'GLOBAL');
+      const rule = rules.find((r) => {
+        if (!typeArticle) return false;
+        const rType = r.typeProduit.toUpperCase();
+        const pType = typeArticle.toUpperCase();
+        return rType === pType || pType.startsWith(rType + '_');
+      }) || rules.find((r) => r.typeProduit === 'GLOBAL');
 
       if (rule) {
-        // BUG-003 FIX: Validate line amount and commission calculation
         const lineAmount = line.totalTTC || 0;
-        if (!isFinite(lineAmount) || lineAmount < 0) {
-          console.warn(
-            `⚠️ [COMMISSION] Ligne ignorée: montant=${lineAmount} (invalide)`,
-          );
-          continue;
-        }
-
         const montantCom = Number((lineAmount * (rule.taux / 100)).toFixed(2));
-
-        // Validate commission is positive and finite
-        if (!isFinite(montantCom) || montantCom < 0) {
-          console.warn(
-            `⚠️ [COMMISSION] Calcul rejeté: montantCom=${montantCom} (invalide)`,
-          );
-          continue;
-        }
 
         if (montantCom > 0) {
           await prisma.commission.create({
             data: {
               employeeId: employee.id,
-              factureId: facture.id,
+              factureId: factureId || undefined,
+              ficheId: ficheId || undefined,
               type: typeArticle || 'INCONNU',
               montant: montantCom,
               mois: mois,
@@ -190,26 +221,16 @@ export class CommissionService {
         }
       }
     }
-
     return results;
   }
 
-  async getEmployeeCommissions(
-    employeeId: string,
-    mois: string,
-    annee?: number,
-  ) {
+  async getEmployeeCommissions(employeeId: string, mois: string, annee?: number) {
     const fullMois = annee ? `${annee}-${mois}` : mois;
     return this.prisma.commission.findMany({
       where: { employeeId, mois: fullMois },
       include: {
-        facture: {
-          select: {
-            numero: true,
-            totalTTC: true,
-            dateEmission: true,
-          },
-        },
+        facture: { select: { numero: true, totalTTC: true, dateEmission: true } },
+        fiche: { select: { numero: true, montantTotal: true, dateCreation: true } },
       },
     });
   }
@@ -223,48 +244,42 @@ export class CommissionService {
     return aggregations._sum.montant || 0;
   }
 
-  /**
-   * Recalculates all commissions for a given month.
-   * Useful for recovering missing commissions after linking users to employees.
-   */
   async recalculateForPeriod(mois: string) {
-    // Find all validated/paid invoices for this month
-    const factures = await this.prisma.facture.findMany({
-      where: {
-        statut: { in: ['VALIDE', 'PAYEE', 'PARTIEL'] },
-        dateEmission: {
-          gte: new Date(`${mois}-01`),
-          lt: new Date(
-            new Date(`${mois}-01`).setMonth(
-              new Date(`${mois}-01`).getMonth() + 1,
-            ),
-          ),
-        },
-      },
-    });
-
-    console.log(
-      `🔄 [CommissionService] Recalculating for ${factures.length} invoices in ${mois}`,
-    );
-
+    const config = await this.getConfig();
     let totalCreated = 0;
+    let itemsProcessed = 0;
 
-    for (const facture of factures) {
-      // Delete existing commissions for this invoice to avoid doubles
-      await this.prisma.commission.deleteMany({
-        where: { factureId: facture.id },
+    if (config.triggerType === 'FACTURE') {
+      const factures = await this.prisma.facture.findMany({
+        where: {
+          statut: { in: ['VALIDE', 'PAYEE', 'PARTIEL', 'SOLDEE'] },
+          dateEmission: {
+            gte: new Date(`${mois}-01`),
+            lt: new Date(new Date(`${mois}-01`).setMonth(new Date(`${mois}-01`).getMonth() + 1)),
+          },
+        },
       });
-
-      // Calculate new ones
-      const results = await this.calculateForInvoice(facture.id);
-      if (results && results.length > 0) {
-        totalCreated += results.length;
+      itemsProcessed = factures.length;
+      for (const f of factures) {
+        const results = await this.calculateForInvoice(f.id);
+        if (results) totalCreated += results.length;
+      }
+    } else {
+      const fiches = await this.prisma.fiche.findMany({
+        where: {
+          dateCreation: {
+            gte: new Date(`${mois}-01`),
+            lt: new Date(new Date(`${mois}-01`).setMonth(new Date(`${mois}-01`).getMonth() + 1)),
+          },
+        },
+      });
+      itemsProcessed = fiches.length;
+      for (const f of fiches) {
+        const results = await this.calculateForFiche(f.id);
+        if (results) totalCreated += results.length;
       }
     }
 
-    return {
-      invoicesProcessed: factures.length,
-      commissionsCreated: totalCreated,
-    };
+    return { itemsProcessed, commissionsCreated: totalCreated };
   }
 }
