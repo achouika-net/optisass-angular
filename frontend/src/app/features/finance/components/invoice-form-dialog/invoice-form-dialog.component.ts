@@ -532,7 +532,8 @@ export class InvoiceFormDialogComponent implements OnInit {
                     if (s) {
                         this.selectedSupplier = s;
                         this.supplierCtrl.setValue(s.nom, { emitEvent: false });
-                        if (this.echeances.length <= 1 && !this.isViewMode) {
+                        // Only auto-apply conditions if NOT in BL mode
+                        if (this.echeances.length <= 1 && !this.isViewMode && !this.isBLMode) {
                             const conditions = (s.convention?.echeancePaiement?.[0] || s.conditionsPaiement || '').toLowerCase();
                             if (conditions) {
                                 if (conditions.includes('60 jours') && this.echeances.length !== 2) this.applyPaymentConditions(s);
@@ -675,7 +676,8 @@ export class InvoiceFormDialogComponent implements OnInit {
 
     onSupplierChange(id: string) {
         this.selectedSupplier = this.suppliers.find(s => s.id === id) || null;
-        if (this.selectedSupplier && this.echeances.length === 0 && !this.isViewMode) {
+        // Only auto-apply if NOT in BL mode
+        if (this.selectedSupplier && this.echeances.length === 0 && !this.isViewMode && !this.isBLMode) {
             this.applyPaymentConditions(this.selectedSupplier);
         }
     }
@@ -1084,7 +1086,8 @@ export class InvoiceFormDialogComponent implements OnInit {
             }
         } else {
             // [FIX] Auto-apply modalities if not already done, to ensure correct monthly distribution
-            if (this.echeances.length === 0 && this.selectedSupplier) {
+            // IMPORTANT: Never auto-apply for BLs as they are Engagements, not yet Payments
+            if (this.echeances.length === 0 && this.selectedSupplier && !this.isBLMode) {
                 this.applyPaymentConditions(this.selectedSupplier);
                 // Update local invoiceData with new echeances
                 invoiceData.echeances = this.echeances.getRawValue();

@@ -400,6 +400,10 @@ export class TreasuryService {
           LEFT JOIN "Fournisseur" f_bl ON bl."fournisseurId" = f_bl.id
           ${blEcheanceWhere}
           AND bl."factureFournisseurId" IS NULL
+          AND (
+               ep.statut IN ('ENCAISSE', 'ENCAISSÉ', 'ENCAISSÉE', 'PAYEE', 'PAYÉ', 'PAYÉE', 'VALIDE', 'VALIDÉ', 'VALIDÉE', 'SOLDE', 'SOLDÉ', 'SOLDÉE', 'DÉCAISSÉ', 'DECAISSE') 
+               OR (ep.reference IS NOT NULL AND TRIM(ep.reference) <> '')
+          )
         `);
       }
       query = parts.join(' UNION ALL ');
