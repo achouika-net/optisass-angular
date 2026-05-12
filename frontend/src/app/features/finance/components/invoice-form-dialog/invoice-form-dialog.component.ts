@@ -488,8 +488,8 @@ export class InvoiceFormDialogComponent implements OnInit {
             if (prefilledEcheances.length > 0) {
                 // 1. Add all existing echeances from the BLs
                 prefilledEcheances.forEach((e: any) => {
-                    // Force ESPECES for paid installments if they don't have a mode (heuristic for cash on delivery)
-                    if (e.statut === 'ENCAISSE' && !e.type) {
+                    // Force ESPECES for already paid parts of a BL grouping
+                    if (e.statut === 'ENCAISSE') {
                         e.type = 'ESPECES';
                     }
                     this.addEcheance(e);
@@ -503,13 +503,16 @@ export class InvoiceFormDialogComponent implements OnInit {
 
             if (remaining > 1) { 
                 if (this.selectedSupplier && (this.selectedSupplier.conditionsPaiement || this.selectedSupplier.convention)) {
-                    // Use supplier conditions to split the remainder
-                    this.applyPaymentConditions(this.selectedSupplier, remaining);
+                    // Use supplier conditions to split the remainder (DO NOT CLEAR EXISTING)
+                    this.applyPaymentConditions(this.selectedSupplier, remaining, false);
                 } else {
-                    // Fallback: Add a single installment for the remainder
+                    // Fallback: Add a single installment for the remainder (Default to 30 days)
+                    const fallbackDate = new Date(this.detailsGroup.get('dateEmission')?.value || new Date());
+                    fallbackDate.setMonth(fallbackDate.getMonth() + 1);
+
                     this.addEcheance({
                         type: 'CHEQUE',
-                        dateEcheance: this.detailsGroup.get('dateEcheance')?.value || new Date(),
+                        dateEcheance: fallbackDate,
                         montant: remaining,
                         statut: 'EN_ATTENTE'
                     });
