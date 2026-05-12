@@ -151,7 +151,7 @@ export class TreasuryService {
         LEFT JOIN "Fournisseur" f_ff ON COALESCE(ff."fournisseurId", (SELECT "fournisseurId" FROM "BonLivraison" WHERE id = ep."bonLivraisonId" LIMIT 1)) = f_ff.id
         ${echeanceWhere}
         AND ep.id NOT IN (SELECT "echeanceId" FROM "Depense" WHERE "echeanceId" IS NOT NULL)
-        AND (ep.statut IN (${this.getPaidStatusesSQL()}) OR (ep.reference IS NOT NULL AND ep.reference <> '') OR (ep.montant > 0 AND ep."dateEcheance" IS NOT NULL))
+        AND (ep.statut IN (${this.getPaidStatusesSQL()}) OR (ep.reference IS NOT NULL AND ep.reference <> '') OR (ep.montant > 0 AND ep."dateEcheance" IS NOT NULL AND ep."factureFournisseurId" IS NOT NULL AND ff.type <> 'BL'))
       `);
     }
 

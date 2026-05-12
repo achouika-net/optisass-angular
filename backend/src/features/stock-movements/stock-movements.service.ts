@@ -146,18 +146,22 @@ export class StockMovementsService {
               pieceJointeUrl: pieceJointeUrl,
               ficheId: effectiveFicheId,
               clientId: ficheClientId,
-              echeances: {
-                create: [
-                  {
-                    type: 'CHEQUE',
-                    dateEcheance: normalizeToUTCNoon(
-                      invoiceData.dateEcheance || invoiceData.dateEmission,
-                    ) as Date,
-                    montant: totalTTC,
-                    statut: 'EN_ATTENTE',
-                  },
-                ],
-              },
+              echeances:
+                invoiceData.type !== 'BL'
+                  ? {
+                      create: [
+                        {
+                          type: 'CHEQUE',
+                          dateEcheance: normalizeToUTCNoon(
+                            invoiceData.dateEcheance ||
+                              invoiceData.dateEmission,
+                          ) as Date,
+                          montant: totalTTC,
+                          statut: 'EN_ATTENTE',
+                        },
+                      ],
+                    }
+                  : undefined,
             },
             include: { echeances: true },
           });

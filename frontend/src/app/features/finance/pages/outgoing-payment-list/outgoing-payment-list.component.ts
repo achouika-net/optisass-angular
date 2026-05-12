@@ -207,17 +207,16 @@ export class OutgoingPaymentListComponent implements OnInit {
             const dateType = params.get('dateType');
             const statut = params.get('statut');
             const modePaiement = params.get('modePaiement');
+
+            if (dateType) this.filters.dateType = dateType;
+            if (statut) this.filters.statut = statut;
+            if (modePaiement) this.filters.modePaiement = modePaiement;
+
             if (start && end) {
-                console.log(`[PAYMENTS-NAV] Applying external range: ${start} to ${end} (dateType: ${dateType}, statut: ${statut}, mode: ${modePaiement})`);
+                console.log(`[PAYMENTS-NAV] Applying external range: ${start} to ${end}`);
                 this.filters.startDate = new Date(start);
                 this.filters.endDate = new Date(end);
                 this.selectedPeriod = 'CUSTOM';
-                if (dateType) this.filters.dateType = dateType;
-                if (statut) this.filters.statut = statut;
-                if (modePaiement) this.filters.modePaiement = modePaiement;
-            } else if (statut || modePaiement) {
-                if (statut) this.filters.statut = statut;
-                if (modePaiement) this.filters.modePaiement = modePaiement;
             }
 
             this.pageIndex = 0;
@@ -641,7 +640,7 @@ export class OutgoingPaymentListComponent implements OnInit {
     }
 
     trackByPayment(index: number, item: any): string {
-        return item.id + item.source;
+        return (item.echeanceId || item.id || '') + (item.source || '') + index;
     }
 
     updateStatus(item: any, newStatut: string) {
