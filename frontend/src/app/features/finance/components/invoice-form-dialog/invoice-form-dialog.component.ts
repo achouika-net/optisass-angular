@@ -517,10 +517,8 @@ export class InvoiceFormDialogComponent implements OnInit {
             }
             this.autoUpdateStatus();
             
-            // 4. Auto-consolidate if we have many echeances (to avoid the fragmentation the user complained about)
-            if (this.echeances.length > 5) {
-                this.consolidateEcheances(false); // Silent consolidation
-            }
+            // Always auto-consolidate when grouping BLs to ensure a clean, grouped view
+            this.consolidateEcheances(false); 
         }
     }
 
@@ -535,14 +533,20 @@ export class InvoiceFormDialogComponent implements OnInit {
         const groups: { [key: string]: any } = {};
         
         rawValues.forEach(e => {
-            // Create a key based on Date (normalized to YYYY-MM-DD), Type, and Status
-            const dateStr = e.dateEcheance ? new Date(e.dateEcheance).toISOString().split('T')[0] : 'no-date';
-            const key = `${dateStr}_${e.type}_${e.statut}_${e.reference || ''}_${e.banque || ''}`;
+            // Robust date-only key (ignores time and timezone shifts)
+            let dateKey = 'no-date';
+            if (e.dateEcheance) {
+                const d = new Date(e.dateEcheance);
+                // Ensure we get local YYYY-MM-DD
+                dateKey = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+            }
+            
+            const key = `${dateKey}_${e.type}_${e.statut}_${(e.reference || '').toString().trim()}_${(e.banque || '').toString().trim()}`;
             
             if (!groups[key]) {
                 groups[key] = { ...e, montant: 0 };
             }
-            groups[key].montant += (Number(e.montant) || 0);
+            groups[key].montant = Math.round((groups[key].montant + (Number(e.montant) || 0)) * 100) / 100;
         });
 
         const consolidated = Object.values(groups).sort((a: any, b: any) => {

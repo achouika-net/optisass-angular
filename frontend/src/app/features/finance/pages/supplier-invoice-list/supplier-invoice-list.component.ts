@@ -393,6 +393,7 @@ export class SupplierInvoiceListComponent implements OnInit {
           centreId: this.currentCentre()?.id,
           fournisseurId: this.filters.fournisseurId || undefined,
           statut: this.filters.statut || undefined,
+          facturation: this.filters.facturation || undefined, // FIX: Ensure we only get non-grouped BLs
           startDate: this.filters.startDate?.toISOString(),
           endDate: this.filters.endDate?.toISOString(),
           page: 1,

@@ -360,10 +360,6 @@
                                         </p>
                                     </div>
                                     <div class="flex gap-2">
-                                        <button type="button" mat-stroked-button color="accent" (click)="consolidateEcheances()"
-                                            *ngIf="!isViewMode && echeances.length > 1" matTooltip="Regrouper les échéances de même date">
-                                            <mat-icon>merge_type</mat-icon> Consolider
-                                        </button>
                                         <button type="button" mat-stroked-button color="accent" (click)="manualApplyConditions()"
                                             *ngIf="!isViewMode" matTooltip="Ré-appliquer les conditions du fournisseur">
                                             <mat-icon>refresh</mat-icon> Rafraîchir
