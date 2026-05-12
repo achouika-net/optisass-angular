@@ -512,7 +512,7 @@ export class InvoiceFormDialogComponent implements OnInit {
 
                     this.addEcheance({
                         type: 'CHEQUE',
-                        dateEcheance: fallbackDate,
+                        dateEcheance: fallbackDate.toISOString(),
                         montant: remaining,
                         statut: 'EN_ATTENTE'
                     });
