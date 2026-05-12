@@ -483,37 +483,37 @@ export class InvoiceFormDialogComponent implements OnInit {
         // SPECIAL CASE: Consolidating BLs - Use existing echeances if provided, otherwise add a placeholder
         if (this.data?.isGrouping) {
             this.echeances.clear();
-            const prefilledEcheances = this.data.prefilledData?.echeances;
+            const prefilledEcheances = (this.data.prefilledData?.echeances || []).filter((e: any) => e.statut !== 'ANNULE');
             
-            if (prefilledEcheances && prefilledEcheances.length > 0) {
+            if (prefilledEcheances.length > 0) {
                 // 1. Add all existing echeances from the BLs
-                prefilledEcheances.forEach((e: any) => this.addEcheance(e));
-            } else if (this.data.prefilledData?.totalPaye > 0) {
-                // 2. Legacy fallback: Add a placeholder if no actual echeances were passed
-                const paidAmount = this.data.prefilledData.totalPaye;
-                const historicalDate = this.data.prefilledData.lastPaidBLDate || this.detailsGroup.get('dateEmission')?.value || new Date();
-                
-                this.addEcheance({
-                    type: 'ESPECES',
-                    dateEcheance: historicalDate,
-                    montant: paidAmount,
-                    statut: 'ENCAISSE',
-                    reference: 'REPRIS_DES_BL'
+                prefilledEcheances.forEach((e: any) => {
+                    // Force ESPECES for paid installments if they don't have a mode (heuristic for cash on delivery)
+                    if (e.statut === 'ENCAISSE' && !e.type) {
+                        e.type = 'ESPECES';
+                    }
+                    this.addEcheance(e);
                 });
             }
 
-            // 3. Add the remaining part if the total doesn't match
+            // 2. Add the remaining part if the total doesn't match
             const currentTotal = this.echeances.getRawValue().reduce((sum: number, e: any) => sum + (Number(e.montant) || 0), 0);
             const targetTotal = this.detailsGroup.get('montantTTC')?.value;
-            const remaining = Math.max(0, targetTotal - currentTotal);
+            const remaining = Math.round((targetTotal - currentTotal) * 100) / 100;
 
-            if (remaining > 1) { // Only add if more than 1 DH difference
-                this.addEcheance({
-                    type: 'CHEQUE',
-                    dateEcheance: this.detailsGroup.get('dateEcheance')?.value || new Date(),
-                    montant: Math.round(remaining * 100) / 100,
-                    statut: 'EN_ATTENTE'
-                });
+            if (remaining > 1) { 
+                if (this.selectedSupplier && (this.selectedSupplier.conditionsPaiement || this.selectedSupplier.convention)) {
+                    // Use supplier conditions to split the remainder
+                    this.applyPaymentConditions(this.selectedSupplier, remaining);
+                } else {
+                    // Fallback: Add a single installment for the remainder
+                    this.addEcheance({
+                        type: 'CHEQUE',
+                        dateEcheance: this.detailsGroup.get('dateEcheance')?.value || new Date(),
+                        montant: remaining,
+                        statut: 'EN_ATTENTE'
+                    });
+                }
             }
             this.autoUpdateStatus();
             
@@ -750,7 +750,7 @@ export class InvoiceFormDialogComponent implements OnInit {
             date1.getDate() === date2.getDate();
     }
 
-    applyPaymentConditions(supplier: Supplier) {
+    applyPaymentConditions(supplier: Supplier, overrideAmount?: number, clearExisting = true) {
         const echeanceArray = supplier.convention?.echeancePaiement || [];
         const conditions = (echeanceArray[0] || supplier.conditionsPaiement2 || supplier.conditionsPaiement || '').trim();
         if (!conditions) return;
@@ -767,15 +767,19 @@ export class InvoiceFormDialogComponent implements OnInit {
             return defaultDate.toISOString();
         };
 
-        this.echeances.clear();
+        if (clearExisting) {
+            this.echeances.clear();
+        }
+
+        const startIdx = clearExisting ? 0 : previousEcheances.length;
 
         if (conditionsLower.includes('comptant') || conditionsLower.includes('espèces')) {
-            const existing = previousEcheances[0];
+            const existing = previousEcheances[startIdx];
             this.addEcheance({
                 type: (existing?.type === 'ESPECES' || existing?.type === 'CHEQUE') ? existing.type : 'ESPECES',
-                dateEcheance: getPreservedDate(0, emissionDate),
+                dateEcheance: getPreservedDate(startIdx, emissionDate),
                 statut: 'EN_ATTENTE',
-                montant: 0
+                montant: overrideAmount !== undefined ? overrideAmount : 0
             });
         } else if (conditionsLower.match(/r[eé]partie?\s*sur\s*(\d+)\s*mois/)) {
             const match = conditionsLower.match(/r[eé]partie?\s*sur\s*(\d+)\s*mois/);
@@ -783,49 +787,63 @@ export class InvoiceFormDialogComponent implements OnInit {
             for (let i = 1; i <= months; i++) {
                 const targetDate = new Date(emissionDate);
                 targetDate.setMonth(targetDate.getMonth() + i);
-                const existing = previousEcheances[i - 1];
+                const existing = previousEcheances[startIdx + i - 1];
                 this.addEcheance({
                     type: existing?.type || 'CHEQUE',
                     reference: existing?.reference || '',
                     banque: existing?.banque || (supplier.banque || ''),
-                    dateEcheance: getPreservedDate(i - 1, targetDate),
+                    dateEcheance: getPreservedDate(startIdx + i - 1, targetDate),
                     statut: 'EN_ATTENTE',
                     montant: 0
                 });
             }
         } else if (conditionsLower.includes('60 jours') || conditionsLower.includes('60jours')) {
-            const totalTTC = this.detailsGroup.get('montantTTC')?.value || 0;
-            const splitAmount = Math.floor((totalTTC / 2) * 100) / 100;
-            const remainder = Math.round((totalTTC - (splitAmount * 2)) * 100) / 100;
+            const amountToSplit = overrideAmount !== undefined ? overrideAmount : (this.detailsGroup.get('montantTTC')?.value || 0);
+            const splitAmount = Math.floor((amountToSplit / 2) * 100) / 100;
+            const remainder = Math.round((amountToSplit - (splitAmount * 2)) * 100) / 100;
             const d1 = new Date(emissionDate); d1.setMonth(d1.getMonth() + 1);
             const d2 = new Date(emissionDate); d2.setMonth(d2.getMonth() + 2);
-            this.addEcheance({ type: 'CHEQUE', dateEcheance: getPreservedDate(0, d1), statut: 'EN_ATTENTE', montant: splitAmount });
-            this.addEcheance({ type: 'CHEQUE', dateEcheance: getPreservedDate(1, d2), statut: 'EN_ATTENTE', montant: splitAmount + remainder });
+            this.addEcheance({ type: 'CHEQUE', dateEcheance: getPreservedDate(startIdx, d1), statut: 'EN_ATTENTE', montant: splitAmount });
+            this.addEcheance({ type: 'CHEQUE', dateEcheance: getPreservedDate(startIdx + 1, d2), statut: 'EN_ATTENTE', montant: splitAmount + remainder });
         } else if (conditionsLower.includes('90 jours') || conditionsLower.includes('90jours')) {
-            const totalTTC = this.detailsGroup.get('montantTTC')?.value || 0;
-            const splitAmount = Math.floor((totalTTC / 3) * 100) / 100;
-            const remainder = Math.round((totalTTC - (splitAmount * 3)) * 100) / 100;
+            const amountToSplit = overrideAmount !== undefined ? overrideAmount : (this.detailsGroup.get('montantTTC')?.value || 0);
+            const splitAmount = Math.floor((amountToSplit / 3) * 100) / 100;
+            const remainder = Math.round((amountToSplit - (splitAmount * 3)) * 100) / 100;
             for (let i = 1; i <= 3; i++) {
                 const targetDate = new Date(emissionDate);
                 targetDate.setMonth(targetDate.getMonth() + i);
                 this.addEcheance({
                     type: 'CHEQUE',
-                    dateEcheance: getPreservedDate(i - 1, targetDate),
+                    dateEcheance: getPreservedDate(startIdx + i - 1, targetDate),
                     statut: 'EN_ATTENTE',
                     montant: (i === 3) ? (splitAmount + remainder) : splitAmount
                 });
             }
         } else if (conditionsLower.includes('30 jours') || conditionsLower.includes('30jours')) {
             const targetDate = new Date(emissionDate); targetDate.setMonth(targetDate.getMonth() + 1);
-            this.addEcheance({ type: 'CHEQUE', dateEcheance: getPreservedDate(0, targetDate), statut: 'EN_ATTENTE', montant: 0 });
+            this.addEcheance({ 
+                type: 'CHEQUE', 
+                dateEcheance: getPreservedDate(startIdx, targetDate), 
+                statut: 'EN_ATTENTE', 
+                montant: overrideAmount !== undefined ? overrideAmount : 0 
+            });
         } else if (conditionsLower.includes('fin de mois')) {
             const targetDate = new Date(emissionDate); targetDate.setMonth(targetDate.getMonth() + 1); targetDate.setDate(0);
-            this.addEcheance({ type: 'VIREMENT', dateEcheance: getPreservedDate(0, targetDate), statut: 'EN_ATTENTE', montant: 0 });
+            this.addEcheance({ 
+                type: 'VIREMENT', 
+                dateEcheance: getPreservedDate(startIdx, targetDate), 
+                statut: 'EN_ATTENTE', 
+                montant: overrideAmount !== undefined ? overrideAmount : 0 
+            });
         }
 
         this.updateInvoiceDueDateFromEcheances();
         this.cdr.detectChanges();
-        if (!conditionsLower.includes('60 jours') && !conditionsLower.includes('90 jours')) this.redistributeAmountAcrossEcheances();
+        
+        const isMultiMonth = conditionsLower.includes('60 jours') || conditionsLower.includes('90 jours');
+        if (!isMultiMonth) {
+            this.redistributeAmountAcrossEcheances(overrideAmount);
+        }
     }
 
     private updateInvoiceDueDateFromEcheances() {
@@ -838,16 +856,33 @@ export class InvoiceFormDialogComponent implements OnInit {
         }
     }
 
-    private redistributeAmountAcrossEcheances() {
-        const montantTTC = this.detailsGroup.get('montantTTC')?.value || 0;
+    private redistributeAmountAcrossEcheances(overrideAmount?: number) {
+        const montantTTC = overrideAmount !== undefined ? overrideAmount : (this.detailsGroup.get('montantTTC')?.value || 0);
         const echeancesCount = this.echeances.length;
         if (echeancesCount > 0 && montantTTC > 0) {
-            let montantParEcheance = Math.floor((montantTTC / echeancesCount) * 100) / 100;
-            let remainder = Math.round((montantTTC - (montantParEcheance * echeancesCount)) * 100) / 100;
-            this.echeances.controls.forEach((control, index) => {
-                let amount = (index === echeancesCount - 1) ? (montantParEcheance + remainder) : montantParEcheance;
-                control.patchValue({ montant: Math.round(amount * 100) / 100 }, { emitEvent: false });
-            });
+            // If we are NOT clearing existing, we should only redistribute to the "new" ones?
+            // Actually, for simplicity, let's just make sure the total matches.
+            // But if we have PAID ones, we shouldn't touch them.
+            const controls = this.echeances.controls;
+            const pendingControls = controls.filter(c => c.get('statut')?.value === 'EN_ATTENTE');
+            
+            if (pendingControls.length > 0) {
+                const paidAmount = controls
+                    .filter(c => c.get('statut')?.value !== 'EN_ATTENTE')
+                    .reduce((sum, c) => sum + (Number(c.get('montant')?.value) || 0), 0);
+                
+                const targetRemainder = Math.round((montantTTC - paidAmount) * 100) / 100;
+                
+                if (targetRemainder > 0) {
+                    let montantParEcheance = Math.floor((targetRemainder / pendingControls.length) * 100) / 100;
+                    let remainder = Math.round((targetRemainder - (montantParEcheance * pendingControls.length)) * 100) / 100;
+                    
+                    pendingControls.forEach((control, index) => {
+                        let amount = (index === pendingControls.length - 1) ? (montantParEcheance + remainder) : montantParEcheance;
+                        control.patchValue({ montant: Math.round(amount * 100) / 100 }, { emitEvent: false });
+                    });
+                }
+            }
         }
     }
 
