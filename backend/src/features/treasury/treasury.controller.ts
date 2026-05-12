@@ -33,7 +33,7 @@ export class TreasuryController {
   }
 
   @Get('summary')
-  getMonthlySummary(
+  async getMonthlySummary(
     @Query('year') year: string,
     @Query('month') month: string,
     @Query('startDate') startDate?: string,
@@ -45,13 +45,18 @@ export class TreasuryController {
     const parsedMonth =
       month !== undefined ? parseInt(month) : new Date().getMonth() + 1;
 
-    return this.treasuryService.getMonthlySummary(
-      isNaN(parsedYear) ? new Date().getFullYear() : parsedYear,
-      isNaN(parsedMonth) ? new Date().getMonth() + 1 : parsedMonth,
-      centreId,
-      startDate,
-      endDate,
-    );
+    try {
+      return await this.treasuryService.getMonthlySummary(
+        isNaN(parsedYear) ? new Date().getFullYear() : parsedYear,
+        isNaN(parsedMonth) ? new Date().getMonth() + 1 : parsedMonth,
+        centreId,
+        startDate,
+        endDate,
+      );
+    } catch (err: any) {
+      console.error('TREASURY SUMMARY ERROR:', err);
+      throw new Error(`Treasury Summary Failed: ${err.message || err}`);
+    }
   }
 
   @Get('consolidated-incomings')
