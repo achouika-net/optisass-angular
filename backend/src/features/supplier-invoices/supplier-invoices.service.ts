@@ -111,19 +111,22 @@ export class SupplierInvoicesService {
     );
 
     // Si aucune échéance n'est fournie (ex: BL simple), on en crée une par défaut pour le total
+    // SAUF si c'est un BL (les BL ne doivent pas avoir d'échéances programmées automatiquement)
     const finalEcheances =
       echeances && echeances.length > 0
         ? echeances
-        : [
-            {
-              type: 'ESPECES',
-              dateEcheance: normalizeToUTCNoon(
-                inputData.dateEcheance || new Date(),
-              ) as Date,
-              montant: Number(inputData.montantTTC),
-              statut: 'EN_ATTENTE',
-            },
-          ];
+        : inputData.type === 'BL'
+          ? []
+          : [
+              {
+                type: 'ESPECES',
+                dateEcheance: normalizeToUTCNoon(
+                  inputData.dateEcheance || new Date(),
+                ) as Date,
+                montant: Number(inputData.montantTTC),
+                statut: 'EN_ATTENTE',
+              },
+            ];
 
     try {
       return await this.prisma.factureFournisseur.create({
