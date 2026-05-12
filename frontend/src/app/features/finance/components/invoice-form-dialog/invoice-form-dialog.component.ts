@@ -487,10 +487,18 @@ export class InvoiceFormDialogComponent implements OnInit {
             
             if (prefilledEcheances.length > 0) {
                 // 1. Add all existing echeances from the BLs
+                const lastPaidDate = this.data.prefilledData?.lastPaidBLDate;
+                
                 prefilledEcheances.forEach((e: any) => {
-                    // Force ESPECES for already paid parts of a BL grouping
+                    // Force ESPECES and actual operation date for already paid parts
                     if (e.statut === 'ENCAISSE') {
                         e.type = 'ESPECES';
+                        
+                        // If the installment is already paid, it should reflect the operation date (BL date)
+                        // rather than any future-dated placeholder from the old logic
+                        if (lastPaidDate) {
+                            e.dateEcheance = typeof lastPaidDate === 'string' ? lastPaidDate : lastPaidDate.toISOString();
+                        }
                     }
                     this.addEcheance(e);
                 });
