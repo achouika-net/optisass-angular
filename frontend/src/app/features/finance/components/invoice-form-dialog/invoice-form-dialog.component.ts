@@ -516,6 +516,50 @@ export class InvoiceFormDialogComponent implements OnInit {
                 });
             }
             this.autoUpdateStatus();
+            
+            // 4. Auto-consolidate if we have many echeances (to avoid the fragmentation the user complained about)
+            if (this.echeances.length > 5) {
+                this.consolidateEcheances(false); // Silent consolidation
+            }
+        }
+    }
+
+    /**
+     * Groups fragmented echeances by date and type to simplify the payment plan.
+     * Useful when merging multiple BLs that have installments on the same dates.
+     */
+    consolidateEcheances(notify = true) {
+        const rawValues = this.echeances.getRawValue();
+        if (rawValues.length <= 1) return;
+
+        const groups: { [key: string]: any } = {};
+        
+        rawValues.forEach(e => {
+            // Create a key based on Date (normalized to YYYY-MM-DD), Type, and Status
+            const dateStr = e.dateEcheance ? new Date(e.dateEcheance).toISOString().split('T')[0] : 'no-date';
+            const key = `${dateStr}_${e.type}_${e.statut}_${e.reference || ''}_${e.banque || ''}`;
+            
+            if (!groups[key]) {
+                groups[key] = { ...e, montant: 0 };
+            }
+            groups[key].montant += (Number(e.montant) || 0);
+        });
+
+        const consolidated = Object.values(groups).sort((a: any, b: any) => {
+            if (!a.dateEcheance) return 1;
+            if (!b.dateEcheance) return -1;
+            return new Date(a.dateEcheance).getTime() - new Date(b.dateEcheance).getTime();
+        });
+
+        if (consolidated.length < rawValues.length) {
+            this.echeances.clear();
+            consolidated.forEach(e => this.addEcheance(e));
+            if (notify) {
+                this.snackBar.open(`${rawValues.length - consolidated.length} échéances ont été regroupées par date.`, 'OK', { duration: 3000 });
+            }
+            this.cdr.detectChanges();
+        } else if (notify) {
+            this.snackBar.open('Aucune échéance ne peut être consolidée (dates ou types différents).', 'OK', { duration: 3000 });
         }
     }
 
