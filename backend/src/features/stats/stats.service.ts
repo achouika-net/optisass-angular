@@ -105,6 +105,35 @@ export class StatsService {
 
   constructor(private prisma: PrismaService) {}
 
+  private async getFilteredSales(start: Date, end: Date, centreFilter: any, includeRelations = false) {
+    const facturesRaw = await this.prisma.facture.findMany({
+      where: {
+        dateEmission: { gte: start, lte: end },
+        statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
+        type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR'] },
+        ...centreFilter,
+      },
+      include: includeRelations ? {
+        fiche: { include: { bonsLivraison: true } },
+        mouvementsStock: true,
+      } : undefined,
+    });
+
+    const facturesWithFicheIds = new Set(
+      facturesRaw
+        .filter((f) => f.type === 'FACTURE' && f.ficheId)
+        .map((f) => f.ficheId),
+    );
+
+    return facturesRaw.filter((f) => {
+      const isBC = f.type === 'BON_COMMANDE' || f.type === 'BON_COMM';
+      const isFacturedViaFiche =
+        isBC && f.ficheId && facturesWithFicheIds.has(f.ficheId);
+      const isFacturedViaNote = isBC && f.notes?.includes('Remplacée par');
+      return !(isFacturedViaFiche || isFacturedViaNote);
+    });
+  }
+
   async getRevenueEvolution(
     period: 'daily' | 'monthly' | 'yearly',
     startDate?: string,
@@ -114,14 +143,9 @@ export class StatsService {
     const isValidDate = (d: string | undefined | null): boolean =>
       !!(d && d !== 'undefined' && d !== 'null' && d !== '');
 
-    // For All Period (start/end undefined), we want to see everything
-    // But we MUST have a start date to fill gaps correctly if we want a range.
-    // We'll use the earliest and latest emission dates from the DB if not provided.
-
     let start = isValidDate(startDate) ? new Date(startDate!) : undefined;
     let end = isValidDate(endDate) ? new Date(endDate!) : undefined;
 
-    // To properly aggregate and fill gaps, we need a concrete range
     if (!start || !end) {
       const range = await this.prisma.facture.aggregate({
         where: {
@@ -136,19 +160,8 @@ export class StatsService {
       if (!end) end = range._max.dateEmission || new Date();
     }
 
-    const factures = await this.prisma.facture.findMany({
-      where: {
-        dateEmission: { gte: start, lte: end },
-        centreId: centreId || undefined,
-        statut: { notIn: ['ARCHIVE'] },
-        type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR', 'DEVIS'] },
-      },
-      select: {
-        dateEmission: true,
-        totalTTC: true,
-        type: true,
-      },
-    });
+    const centreFilter = centreId ? { centreId } : {};
+    const factures = await this.getFilteredSales(start, end, centreFilter);
 
     const grouped = new Map<string, { revenue: number; count: number }>();
 
@@ -626,30 +639,12 @@ export class StatsService {
       const start = startDate ? new Date(startDate) : new Date(0);
       const end = endDate ? new Date(endDate) : new Date(3000, 0, 1);
       const centreFilter = centreId ? { centreId } : {};
-      const activeStatus = { statut: { in: this.ACTIVE_STATUSES } };
 
-      const [revenueAgg, bcAgg, expenseAgg, ffAgg, paymentsAgg] = await Promise.all([
-        this.prisma.facture.aggregate({
-          _sum: { totalTTC: true },
-          where: {
-            dateEmission: { gte: start, lte: end },
-            type: { in: ['FACTURE', 'AVOIR'] },
-            statut: { not: 'ARCHIVE' },
-            ...centreFilter,
-          },
-        }),
-        // On récupère aussi les BC qui ne sont pas encore facturés
-        this.prisma.facture.aggregate({
-          _sum: { totalTTC: true },
-          where: {
-            dateEmission: { gte: start, lte: end },
-            type: { in: ['BON_COMMANDE', 'BON_COMM'] },
-            notes: { not: { contains: 'Remplacée par' } },
-            ficheId: { not: null },
-            statut: { not: 'ARCHIVE' },
-            ...centreFilter,
-          },
-        }),
+      // 1. Get de-duplicated sales data (including relations for COGS)
+      const factures = await this.getFilteredSales(start, end, centreFilter, true);
+
+      // 2. Fetch expenses and payments in parallel
+      const [expenseAgg, ffAgg, paymentsAgg] = await Promise.all([
         this.prisma.depense.aggregate({
           _sum: { montant: true },
           where: {
@@ -678,45 +673,39 @@ export class StatsService {
         }),
       ]);
 
-      // Calcul du COGS Analytique (basé sur les ventes de la période)
-      const facturesPourCogs = await this.prisma.facture.findMany({
-        where: {
-          dateEmission: { gte: start, lte: end },
-          type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM'] },
-          statut: { not: 'ARCHIVE' },
-          ...centreFilter,
-        },
-        include: {
-          fiche: { include: { bonsLivraison: true } },
-          mouvementsStock: true,
-        },
-      });
-
+      let totalRevenueTTC = 0;
       let totalCogs = 0;
-      for (const f of facturesPourCogs) {
-        // a. Montures : via mouvements réels ou estimation catalogue
+
+      for (const f of factures) {
+        const multiplier = f.type === 'AVOIR' ? -1 : 1;
+
+        // Revenue
+        totalRevenueTTC += multiplier * (f.totalTTC || 0);
+
+        // COGS
+        // a. Montures : via mouvements réels
         if (f.mouvementsStock?.length) {
-          totalCogs += f.mouvementsStock.reduce((s, m) => s + (m.prixAchatUnitaire || 0), 0);
+          totalCogs += multiplier * f.mouvementsStock.reduce((s, m) => s + (m.prixAchatUnitaire || 0), 0);
         }
         // b. Verres : via BL rattachés
         if (f.fiche?.bonsLivraison?.length) {
-          totalCogs += f.fiche.bonsLivraison.reduce((s, bl) => s + (bl.montantHT || 0), 0);
+          totalCogs += multiplier * f.fiche.bonsLivraison.reduce((s, bl) => s + (bl.montantHT || 0), 0);
         }
       }
 
-      const revenueHT = ((revenueAgg._sum?.totalTTC || 0) + (bcAgg._sum?.totalTTC || 0)) / 1.2;
+      const revenueHT = totalRevenueTTC / 1.2;
       const expenses = (expenseAgg._sum?.montant || 0) + (ffAgg._sum?.montantHT || 0);
 
       return {
         revenue: revenueHT,
         cogs: totalCogs,
         expenses: expenses,
-        profit: revenueHT - totalCogs - expenses,
+        netProfit: revenueHT - totalCogs - expenses,
         totalRecettes: paymentsAgg._sum?.montant || 0,
       };
     } catch (e) {
       console.error('[Stats] getRealProfit Error:', e);
-      return { revenue: 0, cogs: 0, expenses: 0, profit: 0, totalRecettes: 0 };
+      return { revenue: 0, cogs: 0, expenses: 0, netProfit: 0, totalRecettes: 0 };
     }
   }
 
@@ -730,17 +719,7 @@ export class StatsService {
       const end = endDate ? new Date(endDate) : new Date();
       const centreFilter = centreId ? { centreId } : {};
 
-      const factures = await this.prisma.facture.findMany({
-        where: {
-          dateEmission: { gte: start, lte: end },
-          statut: { not: 'ARCHIVE' },
-          ...centreFilter,
-        },
-        include: {
-          fiche: { include: { bonsLivraison: true } },
-          mouvementsStock: true,
-        },
-      });
+      const factures = await this.getFilteredSales(start, end, centreFilter, true);
 
       const depenses = await this.prisma.depense.findMany({
         where: {
@@ -756,13 +735,17 @@ export class StatsService {
         const month = f.dateEmission.toISOString().substring(0, 7);
         const vals = monthsMap.get(month) || { revenue: 0, cogs: 0, expenses: 0 };
         
-        if (['FACTURE', 'BON_COMMANDE', 'BON_COMM'].includes(f.type)) {
-          vals.revenue += (f.totalTTC || 0) / 1.2;
-          if (f.mouvementsStock?.length) vals.cogs += f.mouvementsStock.reduce((s, m) => s + (m.prixAchatUnitaire || 0), 0);
-          if (f.fiche?.bonsLivraison?.length) vals.cogs += f.fiche.bonsLivraison.reduce((s, bl) => s + (bl.montantHT || 0), 0);
-        } else if (f.type === 'AVOIR') {
-          vals.revenue -= (f.totalTTC || 0) / 1.2;
+        const multiplier = f.type === 'AVOIR' ? -1 : 1;
+        vals.revenue += multiplier * (f.totalTTC || 0) / 1.2;
+
+        // COGS
+        if (f.mouvementsStock?.length) {
+          vals.cogs += multiplier * f.mouvementsStock.reduce((s, m) => s + (m.prixAchatUnitaire || 0), 0);
         }
+        if (f.fiche?.bonsLivraison?.length) {
+          vals.cogs += multiplier * f.fiche.bonsLivraison.reduce((s, bl) => s + (bl.montantHT || 0), 0);
+        }
+
         monthsMap.set(month, vals);
       });
 
@@ -797,37 +780,15 @@ export class StatsService {
   ) {
     const start = startDate ? new Date(startDate) : new Date(0);
     const end = endDate ? new Date(endDate) : new Date(3000, 0, 1);
+    const centreFilter = centreId ? { centreId } : {};
 
-    const facturesRaw = await this.prisma.facture.findMany({
-      where: {
-        dateEmission: { gte: start, lte: end },
-        statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
-        type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR'] },
-        ...(centreId ? { centreId } : {}),
-      },
-      include: {
-        client: {
-          select: { nom: true, prenom: true, raisonSociale: true },
-        },
-      },
-      orderBy: { dateEmission: 'desc' },
+    const filtered = await this.getFilteredSales(start, end, centreFilter, {
+      client: { select: { nom: true, prenom: true, raisonSociale: true } },
     });
 
-    const facturesWithFicheIds = new Set(
-      facturesRaw
-        .filter((f) => f.type === 'FACTURE' && f.ficheId)
-        .map((f) => f.ficheId),
-    );
-
-    const filtered = facturesRaw.filter((f) => {
-      const isBC = f.type === 'BON_COMMANDE' || f.type === 'BON_COMM';
-      const isFacturedViaFiche =
-        isBC && f.ficheId && facturesWithFicheIds.has(f.ficheId);
-      const isFacturedViaNote = isBC && f.notes?.includes('Remplacée par');
-      return !(isFacturedViaFiche || isFacturedViaNote);
-    });
-
-    return filtered.map((f) => ({
+    return filtered
+      .sort((a, b) => b.dateEmission.getTime() - a.dateEmission.getTime())
+      .map((f: any) => ({
       id: f.id,
       date: f.dateEmission,
       numero: f.numero,
