@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, ChangeDetectorRef, NgZone, OnDestroy, ViewChild, ElementRef, effect } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ChangeDetectorRef, NgZone, OnDestroy, ViewChild, ElementRef, effect, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,6 +8,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatInputModule } from '@angular/material/input';
+import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatTableModule } from '@angular/material/table';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FormsModule } from '@angular/forms';
 import { Chart, ChartConfiguration, registerables } from 'chart.js';
 import { StatsService, StatsSummary, WarehouseStock } from '../services/stats.service';
@@ -30,6 +33,9 @@ Chart.register(...registerables);
         MatDatepickerModule,
         MatNativeDateModule,
         MatInputModule,
+        MatDialogModule,
+        MatTableModule,
+        MatProgressSpinnerModule,
         FormsModule
     ],
     templateUrl: './advanced-stats.component.html',
@@ -43,8 +49,20 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit, OnDestroy 
     @ViewChild('clientsChartCanvas') clientsChartCanvas!: ElementRef<HTMLCanvasElement>;
     @ViewChild('paymentsChartCanvas') paymentsChartCanvas!: ElementRef<HTMLCanvasElement>;
 
+    @ViewChild('revenueDetailDialog') revenueDetailDialog!: TemplateRef<any>;
+    @ViewChild('expenseDetailDialog') expenseDetailDialog!: TemplateRef<any>;
+
     loading = false;
     summary: StatsSummary | null = null;
+
+    // Dialog data
+    revenueItems: any[] = [];
+    expenseItems: any[] = [];
+    totalRevenueAmount = 0;
+    totalExpenseAmount = 0;
+    loadingDialog = false;
+    displayedColumnsRevenue = ['date', 'numero', 'client', 'type', 'totalHT', 'totalTTC', 'statut'];
+    displayedColumnsExpenses = ['date', 'fournisseur', 'libelle', 'type', 'montant', 'source', 'statut'];
 
     // Filter properties
     filterType: 'DAILY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM' | 'ALL' = 'MONTHLY';
@@ -76,7 +94,8 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit, OnDestroy 
         private statsService: StatsService,
         private store: Store,
         private cdr: ChangeDetectorRef,
-        private zone: NgZone
+        private zone: NgZone,
+        private dialog: MatDialog
     ) {
         effect(() => {
             const centre = this.currentCentre() as any;
@@ -532,5 +551,78 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit, OnDestroy 
 
     getObjectKeys(obj: any): string[] {
         return obj ? Object.keys(obj) : [];
+    }
+
+    openRevenueDetailDialog(): void {
+        const dates = this.getDateRange();
+        const centreId = (this.currentCentre() as any)?.id;
+        this.loadingDialog = true;
+        this.revenueItems = [];
+
+        this.statsService.getRevenueDetails(dates.start, dates.end, centreId).subscribe({
+            next: (data) => {
+                this.revenueItems = data;
+                this.totalRevenueAmount = data.reduce((acc, curr) => {
+                    const amount = curr.totalTTC || 0;
+                    return curr.type === 'AVOIR' ? acc - amount : acc + amount;
+                }, 0);
+                this.loadingDialog = false;
+                this.cdr.detectChanges();
+            },
+            error: (err) => {
+                console.error('Error loading revenue details:', err);
+                this.loadingDialog = false;
+                this.cdr.detectChanges();
+            }
+        });
+
+        this.dialog.open(this.revenueDetailDialog, {
+            width: '1400px',
+            maxWidth: '95vw',
+            maxHeight: '90vh',
+            panelClass: 'custom-stats-dialog'
+        });
+    }
+
+    openExpenseDetailDialog(): void {
+        const dates = this.getDateRange();
+        const centreId = (this.currentCentre() as any)?.id;
+        this.loadingDialog = true;
+        this.expenseItems = [];
+
+        this.statsService.getExpenseDetails(dates.start, dates.end, centreId).subscribe({
+            next: (data) => {
+                this.expenseItems = data;
+                this.totalExpenseAmount = data.reduce((acc, curr) => acc + (curr.montant || 0), 0);
+                this.loadingDialog = false;
+                this.cdr.detectChanges();
+            },
+            error: (err) => {
+                console.error('Error loading expense details:', err);
+                this.loadingDialog = false;
+                this.cdr.detectChanges();
+            }
+        });
+
+        this.dialog.open(this.expenseDetailDialog, {
+            width: '1400px',
+            maxWidth: '95vw',
+            maxHeight: '90vh',
+            panelClass: 'custom-stats-dialog'
+        });
+    }
+
+    getMonthName(monthNum: number): string {
+        const m = this.availableMonths.find(m => m.value === monthNum);
+        return m ? m.label : '';
+    }
+
+    getStatusClass(status: string): string {
+        if (!status) return 'bg-gray-100 text-gray-700';
+        status = status.toUpperCase();
+        if (['VALIDEE', 'VALIDE', 'PAYEE', 'PAYE', 'ENCAISSE', 'SOLDÉ'].some(s => status.includes(s))) return 'bg-green-100 text-green-700';
+        if (['BROUILLON', 'EN_COURS', 'PARTIEL'].some(s => status.includes(s))) return 'bg-blue-100 text-blue-700';
+        if (status.includes('ANNULE') || status.includes('ARCHIVE')) return 'bg-red-100 text-red-700';
+        return 'bg-gray-100 text-gray-700';
     }
 }

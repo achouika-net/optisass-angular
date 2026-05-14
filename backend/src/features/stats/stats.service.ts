@@ -127,7 +127,7 @@ export class StatsService {
         where: {
           centreId: centreId || undefined,
           statut: { notIn: ['ARCHIVE'] },
-          type: { in: ['FACTURE', 'BON_COMMANDE', 'AVOIR', 'DEVIS'] },
+          type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR', 'DEVIS'] },
         },
         _min: { dateEmission: true },
         _max: { dateEmission: true },
@@ -195,7 +195,6 @@ export class StatsService {
       .map(([period, data]) => ({ period, ...data }))
       .sort((a, b) => a.period.localeCompare(b.period));
   }
-
   async getProductDistribution(
     startDate?: string,
     endDate?: string,
@@ -214,7 +213,7 @@ export class StatsService {
         dateEmission: { gte: start, lte: end },
         centreId: centreId || undefined,
         statut: { notIn: ['ARCHIVE'] },
-        type: { in: ['FACTURE', 'BON_COMMANDE', 'DEVIS'] }, // Exclude Avoirs from distribution counts
+        type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'DEVIS'] }, // Exclude Avoirs from distribution counts
       },
       select: {
         lignes: true,
@@ -251,6 +250,8 @@ export class StatsService {
             else if (ficheType === 'lentilles') type = 'LENTILLES';
           }
           if (!type) type = 'NON_DÉFINI';
+          
+          type = this.normalizeProductType(type);
 
           const existing = distribution.get(type) || { count: 0, value: 0 };
           distribution.set(type, {
@@ -300,7 +301,7 @@ export class StatsService {
     const totalDevis = await this.prisma.facture.count({
       where: {
         ...whereClause,
-        type: { in: ['FACTURE', 'BON_COMMANDE', 'DEVIS'] },
+        type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'DEVIS'] },
       },
     });
 
@@ -308,7 +309,7 @@ export class StatsService {
     const validatedFactures = await this.prisma.facture.count({
       where: {
         ...whereClause,
-        type: { in: ['FACTURE', 'BON_COMMANDE', 'DEVIS'] },
+        type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'DEVIS'] },
         paiements: { some: {} },
       },
     });
@@ -365,7 +366,7 @@ export class StatsService {
         >();
 
         w.produits.forEach((p) => {
-          const type = p.typeArticle || 'NON_DÉFINI';
+          const type = this.normalizeProductType(p.typeArticle || 'NON_DÉFINI');
           const existing = breakdownMap.get(type) || { quantity: 0, value: 0 };
           breakdownMap.set(type, {
             quantity: existing.quantity + (p.quantiteActuelle || 0),
@@ -582,20 +583,10 @@ export class StatsService {
       else if (type === 'produit') fichesStats.produit += count;
     });
 
-    const normalizeProductType = (rawType: string): string => {
-      const t = rawType.toUpperCase();
-      if (t.includes('MONTURE_OPTIQUE') || t === 'MON') return 'MON';
-      if (t.includes('MONTURE_SOLAIRE') || t === 'SOL') return 'SOL';
-      if (t.includes('LENTILLE') || t === 'LEN') return 'LEN';
-      if (t.includes('ACCESSOIRE') || t === 'ACC') return 'ACC';
-      if (t.includes('VERRE') || t === 'V') return 'V';
-      return rawType;
-    };
-
     const productsStats: Record<string, number> = {};
     productsBreakdown.forEach((group: any) => {
       const rawType = group.typeArticle || 'NON_DÉFINI';
-      const type = normalizeProductType(rawType);
+      const type = this.normalizeProductType(rawType);
       productsStats[type] =
         (productsStats[type] || 0) + (group._count?._all || 0);
     });
@@ -615,530 +606,171 @@ export class StatsService {
     };
   }
 
-  async getRealProfit(startDate?: string, endDate?: string, centreId?: string) {
-    try {
-      const tenantId =
-        centreId &&
-        centreId.trim() &&
-        centreId !== 'undefined' &&
-        centreId !== 'null' &&
-        centreId !== ''
-          ? centreId
-          : undefined;
-      const start =
-        startDate &&
-        startDate !== 'undefined' &&
-        startDate !== 'null' &&
-        startDate !== ''
-          ? new Date(startDate)
-          : new Date(1970, 0, 1);
-      const end =
-        endDate &&
-        endDate !== 'undefined' &&
-        endDate !== 'null' &&
-        endDate !== ''
-          ? new Date(endDate)
-          : new Date(3000, 0, 1);
-
-      const centreFilter = tenantId ? { centreId: tenantId } : {};
-      const activeStatus = {
-        statut: { notIn: ['ARCHIVE', 'ANNULEE'] as any[] },
-      };
-      const dateFilter = { dateEmission: { gte: start, lte: end } };
-
-      console.log(
-        `[STATS-PROFIT] Start: ${start.toISOString()}, End: ${end.toISOString()}, Tenant: ${tenantId}`,
-      );
-
-      // ─────────────────────────────────────────────────────────────────────
-      // ÉTAPE 1 ► Source de vérité unique : même logique que SalesControlService
-      //
-      // On utilise 3 agrégations DB distinctes (FACTURE / BC / AVOIR) avec la
-      // même déduplication que getDashboardData() → garantit que :
-      //    revenue (HT) × 1.2  ≡  CA Global TTC (Contrôle des Ventes)
-      // ─────────────────────────────────────────────────────────────────────
-
-      // 0. Recettes (Cash Flow entrant réel)
-      const receiptsAgg = await this.prisma.paiement.aggregate({
-        where: {
-          date: { gte: start, lte: end },
-          ...(tenantId ? { facture: { centreId: tenantId } } : {}),
-          statut: {
-            in: [
-              'ENCAISSE',
-              'ENCAISSÉ',
-              'ENCAISSÉE',
-              'PAYE',
-              'PAYÉ',
-              'PAYEE',
-              'PAYÉE',
-              'SOLDE',
-              'SOLDEE',
-              'VALIDÉ',
-              'VALIDE',
-            ],
-          },
-        },
-        _sum: { montant: true },
-      });
-      const totalRecettes = receiptsAgg._sum.montant || 0;
-
-      // 1a. ficheIds des FACTURES validées → dépistage des BCs déjà convertis
-      const facturesWithFiche = await this.prisma.facture.findMany({
-        where: {
-          ...centreFilter,
-          type: 'FACTURE',
-          ficheId: { not: null },
-          ...activeStatus,
-          ...dateFilter,
-        },
-        select: { ficheId: true },
-      });
-      const factureFicheIds = facturesWithFiche
-        .map((f) => f.ficheId)
-        .filter((id): id is string => !!id);
-
-      // 1b. Agrégation en parallèle des 3 catégories
-      const [factureAgg, bcAgg, avoirAgg] = await Promise.all([
-        // Factures officielles
-        this.prisma.facture.aggregate({
-          _sum: { totalTTC: true },
-          where: {
-            ...centreFilter,
-            type: 'FACTURE',
-            ...activeStatus,
-            ...dateFilter,
-          },
-        }),
-        // Bons de Commande non encore facturés (déduplication DB)
-        this.prisma.facture.aggregate({
-          _sum: { totalTTC: true },
-          where: {
-            ...centreFilter,
-            type: { in: ['BON_COMMANDE', 'BON_COMM'] },
-            ...activeStatus,
-            ficheId: { notIn: factureFicheIds },
-            OR: [
-              { notes: { not: { contains: 'Remplacée par' } } },
-              { notes: null },
-            ],
-            ...dateFilter,
-          },
-        }),
-        // Avoirs (à soustraire du CA)
-        this.prisma.facture.aggregate({
-          _sum: { totalTTC: true },
-          where: {
-            ...centreFilter,
-            type: 'AVOIR',
-            ...activeStatus,
-            ...dateFilter,
-          },
-        }),
-      ]);
-
-      // 1c. CA TTC puis dérivation HT (TVA 20%)
-      const caTTC =
-        (factureAgg._sum.totalTTC || 0) +
-        (bcAgg._sum.totalTTC || 0) -
-        (avoirAgg._sum.totalTTC || 0);
-      const revenue = caTTC / 1.2; // Revenu HT garanti cohérent
-
-      // ─────────────────────────────────────────────────────────────────────
-      // ÉTAPE 2 ► COGS (Coût d'Achat des Marchandises Vendues)
-      // ─────────────────────────────────────────────────────────────────────
-
-      // 2a. Mouvements de stock réels liés aux ventes
-      const cogsQuery = Prisma.sql`
-        SELECT SUM(m."quantite" * COALESCE(m."prixAchatUnitaire", 0)) as total_cost
-        FROM "MouvementStock" m
-        JOIN "Facture" f ON m."factureId" = f."id"
-        WHERE f."dateEmission" >= ${start} AND f."dateEmission" <= ${end}
-          AND f."type" IN ('FACTURE', 'BON_COMMANDE')
-          AND f."statut" != 'ARCHIVE'
-        ${tenantId ? Prisma.sql`AND f."centreId" = ${tenantId}` : Prisma.sql``}
-      `;
-      const cogsResult = await this.prisma.$queryRaw<any[]>(cogsQuery);
-      let rawCogs = Math.abs(Number(cogsResult[0]?.total_cost || 0));
-
-      // 2b. BLs Verres liés via FicheId (verres commandés chez fournisseur)
-      const allFicheIds = [
-        ...new Set([
-          ...factureFicheIds,
-          ...(
-            await this.prisma.facture.findMany({
-              where: {
-                ...centreFilter,
-                type: { in: ['BON_COMMANDE', 'BON_COMM'] },
-                ...activeStatus,
-                ficheId: { notIn: factureFicheIds, not: null },
-                OR: [
-                  { notes: { not: { contains: 'Remplacée par' } } },
-                  { notes: null },
-                ],
-                ...dateFilter,
-              },
-              select: { ficheId: true },
-            })
-          )
-            .map((d) => d.ficheId)
-            .filter((id): id is string => !!id),
-        ]),
-      ];
-
-      if (allFicheIds.length > 0) {
-        const linkedBls = await this.prisma.factureFournisseur.aggregate({
-          where: { ficheId: { in: allFicheIds } },
-          _sum: { montantTTC: true },
-        });
-        rawCogs += linkedBls?._sum?.montantTTC || 0;
-      }
-
-      // 2c. Fallback : achats stock fournisseur si aucun mouvement de stock enregistré
-      if (rawCogs === 0) {
-        const globalCogsAgg = await this.prisma.factureFournisseur.aggregate({
-          where: {
-            dateEmission: { gte: start, lte: end },
-            type: { in: this.INVENTORY_PURCHASE_TYPES },
-            ...centreFilter,
-          },
-          _sum: { montantTTC: true },
-        });
-        rawCogs = globalCogsAgg._sum.montantTTC || 0;
-      }
-
-      // ─────────────────────────────────────────────────────────────────────
-      // ÉTAPE 3 ► Dépenses opérationnelles
-      // ─────────────────────────────────────────────────────────────────────
-      const [expensesAgg, purchaseExpensesAgg] = await Promise.all([
-        this.prisma.depense.aggregate({
-          where: {
-            date: { gte: start, lte: end },
-            factureFournisseurId: null,
-            bonLivraisonId: null,
-            ...centreFilter,
-          },
-          _sum: { montant: true },
-        }),
-        this.prisma.factureFournisseur.aggregate({
-          where: {
-            dateEmission: { gte: start, lte: end },
-            type: { notIn: this.INVENTORY_PURCHASE_TYPES },
-            ...centreFilter,
-          },
-          _sum: { montantTTC: true },
-        }),
-      ]);
-
-      const totalExpenses =
-        (expensesAgg._sum.montant || 0) +
-        (purchaseExpensesAgg._sum.montantTTC || 0);
-
-      // ─────────────────────────────────────────────────────────────────────
-      // ÉTAPE 4 ► Ventilations détaillées (breakdown)
-      // ─────────────────────────────────────────────────────────────────────
-
-      // Ventilation dépenses opé
-      const [expenseBreakdown, purchaseBreakdown] = await Promise.all([
-        this.prisma.depense.groupBy({
-          by: ['categorie'],
-          where: {
-            date: { gte: start, lte: end },
-            factureFournisseurId: null,
-            bonLivraisonId: null,
-            ...centreFilter,
-          },
-          _sum: { montant: true },
-        }),
-        this.prisma.factureFournisseur.groupBy({
-          by: ['type'],
-          where: {
-            dateEmission: { gte: start, lte: end },
-            type: { notIn: this.INVENTORY_PURCHASE_TYPES },
-            ...centreFilter,
-          },
-          _sum: { montantTTC: true },
-        }),
-      ]);
-
-      const combinedBreakdownMap = new Map<string, number>();
-      expenseBreakdown.forEach((e) => {
-        const key = e.categorie || 'AUTRES';
-        combinedBreakdownMap.set(
-          key,
-          (combinedBreakdownMap.get(key) || 0) + (e._sum.montant || 0),
-        );
-      });
-      purchaseBreakdown.forEach((p) => {
-        const key = p.type || 'AUTRES CHARGES';
-        combinedBreakdownMap.set(
-          key,
-          (combinedBreakdownMap.get(key) || 0) + (p._sum.montantTTC || 0),
-        );
-      });
-      const formattedBreakdown = Array.from(combinedBreakdownMap.entries())
-        .map(([category, amount]) => ({
-          category,
-          amount,
-          percentage: totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0,
-        }))
-        .sort((a, b) => b.amount - a.amount);
-
-      // Ventilation COGS par catégorie produit
-      const cogsBreakdownQuery = Prisma.sql`
-        SELECT p."typeArticle" as category, SUM(m."quantite" * COALESCE(m."prixAchatUnitaire", 0)) as amount
-        FROM "MouvementStock" m
-        JOIN "Product" p ON m."produitId" = p."id"
-        JOIN "Facture" f ON m."factureId" = f."id"
-        WHERE f."dateEmission" >= ${start} AND f."dateEmission" <= ${end}
-          AND f."type" IN ('FACTURE', 'BON_COMMANDE')
-          AND f."statut" != 'ARCHIVE'
-        ${tenantId ? Prisma.sql`AND f."centreId" = ${tenantId}` : Prisma.sql``}
-        GROUP BY p."typeArticle"
-      `;
-      const cogsBreakdownResult =
-        await this.prisma.$queryRaw<any[]>(cogsBreakdownQuery);
-      const cogsMap = new Map<string, number>();
-      cogsBreakdownResult.forEach((r) => {
-        const cat = r.category || 'AUTRES STOCKS';
-        cogsMap.set(
-          cat,
-          (cogsMap.get(cat) || 0) + Math.abs(Number(r.amount || 0)),
-        );
-      });
-      if (allFicheIds.length > 0) {
-        const linkedBlsBreakdown = await this.prisma.factureFournisseur.groupBy(
-          {
-            by: ['type'],
-            where: { ficheId: { in: allFicheIds } },
-            _sum: { montantTTC: true },
-          },
-        );
-        linkedBlsBreakdown.forEach((b) => {
-          const cat = b.type || 'ACHAT_VERRE_LIE';
-          cogsMap.set(cat, (cogsMap.get(cat) || 0) + (b._sum.montantTTC || 0));
-        });
-      }
-      if (cogsMap.size === 0 && rawCogs > 0) {
-        const inventoryPurchases = await this.prisma.factureFournisseur.groupBy(
-          {
-            by: ['type'],
-            where: {
-              dateEmission: { gte: start, lte: end },
-              type: { in: this.INVENTORY_PURCHASE_TYPES },
-              ...centreFilter,
-            },
-            _sum: { montantTTC: true },
-          },
-        );
-        inventoryPurchases.forEach((p) => {
-          cogsMap.set(
-            p.type || 'AUTRES STOCKS',
-            (cogsMap.get(p.type || 'AUTRES STOCKS') || 0) +
-              (p._sum.montantTTC || 0),
-          );
-        });
-      }
-      const formattedCogsBreakdown = Array.from(cogsMap.entries())
-        .map(([category, amount]) => ({
-          category,
-          amount: Math.round(amount * 100) / 100,
-          percentage: rawCogs > 0 ? (amount / rawCogs) * 100 : 0,
-        }))
-        .sort((a, b) => b.amount - a.amount);
-
-      // ─────────────────────────────────────────────────────────────────────
-      // RÉSULTAT FINAL
-      // ─────────────────────────────────────────────────────────────────────
-      const netProfit = revenue - rawCogs - totalExpenses;
-
-      console.log(
-        `[STATS-PROFIT] CA TTC=${caTTC.toFixed(2)} | Revenu HT=${revenue.toFixed(2)} | COGS=${rawCogs.toFixed(2)} | Dépenses=${totalExpenses.toFixed(2)} | Bénéfice Net=${netProfit.toFixed(2)}`,
-      );
-
-      return {
-        revenue,
-        totalRecettes,
-        caTTC,
-        cogs: rawCogs,
-        expenses: totalExpenses,
-        netProfit: revenue - rawCogs - totalExpenses,
-        expensesBreakdown: formattedBreakdown,
-        cogsBreakdown: formattedCogsBreakdown,
-        analysis: {
-          grossMarginRate: revenue ? ((revenue - rawCogs) / revenue) * 100 : 0,
-          marginRate: revenue ? (netProfit / revenue) * 100 : 0,
-        },
-      };
-    } catch (error) {
-      console.error('[Stats-Profit] Critical Error in getRealProfit:', error);
-      throw error;
-    }
+  private normalizeProductType(type: string): string {
+    const t = type.toUpperCase().trim();
+    if (t.includes('MONTURE_OPTIQUE') || t === 'MON' || t === 'MONTURE') return 'MON';
+    if (t.includes('MONTURE_SOLAIRE') || t === 'SOL' || t === 'SOLAIRE') return 'SOL';
+    if (t.includes('VERRE') || t === 'VERR') return 'VERR';
+    if (t.includes('LENTILLE') || t === 'LEN') return 'LEN';
+    if (t.includes('ACCESSOIRE') || t === 'ACC') return 'ACC';
+    if (t === 'PRODUIT') return 'PRD';
+    return t.substring(0, 4);
   }
 
-  async getProfitEvolution(
-    period: 'daily' | 'monthly' = 'monthly',
+  async getRealProfit(
     startDate?: string,
     endDate?: string,
     centreId?: string,
   ) {
-    console.log(
-      `[StatsService] getProfitEvolution called with: period=${period}, start=${startDate}, end=${endDate}`,
-    );
     try {
-      const tenantId =
-        centreId &&
-        centreId.trim() &&
-        centreId !== 'undefined' &&
-        centreId !== 'null' &&
-        centreId !== ''
-          ? centreId
-          : undefined;
+      const start = startDate ? new Date(startDate) : new Date(0);
+      const end = endDate ? new Date(endDate) : new Date(3000, 0, 1);
+      const centreFilter = centreId ? { centreId } : {};
+      const activeStatus = { statut: { in: this.ACTIVE_STATUSES } };
 
-      const isValidDate = (d: string | undefined | null): boolean =>
-        !!(d && d !== 'undefined' && d !== 'null' && d !== '');
-
-      let start = isValidDate(startDate) ? new Date(startDate!) : undefined;
-      let end = isValidDate(endDate) ? new Date(endDate!) : undefined;
-
-      // If no start or end, find the real bounds from data
-      if (!start || !end) {
-        const range = await this.prisma.facture.aggregate({
+      const [revenueAgg, bcAgg, expenseAgg, ffAgg, paymentsAgg] = await Promise.all([
+        this.prisma.facture.aggregate({
+          _sum: { totalTTC: true },
           where: {
-            centreId: tenantId || undefined,
-            statut: { notIn: ['ARCHIVE'] },
-            type: {
-              in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR', 'DEVIS'],
-            },
+            dateEmission: { gte: start, lte: end },
+            type: { in: ['FACTURE', 'AVOIR'] },
+            statut: { not: 'ARCHIVE' },
+            ...centreFilter,
           },
-          _min: { dateEmission: true },
-          _max: { dateEmission: true },
-        });
+        }),
+        // On récupère aussi les BC qui ne sont pas encore facturés
+        this.prisma.facture.aggregate({
+          _sum: { totalTTC: true },
+          where: {
+            dateEmission: { gte: start, lte: end },
+            type: { in: ['BON_COMMANDE', 'BON_COMM'] },
+            notes: { not: { contains: 'Remplacée par' } },
+            ficheId: { not: null },
+            statut: { not: 'ARCHIVE' },
+            ...centreFilter,
+          },
+        }),
+        this.prisma.depense.aggregate({
+          _sum: { montant: true },
+          where: {
+            date: { gte: start, lte: end },
+            factureFournisseurId: null,
+            bonLivraisonId: null,
+            statut: { notIn: ['REJETTE_ALIMENTATION', 'REJETEE'] },
+            ...centreFilter,
+          },
+        }),
+        this.prisma.factureFournisseur.aggregate({
+          _sum: { montantHT: true },
+          where: {
+            dateEmission: { gte: start, lte: end },
+            type: { notIn: this.INVENTORY_PURCHASE_TYPES },
+            ficheId: null,
+            ...centreFilter,
+          },
+        }),
+        this.prisma.paiement.aggregate({
+          _sum: { montant: true },
+          where: {
+            date: { gte: start, lte: end },
+            ...(centreId ? { facture: { centreId } } : {}),
+          },
+        }),
+      ]);
 
-        if (!start) {
-          const minDate =
-            range._min.dateEmission || new Date(new Date().getFullYear(), 0, 1);
-          start = new Date(minDate);
-          start.setHours(0, 0, 0, 0);
-        }
-        if (!end) {
-          const maxDate = range._max.dateEmission || new Date();
-          end = new Date(maxDate);
-          end.setHours(23, 59, 59, 999);
-        }
-      }
-
-      console.log(
-        `[StatsService] Final range for evolution: ${start.toISOString()} to ${end.toISOString()}`,
-      );
-
-      const monthsMap = new Map<
-        string,
-        { revenue: number; cogs: number; expenses: number }
-      >();
-
-      const formatKey = (date: Date) => {
-        if (period === 'daily') {
-          return date.toISOString().split('T')[0];
-        }
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      };
-
-      // Fill Gaps - ensure both start and end are Date objects
-      const current = new Date(start as Date);
-      const endDateObj = end as Date;
-      while (current <= endDateObj) {
-        monthsMap.set(formatKey(current), { revenue: 0, cogs: 0, expenses: 0 });
-        if (period === 'daily') {
-          current.setDate(current.getDate() + 1);
-        } else {
-          current.setMonth(current.getMonth() + 1);
-        }
-      }
-
-      // 1. Revenue
-      const facturesRaw = await this.prisma.facture.findMany({
+      // Calcul du COGS Analytique (basé sur les ventes de la période)
+      const facturesPourCogs = await this.prisma.facture.findMany({
         where: {
           dateEmission: { gte: start, lte: end },
-          statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
-          type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR'] },
-          ...(tenantId ? { centreId: tenantId } : {}),
+          type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM'] },
+          statut: { not: 'ARCHIVE' },
+          ...centreFilter,
         },
-        select: {
-          dateEmission: true,
-          totalHT: true,
-          totalTTC: true,
-          type: true,
-          ficheId: true,
-          notes: true,
+        include: {
+          fiche: { include: { bonsLivraison: true } },
+          mouvementsStock: true,
         },
       });
 
-      const facturesWithFicheIds = new Set(
-        facturesRaw
-          .filter((f) => f.type === 'FACTURE' && f.ficheId)
-          .map((f) => f.ficheId),
-      );
-
-      facturesRaw.forEach((f) => {
-        const key = formatKey(f.dateEmission);
-        if (!monthsMap.has(key)) return;
-
-        // Skip if BC is factured/deduplicated via fiche
-        const isBC = f.type === 'BON_COMMANDE' || f.type === 'BON_COMM';
-        const isFacturedViaFiche =
-          isBC && f.ficheId && facturesWithFicheIds.has(f.ficheId);
-
-        // Skip if BC is factured via notes (for anonymous clients)
-        const isFacturedViaNote = isBC && f.notes?.includes('Remplacée par');
-
-        if (isFacturedViaFiche || isFacturedViaNote) {
-          return;
+      let totalCogs = 0;
+      for (const f of facturesPourCogs) {
+        // a. Montures : via mouvements réels ou estimation catalogue
+        if (f.mouvementsStock?.length) {
+          totalCogs += f.mouvementsStock.reduce((s, m) => s + (m.prixAchatUnitaire || 0), 0);
         }
+        // b. Verres : via BL rattachés
+        if (f.fiche?.bonsLivraison?.length) {
+          totalCogs += f.fiche.bonsLivraison.reduce((s, bl) => s + (bl.montantHT || 0), 0);
+        }
+      }
 
-        // Force HT calculation from TTC to ensure 20% consistency across charts
-        const valTTC = f.totalTTC || 0;
-        const valHT = valTTC / 1.2;
+      const revenueHT = ((revenueAgg._sum?.totalTTC || 0) + (bcAgg._sum?.totalTTC || 0)) / 1.2;
+      const expenses = (expenseAgg._sum?.montant || 0) + (ffAgg._sum?.montantHT || 0);
 
-        const entry = monthsMap.get(key)!;
-        if (f.type === 'AVOIR') entry.revenue -= valHT;
-        else entry.revenue += valHT;
+      return {
+        revenue: revenueHT,
+        cogs: totalCogs,
+        expenses: expenses,
+        profit: revenueHT - totalCogs - expenses,
+        totalRecettes: paymentsAgg._sum?.montant || 0,
+      };
+    } catch (e) {
+      console.error('[Stats] getRealProfit Error:', e);
+      return { revenue: 0, cogs: 0, expenses: 0, profit: 0, totalRecettes: 0 };
+    }
+  }
+
+  async getProfitEvolution(
+    startDate?: string,
+    endDate?: string,
+    centreId?: string,
+  ) {
+    try {
+      const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), 0, 1);
+      const end = endDate ? new Date(endDate) : new Date();
+      const centreFilter = centreId ? { centreId } : {};
+
+      const factures = await this.prisma.facture.findMany({
+        where: {
+          dateEmission: { gte: start, lte: end },
+          statut: { not: 'ARCHIVE' },
+          ...centreFilter,
+        },
+        include: {
+          fiche: { include: { bonsLivraison: true } },
+          mouvementsStock: true,
+        },
       });
 
-      // 2. Expenses (Depense + Operational Purchases)
       const depenses = await this.prisma.depense.findMany({
         where: {
           date: { gte: start, lte: end },
-          statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
-          ...(tenantId ? { centreId: tenantId } : {}),
-        },
-      });
-      depenses.forEach((d) => {
-        const key = formatKey(d.date);
-        if (!monthsMap.has(key)) return;
-        monthsMap.get(key)!.expenses += d.montant || 0;
-      });
-
-      const ff = await this.prisma.factureFournisseur.findMany({
-        where: {
-          dateEmission: { gte: start, lte: end },
-          ...(tenantId ? { centreId: tenantId } : {}),
+          statut: { notIn: ['REJETTE_ALIMENTATION', 'REJETEE'] },
+          ...centreFilter,
         },
       });
 
-      ff.forEach((f) => {
-        const key = formatKey(f.dateEmission);
-        if (!monthsMap.has(key)) return;
-        const entry = monthsMap.get(key)!;
+      const monthsMap = new Map<string, { revenue: number; cogs: number; expenses: number }>();
 
-        const isInventory = this.INVENTORY_PURCHASE_TYPES.includes(
-          f.type || '',
-        );
-        if (isInventory) {
-          entry.cogs += f.montantTTC || 0;
-        } else {
-          entry.expenses += f.montantTTC || 0;
+      factures.forEach((f) => {
+        const month = f.dateEmission.toISOString().substring(0, 7);
+        const vals = monthsMap.get(month) || { revenue: 0, cogs: 0, expenses: 0 };
+        
+        if (['FACTURE', 'BON_COMMANDE', 'BON_COMM'].includes(f.type)) {
+          vals.revenue += (f.totalTTC || 0) / 1.2;
+          if (f.mouvementsStock?.length) vals.cogs += f.mouvementsStock.reduce((s, m) => s + (m.prixAchatUnitaire || 0), 0);
+          if (f.fiche?.bonsLivraison?.length) vals.cogs += f.fiche.bonsLivraison.reduce((s, bl) => s + (bl.montantHT || 0), 0);
+        } else if (f.type === 'AVOIR') {
+          vals.revenue -= (f.totalTTC || 0) / 1.2;
         }
+        monthsMap.set(month, vals);
+      });
+
+      depenses.forEach((d) => {
+        const month = d.date.toISOString().substring(0, 7);
+        const vals = monthsMap.get(month) || { revenue: 0, cogs: 0, expenses: 0 };
+        vals.expenses += d.montant || 0;
+        monthsMap.set(month, vals);
       });
 
       const sortedResult = Array.from(monthsMap.entries())
@@ -1151,13 +783,182 @@ export class StatsService {
         }))
         .sort((a, b) => a.month.localeCompare(b.month));
 
-      console.log(
-        `[StatsService] getProfitEvolution returning ${sortedResult.length} data points`,
-      );
       return sortedResult;
     } catch (error) {
-      console.error('[Stats-Profit] Evolution Error:', error);
-      throw error;
+      console.error('[Stats] getProfitEvolution Error:', error);
+      return [];
     }
+  }
+
+  async getRevenueDetails(
+    startDate?: string,
+    endDate?: string,
+    centreId?: string,
+  ) {
+    const start = startDate ? new Date(startDate) : new Date(0);
+    const end = endDate ? new Date(endDate) : new Date(3000, 0, 1);
+
+    const facturesRaw = await this.prisma.facture.findMany({
+      where: {
+        dateEmission: { gte: start, lte: end },
+        statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
+        type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR'] },
+        ...(centreId ? { centreId } : {}),
+      },
+      include: {
+        client: {
+          select: { nom: true, prenom: true, raisonSociale: true },
+        },
+      },
+      orderBy: { dateEmission: 'desc' },
+    });
+
+    const facturesWithFicheIds = new Set(
+      facturesRaw
+        .filter((f) => f.type === 'FACTURE' && f.ficheId)
+        .map((f) => f.ficheId),
+    );
+
+    const filtered = facturesRaw.filter((f) => {
+      const isBC = f.type === 'BON_COMMANDE' || f.type === 'BON_COMM';
+      const isFacturedViaFiche =
+        isBC && f.ficheId && facturesWithFicheIds.has(f.ficheId);
+      const isFacturedViaNote = isBC && f.notes?.includes('Remplacée par');
+      return !(isFacturedViaFiche || isFacturedViaNote);
+    });
+
+    return filtered.map((f) => ({
+      id: f.id,
+      date: f.dateEmission,
+      numero: f.numero,
+      client:
+        f.client.raisonSociale ||
+        `${f.client.prenom || ''} ${f.client.nom || ''}`.trim(),
+      type: f.type,
+      totalTTC: f.totalTTC,
+      totalHT: (f.totalTTC || 0) / 1.2,
+      statut: f.statut,
+    }));
+  }
+
+  async getExpenseDetails(
+    startDate?: string,
+    endDate?: string,
+    centreId?: string,
+  ) {
+    const start = startDate ? new Date(startDate) : new Date(0);
+    const end = endDate ? new Date(endDate) : new Date(3000, 0, 1);
+    const centreFilter = centreId ? { centreId } : {};
+
+    const factures = await this.prisma.facture.findMany({
+      where: {
+        dateEmission: { gte: start, lte: end },
+        type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM'] },
+        statut: { not: 'ARCHIVE' },
+        ...centreFilter,
+      },
+      include: {
+        fiche: {
+          include: {
+            bonsLivraison: {
+              include: { fournisseur: true }
+            }
+          }
+        },
+        mouvementsStock: {
+          include: { produit: true }
+        }
+      },
+    });
+
+    const results: any[] = [];
+
+    for (const f of factures) {
+      if (!f.fiche) continue;
+
+      const lines = (typeof f.lignes === 'string' ? JSON.parse(f.lignes as string) : f.lignes) as any[];
+      if (!Array.isArray(lines)) continue;
+
+      const montures = lines.filter(l => 
+        l.typeArticle === 'MONTURE' || l.typeArticle === 'SOLAIRE' || l.description?.toLowerCase().includes('monture')
+      );
+      
+      for (const m of montures) {
+        const move = (f.mouvementsStock || []).find(ms => ms.produitId === m.productId || ms.produit?.codeInterne === m.codeInterne);
+        const cost = move?.prixAchatUnitaire || 0;
+
+        results.push({
+          id: `m-${m.id || Math.random()}`,
+          date: f.dateEmission,
+          libelle: `COGS (Monture): ${m.designation || 'Monture'} [Vente ${f.numero}]`,
+          fournisseur: m.marque || 'STOCK',
+          type: 'COGS',
+          montant: cost,
+          statut: 'VALIDE',
+          source: move ? 'COGS_REEL_STOCK' : 'COGS_ESTIMATION',
+        });
+      }
+
+      for (const bl of f.fiche.bonsLivraison) {
+        results.push({
+          id: `bl-${bl.id}`,
+          date: bl.dateEmission,
+          libelle: `COGS (Verres): ${bl.numeroBL} [Vente ${f.numero}]`,
+          fournisseur: bl.fournisseur?.nom || 'FOURNISSEUR',
+          type: 'COGS',
+          montant: bl.montantHT, 
+          statut: 'VALIDE',
+          source: 'COGS_ACHAT_BL',
+        });
+      }
+    }
+
+    const [depenses, opexFf] = await Promise.all([
+      this.prisma.depense.findMany({
+        where: {
+          date: { gte: start, lte: end },
+          factureFournisseurId: null,
+          bonLivraisonId: null,
+          statut: { notIn: ['REJETTE_ALIMENTATION', 'REJETEE'] },
+          ...centreFilter,
+        },
+        include: { fournisseur: { select: { nom: true } } },
+      }),
+      this.prisma.factureFournisseur.findMany({
+        where: {
+          dateEmission: { gte: start, lte: end },
+          type: { notIn: this.INVENTORY_PURCHASE_TYPES },
+          ficheId: null,
+          ...centreFilter,
+        },
+        include: { fournisseur: { select: { nom: true } } },
+      }),
+    ]);
+
+    results.push(...depenses.map((d: any) => ({
+      id: d.id,
+      date: d.date,
+      libelle: `OPEX: ${d.description || d.reference || 'DEP'}`,
+      fournisseur: d.fournisseur?.nom || 'DIVERS',
+      type: d.categorie || 'CHARGE',
+      montant: d.montant,
+      statut: d.statut,
+      source: 'DEPENSE_OPE',
+    })));
+
+    results.push(...opexFf.map((f: any) => ({
+      id: f.id,
+      date: f.dateEmission,
+      libelle: `OPEX (Facture): ${f.numeroFacture || f.referenceInterne || 'FF'}`,
+      fournisseur: f.fournisseur?.nom || 'FOURNISSEUR',
+      type: f.type || 'CHARGE_EXT',
+      montant: f.montantHT,
+      statut: 'VALIDE',
+      source: 'FACTURE_OPEX',
+    })));
+
+    return results.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
   }
 }

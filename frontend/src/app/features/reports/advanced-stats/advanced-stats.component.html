@@ -92,13 +92,13 @@
 
     <!-- Summary Cards -->
     <div class="summary-cards" *ngIf="summary && !loading">
-        <mat-card class="stat-card blue">
+        <mat-card class="stat-card blue clickable-card" (click)="openRevenueDetailDialog()">
             <mat-card-content>
                 <div class="stat-icon">
                     <mat-icon>monetization_on</mat-icon>
                 </div>
                 <div class="stat-info">
-                    <p class="stat-label">CA Total</p>
+                    <p class="stat-label">CA Total (HT)</p>
                     <h2 class="stat-value">{{ summary.totalRevenue | number:'1.2-2' }} DH</h2>
                 </div>
             </mat-card-content>
@@ -156,7 +156,7 @@
             </mat-card-content>
         </mat-card>
 
-        <mat-card class="stat-card red">
+        <mat-card class="stat-card red clickable-card" (click)="openExpenseDetailDialog()">
             <mat-card-content>
                 <div class="stat-icon">
                     <mat-icon>payments</mat-icon>
@@ -237,4 +237,144 @@
             </mat-card-content>
         </mat-card>
     </div>
+
+    <!-- Revenue Detail Dialog Template -->
+    <ng-template #revenueDetailDialog>
+        <div class="dialog-header">
+            <h2>
+                <mat-icon color="primary">monetization_on</mat-icon>
+                Détails du CA (Ventes & Avoirs)
+            </h2>
+            <button mat-icon-button mat-dialog-close title="Fermer">
+                <mat-icon>close</mat-icon>
+            </button>
+        </div>
+        <mat-dialog-content class="dialog-content">
+            <div *ngIf="loadingDialog" class="loading-container">
+                <mat-spinner diameter="40"></mat-spinner>
+                <p>Chargement des détails...</p>
+            </div>
+            <div class="table-container" *ngIf="!loadingDialog">
+                <table mat-table [dataSource]="revenueItems">
+                    <ng-container matColumnDef="date">
+                        <th mat-header-cell *matHeaderCellDef> Date </th>
+                        <td mat-cell *matCellDef="let row"> {{ row.date | date:'dd/MM/yyyy' }} </td>
+                    </ng-container>
+                    <ng-container matColumnDef="numero">
+                        <th mat-header-cell *matHeaderCellDef> N° Pièce </th>
+                        <td mat-cell *matCellDef="let row"> {{ row.numero }} </td>
+                    </ng-container>
+                    <ng-container matColumnDef="client">
+                        <th mat-header-cell *matHeaderCellDef> Client </th>
+                        <td mat-cell *matCellDef="let row"> {{ row.client }} </td>
+                    </ng-container>
+                    <ng-container matColumnDef="type">
+                        <th mat-header-cell *matHeaderCellDef> Type </th>
+                        <td mat-cell *matCellDef="let row"> {{ row.type }} </td>
+                    </ng-container>
+                    <ng-container matColumnDef="totalHT">
+                        <th mat-header-cell *matHeaderCellDef> Montant HT </th>
+                        <td mat-cell *matCellDef="let row" [class.text-red-600]="row.type === 'AVOIR'"> 
+                            {{ row.totalHT | number:'1.2-2' }} 
+                        </td>
+                    </ng-container>
+                    <ng-container matColumnDef="totalTTC">
+                        <th mat-header-cell *matHeaderCellDef> Montant TTC </th>
+                        <td mat-cell *matCellDef="let row" [class.text-red-600]="row.type === 'AVOIR'" class="font-bold"> 
+                            {{ row.totalTTC | number:'1.2-2' }} 
+                        </td>
+                    </ng-container>
+                    <ng-container matColumnDef="statut">
+                        <th mat-header-cell *matHeaderCellDef> Statut </th>
+                        <td mat-cell *matCellDef="let row">
+                            <span class="status-badge" [ngClass]="getStatusClass(row.statut)">
+                                {{ row.statut }}
+                            </span>
+                        </td>
+                    </ng-container>
+
+                    <tr mat-header-row *matHeaderRowDef="displayedColumnsRevenue; sticky: true"></tr>
+                    <tr mat-row *matRowDef="let row; columns: displayedColumnsRevenue;"></tr>
+                </table>
+            </div>
+
+            <!-- Footer Summary -->
+            <div class="summary-footer" *ngIf="!loadingDialog && revenueItems.length > 0">
+                <div class="total-card">
+                    <span class="label">Total CA (HT)</span>
+                    <span class="value">{{ (totalRevenueAmount / 1.2) | number:'1.2-2' }} DH</span>
+                </div>
+                <div class="total-card ml-4">
+                    <span class="label">Total CA (TTC)</span>
+                    <span class="value">{{ totalRevenueAmount | number:'1.2-2' }} DH</span>
+                </div>
+            </div>
+        </mat-dialog-content>
+    </ng-template>
+
+    <!-- Expense Detail Dialog Template -->
+    <ng-template #expenseDetailDialog>
+        <div class="dialog-header">
+            <h2>
+                <mat-icon color="warn">payments</mat-icon>
+                Détails des Dépenses & Achats
+            </h2>
+            <button mat-icon-button mat-dialog-close title="Fermer">
+                <mat-icon>close</mat-icon>
+            </button>
+        </div>
+        <mat-dialog-content class="dialog-content">
+            <div *ngIf="loadingDialog" class="loading-container">
+                <mat-spinner diameter="40"></mat-spinner>
+                <p>Chargement des détails...</p>
+            </div>
+            <div class="table-container" *ngIf="!loadingDialog">
+                <table mat-table [dataSource]="expenseItems">
+                    <ng-container matColumnDef="date">
+                        <th mat-header-cell *matHeaderCellDef> Date </th>
+                        <td mat-cell *matCellDef="let row"> {{ row.date | date:'dd/MM/yyyy' }} </td>
+                    </ng-container>
+                    <ng-container matColumnDef="fournisseur">
+                        <th mat-header-cell *matHeaderCellDef> Tiers / Fournisseur </th>
+                        <td mat-cell *matCellDef="let row"> {{ row.fournisseur }} </td>
+                    </ng-container>
+                    <ng-container matColumnDef="libelle">
+                        <th mat-header-cell *matHeaderCellDef> Libellé </th>
+                        <td mat-cell *matCellDef="let row"> {{ row.libelle }} </td>
+                    </ng-container>
+                    <ng-container matColumnDef="type">
+                        <th mat-header-cell *matHeaderCellDef> Catégorie </th>
+                        <td mat-cell *matCellDef="let row"> {{ row.type }} </td>
+                    </ng-container>
+                    <ng-container matColumnDef="montant">
+                        <th mat-header-cell *matHeaderCellDef> Montant </th>
+                        <td mat-cell *matCellDef="let row" class="font-bold"> {{ row.montant | number:'1.2-2' }} </td>
+                    </ng-container>
+                    <ng-container matColumnDef="source">
+                        <th mat-header-cell *matHeaderCellDef> Source </th>
+                        <td mat-cell *matCellDef="let row"> {{ row.source }} </td>
+                    </ng-container>
+                    <ng-container matColumnDef="statut">
+                        <th mat-header-cell *matHeaderCellDef> Statut </th>
+                        <td mat-cell *matCellDef="let row">
+                            <span class="status-badge" [ngClass]="getStatusClass(row.statut)">
+                                {{ row.statut }}
+                            </span>
+                        </td>
+                    </ng-container>
+
+                    <tr mat-header-row *matHeaderRowDef="displayedColumnsExpenses; sticky: true"></tr>
+                    <tr mat-row *matRowDef="let row; columns: displayedColumnsExpenses;"></tr>
+                </table>
+            </div>
+
+            <!-- Footer Summary -->
+            <div class="summary-footer" *ngIf="!loadingDialog && expenseItems.length > 0">
+                <div class="total-card">
+                    <span class="label">Total Dépenses</span>
+                    <span class="value">{{ totalExpenseAmount | number:'1.2-2' }} DH</span>
+                </div>
+            </div>
+        </mat-dialog-content>
+    </ng-template>
 </div>

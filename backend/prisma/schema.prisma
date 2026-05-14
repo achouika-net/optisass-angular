@@ -73,13 +73,13 @@ model Fiche {
   montantPaye          Float                @default(0)
   clientId             String
   content              Json
+  vendeurId            String?
   bonsLivraison        BonLivraison[]
+  commissions          Commission[]
   facture              Facture?
   supplierInvoices     FactureFournisseur[]
-  vendeurId            String?
   client               Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
   vendeur              Employee?            @relation("VendeurFiches", fields: [vendeurId], references: [id])
-  commissions          Commission[]
 
   @@index([clientId])
   @@index([vendeurId])
@@ -172,8 +172,8 @@ model Groupe {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   type        String?  @default("FAMILY")
-  clients     Client[]
   centres     Centre[]
+  clients     Client[]
 }
 
 model Centre {
@@ -190,6 +190,7 @@ model Centre {
   updatedAt            DateTime             @updatedAt
   bonsLivraison        BonLivraison[]
   caisses              Caisse[]
+  groupe               Groupe?              @relation(fields: [groupeId], references: [id])
   clients              Client[]
   commissionRules      CommissionRule[]
   depenses             Depense[]
@@ -199,7 +200,6 @@ model Centre {
   facturesFournisseurs FactureFournisseur[]
   journeesCaisse       JourneeCaisse[]
   virtualTryons        VirtualTryon[]
-  groupe               Groupe?              @relation(fields: [groupeId], references: [id])
 
   @@unique([groupeId, nom])
 }
@@ -292,9 +292,9 @@ model MouvementStock {
   entrepotSource        Entrepot?           @relation("EntrepotSource", fields: [entrepotSourceId], references: [id])
   factureFournisseur    FactureFournisseur? @relation(fields: [factureFournisseurId], references: [id])
   facture               Facture?            @relation(fields: [factureId], references: [id])
-  produit               Product?            @relation(fields: [produitId], references: [id], onDelete: Cascade)
   glassIndex            GlassIndex?         @relation(fields: [glassIndexId], references: [id])
   glassTreatment        GlassTreatment?     @relation(fields: [glassTreatmentId], references: [id])
+  produit               Product?            @relation(fields: [produitId], references: [id], onDelete: Cascade)
   user                  User?               @relation(fields: [userId], references: [id])
 
   @@index([type])
@@ -735,11 +735,11 @@ model Commission {
   id         String   @id @default(uuid())
   employeeId String
   factureId  String?
-  ficheId    String?
   type       String
   montant    Float
   mois       String
   createdAt  DateTime @default(now())
+  ficheId    String?
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   facture    Facture? @relation(fields: [factureId], references: [id], onDelete: Cascade)
   fiche      Fiche?   @relation(fields: [ficheId], references: [id], onDelete: Cascade)
@@ -833,14 +833,14 @@ model GlassMaterial {
 }
 
 model GlassIndex {
-  id         String        @id @default(uuid())
-  value      String
-  label      String?
+  id              String           @id @default(uuid())
+  value           String
+  label           String?
   price           Float            @default(0)
-  quantite        Float            @default(0)
   materialId      String
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  quantite        Float            @default(0)
   material        GlassMaterial    @relation(fields: [materialId], references: [id], onDelete: Cascade)
   mouvementsStock MouvementStock[]
 
@@ -848,12 +848,12 @@ model GlassIndex {
 }
 
 model GlassTreatment {
-  id        String   @id @default(uuid())
-  name      String   @unique
+  id              String           @id @default(uuid())
+  name            String           @unique
   price           Float            @default(0)
-  quantite        Float            @default(0)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  quantite        Float            @default(0)
   mouvementsStock MouvementStock[]
 }
 
@@ -897,9 +897,9 @@ model VirtualTryon {
 }
 
 model CommissionConfig {
-  id                       String   @id @default(uuid())
-  triggerType              String   @default("FACTURE")  // FACTURE, BC (legacy, kept for compatibility)
-  paymentCondition         String   @default("SOLDE")    // Condition pour BC : TOUT, PARTIEL, SOLDE
-  paymentConditionFacture  String   @default("SOLDE")    // Condition pour Facture : TOUT, PARTIEL, SOLDE
-  updatedAt                DateTime @updatedAt
+  id                      String   @id @default(uuid())
+  triggerType             String   @default("FACTURE")
+  paymentCondition        String   @default("SOLDE")
+  updatedAt               DateTime @updatedAt
+  paymentConditionFacture String   @default("SOLDE")
 }
