@@ -675,6 +675,7 @@ export class StatsService {
 
       let totalRevenueTTC = 0;
       let totalCogs = 0;
+      const cogsMap = new Map<string, number>();
 
       for (const f of factures) {
         const multiplier = f.type === 'AVOIR' ? -1 : 1;
@@ -685,31 +686,86 @@ export class StatsService {
         // COGS
         // a. Montures : via mouvements réels
         if (f.mouvementsStock?.length) {
-          totalCogs += multiplier * f.mouvementsStock.reduce((s, m) => s + (m.prixAchatUnitaire || 0), 0);
+          f.mouvementsStock.forEach((m: any) => {
+            const cost = multiplier * (m.prixAchatUnitaire || 0);
+            totalCogs += cost;
+            const cat = this.normalizeProductType(m.typeArticle || 'MON');
+            cogsMap.set(cat, (cogsMap.get(cat) || 0) + cost);
+          });
         }
         // b. Verres : via BL rattachés
         if (f.fiche?.bonsLivraison?.length) {
-          totalCogs += multiplier * f.fiche.bonsLivraison.reduce((s, bl) => s + (bl.montantHT || 0), 0);
+          f.fiche.bonsLivraison.forEach((bl: any) => {
+            const cost = multiplier * (bl.montantHT || 0);
+            totalCogs += cost;
+            const cat = 'VERR';
+            cogsMap.set(cat, (cogsMap.get(cat) || 0) + cost);
+          });
         }
       }
 
       const revenueHT = totalRevenueTTC / 1.2;
       const expenses = (expenseAgg._sum?.montant || 0) + (ffAgg._sum?.montantHT || 0);
+      const netProfit = revenueHT - totalCogs - expenses;
+
+      // Expense Breakdown logic
+      const expensesBreakdownMap = new Map<string, number>();
+      // We can't easily get the breakdown from aggregate, but for now let's just return a generic breakdown or fetch it
+      // For simplicity and speed, let's just return the main values first. 
+      // If the user really needs the breakdown table to be populated, I should fetch the lists.
+      
+      // Let's fetch them to be perfect
+      const [depensesList, ffList] = await Promise.all([
+        this.prisma.depense.findMany({
+          where: { date: { gte: start, lte: end }, factureFournisseurId: null, bonLivraisonId: null, statut: { notIn: ['REJETTE_ALIMENTATION', 'REJETEE'] }, ...centreFilter },
+          select: { montant: true, categorie: true }
+        }),
+        this.prisma.factureFournisseur.findMany({
+          where: { dateEmission: { gte: start, lte: end }, type: { notIn: this.INVENTORY_PURCHASE_TYPES }, ficheId: null, ...centreFilter },
+          select: { montantHT: true, type: true }
+        })
+      ]);
+
+      depensesList.forEach(d => {
+        const cat = d.categorie || 'DIVERS';
+        expensesBreakdownMap.set(cat, (expensesBreakdownMap.get(cat) || 0) + (d.montant || 0));
+      });
+      ffList.forEach(f => {
+        const cat = f.type || 'FACTURE';
+        expensesBreakdownMap.set(cat, (expensesBreakdownMap.get(cat) || 0) + (f.montantHT || 0));
+      });
 
       return {
         revenue: revenueHT,
+        caTTC: totalRevenueTTC,
         cogs: totalCogs,
         expenses: expenses,
-        netProfit: revenueHT - totalCogs - expenses,
+        netProfit: netProfit,
         totalRecettes: paymentsAgg._sum?.montant || 0,
+        analysis: {
+          marginRate: revenueHT > 0 ? (netProfit / revenueHT) * 100 : 0,
+          cogsRate: revenueHT > 0 ? (totalCogs / revenueHT) * 100 : 0,
+          expenseRate: revenueHT > 0 ? (expenses / revenueHT) * 100 : 0,
+        },
+        cogsBreakdown: Array.from(cogsMap.entries()).map(([category, amount]) => ({
+          category,
+          amount,
+          percentage: totalCogs > 0 ? (amount / totalCogs) * 100 : 0,
+        })),
+        expensesBreakdown: Array.from(expensesBreakdownMap.entries()).map(([category, amount]) => ({
+          category,
+          amount,
+          percentage: expenses > 0 ? (amount / expenses) * 100 : 0,
+        })),
       };
     } catch (e) {
       console.error('[Stats] getRealProfit Error:', e);
-      return { revenue: 0, cogs: 0, expenses: 0, netProfit: 0, totalRecettes: 0 };
+      return { revenue: 0, cogs: 0, expenses: 0, netProfit: 0, totalRecettes: 0, analysis: { marginRate: 0 }, cogsBreakdown: [], expensesBreakdown: [] };
     }
   }
 
   async getProfitEvolution(
+    period: 'daily' | 'monthly' = 'monthly',
     startDate?: string,
     endDate?: string,
     centreId?: string,
@@ -729,11 +785,14 @@ export class StatsService {
         },
       });
 
-      const monthsMap = new Map<string, { revenue: number; cogs: number; expenses: number }>();
+      const dataMap = new Map<string, { revenue: number; cogs: number; expenses: number }>();
 
       factures.forEach((f) => {
-        const month = f.dateEmission.toISOString().substring(0, 7);
-        const vals = monthsMap.get(month) || { revenue: 0, cogs: 0, expenses: 0 };
+        const label = period === 'daily' 
+          ? f.dateEmission.toISOString().split('T')[0]
+          : f.dateEmission.toISOString().substring(0, 7);
+        
+        const vals = dataMap.get(label) || { revenue: 0, cogs: 0, expenses: 0 };
         
         const multiplier = f.type === 'AVOIR' ? -1 : 1;
         vals.revenue += multiplier * (f.totalTTC || 0) / 1.2;
@@ -746,19 +805,22 @@ export class StatsService {
           vals.cogs += multiplier * f.fiche.bonsLivraison.reduce((s, bl) => s + (bl.montantHT || 0), 0);
         }
 
-        monthsMap.set(month, vals);
+        dataMap.set(label, vals);
       });
 
       depenses.forEach((d) => {
-        const month = d.date.toISOString().substring(0, 7);
-        const vals = monthsMap.get(month) || { revenue: 0, cogs: 0, expenses: 0 };
+        const label = period === 'daily'
+          ? d.date.toISOString().split('T')[0]
+          : d.date.toISOString().substring(0, 7);
+        
+        const vals = dataMap.get(label) || { revenue: 0, cogs: 0, expenses: 0 };
         vals.expenses += d.montant || 0;
-        monthsMap.set(month, vals);
+        dataMap.set(label, vals);
       });
 
-      const sortedResult = Array.from(monthsMap.entries())
+      const sortedResult = Array.from(dataMap.entries())
         .map(([label, vals]) => ({
-          month: label,
+          month: label, // We keep 'month' key for frontend compatibility even if daily
           revenue: vals.revenue,
           expenses: vals.cogs + vals.expenses,
           cogs: vals.cogs,

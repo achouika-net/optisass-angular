@@ -114,14 +114,13 @@ export class StatsController {
 
   @Get('profit-evolution')
   getProfitEvolution(
+    @Query('period') period: 'daily' | 'monthly' = 'monthly',
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('centreId') centreId?: string,
   ) {
-    console.log(
-      `[StatsController] Incoming getProfitEvolution: centreId=${centreId}, range=${startDate} to ${endDate}`,
-    );
     return this.statsService.getProfitEvolution(
+      period,
       startDate,
       endDate,
       centreId,
