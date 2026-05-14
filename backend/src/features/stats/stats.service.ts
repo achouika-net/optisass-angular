@@ -105,7 +105,7 @@ export class StatsService {
 
   constructor(private prisma: PrismaService) {}
 
-  private async getFilteredSales(start: Date, end: Date, centreFilter: any, includeRelations = false) {
+  private async getFilteredSales(start: Date, end: Date, centreFilter: any, includeRelations: any = false) {
     const facturesRaw = await this.prisma.facture.findMany({
       where: {
         dateEmission: { gte: start, lte: end },
@@ -113,11 +113,11 @@ export class StatsService {
         type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR'] },
         ...centreFilter,
       },
-      include: includeRelations ? {
+      include: includeRelations === true ? {
         fiche: { include: { bonsLivraison: true } },
         mouvementsStock: true,
-      } : undefined,
-    });
+      } : (includeRelations || undefined),
+    }) as any[];
 
     const facturesWithFicheIds = new Set(
       facturesRaw
