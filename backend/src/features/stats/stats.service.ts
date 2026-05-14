@@ -114,8 +114,8 @@ export class StatsService {
         ...centreFilter,
       },
       include: includeRelations === true ? {
-        fiche: { include: { bonsLivraison: true } },
-        mouvementsStock: true,
+        fiche: { include: { bonsLivraison: { include: { fournisseur: true } } } },
+        mouvementsStock: { include: { produit: true } },
       } : (includeRelations || undefined),
     }) as any[];
 
@@ -684,12 +684,12 @@ export class StatsService {
         totalRevenueTTC += multiplier * (f.totalTTC || 0);
 
         // COGS
-        // a. Montures : via mouvements réels
+        // a. Montures & Others: via mouvements réels
         if (f.mouvementsStock?.length) {
           f.mouvementsStock.forEach((m: any) => {
             const cost = multiplier * (m.prixAchatUnitaire || 0);
             totalCogs += cost;
-            const cat = this.normalizeProductType(m.typeArticle || 'MON');
+            const cat = this.normalizeProductType(m.produit?.typeArticle || m.typeArticle || 'MON');
             cogsMap.set(cat, (cogsMap.get(cat) || 0) + cost);
           });
         }
@@ -873,69 +873,58 @@ export class StatsService {
     const end = endDate ? new Date(endDate) : new Date(3000, 0, 1);
     const centreFilter = centreId ? { centreId } : {};
 
-    const factures = await this.prisma.facture.findMany({
-      where: {
-        dateEmission: { gte: start, lte: end },
-        type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM'] },
-        statut: { not: 'ARCHIVE' },
-        ...centreFilter,
-      },
-      include: {
-        fiche: {
-          include: {
-            bonsLivraison: {
-              include: { fournisseur: true }
-            }
-          }
-        },
-        mouvementsStock: {
-          include: { produit: true }
-        }
-      },
-    });
-
+    // 1. Get the EXACT same list of sales as getRealProfit
+    const factures = await this.getFilteredSales(start, end, centreFilter, true);
     const results: any[] = [];
 
     for (const f of factures) {
-      if (!f.fiche) continue;
+      const multiplier = f.type === 'AVOIR' ? -1 : 1;
 
-      const lines = (typeof f.lignes === 'string' ? JSON.parse(f.lignes as string) : f.lignes) as any[];
-      if (!Array.isArray(lines)) continue;
+      // a. COGS from movements (Montures, Lentilles, Accessories, etc.)
+      if (f.mouvementsStock?.length) {
+        f.mouvementsStock.forEach((m: any) => {
+          const cost = multiplier * (m.prixAchatUnitaire || 0);
+          if (cost === 0 && multiplier === 1) return; // Skip zero-cost items unless it's an Avoir
 
-      const montures = lines.filter(l => 
-        l.typeArticle === 'MONTURE' || l.typeArticle === 'SOLAIRE' || l.description?.toLowerCase().includes('monture')
-      );
-      
-      for (const m of montures) {
-        const move = (f.mouvementsStock || []).find(ms => ms.produitId === m.productId || ms.produit?.codeInterne === m.codeInterne);
-        const cost = move?.prixAchatUnitaire || 0;
+          const type = this.normalizeProductType(m.produit?.typeArticle || m.typeArticle || 'MON');
+          let libellePrefix = 'COGS';
+          if (type === 'MON') libellePrefix = 'COGS (Monture)';
+          else if (type === 'LEN') libellePrefix = 'COGS (Lentille)';
+          else if (type === 'ACC') libellePrefix = 'COGS (Accessoire)';
+          else if (type === 'PRD') libellePrefix = 'COGS (Produit)';
 
-        results.push({
-          id: `m-${m.id || Math.random()}`,
-          date: f.dateEmission,
-          libelle: `COGS (Monture): ${m.designation || 'Monture'} [Vente ${f.numero}]`,
-          fournisseur: m.marque || 'STOCK',
-          type: 'COGS',
-          montant: cost,
-          statut: 'VALIDE',
-          source: move ? 'COGS_REEL_STOCK' : 'COGS_ESTIMATION',
+          results.push({
+            id: `move-${m.id}`,
+            date: f.dateEmission,
+            libelle: `${libellePrefix}: ${m.produit?.designation || 'Article'} [Vente ${f.numero}]`,
+            fournisseur: m.produit?.marque || 'STOCK',
+            type: 'COGS',
+            montant: cost,
+            statut: f.type === 'AVOIR' ? 'AVOIR' : 'VALIDE',
+            source: m.motif === 'RETOUR' ? 'COGS_RETOUR' : 'COGS_REEL_STOCK',
+          });
         });
       }
 
-      for (const bl of f.fiche.bonsLivraison) {
-        results.push({
-          id: `bl-${bl.id}`,
-          date: bl.dateEmission,
-          libelle: `COGS (Verres): ${bl.numeroBL} [Vente ${f.numero}]`,
-          fournisseur: bl.fournisseur?.nom || 'FOURNISSEUR',
-          type: 'COGS',
-          montant: bl.montantHT, 
-          statut: 'VALIDE',
-          source: 'COGS_ACHAT_BL',
+      // b. COGS from BLs (Verres)
+      if (f.fiche?.bonsLivraison?.length) {
+        f.fiche.bonsLivraison.forEach((bl: any) => {
+          const cost = multiplier * (bl.montantHT || 0);
+          results.push({
+            id: `bl-${bl.id}`,
+            date: bl.dateEmission,
+            libelle: `COGS (Verres): ${bl.numeroBL} [Vente ${f.numero}]`,
+            fournisseur: bl.fournisseur?.nom || 'FOURNISSEUR',
+            type: 'COGS',
+            montant: cost,
+            statut: f.type === 'AVOIR' ? 'AVOIR' : 'VALIDE',
+            source: 'COGS_ACHAT_BL',
+          });
         });
       }
     }
 
+    // 2. OpEx (Depenses & Factures Fournisseurs)
     const [depenses, opexFf] = await Promise.all([
       this.prisma.depense.findMany({
         where: {
@@ -961,23 +950,23 @@ export class StatsService {
     results.push(...depenses.map((d: any) => ({
       id: d.id,
       date: d.date,
-      libelle: `OPEX: ${d.description || d.reference || 'DEP'}`,
+      libelle: `Charge Courante: ${d.description || d.reference || 'Dépense'}`,
       fournisseur: d.fournisseur?.nom || 'DIVERS',
       type: d.categorie || 'CHARGE',
       montant: d.montant,
       statut: d.statut,
-      source: 'DEPENSE_OPE',
+      source: 'CHARGE_COURANTE',
     })));
 
     results.push(...opexFf.map((f: any) => ({
       id: f.id,
       date: f.dateEmission,
-      libelle: `OPEX (Facture): ${f.numeroFacture || f.referenceInterne || 'FF'}`,
+      libelle: `Facture Charge: ${f.numeroFacture || f.referenceInterne || 'FF'}`,
       fournisseur: f.fournisseur?.nom || 'FOURNISSEUR',
       type: f.type || 'CHARGE_EXT',
       montant: f.montantHT,
       statut: 'VALIDE',
-      source: 'FACTURE_OPEX',
+      source: 'FACTURE_CHARGE',
     })));
 
     return results.sort(

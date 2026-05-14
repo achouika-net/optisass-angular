@@ -622,7 +622,7 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit, OnDestroy 
         status = status.toUpperCase();
         if (['VALIDEE', 'VALIDE', 'PAYEE', 'PAYE', 'ENCAISSE', 'SOLDÉ'].some(s => status.includes(s))) return 'bg-green-100 text-green-700';
         if (['BROUILLON', 'EN_COURS', 'PARTIEL'].some(s => status.includes(s))) return 'bg-blue-100 text-blue-700';
-        if (status.includes('ANNULE') || status.includes('ARCHIVE')) return 'bg-red-100 text-red-700';
+        if (['ANNULE', 'REJET', 'RETOUR', 'AVOIR'].some(s => status.includes(s))) return 'bg-red-100 text-red-700';
         return 'bg-gray-100 text-gray-700';
     }
 }
