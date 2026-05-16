@@ -151,7 +151,11 @@ export class StatsController {
     @Query('endDate') endDate?: string,
     @Query('centreId') centreId?: string,
   ) {
-    return this.statsService.getProductSalesDetailsV2(startDate, endDate, centreId);
+    return this.statsService.getProductSalesDetailsV2(
+      startDate,
+      endDate,
+      centreId,
+    );
   }
 
   /** Diagnostic endpoint - check purchase prices of sold products
@@ -162,7 +166,9 @@ export class StatsController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const start = startDate
+      ? new Date(startDate)
+      : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const end = endDate ? new Date(endDate) : new Date();
 
     const factures = await (this.prisma as any).facture.findMany({
@@ -183,10 +189,15 @@ export class StatsController {
     for (const f of factures) {
       const lines = (f.lignes as any[]) || [];
       for (const line of lines) {
-        if (!line.produitId) { lignesSansProduitId++; continue; }
+        if (!line.produitId) {
+          lignesSansProduitId++;
+          continue;
+        }
         lignesAvecProduitId++;
 
-        const mvt = (f.mouvementsStock || []).find((m: any) => m.produitId === line.produitId);
+        const mvt = (f.mouvementsStock || []).find(
+          (m: any) => m.produitId === line.produitId,
+        );
 
         report.push({
           factureId: f.id,
@@ -196,7 +207,8 @@ export class StatsController {
           marque: line.marque || '?',
           qty: line.qte ?? line.quantite ?? 1,
           // From invoice line itself
-          prixLigneUnitaire: line.prixUnitaireHT ?? line.prixUnitaireTTC ?? null,
+          prixLigneUnitaire:
+            line.prixUnitaireHT ?? line.prixUnitaireTTC ?? null,
           // From stock movement
           mvtExiste: !!mvt,
           mvtPrixAchatUnitaire: mvt?.prixAchatUnitaire ?? null,
@@ -214,9 +226,16 @@ export class StatsController {
       }
     }
 
-    const zeros = report.filter(r => (r.mvtPrixAchatUnitaire ?? 0) === 0 && (r.catalogPrixAchatHT ?? 0) === 0);
-    const fallbackOk = report.filter(r => (r.mvtPrixAchatUnitaire ?? 0) === 0 && (r.catalogPrixAchatHT ?? 0) > 0);
-    const noMvt = report.filter(r => !r.mvtExiste);
+    const zeros = report.filter(
+      (r) =>
+        (r.mvtPrixAchatUnitaire ?? 0) === 0 &&
+        (r.catalogPrixAchatHT ?? 0) === 0,
+    );
+    const fallbackOk = report.filter(
+      (r) =>
+        (r.mvtPrixAchatUnitaire ?? 0) === 0 && (r.catalogPrixAchatHT ?? 0) > 0,
+    );
+    const noMvt = report.filter((r) => !r.mvtExiste);
 
     return {
       periode: { start, end },
