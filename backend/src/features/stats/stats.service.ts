@@ -1024,25 +1024,24 @@ export class StatsService {
 
       const operation = f.type === 'AVOIR' ? 'AVOIR' : 'VENTE';
 
-      // Pre-build a Map once per facture for O(1) lookups instead of O(n) .find() per line
-      const stockMap = new Map<string, any>();
-      const glassMouvements: any[] = [];
+      // Build cost-per-type from mouvementsStock (produitId is NOT in lignes JSON,
+      // so we group by typeArticle to match movement costs to invoice lines)
+      const costByType = new Map<string, { totalCost: number; totalQty: number }>();
       for (const mv of (f.mouvementsStock || [])) {
-        if (mv.produitId) stockMap.set(mv.produitId, mv);
-        const articleType = mv.produit?.typeArticle || '';
-        if (articleType === 'VERRE' || articleType === 'VERR' || articleType === 'VERRES') {
-          glassMouvements.push(mv);
-        }
+        const rawType = mv.produit?.typeArticle || mv.typeArticle || '';
+        const normType = this.normalizeProductType(rawType);
+        if (!normType) continue;
+        const qty = Math.abs(mv.quantite || 1);
+        const unitCost = mv.prixAchatUnitaire || mv.produit?.prixAchatHT || 0;
+        const existing = costByType.get(normType) || { totalCost: 0, totalQty: 0 };
+        existing.totalCost += qty * unitCost;
+        existing.totalQty += qty;
+        costByType.set(normType, existing);
       }
-
-      // Pre-compute glass cost per unit from movements (for VERR fallback)
-      let glassCostPerUnit = 0;
-      if (glassMouvements.length > 0) {
-        const glassCostTotal = glassMouvements.reduce((s: number, mv: any) =>
-          s + Math.abs(mv.quantite) * (mv.prixAchatUnitaire || mv.produit?.prixAchatHT || 0), 0
-        );
-        const glassTotalQty = glassMouvements.reduce((s: number, mv: any) => s + Math.abs(mv.quantite), 0);
-        if (glassTotalQty > 0) glassCostPerUnit = glassCostTotal / glassTotalQty;
+      // Also keep a produitId Map for future cases where lignes might include produitId
+      const stockByProduitId = new Map<string, any>();
+      for (const mv of (f.mouvementsStock || [])) {
+        if (mv.produitId) stockByProduitId.set(mv.produitId, mv);
       }
 
       for (const line of lines) {
@@ -1092,26 +1091,26 @@ export class StatsService {
         existing.quantity += Math.abs(qty);
         existing.saleTotal += Math.abs(proportionalHT);
 
-        // COGS Estimation - 3-tier fallback for O(1) performance
-        if (line.produitId) {
-            const m = stockMap.get(line.produitId);
-            // Tier 1: actual recorded movement price
-            // Tier 2: product price from the stock movement relation
-            // Tier 3: catalog price fetched in the batch query (definitive fix for P.A = 0)
+        // COGS Estimation — primary: type-based average from mouvementsStock
+        // (produitId is never stored in lignes JSON, so we group by typeArticle)
+        const typeData = costByType.get(type);
+        if (typeData && typeData.totalQty > 0) {
+            // Use average unit cost for this type from the facture's movements
+            const avgUnitCost = typeData.totalCost / typeData.totalQty;
+            existing.purchaseTotal += Math.abs(qty) * avgUnitCost;
+        } else if (line.produitId) {
+            // Fallback: if the line has a produitId, use stockByProduitId or catalogMap
+            const m = stockByProduitId.get(line.produitId);
             const catalogPrice = catalogMap.get(line.produitId)?.prixAchatHT || 0;
             const unitCost = m?.prixAchatUnitaire || m?.produit?.prixAchatHT || catalogPrice;
             existing.purchaseTotal += Math.abs(qty) * unitCost;
         } else if (type === 'VERR') {
-            if (glassCostPerUnit > 0) {
-                existing.purchaseTotal += Math.abs(qty) * glassCostPerUnit;
-            } else {
-                // Fallback: use BL total cost proportionally
-                const glassLinesTotal = lines.filter((l: any) =>
-                    l.typeArticle === 'VERRE' || String(l.description || '').toLowerCase().includes('verre')
-                ).reduce((s: number, l: any) => s + (l.totalHT ?? l.totalTTC ?? 0), 0) || 1;
-                const blTotalCost = f.fiche?.bonsLivraison?.reduce((acc: number, bl: any) => acc + (bl.montantHT || 0), 0) || 0;
-                existing.purchaseTotal += (lineVal / glassLinesTotal) * blTotalCost;
-            }
+            // Last resort for VERR: proportional share of linked BL cost
+            const glassLinesTotal = lines.filter((l: any) =>
+                l.typeArticle === 'VERRE' || String(l.description || '').toLowerCase().includes('verre')
+            ).reduce((s: number, l: any) => s + (l.totalHT ?? l.totalTTC ?? 0), 0) || 1;
+            const blTotalCost = f.fiche?.bonsLivraison?.reduce((acc: number, bl: any) => acc + (bl.montantHT || 0), 0) || 0;
+            existing.purchaseTotal += (lineVal / glassLinesTotal) * blTotalCost;
         }
 
         productMap.set(key, existing);
