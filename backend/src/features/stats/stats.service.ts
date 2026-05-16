@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
 
 export interface RevenueDataPoint {
   period: string;
@@ -1004,9 +1003,9 @@ export class StatsService {
     // Single DB query for all product catalog prices - avoids N+1
     const catalogProducts = await this.prisma.product.findMany({
       where: { id: { in: Array.from(allProduitIds) } },
-      select: { id: true, prixAchatHT: true, marque: true, collection: true, typeArticle: true },
+      select: { id: true, prixAchatHT: true, marque: true, typeArticle: true },
     });
-    const catalogMap = new Map<string, { prixAchatHT: number; marque?: string | null; collection?: string | null; typeArticle?: string | null }>(
+    const catalogMap = new Map<string, { prixAchatHT: number; marque?: string | null; typeArticle?: string | null }>(
       catalogProducts.map((p: any) => [p.id, p])
     );
     // --- END BATCH LOOKUP ---
