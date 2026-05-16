@@ -144,4 +144,13 @@ export class StatsController {
   ) {
     return this.statsService.getExpenseDetails(startDate, endDate, centreId);
   }
+
+  @Get('product-sales-details-v2')
+  getProductSalesDetails(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('centreId') centreId?: string,
+  ) {
+    return this.statsService.getProductSalesDetailsV2(startDate, endDate, centreId);
+  }
 }

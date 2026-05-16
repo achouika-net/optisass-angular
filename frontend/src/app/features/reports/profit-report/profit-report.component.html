@@ -105,8 +105,12 @@
                     <mat-icon class="scale-[3] text-blue-900">payments</mat-icon>
                 </div>
                 <mat-card-header class="pb-1">
-                    <mat-card-title class="text-blue-800 text-[10px] font-bold uppercase tracking-wider">Revenu
-                        (HT)</mat-card-title>
+                    <div class="flex justify-between items-start w-full">
+                        <mat-card-title class="text-blue-800 text-[10px] font-bold uppercase tracking-wider">Revenu (HT)</mat-card-title>
+                        <button mat-icon-button class="print-card-btn !-mt-2 !-mr-2" (click)="printRevenueReport()" title="Imprimer le détail des ventes">
+                            <mat-icon>print</mat-icon>
+                        </button>
+                    </div>
                 </mat-card-header>
                 <mat-card-content>
                     <div class="text-2xl font-extrabold text-blue-900">{{ data.revenue | number:'1.2-2' }} <span
@@ -127,8 +131,12 @@
                     <mat-icon class="scale-[3] text-orange-900">inventory_2</mat-icon>
                 </div>
                 <mat-card-header class="pb-1">
-                    <mat-card-title class="text-orange-800 text-[10px] font-bold uppercase tracking-wider">Coût d'Achat
-                        (COGS)</mat-card-title>
+                    <div class="flex justify-between items-start w-full">
+                        <mat-card-title class="text-orange-800 text-[10px] font-bold uppercase tracking-wider">Coût d'Achat (COGS)</mat-card-title>
+                        <button mat-icon-button class="print-card-btn !-mt-2 !-mr-2" (click)="printCogsReport()" title="Imprimer le détail des achats">
+                            <mat-icon>print</mat-icon>
+                        </button>
+                    </div>
                 </mat-card-header>
                 <mat-card-content>
                     <div class="text-2xl font-extrabold text-orange-900">{{ data.cogs | number:'1.2-2' }} <span
@@ -144,8 +152,12 @@
                     <mat-icon class="scale-[3] text-red-900">trending_down</mat-icon>
                 </div>
                 <mat-card-header class="pb-1">
-                    <mat-card-title
-                        class="text-red-800 text-[10px] font-bold uppercase tracking-wider">Dépenses</mat-card-title>
+                    <div class="flex justify-between items-start w-full">
+                        <mat-card-title class="text-red-800 text-[10px] font-bold uppercase tracking-wider">Dépenses</mat-card-title>
+                        <button mat-icon-button class="print-card-btn !-mt-2 !-mr-2" (click)="printExpenseBreakdownReport()" title="Imprimer le détail des dépenses">
+                            <mat-icon>print</mat-icon>
+                        </button>
+                    </div>
                 </mat-card-header>
                 <mat-card-content>
                     <div class="text-2xl font-extrabold text-red-900">{{ data.expenses | number:'1.2-2' }} <span
@@ -163,10 +175,15 @@
                         [ngClass]="{'text-green-900': data.netProfit >= 0, 'text-red-900': data.netProfit < 0}">account_balance_wallet</mat-icon>
                 </div>
                 <mat-card-header class="pb-1">
-                    <mat-card-title class="text-[10px] font-bold uppercase tracking-wider"
-                        [ngClass]="{'text-green-800': data.netProfit >= 0, 'text-red-800': data.netProfit < 0}">
-                        Bénéfice Net
-                    </mat-card-title>
+                    <div class="flex justify-between items-start w-full">
+                        <mat-card-title class="text-[10px] font-bold uppercase tracking-wider"
+                            [ngClass]="{'text-green-800': data.netProfit >= 0, 'text-red-800': data.netProfit < 0}">
+                            Bénéfice Net
+                        </mat-card-title>
+                        <button mat-icon-button class="print-card-btn !-mt-2 !-mr-2" (click)="printProfitSummary()" title="Imprimer le résumé de rentabilité">
+                            <mat-icon>print</mat-icon>
+                        </button>
+                    </div>
                 </mat-card-header>
                 <mat-card-content>
                     <div class="text-2xl font-extrabold"
@@ -217,6 +234,9 @@
                 <mat-card-header class="border-b border-gray-100 pb-2 mb-2 flex justify-between items-center">
                     <mat-card-title class="text-gray-800 text-base">Détails du Coût d'Achat (COGS)</mat-card-title>
                     <div class="flex items-center gap-2">
+                        <button mat-icon-button color="primary" (click)="printCogsReport()" title="Imprimer ce tableau" class="mr-2">
+                            <mat-icon>print</mat-icon>
+                        </button>
                         <span class="text-xs font-semibold text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
                             {{ activeFilterInfo }}
                         </span>
@@ -276,6 +296,9 @@
                 <mat-card-header class="border-b border-gray-100 pb-2 mb-2 flex justify-between items-center">
                     <mat-card-title class="text-gray-800 text-base">Détails des Dépenses</mat-card-title>
                     <div class="flex items-center gap-2">
+                        <button mat-icon-button color="primary" (click)="printExpenseBreakdownReport()" title="Imprimer ce tableau" class="mr-2">
+                            <mat-icon>print</mat-icon>
+                        </button>
                         <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
                             {{ activeFilterInfo }}
                         </span>

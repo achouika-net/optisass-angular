@@ -13,6 +13,11 @@
                  class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold border border-orange-200 flex items-center gap-1">
                 <mat-icon class="!text-sm">analytics</mat-icon> VUE ENGAGEMENTS (DÉPENSES DU MOIS)
             </div>
+            <button type="button" mat-stroked-button color="primary" (click)="print()"
+                *ngIf="['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(activeTab)" class="mr-2">
+                <mat-icon>print</mat-icon>
+                <span>Imprimer</span>
+            </button>
             <button type="button" mat-stroked-button color="warn" (click)="resetFilters()"
                 *ngIf="['OUTGOING', 'INCOMING', 'UNPAID_CLIENTS'].includes(activeTab)">
                 <mat-icon>refresh</mat-icon>

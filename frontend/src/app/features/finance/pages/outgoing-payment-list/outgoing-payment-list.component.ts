@@ -33,6 +33,9 @@ import { Supplier } from '../../models/finance.models';
 import { InvoiceFormDialogComponent } from '../../components/invoice-form-dialog/invoice-form-dialog.component';
 import { ExpenseFormDialogComponent } from '../../components/expense-form-dialog/expense-form-dialog.component';
 import { BcHistoryListComponent } from '../../components/bc-history-list/bc-history-list.component';
+import { FinancePrintService } from '../../services/finance-print.service';
+import { CompanySettingsService } from '../../../../core/services/company-settings.service';
+import { CompanySettings } from '../../../../shared/interfaces/company-settings.interface';
 
 @Component({
     selector: 'app-outgoing-payment-list',
@@ -115,6 +118,7 @@ export class OutgoingPaymentListComponent implements OnInit {
     private destroy$ = new Subject<void>();
     private loadRequestId = 0; // Cancel-token for race condition prevention
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
+    companySettings: CompanySettings | null = null;
 
     // Pagination
     totalRecords = 0;
@@ -162,7 +166,9 @@ export class OutgoingPaymentListComponent implements OnInit {
         private route: ActivatedRoute,
         private http: HttpClient,
         private zone: NgZone,
-        private cd: ChangeDetectorRef
+        private cd: ChangeDetectorRef,
+        private printService: FinancePrintService,
+        private settingsService: CompanySettingsService
     ) {
         // Automatically reload when center changes
         effect(() => {
@@ -178,6 +184,7 @@ export class OutgoingPaymentListComponent implements OnInit {
     ngOnInit(): void {
         this.loadSuppliers();
         this.loadCenters();
+        this.loadCompanySettings();
 
         const center = this.store.selectSignal(UserCurrentCentreSelector)();
         if (center?.id && !this.filters.centreId) {
@@ -227,6 +234,63 @@ export class OutgoingPaymentListComponent implements OnInit {
     ngOnDestroy() {
         this.destroy$.next();
         this.destroy$.complete();
+    }
+
+    private loadCompanySettings(): void {
+        this.settingsService.getSettings().subscribe(settings => {
+            this.companySettings = settings;
+        });
+    }
+
+    print() {
+        let title = '';
+        let cols: { key: string, label: string }[] = [];
+        
+        if (this.activeTab === 'INCOMING') {
+            title = 'Journal des Recettes';
+            cols = [
+                { key: 'datePiece', label: 'Date' },
+                { key: 'numeroPiece', label: 'Réf / Facture' },
+                { key: 'client', label: 'Client / Source' },
+                { key: 'methodePaiement', label: 'Mode' },
+                { key: 'montant', label: 'Montant' },
+                { key: 'statut', label: 'Statut' }
+            ];
+        } else if (this.activeTab === 'OUTGOING') {
+            title = 'Journal des Dépenses';
+            cols = [
+                { key: 'datePiece', label: 'Date' },
+                { key: 'numeroPiece', label: 'Réf / Facture' },
+                { key: 'fournisseur', label: 'Fournisseur / Libellé' },
+                { key: 'type', label: 'Catégorie' },
+                { key: 'methodePaiement', label: 'Mode' },
+                { key: 'montant', label: 'Montant' },
+                { key: 'statut', label: 'Statut' }
+            ];
+        } else if (this.activeTab === 'UNPAID_CLIENTS') {
+            title = 'Liste des Impayés Clients';
+            cols = [
+                { key: 'date', label: 'Date' },
+                { key: 'libelle', label: 'Libellé' },
+                { key: 'client', label: 'Client' },
+                { key: 'montant', label: 'Total TTC' },
+                { key: 'reste', label: 'Reste à Payer' },
+                { key: 'statut', label: 'Statut' }
+            ];
+        } else {
+            return;
+        }
+
+        const totals: any = {
+            'Nombre de lignes': this.payments.length,
+            'Total TTC': this.subtotals.totalTTC
+        };
+        
+        if (this.activeTab === 'UNPAID_CLIENTS') {
+            totals['Total Reste'] = this.subtotals.totalReste;
+        }
+
+        this.printService.printFinanceTable(title, cols, this.payments, totals, this.companySettings);
     }
 
     loadPayments() {

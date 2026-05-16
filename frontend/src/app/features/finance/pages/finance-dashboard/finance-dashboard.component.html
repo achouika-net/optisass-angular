@@ -5,7 +5,11 @@
             <h1>Tresorerie & Plafonds</h1>
             <p class="subtitle">Suivi des flux financiers et controle des plafonds</p>
         </div>
-        <div class="actions-section">
+        <div class="actions-section flex gap-3">
+            <button type="button" mat-stroked-button color="primary" (click)="printSoldeJournal('SOLDE')" [disabled]="loading">
+                <mat-icon>print</mat-icon>
+                Imprimer le Journal
+            </button>
             <button type="button" mat-flat-button color="primary" (click)="loadData()" [disabled]="loading">
                 <mat-icon [class.rotating]="loading">refresh</mat-icon>
                 Actualiser
@@ -93,10 +97,15 @@
         <div class="kpi-grid">
             <!-- Recettes -->
             <mat-card class="kpi-card border-l-4 border-green-500 clickable-card" (click)="goToPayments('INCOMING', 'ECHEANCE', 'ALL')">
-                <div class="metric-label flex items-center justify-center gap-1">
-                    Recettes (Cash+Banque+En coffre)
-                    <mat-icon class="!text-xs text-gray-400"
-                        matTooltip="Total de tous les paiements enregistres ce mois (Especes + Carte + Cheques en coffre).">help_outline</mat-icon>
+                <div class="metric-label flex items-center justify-between gap-1 w-full px-4">
+                    <div class="flex items-center gap-1">
+                        Recettes (Cash+Banque+En coffre)
+                        <mat-icon class="!text-xs text-gray-400"
+                            matTooltip="Total de tous les paiements enregistres ce mois (Especes + Carte + Cheques en coffre).">help_outline</mat-icon>
+                    </div>
+                    <button mat-icon-button class="print-btn-mini" (click)="$event.stopPropagation(); printSoldeJournal('RECETTES')" title="Imprimer le journal des recettes">
+                        <mat-icon>print</mat-icon>
+                    </button>
                 </div>
                 <div class="metric-value text-green-600">{{ summary.totalIncoming | number:'1.2-2' }} DH</div>
                 <div class="flex flex-col gap-1 text-sm text-gray-500 font-medium">
@@ -135,10 +144,15 @@
 
             <!-- Depenses -->
             <mat-card class="kpi-card border-l-4 border-orange-500 clickable-card" (click)="goToPayments('OUTGOING', 'EMISSION')">
-                <div class="metric-label flex items-center justify-center gap-1">
-                    Depenses du Mois
-                    <mat-icon class="!text-xs text-gray-400"
-                        matTooltip="Total des nouvelles factures, BL et depenses crees ce mois-ci.">help_outline</mat-icon>
+                <div class="metric-label flex items-center justify-between gap-1 w-full px-4">
+                    <div class="flex items-center gap-1">
+                        Depenses du Mois
+                        <mat-icon class="!text-xs text-gray-400"
+                            matTooltip="Total des nouvelles factures, BL et depenses crees ce mois-ci.">help_outline</mat-icon>
+                    </div>
+                    <button mat-icon-button class="print-btn-mini" (click)="$event.stopPropagation(); printSoldeJournal('DEPENSES')" title="Imprimer le journal des depenses">
+                        <mat-icon>print</mat-icon>
+                    </button>
                 </div>
                 <div class="metric-value text-orange-600">{{ summary.totalExpenses | number:'1.2-2' }} DH</div>
                 <div class="text-sm text-gray-400 italic text-center mt-2">
@@ -149,10 +163,15 @@
             <!-- Solde -->
             <mat-card class="kpi-card border-l-4 clickable-card" (click)="openSoldeDetailDialog()"
                 [ngClass]="summary.balanceReal >= 0 ? 'border-blue-500' : 'border-red-500'">
-                <div class="metric-label flex items-center justify-center gap-1">
-                    Solde Reel (Especes + Cartes)
-                    <mat-icon class="!text-xs text-gray-400"
-                        matTooltip="Liquidite totale deja encaissee (Especes + Cartes Bancaires) moins les depenses deja reglees.">help_outline</mat-icon>
+                <div class="metric-label flex items-center justify-between gap-1 w-full px-4">
+                    <div class="flex items-center gap-1">
+                        Solde Reel (Especes + Cartes)
+                        <mat-icon class="!text-xs text-gray-400"
+                            matTooltip="Liquidite totale deja encaissee (Especes + Cartes Bancaires) moins les depenses deja reglees.">help_outline</mat-icon>
+                    </div>
+                    <button mat-icon-button class="print-btn-mini" (click)="$event.stopPropagation(); printSoldeJournal('SOLDE')" title="Imprimer l'etat de tresorerie">
+                        <mat-icon>print</mat-icon>
+                    </button>
                 </div>
                 <div class="metric-value" [ngClass]="summary.balanceReal >= 0 ? 'text-blue-600' : 'text-red-600'">
                     {{ summary.balanceReal | number:'1.2-2' }} DH
@@ -164,10 +183,15 @@
 
             <!-- Plafond -->
             <mat-card class="kpi-card border-l-4 border-purple-500 clickable-card" (click)="goToPayments('OUTGOING', 'ECHEANCE')">
-                <div class="metric-label flex items-center justify-center gap-1">
-                    Controle Plafond Depenses
-                    <mat-icon class="!text-xs text-gray-400"
-                        matTooltip="Volume total des paiements prevus ce mois (deja regles + a venir), quel que soit la date de la facture originale.">help_outline</mat-icon>
+                <div class="metric-label flex items-center justify-between gap-1 w-full px-4">
+                    <div class="flex items-center gap-1">
+                        Controle Plafond Depenses
+                        <mat-icon class="!text-xs text-gray-400"
+                            matTooltip="Volume total des paiements prevus ce mois (deja regles + a venir), quel que soit la date de la facture originale.">help_outline</mat-icon>
+                    </div>
+                    <button mat-icon-button class="print-btn-mini" (click)="$event.stopPropagation(); printSoldeJournal('PLAFOND')" title="Imprimer le controle des plafonds">
+                        <mat-icon>print</mat-icon>
+                    </button>
                 </div>
                 <div class="metric-value" [ngClass]="percentageUsed > 100 ? 'text-red-500' : 'text-purple-600'">
                     {{ (summary.totalScheduledVolume ?? summary.totalScheduled) | number:'1.2-2' }} DH
@@ -178,10 +202,15 @@
                         <div class="flex items-center gap-1">
                             <span *ngIf="!editingThreshold">Max: {{ monthlyThreshold | number }} DH</span>
                             <input aria-label="New threshold" title="New threshold" *ngIf="editingThreshold" type="number" [(ngModel)]="newThreshold"
+                                (click)="$event.stopPropagation()"
                                 class="w-16 border rounded px-1 text-xs" (keyup.enter)="saveThreshold()">
-                            <button type="button" mat-icon-button class="!w-4 !h-4"
-                                (click)="editingThreshold ? saveThreshold() : toggleEditThreshold()">
-                                <mat-icon class="!text-[12px]">{{ editingThreshold ? 'check' : 'edit' }}</mat-icon>
+                            <button type="button" mat-icon-button class="edit-btn-mini"
+                                (click)="$event.stopPropagation(); editingThreshold ? saveThreshold() : toggleEditThreshold()">
+                                <mat-icon class="!text-[14px]">{{ editingThreshold ? 'check' : 'edit' }}</mat-icon>
+                            </button>
+                            <button type="button" mat-icon-button class="edit-btn-mini ml-1" *ngIf="editingThreshold"
+                                (click)="$event.stopPropagation(); editingThreshold = false" title="Annuler">
+                                <mat-icon class="!text-[14px]">close</mat-icon>
                             </button>
                         </div>
                     </div>
@@ -567,8 +596,11 @@
             </mat-tab-group>
         </mat-dialog-content>
         
-        <mat-dialog-actions align="end" class="!px-6 !py-4 bg-white border-t">
+        <mat-dialog-actions align="end" class="!px-6 !py-4 bg-white border-t gap-3">
             <button mat-button mat-dialog-close class="!rounded-xl !px-6 !py-2 !font-bold text-slate-500 hover:bg-slate-100">Fermer</button>
+            <button mat-stroked-button color="primary" (click)="printSoldeJournal()" class="!rounded-xl !px-6 !py-2 !font-bold">
+                <mat-icon class="mr-2">print</mat-icon> Imprimer l'état
+            </button>
             <button mat-flat-button color="primary" (click)="loadData()" class="!rounded-xl !px-8 !py-2 !font-bold shadow-blue-200 shadow-lg">
                 <mat-icon class="mr-2">refresh</mat-icon> Actualiser les donnees
             </button>

@@ -243,4 +243,12 @@ export class StatsService {
         if (centreId) params = params.set('centreId', centreId);
         return this.http.get<any[]>(`${this.apiUrl}/expense-details`, { params });
     }
+
+    getProductSalesDetails(startDate?: string, endDate?: string, centreId?: string): Observable<any[]> {
+        let params = new HttpParams();
+        if (startDate) params = params.set('startDate', startDate);
+        if (endDate) params = params.set('endDate', endDate);
+        if (centreId) params = params.set('centreId', centreId);
+        return this.http.get<any[]>(`${this.apiUrl}/product-sales-details-v2`, { params });
+    }
 }

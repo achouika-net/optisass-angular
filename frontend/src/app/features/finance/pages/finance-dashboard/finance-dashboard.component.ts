@@ -18,13 +18,16 @@ import { FinanceService } from '../../services/finance.service';
 import { Chart, registerables } from 'chart.js';
 import { Store } from '@ngrx/store';
 import { Router } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Observable, tap } from 'rxjs';
 import { ChangeDetectorRef } from '@angular/core';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatInputModule } from '@angular/material/input';
+import { CompanySettingsService } from '../../../../core/services/company-settings.service';
+import { FinancePrintService } from '../../services/finance-print.service';
+import { CompanySettings } from '../../../../shared/interfaces/company-settings.interface';
 
 Chart.register(...registerables);
 
@@ -67,6 +70,38 @@ Chart.register(...registerables);
     .clickable-card:hover { transform: translateY(-8px) scale(1.02); z-index: 10; }
     .metric-value { font-size: 28px; font-weight: 800; margin: 12px 0; color: #1e293b; }
     .metric-label { color: #64748b; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    
+    .print-btn-mini, .edit-btn-mini {
+        width: 32px !important;
+        height: 32px !important;
+        line-height: 32px !important;
+        background: #f1f5f9 !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 8px !important;
+        transition: all 0.2s ease;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        color: #334155 !important;
+        z-index: 20;
+    }
+    .print-btn-mini:hover {
+        background: #3b82f6 !important;
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        color: white !important;
+    }
+    .edit-btn-mini:hover {
+        background: #9333ea !important;
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(147, 51, 234, 0.4);
+        color: white !important;
+    }
+    .print-btn-mini mat-icon, .edit-btn-mini mat-icon {
+        font-size: 18px !important;
+        width: 18px !important;
+        height: 18px !important;
+    }
     .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 32px; }
     @media (max-width: 1200px) { .charts-grid { grid-template-columns: 1fr; } }
     .chart-card { border-radius: 20px; border: none; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05); overflow: hidden; height: 100%; }
@@ -232,6 +267,9 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
 
     summary: any = null;
     loading = false;
+    isLoadingDialogData = false;
+    incomingItems: any[] = [];
+    outgoingItems: any[] = [];
     // Filter properties
     filterType: 'DAILY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM' | 'ALL' = 'MONTHLY';
     selectedDate: Date = new Date();
@@ -255,6 +293,7 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
     editingThreshold = false;
     newThreshold = 50000;
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
+    companySettings: CompanySettings | null = null;
 
     constructor(
         private financeService: FinanceService,
@@ -262,8 +301,11 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         private zone: NgZone,
         private cd: ChangeDetectorRef,
         private router: Router,
-        private dialog: MatDialog
+        private dialog: MatDialog,
+        private printService: FinancePrintService,
+        private settingsService: CompanySettingsService
     ) {
+        console.log('FinanceDashboardComponent Loaded - VERSION 2');
         // Reactivity to center changes
         effect(() => {
             const center = this.currentCentre();
@@ -275,6 +317,13 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
 
     ngOnInit(): void {
         this.initFilterOptions();
+        this.loadCompanySettings();
+    }
+
+    private loadCompanySettings(): void {
+        this.settingsService.getSettings().subscribe(settings => {
+            this.companySettings = settings;
+        });
     }
 
     private initFilterOptions(): void {
@@ -397,8 +446,6 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
             }
         });
     }
-
-
 
     updateHealthChart(yearlyData: any[]) {
         console.log('updateHealthChart called with:', yearlyData);
@@ -535,9 +582,6 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         });
     }
 
-    incomingItems: any[] = [];
-    outgoingItems: any[] = [];
-    isLoadingDialogData = false;
     displayedColumnsIncoming = ['datePiece', 'numeroPiece', 'client', 'montant', 'methodePaiement', 'statut'];
     displayedColumnsOutgoing = ['datePiece', 'numeroPiece', 'fournisseur', 'type', 'montant', 'methodePaiement', 'statut'];
 
@@ -607,6 +651,80 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
             maxHeight: '85vh',
             data: { summary: this.summary }
         });
+    }
+
+    printSoldeJournal(printType: 'RECETTES' | 'DEPENSES' | 'SOLDE' | 'PLAFOND' = 'SOLDE') {
+        if (!this.summary) return;
+        
+        const proceedPrint = () => {
+            const period = this.getMonthName(this.selectedMonth) + ' ' + this.selectedYear;
+            let title = 'Journal de Caisse & Detail du Solde';
+            if (printType === 'RECETTES') title = 'Journal des Recettes';
+            if (printType === 'DEPENSES') title = 'Journal des Dépenses';
+            if (printType === 'PLAFOND') title = 'État de Contrôle des Plafonds';
+
+            if (printType === 'SOLDE') {
+                this.printService.printCombinedJournal(title, this.incomingItems, this.outgoingItems, this.summary, this.companySettings, period);
+            } else if (printType === 'RECETTES') {
+                this.printService.printFinanceTable(title, [
+                    { key: 'datePiece', label: 'Date' },
+                    { key: 'numeroPiece', label: 'Référence' },
+                    { key: 'client', label: 'Client / Source' },
+                    { key: 'methodePaiement', label: 'Mode' },
+                    { key: 'montant', label: 'Montant' },
+                    { key: 'statut', label: 'Statut' }
+                ], this.incomingItems, { 'Total Recettes': this.summary.incomingCard }, this.companySettings);
+            } else {
+                this.printService.printFinanceTable(title, [
+                    { key: 'datePiece', label: 'Date' },
+                    { key: 'numeroPiece', label: 'Référence' },
+                    { key: 'fournisseur', label: 'Fournisseur / Libellé' },
+                    { key: 'type', label: 'Catégorie' },
+                    { key: 'methodePaiement', label: 'Mode' },
+                    { key: 'montant', label: 'Montant' },
+                    { key: 'statut', label: 'Statut' }
+                ], this.outgoingItems, { 
+                    'Total Dépenses': printType === 'PLAFOND' ? (this.summary.totalScheduledVolume ?? this.summary.totalScheduled) : this.summary.totalExpenses,
+                    ...(printType === 'PLAFOND' ? { 'Plafond': this.monthlyThreshold } : {})
+                }, this.companySettings);
+            }
+        };
+
+        if (this.incomingItems.length === 0 && this.outgoingItems.length === 0) {
+            this.fetchItemsForPrint().subscribe(() => proceedPrint());
+        } else {
+            proceedPrint();
+        }
+    }
+
+    private fetchItemsForPrint(): Observable<any> {
+        let startDate: string | undefined;
+        let endDate: string | undefined;
+
+        if (this.selectedMonth > 0) {
+            startDate = new Date(this.selectedYear, this.selectedMonth - 1, 1).toISOString();
+            endDate = new Date(this.selectedYear, this.selectedMonth, 0, 23, 59, 59).toISOString();
+        } else {
+            startDate = new Date(this.selectedYear, 0, 1).toISOString();
+            endDate = new Date(this.selectedYear, 11, 31, 23, 59, 59).toISOString();
+        }
+
+        const filters = {
+            startDate,
+            endDate,
+            centreId: this.currentCentre()?.id,
+            limit: 1000
+        };
+
+        return forkJoin({
+            incoming: this.financeService.getConsolidatedIncomings(filters),
+            outgoing: this.financeService.getConsolidatedOutgoings(filters)
+        }).pipe(
+            tap((res: any) => {
+                this.incomingItems = res.incoming.data;
+                this.outgoingItems = res.outgoing.data;
+            })
+        );
     }
 
     getMonthName(monthNum: number): string {

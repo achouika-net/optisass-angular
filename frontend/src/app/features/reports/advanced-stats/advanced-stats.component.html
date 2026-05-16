@@ -101,10 +101,13 @@
                     <p class="stat-label">CA Total (HT)</p>
                     <h2 class="stat-value">{{ summary.totalRevenue | number:'1.2-2' }} DH</h2>
                 </div>
+                <button mat-icon-button class="print-card-btn" (click)="$event.stopPropagation(); printRevenueReport()" title="Imprimer le rapport CA">
+                    <mat-icon>print</mat-icon>
+                </button>
             </mat-card-content>
         </mat-card>
 
-        <mat-card class="stat-card green">
+        <mat-card class="stat-card green clickable-card" (click)="openProductDetailDialog()">
             <mat-card-content>
                 <div class="stat-icon">
                     <mat-icon>inventory_2</mat-icon>
@@ -118,6 +121,9 @@
                         </span>
                     </div>
                 </div>
+                <button mat-icon-button class="print-card-btn" (click)="$event.stopPropagation(); executeProductPrint()" title="Imprimer le détail des produits">
+                    <mat-icon>print</mat-icon>
+                </button>
             </mat-card-content>
         </mat-card>
 
@@ -165,6 +171,9 @@
                     <p class="stat-label">Total Dépenses</p>
                     <h2 class="stat-value">{{ summary.totalExpenses | number:'1.2-2' }} DH</h2>
                 </div>
+                <button mat-icon-button class="print-card-btn" (click)="$event.stopPropagation(); printExpenseReport()" title="Imprimer le rapport dépenses">
+                    <mat-icon>print</mat-icon>
+                </button>
             </mat-card-content>
         </mat-card>
     </div>
@@ -243,11 +252,17 @@
         <div class="dialog-header">
             <h2>
                 <mat-icon color="primary">monetization_on</mat-icon>
-                Détails du CA (Ventes & Avoirs)
+                Détails du CA ({{ getPeriodLabel() }})
             </h2>
-            <button mat-icon-button mat-dialog-close title="Fermer">
-                <mat-icon>close</mat-icon>
-            </button>
+            <div class="flex items-center gap-2">
+                <button mat-flat-button color="primary" (click)="printRevenueReport()" [disabled]="loadingDialog || revenueItems.length === 0">
+                    <mat-icon>print</mat-icon>
+                    Imprimer
+                </button>
+                <button mat-icon-button mat-dialog-close title="Fermer">
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
         </div>
         <mat-dialog-content class="dialog-content">
             <div *ngIf="loadingDialog" class="loading-container">
@@ -317,11 +332,17 @@
         <div class="dialog-header">
             <h2>
                 <mat-icon color="warn">payments</mat-icon>
-                Détails des Dépenses & Achats
+                Détails des Dépenses & Achats ({{ getPeriodLabel() }})
             </h2>
-            <button mat-icon-button mat-dialog-close title="Fermer">
-                <mat-icon>close</mat-icon>
-            </button>
+            <div class="flex items-center gap-2">
+                <button mat-flat-button color="warn" (click)="printExpenseReport()" [disabled]="loadingDialog || expenseItems.length === 0">
+                    <mat-icon>print</mat-icon>
+                    Imprimer
+                </button>
+                <button mat-icon-button mat-dialog-close title="Fermer">
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
         </div>
         <mat-dialog-content class="dialog-content">
             <div *ngIf="loadingDialog" class="loading-container">
@@ -375,6 +396,77 @@
                 <div class="total-card">
                     <span class="label">Total Dépenses</span>
                     <span class="value">{{ totalExpenseAmount | number:'1.2-2' }} DH</span>
+                </div>
+            </div>
+        </mat-dialog-content>
+    </ng-template>
+
+    <!-- Product Detail Dialog -->
+    <ng-template #productDetailDialog>
+        <div class="dialog-header">
+            <h2><mat-icon>inventory_2</mat-icon> Détail des Produits Vendus ({{ getPeriodLabel() }})</h2>
+            <div class="flex items-center gap-2">
+                <button mat-flat-button color="accent" (click)="executeProductPrint()" [disabled]="loadingDialog || productItems.length === 0">
+                    <mat-icon>print</mat-icon>
+                    Imprimer
+                </button>
+                <button mat-icon-button mat-dialog-close title="Fermer">
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
+        </div>
+        <mat-dialog-content class="dialog-content">
+            <div class="loading-container" *ngIf="loadingDialog">
+                <mat-spinner diameter="40"></mat-spinner>
+                <p>Chargement des détails...</p>
+            </div>
+            <div class="table-container" *ngIf="!loadingDialog">
+                <table mat-table [dataSource]="productItems">
+                    <ng-container matColumnDef="type">
+                        <th mat-header-cell *matHeaderCellDef>Type</th>
+                        <td mat-cell *matCellDef="let element">{{ element.type }}</td>
+                    </ng-container>
+                    <ng-container matColumnDef="brand">
+                        <th mat-header-cell *matHeaderCellDef>Marque / Collection</th>
+                        <td mat-cell *matCellDef="let element">{{ element.brand }}</td>
+                    </ng-container>
+                    <ng-container matColumnDef="operation">
+                        <th mat-header-cell *matHeaderCellDef>Opération</th>
+                        <td mat-cell *matCellDef="let element">
+                            <span class="status-badge" [ngClass]="{'bg-green-100 text-green-800': element.operation === 'VENTE', 'bg-red-100 text-red-800': element.operation === 'AVOIR'}">
+                                {{ element.operation }}
+                            </span>
+                        </td>
+                    </ng-container>
+                    <ng-container matColumnDef="quantity">
+                        <th mat-header-cell *matHeaderCellDef>Quantité</th>
+                        <td mat-cell *matCellDef="let element">{{ element.quantity | number }}</td>
+                    </ng-container>
+                    <ng-container matColumnDef="avgPurchasePrice">
+                        <th mat-header-cell *matHeaderCellDef>P.A Moyen</th>
+                        <td mat-cell *matCellDef="let element">{{ element.avgPurchasePrice | number:'1.2-2' }} DH</td>
+                    </ng-container>
+                    <ng-container matColumnDef="avgSalePrice">
+                        <th mat-header-cell *matHeaderCellDef>P.V Moyen</th>
+                        <td mat-cell *matCellDef="let element">{{ element.avgSalePrice | number:'1.2-2' }} DH</td>
+                    </ng-container>
+                    <ng-container matColumnDef="saleTotal">
+                        <th mat-header-cell *matHeaderCellDef>Total Vente</th>
+                        <td mat-cell *matCellDef="let element" style="font-weight: 600;">{{ element.saleTotal | number:'1.2-2' }} DH</td>
+                    </ng-container>
+
+                    <tr mat-header-row *matHeaderRowDef="displayedColumnsProducts; sticky: true"></tr>
+                    <tr mat-row *matRowDef="let row; columns: displayedColumnsProducts;"></tr>
+                </table>
+            </div>
+            <div class="summary-footer" *ngIf="!loadingDialog">
+                <div class="total-card">
+                    <span class="label">Total Quantité</span>
+                    <span class="value">{{ totalProductQuantity | number }}</span>
+                </div>
+                <div class="total-card ml-4">
+                    <span class="label">Total Ventes</span>
+                    <span class="value">{{ totalProductSaleAmount | number:'1.2-2' }} DH</span>
                 </div>
             </div>
         </mat-dialog-content>

@@ -18,6 +18,9 @@ import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector } from '../../../core/store/auth/auth.selectors';
+import { FinancePrintService } from '../../finance/services/finance-print.service';
+import { CompanySettingsService } from '../../../core/services/company-settings.service';
+import { CompanySettings } from '../../../shared/interfaces/company-settings.interface';
 Chart.register(...registerables);
 
 @Component({
@@ -51,6 +54,7 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit, OnDestroy 
 
     @ViewChild('revenueDetailDialog') revenueDetailDialog!: TemplateRef<any>;
     @ViewChild('expenseDetailDialog') expenseDetailDialog!: TemplateRef<any>;
+    @ViewChild('productDetailDialog') productDetailDialog!: TemplateRef<any>;
 
     loading = false;
     summary: StatsSummary | null = null;
@@ -58,11 +62,16 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit, OnDestroy 
     // Dialog data
     revenueItems: any[] = [];
     expenseItems: any[] = [];
+    productItems: any[] = [];
     totalRevenueAmount = 0;
     totalExpenseAmount = 0;
+    totalProductQuantity = 0;
+    totalProductSaleAmount = 0;
+    companySettings: CompanySettings | null = null;
     loadingDialog = false;
     displayedColumnsRevenue = ['date', 'numero', 'client', 'type', 'totalHT', 'totalTTC', 'statut'];
     displayedColumnsExpenses = ['date', 'fournisseur', 'libelle', 'type', 'montant', 'source', 'statut'];
+    displayedColumnsProducts = ['type', 'brand', 'operation', 'quantity', 'avgPurchasePrice', 'avgSalePrice', 'saleTotal'];
 
     // Filter properties
     filterType: 'DAILY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM' | 'ALL' = 'MONTHLY';
@@ -95,7 +104,9 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit, OnDestroy 
         private store: Store,
         private cdr: ChangeDetectorRef,
         private zone: NgZone,
-        private dialog: MatDialog
+        private dialog: MatDialog,
+        private printService: FinancePrintService,
+        private settingsService: CompanySettingsService
     ) {
         effect(() => {
             const centre = this.currentCentre() as any;
@@ -107,7 +118,12 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit, OnDestroy 
 
     ngOnInit(): void {
         this.initFilterOptions();
+        this.loadCompanySettings();
         this.loadData();
+    }
+
+    private loadCompanySettings(): void {
+        this.settingsService.getSettings().subscribe(s => this.companySettings = s);
     }
 
     private initFilterOptions(): void {
@@ -612,6 +628,37 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit, OnDestroy 
         });
     }
 
+    openProductDetailDialog(): void {
+        const dates = this.getDateRange();
+        const centreId = (this.currentCentre() as any)?.id;
+        this.loadingDialog = true;
+        this.productItems = [];
+
+        this.statsService.getProductSalesDetails(dates.start, dates.end, centreId).subscribe({
+            next: (data) => {
+                this.productItems = data;
+                this.totalProductQuantity = data.reduce((acc, curr) => 
+                    curr.operation === 'AVOIR' ? acc - (curr.quantity || 0) : acc + (curr.quantity || 0), 0);
+                this.totalProductSaleAmount = data.reduce((acc, curr) => 
+                    curr.operation === 'AVOIR' ? acc - (curr.saleTotal || 0) : acc + (curr.saleTotal || 0), 0);
+                this.loadingDialog = false;
+                this.cdr.detectChanges();
+            },
+            error: (err) => {
+                console.error('Error loading product details:', err);
+                this.loadingDialog = false;
+                this.cdr.detectChanges();
+            }
+        });
+
+        this.dialog.open(this.productDetailDialog, {
+            width: '1400px',
+            maxWidth: '95vw',
+            maxHeight: '90vh',
+            panelClass: 'custom-stats-dialog'
+        });
+    }
+
     getMonthName(monthNum: number): string {
         const m = this.availableMonths.find(m => m.value === monthNum);
         return m ? m.label : '';
@@ -624,5 +671,126 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit, OnDestroy 
         if (['BROUILLON', 'EN_COURS', 'PARTIEL'].some(s => status.includes(s))) return 'bg-blue-100 text-blue-700';
         if (['ANNULE', 'REJET', 'RETOUR', 'AVOIR'].some(s => status.includes(s))) return 'bg-red-100 text-red-700';
         return 'bg-gray-100 text-gray-700';
+    }
+
+    printRevenueReport(): void {
+        if (this.revenueItems.length === 0) {
+            const dates = this.getDateRange();
+            const centreId = (this.currentCentre() as any)?.id;
+            this.statsService.getRevenueDetails(dates.start, dates.end, centreId).subscribe(data => {
+                this.revenueItems = data;
+                this.executeRevenuePrint();
+            });
+        } else {
+            this.executeRevenuePrint();
+        }
+    }
+
+    private executeRevenuePrint(): void {
+        const period = this.getPeriodLabel();
+        const totalHT = this.revenueItems.reduce((acc, curr) => curr.type === 'AVOIR' ? acc - (curr.totalHT || 0) : acc + (curr.totalHT || 0), 0);
+        const totalTTC = this.revenueItems.reduce((acc, curr) => curr.type === 'AVOIR' ? acc - (curr.totalTTC || 0) : acc + (curr.totalTTC || 0), 0);
+
+        this.printService.printFinanceTable(
+            `Journal du Chiffre d'Affaires - ${period}`,
+            [
+                { key: 'date', label: 'Date' },
+                { key: 'numero', label: 'N° Pièce' },
+                { key: 'client', label: 'Client' },
+                { key: 'type', label: 'Type' },
+                { key: 'totalHT', label: 'Montant HT' },
+                { key: 'totalTTC', label: 'Montant TTC' },
+                { key: 'statut', label: 'Statut' }
+            ],
+            this.revenueItems,
+            { 
+                'totalHT': { label: 'Total CA (HT)', value: totalHT, colKey: 'totalHT' },
+                'totalTTC': { label: 'Total CA (TTC)', value: totalTTC, colKey: 'totalTTC' }
+            },
+            this.companySettings
+        );
+    }
+
+    printExpenseReport(): void {
+        if (this.expenseItems.length === 0) {
+            const dates = this.getDateRange();
+            const centreId = (this.currentCentre() as any)?.id;
+            this.statsService.getExpenseDetails(dates.start, dates.end, centreId).subscribe(data => {
+                this.expenseItems = data;
+                this.executeExpensePrint();
+            });
+        } else {
+            this.executeExpensePrint();
+        }
+    }
+
+    private executeExpensePrint(): void {
+        const period = this.getPeriodLabel();
+        const total = this.expenseItems.reduce((acc, curr) => acc + (curr.montant || 0), 0);
+        this.printService.printFinanceTable(
+            `Journal des Dépenses & Achats - ${period}`,
+            [
+                { key: 'date', label: 'Date' },
+                { key: 'numero', label: 'N° Pièce' },
+                { key: 'libelle', label: 'Libellé' },
+                { key: 'categorie', label: 'Catégorie' },
+                { key: 'montant', label: 'Montant' },
+                { key: 'mode', label: 'Mode' },
+                { key: 'statut', label: 'Statut' }
+            ],
+            this.expenseItems,
+            { 'montant': { label: 'Total Dépenses', value: total, colKey: 'montant' } },
+            this.companySettings
+        );
+    }
+
+    executeProductPrint(): void {
+        const dates = this.getDateRange();
+        const centreId = this.currentCentre()?.id;
+        this.statsService.getProductSalesDetails(dates.start, dates.end, centreId).subscribe(items => {
+            const totals = {
+                'quantity': { 
+                    label: 'Total Produits Vendus', 
+                    value: items.reduce((acc: number, curr: any) => curr.operation === 'AVOIR' ? acc - (curr.quantity || 0) : acc + (curr.quantity || 0), 0), 
+                    colKey: 'quantity' 
+                },
+                'purchaseTotal': { 
+                    label: 'Valeur d\'Achat Totale', 
+                    value: items.reduce((acc: number, curr: any) => curr.operation === 'AVOIR' ? acc - (curr.purchaseTotal || 0) : acc + (curr.purchaseTotal || 0), 0), 
+                    colKey: 'avgPurchasePrice' 
+                },
+                'saleTotal': { 
+                    label: 'Valeur de Vente Totale', 
+                    value: items.reduce((acc: number, curr: any) => curr.operation === 'AVOIR' ? acc - (curr.saleTotal || 0) : acc + (curr.saleTotal || 0), 0), 
+                    colKey: 'saleTotal' 
+                }
+            };
+
+            this.printService.printFinanceTable(
+                `Journal des Produits Vendus - ${this.getPeriodLabel()}`,
+                [
+                    { key: 'type', label: 'Type' },
+                    { key: 'brand', label: 'Marque / Collection' },
+                    { key: 'operation', label: 'Opération' },
+                    { key: 'quantity', label: 'Quantité' },
+                    { key: 'avgPurchasePrice', label: 'P.A Moyen' },
+                    { key: 'avgSalePrice', label: 'P.V Moyen' },
+                    { key: 'saleTotal', label: 'Total Vente' }
+                ],
+                items,
+                totals,
+                this.companySettings
+            );
+        });
+    }
+
+    getPeriodLabel(): string {
+        switch (this.filterType) {
+            case 'DAILY': return new Date(this.selectedDate).toLocaleDateString('fr-FR');
+            case 'MONTHLY': return `${this.getMonthName(this.selectedMonth)} ${this.selectedYear}`;
+            case 'YEARLY': return `${this.selectedYear}`;
+            case 'CUSTOM': return `Du ${new Date(this.customStartDate!).toLocaleDateString('fr-FR')} au ${new Date(this.customEndDate!).toLocaleDateString('fr-FR')}`;
+            default: return 'Toute la période';
+        }
     }
 }

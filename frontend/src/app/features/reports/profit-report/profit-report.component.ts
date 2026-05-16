@@ -18,6 +18,9 @@ import { forkJoin } from 'rxjs';
 import { StatsService } from '../services/stats.service';
 import { Store } from '@ngrx/store';
 import { TenantSelector } from '../../../core/store/auth/auth.selectors';
+import { FinancePrintService } from '../../finance/services/finance-print.service';
+import { CompanySettingsService } from '../../../core/services/company-settings.service';
+import { CompanySettings } from '../../../shared/interfaces/company-settings.interface';
 
 Chart.register(...registerables);
 
@@ -58,6 +61,7 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
     centreId: string = '';
     activeFilterInfo: string = 'Ce mois';
     data: any = null;
+    companySettings: CompanySettings | null = null;
     profitChart: Chart | null = null;
     evolutionChart: Chart | null = null;
 
@@ -72,7 +76,9 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
     constructor(
         private statsService: StatsService,
         private cdref: ChangeDetectorRef,
-        private store: Store
+        private store: Store,
+        private printService: FinancePrintService,
+        private settingsService: CompanySettingsService
     ) { }
 
     ngOnInit(): void {
@@ -80,9 +86,13 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
         this.store.select(TenantSelector).subscribe(cid => {
             this.centreId = cid || '';
             console.log('[ProfitReport] centreId changed:', this.centreId);
-            // Removed 'if (this.centreId)' to allow loading data for 'All Centers'
             this.loadData();
         });
+        this.loadCompanySettings();
+    }
+
+    private loadCompanySettings(): void {
+        this.settingsService.getSettings().subscribe(s => this.companySettings = s);
     }
 
     ngAfterViewInit(): void { }
@@ -316,5 +326,79 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
 
     onFilterChange(): void {
         this.loadData();
+    }
+
+    printRevenueReport(): void {
+        const dates = this.getDateRange();
+        this.statsService.getRevenueDetails(dates.start, dates.end, this.centreId).subscribe(items => {
+            this.printService.printFinanceTable(
+                `Journal du Chiffre d'Affaires - ${this.activeFilterInfo}`,
+                [
+                    { key: 'date', label: 'Date' },
+                    { key: 'numero', label: 'N° Pièce' },
+                    { key: 'client', label: 'Client' },
+                    { key: 'type', label: 'Type' },
+                    { key: 'totalHT', label: 'Montant HT' },
+                    { key: 'totalTTC', label: 'Montant TTC' },
+                    { key: 'statut', label: 'Statut' }
+                ],
+                items,
+                { 
+                    'Total CA (HT)': items.reduce((acc: number, curr: any) => curr.type === 'AVOIR' ? acc - (curr.totalHT || 0) : acc + (curr.totalHT || 0), 0),
+                    'Total CA (TTC)': items.reduce((acc: number, curr: any) => curr.type === 'AVOIR' ? acc - (curr.totalTTC || 0) : acc + (curr.totalTTC || 0), 0)
+                },
+                this.companySettings
+            );
+        });
+    }
+
+    printCogsReport(): void {
+        if (!this.data?.cogsBreakdown) return;
+        this.printService.printFinanceTable(
+            `Détails du Coût d'Achat (COGS) - ${this.activeFilterInfo}`,
+            [
+                { key: 'category', label: 'Type de Produit' },
+                { key: 'amount', label: 'Montant' },
+                { key: 'percentage', label: 'Part (%)' }
+            ],
+            this.data.cogsBreakdown.map((i: any) => ({ ...i, percentage: i.percentage.toFixed(1) + '%' })),
+            { 'Total COGS': this.data.cogs },
+            this.companySettings
+        );
+    }
+
+    printExpenseBreakdownReport(): void {
+        if (!this.data?.expensesBreakdown) return;
+        this.printService.printFinanceTable(
+            `Détails des Dépenses - ${this.activeFilterInfo}`,
+            [
+                { key: 'category', label: 'Catégorie' },
+                { key: 'amount', label: 'Montant' },
+                { key: 'percentage', label: 'Part (%)' }
+            ],
+            this.data.expensesBreakdown.map((i: any) => ({ ...i, percentage: i.percentage.toFixed(1) + '%' })),
+            { 'Total Dépenses': this.data.expenses },
+            this.companySettings
+        );
+    }
+
+    printProfitSummary(): void {
+        if (!this.data) return;
+        this.printService.printFinanceTable(
+            `Résumé de Rentabilité - ${this.activeFilterInfo}`,
+            [
+                { key: 'label', label: 'Indicateur' },
+                { key: 'value', label: 'Valeur (DH)' }
+            ],
+            [
+                { label: 'REVENU (HT)', value: this.data.revenue.toFixed(2) },
+                { label: 'COÛT D\'ACHAT (COGS)', value: this.data.cogs.toFixed(2) },
+                { label: 'DÉPENSES', value: this.data.expenses.toFixed(2) },
+                { label: 'BÉNÉFICE NET', value: this.data.netProfit.toFixed(2) },
+                { label: 'MARGE NETTE', value: this.data.analysis.marginRate.toFixed(1) + '%' }
+            ],
+            {},
+            this.companySettings
+        );
     }
 }

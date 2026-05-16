@@ -973,4 +973,107 @@ export class StatsService {
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     );
   }
+  async getProductSalesDetailsV2(
+    startDate?: string,
+    endDate?: string,
+    centreId?: string,
+  ) {
+    const start = startDate ? new Date(startDate) : new Date(0);
+    const end = endDate ? new Date(endDate) : new Date(3000, 0, 1);
+    const centreFilter = centreId ? { centreId } : {};
+
+    const factures = await this.getFilteredSales(start, end, centreFilter, true);
+
+    const productMap = new Map<string, {
+      type: string;
+      brand: string;
+      operation: string;
+      quantity: number;
+      purchaseTotal: number;
+      saleTotal: number;
+    }>();
+
+    for (const f of factures) {
+      const invoiceHT = (f.totalTTC || 0) / 1.2;
+      const lines = (f.lignes as any[]) || [];
+      const sumLinesValue = lines.reduce((acc, l) => {
+          const qty = l.qte ?? l.quantite ?? 0;
+          const price = l.prixUnitaireHT ?? l.prixUnitaireTTC ?? 0;
+          const lineTotal = l.totalHT ?? l.totalTTC ?? (qty * price);
+          return acc + lineTotal;
+      }, 0);
+
+      if (sumLinesValue === 0 && invoiceHT === 0) continue;
+
+      const operation = f.type === 'AVOIR' ? 'AVOIR' : 'VENTE';
+
+      for (const line of lines) {
+        let type = this.normalizeProductType(line.typeArticle || '');
+        let brand = 'SANS MARQUE';
+        
+        const qty = line.qte ?? line.quantite ?? 1;
+        const price = line.prixUnitaireHT ?? line.prixUnitaireTTC ?? 0;
+        const lineVal = line.totalHT ?? line.totalTTC ?? (qty * price);
+
+        // Apply proportional share of the invoice's Net HT (handles discounts correctly)
+        const proportionalHT = sumLinesValue !== 0 ? (lineVal / sumLinesValue) * invoiceHT : 0;
+
+        // Try to identify Brand and refined Type
+        if (line.produitId) {
+            const product = f.mouvementsStock?.find(m => m.produitId === line.produitId)?.produit;
+            if (product) {
+                brand = product.marque || product.collection || 'SANS MARQUE';
+                if (!type || type === 'PRD' || type === 'NON_') type = this.normalizeProductType(product.typeArticle || 'MON');
+            }
+        }
+
+        if (!type || type === 'PRD' || type === 'NON_') {
+            const desc = String(line.description || '').toLowerCase();
+            if (desc.includes('verre')) type = 'VERR';
+            else if (desc.includes('monture')) type = 'MON';
+            else if (desc.includes('lentille')) type = 'LEN';
+            else if (desc.includes('solaire')) type = 'SOL';
+            else if (f.fiche?.type) type = this.normalizeProductType(f.fiche.type);
+            else type = 'ACC';
+        }
+
+        if (type === 'VERR' && brand === 'SANS MARQUE') {
+            brand = f.fiche?.bonsLivraison?.[0]?.fournisseur?.nom || 'VERRIER';
+        }
+
+        const key = `${type}-${brand}-${operation}`;
+        const existing = productMap.get(key) || {
+          type,
+          brand,
+          operation,
+          quantity: 0,
+          purchaseTotal: 0,
+          saleTotal: 0,
+        };
+
+        existing.quantity += Math.abs(qty);
+        existing.saleTotal += Math.abs(proportionalHT);
+
+        // COGS Estimation
+        if (line.produitId) {
+            const m = f.mouvementsStock?.find(m => m.produitId === line.produitId);
+            existing.purchaseTotal += Math.abs(qty) * (m?.prixAchatUnitaire || 0);
+        } else if (type === 'VERR') {
+            const glassLinesTotal = lines.filter(l => 
+                l.typeArticle === 'VERRE' || String(l.description || '').toLowerCase().includes('verre')
+            ).reduce((s, l) => s + (l.totalHT ?? l.totalTTC ?? 0), 0) || 1;
+            const blTotalCost = f.fiche?.bonsLivraison?.reduce((acc, bl) => acc + (bl.montantHT || 0), 0) || 0;
+            existing.purchaseTotal += (lineVal / glassLinesTotal) * blTotalCost;
+        }
+
+        productMap.set(key, existing);
+      }
+    }
+
+    return Array.from(productMap.values()).map(p => ({
+      ...p,
+      avgPurchasePrice: p.quantity !== 0 ? p.purchaseTotal / p.quantity : 0,
+      avgSalePrice: p.quantity !== 0 ? p.saleTotal / p.quantity : 0,
+    })).sort((a, b) => a.type.localeCompare(b.type) || b.quantity - a.quantity);
+  }
 }
