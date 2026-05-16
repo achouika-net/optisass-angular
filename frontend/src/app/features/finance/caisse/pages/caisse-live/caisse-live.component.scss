@@ -252,11 +252,31 @@
         padding: 16px 24px;
         border-bottom: 1px solid #f1f5f9;
         background: #f8fafc;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        box-sizing: border-box;
 
         mat-card-title {
             font-size: 18px;
             font-weight: 600;
             color: #1e293b;
+            margin: 0;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+
+            .excel-btn {
+                background-color: #107c41;
+                color: white;
+
+                &:hover {
+                    background-color: #0c5e32;
+                }
+            }
         }
     }
 

@@ -22,6 +22,22 @@
             color: #666;
             margin: 0;
         }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            justify-content: center;
+
+            .excel-btn {
+                background-color: #107c41;
+                color: white;
+
+                &:hover {
+                    background-color: #0c5e32;
+                }
+            }
+        }
     }
 
     .summary-cards {

@@ -226,10 +226,10 @@
 
     <!-- Operations Table -->
     <mat-card class="operations-card">
-        <mat-card-header style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <mat-card-header>
             <mat-card-title>Journal des opérations détaillé</mat-card-title>
-            <div style="display: flex; gap: 8px;">
-                <button type="button" mat-flat-button style="background-color: #107c41; color: white;" (click)="exportExcelJournal()" [disabled]="operations.length === 0">
+            <div class="header-actions">
+                <button type="button" mat-flat-button class="excel-btn" (click)="exportExcelJournal()" [disabled]="operations.length === 0">
                     <mat-icon>table_view</mat-icon> Excel
                 </button>
                 <button type="button" mat-flat-button color="primary" (click)="printJournal()" [disabled]="operations.length === 0">
