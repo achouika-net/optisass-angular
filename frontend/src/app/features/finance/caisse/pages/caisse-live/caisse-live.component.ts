@@ -23,6 +23,9 @@ import { OperationFormDialogComponent } from '../../components/operation-form-di
 import { JourneeResume, OperationCaisse, OperationType, TypeOperation } from '../../models/caisse.model';
 import { interval, Subscription, EMPTY, forkJoin, of } from 'rxjs';
 import { switchMap, catchError, timeout, finalize } from 'rxjs/operators';
+import { FinancePrintService } from '../../services/finance-print.service';
+import { CompanySettingsService } from '../../../core/services/company-settings.service';
+import { CompanySettings } from '../../../shared/interfaces/company-settings.interface';
 
 @Component({
     selector: 'app-caisse-live',
@@ -88,10 +91,17 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
         private dialog: MatDialog,
         private snackBar: MatSnackBar,
         private cdr: ChangeDetectorRef,
-        private zone: NgZone
+        private zone: NgZone,
+        private financePrintService: FinancePrintService,
+        private companySettingsService: CompanySettingsService
     ) { }
 
+    companySettings: CompanySettings | null = null;
+
     ngOnInit(): void {
+        this.companySettingsService.settings$.subscribe(settings => {
+            this.companySettings = settings;
+        });
         // Setup custom filter logic
         this.dataSource.filterPredicate = (data: OperationCaisse, filter: string) => {
             const searchTerms = JSON.parse(filter);
@@ -435,5 +445,92 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
     // Cast helper for template
     asAny(val: any): any {
         return val;
+    }
+
+    private downloadCSV(data: any[], filename: string, headers: string[]): void {
+        if (!data || data.length === 0) return;
+        
+        // Add UTF-8 BOM so Excel opens it with correct accents
+        let csvContent = '\uFEFF';
+        csvContent += headers.join(';') + '\n';
+        
+        data.forEach(row => {
+            const rowStr = headers.map(header => {
+                let cell = row[header] === null || row[header] === undefined ? '' : row[header];
+                cell = String(cell).replace(/"/g, '""');
+                return `"${cell}"`;
+            }).join(';');
+            csvContent += rowStr + '\n';
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    exportExcelJournal(): void {
+        if (!this.dataSource.filteredData || this.dataSource.filteredData.length === 0) {
+            this.snackBar.open('Aucune opération à exporter.', 'OK', { duration: 3000 });
+            return;
+        }
+
+        const data = this.dataSource.filteredData.map(op => ({
+            'Date': new Date(op.createdAt).toLocaleDateString('fr-FR'),
+            'Heure': new Date(op.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+            'Type': op.type === 'ENCAISSEMENT' ? 'Encaissement' : 'Décaissement',
+            'Montant': op.type === 'DECAISSEMENT' ? -op.montant : op.montant,
+            'Moyen': op.moyenPaiement,
+            'Référence': this.cleanReference(op),
+            'Motif': this.cleanMotif(op.motif || ''),
+            'Utilisateur': this.getUserName(op)
+        }));
+
+        this.downloadCSV(data, `Journal_Caisse_${this.resume?.journee?.caisse?.nom}_${new Date().toISOString().split('T')[0]}.csv`, Object.keys(data[0]));
+    }
+
+    printJournal(): void {
+        if (!this.dataSource.filteredData || this.dataSource.filteredData.length === 0) {
+            this.snackBar.open('Aucune opération à imprimer.', 'OK', { duration: 3000 });
+            return;
+        }
+
+        const columns = [
+            { key: 'dateStr', label: 'Date' },
+            { key: 'type', label: 'Type' },
+            { key: 'montantStr', label: 'Montant' },
+            { key: 'moyen', label: 'Moyen' },
+            { key: 'reference', label: 'Référence' },
+            { key: 'motif', label: 'Motif' },
+            { key: 'utilisateur', label: 'Utilisateur' }
+        ];
+
+        const items = this.dataSource.filteredData.map(op => ({
+            dateStr: new Date(op.createdAt).toLocaleDateString('fr-FR') + ' ' + new Date(op.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+            type: op.type === 'ENCAISSEMENT' ? 'Encaissement' : 'Décaissement',
+            montantStr: (op.type === 'DECAISSEMENT' ? '-' : '+') + op.montant.toFixed(2) + ' DH',
+            moyen: op.moyenPaiement,
+            reference: this.cleanReference(op),
+            motif: this.cleanMotif(op.motif || ''),
+            utilisateur: this.getUserName(op)
+        }));
+
+        const totalFiltered = this.dataSource.filteredData.reduce((sum, op) => {
+            return sum + (op.type === 'DECAISSEMENT' ? -op.montant : op.montant);
+        }, 0);
+
+        const totals = {
+            'Nombre d\\'opérations': this.dataSource.filteredData.length,
+            'Solde (filtré)': totalFiltered.toFixed(2) + ' DH'
+        };
+
+        const title = `Journal des opérations - ${this.resume?.journee?.caisse?.nom} (${this.activeFilterInfo})`;
+        
+        this.financePrintService.printFinanceTable(title, columns, items, totals, this.companySettings);
     }
 }

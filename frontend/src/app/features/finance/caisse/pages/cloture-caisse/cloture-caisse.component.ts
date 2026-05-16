@@ -14,6 +14,9 @@ import { MatStepperModule } from '@angular/material/stepper';
 import { catchError, finalize, of, timeout, retry } from 'rxjs';
 import { JourneeCaisseService } from '../../services/journee-caisse.service';
 import { JourneeResume } from '../../models/caisse.model';
+import { FinancePrintService } from '../../services/finance-print.service';
+import { CompanySettingsService } from '../../../core/services/company-settings.service';
+import { CompanySettings } from '../../../shared/interfaces/company-settings.interface';
 
 @Component({
     selector: 'app-cloture-caisse',
@@ -54,7 +57,9 @@ export class ClotureCaisseComponent implements OnInit {
         private route: ActivatedRoute,
         private snackBar: MatSnackBar,
         private cdr: ChangeDetectorRef,
-        private zone: NgZone
+        private zone: NgZone,
+        private financePrintService: FinancePrintService,
+        private companySettingsService: CompanySettingsService
     ) {
         this.form = this.fb.group({
             soldeReel: [0, [Validators.required, Validators.min(0)]],
@@ -71,7 +76,12 @@ export class ClotureCaisseComponent implements OnInit {
         });
     }
 
+    companySettings: CompanySettings | null = null;
+
     ngOnInit(): void {
+        this.companySettingsService.settings$.subscribe(settings => {
+            this.companySettings = settings;
+        });
         this.route.params.subscribe((params) => {
             this.journeeId = params['id'];
             if (this.journeeId) {
@@ -212,5 +222,77 @@ export class ClotureCaisseComponent implements OnInit {
         } else {
             this.router.navigate(['/p/finance/caisse']);
         }
+    }
+
+    private downloadCSV(data: any[], filename: string, headers: string[]): void {
+        if (!data || data.length === 0) return;
+        
+        let csvContent = '\uFEFF';
+        csvContent += headers.join(';') + '\n';
+        
+        data.forEach(row => {
+            const rowStr = headers.map(header => {
+                let cell = row[header] === null || row[header] === undefined ? '' : row[header];
+                cell = String(cell).replace(/"/g, '""');
+                return `"${cell}"`;
+            }).join(';');
+            csvContent += rowStr + '\n';
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    exportExcelBilan(): void {
+        if (!this.resume) return;
+
+        const data = [
+            { 'Catégorie': 'Recettes de la Journée', 'Montant': this.resume.totalRecettes },
+            { 'Catégorie': '- Espèces', 'Montant': this.resume.recettesDetails.espaces },
+            { 'Catégorie': '- Carte', 'Montant': this.resume.recettesDetails.carte },
+            { 'Catégorie': '- Chèque', 'Montant': this.resume.recettesDetails.cheque },
+            { 'Catégorie': '- En Coffre', 'Montant': this.resume.recettesDetails.enCoffre },
+            { 'Catégorie': 'Décaissements du jour', 'Montant': this.resume.totalDepenses },
+            { 'Catégorie': 'Solde Caisse (Espèces)', 'Montant': this.getSolde() },
+            { 'Catégorie': '- Fond initial', 'Montant': this.resume.fondInitial }
+        ];
+
+        this.downloadCSV(data, `Bilan_Cloture_${this.resume.journee.caisse.nom}_${new Date().toISOString().split('T')[0]}.csv`, Object.keys(data[0]));
+    }
+
+    printBilan(): void {
+        if (!this.resume) return;
+
+        const columns = [
+            { key: 'category', label: 'Catégorie' },
+            { key: 'montantStr', label: 'Montant' }
+        ];
+
+        const items = [
+            { category: 'Recettes de la Journée', montantStr: this.resume.totalRecettes.toFixed(2) + ' DH' },
+            { category: '  - Espèces', montantStr: this.resume.recettesDetails.espaces.toFixed(2) + ' DH' },
+            { category: '  - Carte', montantStr: this.resume.recettesDetails.carte.toFixed(2) + ' DH' },
+            { category: '  - Chèque', montantStr: this.resume.recettesDetails.cheque.toFixed(2) + ' DH' },
+            { category: '  - En Coffre', montantStr: this.resume.recettesDetails.enCoffre.toFixed(2) + ' DH' },
+            { category: 'Décaissements du jour', montantStr: this.resume.totalDepenses.toFixed(2) + ' DH' },
+            { category: 'Solde Caisse Théorique', montantStr: this.getSolde().toFixed(2) + ' DH' },
+            { category: '  - Fond initial', montantStr: this.resume.fondInitial.toFixed(2) + ' DH' }
+        ];
+
+        const totals = {
+            'Caisse': this.resume.journee.caisse.nom,
+            'Ouverte par': this.resume.journee.caissier,
+            'Statut': this.resume.journee.statut
+        };
+
+        const title = `Bilan de Caisse - ${this.resume.journee.caisse.nom}`;
+        this.financePrintService.printFinanceTable(title, columns, items, totals, this.companySettings);
     }
 }

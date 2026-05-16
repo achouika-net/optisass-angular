@@ -2,6 +2,14 @@
     <div class="header-section">
         <h1>Clôturer la Caisse</h1>
         <p>{{ resume.journee.caisse.nom }} - {{ resume.journee.centre.nom }}</p>
+        <div style="display: flex; gap: 8px; margin-top: 10px; justify-content: center;">
+            <button type="button" mat-flat-button style="background-color: #107c41; color: white;" (click)="exportExcelBilan()">
+                <mat-icon>table_view</mat-icon> Excel
+            </button>
+            <button type="button" mat-flat-button color="primary" (click)="printBilan()">
+                <mat-icon>print</mat-icon> Imprimer
+            </button>
+        </div>
     </div>
 
     <!-- 5-Card Summary (Same as Live View) -->
