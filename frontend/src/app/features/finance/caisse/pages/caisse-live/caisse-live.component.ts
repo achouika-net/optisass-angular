@@ -99,7 +99,7 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
     companySettings: CompanySettings | null = null;
 
     ngOnInit(): void {
-        this.companySettingsService.settings$.subscribe((settings: CompanySettings | null) => {
+        this.companySettingsService.getSettings().subscribe((settings: CompanySettings | null) => {
             this.companySettings = settings;
         });
         // Setup custom filter logic
@@ -525,7 +525,7 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
         }, 0);
 
         const totals = {
-            'Nombre d\\'opérations': this.dataSource.filteredData.length,
+            "Nombre d'opérations": this.dataSource.filteredData.length,
             'Solde (filtré)': totalFiltered.toFixed(2) + ' DH'
         };
 

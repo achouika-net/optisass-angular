@@ -79,7 +79,7 @@ export class ClotureCaisseComponent implements OnInit {
     companySettings: CompanySettings | null = null;
 
     ngOnInit(): void {
-        this.companySettingsService.settings$.subscribe((settings: CompanySettings | null) => {
+        this.companySettingsService.getSettings().subscribe((settings: CompanySettings | null) => {
             this.companySettings = settings;
         });
         this.route.params.subscribe((params) => {
