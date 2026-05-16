@@ -57,3 +57,9 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 /generated/prisma
 /uploads
+
+# Database backups & scratch scripts
+*.sql
+/scratch/
+/prisma/cleanup-*.ts
+/prisma/fix-*.ts

@@ -1056,14 +1056,34 @@ export class StatsService {
 
         // COGS Estimation
         if (line.produitId) {
-            const m = f.mouvementsStock?.find(m => m.produitId === line.produitId);
-            existing.purchaseTotal += Math.abs(qty) * (m?.prixAchatUnitaire || 0);
+            const m = f.mouvementsStock?.find((mv: any) => mv.produitId === line.produitId);
+            // Primary: use the recorded stock movement purchase price
+            // Fallback 1: use the product's catalog purchase price (prixAchatHT)
+            const unitCost = m?.prixAchatUnitaire || m?.produit?.prixAchatHT || 0;
+            existing.purchaseTotal += Math.abs(qty) * unitCost;
         } else if (type === 'VERR') {
-            const glassLinesTotal = lines.filter(l => 
-                l.typeArticle === 'VERRE' || String(l.description || '').toLowerCase().includes('verre')
-            ).reduce((s, l) => s + (l.totalHT ?? l.totalTTC ?? 0), 0) || 1;
-            const blTotalCost = f.fiche?.bonsLivraison?.reduce((acc, bl) => acc + (bl.montantHT || 0), 0) || 0;
-            existing.purchaseTotal += (lineVal / glassLinesTotal) * blTotalCost;
+            // Try to get cost from stock movements for glass products first
+            const glassMouvements = (f.mouvementsStock || []).filter((mv: any) =>
+                mv.produit?.typeArticle === 'VERRE' ||
+                mv.produit?.typeArticle === 'VERR' ||
+                mv.produit?.typeArticle === 'VERRES'
+            );
+            if (glassMouvements.length > 0) {
+                const glassCostTotal = glassMouvements.reduce((s: number, mv: any) =>
+                    s + Math.abs(mv.quantite) * (mv.prixAchatUnitaire || mv.produit?.prixAchatHT || 0), 0
+                );
+                const glassTotalQty = glassMouvements.reduce((s: number, mv: any) => s + Math.abs(mv.quantite), 0);
+                if (glassTotalQty > 0) {
+                    existing.purchaseTotal += Math.abs(qty) * (glassCostTotal / glassTotalQty);
+                }
+            } else {
+                // Fallback: use BL total cost proportionally
+                const glassLinesTotal = lines.filter((l: any) =>
+                    l.typeArticle === 'VERRE' || String(l.description || '').toLowerCase().includes('verre')
+                ).reduce((s: number, l: any) => s + (l.totalHT ?? l.totalTTC ?? 0), 0) || 1;
+                const blTotalCost = f.fiche?.bonsLivraison?.reduce((acc: number, bl: any) => acc + (bl.montantHT || 0), 0) || 0;
+                existing.purchaseTotal += (lineVal / glassLinesTotal) * blTotalCost;
+            }
         }
 
         productMap.set(key, existing);
