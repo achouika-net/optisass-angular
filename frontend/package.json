@@ -53,6 +53,7 @@
         "crypto-ts": "^1.0.2",
         "date-fns": "^4.1.0",
         "face-api.js": "^0.22.2",
+        "file-saver": "^2.0.5",
         "jsbarcode": "^3.12.3",
         "ngx-toastr": "^19.1.0",
         "pdfjs-dist": "^5.4.530",

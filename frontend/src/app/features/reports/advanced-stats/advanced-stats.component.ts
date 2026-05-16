@@ -793,4 +793,93 @@ export class AdvancedStatsComponent implements OnInit, AfterViewInit, OnDestroy 
             default: return 'Toute la période';
         }
     }
+
+    private downloadCSV(data: any[], filename: string, headers: string[]): void {
+        if (!data || data.length === 0) return;
+        
+        // Add UTF-8 BOM so Excel opens it with correct accents
+        let csvContent = '\uFEFF';
+        csvContent += headers.join(';') + '\n';
+        
+        data.forEach(row => {
+            const rowStr = headers.map(header => {
+                let cell = row[header] === null || row[header] === undefined ? '' : row[header];
+                cell = String(cell).replace(/"/g, '""');
+                return `"${cell}"`;
+            }).join(';');
+            csvContent += rowStr + '\n';
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    exportRevenueExcel(): void {
+        if (!this.revenueItems || this.revenueItems.length === 0) return;
+        const data = this.revenueItems.map(item => ({
+            'Date': new Date(item.date).toLocaleDateString('fr-FR'),
+            'N° Pièce': item.numero,
+            'Client': item.client,
+            'Type': item.type,
+            'Montant HT': item.totalHT,
+            'Montant TTC': item.totalTTC,
+            'Statut': item.statut
+        }));
+
+        this.downloadCSV(data, `Detail_CA_${this.getPeriodLabel()}.csv`, Object.keys(data[0]));
+    }
+
+    exportExpenseExcel(): void {
+        if (this.expenseItems.length === 0) {
+            const dates = this.getDateRange();
+            const centreId = (this.currentCentre() as any)?.id;
+            this.statsService.getExpenseDetails(dates.start, dates.end, centreId).subscribe(data => {
+                this.expenseItems = data;
+                this.executeExpenseExcel();
+            });
+        } else {
+            this.executeExpenseExcel();
+        }
+    }
+
+    private executeExpenseExcel(): void {
+        if (!this.expenseItems || this.expenseItems.length === 0) return;
+        const data = this.expenseItems.map(item => ({
+            'Date': new Date(item.date).toLocaleDateString('fr-FR'),
+            'Fournisseur': item.fournisseur,
+            'Libellé': item.libelle,
+            'Catégorie': item.type,
+            'Montant': item.montant,
+            'Source': item.source,
+            'Statut': item.statut
+        }));
+
+        this.downloadCSV(data, `Detail_Depenses_${this.getPeriodLabel()}.csv`, Object.keys(data[0]));
+    }
+
+    exportProductExcel(): void {
+        const dates = this.getDateRange();
+        const centreId = this.currentCentre()?.id;
+        this.statsService.getProductSalesDetails(dates.start, dates.end, centreId).subscribe((items: any[]) => {
+            if (!items || items.length === 0) return;
+            const data = items.map((item: any) => ({
+                'Type': item.type,
+                'Marque / Collection': item.brand,
+                'Opération': item.operation,
+                'Quantité': item.quantity,
+                'P.A Moyen': item.avgPurchasePrice,
+                'P.V Moyen': item.avgSalePrice,
+                'Total Vente': item.saleTotal
+            }));
+
+            this.downloadCSV(data, `Detail_Produits_${this.getPeriodLabel()}.csv`, Object.keys(data[0]));
+        });
+    }
 }
