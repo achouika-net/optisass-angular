@@ -171,6 +171,7 @@
             align-items: center;
             justify-content: center;
             z-index: 10;
+            -webkit-backdrop-filter: blur(4px);
             backdrop-filter: blur(4px);
 
             &:hover {
@@ -185,8 +186,21 @@
                 width: 18px !important;
                 height: 18px !important;
             }
+
+            &.excel-icon mat-icon {
+                color: #107c41 !important;
+            }
         }
     }
+}
+
+.excel-btn {
+    background-color: #107c41 !important;
+    color: white !important;
+}
+
+.font-bold-600 {
+    font-weight: 600 !important;
 }
 
 .charts-grid {

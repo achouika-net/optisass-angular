@@ -102,8 +102,8 @@
                     <h2 class="stat-value">{{ summary.totalRevenue | number:'1.2-2' }} DH</h2>
                 </div>
                 <div class="flex gap-2">
-                    <button mat-icon-button class="print-card-btn" (click)="$event.stopPropagation(); exportRevenueExcel()" title="Exporter le rapport CA en Excel">
-                        <mat-icon style="color: #107c41;">table_view</mat-icon>
+                    <button mat-icon-button class="print-card-btn excel-icon" (click)="$event.stopPropagation(); exportRevenueExcel()" title="Exporter le rapport CA en Excel">
+                        <mat-icon>table_view</mat-icon>
                     </button>
                     <button mat-icon-button class="print-card-btn" (click)="$event.stopPropagation(); printRevenueReport()" title="Imprimer le rapport CA">
                         <mat-icon>print</mat-icon>
@@ -127,8 +127,8 @@
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <button mat-icon-button class="print-card-btn" (click)="$event.stopPropagation(); exportProductExcel()" title="Exporter le détail des produits en Excel">
-                        <mat-icon style="color: #107c41;">table_view</mat-icon>
+                    <button mat-icon-button class="print-card-btn excel-icon" (click)="$event.stopPropagation(); exportProductExcel()" title="Exporter le détail des produits en Excel">
+                        <mat-icon>table_view</mat-icon>
                     </button>
                     <button mat-icon-button class="print-card-btn" (click)="$event.stopPropagation(); executeProductPrint()" title="Imprimer le détail des produits">
                         <mat-icon>print</mat-icon>
@@ -182,8 +182,8 @@
                     <h2 class="stat-value">{{ summary.totalExpenses | number:'1.2-2' }} DH</h2>
                 </div>
                 <div class="flex gap-2">
-                    <button mat-icon-button class="print-card-btn" (click)="$event.stopPropagation(); exportExpenseExcel()" title="Exporter le rapport dépenses en Excel">
-                        <mat-icon style="color: #107c41;">table_view</mat-icon>
+                    <button mat-icon-button class="print-card-btn excel-icon" (click)="$event.stopPropagation(); exportExpenseExcel()" title="Exporter le rapport dépenses en Excel">
+                        <mat-icon>table_view</mat-icon>
                     </button>
                     <button mat-icon-button class="print-card-btn" (click)="$event.stopPropagation(); printExpenseReport()" title="Imprimer le rapport dépenses">
                         <mat-icon>print</mat-icon>
@@ -270,7 +270,7 @@
                 Détails du CA ({{ getPeriodLabel() }})
             </h2>
             <div class="flex items-center gap-2">
-                <button mat-flat-button color="accent" style="background-color: #107c41; color: white;" (click)="exportRevenueExcel()" [disabled]="loadingDialog || revenueItems.length === 0">
+                <button mat-flat-button class="excel-btn" (click)="exportRevenueExcel()" [disabled]="loadingDialog || revenueItems.length === 0">
                     <mat-icon>table_view</mat-icon>
                     Excel
                 </button>
@@ -354,7 +354,7 @@
                 Détails des Dépenses & Achats ({{ getPeriodLabel() }})
             </h2>
             <div class="flex items-center gap-2">
-                <button mat-flat-button color="accent" style="background-color: #107c41; color: white;" (click)="exportExpenseExcel()" [disabled]="loadingDialog || expenseItems.length === 0">
+                <button mat-flat-button class="excel-btn" (click)="exportExpenseExcel()" [disabled]="loadingDialog || expenseItems.length === 0">
                     <mat-icon>table_view</mat-icon>
                     Excel
                 </button>
@@ -429,7 +429,7 @@
         <div class="dialog-header">
             <h2><mat-icon>inventory_2</mat-icon> Détail des Produits Vendus ({{ getPeriodLabel() }})</h2>
             <div class="flex items-center gap-2">
-                <button mat-flat-button color="accent" style="background-color: #107c41; color: white;" (click)="exportProductExcel()" [disabled]="loadingDialog || productItems.length === 0">
+                <button mat-flat-button class="excel-btn" (click)="exportProductExcel()" [disabled]="loadingDialog || productItems.length === 0">
                     <mat-icon>table_view</mat-icon>
                     Excel
                 </button>
@@ -479,7 +479,7 @@
                     </ng-container>
                     <ng-container matColumnDef="saleTotal">
                         <th mat-header-cell *matHeaderCellDef>Total Vente</th>
-                        <td mat-cell *matCellDef="let element" style="font-weight: 600;">{{ element.saleTotal | number:'1.2-2' }} DH</td>
+                        <td mat-cell *matCellDef="let element" class="font-bold-600">{{ element.saleTotal | number:'1.2-2' }} DH</td>
                     </ng-container>
 
                     <tr mat-header-row *matHeaderRowDef="displayedColumnsProducts; sticky: true"></tr>
