@@ -14,9 +14,9 @@ import { MatStepperModule } from '@angular/material/stepper';
 import { catchError, finalize, of, timeout, retry } from 'rxjs';
 import { JourneeCaisseService } from '../../services/journee-caisse.service';
 import { JourneeResume } from '../../models/caisse.model';
-import { FinancePrintService } from '../../services/finance-print.service';
-import { CompanySettingsService } from '../../../core/services/company-settings.service';
-import { CompanySettings } from '../../../shared/interfaces/company-settings.interface';
+import { FinancePrintService } from '../../../services/finance-print.service';
+import { CompanySettingsService } from '../../../../../core/services/company-settings.service';
+import { CompanySettings } from '../../../../../shared/interfaces/company-settings.interface';
 
 @Component({
     selector: 'app-cloture-caisse',
@@ -79,7 +79,7 @@ export class ClotureCaisseComponent implements OnInit {
     companySettings: CompanySettings | null = null;
 
     ngOnInit(): void {
-        this.companySettingsService.settings$.subscribe(settings => {
+        this.companySettingsService.settings$.subscribe((settings: CompanySettings | null) => {
             this.companySettings = settings;
         });
         this.route.params.subscribe((params) => {

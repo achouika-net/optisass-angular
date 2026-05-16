@@ -23,9 +23,9 @@ import { OperationFormDialogComponent } from '../../components/operation-form-di
 import { JourneeResume, OperationCaisse, OperationType, TypeOperation } from '../../models/caisse.model';
 import { interval, Subscription, EMPTY, forkJoin, of } from 'rxjs';
 import { switchMap, catchError, timeout, finalize } from 'rxjs/operators';
-import { FinancePrintService } from '../../services/finance-print.service';
-import { CompanySettingsService } from '../../../core/services/company-settings.service';
-import { CompanySettings } from '../../../shared/interfaces/company-settings.interface';
+import { FinancePrintService } from '../../../services/finance-print.service';
+import { CompanySettingsService } from '../../../../../core/services/company-settings.service';
+import { CompanySettings } from '../../../../../shared/interfaces/company-settings.interface';
 
 @Component({
     selector: 'app-caisse-live',
@@ -99,7 +99,7 @@ export class CaisseLiveComponent implements OnInit, OnDestroy {
     companySettings: CompanySettings | null = null;
 
     ngOnInit(): void {
-        this.companySettingsService.settings$.subscribe(settings => {
+        this.companySettingsService.settings$.subscribe((settings: CompanySettings | null) => {
             this.companySettings = settings;
         });
         // Setup custom filter logic
