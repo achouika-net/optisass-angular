@@ -128,6 +128,10 @@ model Facture {
   @@index([vendeurId])
   @@index([ficheId])
   @@index([clientId])
+  @@index([dateEmission])
+  @@index([statut])
+  @@index([type])
+  @@index([dateEmission, statut, type, centreId])
 }
 
 model Paiement {

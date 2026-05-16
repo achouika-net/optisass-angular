@@ -993,6 +993,24 @@ export class StatsService {
       saleTotal: number;
     }>();
 
+    // --- BATCH CATALOG PRICE LOOKUP ---
+    // Collect all unique produitIds from all invoice lines in one pass
+    const allProduitIds = new Set<string>();
+    for (const f of factures) {
+      for (const line of ((f.lignes as any[]) || [])) {
+        if (line.produitId) allProduitIds.add(line.produitId);
+      }
+    }
+    // Single DB query for all product catalog prices - avoids N+1
+    const catalogProducts = await this.prisma.product.findMany({
+      where: { id: { in: Array.from(allProduitIds) } },
+      select: { id: true, prixAchatHT: true, marque: true, collection: true, typeArticle: true },
+    });
+    const catalogMap = new Map<string, { prixAchatHT: number; marque?: string | null; collection?: string | null; typeArticle?: string | null }>(
+      catalogProducts.map((p: any) => [p.id, p])
+    );
+    // --- END BATCH LOOKUP ---
+
     for (const f of factures) {
       const invoiceHT = (f.totalTTC || 0) / 1.2;
       const lines = (f.lignes as any[]) || [];
@@ -1006,6 +1024,27 @@ export class StatsService {
       if (sumLinesValue === 0 && invoiceHT === 0) continue;
 
       const operation = f.type === 'AVOIR' ? 'AVOIR' : 'VENTE';
+
+      // Pre-build a Map once per facture for O(1) lookups instead of O(n) .find() per line
+      const stockMap = new Map<string, any>();
+      const glassMouvements: any[] = [];
+      for (const mv of (f.mouvementsStock || [])) {
+        if (mv.produitId) stockMap.set(mv.produitId, mv);
+        const articleType = mv.produit?.typeArticle || '';
+        if (articleType === 'VERRE' || articleType === 'VERR' || articleType === 'VERRES') {
+          glassMouvements.push(mv);
+        }
+      }
+
+      // Pre-compute glass cost per unit from movements (for VERR fallback)
+      let glassCostPerUnit = 0;
+      if (glassMouvements.length > 0) {
+        const glassCostTotal = glassMouvements.reduce((s: number, mv: any) =>
+          s + Math.abs(mv.quantite) * (mv.prixAchatUnitaire || mv.produit?.prixAchatHT || 0), 0
+        );
+        const glassTotalQty = glassMouvements.reduce((s: number, mv: any) => s + Math.abs(mv.quantite), 0);
+        if (glassTotalQty > 0) glassCostPerUnit = glassCostTotal / glassTotalQty;
+      }
 
       for (const line of lines) {
         let type = this.normalizeProductType(line.typeArticle || '');
@@ -1054,28 +1093,18 @@ export class StatsService {
         existing.quantity += Math.abs(qty);
         existing.saleTotal += Math.abs(proportionalHT);
 
-        // COGS Estimation
+        // COGS Estimation - 3-tier fallback for O(1) performance
         if (line.produitId) {
-            const m = f.mouvementsStock?.find((mv: any) => mv.produitId === line.produitId);
-            // Primary: use the recorded stock movement purchase price
-            // Fallback 1: use the product's catalog purchase price (prixAchatHT)
-            const unitCost = m?.prixAchatUnitaire || m?.produit?.prixAchatHT || 0;
+            const m = stockMap.get(line.produitId);
+            // Tier 1: actual recorded movement price
+            // Tier 2: product price from the stock movement relation
+            // Tier 3: catalog price fetched in the batch query (definitive fix for P.A = 0)
+            const catalogPrice = catalogMap.get(line.produitId)?.prixAchatHT || 0;
+            const unitCost = m?.prixAchatUnitaire || m?.produit?.prixAchatHT || catalogPrice;
             existing.purchaseTotal += Math.abs(qty) * unitCost;
         } else if (type === 'VERR') {
-            // Try to get cost from stock movements for glass products first
-            const glassMouvements = (f.mouvementsStock || []).filter((mv: any) =>
-                mv.produit?.typeArticle === 'VERRE' ||
-                mv.produit?.typeArticle === 'VERR' ||
-                mv.produit?.typeArticle === 'VERRES'
-            );
-            if (glassMouvements.length > 0) {
-                const glassCostTotal = glassMouvements.reduce((s: number, mv: any) =>
-                    s + Math.abs(mv.quantite) * (mv.prixAchatUnitaire || mv.produit?.prixAchatHT || 0), 0
-                );
-                const glassTotalQty = glassMouvements.reduce((s: number, mv: any) => s + Math.abs(mv.quantite), 0);
-                if (glassTotalQty > 0) {
-                    existing.purchaseTotal += Math.abs(qty) * (glassCostTotal / glassTotalQty);
-                }
+            if (glassCostPerUnit > 0) {
+                existing.purchaseTotal += Math.abs(qty) * glassCostPerUnit;
             } else {
                 // Fallback: use BL total cost proportionally
                 const glassLinesTotal = lines.filter((l: any) =>
