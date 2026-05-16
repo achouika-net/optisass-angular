@@ -251,10 +251,6 @@ export class ProductsService {
             centre: true,
           },
         },
-        mouvements: {
-          take: 1,
-          orderBy: { dateMovement: 'desc' },
-        },
       },
     });
 
@@ -1434,7 +1430,7 @@ export class ProductsService {
 
     const where: Prisma.MouvementStockWhereInput = {
       type: type
-        ? (type as string)
+        ? type
         : {
             in: [
               'TRANSFERT_INIT',
