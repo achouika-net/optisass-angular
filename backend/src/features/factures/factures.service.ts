@@ -527,7 +527,8 @@ export class FacturesService implements OnModuleInit {
     if (resolvedUserId) {
       const user = await tx.user.findUnique({ where: { id: resolvedUserId } });
       if (user) {
-        userDisplayName = `${user.prenom} ${user.nom}`.trim() || user.email || userDisplayName;
+        userDisplayName =
+          `${user.prenom} ${user.nom}`.trim() || user.email || userDisplayName;
       }
     }
 

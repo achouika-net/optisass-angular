@@ -11,7 +11,7 @@ export class InputSanitizationService {
     if (!input) return '';
 
     // Remove potential XSS vectors
-    let sanitized = input
+    const sanitized = input
       .replace(/[<>]/g, '') // Remove angle brackets
       .replace(/javascript:/gi, '') // Remove javascript: protocol
       .replace(/on\w+\s*=/gi, '') // Remove event handlers
@@ -91,12 +91,12 @@ export class InputSanitizationService {
     for (const [field, rule] of Object.entries(rules)) {
       const value = sanitized[field];
 
-      if ((rule as any).required && !value) {
+      if (rule.required && !value) {
         throw new BadRequestException(`Field '${field}' is required`);
       }
 
       if (value) {
-        switch ((rule as any).type) {
+        switch (rule.type) {
           case 'email':
             if (!this.validateEmail(value)) {
               throw new BadRequestException(
@@ -126,20 +126,14 @@ export class InputSanitizationService {
             }
             break;
           case 'string':
-            if (
-              (rule as any).minLength &&
-              value.length < (rule as any).minLength
-            ) {
+            if (rule.minLength && value.length < rule.minLength) {
               throw new BadRequestException(
-                `Field '${field}' must be at least ${(rule as any).minLength} characters`,
+                `Field '${field}' must be at least ${rule.minLength} characters`,
               );
             }
-            if (
-              (rule as any).maxLength &&
-              value.length > (rule as any).maxLength
-            ) {
+            if (rule.maxLength && value.length > rule.maxLength) {
               throw new BadRequestException(
-                `Field '${field}' must be at most ${(rule as any).maxLength} characters`,
+                `Field '${field}' must be at most ${rule.maxLength} characters`,
               );
             }
             break;

@@ -22,7 +22,8 @@ export class PaiementsService {
     private prisma: PrismaService,
     private stockAvailabilityService: StockAvailabilityService,
     private commissionService: CommissionService,
-    @Inject(forwardRef(() => FacturesService)) private facturesService: FacturesService,
+    @Inject(forwardRef(() => FacturesService))
+    private facturesService: FacturesService,
   ) {}
 
   /**
@@ -171,10 +172,23 @@ export class PaiementsService {
 
         // [FIX] Ensure stock is decremented for all official documents receiving payment.
         // Per-product idempotency in decrementStockForInvoice prevents duplicates.
-        const officialTypes = ['DEVIS', 'BON_COMM', 'BON_COMMANDE', 'FACTURE', 'BL'];
+        const officialTypes = [
+          'DEVIS',
+          'BON_COMM',
+          'BON_COMMANDE',
+          'FACTURE',
+          'BL',
+        ];
         const effectiveType = (updateData.type as string) || facture.type;
-        if (officialTypes.includes(effectiveType) || officialTypes.includes(facture.type)) {
-          await this.facturesService.decrementStockForInvoice(tx, updatedFacture, userId);
+        if (
+          officialTypes.includes(effectiveType) ||
+          officialTypes.includes(facture.type)
+        ) {
+          await this.facturesService.decrementStockForInvoice(
+            tx,
+            updatedFacture,
+            userId,
+          );
         }
 
         // 6. HANDLE CAISSE INTEGRATION (within transaction)

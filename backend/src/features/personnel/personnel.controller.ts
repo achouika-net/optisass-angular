@@ -130,7 +130,14 @@ export class PersonnelController {
   }
 
   @Patch('commissions/config')
-  updateCommissionConfig(@Body() dto: { triggerType?: string; paymentCondition?: string; paymentConditionFacture?: string }) {
+  updateCommissionConfig(
+    @Body()
+    dto: {
+      triggerType?: string;
+      paymentCondition?: string;
+      paymentConditionFacture?: string;
+    },
+  ) {
     return this.commissionService.updateConfig(dto);
   }
 
@@ -237,12 +244,15 @@ export class PersonnelController {
       userId?: string;
     },
   ) {
-    console.log(`💰 [PersonnelController] Recording advance for employee ${id}`, {
-      amount: body.amount,
-      mode: body.mode,
-      centreId: body.centreId,
-      userId: body.userId,
-    });
+    console.log(
+      `💰 [PersonnelController] Recording advance for employee ${id}`,
+      {
+        amount: body.amount,
+        mode: body.mode,
+        centreId: body.centreId,
+        userId: body.userId,
+      },
+    );
 
     if (!body.amount || body.amount <= 0) {
       throw new BadRequestException('Le montant doit être supérieur à 0');

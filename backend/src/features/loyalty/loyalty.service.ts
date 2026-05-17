@@ -277,7 +277,7 @@ export class LoyaltyService {
       this.prisma.pointsHistory.create({
         data: {
           clientId: clientId,
-          points: config.folderCreationBonus as number,
+          points: config.folderCreationBonus,
           type: 'FOLDER_CREATION',
           description: `Création dossier médical fiche ${ficheId}`,
         },

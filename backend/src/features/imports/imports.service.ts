@@ -1553,7 +1553,7 @@ export class ImportsService {
               invoiceNumero = `IMP-${docType}-${Date.now()}-${groupIndex}`;
             } else {
               // PRESERVE the full number string (e.g. 123/2024) to ensure uniqueness in the String-type Facture table
-              let cleanNum = String(invoiceNumero).trim();
+              const cleanNum = String(invoiceNumero).trim();
 
               // Apply the calculated prefix ONLY if docType isn't DEVIS
               if (docType !== 'DEVIS' && !cleanNum.startsWith(finalPrefix)) {

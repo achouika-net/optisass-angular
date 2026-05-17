@@ -788,7 +788,7 @@ export class StockMovementsService {
       _count: { _all: true },
     });
     const where: Prisma.MouvementStockWhereInput = {
-      type: type ? (type as string) : undefined,
+      type: type ? type : undefined,
     };
     const recentMovements = await this.prisma.mouvementStock.findMany({
       where,

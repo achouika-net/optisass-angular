@@ -510,11 +510,11 @@ export class ExpensesService {
 
       // 5. Recalculate and Sync Parent Status (BonLivraison or FactureFournisseur)
       if (blId) {
-        await this.syncBonLivraisonStatus(blId as string, tx);
+        await this.syncBonLivraisonStatus(blId, tx);
       }
 
       if (factureId) {
-        await this.syncFactureFournisseurStatus(factureId as string, tx);
+        await this.syncFactureFournisseurStatus(factureId, tx);
       }
 
       return deleted;

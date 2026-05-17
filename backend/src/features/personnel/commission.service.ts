@@ -75,13 +75,21 @@ export class CommissionService {
     let config = await this.prisma.commissionConfig.findFirst();
     if (!config) {
       config = await this.prisma.commissionConfig.create({
-        data: { triggerType: 'FACTURE', paymentCondition: 'SOLDE', paymentConditionFacture: 'SOLDE' },
+        data: {
+          triggerType: 'FACTURE',
+          paymentCondition: 'SOLDE',
+          paymentConditionFacture: 'SOLDE',
+        },
       });
     }
     return config;
   }
 
-  async updateConfig(dto: { triggerType?: string; paymentCondition?: string; paymentConditionFacture?: string }) {
+  async updateConfig(dto: {
+    triggerType?: string;
+    paymentCondition?: string;
+    paymentConditionFacture?: string;
+  }) {
     const config = await this.getConfig();
     return this.prisma.commissionConfig.update({
       where: { id: config.id },
@@ -107,8 +115,13 @@ export class CommissionService {
     if (!fiche || !fiche.vendeurId || !fiche.vendeur) return null;
 
     // Payment condition check
-    if (config.paymentCondition === 'SOLDE' && fiche.montantPaye < fiche.montantTotal) return null;
-    if (config.paymentCondition === 'PARTIEL' && fiche.montantPaye <= 0) return null;
+    if (
+      config.paymentCondition === 'SOLDE' &&
+      fiche.montantPaye < fiche.montantTotal
+    )
+      return null;
+    if (config.paymentCondition === 'PARTIEL' && fiche.montantPaye <= 0)
+      return null;
 
     const employee = fiche.vendeur;
     const mois = fiche.dateCreation.toISOString().substring(0, 7);
@@ -121,10 +134,21 @@ export class CommissionService {
       },
     });
 
-    const lines = typeof fiche.content === 'string' ? JSON.parse(fiche.content as any) : (fiche.content as any).lignes || [];
+    const lines =
+      typeof fiche.content === 'string'
+        ? JSON.parse(fiche.content)
+        : fiche.content.lignes || [];
     if (!Array.isArray(lines)) return null;
 
-    return this.processLines(lines, employee, null, fiche.id, mois, rules, prisma);
+    return this.processLines(
+      lines,
+      employee,
+      null,
+      fiche.id,
+      mois,
+      rules,
+      prisma,
+    );
   }
 
   /**
@@ -145,13 +169,23 @@ export class CommissionService {
     // unless the Invoice is the only place where final amounts are known.
     // For now, let's respect the triggerType.
     if (config.triggerType === 'BC') {
-      console.log(`[COMMISSION] Skipping Invoice ${factureId} because trigger is set to BC`);
+      console.log(
+        `[COMMISSION] Skipping Invoice ${factureId} because trigger is set to BC`,
+      );
       return null;
     }
 
     // Payment condition check
-    if (config.paymentCondition === 'SOLDE' && !['VALIDE', 'PAYEE', 'SOLDEE'].includes(facture.statut)) return null;
-    if (config.paymentCondition === 'PARTIEL' && !['VALIDE', 'PAYEE', 'SOLDEE', 'PARTIEL'].includes(facture.statut)) return null;
+    if (
+      config.paymentCondition === 'SOLDE' &&
+      !['VALIDE', 'PAYEE', 'SOLDEE'].includes(facture.statut)
+    )
+      return null;
+    if (
+      config.paymentCondition === 'PARTIEL' &&
+      !['VALIDE', 'PAYEE', 'SOLDEE', 'PARTIEL'].includes(facture.statut)
+    )
+      return null;
 
     if (!isFinite(facture.totalHT) || facture.totalHT <= 0) return null;
 
@@ -165,13 +199,32 @@ export class CommissionService {
       },
     });
 
-    const lines = typeof facture.lignes === 'string' ? JSON.parse(facture.lignes) : (facture.lignes as any[]);
+    const lines =
+      typeof facture.lignes === 'string'
+        ? JSON.parse(facture.lignes)
+        : (facture.lignes as any[]);
     if (!Array.isArray(lines)) return null;
 
-    return this.processLines(lines, employee, facture.id, null, mois, rules, prisma);
+    return this.processLines(
+      lines,
+      employee,
+      facture.id,
+      null,
+      mois,
+      rules,
+      prisma,
+    );
   }
 
-  private async processLines(lines: any[], employee: any, factureId: string | null, ficheId: string | null, mois: string, rules: any[], prisma: any) {
+  private async processLines(
+    lines: any[],
+    employee: any,
+    factureId: string | null,
+    ficheId: string | null,
+    mois: string,
+    rules: any[],
+    prisma: any,
+  ) {
     // Delete existing to avoid duplicates
     if (factureId) {
       await prisma.commission.deleteMany({ where: { factureId } });
@@ -183,7 +236,9 @@ export class CommissionService {
     for (const line of lines) {
       let typeArticle: string | null = null;
       if (line.productId) {
-        const product = await prisma.product.findUnique({ where: { id: line.productId } });
+        const product = await prisma.product.findUnique({
+          where: { id: line.productId },
+        });
         if (product) typeArticle = product.typeArticle;
       }
 
@@ -195,12 +250,13 @@ export class CommissionService {
         else if (desc.includes('ACCESSOIRE')) typeArticle = 'ACCESSOIRE';
       }
 
-      const rule = rules.find((r) => {
-        if (!typeArticle) return false;
-        const rType = r.typeProduit.toUpperCase();
-        const pType = typeArticle.toUpperCase();
-        return rType === pType || pType.startsWith(rType + '_');
-      }) || rules.find((r) => r.typeProduit === 'GLOBAL');
+      const rule =
+        rules.find((r) => {
+          if (!typeArticle) return false;
+          const rType = r.typeProduit.toUpperCase();
+          const pType = typeArticle.toUpperCase();
+          return rType === pType || pType.startsWith(rType + '_');
+        }) || rules.find((r) => r.typeProduit === 'GLOBAL');
 
       if (rule) {
         const lineAmount = line.totalTTC || 0;
@@ -224,13 +280,21 @@ export class CommissionService {
     return results;
   }
 
-  async getEmployeeCommissions(employeeId: string, mois: string, annee?: number) {
+  async getEmployeeCommissions(
+    employeeId: string,
+    mois: string,
+    annee?: number,
+  ) {
     const fullMois = annee ? `${annee}-${mois}` : mois;
     return this.prisma.commission.findMany({
       where: { employeeId, mois: fullMois },
       include: {
-        facture: { select: { numero: true, totalTTC: true, dateEmission: true } },
-        fiche: { select: { numero: true, montantTotal: true, dateCreation: true } },
+        facture: {
+          select: { numero: true, totalTTC: true, dateEmission: true },
+        },
+        fiche: {
+          select: { numero: true, montantTotal: true, dateCreation: true },
+        },
       },
     });
   }
@@ -255,7 +319,11 @@ export class CommissionService {
           statut: { in: ['VALIDE', 'PAYEE', 'PARTIEL', 'SOLDEE'] },
           dateEmission: {
             gte: new Date(`${mois}-01`),
-            lt: new Date(new Date(`${mois}-01`).setMonth(new Date(`${mois}-01`).getMonth() + 1)),
+            lt: new Date(
+              new Date(`${mois}-01`).setMonth(
+                new Date(`${mois}-01`).getMonth() + 1,
+              ),
+            ),
           },
         },
       });
@@ -269,7 +337,11 @@ export class CommissionService {
         where: {
           dateCreation: {
             gte: new Date(`${mois}-01`),
-            lt: new Date(new Date(`${mois}-01`).setMonth(new Date(`${mois}-01`).getMonth() + 1)),
+            lt: new Date(
+              new Date(`${mois}-01`).setMonth(
+                new Date(`${mois}-01`).getMonth() + 1,
+              ),
+            ),
           },
         },
       });

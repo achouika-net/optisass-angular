@@ -34,7 +34,7 @@ export class AuditMiddleware implements NestMiddleware {
         const decoded = require('jsonwebtoken').verify(
           token,
           process.env.JWT_SECRET || 'your-very-secret-key',
-        ) as any;
+        );
         userId = decoded.sub;
       } catch (e) {
         // Invalid token, userId remains ANONYMOUS

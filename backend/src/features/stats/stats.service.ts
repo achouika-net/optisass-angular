@@ -104,19 +104,29 @@ export class StatsService {
 
   constructor(private prisma: PrismaService) {}
 
-  private async getFilteredSales(start: Date, end: Date, centreFilter: any, includeRelations: any = false) {
-    const facturesRaw = await this.prisma.facture.findMany({
+  private async getFilteredSales(
+    start: Date,
+    end: Date,
+    centreFilter: any,
+    includeRelations: any = false,
+  ) {
+    const facturesRaw = (await this.prisma.facture.findMany({
       where: {
         dateEmission: { gte: start, lte: end },
         statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
         type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR'] },
         ...centreFilter,
       },
-      include: includeRelations === true ? {
-        fiche: { include: { bonsLivraison: { include: { fournisseur: true } } } },
-        mouvementsStock: { include: { produit: true } },
-      } : (includeRelations || undefined),
-    }) as any[];
+      include:
+        includeRelations === true
+          ? {
+              fiche: {
+                include: { bonsLivraison: { include: { fournisseur: true } } },
+              },
+              mouvementsStock: { include: { produit: true } },
+            }
+          : includeRelations || undefined,
+    })) as any[];
 
     const facturesWithFicheIds = new Set(
       facturesRaw
@@ -150,7 +160,9 @@ export class StatsService {
         where: {
           centreId: centreId || undefined,
           statut: { notIn: ['ARCHIVE'] },
-          type: { in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR', 'DEVIS'] },
+          type: {
+            in: ['FACTURE', 'BON_COMMANDE', 'BON_COMM', 'AVOIR', 'DEVIS'],
+          },
         },
         _min: { dateEmission: true },
         _max: { dateEmission: true },
@@ -262,7 +274,7 @@ export class StatsService {
             else if (ficheType === 'lentilles') type = 'LENTILLES';
           }
           if (!type) type = 'NON_DÉFINI';
-          
+
           type = this.normalizeProductType(type);
 
           const existing = distribution.get(type) || { count: 0, value: 0 };
@@ -620,8 +632,10 @@ export class StatsService {
 
   private normalizeProductType(type: string): string {
     const t = type.toUpperCase().trim();
-    if (t.includes('MONTURE_OPTIQUE') || t === 'MON' || t === 'MONTURE') return 'MON';
-    if (t.includes('MONTURE_SOLAIRE') || t === 'SOL' || t === 'SOLAIRE') return 'SOL';
+    if (t.includes('MONTURE_OPTIQUE') || t === 'MON' || t === 'MONTURE')
+      return 'MON';
+    if (t.includes('MONTURE_SOLAIRE') || t === 'SOL' || t === 'SOLAIRE')
+      return 'SOL';
     if (t.includes('VERRE') || t === 'VERR') return 'VERR';
     if (t.includes('LENTILLE') || t === 'LEN') return 'LEN';
     if (t.includes('ACCESSOIRE') || t === 'ACC') return 'ACC';
@@ -629,18 +643,19 @@ export class StatsService {
     return t.substring(0, 4);
   }
 
-  async getRealProfit(
-    startDate?: string,
-    endDate?: string,
-    centreId?: string,
-  ) {
+  async getRealProfit(startDate?: string, endDate?: string, centreId?: string) {
     try {
       const start = startDate ? new Date(startDate) : new Date(0);
       const end = endDate ? new Date(endDate) : new Date(3000, 0, 1);
       const centreFilter = centreId ? { centreId } : {};
 
       // 1. Get de-duplicated sales data (including relations for COGS)
-      const factures = await this.getFilteredSales(start, end, centreFilter, true);
+      const factures = await this.getFilteredSales(
+        start,
+        end,
+        centreFilter,
+        true,
+      );
 
       // 2. Fetch expenses and payments in parallel
       const [expenseAgg, ffAgg, paymentsAgg] = await Promise.all([
@@ -688,7 +703,9 @@ export class StatsService {
           f.mouvementsStock.forEach((m: any) => {
             const cost = multiplier * (m.prixAchatUnitaire || 0);
             totalCogs += cost;
-            const cat = this.normalizeProductType(m.produit?.typeArticle || m.typeArticle || 'MON');
+            const cat = this.normalizeProductType(
+              m.produit?.typeArticle || m.typeArticle || 'MON',
+            );
             cogsMap.set(cat, (cogsMap.get(cat) || 0) + cost);
           });
         }
@@ -704,34 +721,52 @@ export class StatsService {
       }
 
       const revenueHT = totalRevenueTTC / 1.2;
-      const expenses = (expenseAgg._sum?.montant || 0) + (ffAgg._sum?.montantHT || 0);
+      const expenses =
+        (expenseAgg._sum?.montant || 0) + (ffAgg._sum?.montantHT || 0);
       const netProfit = revenueHT - totalCogs - expenses;
 
       // Expense Breakdown logic
       const expensesBreakdownMap = new Map<string, number>();
       // We can't easily get the breakdown from aggregate, but for now let's just return a generic breakdown or fetch it
-      // For simplicity and speed, let's just return the main values first. 
+      // For simplicity and speed, let's just return the main values first.
       // If the user really needs the breakdown table to be populated, I should fetch the lists.
-      
+
       // Let's fetch them to be perfect
       const [depensesList, ffList] = await Promise.all([
         this.prisma.depense.findMany({
-          where: { date: { gte: start, lte: end }, factureFournisseurId: null, bonLivraisonId: null, statut: { notIn: ['REJETTE_ALIMENTATION', 'REJETEE'] }, ...centreFilter },
-          select: { montant: true, categorie: true }
+          where: {
+            date: { gte: start, lte: end },
+            factureFournisseurId: null,
+            bonLivraisonId: null,
+            statut: { notIn: ['REJETTE_ALIMENTATION', 'REJETEE'] },
+            ...centreFilter,
+          },
+          select: { montant: true, categorie: true },
         }),
         this.prisma.factureFournisseur.findMany({
-          where: { dateEmission: { gte: start, lte: end }, type: { notIn: this.INVENTORY_PURCHASE_TYPES }, ficheId: null, ...centreFilter },
-          select: { montantHT: true, type: true }
-        })
+          where: {
+            dateEmission: { gte: start, lte: end },
+            type: { notIn: this.INVENTORY_PURCHASE_TYPES },
+            ficheId: null,
+            ...centreFilter,
+          },
+          select: { montantHT: true, type: true },
+        }),
       ]);
 
-      depensesList.forEach(d => {
+      depensesList.forEach((d) => {
         const cat = d.categorie || 'DIVERS';
-        expensesBreakdownMap.set(cat, (expensesBreakdownMap.get(cat) || 0) + (d.montant || 0));
+        expensesBreakdownMap.set(
+          cat,
+          (expensesBreakdownMap.get(cat) || 0) + (d.montant || 0),
+        );
       });
-      ffList.forEach(f => {
+      ffList.forEach((f) => {
         const cat = f.type || 'FACTURE';
-        expensesBreakdownMap.set(cat, (expensesBreakdownMap.get(cat) || 0) + (f.montantHT || 0));
+        expensesBreakdownMap.set(
+          cat,
+          (expensesBreakdownMap.get(cat) || 0) + (f.montantHT || 0),
+        );
       });
 
       return {
@@ -746,20 +781,33 @@ export class StatsService {
           cogsRate: revenueHT > 0 ? (totalCogs / revenueHT) * 100 : 0,
           expenseRate: revenueHT > 0 ? (expenses / revenueHT) * 100 : 0,
         },
-        cogsBreakdown: Array.from(cogsMap.entries()).map(([category, amount]) => ({
-          category,
-          amount,
-          percentage: totalCogs > 0 ? (amount / totalCogs) * 100 : 0,
-        })),
-        expensesBreakdown: Array.from(expensesBreakdownMap.entries()).map(([category, amount]) => ({
-          category,
-          amount,
-          percentage: expenses > 0 ? (amount / expenses) * 100 : 0,
-        })),
+        cogsBreakdown: Array.from(cogsMap.entries()).map(
+          ([category, amount]) => ({
+            category,
+            amount,
+            percentage: totalCogs > 0 ? (amount / totalCogs) * 100 : 0,
+          }),
+        ),
+        expensesBreakdown: Array.from(expensesBreakdownMap.entries()).map(
+          ([category, amount]) => ({
+            category,
+            amount,
+            percentage: expenses > 0 ? (amount / expenses) * 100 : 0,
+          }),
+        ),
       };
     } catch (e) {
       console.error('[Stats] getRealProfit Error:', e);
-      return { revenue: 0, cogs: 0, expenses: 0, netProfit: 0, totalRecettes: 0, analysis: { marginRate: 0 }, cogsBreakdown: [], expensesBreakdown: [] };
+      return {
+        revenue: 0,
+        cogs: 0,
+        expenses: 0,
+        netProfit: 0,
+        totalRecettes: 0,
+        analysis: { marginRate: 0 },
+        cogsBreakdown: [],
+        expensesBreakdown: [],
+      };
     }
   }
 
@@ -770,11 +818,18 @@ export class StatsService {
     centreId?: string,
   ) {
     try {
-      const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), 0, 1);
+      const start = startDate
+        ? new Date(startDate)
+        : new Date(new Date().getFullYear(), 0, 1);
       const end = endDate ? new Date(endDate) : new Date();
       const centreFilter = centreId ? { centreId } : {};
 
-      const factures = await this.getFilteredSales(start, end, centreFilter, true);
+      const factures = await this.getFilteredSales(
+        start,
+        end,
+        centreFilter,
+        true,
+      );
 
       const depenses = await this.prisma.depense.findMany({
         where: {
@@ -784,34 +839,46 @@ export class StatsService {
         },
       });
 
-      const dataMap = new Map<string, { revenue: number; cogs: number; expenses: number }>();
+      const dataMap = new Map<
+        string,
+        { revenue: number; cogs: number; expenses: number }
+      >();
 
       factures.forEach((f) => {
-        const label = period === 'daily' 
-          ? f.dateEmission.toISOString().split('T')[0]
-          : f.dateEmission.toISOString().substring(0, 7);
-        
+        const label =
+          period === 'daily'
+            ? f.dateEmission.toISOString().split('T')[0]
+            : f.dateEmission.toISOString().substring(0, 7);
+
         const vals = dataMap.get(label) || { revenue: 0, cogs: 0, expenses: 0 };
-        
+
         const multiplier = f.type === 'AVOIR' ? -1 : 1;
-        vals.revenue += multiplier * (f.totalTTC || 0) / 1.2;
+        vals.revenue += (multiplier * (f.totalTTC || 0)) / 1.2;
 
         // COGS
         if (f.mouvementsStock?.length) {
-          vals.cogs += multiplier * f.mouvementsStock.reduce((s, m) => s + (m.prixAchatUnitaire || 0), 0);
+          vals.cogs +=
+            multiplier *
+            f.mouvementsStock.reduce(
+              (s, m) => s + (m.prixAchatUnitaire || 0),
+              0,
+            );
         }
         if (f.fiche?.bonsLivraison?.length) {
-          vals.cogs += multiplier * f.fiche.bonsLivraison.reduce((s, bl) => s + (bl.montantHT || 0), 0);
+          vals.cogs +=
+            multiplier *
+            f.fiche.bonsLivraison.reduce((s, bl) => s + (bl.montantHT || 0), 0);
         }
 
         dataMap.set(label, vals);
       });
 
       depenses.forEach((d) => {
-        const label = period === 'daily'
-          ? d.date.toISOString().split('T')[0]
-          : d.date.toISOString().substring(0, 7);
-        
+        const label =
+          period === 'daily'
+            ? d.date.toISOString().split('T')[0]
+            : d.date.toISOString().substring(0, 7);
+
         const vals = dataMap.get(label) || { revenue: 0, cogs: 0, expenses: 0 };
         vals.expenses += d.montant || 0;
         dataMap.set(label, vals);
@@ -850,17 +917,17 @@ export class StatsService {
     return filtered
       .sort((a, b) => b.dateEmission.getTime() - a.dateEmission.getTime())
       .map((f: any) => ({
-      id: f.id,
-      date: f.dateEmission,
-      numero: f.numero,
-      client:
-        f.client.raisonSociale ||
-        `${f.client.prenom || ''} ${f.client.nom || ''}`.trim(),
-      type: f.type,
-      totalTTC: f.totalTTC,
-      totalHT: (f.totalTTC || 0) / 1.2,
-      statut: f.statut,
-    }));
+        id: f.id,
+        date: f.dateEmission,
+        numero: f.numero,
+        client:
+          f.client.raisonSociale ||
+          `${f.client.prenom || ''} ${f.client.nom || ''}`.trim(),
+        type: f.type,
+        totalTTC: f.totalTTC,
+        totalHT: (f.totalTTC || 0) / 1.2,
+        statut: f.statut,
+      }));
   }
 
   async getExpenseDetails(
@@ -873,7 +940,12 @@ export class StatsService {
     const centreFilter = centreId ? { centreId } : {};
 
     // 1. Get the EXACT same list of sales as getRealProfit
-    const factures = await this.getFilteredSales(start, end, centreFilter, true);
+    const factures = await this.getFilteredSales(
+      start,
+      end,
+      centreFilter,
+      true,
+    );
     const results: any[] = [];
 
     for (const f of factures) {
@@ -885,7 +957,9 @@ export class StatsService {
           const cost = multiplier * (m.prixAchatUnitaire || 0);
           if (cost === 0 && multiplier === 1) return; // Skip zero-cost items unless it's an Avoir
 
-          const type = this.normalizeProductType(m.produit?.typeArticle || m.typeArticle || 'MON');
+          const type = this.normalizeProductType(
+            m.produit?.typeArticle || m.typeArticle || 'MON',
+          );
           let libellePrefix = 'COGS';
           if (type === 'MON') libellePrefix = 'COGS (Monture)';
           else if (type === 'LEN') libellePrefix = 'COGS (Lentille)';
@@ -946,27 +1020,31 @@ export class StatsService {
       }),
     ]);
 
-    results.push(...depenses.map((d: any) => ({
-      id: d.id,
-      date: d.date,
-      libelle: `Charge Courante: ${d.description || d.reference || 'Dépense'}`,
-      fournisseur: d.fournisseur?.nom || 'DIVERS',
-      type: d.categorie || 'CHARGE',
-      montant: d.montant,
-      statut: d.statut,
-      source: 'CHARGE_COURANTE',
-    })));
+    results.push(
+      ...depenses.map((d: any) => ({
+        id: d.id,
+        date: d.date,
+        libelle: `Charge Courante: ${d.description || d.reference || 'Dépense'}`,
+        fournisseur: d.fournisseur?.nom || 'DIVERS',
+        type: d.categorie || 'CHARGE',
+        montant: d.montant,
+        statut: d.statut,
+        source: 'CHARGE_COURANTE',
+      })),
+    );
 
-    results.push(...opexFf.map((f: any) => ({
-      id: f.id,
-      date: f.dateEmission,
-      libelle: `Facture Charge: ${f.numeroFacture || f.referenceInterne || 'FF'}`,
-      fournisseur: f.fournisseur?.nom || 'FOURNISSEUR',
-      type: f.type || 'CHARGE_EXT',
-      montant: f.montantHT,
-      statut: 'VALIDE',
-      source: 'FACTURE_CHARGE',
-    })));
+    results.push(
+      ...opexFf.map((f: any) => ({
+        id: f.id,
+        date: f.dateEmission,
+        libelle: `Facture Charge: ${f.numeroFacture || f.referenceInterne || 'FF'}`,
+        fournisseur: f.fournisseur?.nom || 'FOURNISSEUR',
+        type: f.type || 'CHARGE_EXT',
+        montant: f.montantHT,
+        statut: 'VALIDE',
+        source: 'FACTURE_CHARGE',
+      })),
+    );
 
     return results.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
@@ -981,22 +1059,30 @@ export class StatsService {
     const end = endDate ? new Date(endDate) : new Date(3000, 0, 1);
     const centreFilter = centreId ? { centreId } : {};
 
-    const factures = await this.getFilteredSales(start, end, centreFilter, true);
+    const factures = await this.getFilteredSales(
+      start,
+      end,
+      centreFilter,
+      true,
+    );
 
-    const productMap = new Map<string, {
-      type: string;
-      brand: string;
-      operation: string;
-      quantity: number;
-      purchaseTotal: number;
-      saleTotal: number;
-    }>();
+    const productMap = new Map<
+      string,
+      {
+        type: string;
+        brand: string;
+        operation: string;
+        quantity: number;
+        purchaseTotal: number;
+        saleTotal: number;
+      }
+    >();
 
     // --- BATCH CATALOG PRICE LOOKUP ---
     // Collect all unique produitIds from all invoice lines in one pass
     const allProduitIds = new Set<string>();
     for (const f of factures) {
-      for (const line of ((f.lignes as any[]) || [])) {
+      for (const line of (f.lignes as any[]) || []) {
         if (line.produitId) allProduitIds.add(line.produitId);
       }
     }
@@ -1005,19 +1091,24 @@ export class StatsService {
       where: { id: { in: Array.from(allProduitIds) } },
       select: { id: true, prixAchatHT: true, marque: true, typeArticle: true },
     });
-    const catalogMap = new Map<string, { prixAchatHT: number; marque?: string | null; typeArticle?: string | null }>(
-      catalogProducts.map((p: any) => [p.id, p])
-    );
+    const catalogMap = new Map<
+      string,
+      {
+        prixAchatHT: number;
+        marque?: string | null;
+        typeArticle?: string | null;
+      }
+    >(catalogProducts.map((p: any) => [p.id, p]));
     // --- END BATCH LOOKUP ---
 
     for (const f of factures) {
       const invoiceHT = (f.totalTTC || 0) / 1.2;
       const lines = (f.lignes as any[]) || [];
       const sumLinesValue = lines.reduce((acc, l) => {
-          const qty = l.qte ?? l.quantite ?? 0;
-          const price = l.prixUnitaireHT ?? l.prixUnitaireTTC ?? 0;
-          const lineTotal = l.totalHT ?? l.totalTTC ?? (qty * price);
-          return acc + lineTotal;
+        const qty = l.qte ?? l.quantite ?? 0;
+        const price = l.prixUnitaireHT ?? l.prixUnitaireTTC ?? 0;
+        const lineTotal = l.totalHT ?? l.totalTTC ?? qty * price;
+        return acc + lineTotal;
       }, 0);
 
       if (sumLinesValue === 0 && invoiceHT === 0) continue;
@@ -1026,56 +1117,67 @@ export class StatsService {
 
       // Build cost-per-type from mouvementsStock (produitId is NOT in lignes JSON,
       // so we group by typeArticle to match movement costs to invoice lines)
-      const costByType = new Map<string, { totalCost: number; totalQty: number }>();
-      for (const mv of (f.mouvementsStock || [])) {
+      const costByType = new Map<
+        string,
+        { totalCost: number; totalQty: number }
+      >();
+      for (const mv of f.mouvementsStock || []) {
         const rawType = mv.produit?.typeArticle || mv.typeArticle || '';
         const normType = this.normalizeProductType(rawType);
         if (!normType) continue;
         const qty = Math.abs(mv.quantite || 1);
         const unitCost = mv.prixAchatUnitaire || mv.produit?.prixAchatHT || 0;
-        const existing = costByType.get(normType) || { totalCost: 0, totalQty: 0 };
+        const existing = costByType.get(normType) || {
+          totalCost: 0,
+          totalQty: 0,
+        };
         existing.totalCost += qty * unitCost;
         existing.totalQty += qty;
         costByType.set(normType, existing);
       }
       // Also keep a produitId Map for future cases where lignes might include produitId
       const stockByProduitId = new Map<string, any>();
-      for (const mv of (f.mouvementsStock || [])) {
+      for (const mv of f.mouvementsStock || []) {
         if (mv.produitId) stockByProduitId.set(mv.produitId, mv);
       }
 
       for (const line of lines) {
         let type = this.normalizeProductType(line.typeArticle || '');
         let brand = 'SANS MARQUE';
-        
+
         const qty = line.qte ?? line.quantite ?? 1;
         const price = line.prixUnitaireHT ?? line.prixUnitaireTTC ?? 0;
-        const lineVal = line.totalHT ?? line.totalTTC ?? (qty * price);
+        const lineVal = line.totalHT ?? line.totalTTC ?? qty * price;
 
         // Apply proportional share of the invoice's Net HT (handles discounts correctly)
-        const proportionalHT = sumLinesValue !== 0 ? (lineVal / sumLinesValue) * invoiceHT : 0;
+        const proportionalHT =
+          sumLinesValue !== 0 ? (lineVal / sumLinesValue) * invoiceHT : 0;
 
         // Try to identify Brand and refined Type
         if (line.produitId) {
-            const product = f.mouvementsStock?.find(m => m.produitId === line.produitId)?.produit;
-            if (product) {
-                brand = product.marque || product.collection || 'SANS MARQUE';
-                if (!type || type === 'PRD' || type === 'NON_') type = this.normalizeProductType(product.typeArticle || 'MON');
-            }
+          const product = f.mouvementsStock?.find(
+            (m) => m.produitId === line.produitId,
+          )?.produit;
+          if (product) {
+            brand = product.marque || product.collection || 'SANS MARQUE';
+            if (!type || type === 'PRD' || type === 'NON_')
+              type = this.normalizeProductType(product.typeArticle || 'MON');
+          }
         }
 
         if (!type || type === 'PRD' || type === 'NON_') {
-            const desc = String(line.description || '').toLowerCase();
-            if (desc.includes('verre')) type = 'VERR';
-            else if (desc.includes('monture')) type = 'MON';
-            else if (desc.includes('lentille')) type = 'LEN';
-            else if (desc.includes('solaire')) type = 'SOL';
-            else if (f.fiche?.type) type = this.normalizeProductType(f.fiche.type);
-            else type = 'ACC';
+          const desc = String(line.description || '').toLowerCase();
+          if (desc.includes('verre')) type = 'VERR';
+          else if (desc.includes('monture')) type = 'MON';
+          else if (desc.includes('lentille')) type = 'LEN';
+          else if (desc.includes('solaire')) type = 'SOL';
+          else if (f.fiche?.type)
+            type = this.normalizeProductType(f.fiche.type);
+          else type = 'ACC';
         }
 
         if (type === 'VERR' && brand === 'SANS MARQUE') {
-            brand = f.fiche?.bonsLivraison?.[0]?.fournisseur?.nom || 'VERRIER';
+          brand = f.fiche?.bonsLivraison?.[0]?.fournisseur?.nom || 'VERRIER';
         }
 
         const key = `${type}-${brand}-${operation}`;
@@ -1095,32 +1197,49 @@ export class StatsService {
         // (produitId is never stored in lignes JSON, so we group by typeArticle)
         const typeData = costByType.get(type);
         if (typeData && typeData.totalQty > 0) {
-            // Use average unit cost for this type from the facture's movements
-            const avgUnitCost = typeData.totalCost / typeData.totalQty;
-            existing.purchaseTotal += Math.abs(qty) * avgUnitCost;
+          // Use average unit cost for this type from the facture's movements
+          const avgUnitCost = typeData.totalCost / typeData.totalQty;
+          existing.purchaseTotal += Math.abs(qty) * avgUnitCost;
         } else if (line.produitId) {
-            // Fallback: if the line has a produitId, use stockByProduitId or catalogMap
-            const m = stockByProduitId.get(line.produitId);
-            const catalogPrice = catalogMap.get(line.produitId)?.prixAchatHT || 0;
-            const unitCost = m?.prixAchatUnitaire || m?.produit?.prixAchatHT || catalogPrice;
-            existing.purchaseTotal += Math.abs(qty) * unitCost;
+          // Fallback: if the line has a produitId, use stockByProduitId or catalogMap
+          const m = stockByProduitId.get(line.produitId);
+          const catalogPrice = catalogMap.get(line.produitId)?.prixAchatHT || 0;
+          const unitCost =
+            m?.prixAchatUnitaire || m?.produit?.prixAchatHT || catalogPrice;
+          existing.purchaseTotal += Math.abs(qty) * unitCost;
         } else if (type === 'VERR') {
-            // Last resort for VERR: proportional share of linked BL cost
-            const glassLinesTotal = lines.filter((l: any) =>
-                l.typeArticle === 'VERRE' || String(l.description || '').toLowerCase().includes('verre')
-            ).reduce((s: number, l: any) => s + (l.totalHT ?? l.totalTTC ?? 0), 0) || 1;
-            const blTotalCost = f.fiche?.bonsLivraison?.reduce((acc: number, bl: any) => acc + (bl.montantHT || 0), 0) || 0;
-            existing.purchaseTotal += (lineVal / glassLinesTotal) * blTotalCost;
+          // Last resort for VERR: proportional share of linked BL cost
+          const glassLinesTotal =
+            lines
+              .filter(
+                (l: any) =>
+                  l.typeArticle === 'VERRE' ||
+                  String(l.description || '')
+                    .toLowerCase()
+                    .includes('verre'),
+              )
+              .reduce(
+                (s: number, l: any) => s + (l.totalHT ?? l.totalTTC ?? 0),
+                0,
+              ) || 1;
+          const blTotalCost =
+            f.fiche?.bonsLivraison?.reduce(
+              (acc: number, bl: any) => acc + (bl.montantHT || 0),
+              0,
+            ) || 0;
+          existing.purchaseTotal += (lineVal / glassLinesTotal) * blTotalCost;
         }
 
         productMap.set(key, existing);
       }
     }
 
-    return Array.from(productMap.values()).map(p => ({
-      ...p,
-      avgPurchasePrice: p.quantity !== 0 ? p.purchaseTotal / p.quantity : 0,
-      avgSalePrice: p.quantity !== 0 ? p.saleTotal / p.quantity : 0,
-    })).sort((a, b) => a.type.localeCompare(b.type) || b.quantity - a.quantity);
+    return Array.from(productMap.values())
+      .map((p) => ({
+        ...p,
+        avgPurchasePrice: p.quantity !== 0 ? p.purchaseTotal / p.quantity : 0,
+        avgSalePrice: p.quantity !== 0 ? p.saleTotal / p.quantity : 0,
+      }))
+      .sort((a, b) => a.type.localeCompare(b.type) || b.quantity - a.quantity);
   }
 }

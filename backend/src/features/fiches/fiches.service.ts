@@ -627,7 +627,10 @@ export class FichesService {
       const commissionService = new CommissionService(this.prisma);
       await commissionService.calculateForFiche(result.id);
     } catch (e) {
-      console.warn('Commission calculation for Fiche skipped or failed:', e.message);
+      console.warn(
+        'Commission calculation for Fiche skipped or failed:',
+        e.message,
+      );
     }
 
     if (client.statut === 'INACTIF') {
