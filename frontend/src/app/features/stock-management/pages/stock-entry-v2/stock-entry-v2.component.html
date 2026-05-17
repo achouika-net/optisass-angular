@@ -62,40 +62,6 @@
 
                         <!-- A. Primary Link & Document Row -->
                         <div class="p-4 bg-blue-50 rounded-lg border border-blue-100 flex flex-col gap-4">
-                            <!-- SEARCH FIRST: Client & Fiche selection -->
-                            <div class="flex gap-4 items-center flex-wrap w-full pb-3 border-b border-blue-200/50">
-                                <div class="bg-blue-600 text-white p-2 rounded-lg flex items-center gap-2 shadow-sm mr-2">
-                                    <mat-icon>person_search</mat-icon>
-                                    <span class="text-xs font-bold uppercase tracking-wider">Lien Dossier</span>
-                                </div>
-
-                                <mat-form-field appearance="outline" class="w-72 compact-field">
-                                    <mat-label>Rechercher Client</mat-label>
-                                    <input type="text" matInput [formControl]="clientSearchCtrl" [matAutocomplete]="autoClient" placeholder="Nom du client...">
-                                    <mat-autocomplete #autoClient="matAutocomplete" (optionSelected)="onClientSelected($event)">
-                                        <mat-option *ngFor="let c of clients$ | async" [value]="c">
-                                            {{ c.nom }} {{ c.prenom }}
-                                        </mat-option>
-                                    </mat-autocomplete>
-                                    <mat-icon matSuffix>search</mat-icon>
-                                </mat-form-field>
-
-                                <mat-form-field appearance="outline" class="w-72 compact-field">
-                                    <mat-label>Sélectionner Fiche/BC</mat-label>
-                                    <input type="text" matInput [formControl]="ficheSearchCtrl" [matAutocomplete]="autoFiche" placeholder="Choisir la commande...">
-                                    <mat-autocomplete #autoFiche="matAutocomplete" (optionSelected)="onFicheSelected($event)">
-                                        <mat-option *ngFor="let f of fiches$ | async" [value]="f">
-                                            BC #{{ f.numero || 'N/A' }} - {{ f.statut }} ({{f.type}})
-                                        </mat-option>
-                                    </mat-autocomplete>
-                                    <mat-icon matSuffix>assignment</mat-icon>
-                                </mat-form-field>
-                                
-                                <div class="text-[11px] text-blue-700 italic flex items-center gap-2 bg-blue-100/50 px-4 py-2 rounded-full border border-blue-200">
-                                    <mat-icon class="text-sm scale-75">auto_fix_high</mat-icon>
-                                    Liez une commande pour remplir automatiquement le stock depuis le dossier médical.
-                                </div>
-                            </div>
 
                             <!-- DOCUMENT DETAILS -->
                             <form [formGroup]="documentForm" class="flex gap-4 items-center flex-wrap">
