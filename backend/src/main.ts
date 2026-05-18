@@ -58,6 +58,8 @@ async function bootstrap() {
   // Strict CORS: Only allow specific origins
   const allowedOrigins = [
     process.env.FRONTEND_URL || 'http://localhost:4200',
+    'http://151.80.146.74:4201',
+    'http://151.80.146.74:4202',
     'https://optisaas.pro',
     'https://www.optisaas.pro',
   ];
