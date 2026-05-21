@@ -435,7 +435,7 @@ export class TreasuryService {
       totalIncoming: Number(inStats._sum?.montant || 0),
       totalExpensesCashed: Number(eStats.paid || 0),
       totalIncomingCashed: Number(inPaidStats._sum?.montant || 0),
-      balance: Number(inStats._sum?.montant || 0) - totalEngaged,
+      balance: Number(inStats._sum?.montant || 0) - Number(eStats.total || 0),
       balanceReal:
         Number(inPaidStats._sum?.montant || 0) - Number(eStats.paid || 0),
       totalScheduled: Number(eStats.total || 0),
