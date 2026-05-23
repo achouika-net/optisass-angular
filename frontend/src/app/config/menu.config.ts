@@ -161,6 +161,12 @@ export const MENU: MenuItem[] = [
         route: 'finance/payments',
         queryParams: { tab: 'OUTGOING' }
       },
+      {
+        label: 'Releves Bancaires',
+        icon: 'account_balance',
+        type: 'subchild',
+        route: 'finance/banque',
+      },
     ],
   },
   {

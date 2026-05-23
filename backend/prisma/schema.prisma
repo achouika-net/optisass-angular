@@ -135,29 +135,31 @@ model Facture {
 }
 
 model Paiement {
-  id                  String               @id @default(uuid())
-  montant             Float
-  date                DateTime             @default(now())
-  mode                String
-  reference           String?
-  notes               String?
-  dateVersement       DateTime?
-  banque              String?
-  tiersNom            String?
-  tiersCin            String?
-  remarque            String?
-  pieceJointe         String?
-  factureId           String
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  dateEncaissement    DateTime?
-  statut              String               @default("ENCAISSE")
-  operationCaisseId   String?
-  userId              String?
-  demandeAlimentation DemandeAlimentation?
-  facture             Facture              @relation(fields: [factureId], references: [id], onDelete: Cascade)
-  operationCaisse     OperationCaisse?     @relation(fields: [operationCaisseId], references: [id])
-  user                User?                @relation(fields: [userId], references: [id])
+  id                    String               @id @default(uuid())
+  montant               Float
+  date                  DateTime             @default(now())
+  mode                  String
+  reference             String?
+  notes                 String?
+  dateVersement         DateTime?
+  banque                String?
+  tiersNom              String?
+  tiersCin              String?
+  remarque              String?
+  pieceJointe           String?
+  factureId             String
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  dateEncaissement      DateTime?
+  statut                String               @default("ENCAISSE")
+  operationCaisseId     String?
+  userId                String?
+  demandeAlimentation   DemandeAlimentation?
+  facture               Facture              @relation(fields: [factureId], references: [id], onDelete: Cascade)
+  operationCaisse       OperationCaisse?     @relation(fields: [operationCaisseId], references: [id])
+  user                  User?                @relation(fields: [userId], references: [id])
+  transactionBancaireId String?
+  transactionBancaire   TransactionBancaire? @relation(fields: [transactionBancaireId], references: [id])
 
   @@index([date])
   @@index([mode])
@@ -204,6 +206,7 @@ model Centre {
   facturesFournisseurs FactureFournisseur[]
   journeesCaisse       JourneeCaisse[]
   virtualTryons        VirtualTryon[]
+  comptesBancaires     CompteBancaire[]
 
   @@unique([groupeId, nom])
 }
@@ -427,38 +430,40 @@ model Convention {
 }
 
 model Depense {
-  id                   String               @id @default(uuid())
-  date                 DateTime             @default(now())
-  montant              Float
-  categorie            String
-  description          String?
-  modePaiement         String
-  statut               String
-  justificatifUrl      String?
-  centreId             String
-  factureFournisseurId String?              @unique
-  echeanceId           String?              @unique
-  creePar              String?
-  validePar            String?
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
-  dateEcheance         DateTime?
-  reference            String?
-  fournisseurId        String?
-  creeParId            String?
-  valideParId          String?
-  employeeId           String?
-  bonLivraisonId       String?              @unique
-  demandeAlimentation  DemandeAlimentation?
-  bonLivraison         BonLivraison?        @relation(fields: [bonLivraisonId], references: [id], onDelete: Cascade)
-  centre               Centre               @relation(fields: [centreId], references: [id])
-  creeParUser          User?                @relation("CreePar", fields: [creeParId], references: [id])
-  echeance             EcheancePaiement?    @relation(fields: [echeanceId], references: [id])
-  employee             Employee?            @relation(fields: [employeeId], references: [id])
-  factureFournisseur   FactureFournisseur?  @relation(fields: [factureFournisseurId], references: [id], onDelete: Cascade)
-  fournisseur          Fournisseur?         @relation(fields: [fournisseurId], references: [id])
-  valideParUser        User?                @relation("ValidePar", fields: [valideParId], references: [id])
-  payroll              Payroll?
+  id                    String               @id @default(uuid())
+  date                  DateTime             @default(now())
+  montant               Float
+  categorie             String
+  description           String?
+  modePaiement          String
+  statut                String
+  justificatifUrl       String?
+  centreId              String
+  factureFournisseurId  String?              @unique
+  echeanceId            String?              @unique
+  creePar               String?
+  validePar             String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  dateEcheance          DateTime?
+  reference             String?
+  fournisseurId         String?
+  creeParId             String?
+  valideParId           String?
+  employeeId            String?
+  bonLivraisonId        String?              @unique
+  demandeAlimentation   DemandeAlimentation?
+  bonLivraison          BonLivraison?        @relation(fields: [bonLivraisonId], references: [id], onDelete: Cascade)
+  centre                Centre               @relation(fields: [centreId], references: [id])
+  creeParUser           User?                @relation("CreePar", fields: [creeParId], references: [id])
+  echeance              EcheancePaiement?    @relation(fields: [echeanceId], references: [id])
+  employee              Employee?            @relation(fields: [employeeId], references: [id])
+  factureFournisseur    FactureFournisseur?  @relation(fields: [factureFournisseurId], references: [id], onDelete: Cascade)
+  fournisseur           Fournisseur?         @relation(fields: [fournisseurId], references: [id])
+  valideParUser         User?                @relation("ValidePar", fields: [valideParId], references: [id])
+  payroll               Payroll?
+  transactionBancaireId String?
+  transactionBancaire   TransactionBancaire? @relation(fields: [transactionBancaireId], references: [id])
 
   @@index([date])
   @@index([centreId])
@@ -906,4 +911,53 @@ model CommissionConfig {
   paymentCondition        String   @default("SOLDE")
   updatedAt               DateTime @updatedAt
   paymentConditionFacture String   @default("SOLDE")
+}
+
+model CompteBancaire {
+  id            String           @id @default(uuid())
+  nom           String // ex: BMCE Principale
+  banque        String
+  numeroCompte  String?
+  soldeInitial  Float            @default(0)
+  soldeActuel   Float            @default(0)
+  dateMiseAJour DateTime         @default(now())
+  releves       ReleveBancaire[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  centreId      String?
+  centre        Centre?          @relation(fields: [centreId], references: [id])
+}
+
+model ReleveBancaire {
+  id               String                @id @default(uuid())
+  compteBancaireId String
+  dateDebut        DateTime
+  dateFin          DateTime
+  soldeDebut       Float
+  soldeFin         Float
+  fichierReleve    String? // path or URL
+  statut           String                @default("BROUILLON") // BROUILLON, VALIDE
+  dateImport       DateTime              @default(now())
+  compteBancaire   CompteBancaire        @relation(fields: [compteBancaireId], references: [id])
+  transactions     TransactionBancaire[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+}
+
+model TransactionBancaire {
+  id                  String         @id @default(uuid())
+  releveBancaireId    String
+  dateTransaction     DateTime
+  dateValeur          DateTime?
+  description         String // libelle
+  type                String // CREDIT, DEBIT
+  montant             Float
+  reference           String?
+  statutRapprochement String         @default("NON_RAPPROCHE") // NON_RAPPROCHE, RAPPROCHE
+  typeTransaction     String? // AGIOS, FRAIS, VIREMENT, CHEQUE, etc.
+  releveBancaire      ReleveBancaire @relation(fields: [releveBancaireId], references: [id], onDelete: Cascade)
+  paiements           Paiement[] // relation inverse ajoutée
+  depenses            Depense[] // relation inverse ajoutée
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
 }

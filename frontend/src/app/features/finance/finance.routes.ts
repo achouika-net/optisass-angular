@@ -1,4 +1,4 @@
-import { Routes } from '@angular/router';
+﻿import { Routes } from '@angular/router';
 import { SupplierListComponent } from './pages/supplier-list/supplier-list.component';
 import { ExpenseListComponent } from './pages/expense-list/expense-list.component';
 import { SupplierInvoiceListComponent } from './pages/supplier-invoice-list/supplier-invoice-list.component';
@@ -75,5 +75,11 @@ export const routes: Routes = [
     {
         path: 'funding-requests',
         loadComponent: () => import('./pages/funding-request-list/funding-request-list.component').then(m => m.FundingRequestListComponent)
+    },
+    {
+        path: 'banque',
+        loadComponent: () => import('./pages/banque-releve/banque-releve.component').then(m => m.BanqueReleveComponent)
     }
 ];
+
+

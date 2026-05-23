@@ -1,0 +1,331 @@
+﻿<div class="banque-page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-title">
+      <mat-icon>account_balance</mat-icon>
+      <div>
+        <h1>Relevés Bancaires & Rapprochement</h1>
+        <p>Importez vos relevés et réconciliez vos paiements automatiquement</p>
+      </div>
+    </div>
+    <button mat-raised-button color="primary" (click)="showNewCompteForm = !showNewCompteForm">
+      <mat-icon>add</mat-icon> Nouveau Compte
+    </button>
+  </div>
+
+  <!-- Formulaire nouveau compte -->
+  @if (showNewCompteForm) {
+    <mat-card class="new-compte-form">
+      <mat-card-header>
+        <mat-card-title>Ajouter un Compte Bancaire</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="form-row">
+          <mat-icon>label</mat-icon>
+          <input placeholder="Nom du compte (ex: BMCE Principale)" [(ngModel)]="newCompte.nom" />
+        </div>
+        <div class="form-row">
+          <mat-icon>account_balance</mat-icon>
+          <input placeholder="Banque (ex: BMCE, Attijari, CIH...)" [(ngModel)]="newCompte.banque" />
+        </div>
+        <div class="form-row">
+          <mat-icon>pin</mat-icon>
+          <input placeholder="N° de compte (optionnel)" [(ngModel)]="newCompte.numeroCompte" />
+        </div>
+      </mat-card-content>
+      <mat-card-actions>
+        <button mat-raised-button color="primary" (click)="createCompte()" [disabled]="!newCompte.nom || !newCompte.banque">
+          <mat-icon>save</mat-icon> Enregistrer
+        </button>
+        <button mat-button (click)="showNewCompteForm = false">Annuler</button>
+      </mat-card-actions>
+    </mat-card>
+  }
+
+  
+  <mat-tab-group animationDuration="0ms">
+    <mat-tab label="Comptes & Synthèse">
+      <div style="padding-top: 20px;">
+<!-- Liste des comptes -->
+  <div class="comptes-grid">
+    @for (compte of comptes(); track compte.id) {
+      <mat-card class="compte-card">
+        <div class="compte-header">
+          <div class="compte-info">
+            <mat-icon class="bank-icon">account_balance</mat-icon>
+            <div>
+              <h3>{{ compte.nom }}</h3>
+              <span class="banque-label">{{ compte.banque }}</span>
+              @if (compte.numeroCompte) {
+                <span class="num-compte">N° {{ compte.numeroCompte }}</span>
+              }
+            </div>
+          </div>
+          <div class="compte-solde">
+            <span class="solde-label">Solde</span>
+            <span class="solde-amount">{{ compte.soldeActuel | number:'1.2-2' }} MAD</span>
+          </div>
+        </div>
+
+        <div class="compte-stats">
+          <div class="stat">
+            <mat-icon>receipt_long</mat-icon>
+            <span>{{ compte.releves?.length || 0 }} relevé(s)</span>
+          </div>
+        </div>
+
+        @if (loading()) {
+          <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+        }
+
+
+        <div class="compte-releves" style="padding: 0 20px 10px; max-height: 100px; overflow-y: auto;">
+          @for(rel of (compte.releves || []); track rel.id) {
+            <div class="releve-item" style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; border-bottom: 1px solid #f0f0f0; padding: 4px 0;">
+              <span>Imp. le {{ rel.dateImport | date:'dd/MM/yy' }}</span>
+              <button mat-icon-button color="warn" style="transform: scale(0.7); width: 24px; height: 24px; padding: 0;" (click)="deleteReleve(rel.id)" matTooltip="Supprimer ce relevé">
+                <mat-icon style="font-size: 16px;">delete</mat-icon>
+              </button>
+            </div>
+          }
+        </div>
+
+        <div class="compte-actions">
+          <input type="file" #fileInput (change)="onFileSelected($event, compte.id)"
+            style="display:none" accept=".csv,.xlsx,.xls,.pdf" />
+          <button mat-stroked-button color="primary" (click)="fileInput.click()" [disabled]="loading()">
+            <mat-icon>upload_file</mat-icon>
+            Importer un Relevé (CSV / Excel / PDF)
+          </button>
+        </div>
+      </mat-card>
+    }
+    @empty {
+      <div class="no-comptes">
+        <mat-icon>account_balance</mat-icon>
+        <p>Aucun compte bancaire configuré.<br>Cliquez sur <strong>Nouveau Compte</strong> pour commencer.</p>
+      </div>
+    }
+  </div>
+
+  
+  <!-- Filtres et Recap -->
+  <div class="filters-section" style="margin-top: 20px; display: flex; gap: 20px; align-items: flex-start;">
+    <mat-card style="flex: 1;">
+      <mat-card-header>
+        <mat-card-title>Filtres des Relevés</mat-card-title>
+      </mat-card-header>
+      <mat-card-content style="display: flex; gap: 15px; padding-top: 15px;">
+        <div>
+          <label>Compte :</label>
+          <select [(ngModel)]="selectedCompteId" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc; width: 200px;">
+            <option value="">Tous les comptes</option>
+            @for(c of comptes(); track c.id) {
+              <option [value]="c.id">{{ c.nom }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label>Mois :</label>
+          <select [(ngModel)]="selectedMonth" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc; width: 150px;">
+            <option value="">Tous les mois</option>
+            @for(m of availableMonths(); track m) {
+              <option [value]="m">{{ m }}</option>
+            }
+          </select>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card style="flex: 2;">
+      <mat-card-header>
+        <mat-card-title>Récapitulatif ({{ selectedMonth() || 'Global' }})</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <table class="recap-table" style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+          <thead>
+            <tr style="border-bottom: 2px solid #ddd; text-align: left;">
+              <th style="padding: 8px;">Type</th>
+              <th style="padding: 8px;">Direction</th>
+              <th style="padding: 8px;">Statut</th>
+              <th style="padding: 8px; text-align: center;">Nombre</th>
+              <th style="padding: 8px; text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for(r of recapMois(); track r.type + r.statut) {
+              <tr style="border-bottom: 1px solid #f5f5f5;">
+                <td style="padding: 8px; font-weight: 500;">{{ r.type }}</td>
+                <td style="padding: 8px;"><span style="padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 600;" [style.background]="r.isCredit ? '#e8f5e9' : '#fce4ec'" [style.color]="r.isCredit ? '#2e7d32' : '#c62828'">{{ r.direction }}</span></td>
+                <td style="padding: 8px;"><span class="statut-badge" [class.non-rapproche]="r.statut==='NON_RAPPROCHE'">{{ r.statut }}</span></td>
+                <td style="padding: 8px; text-align: center;">{{ r.count }}</td>
+                <td style="padding: 8px; text-align: right; font-weight: 600;" [style.color]="r.isCredit ? '#2e7d32' : '#c62828'">
+                  {{ r.isCredit ? '+' : '-' }}{{ r.montant | number:'1.2-2' }} MAD
+                </td>
+              </tr>
+            }
+            @if(recapMois().length === 0) {
+              <tr><td colspan="5" style="text-align: center; padding: 15px; color: #888;">Aucune donnée</td></tr>
+            }
+          </tbody>
+        </table>
+      </mat-card-content>
+    </mat-card>
+  </div>
+  
+        </div>
+    </mat-tab>
+
+    <mat-tab label="Transactions">
+      <div style="padding-top: 20px;">
+<div class="releves-list" style="margin-top: 20px;">
+    <mat-card>
+      <mat-card-header>
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+          <mat-card-title style="margin:0;">Transactions ({{ filteredTransactions().length }})</mat-card-title>
+          <div>
+            <button mat-stroked-button color="primary" (click)="exportExcel()" style="margin-right: 10px;"><mat-icon>download</mat-icon> Export CSV</button>
+            <button mat-stroked-button color="primary" (click)="printTable()"><mat-icon>print</mat-icon> Imprimer</button>
+          </div>
+        </div>
+      </mat-card-header>
+      <mat-card-content>
+        <table mat-table [dataSource]="filteredTransactions()" class="rapp-table" style="width: 100%; margin-top: 15px;">
+          <ng-container matColumnDef="date">
+            <th mat-header-cell *matHeaderCellDef>Date</th>
+            <td mat-cell *matCellDef="let t">{{ t.dateTransaction | date:'dd/MM/yy' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef>Description</th>
+            <td mat-cell *matCellDef="let t" class="desc-cell">{{ t.description }}</td>
+          </ng-container>
+          <ng-container matColumnDef="type">
+            <th mat-header-cell *matHeaderCellDef>Type</th>
+            <td mat-cell *matCellDef="let t">
+              <mat-chip [color]="getTypeColor(t.type)" highlighted>{{ t.typeTransaction || t.type }}</mat-chip>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="montant">
+            <th mat-header-cell *matHeaderCellDef>Montant</th>
+            <td mat-cell *matCellDef="let t" [class.credit]="t.type==='CREDIT'" [class.debit]="t.type==='DEBIT'">
+              {{ t.type === 'CREDIT' ? '+' : '-' }}{{ t.montant | number:'1.2-2' }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="statut">
+            <th mat-header-cell *matHeaderCellDef>Statut</th>
+            <td mat-cell *matCellDef="let t">
+              <span class="statut-badge" [class.non-rapproche]="t.statutRapprochement==='NON_RAPPROCHE'">
+                {{ t.statutRapprochement }}
+              </span>
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="transactionCols"></tr>
+          <tr mat-row *matRowDef="let row; columns: transactionCols;"></tr>
+        </table>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+        </div>
+    </mat-tab>
+
+    <mat-tab label="Rapprochement en Attente">
+      <div style="padding-top: 20px;">
+<!-- Rapprochement Section -->
+  <div class="rapprochement-section">
+    <h2><mat-icon>compare_arrows</mat-icon> Rapprochement en Attente</h2>
+
+    <div class="rapprochement-grid">
+
+      <!-- Transactions non rapprochées -->
+      <mat-card class="rapp-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar>account_balance</mat-icon>
+          <mat-card-title>Lignes du relevé non rapprochées</mat-card-title>
+          <mat-card-subtitle>{{ transactions().length }} transaction(s)</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          @if (transactions().length === 0) {
+            <div class="empty-state"><mat-icon>check_circle</mat-icon> Tout est rapproché !</div>
+          } @else {
+            <table mat-table [dataSource]="transactions()" class="rapp-table">
+              <ng-container matColumnDef="date">
+                <th mat-header-cell *matHeaderCellDef>Date</th>
+                <td mat-cell *matCellDef="let t">{{ t.dateTransaction | date:'dd/MM/yy' }}</td>
+              </ng-container>
+              <ng-container matColumnDef="description">
+                <th mat-header-cell *matHeaderCellDef>Description</th>
+                <td mat-cell *matCellDef="let t" class="desc-cell">{{ t.description }}</td>
+              </ng-container>
+              <ng-container matColumnDef="type">
+                <th mat-header-cell *matHeaderCellDef>Type</th>
+                <td mat-cell *matCellDef="let t">
+                  <mat-chip [color]="getTypeColor(t.type)" highlighted>{{ t.type }}</mat-chip>
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="montant">
+                <th mat-header-cell *matHeaderCellDef>Montant</th>
+                <td mat-cell *matCellDef="let t" [class.credit]="t.type==='CREDIT'" [class.debit]="t.type==='DEBIT'">
+                  {{ t.type === 'CREDIT' ? '+' : '-' }}{{ t.montant | number:'1.2-2' }}
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="statut">
+                <th mat-header-cell *matHeaderCellDef>Statut</th>
+                <td mat-cell *matCellDef="let t">
+                  <span class="statut-badge" [class.non-rapproche]="t.statutRapprochement==='NON_RAPPROCHE'">
+                    {{ t.statutRapprochement }}
+                  </span>
+                </td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="transactionCols"></tr>
+              <tr mat-row *matRowDef="let row; columns: transactionCols;"></tr>
+            </table>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Paiements système en attente -->
+      <mat-card class="rapp-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar>payments</mat-icon>
+          <mat-card-title>Paiements Système (Remise en banque)</mat-card-title>
+          <mat-card-subtitle>{{ paiementsAttente().length }} paiement(s) en attente</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          @if (paiementsAttente().length === 0) {
+            <div class="empty-state"><mat-icon>check_circle</mat-icon> Aucun paiement en attente</div>
+          } @else {
+            <table mat-table [dataSource]="paiementsAttente()" class="rapp-table">
+              <ng-container matColumnDef="date">
+                <th mat-header-cell *matHeaderCellDef>Date</th>
+                <td mat-cell *matCellDef="let p">{{ p.date | date:'dd/MM/yy' }}</td>
+              </ng-container>
+              <ng-container matColumnDef="mode">
+                <th mat-header-cell *matHeaderCellDef>Mode</th>
+                <td mat-cell *matCellDef="let p">{{ p.mode }}</td>
+              </ng-container>
+              <ng-container matColumnDef="montant">
+                <th mat-header-cell *matHeaderCellDef>Montant</th>
+                <td mat-cell *matCellDef="let p" class="credit">+{{ p.montant | number:'1.2-2' }}</td>
+              </ng-container>
+              <ng-container matColumnDef="statut">
+                <th mat-header-cell *matHeaderCellDef>Statut</th>
+                <td mat-cell *matCellDef="let p">
+                  <span class="statut-badge non-rapproche">{{ p.statut }}</span>
+                </td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="paiementCols"></tr>
+              <tr mat-row *matRowDef="let row; columns: paiementCols;"></tr>
+            </table>
+          }
+        </mat-card-content>
+      </mat-card>
+
+    </div>
+  </div>
+
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div>

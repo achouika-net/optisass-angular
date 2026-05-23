@@ -43,6 +43,7 @@ import { GlassParametersController } from './features/glass-parameters/glass-par
 import { DiagController } from './diag.controller';
 import { UploadsModule } from './features/uploads/uploads.module';
 import { StorageModule } from './common/storage/storage.module';
+import { BanqueModule } from './features/banque/banque.module';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { StorageModule } from './common/storage/storage.module';
         : join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
     }),
+    BanqueModule,
   ],
   controllers: [DiagController, GlassParametersController],
   providers: [],
