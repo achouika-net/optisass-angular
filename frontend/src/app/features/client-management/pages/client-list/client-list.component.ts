@@ -5,10 +5,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
-import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatPaginatorModule, MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatIconModule } from '@angular/material/icon';
@@ -40,10 +37,7 @@ interface ClientStats {
         CommonModule,
         ReactiveFormsModule,
         MatCardModule,
-        MatFormFieldModule,
-        MatInputModule,
         MatButtonModule,
-        MatSelectModule,
         MatTableModule,
         MatPaginatorModule,
         MatIconModule,
@@ -166,15 +160,16 @@ export class ClientListComponent implements OnInit, AfterViewInit, OnDestroy {
             next: (data) => {
                 this.zone.run(() => {
                     this.totalItems = data.length;
-                    this.dataSource.data = data;
 
-                    // Ensure paginator is wired
+                    // Ensure paginator is wired BEFORE setting data
                     if (this.paginator && !this.dataSource.paginator) {
                         this.dataSource.paginator = this.paginator;
                     }
                     if (this.paginator) {
                         this.paginator.length = data.length;
                     }
+                    
+                    this.dataSource.data = data;
 
                     this.updateStats(data);
                     this.loading.set(false);
@@ -221,12 +216,12 @@ export class ClientListComponent implements OnInit, AfterViewInit, OnDestroy {
             next: (data) => {
                 this.zone.run(() => {
                     this.totalItems = data.length;
-                    this.dataSource.data = data;
                     if (this.paginator) {
                         this.dataSource.paginator = this.paginator;
                         this.paginator.length = data.length;
                         this.paginator.firstPage();
                     }
+                    this.dataSource.data = data;
                     this.updateStats(data);
                     this.loading.set(false);
                     this.cdr.markForCheck();

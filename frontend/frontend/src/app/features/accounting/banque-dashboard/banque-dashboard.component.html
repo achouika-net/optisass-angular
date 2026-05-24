@@ -1,0 +1,72 @@
+<div class="banque-dashboard-container p-4">
+  <h2 class="text-2xl font-bold mb-4">Rapprochement Bancaire & Comptes</h2>
+
+  <div class="comptes-section mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+    <mat-card *ngFor="let compte of comptes" class="compte-card p-4">
+      <mat-card-header>
+        <mat-card-title>{{ compte.nom }} - {{ compte.banque }}</mat-card-title>
+        <mat-card-subtitle>N° {{ compte.numeroCompte }}</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content class="mt-4">
+        <p class="text-xl font-semibold">Solde: {{ compte.soldeActuel }} MAD</p>
+      </mat-card-content>
+      <mat-card-actions>
+        <input type="file" #fileInput (change)="onFileSelected(, compte.id)" style="display: none" accept=".csv, .xlsx, .xls, .pdf" />
+        <button mat-stroked-button color="primary" (click)="fileInput.click()">
+          <mat-icon>upload_file</mat-icon> Importer Relevé
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </div>
+
+  <h3 class="text-xl font-bold mb-4">Rapprochement en attente</h3>
+  <div class="rapprochement-section grid grid-cols-1 md:grid-cols-2 gap-4" *ngIf="rapprochementData">
+    <mat-card>
+      <mat-card-header><mat-card-title>Lignes Bancaires Non Rapprochées</mat-card-title></mat-card-header>
+      <mat-card-content>
+        <table mat-table [dataSource]="rapprochementData.transactions" class="w-full">
+          <ng-container matColumnDef="date">
+            <th mat-header-cell *matHeaderCellDef> Date </th>
+            <td mat-cell *matCellDef="let element"> {{element.dateTransaction | date}} </td>
+          </ng-container>
+          <ng-container matColumnDef="desc">
+            <th mat-header-cell *matHeaderCellDef> Description </th>
+            <td mat-cell *matCellDef="let element"> {{element.description}} </td>
+          </ng-container>
+          <ng-container matColumnDef="montant">
+            <th mat-header-cell *matHeaderCellDef> Montant </th>
+            <td mat-cell *matCellDef="let element" [ngClass]="element.type === 'CREDIT' ? 'text-green-600' : 'text-red-600'"> 
+              {{element.type === 'CREDIT' ? '+' : '-'}}{{element.montant}} 
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="['date', 'desc', 'montant']"></tr>
+          <tr mat-row *matRowDef="let row; columns: ['date', 'desc', 'montant'];"></tr>
+        </table>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-header><mat-card-title>Paiements Système en attente (Remise en Banque)</mat-card-title></mat-card-header>
+      <mat-card-content>
+         <table mat-table [dataSource]="rapprochementData.paiements" class="w-full">
+          <ng-container matColumnDef="date">
+            <th mat-header-cell *matHeaderCellDef> Date </th>
+            <td mat-cell *matCellDef="let element"> {{element.date | date}} </td>
+          </ng-container>
+          <ng-container matColumnDef="mode">
+            <th mat-header-cell *matHeaderCellDef> Mode </th>
+            <td mat-cell *matCellDef="let element"> {{element.mode}} </td>
+          </ng-container>
+          <ng-container matColumnDef="montant">
+            <th mat-header-cell *matHeaderCellDef> Montant </th>
+            <td mat-cell *matCellDef="let element" class="text-green-600"> 
+              {{element.montant}} 
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="['date', 'mode', 'montant']"></tr>
+          <tr mat-row *matRowDef="let row; columns: ['date', 'mode', 'montant'];"></tr>
+        </table>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

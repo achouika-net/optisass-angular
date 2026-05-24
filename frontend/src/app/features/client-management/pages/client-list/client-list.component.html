@@ -8,7 +8,7 @@
             </h1>
             <div class="flex gap-2 items-center">
                 <mat-slide-toggle formControlName="fidelioEligible" color="primary" class="mr-4">
-                    🎯 Éligible Fidélité
+                    Eligible Fidelite
                 </mat-slide-toggle>
                 <button type="button" mat-stroked-button color="accent" routerLink="/p/commercial/promotions">
                     <mat-icon>campaign</mat-icon>
@@ -61,50 +61,58 @@
         <mat-card-content>
             <div class="search-form">
                 <div class="grid grid-cols-4 gap-4 items-end">
-                    <mat-form-field appearance="outline">
-                        <mat-label>Type de client</mat-label>
-                        <mat-select aria-label="Select field" formControlName="typeClient">
-                            <mat-option value="" class="text-black">Tous</mat-option>
+
+                    <!-- Type de client -->
+                    <div class="native-field-wrapper">
+                        <label class="native-field-label">Type de client</label>
+                        <select class="native-select" formControlName="typeClient">
+                            <option value="">Tous</option>
                             @for (type of clientTypes; track type.value) {
-                            <mat-option [value]="type.value">{{ type.label }}</mat-option>
+                            <option [value]="type.value">{{ type.label }}</option>
                             }
-                        </mat-select>
-                    </mat-form-field>
+                        </select>
+                    </div>
 
-                    <mat-form-field appearance="outline">
-                        <mat-label>Statut</mat-label>
-                        <mat-select aria-label="Select field" formControlName="statut">
-                            <mat-option value="" class="text-black">Tous</mat-option>
+                    <!-- Statut -->
+                    <div class="native-field-wrapper">
+                        <label class="native-field-label">Statut</label>
+                        <select class="native-select" formControlName="statut">
+                            <option value="">Tous</option>
                             @for (statut of statuts; track statut.value) {
-                            <mat-option [value]="statut.value">{{ statut.label }}</mat-option>
+                            <option [value]="statut.value">{{ statut.label }}</option>
                             }
-                        </mat-select>
-                    </mat-form-field>
+                        </select>
+                    </div>
 
-                    <mat-form-field appearance="outline">
-                        <mat-label>Nom</mat-label>
-                        <input matInput formControlName="nom" placeholder="Rechercher...">
-                    </mat-form-field>
+                    <!-- Nom -->
+                    <div class="native-field-wrapper">
+                        <label class="native-field-label">Nom</label>
+                        <input class="native-input" type="text" formControlName="nom" placeholder="Rechercher...">
+                    </div>
 
-                    <mat-form-field appearance="outline">
-                        <mat-label>Prénom</mat-label>
-                        <input matInput formControlName="prenom" placeholder="Prénom...">
-                    </mat-form-field>
+                    <!-- Prenom -->
+                    <div class="native-field-wrapper">
+                        <label class="native-field-label">Prenom</label>
+                        <input class="native-input" type="text" formControlName="prenom" placeholder="Prenom...">
+                    </div>
 
-                    <mat-form-field appearance="outline">
-                        <mat-label>Téléphone</mat-label>
-                        <input matInput formControlName="telephone" placeholder="Téléphone...">
-                    </mat-form-field>
+                    <!-- Telephone -->
+                    <div class="native-field-wrapper">
+                        <label class="native-field-label">Telephone</label>
+                        <input class="native-input" type="text" formControlName="telephone" placeholder="Telephone...">
+                    </div>
 
-                    <mat-form-field appearance="outline">
-                        <mat-label>Pièce d'identité</mat-label>
-                        <input matInput formControlName="cin" placeholder="Numéro pièce...">
-                    </mat-form-field>
+                    <!-- Piece identite -->
+                    <div class="native-field-wrapper">
+                        <label class="native-field-label">Piece identite</label>
+                        <input class="native-input" type="text" formControlName="cin" placeholder="Numero piece...">
+                    </div>
 
-                    <mat-form-field appearance="outline">
-                        <mat-label>Groupe famille</mat-label>
-                        <input matInput formControlName="groupeFamille" placeholder="Groupe...">
-                    </mat-form-field>
+                    <!-- Groupe famille -->
+                    <div class="native-field-wrapper">
+                        <label class="native-field-label">Groupe famille</label>
+                        <input class="native-input" type="text" formControlName="groupeFamille" placeholder="Groupe...">
+                    </div>
 
                     <div class="search-button-wrapper">
                         <button mat-raised-button type="submit" class="w-full search-btn">
@@ -128,9 +136,9 @@
             </div>
             <div class="table-container" [class.hidden]="loading()">
                 <table mat-table [dataSource]="dataSource" class="w-full">
-                    <!-- Date Création Column -->
+                    <!-- Date Creation Column -->
                     <ng-container matColumnDef="dateCreation">
-                        <th mat-header-cell *matHeaderCellDef>Date Création</th>
+                        <th mat-header-cell *matHeaderCellDef>Date Creation</th>
                         <td mat-cell *matCellDef="let client">{{ client.dateCreation | date:'dd/MM/yyyy' }}</td>
                     </ng-container>
 
@@ -146,21 +154,21 @@
                         <td mat-cell *matCellDef="let client">{{ getClientName(client) }}</td>
                     </ng-container>
 
-                    <!-- Prénom Column -->
+                    <!-- Prenom Column -->
                     <ng-container matColumnDef="prenom">
-                        <th mat-header-cell *matHeaderCellDef>Prénom</th>
+                        <th mat-header-cell *matHeaderCellDef>Prenom</th>
                         <td mat-cell *matCellDef="let client">{{ getClientPrenom(client) }}</td>
                     </ng-container>
 
-                    <!-- Téléphone Column -->
+                    <!-- Telephone Column -->
                     <ng-container matColumnDef="telephone">
-                        <th mat-header-cell *matHeaderCellDef>Téléphone</th>
+                        <th mat-header-cell *matHeaderCellDef>Telephone</th>
                         <td mat-cell *matCellDef="let client">{{ client.telephone }}</td>
                     </ng-container>
 
                     <!-- Identity Column -->
                     <ng-container matColumnDef="cin">
-                        <th mat-header-cell *matHeaderCellDef>Pièce d'identité</th>
+                        <th mat-header-cell *matHeaderCellDef>Piece identite</th>
                         <td mat-cell *matCellDef="let client">{{ getPieceIdentite(client) }}</td>
                     </ng-container>
 
@@ -174,7 +182,7 @@
                     <ng-container matColumnDef="statut">
                         <th mat-header-cell *matHeaderCellDef>Statut</th>
                             <td mat-cell *matCellDef="let client">
-                            <span class="status-badge" 
+                            <span class="status-badge"
                                 [class.status-actif]="client.statut?.toUpperCase() === 'ACTIF'"
                                 [class.status-inactif]="client.statut?.toUpperCase() === 'INACTIF'">
                                 {{ client.statut }}
@@ -215,7 +223,7 @@
                                 </button>
                                 <button type="button" mat-menu-item (click)="sendMessage(client, 'GENERAL')">
                                     <mat-icon>chat</mat-icon>
-                                    <span>Message général</span>
+                                    <span>Message general</span>
                                 </button>
                             </mat-menu>
                         </td>

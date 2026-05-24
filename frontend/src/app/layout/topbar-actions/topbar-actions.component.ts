@@ -18,6 +18,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { ConfirmationPopupComponent } from '../../shared/components/confirmation-popup/confirmation-popup.component';
 
 import { toSignal } from '@angular/core/rxjs-interop';
+import { defer } from 'rxjs';
 import { CentersService } from '../../features/centers/services/centers.service';
 import { computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -51,7 +52,7 @@ export class TopbarActionsComponent {
   });
 
   // Fetch all centers to ensure list is complete (bypass auth limitations)
-  apiCentres = toSignal(this.centersService.findAll(), { initialValue: [] });
+  apiCentres = toSignal(defer(() => this.centersService.findAll()), { initialValue: [] });
 
   centres = computed(() => {
     // Map API centers to ICenter structure

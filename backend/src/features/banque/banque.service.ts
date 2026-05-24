@@ -86,8 +86,11 @@ export class BanqueService {
       return 'FRAIS_BANCAIRES';
     }
     if (desc.includes('cheque') || desc.includes('chq')) return 'CHEQUE';
-    if (desc.includes('virement') || desc.includes('vir')) return 'VIREMENT';
-    if (desc.includes('carte') || desc.includes('tpe')) return 'CARTE';
+    if (desc.includes('virement') || desc.includes('vir.') || desc.includes('vir ')) return 'VIREMENT';
+    if (desc.includes('carte') || desc.includes('tpe') || desc.includes('/cb ') || desc.includes(' cb ') || desc.includes('paiment/cb')) return 'CARTE';
+    if (desc.includes('lcn') || desc.includes('effet')) return 'LCN';
+    if (desc.includes('prelevement') || desc.includes('prlv')) return 'PRELEVEMENT';
+    if (desc.includes('versement') || desc.includes('espece')) return 'ESPECES';
     return 'AUTRE';
   }
 
