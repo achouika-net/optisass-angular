@@ -135,40 +135,42 @@
                                 class="bank-row border p-3 rounded mb-3">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <h6 class="mb-0">Compte #{{i + 1}}</h6>
-                                    <button type="button" mat-icon-button color="warn" (click)="removeBankAccount(i)"
-                                        *ngIf="bankAccounts.length > 1">
+                                    <button type="button" mat-icon-button color="warn" (click)="removeBankAccount(i)">
                                         <mat-icon>delete</mat-icon>
                                     </button>
                                 </div>
                                 <div class="row">
-                                    <div class="col-md-4">
+                                    <div class="col-md-3">
+                                        <mat-form-field appearance="outline" class="w-100">
+                                            <mat-label>Nom du compte (ex: BMCE Principale)</mat-label>
+                                            <input aria-label="Input" title="Input" matInput formControlName="nom">
+                                        </mat-form-field>
+                                    </div>
+                                    <div class="col-md-3">
                                         <mat-form-field appearance="outline" class="w-100">
                                             <mat-label>Nom de la banque</mat-label>
-                                            <input aria-label="Input" title="Input" matInput formControlName="bankName">
+                                            <input aria-label="Input" title="Input" matInput formControlName="banque">
                                         </mat-form-field>
                                     </div>
-                                    <div class="col-md-8">
+                                    <div class="col-md-4">
                                         <mat-form-field appearance="outline" class="w-100">
                                             <mat-label>RIB (24 chiffres)</mat-label>
-                                            <input aria-label="Input" title="Input" matInput formControlName="rib">
+                                            <input aria-label="Input" title="Input" matInput formControlName="numeroCompte">
                                         </mat-form-field>
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-2">
                                         <mat-form-field appearance="outline" class="w-100">
-                                            <mat-label>IBAN</mat-label>
-                                            <input aria-label="Input" title="Input" matInput formControlName="iban">
-                                        </mat-form-field>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <mat-form-field appearance="outline" class="w-100">
-                                            <mat-label>SWIFT / BIC</mat-label>
-                                            <input aria-label="Input" title="Input" matInput formControlName="swift">
+                                            <mat-label>Type de compte</mat-label>
+                                            <select matNativeControl formControlName="type">
+                                                <option value="STE">Société</option>
+                                                <option value="PERSO">Personnel</option>
+                                            </select>
                                         </mat-form-field>
                                     </div>
                                 </div>
                             </div>
                             <button type="button" mat-button color="primary" (click)="addBankAccount()">
-                                <mat-icon>add</mat-icon> ADD un compte bancaire
+                                <mat-icon>add</mat-icon> Ajouter un compte bancaire
                             </button>
                         </div>
                     </mat-tab>

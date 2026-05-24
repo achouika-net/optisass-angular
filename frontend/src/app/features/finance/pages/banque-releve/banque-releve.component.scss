@@ -1,4 +1,4 @@
-﻿.banque-page {
+.banque-page {
   padding: 16px;
   max-width: 100%;
   margin: 0;
@@ -109,6 +109,26 @@
         font-size: 11px;
         font-family: monospace;
         margin-top: 2px;
+      }
+      
+      .type-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 10px;
+        font-weight: 600;
+        margin-left: 8px;
+        vertical-align: middle;
+
+        &.ste-badge {
+          background: #e8f5e9;
+          color: #2e7d32;
+        }
+
+        &.perso-badge {
+          background: #e3f2fd;
+          color: #1565c0;
+        }
       }
     }
 

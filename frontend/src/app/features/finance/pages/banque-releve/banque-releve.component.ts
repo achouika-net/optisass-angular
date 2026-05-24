@@ -1,4 +1,4 @@
-﻿import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -10,7 +10,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatTabsModule } from '@angular/material/tabs'; '@angular/material/tooltip';
+import { MatTabsModule } from '@angular/material/tabs';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../../environments/environment';
 
@@ -80,7 +80,7 @@ export class BanqueReleveComponent implements OnInit {
   transactionCols = ['date', 'description', 'type', 'montant', 'statut'];
   paiementCols = ['date', 'mode', 'montant', 'statut'];
 
-  newCompte = { nom: '', banque: '', numeroCompte: '' };
+  newCompte = { nom: '', banque: '', numeroCompte: '', type: 'STE' };
   showNewCompteForm = false;
 
   constructor(private http: HttpClient, private snack: MatSnackBar) {}
@@ -98,7 +98,6 @@ export class BanqueReleveComponent implements OnInit {
     });
   }
 
-  
   loadAllTransactions() {
     this.http.get<any[]>(`${this.api}/transactions`).subscribe({
       next: (res) => {
@@ -127,7 +126,6 @@ export class BanqueReleveComponent implements OnInit {
     });
   }
 
-
   deleteReleve(id: string) {
     if(confirm('Êtes-vous sûr de vouloir supprimer ce relevé et toutes ses transactions associées ? Le solde sera recalculé.')) {
       this.http.delete(`${this.api}/releves/${id}`).subscribe({
@@ -145,32 +143,39 @@ export class BanqueReleveComponent implements OnInit {
   createCompte() {
     this.http.post(`${this.api}/comptes`, this.newCompte).subscribe({
       next: () => {
-        this.snack.open('Compte créé avec succès !', '✓', { duration: 3000 });
+        this.snack.open('Compte créé avec succès !', 'V', { duration: 3000 });
         this.showNewCompteForm = false;
-        this.newCompte = { nom: '', banque: '', numeroCompte: '' };
+        this.newCompte = { nom: '', banque: '', numeroCompte: '', type: 'STE' };
         this.loadComptes();
       },
       error: () => this.snack.open('Erreur création compte', 'X', { duration: 3000 })
     });
   }
 
-  onFileSelected(event: any, compteId: string) {
+  onFileSelected(event: any, compteId?: string) {
     const file: File = event.target.files[0];
     if (!file) return;
     this.loading.set(true);
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('compteId', compteId);
-    this.http.post(`${this.api}/releves/import`, formData).subscribe({
-      next: () => {
-        this.snack.open('Relevé importé et analysé avec succès !', '✓', { duration: 4000 });
+    if (compteId) {
+      formData.append('compteId', compteId);
+    }
+    this.http.post<any>(`${this.api}/releves/import`, formData).subscribe({
+      next: (res) => {
+        if (res.autoCreated) {
+          this.snack.open('Nouveau compte bancaire créé automatiquement et relevé importé !', 'V', { duration: 5000 });
+        } else {
+          this.snack.open('Relevé importé et rapproché avec succès !', 'V', { duration: 4000 });
+        }
         this.loadComptes();
         this.loadRapprochement();
-    this.loadAllTransactions();
+        this.loadAllTransactions();
         this.loading.set(false);
       },
-      error: () => {
-        this.snack.open('Erreur lors de l\'import du relevé', 'X', { duration: 3000 });
+      error: (err) => {
+        const errorMsg = err?.error?.message || 'Erreur lors de l\'import du relevé';
+        this.snack.open(errorMsg, 'X', { duration: 4000 });
         this.loading.set(false);
       }
     });
@@ -183,13 +188,12 @@ export class BanqueReleveComponent implements OnInit {
       matchedId: paiementId
     }).subscribe({
       next: () => {
-        this.snack.open('Rapprochement validé — Paiement encaissé !', '✓', { duration: 3000 });
+        this.snack.open('Rapprochement validé - Paiement encaissé !', 'V', { duration: 3000 });
         this.loadRapprochement();
-    this.loadAllTransactions();
+        this.loadAllTransactions();
       }
     });
   }
-
 
   exportExcel() {
     const txs = this.filteredTransactions();
@@ -203,8 +207,7 @@ export class BanqueReleveComponent implements OnInit {
       const montant = t.montant;
       const signe = t.type === 'CREDIT' ? '+' : '-';
       const statut = t.statutRapprochement || '';
-      csv += `${date};${desc};${type};${signe}${montant};${statut}
-`;
+      csv += `${date};${desc};${type};${signe}${montant};${statut}\n`;
     });
     
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -231,4 +234,3 @@ export class BanqueReleveComponent implements OnInit {
     return map[statut] || '';
   }
 }
-

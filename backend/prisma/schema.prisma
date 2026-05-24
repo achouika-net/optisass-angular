@@ -824,6 +824,8 @@ model CompanySettings {
   website           String?
   cnss              String?
   inpeCode          String?
+  headerText        String?
+  footerText        String?
 }
 
 model GlassBrand {
@@ -918,6 +920,7 @@ model CompteBancaire {
   nom           String // ex: BMCE Principale
   banque        String
   numeroCompte  String?
+  type          String   @default("STE") // STE, PERSO
   soldeInitial  Float            @default(0)
   soldeActuel   Float            @default(0)
   dateMiseAJour DateTime         @default(now())

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { BanqueService } from './banque.service';
 import { ReleveParserService } from './releve-parser.service';
@@ -26,25 +26,32 @@ export class BanqueController {
     return this.banqueService.getCompteById(id);
   }
 
+  @Patch('comptes/:id')
+  updateCompte(@Param('id') id: string, @Body() data: any) {
+    return this.banqueService.updateCompte(id, data);
+  }
+
+  @Delete('comptes/:id')
+  deleteCompte(@Param('id') id: string) {
+    return this.banqueService.deleteCompte(id);
+  }
+
   @Post('releves/import')
   @UseInterceptors(FileInterceptor('file'))
-  async importReleve(@UploadedFile() file: Express.Multer.File, @Body('compteId') compteId: string) {
+  async importReleve(@UploadedFile() file: Express.Multer.File, @Body('compteId') compteId?: string) {
     const ext = extname(file.originalname).toLowerCase();
-    let transactions: any[] = [];
+    let parsedResult: any;
     
     if (ext === '.csv' || ext === '.xlsx' || ext === '.xls') {
-      transactions = await this.releveParser.parseExcel(file.buffer);
+      parsedResult = await this.releveParser.parseExcel(file.buffer);
     } else if (ext === '.pdf') {
-      transactions = await this.releveParser.parsePdf(file.buffer);
+      parsedResult = await this.releveParser.parsePdf(file.buffer);
     } else {
       throw new Error('Format non supporté');
     }
     
-    return this.banqueService.importReleve(compteId, transactions);
+    return this.banqueService.importReleve(parsedResult, compteId);
   }
-
-
-
 
   @Post('releves/debug-pdf')
   @UseInterceptors(FileInterceptor('file'))
@@ -55,7 +62,7 @@ export class BanqueController {
     return {
       numPages: data.numpages,
       totalLines: lines.length,
-      rawLines: lines.map((l, i) => ({ lineNum: i + 1, text: l.trim() })).filter(l => l.text.length > 0),
+      rawLines: lines.map((l: string, i: number) => ({ lineNum: i + 1, text: l.trim() })).filter((l: any) => l.text.length > 0),
       parsedTransactions: await this.releveParser.parsePdf(file.buffer)
     };
   }

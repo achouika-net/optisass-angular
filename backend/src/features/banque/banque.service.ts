@@ -1,4 +1,4 @@
-﻿import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -6,7 +6,47 @@ export class BanqueService {
   constructor(private prisma: PrismaService) {}
 
   async createCompte(data: any) {
-    return this.prisma.compteBancaire.create({ data });
+    // Ensure numeric fields are correctly formatted
+    const formattedData = {
+      nom: data.nom,
+      banque: data.banque,
+      numeroCompte: data.numeroCompte || null,
+      type: data.type || 'STE',
+      soldeInitial: typeof data.soldeInitial === 'number' ? data.soldeInitial : 0,
+      soldeActuel: typeof data.soldeActuel === 'number' ? data.soldeActuel : 0,
+      centreId: data.centreId || null
+    };
+    return this.prisma.compteBancaire.create({ data: formattedData });
+  }
+
+  async updateCompte(id: string, data: any) {
+    const formattedData = {
+      nom: data.nom,
+      banque: data.banque,
+      numeroCompte: data.numeroCompte || null,
+      type: data.type || 'STE',
+      soldeInitial: typeof data.soldeInitial === 'number' ? data.soldeInitial : undefined,
+      soldeActuel: typeof data.soldeActuel === 'number' ? data.soldeActuel : undefined,
+      centreId: data.centreId || undefined
+    };
+    return this.prisma.compteBancaire.update({
+      where: { id },
+      data: formattedData
+    });
+  }
+
+  async deleteCompte(id: string) {
+    // Manually delete all associated statements (releves) in cascade first
+    const releves = await this.prisma.releveBancaire.findMany({
+      where: { compteBancaireId: id }
+    });
+    for (const rel of releves) {
+      await this.deleteReleve(rel.id);
+    }
+    // Now delete the bank account safely
+    return this.prisma.compteBancaire.delete({
+      where: { id }
+    });
   }
 
   async getComptes() {
@@ -28,23 +68,70 @@ export class BanqueService {
     });
   }
 
-  async importReleve(compteBancaireId: string, parsedData: any[]) {
-    // Calcul date debut et fin Ã  partir des transactions
+  async importReleve(parsedResult: any, compteBancaireId?: string) {
+    const { transactions: parsedData, detectedAccountInfo } = parsedResult;
     if (!parsedData || parsedData.length === 0) return null;
+
+    let finalCompteId = compteBancaireId;
+    let autoCreated = false;
+
+    // Si on n'a pas forcé de compteId, on essaie de détecter ou créer
+    if (!finalCompteId && detectedAccountInfo && detectedAccountInfo.rib) {
+      const rib = detectedAccountInfo.rib;
+      let existingCompte = await this.prisma.compteBancaire.findFirst({
+        where: { numeroCompte: { contains: rib } }
+      });
+
+      if (!existingCompte) {
+        // Auto-création
+        existingCompte = await this.prisma.compteBancaire.create({
+          data: {
+            nom: detectedAccountInfo.bankName || 'Nouveau compte détecté',
+            banque: detectedAccountInfo.bankName || 'Banque inconnue',
+            numeroCompte: rib,
+            type: 'STE',
+            soldeInitial: 0,
+            soldeActuel: 0
+          }
+        });
+        autoCreated = true;
+
+        // Synchroniser avec CompanySettings si vide
+        const settings = await this.prisma.companySettings.findFirst();
+        if (settings && !settings.rib) {
+          await this.prisma.companySettings.update({
+            where: { id: settings.id },
+            data: { rib: rib, bank: detectedAccountInfo.bankName || 'Banque inconnue' }
+          });
+        }
+      }
+      finalCompteId = existingCompte.id;
+    }
+
+    if (!finalCompteId) {
+      const allComptes = await this.prisma.compteBancaire.findMany();
+      if (allComptes.length === 1) {
+        finalCompteId = allComptes[0].id;
+      } else if (allComptes.length > 1) {
+        throw new BadRequestException("Impossible d'associer ce releve automatiquement (plusieurs comptes existants et aucun RIB detecte). Veuillez selectionner le compte manuellement.");
+      } else {
+        throw new BadRequestException("Impossible d'associer ce releve a un compte (aucun compte existant et aucun RIB detecte pour la creation automatique).");
+      }
+    }
     
     // Sort by date
-    parsedData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    parsedData.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     const dateDebut = new Date(parsedData[0].date);
     const dateFin = new Date(parsedData[parsedData.length - 1].date);
     
     const releve = await this.prisma.releveBancaire.create({
       data: {
-        compteBancaireId,
+        compteBancaireId: finalCompteId,
         dateDebut,
         dateFin,
-        soldeDebut: 0, // A calculer ou extraire si possible
-        soldeFin: 0, // A calculer ou extraire
+        soldeDebut: 0,
+        soldeFin: 0,
         statut: 'VALIDE'
       }
     });
@@ -70,14 +157,14 @@ export class BanqueService {
       soldeVariation += item.type === 'CREDIT' ? Math.abs(item.montant) : -Math.abs(item.montant);
     }
     await this.prisma.compteBancaire.update({
-      where: { id: compteBancaireId },
+      where: { id: finalCompteId },
       data: { soldeActuel: { increment: soldeVariation } }
     });
 
     // Auto-Rapprochement
     await this.autoRapprochement(releve.id);
     
-    return releve;
+    return { releve, autoCreated, finalCompteId, nbTransactions: parsedData.length };
   }
   
   guessTransactionType(description: string, type: string) {
@@ -101,7 +188,6 @@ export class BanqueService {
     
     for (const t of transactions) {
       if (t.typeTransaction === 'FRAIS_BANCAIRES' && t.type === 'DEBIT') {
-        // Auto-create a Depense for bank fees
         const releve = await this.prisma.releveBancaire.findUnique({ where: { id: t.releveBancaireId }, include: { compteBancaire: true } });
         if (!releve) continue;
         await this.prisma.depense.create({
@@ -121,10 +207,9 @@ export class BanqueService {
           data: { statutRapprochement: 'RAPPROCHE' }
         });
       } else if (t.type === 'CREDIT') {
-        // Match payment
         const payments = await this.prisma.paiement.findMany({
           where: {
-            statut: 'REMISE_EN_BANQUE',
+            statut: 'REMIS_EN_BANQUE',
             montant: t.montant,
             transactionBancaireId: null
           }
@@ -143,8 +228,6 @@ export class BanqueService {
     }
   }
 
-  
-
   async deleteReleve(id: string) {
     const transactions = await this.prisma.transactionBancaire.findMany({ where: { releveBancaireId: id } });
     let soldeVariation = 0;
@@ -157,19 +240,16 @@ export class BanqueService {
         where: { id: releve.compteBancaireId },
         data: { soldeActuel: { decrement: soldeVariation } }
       });
-      // Handle un-linking payments if any were rapproche
-      // For simplicity, prisma Cascade handles deletion of transaction, but we must reset Paiement to REMISE_EN_BANQUE
       const matchedPaiements = await this.prisma.paiement.findMany({
         where: { transactionBancaire: { releveBancaireId: id } }
       });
       for (const p of matchedPaiements) {
         await this.prisma.paiement.update({
           where: { id: p.id },
-          data: { statut: 'REMISE_EN_BANQUE', transactionBancaireId: null }
+          data: { statut: 'REMIS_EN_BANQUE', transactionBancaireId: null }
         });
       }
       
-      // Delete Depenses created automatically
       await this.prisma.depense.deleteMany({
         where: { transactionBancaire: { releveBancaireId: id } }
       });
@@ -193,7 +273,7 @@ export class BanqueService {
       include: { releveBancaire: { include: { compteBancaire: true } } }
     });
     const paiements = await this.prisma.paiement.findMany({
-      where: { statut: 'REMISE_EN_BANQUE' }
+      where: { statut: 'REMIS_EN_BANQUE' }
     });
     const depenses = await this.prisma.depense.findMany({
       where: { statut: { not: 'PAYE' } }
@@ -221,4 +301,3 @@ export class BanqueService {
     return { success: true };
   }
 }
-
