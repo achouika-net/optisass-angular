@@ -57,14 +57,14 @@
 .search-button-wrapper {
     display: flex;
     align-items: flex-end;
-    height: 56px;
-    margin-bottom: 22px;
+    height: 42px;
+    /* margin-bottom: 22px; */
     /* Align with mat-form-field input box */
 }
 
 .search-button-wrapper button {
-    height: 56px !important;
-    min-height: 56px !important;
+    height: 42px !important;
+    min-height: 42px !important;
 }
 
 /* Table */
@@ -170,3 +170,4 @@ tr.mat-row:hover {
     padding-right: 32px;
     cursor: pointer;
 }
+
