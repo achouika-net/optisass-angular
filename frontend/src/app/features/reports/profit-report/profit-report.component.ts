@@ -14,7 +14,7 @@ import { MatOptionModule } from '@angular/material/core';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Chart, registerables } from 'chart.js';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subscription } from 'rxjs';
 import { StatsService } from '../services/stats.service';
 import { Store } from '@ngrx/store';
 import { TenantSelector } from '../../../core/store/auth/auth.selectors';
@@ -47,6 +47,7 @@ Chart.register(...registerables);
     styleUrls: ['./profit-report.component.scss']
 })
 export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
+    private querySubscription?: Subscription;
     @ViewChild('profitChartCanvas') profitChartCanvas!: ElementRef<HTMLCanvasElement>;
     @ViewChild('evolutionChartCanvas') evolutionChartCanvas!: ElementRef<HTMLCanvasElement>;
 
@@ -98,6 +99,7 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
     ngAfterViewInit(): void { }
 
     ngOnDestroy(): void {
+        if (this.querySubscription) this.querySubscription.unsubscribe();
         if (this.profitChart) this.profitChart.destroy();
         if (this.evolutionChart) this.evolutionChart.destroy();
     }
@@ -135,6 +137,8 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
                     start = new Date(this.customStartDate); start.setHours(0, 0, 0, 0);
                     end = new Date(this.customEndDate); end.setHours(23, 59, 59, 999);
                     this.activeFilterInfo = 'Période personnalisée';
+                } else {
+                    return { start: 'SKIP', end: 'SKIP' };
                 }
                 break;
             case 'ALL':
@@ -151,6 +155,16 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
 
     loadData(): void {
         const dates = this.getDateRange();
+        if (dates.start === 'SKIP') {
+            this.loading = false;
+            this.cdref.markForCheck();
+            return;
+        }
+
+        if (this.querySubscription) {
+            this.querySubscription.unsubscribe();
+        }
+
         this.loading = true;
         this.cdref.markForCheck();
 
@@ -165,7 +179,7 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
 
         console.log(`[ProfitReport] LOADING DATA: type=${this.filterType}, period=${period}`, { start, end });
 
-        forkJoin({
+        this.querySubscription = forkJoin({
             summary: this.statsService.getRealProfit(start, end, this.centreId),
             evolution: this.statsService.getProfitEvolution(period, start, end, this.centreId)
         }).subscribe({
@@ -321,6 +335,13 @@ export class ProfitReportComponent implements OnInit, AfterViewInit, OnDestroy {
 
     setFilterType(type: 'DAILY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM' | 'ALL'): void {
         this.filterType = type;
+        if (type === 'CUSTOM' && (!this.customStartDate || !this.customEndDate)) {
+            this.data = null;
+            this.activeFilterInfo = 'Veuillez sélectionner une période';
+            if (this.profitChart) this.profitChart.destroy();
+            if (this.evolutionChart) this.evolutionChart.destroy();
+            return;
+        }
         this.loadData();
     }
 
