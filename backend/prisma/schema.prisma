@@ -826,6 +826,7 @@ model CompanySettings {
   inpeCode          String?
   headerText        String?
   footerText        String?
+  capitalSocial     Float?
 }
 
 model GlassBrand {

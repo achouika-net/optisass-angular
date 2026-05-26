@@ -23,4 +23,5 @@ export interface CompanySettings {
     headerText?: string;
     footerText?: string;
     updatedAt?: string;
+    capitalSocial?: number;
 }

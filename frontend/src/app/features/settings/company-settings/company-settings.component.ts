@@ -59,6 +59,7 @@ export class CompanySettingsComponent implements OnInit {
             inpeCode: [''],
             headerText: [''],
             footerText: [''],
+            capitalSocial: [0],
             bankAccounts: this.fb.array([])
         });
     }

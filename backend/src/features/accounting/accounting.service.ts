@@ -172,100 +172,153 @@ export class AccountingService {
       centreId && centreId !== 'ALL' && centreId !== '' ? centreId : undefined;
 
     try {
-      const [invoices, payments, expenses, stock] = await Promise.all([
+      const [
+        invoices,
+        payments,
+        paymentsOnBC,
+        expenses,
+        stock,
+        bankTransactions,
+        companySettings,
+      ] = await Promise.all([
+        // 1. Real FACTURES only (not BC/DEVIS) - real revenue & receivables
         this.prisma.facture.findMany({
           where: {
             dateEmission: { lte: end },
             centreId: cid,
+            type: 'FACTURE',
             statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
           },
           select: {
+            dateEmission: true,
             totalHT: true,
             totalTVA: true,
             totalTTC: true,
             resteAPayer: true,
           },
         }),
+        // 2. Payments on real FACTURES
         this.prisma.paiement.findMany({
           where: {
             date: { lte: end },
             statut: 'ENCAISSE',
-            facture: cid ? { centreId: cid } : undefined,
+            facture: cid
+              ? { centreId: cid, type: 'FACTURE' }
+              : { type: 'FACTURE' },
           },
           select: { montant: true },
         }),
+        // 3. Payments on BON_COMMANDE = Avances clients (deposits not yet invoiced)
+        this.prisma.paiement.findMany({
+          where: {
+            date: { lte: end },
+            statut: 'ENCAISSE',
+            facture: cid
+              ? { centreId: cid, type: 'BON_COMMANDE' }
+              : { type: 'BON_COMMANDE' },
+          },
+          select: { montant: true },
+        }),
+        // 4. Expenses
         this.prisma.depense.findMany({
           where: {
             date: { lte: end },
-            statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
+            statut: { in: ['VALIDEE', 'VALID\u00C9E', 'PAYEE', 'PAYE', 'PAY\u00C9E'] },
             centreId: cid,
           },
-          select: { montant: true },
+          select: { date: true, montant: true, statut: true },
         }),
+        // 5. Stock
         this.prisma.product.findMany({
           where: {
             entrepot: cid ? { centreId: cid } : undefined,
           },
           select: { quantiteActuelle: true, prixAchatHT: true },
         }),
+        // 6. Bank fees (agios, frais, prélèvements)
+        this.prisma.transactionBancaire.findMany({
+          where: {
+            dateTransaction: { lte: end },
+            type: 'DEBIT',
+            typeTransaction: { in: ['AGIOS', 'FRAIS', 'PRELEVEMENT'] },
+          },
+          select: { dateTransaction: true, montant: true },
+        }),
+        // 7. Company settings (capital social)
+        this.prisma.companySettings.findFirst(),
       ]);
 
-      const totalCA = invoices.reduce(
-        (sum, inv) => sum + (inv.totalTTC || 0),
-        0,
-      );
-      const totalCreances = invoices.reduce(
-        (sum, inv) => sum + (inv.resteAPayer || 0),
-        0,
-      );
-      const totalEncaissements = payments.reduce(
-        (sum, p) => sum + (p.montant || 0),
-        0,
-      );
-      const totalDepenses = expenses.reduce(
-        (sum, exp) => sum + (exp.montant || 0),
-        0,
-      );
-      const stockValue = stock.reduce(
-        (sum, p) => sum + p.quantiteActuelle * p.prixAchatHT,
-        0,
-      );
+      // --- Cumulative totals (Actif - balance sheet snapshot at end date) ---
+      const totalCreances = invoices.reduce((sum, inv) => sum + (inv.resteAPayer || 0), 0);
+      const totalEncaissements = payments.reduce((sum, p) => sum + (p.montant || 0), 0);
+      // Avances clients = cash received on BCs not yet converted to invoices
+      const avancesClients = paymentsOnBC.reduce((sum, p) => sum + (p.montant || 0), 0);
 
-      const tvaCollectee = invoices.reduce(
-        (sum, inv) => sum + (inv.totalTVA || 0),
-        0,
-      );
+      const totalDepenses_TTC = expenses.reduce((sum, exp) => sum + (exp.montant || 0), 0);
+      const unpaidExpenses_TTC = expenses
+        .filter(exp => exp.statut.toUpperCase().startsWith('VALID'))
+        .reduce((sum, exp) => sum + (exp.montant || 0), 0);
+      const totalBankFees = bankTransactions.reduce((sum, t) => sum + (t.montant || 0), 0);
+      const stockValue = stock.reduce((sum, p) => sum + p.quantiteActuelle * p.prixAchatHT, 0);
+
+      // Cash in = payments on real invoices + advance deposits on BCs
+      const totalCashIn = totalEncaissements + avancesClients;
+      const totalCashOut = (totalDepenses_TTC - unpaidExpenses_TTC) + totalBankFees;
+      const tresorerie = totalCashIn - totalCashOut;
+      const totalActif = stockValue + totalCreances + tresorerie;
+
+      // --- TVA Logic (only on real FACTURES) ---
+      const tvaCollectee = invoices.reduce((sum, inv) => sum + (inv.totalTVA || 0), 0);
       const tvaDeductible = expenses.reduce((sum, exp) => {
         const m = exp.montant || 0;
         const ht = m / 1.2;
-        const tva = m - ht;
-        return sum + tva;
+        return sum + (m - ht);
       }, 0);
+      const tvaAPayer = Math.max(0, tvaCollectee - tvaDeductible);
+
+      // --- Resultat of the PERIOD only (only real FACTURES in the date range) ---
+      const periodInvoices = invoices.filter(inv => new Date(inv.dateEmission) >= start);
+      const periodExpenses = expenses.filter(exp => new Date(exp.date) >= start);
+      const periodBankFees = bankTransactions.filter(t => new Date(t.dateTransaction) >= start);
+
+      const periodCA_HT = periodInvoices.reduce((sum, inv) => sum + (inv.totalHT || 0), 0);
+      const periodDepenses_HT = periodExpenses.reduce((sum, exp) => sum + ((exp.montant || 0) / 1.2), 0);
+      const periodBankFeesTotal = periodBankFees.reduce((sum, t) => sum + (t.montant || 0), 0);
+
+      const resultat_period = periodCA_HT - periodDepenses_HT - periodBankFeesTotal;
+
+      // --- Passif Balancing ---
+      // Total Actif = Capital + Reserves + Resultat + AvancesClients + Dettes + TVA
+      const capitalSocial = companySettings?.capitalSocial ?? 0;
+      // Reserves = balancing figure (retained earnings from all periods before start date)
+      const reserves = totalActif - (capitalSocial + resultat_period + avancesClients + unpaidExpenses_TTC + tvaAPayer);
+      const totalPassif = capitalSocial + reserves + resultat_period + avancesClients + unpaidExpenses_TTC + tvaAPayer;
 
       return {
         actif: {
           immobilisations: 0,
           stock: stockValue,
           creances: totalCreances,
-          tresorerie: totalEncaissements - totalDepenses,
-          total:
-            stockValue + totalCreances + (totalEncaissements - totalDepenses),
+          tresorerie: tresorerie,
+          total: totalActif,
         },
         passif: {
-          capitaux: 0,
-          dettes: 0,
-          resultat: totalCA - totalDepenses,
-          total: totalCA - totalDepenses,
+          capitaux: capitalSocial,
+          reserves: reserves,
+          avancesClients: avancesClients,
+          dettes: unpaidExpenses_TTC,
+          resultat: resultat_period,
+          total: totalPassif,
         },
         exploitation: {
-          chiffreAffaires: totalCA,
-          achats: totalDepenses,
-          resultat: totalCA - totalDepenses,
+          chiffreAffaires: periodCA_HT,
+          achats: periodDepenses_HT,
+          resultat: resultat_period,
         },
         tva: {
           collectee: tvaCollectee,
           deductible: tvaDeductible,
-          aPayer: tvaCollectee - tvaDeductible,
+          aPayer: tvaAPayer,
         },
       };
     } catch (e) {
@@ -433,10 +486,22 @@ export class AccountingService {
           value: balance.passif.capitaux,
           indent: true,
         },
-        { label: '  Réserves', value: 0, indent: true },
+        { label: '  R\u00E9serves', value: balance.passif.reserves, indent: true },
         {
-          label: "  Résultat de l'exercice",
+          label: "  R\u00E9sultat de l'exercice",
           value: balance.passif.resultat,
+          indent: true,
+        },
+        { label: '', value: null, spacer: true },
+        {
+          label: 'AVANCES CLIENTS',
+          value: null,
+          bold: true,
+          bg: '#fef9c3',
+        },
+        {
+          label: '  Acomptes sur commandes (BC)',
+          value: balance.passif.avancesClients,
           indent: true,
         },
         { label: '', value: null, spacer: true },
@@ -453,8 +518,8 @@ export class AccountingService {
         },
         { label: '  Autres dettes', value: 0, indent: true },
         { label: '', value: null, spacer: true },
-        { label: 'TRÉSORERIE - PASSIF', value: 0, bold: true, bg: '#f1f5f9' },
-        { label: '  Découverts bancaires', value: 0, indent: true },
+        { label: 'TR\u00C9SORERIE - PASSIF', value: 0, bold: true, bg: '#f1f5f9' },
+        { label: '  D\u00E9couverts bancaires', value: 0, indent: true },
       ];
 
       passifItems.forEach((item) => {
@@ -517,6 +582,7 @@ export class AccountingService {
 
       // Total Passif Box
       doc.rect(startX_Passif, totalY, colWidth, 30).fill('#1e3a8a');
+      doc.fillColor('#fff'); // FIX: Text in white
       doc.text('TOTAL PASSIF', startX_Passif + 10, totalY + 8);
       doc.text(
         `${formatMoney(balance.passif.total)} DH`,
