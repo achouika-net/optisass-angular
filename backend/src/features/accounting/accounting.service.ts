@@ -1262,4 +1262,271 @@ export class AccountingService {
       throw new Error(`PDF Error: ${e.message}`);
     }
   }
+
+  async getTvaBilan(dto: ExportSageDto) {
+    const { startDate, endDate, centreId } = dto;
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    const centreFilter: any = {};
+    if (centreId && centreId !== 'ALL' && centreId !== '') {
+      centreFilter.centreId = centreId;
+    }
+
+    const [payments, expenses, bankTransactions] = await Promise.all([
+      this.prisma.paiement.findMany({
+        where: {
+          date: { gte: start, lte: end },
+          statut: 'ENCAISSE',
+          ...(centreId && centreId !== 'ALL' && centreId !== '' ? { facture: { centreId } } : {})
+        },
+        include: { facture: true }
+      }),
+      this.prisma.depense.findMany({
+        where: {
+          date: { gte: start, lte: end },
+          statut: { in: ['VALIDEE', 'PAYEE', 'PAYE', 'ENCAISSE'] },
+          ...centreFilter
+        },
+        include: { factureFournisseur: true }
+      }),
+      this.prisma.transactionBancaire.findMany({
+        where: {
+          dateTransaction: { gte: start, lte: end },
+          typeTransaction: 'FRAIS_BANCAIRES',
+          type: 'DEBIT',
+          ...(centreId && centreId !== 'ALL' && centreId !== '' ? { releveBancaire: { compteBancaire: { centreId } } } : {})
+        }
+      })
+    ]);
+
+    const getPaymentTvaRate = (p: any): number => {
+      if (p.facture?.totalTTC && p.facture?.totalHT) {
+        const tva = p.facture.totalTTC - p.facture.totalHT;
+        if (p.facture.totalHT > 0) return Math.round((tva / p.facture.totalHT) * 100);
+      }
+      return 20;
+    };
+
+    const getExpenseTvaRate = (e: any): number => {
+      if (e.factureFournisseur?.montantHT && e.factureFournisseur?.montantTVA) {
+        return Math.round((e.factureFournisseur.montantTVA / e.factureFournisseur.montantHT) * 100);
+      }
+      return 20;
+    };
+
+    const salesByRate: Record<number, { ht: number; tva: number; ttc: number }> = {};
+    let totalSalesTTC = 0;
+    let totalSalesHT = 0;
+    let totalSalesTVA = 0;
+
+    payments.forEach(p => {
+      const rate = getPaymentTvaRate(p);
+      const ttc = p.montant || 0;
+      const ht = ttc / (1 + rate / 100);
+      const tva = ttc - ht;
+
+      if (!salesByRate[rate]) salesByRate[rate] = { ht: 0, tva: 0, ttc: 0 };
+      salesByRate[rate].ttc += ttc;
+      salesByRate[rate].ht += ht;
+      salesByRate[rate].tva += tva;
+
+      totalSalesTTC += ttc;
+      totalSalesHT += ht;
+      totalSalesTVA += tva;
+    });
+
+    const expensesByRate: Record<number, { ht: number; tva: number; ttc: number }> = {};
+    let totalExpensesTTC = 0;
+    let totalExpensesHT = 0;
+    let totalExpensesTVA = 0;
+
+    expenses.forEach(e => {
+      const rate = getExpenseTvaRate(e);
+      const ttc = e.montant || 0;
+      const ht = ttc / (1 + rate / 100);
+      const tva = ttc - ht;
+
+      if (!expensesByRate[rate]) expensesByRate[rate] = { ht: 0, tva: 0, ttc: 0 };
+      expensesByRate[rate].ttc += ttc;
+      expensesByRate[rate].ht += ht;
+      expensesByRate[rate].tva += tva;
+
+      totalExpensesTTC += ttc;
+      totalExpensesHT += ht;
+      totalExpensesTVA += tva;
+    });
+
+    let totalBankFeesTTC = 0;
+    let totalBankFeesHT = 0;
+    let totalBankFeesTVA = 0;
+
+    bankTransactions.forEach(bt => {
+      const ttc = bt.montant || 0;
+      const ht = ttc / 1.10;
+      const tva = ttc - ht;
+
+      const rate = 10;
+      if (!expensesByRate[rate]) expensesByRate[rate] = { ht: 0, tva: 0, ttc: 0 };
+      expensesByRate[rate].ttc += ttc;
+      expensesByRate[rate].ht += ht;
+      expensesByRate[rate].tva += tva;
+
+      totalBankFeesTTC += ttc;
+      totalBankFeesHT += ht;
+      totalBankFeesTVA += tva;
+    });
+
+    const totalTvaRecuperable = totalExpensesTVA + totalBankFeesTVA;
+    const soldeTva = totalSalesTVA - totalTvaRecuperable;
+
+    return {
+      period: { startDate, endDate },
+      sales: {
+        totalTTC: totalSalesTTC,
+        totalHT: totalSalesHT,
+        totalTVA: totalSalesTVA,
+        byRate: Object.entries(salesByRate).map(([rate, val]) => ({
+          rate: parseInt(rate),
+          ...val
+        }))
+      },
+      expenses: {
+        totalTTC: totalExpensesTTC + totalBankFeesTTC,
+        totalHT: totalExpensesHT + totalBankFeesHT,
+        totalTVA: totalTvaRecuperable,
+        charges: {
+          totalTTC: totalExpensesTTC,
+          totalHT: totalExpensesHT,
+          totalTVA: totalExpensesTVA
+        },
+        bankFees: {
+          totalTTC: totalBankFeesTTC,
+          totalHT: totalBankFeesHT,
+          totalTVA: totalBankFeesTVA
+        },
+        byRate: Object.entries(expensesByRate).map(([rate, val]) => ({
+          rate: parseInt(rate),
+          ...val
+        }))
+      },
+      soldeTva,
+      isCredit: soldeTva < 0
+    };
+  }
+
+  async generateTvaCsv(dto: ExportSageDto): Promise<string> {
+    const data = await this.getTvaBilan(dto);
+    let csv = '\ufeffBilan TVA Périodique (Régime des encaissements)\n';
+    csv += `Période du : ${dto.startDate} au ${dto.endDate}\n\n`;
+    
+    csv += 'SECTION;Taux;Base HT;Montant TVA;Total TTC\n';
+    
+    // Sales
+    data.sales.byRate.forEach((r: any) => {
+      csv += `TVA Collectée (Ventes);${r.rate}%;${r.ht.toFixed(2)};${r.tva.toFixed(2)};${r.ttc.toFixed(2)}\n`;
+    });
+    csv += `TOTAL TVA COLLECTÉE;;;${data.sales.totalTVA.toFixed(2)};${data.sales.totalTTC.toFixed(2)}\n\n`;
+
+    // Expenses
+    data.expenses.byRate.forEach((r: any) => {
+      csv += `TVA Déductible;${r.rate}%;${r.ht.toFixed(2)};${r.tva.toFixed(2)};${r.ttc.toFixed(2)}\n`;
+    });
+    csv += `TOTAL TVA DÉDUCTIBLE;;;${data.expenses.totalTVA.toFixed(2)};${data.expenses.totalTTC.toFixed(2)}\n\n`;
+
+    // Solde
+    csv += `SOLDE TVA (TVA due / Crédit de TVA);;;${data.soldeTva.toFixed(2)};${data.isCredit ? 'Crédit de TVA' : 'TVA due'}\n`;
+
+    return csv;
+  }
+
+  async generateTvaPdf(dto: ExportSageDto): Promise<any> {
+    const data = await this.getTvaBilan(dto);
+    const doc = new PDFDocument({ margin: 40, size: 'A4', bufferPages: true });
+
+    try {
+      doc.fillColor('#1e293b').fontSize(20).text('Bilan TVA Périodique', { align: 'center' });
+      doc.fontSize(10).fillColor('#64748b').text(`Régime des encaissements - Période du ${dto.startDate} au ${dto.endDate}`, { align: 'center' });
+      doc.moveDown(2);
+
+      // Synthesis card
+      doc.rect(40, 100, 515, 70).fillAndStroke('#f8fafc', '#cbd5e1');
+      doc.fillColor('#1e293b').fontSize(11).text('RÉSUMÉ GLOBAL', 50, 110);
+      
+      doc.fontSize(9).fillColor('#64748b').text('Total TVA Collectée (Ventes) :', 50, 130);
+      doc.fillColor('#0f766e').text(`${data.sales.totalTVA.toFixed(2)} MAD`, 220, 130);
+
+      doc.fillColor('#64748b').text('Total TVA Récupérable (Achats & Frais) :', 50, 145);
+      doc.fillColor('#b91c1c').text(`${data.expenses.totalTVA.toFixed(2)} MAD`, 220, 145);
+
+      const statusText = data.isCredit ? 'Crédit de TVA (à récupérer)' : 'TVA Net à payer (due)';
+      doc.fillColor('#1e293b').fontSize(10).text(`${statusText} :`, 300, 130);
+      doc.fontSize(12).fillColor(data.isCredit ? '#0f766e' : '#b91c1c').text(`${Math.abs(data.soldeTva).toFixed(2)} MAD`, 300, 145);
+
+      // Section Tables
+      let yPos = 190;
+      doc.fillColor('#1e293b').fontSize(12).text('DÉTAILS DES TAXES COLLECTÉES (VENTES)', 40, yPos);
+      yPos += 20;
+
+      // Table Header
+      doc.rect(40, yPos, 515, 20).fill('#e2e8f0');
+      doc.fillColor('#334155').fontSize(9).text('Taux de TVA', 50, yPos + 6);
+      doc.text('Base HT', 180, yPos + 6);
+      doc.text('Montant TVA', 300, yPos + 6);
+      doc.text('Total TTC', 430, yPos + 6);
+      yPos += 20;
+
+      data.sales.byRate.forEach((r: any) => {
+        doc.fillColor('#475569').text(`${r.rate}%`, 50, yPos + 6);
+        doc.text(`${r.ht.toFixed(2)} MAD`, 180, yPos + 6);
+        doc.text(`${r.tva.toFixed(2)} MAD`, 300, yPos + 6);
+        doc.text(`${r.ttc.toFixed(2)} MAD`, 430, yPos + 6);
+        yPos += 20;
+      });
+
+      doc.rect(40, yPos, 515, 1).fill('#cbd5e1');
+      yPos += 5;
+      doc.fillColor('#1e293b').font('Helvetica-Bold').text('Total', 50, yPos);
+      doc.text(`${data.sales.totalHT.toFixed(2)} MAD`, 180, yPos);
+      doc.text(`${data.sales.totalTVA.toFixed(2)} MAD`, 300, yPos);
+      doc.text(`${data.sales.totalTTC.toFixed(2)} MAD`, 430, yPos);
+      doc.font('Helvetica');
+
+      // Expenses table
+      yPos += 35;
+      doc.fillColor('#1e293b').fontSize(12).text('DÉTAILS DES TAXES DÉDUCTIBLES (ACHATS & FRAIS)', 40, yPos);
+      yPos += 20;
+
+      doc.rect(40, yPos, 515, 20).fill('#e2e8f0');
+      doc.fillColor('#334155').fontSize(9).text('Taux de TVA', 50, yPos + 6);
+      doc.text('Base HT', 180, yPos + 6);
+      doc.text('Montant TVA', 300, yPos + 6);
+      doc.text('Total TTC', 430, yPos + 6);
+      yPos += 20;
+
+      data.expenses.byRate.forEach((r: any) => {
+        doc.fillColor('#475569').text(`${r.rate}%`, 50, yPos + 6);
+        doc.text(`${r.ht.toFixed(2)} MAD`, 180, yPos + 6);
+        doc.text(`${r.tva.toFixed(2)} MAD`, 300, yPos + 6);
+        doc.text(`${r.ttc.toFixed(2)} MAD`, 430, yPos + 6);
+        yPos += 20;
+      });
+
+      doc.rect(40, yPos, 515, 1).fill('#cbd5e1');
+      yPos += 5;
+      doc.fillColor('#1e293b').font('Helvetica-Bold').text('Total', 50, yPos);
+      doc.text(`${(data.expenses.totalHT).toFixed(2)} MAD`, 180, yPos);
+      doc.text(`${data.expenses.totalTVA.toFixed(2)} MAD`, 300, yPos);
+      doc.text(`${data.expenses.totalTTC.toFixed(2)} MAD`, 430, yPos);
+      doc.font('Helvetica');
+
+      doc.end();
+      return doc;
+    } catch (e) {
+      throw new Error(`TVA PDF Error: ${e.message}`);
+    }
+  }
+
 }

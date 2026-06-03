@@ -54,8 +54,8 @@ export class BanqueReleveComponent implements OnInit {
 
   // Filtres pour la section Rapprochement en Attente (independants du releve)
   rappFilterMonth = signal<string>('');
-  rappFilterStatutPaiement = signal<string>('');   // '' = tous | 'EN_ATTENTE' | 'REMIS_EN_BANQUE'
-  rappFilterStatutDepense = signal<string>('');    // '' = tous | 'EN_ATTENTE' | 'REMIS_EN_BANQUE'
+  rappFilterStatutPaiement = signal<string>('REMIS_EN_BANQUE');   // '' = tous | 'EN_ATTENTE' | 'REMIS_EN_BANQUE'
+  rappFilterStatutDepense = signal<string>('REMIS_EN_BANQUE');    // '' = tous | 'EN_ATTENTE' | 'REMIS_EN_BANQUE'
   
   filteredTransactions = computed(() => {
     const month = this.selectedMonth();
@@ -76,7 +76,12 @@ export class BanqueReleveComponent implements OnInit {
     if (month) {
       items = items.filter((p: any) => {
         const d = p.dateVersement || p.date;
-        return d && d.startsWith(month);
+        if (!d) return false;
+        const dateObj = new Date(d);
+        if (isNaN(dateObj.getTime())) return false;
+        const yyyy = dateObj.getFullYear();
+        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+        return yyyy + '-' + mm === month;
       });
     }
     if (statut) {
@@ -92,7 +97,12 @@ export class BanqueReleveComponent implements OnInit {
     if (month) {
       items = items.filter((d: any) => {
         const dateVal = d.date || d.dateEcheance;
-        return dateVal && dateVal.startsWith(month);
+        if (!dateVal) return false;
+        const dateObj = new Date(dateVal);
+        if (isNaN(dateObj.getTime())) return false;
+        const yyyy = dateObj.getFullYear();
+        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+        return yyyy + '-' + mm === month;
       });
     }
     if (statut) {
@@ -163,8 +173,8 @@ export class BanqueReleveComponent implements OnInit {
 
   clearRappFilters() {
     this.rappFilterMonth.set('');
-    this.rappFilterStatutPaiement.set('');
-    this.rappFilterStatutDepense.set('');
+    this.rappFilterStatutPaiement.set('REMIS_EN_BANQUE');
+    this.rappFilterStatutDepense.set('REMIS_EN_BANQUE');
   }
 
     loadRapprochement() {

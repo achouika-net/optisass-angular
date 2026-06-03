@@ -198,7 +198,7 @@ export class ReleveParserService {
         if (!montantStr) continue;
         const montant = parseFloat(montantStr.replace(',', '.'));
         const desc = parts.slice(0, parts.length - numbers.length).join(' ');
-        const isDebit = desc.toLowerCase().includes('retrait') || desc.toLowerCase().includes('prlv') || desc.toLowerCase().includes('agios');
+        const isDebit = this.determineIsDebit(desc);
         transactions.push({ date: dateStr, description: desc, type: isDebit ? 'DEBIT' : 'CREDIT', montant, reference: '' });
       }
 
@@ -209,6 +209,38 @@ export class ReleveParserService {
 
     console.log(`[PDF-PARSER] Extracted: \${transactions.length} txs. Detected RIB: \${rib}, Bank: \${bankName}`);
     return { transactions, detectedAccountInfo: { rib, bankName } };
+  }
+
+    private determineIsDebit(libelle: string): boolean {
+    const libLower = libelle.toLowerCase();
+    
+    // Explicitly check for debit indicators (e.g., échéance de crédit / loan repayment, direct debits, bank fees)
+    if (libLower.includes('echeance') || libLower.includes('echeance credit') || libLower.includes('echeance-credit') || libLower.includes('ech.cred') || libLower.includes('retrait') || libLower.includes('prlv') || libLower.includes('agios')) {
+      return true;
+    }
+    
+    // Check for credit indicators (e.g., received transfers, cash deposits, card settlement deposits from CMI/AP)
+    if (
+      libLower.includes('recu') || 
+      libLower.includes('reu') || 
+      libLower.includes('reçu') ||
+      libLower.includes('versement') || 
+      libLower.includes('remise') || 
+      libLower.includes('cred') || 
+      libLower.includes('virement en votre faveur') || 
+      libLower.includes('virement recu') ||
+      libLower.includes('ver/ord') || 
+      libLower.includes('vir.rec') || 
+      libLower.includes('vir rec') || 
+      libLower.includes('vir/ord') ||
+      libLower.includes('cd cmi') ||
+      libLower.includes('cd ap') ||
+      libLower.includes('cmi')
+    ) {
+      return false;
+    }
+    
+    return true; // Default to DEBIT
   }
 
   private extractAtwTransaction(match: RegExpMatchArray): any | null {
@@ -230,13 +262,7 @@ export class ReleveParserService {
     const day = partsDate[0];
     const date = year + '-' + month + '-' + day;
 
-    const libLower = libelle.toLowerCase();
-    let isDebit = true;
-    if (libLower.includes('recu') || libLower.includes('reçu') || libLower.includes('versement') || libLower.includes('remise') || 
-        libLower.includes('cred') || libLower.includes('virement en votre faveur') || libLower.includes('virement recu') ||
-        libLower.includes('ver/ord') || libLower.includes('vir.rec') || libLower.includes('vir rec') || libLower.includes('vir/ord')) {
-      isDebit = false;
-    }
+    const isDebit = this.determineIsDebit(libelle);
 
     return { date, description: libelle, type: isDebit ? 'DEBIT' : 'CREDIT', montant, reference: '' };
   }
@@ -269,13 +295,7 @@ export class ReleveParserService {
     const day = partsDate[0];
     const date = year + '-' + month + '-' + day;
 
-    const libLower = libelle.toLowerCase();
-    let isDebit = true;
-    if (libLower.includes('recu') || libLower.includes('reçu') || libLower.includes('versement') || libLower.includes('remise') || 
-        libLower.includes('cred') || libLower.includes('virement en votre faveur') || libLower.includes('virement recu') ||
-        libLower.includes('ver/ord') || libLower.includes('vir.rec') || libLower.includes('vir rec') || libLower.includes('vir/ord')) {
-      isDebit = false;
-    }
+    const isDebit = this.determineIsDebit(libelle);
 
     return { date, description: libelle, type: isDebit ? 'DEBIT' : 'CREDIT', montant, reference: '' };
   }

@@ -169,15 +169,22 @@ export class BanqueService {
   
   guessTransactionType(description: string, type: string) {
     const desc = description.toLowerCase();
-    if (desc.includes('agios') || desc.includes('frais') || desc.includes('timbre') || desc.includes('commission')) {
+    if (desc.includes('agios') || desc.includes('frais') || desc.includes('timbre') || desc.includes('commission') || desc.includes('operation au debit') || desc.includes('au debit')) {
       return 'FRAIS_BANCAIRES';
     }
     if (desc.includes('cheque') || desc.includes('chq')) return 'CHEQUE';
     if (desc.includes('virement') || desc.includes('vir.') || desc.includes('vir ')) return 'VIREMENT';
-    if (desc.includes('carte') || desc.includes('tpe') || desc.includes('/cb ') || desc.includes(' cb ') || desc.includes('paiment/cb')) return 'CARTE';
+    if (desc.includes('carte') || desc.includes('tpe') || desc.includes('/cb ') || desc.includes(' cb ') || desc.includes('paiment/cb') || desc.includes('cd cmi') || desc.includes('cd ap') || desc.includes('cmi')) {
+      return 'CARTE';
+    }
     if (desc.includes('lcn') || desc.includes('effet')) return 'LCN';
     if (desc.includes('prelevement') || desc.includes('prlv')) return 'PRELEVEMENT';
     if (desc.includes('versement') || desc.includes('espece')) return 'ESPECES';
+    
+    // Auto mobile application payment mapping
+    if (desc.includes('paiement') || desc.includes('paiment')) {
+      return 'APPLICATION_MOBILE';
+    }
     return 'AUTRE';
   }
 

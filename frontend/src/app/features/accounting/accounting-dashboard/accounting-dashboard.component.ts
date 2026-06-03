@@ -10,7 +10,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatInputModule } from '@angular/material/input';
-import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
+import { MatSnackBarModule,
+        MatTabsModule,
+        MatTableModule, MatSnackBar } from '@angular/material/snack-bar';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatTableModule } from '@angular/material/table';
 import { finalize } from 'rxjs/operators';
 import { AccountingService } from '../services/accounting.service';
 import { Store } from '@ngrx/store';
@@ -39,6 +43,80 @@ import { format, startOfMonth, endOfMonth } from 'date-fns';
     styleUrls: ['./accounting-dashboard.component.scss']
 })
 export class AccountingDashboardComponent implements OnInit {
+    tvaBilanData = signal<any>(null);
+    Math = Math; // Expose Math to template
+
+    loadTvaBilan(): void {
+        const { startDate, endDate, centreId } = this.exportForm.value;
+        if (!startDate || !endDate) return;
+        const start = format(startDate, 'yyyy-MM-dd');
+        const end = format(endDate, 'yyyy-MM-dd');
+        
+        this.accountingService.getTvaBilan(start, end, centreId).subscribe({
+            next: (res) => {
+                this.tvaBilanData.set(res);
+                this.cdr.detectChanges();
+            },
+            error: (err) => console.error('Failed to load TVA Bilan', err)
+        });
+    }
+
+    onExportTvaPdf(): void {
+        this.isLoading.set(true);
+        const { startDate, endDate, centreId } = this.exportForm.value;
+        const start = format(startDate, 'yyyy-MM-dd');
+        const end = format(endDate, 'yyyy-MM-dd');
+
+        this.accountingService.exportTvaPdf(start, end, centreId)
+            .pipe(finalize(() => {
+                this.isLoading.set(true);
+                this.cdr.detectChanges();
+            }))
+            .subscribe({
+                next: (blob) => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Bilan_TVA_${start}_${end}.pdf`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    this.snackBar.open('Bilan TVA PDF généré avec succès', 'OK', { duration: 3000 });
+                },
+                error: (err) => {
+                    console.error('TVA PDF Export failed', err);
+                    this.snackBar.open('Erreur lors du PDF de TVA', 'Fermer', { duration: 5000 });
+                }
+            });
+    }
+
+    onExportTvaCsv(): void {
+        this.isLoading.set(true);
+        const { startDate, endDate, centreId } = this.exportForm.value;
+        const start = format(startDate, 'yyyy-MM-dd');
+        const end = format(endDate, 'yyyy-MM-dd');
+
+        this.accountingService.exportTvaCsv(start, end, centreId)
+            .pipe(finalize(() => {
+                this.isLoading.set(true);
+                this.cdr.detectChanges();
+            }))
+            .subscribe({
+                next: (blob) => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Bilan_TVA_${start}_${end}.csv`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    this.snackBar.open('Bilan TVA CSV généré avec succès', 'OK', { duration: 3000 });
+                },
+                error: (err) => {
+                    console.error('TVA CSV Export failed', err);
+                    this.snackBar.open('Erreur lors du CSV de TVA', 'Fermer', { duration: 5000 });
+                }
+            });
+    }
+
     exportForm: FormGroup;
     isLoading = signal(false);
     currentCentre = this.store.selectSignal(UserCurrentCentreSelector);
@@ -63,6 +141,10 @@ export class AccountingDashboardComponent implements OnInit {
         if (centre?.id) {
             this.exportForm.patchValue({ centreId: centre.id });
         }
+        this.loadTvaBilan();
+        this.exportForm.valueChanges.subscribe(() => {
+            this.loadTvaBilan();
+        });
     }
 
     getCentreId(c: any): string {

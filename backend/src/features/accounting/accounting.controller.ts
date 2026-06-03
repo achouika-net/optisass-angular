@@ -90,4 +90,52 @@ export class AccountingController {
       });
     }
   }
+
+  @Get('tva-bilan')
+  getTvaBilan(@Query() dto: ExportSageDto) {
+    return this.accountingService.getTvaBilan(dto);
+  }
+
+  @Get('export/tva-csv')
+  async exportTvaCsv(@Query() dto: ExportSageDto, @Res() res: Response) {
+    try {
+      const csv = await this.accountingService.generateTvaCsv(dto);
+      const filename = `Bilan_TVA_${dto.startDate}_${dto.endDate}.csv`;
+
+      res.set({
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      });
+
+      return res.send(csv);
+    } catch (error) {
+      console.error('Error in exportTvaCsv:', error);
+      return res.status(500).json({
+        message: 'Erreur lors de la génération du CSV de TVA',
+        error: error.message,
+      });
+    }
+  }
+
+  @Get('export/tva-pdf')
+  async exportTvaPdf(@Query() dto: ExportSageDto, @Res() res: Response) {
+    try {
+      const doc = await this.accountingService.generateTvaPdf(dto);
+      const filename = `Bilan_TVA_${dto.startDate}_${dto.endDate}.pdf`;
+
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      });
+
+      doc.pipe(res);
+    } catch (error) {
+      console.error('Error in exportTvaPdf:', error);
+      return res.status(500).json({
+        message: 'Erreur lors de la génération du PDF de TVA',
+        error: error.message,
+      });
+    }
+  }
+
 }

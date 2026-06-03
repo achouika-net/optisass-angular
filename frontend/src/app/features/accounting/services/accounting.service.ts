@@ -40,4 +40,25 @@ export class AccountingService {
             responseType: 'blob'
         });
     }
+
+    getTvaBilan(startDate: string, endDate: string, centreId?: string): Observable<any> {
+        return this.http.get(`${this.apiUrl}/tva-bilan`, {
+            params: { startDate, endDate, centreId: centreId || '' }
+        });
+    }
+
+    exportTvaPdf(startDate: string, endDate: string, centreId?: string): Observable<Blob> {
+        return this.http.get(`${this.apiUrl}/export/tva-pdf`, {
+            params: { startDate, endDate, centreId: centreId || '' },
+            responseType: 'blob'
+        });
+    }
+
+    exportTvaCsv(startDate: string, endDate: string, centreId?: string): Observable<Blob> {
+        return this.http.get(`${this.apiUrl}/export/tva-csv`, {
+            params: { startDate, endDate, centreId: centreId || '' },
+            responseType: 'blob'
+        });
+    }
+
 }
