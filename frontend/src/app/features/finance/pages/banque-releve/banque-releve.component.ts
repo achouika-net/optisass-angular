@@ -11,6 +11,9 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
+import { MatInputModule } from '@angular/material/input';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../../environments/environment';
 
@@ -30,6 +33,9 @@ import { environment } from '../../../../../environments/environment';
     MatDialogModule,
     MatTooltipModule,
     MatTabsModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatInputModule,
   ],
   templateUrl: './banque-releve.component.html',
   styleUrl: './banque-releve.component.scss',
@@ -40,10 +46,16 @@ export class BanqueReleveComponent implements OnInit {
   comptes = signal<any[]>([]);
   transactions = signal<any[]>([]);
   paiementsAttente = signal<any[]>([]);
+  depensesAttente = signal<any[]>([]);
   selectedCompteId = signal<string>('');
   allTransactions = signal<any[]>([]);
   availableMonths = signal<string[]>([]);
   selectedMonth = signal<string>('');
+
+  // Filtres pour la section Rapprochement en Attente (independants du releve)
+  rappFilterMonth = signal<string>('');
+  rappFilterStatutPaiement = signal<string>('');   // '' = tous | 'EN_ATTENTE' | 'REMIS_EN_BANQUE'
+  rappFilterStatutDepense = signal<string>('');    // '' = tous | 'EN_ATTENTE' | 'REMIS_EN_BANQUE'
   
   filteredTransactions = computed(() => {
     const month = this.selectedMonth();
@@ -55,6 +67,38 @@ export class BanqueReleveComponent implements OnInit {
       txs = txs.filter(t => t.dateTransaction.startsWith(month));
     }
     return txs;
+  });
+
+  filteredPaiements = computed(() => {
+    let items = this.paiementsAttente();
+    const month = this.rappFilterMonth();
+    const statut = this.rappFilterStatutPaiement();
+    if (month) {
+      items = items.filter((p: any) => {
+        const d = p.dateVersement || p.date;
+        return d && d.startsWith(month);
+      });
+    }
+    if (statut) {
+      items = items.filter((p: any) => p.statut === statut);
+    }
+    return items;
+  });
+
+  filteredDepenses = computed(() => {
+    let items = this.depensesAttente();
+    const month = this.rappFilterMonth();
+    const statut = this.rappFilterStatutDepense();
+    if (month) {
+      items = items.filter((d: any) => {
+        const dateVal = d.date || d.dateEcheance;
+        return dateVal && dateVal.startsWith(month);
+      });
+    }
+    if (statut) {
+      items = items.filter((d: any) => d.statut === statut);
+    }
+    return items;
   });
 
   recapMois = computed<any[]>(() => {
@@ -117,11 +161,18 @@ export class BanqueReleveComponent implements OnInit {
     });
   }
 
-  loadRapprochement() {
+  clearRappFilters() {
+    this.rappFilterMonth.set('');
+    this.rappFilterStatutPaiement.set('');
+    this.rappFilterStatutDepense.set('');
+  }
+
+    loadRapprochement() {
     this.http.get<any>(`${this.api}/rapprochement`).subscribe({
       next: (res) => {
         this.transactions.set(res.transactions || []);
         this.paiementsAttente.set(res.paiements || []);
+        this.depensesAttente.set(res.depenses || []);
       }
     });
   }

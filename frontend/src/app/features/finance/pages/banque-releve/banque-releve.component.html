@@ -246,6 +246,61 @@
   <div class="rapprochement-section">
     <h2><mat-icon>compare_arrows</mat-icon> Rapprochement en Attente</h2>
 
+
+    <!-- ===== FILTRES RAPPROCHEMENT ===== -->
+    <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px 18px; margin-bottom:20px;">
+      <mat-icon style="color:#6366f1; font-size:20px;">filter_list</mat-icon>
+      <strong style="font-size:13px; color:#374151; white-space:nowrap;">Filtrer les éléments en attente :</strong>
+
+      <!-- Filtre par mois -->
+      <mat-form-field appearance="outline" style="min-width:160px; max-width:190px;" subscriptSizing="dynamic">
+        <mat-label>Mois</mat-label>
+        <input matInput type="month" [value]="rappFilterMonth()"
+          (change)="rappFilterMonth.set($any($event.target).value)">
+        <mat-icon matSuffix>calendar_month</mat-icon>
+      </mat-form-field>
+
+      <!-- Filtre statut Paiements -->
+      <mat-form-field appearance="outline" style="min-width:190px; max-width:230px;" subscriptSizing="dynamic">
+        <mat-label>Statut Paiements</mat-label>
+        <mat-select [value]="rappFilterStatutPaiement()" (selectionChange)="rappFilterStatutPaiement.set($any($event).value)">
+          <mat-option value="">Tous les statuts</mat-option>
+          <mat-option value="EN_ATTENTE">EN ATTENTE</mat-option>
+          <mat-option value="REMIS_EN_BANQUE">REMIS EN BANQUE</mat-option>
+          <mat-option value="PORTEFEUILLE">PORTEFEUILLE</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Filtre statut Dépenses -->
+      <mat-form-field appearance="outline" style="min-width:190px; max-width:230px;" subscriptSizing="dynamic">
+        <mat-label>Statut Dépenses</mat-label>
+        <mat-select [value]="rappFilterStatutDepense()" (selectionChange)="rappFilterStatutDepense.set($any($event).value)">
+          <mat-option value="">Tous les statuts</mat-option>
+          <mat-option value="EN_ATTENTE">EN ATTENTE</mat-option>
+          <mat-option value="REMIS_EN_BANQUE">REMIS EN BANQUE</mat-option>
+          <mat-option value="PAYE">PAYÉ</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Compteurs résultats -->
+      <div style="display:flex; gap:12px; flex-wrap:wrap; margin-left:auto;">
+        <span style="background:#e0e7ff; color:#3730a3; border-radius:20px; padding:4px 12px; font-size:12px; font-weight:600;">
+          💳 {{ filteredPaiements().length }} paiement(s)
+        </span>
+        <span style="background:#fce7f3; color:#9d174d; border-radius:20px; padding:4px 12px; font-size:12px; font-weight:600;">
+          🧾 {{ filteredDepenses().length }} dépense(s)
+        </span>
+      </div>
+
+      <!-- Bouton réinitialiser -->
+      @if (rappFilterMonth() || rappFilterStatutPaiement() || rappFilterStatutDepense()) {
+        <button mat-stroked-button color="warn" (click)="clearRappFilters()" style="height:36px; font-size:12px;">
+          <mat-icon style="font-size:16px; line-height:1.2">close</mat-icon> Réinitialiser
+        </button>
+      }
+    </div>
+    <!-- ===== FIN FILTRES ===== -->
+
     <div class="rapprochement-grid">
 
       <!-- Transactions non rapprochées -->
@@ -295,42 +350,84 @@
         </mat-card-content>
       </mat-card>
 
-      <!-- Paiements système en attente -->
-      <mat-card class="rapp-card">
-        <mat-card-header>
-          <mat-icon mat-card-avatar>payments</mat-icon>
-          <mat-card-title>Paiements Système (Remise en banque)</mat-card-title>
-          <mat-card-subtitle>{{ paiementsAttente().length }} paiement(s) en attente</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          @if (paiementsAttente().length === 0) {
-            <div class="empty-state"><mat-icon>check_circle</mat-icon> Aucun paiement en attente</div>
-          } @else {
-            <table mat-table [dataSource]="paiementsAttente()" class="rapp-table">
-              <ng-container matColumnDef="date">
-                <th mat-header-cell *matHeaderCellDef>Date</th>
-                <td mat-cell *matCellDef="let p">{{ p.date | date:'dd/MM/yy' }}</td>
-              </ng-container>
-              <ng-container matColumnDef="mode">
-                <th mat-header-cell *matHeaderCellDef>Mode</th>
-                <td mat-cell *matCellDef="let p">{{ p.mode }}</td>
-              </ng-container>
-              <ng-container matColumnDef="montant">
-                <th mat-header-cell *matHeaderCellDef>Montant</th>
-                <td mat-cell *matCellDef="let p" class="credit">+{{ p.montant | number:'1.2-2' }}</td>
-              </ng-container>
-              <ng-container matColumnDef="statut">
-                <th mat-header-cell *matHeaderCellDef>Statut</th>
-                <td mat-cell *matCellDef="let p">
-                  <span class="statut-badge non-rapproche">{{ p.statut }}</span>
-                </td>
-              </ng-container>
-              <tr mat-header-row *matHeaderRowDef="paiementCols"></tr>
-              <tr mat-row *matRowDef="let row; columns: paiementCols;"></tr>
-            </table>
-          }
-        </mat-card-content>
-      </mat-card>
+      <!-- Flux systme en attente (Paiements et DǸpenses) -->
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        
+        <!-- Paiements systme en attente (Encaissements) -->
+        <mat-card class="rapp-card">
+          <mat-card-header>
+            <mat-icon mat-card-avatar>payments</mat-icon>
+            <mat-card-title>Paiements Systme (Remise en banque)</mat-card-title>
+            <mat-card-subtitle>{{ filteredPaiements().length }} paiement(s) en attente</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            @if (filteredPaiements().length === 0) {
+              <div class="empty-state"><mat-icon>check_circle</mat-icon> Aucun paiement en attente</div>
+            } @else {
+              <table mat-table [dataSource]="filteredPaiements()" class="rapp-table">
+                <ng-container matColumnDef="date">
+                  <th mat-header-cell *matHeaderCellDef>Date</th>
+                  <td mat-cell *matCellDef="let p">{{ (p.dateVersement || p.date) | date:'dd/MM/yy' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="mode">
+                  <th mat-header-cell *matHeaderCellDef>Mode</th>
+                  <td mat-cell *matCellDef="let p">{{ p.mode }}</td>
+                </ng-container>
+                <ng-container matColumnDef="montant">
+                  <th mat-header-cell *matHeaderCellDef>Montant</th>
+                  <td mat-cell *matCellDef="let p" class="credit">+{{ p.montant | number:'1.2-2' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="statut">
+                  <th mat-header-cell *matHeaderCellDef>Statut</th>
+                  <td mat-cell *matCellDef="let p">
+                    <span class="statut-badge non-rapproche">{{ p.statut }}</span>
+                  </td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="paiementCols"></tr>
+                <tr mat-row *matRowDef="let row; columns: paiementCols;"></tr>
+              </table>
+            }
+          </mat-card-content>
+        </mat-card>
+
+        <!-- DǸpenses systme en attente (DǸcaissements) -->
+        <mat-card class="rapp-card">
+          <mat-card-header>
+            <mat-icon mat-card-avatar>shopping_cart</mat-icon>
+            <mat-card-title>DǸpenses Systme (Remise en banque)</mat-card-title>
+            <mat-card-subtitle>{{ filteredDepenses().length }} dǸpense(s) en attente</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            @if (filteredDepenses().length === 0) {
+              <div class="empty-state"><mat-icon>check_circle</mat-icon> Aucune dǸpense en attente</div>
+            } @else {
+              <table mat-table [dataSource]="filteredDepenses()" class="rapp-table">
+                <ng-container matColumnDef="date">
+                  <th mat-header-cell *matHeaderCellDef>Date</th>
+                  <td mat-cell *matCellDef="let d">{{ d.date | date:'dd/MM/yy' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="mode">
+                  <th mat-header-cell *matHeaderCellDef>Mode</th>
+                  <td mat-cell *matCellDef="let d">{{ d.modePaiement || d.mode }}</td>
+                </ng-container>
+                <ng-container matColumnDef="montant">
+                  <th mat-header-cell *matHeaderCellDef>Montant</th>
+                  <td mat-cell *matCellDef="let d" class="debit">-{{ d.montant | number:'1.2-2' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="statut">
+                  <th mat-header-cell *matHeaderCellDef>Statut</th>
+                  <td mat-cell *matCellDef="let d">
+                    <span class="statut-badge non-rapproche">{{ d.statut }}</span>
+                  </td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="paiementCols"></tr>
+                <tr mat-row *matRowDef="let row; columns: paiementCols;"></tr>
+              </table>
+            }
+          </mat-card-content>
+        </mat-card>
+
+      </div>
 
     </div>
   </div>

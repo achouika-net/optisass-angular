@@ -645,6 +645,7 @@ export class StatsService {
 
   async getRealProfit(startDate?: string, endDate?: string, centreId?: string) {
     try {
+      console.log("[StatsService] getRealProfit INPUTS:", { startDate, endDate, centreId });
       const start = startDate ? new Date(startDate) : new Date(0);
       const end = endDate ? new Date(endDate) : new Date(3000, 0, 1);
       const centreFilter = centreId ? { centreId } : {};

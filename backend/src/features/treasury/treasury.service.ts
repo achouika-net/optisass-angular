@@ -701,10 +701,29 @@ export class TreasuryService {
     const updateData: any = { statut };
     if (statut === 'ENCAISSE' || statut === 'PAYE')
       updateData.dateEncaissement = new Date();
-    return this.prisma.echeancePaiement.update({
+
+    const updatedEcheance = await this.prisma.echeancePaiement.update({
       where: { id },
       data: updateData,
     });
+
+    // Synchroniser le statut de la Depense liee (si elle existe)
+    const linkedDepense = await this.prisma.depense.findFirst({
+      where: { echeanceId: id },
+    });
+    if (linkedDepense) {
+      // Mapper le statut EcheancePaiement vers le statut Depense equivalent
+      let depenseStatut = statut;
+      if (statut === 'ENCAISSE') depenseStatut = 'PAYE';
+      // REMIS_EN_BANQUE, EN_ATTENTE, PAYE restent identiques
+
+      await this.prisma.depense.update({
+        where: { id: linkedDepense.id },
+        data: { statut: depenseStatut },
+      });
+    }
+
+    return updatedEcheance;
   }
 
   async getConfig() {
@@ -726,15 +745,16 @@ export class TreasuryService {
 
   async getPendingAlerts(centreId?: string) {
     const now = new Date();
-    const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    const next48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
-    const last30days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const next7days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    // Tous les types de cheques avec leurs variantes d'encodage
+    const chequeTypes = ["CHEQUE","LCN","Chèque","Chéque","Ch├¿que","cheque","Cheque"];
 
     const baseWhere: any = {
-      dateEcheance: { lte: next48h, gte: last30days },
-      statut: 'EN_ATTENTE',
-      type: { in: ['CHEQUE', 'LCN'] },
-      reference: { not: '' },
+      // Pas de borne inferieure : inclure TOUS les elements en retard + 7 jours a venir
+      dateEcheance: { lte: next7days },
+      statut: { in: ['EN_ATTENTE', 'REMIS_EN_BANQUE'] },
+      type: { in: chequeTypes },
       ...(centreId
         ? {
             OR: [
@@ -749,13 +769,15 @@ export class TreasuryService {
     const [clientAlerts, supplierAlerts] = await Promise.all([
       this.prisma.paiement.findMany({
         where: {
-          mode: 'CHEQUE',
-          statut: 'EN_ATTENTE',
-          reference: { not: '' },
-          dateVersement: { lte: next24h, gte: last30days },
+          mode: { in: chequeTypes },
+          statut: { in: ['EN_ATTENTE', 'REMIS_EN_BANQUE'] },
+          // Tous les paiements non encaisses (passes + futurs jusqu'a 7j)
+          dateVersement: { lte: next7days },
           facture: centreId ? { centreId } : {},
         },
         include: { facture: { include: { client: true } } },
+        orderBy: { dateVersement: 'asc' },
+        take: 50,
       }),
       this.prisma.echeancePaiement.findMany({
         where: baseWhere,
@@ -764,9 +786,10 @@ export class TreasuryService {
           depense: { include: { fournisseur: true } },
           bonLivraison: { include: { fournisseur: true } },
         },
+        orderBy: { dateEcheance: 'asc' },
+        take: 50,
       }),
-    ]);
-
+    ])
     return {
       client: clientAlerts.map((p) => ({
         id: p.id,
@@ -774,7 +797,7 @@ export class TreasuryService {
           `${p.facture.client?.nom || ''} ${p.facture.client?.prenom || ''}`.trim(),
         montant: p.montant,
         date: p.dateVersement,
-        reference: p.reference,
+        reference: p.reference || 'N/A',
         numeroFacture: p.facture.numero,
       })),
       supplier: supplierAlerts.map((e) => ({
@@ -786,7 +809,7 @@ export class TreasuryService {
           'N/A',
         montant: e.montant,
         date: e.dateEcheance,
-        reference: e.reference,
+        reference: e.reference || 'N/A',
         source: e.factureFournisseur
           ? 'FACTURE'
           : e.bonLivraison
