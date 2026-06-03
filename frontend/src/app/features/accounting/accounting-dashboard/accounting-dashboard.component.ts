@@ -10,9 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatInputModule } from '@angular/material/input';
-import { MatSnackBarModule,
-        MatTabsModule,
-        MatTableModule, MatSnackBar } from '@angular/material/snack-bar';
+import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTableModule } from '@angular/material/table';
 import { finalize } from 'rxjs/operators';
@@ -37,7 +35,9 @@ import { format, startOfMonth, endOfMonth } from 'date-fns';
         MatSelectModule,
         MatProgressSpinnerModule,
         MatInputModule,
-        MatSnackBarModule
+        MatSnackBarModule,
+        MatTabsModule,
+        MatTableModule
     ],
     templateUrl: './accounting-dashboard.component.html',
     styleUrls: ['./accounting-dashboard.component.scss']
