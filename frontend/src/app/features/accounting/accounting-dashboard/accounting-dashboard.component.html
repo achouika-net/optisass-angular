@@ -175,6 +175,71 @@
                                 </div>
                             </div>
 
+                            <!-- D?tails TVA Section -->
+                            <div class="mt-6 border border-gray-100 rounded-lg overflow-hidden">
+                                <h3 class="text-base font-extrabold text-gray-800 bg-gray-50 p-3 m-0 flex items-center gap-1 border-b border-gray-100">
+                                    <mat-icon class="text-teal-500">list_alt</mat-icon>
+                                    D?tails des op?rations (TVA Collect?e)
+                                </h3>
+                                <div class="max-h-60 overflow-y-auto">
+                                <table class="w-full text-left text-sm text-gray-600">
+                                    <thead class="bg-white text-gray-700 uppercase font-semibold text-xs sticky top-0 shadow-sm">
+                                        <tr>
+                                            <th class="px-4 py-2">Date</th>
+                                            <th class="px-4 py-2">Description</th>
+                                            <th class="px-4 py-2 text-right">Montant TTC</th>
+                                            <th class="px-4 py-2 text-right">Base HT</th>
+                                            <th class="px-4 py-2 text-right">TVA</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100">
+                                        <tr *ngFor="let d of tvaBilanData().sales.details">
+                                            <td class="px-4 py-2">{{ d.date | date:"dd/MM/yyyy" }}</td>
+                                            <td class="px-4 py-2 font-medium">{{ d.description }}</td>
+                                            <td class="px-4 py-2 text-right">{{ d.montantTTC | number:"1.2-2" }} MAD</td>
+                                            <td class="px-4 py-2 text-right">{{ d.montantHT | number:"1.2-2" }} MAD</td>
+                                            <td class="px-4 py-2 text-right font-semibold text-teal-700">{{ d.montantTVA | number:"1.2-2" }} MAD ({{ d.taux }}%)</td>
+                                        </tr>
+                                        <tr *ngIf="!tvaBilanData().sales.details?.length">
+                                            <td colspan="5" class="px-4 py-4 text-center text-gray-400 font-medium">Aucun encaissement rapproch? sur cette p?riode</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-6 border border-gray-100 rounded-lg overflow-hidden">
+                                <h3 class="text-base font-extrabold text-gray-800 bg-gray-50 p-3 m-0 flex items-center gap-1 border-b border-gray-100">
+                                    <mat-icon class="text-rose-500">receipt_long</mat-icon>
+                                    D?tails des op?rations (TVA D?ductible)
+                                </h3>
+                                <div class="max-h-60 overflow-y-auto">
+                                <table class="w-full text-left text-sm text-gray-600">
+                                    <thead class="bg-white text-gray-700 uppercase font-semibold text-xs sticky top-0 shadow-sm">
+                                        <tr>
+                                            <th class="px-4 py-2">Date</th>
+                                            <th class="px-4 py-2">Description</th>
+                                            <th class="px-4 py-2 text-right">Montant TTC</th>
+                                            <th class="px-4 py-2 text-right">Base HT</th>
+                                            <th class="px-4 py-2 text-right">TVA</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100">
+                                        <tr *ngFor="let d of tvaBilanData().expenses.details">
+                                            <td class="px-4 py-2">{{ d.date | date:"dd/MM/yyyy" }}</td>
+                                            <td class="px-4 py-2 font-medium">{{ d.description }}</td>
+                                            <td class="px-4 py-2 text-right">{{ d.montantTTC | number:"1.2-2" }} MAD</td>
+                                            <td class="px-4 py-2 text-right">{{ d.montantHT | number:"1.2-2" }} MAD</td>
+                                            <td class="px-4 py-2 text-right font-semibold text-rose-700">{{ d.montantTVA | number:"1.2-2" }} MAD ({{ d.taux }}%)</td>
+                                        </tr>
+                                        <tr *ngIf="!tvaBilanData().expenses.details?.length">
+                                            <td colspan="5" class="px-4 py-4 text-center text-gray-400 font-medium">Aucune charge rapproch?e sur cette p?riode</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                </div>
+                            </div>
+                            
                             <!-- Reconciliation & Audit Box (Direct bank statement verification) -->
                             <div class="p-5 bg-slate-50 border border-slate-100 rounded-xl mt-4">
                                 <h4 class="text-sm font-bold text-slate-700 mb-2.5 flex items-center gap-1.5">
@@ -266,3 +331,4 @@
         </div>
     </div>
 </div>
+

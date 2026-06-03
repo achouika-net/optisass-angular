@@ -1406,10 +1406,8 @@ export class AccountingService {
         totalTTC: totalSalesTTC,
         totalHT: totalSalesHT,
         totalTVA: totalSalesTVA,
-        byRate: Object.entries(salesByRate).map(([rate, val]) => ({
-          rate: parseInt(rate),
-          ...val
-        }))
+        byRate: Object.entries(salesByRate).map(([rate, val]) => ({ rate: parseInt(rate), ...val })),
+        details: payments.map(p => ({ date: p.date, description: p.facture?.numero || 'Paiement', montantTTC: p.montant || 0, montantHT: (p.montant || 0) / (1 + getPaymentTvaRate(p)/100), montantTVA: (p.montant || 0) - ((p.montant || 0) / (1 + getPaymentTvaRate(p)/100)), taux: getPaymentTvaRate(p) }))
       },
       expenses: {
         totalTTC: totalExpensesTTC + totalBankFeesTTC,
@@ -1425,10 +1423,8 @@ export class AccountingService {
           totalHT: totalBankFeesHT,
           totalTVA: totalBankFeesTVA
         },
-        byRate: Object.entries(expensesByRate).map(([rate, val]) => ({
-          rate: parseInt(rate),
-          ...val
-        }))
+        byRate: Object.entries(expensesByRate).map(([rate, val]) => ({ rate: parseInt(rate), ...val })),
+        details: expenses.map(e => ({ date: e.date, description: e.factureFournisseur?.numeroFacture || e.description || 'Depense', montantTTC: e.montant || 0, montantHT: (e.montant || 0) / (1 + getExpenseTvaRate(e)/100), montantTVA: (e.montant || 0) - ((e.montant || 0) / (1 + getExpenseTvaRate(e)/100)), taux: getExpenseTvaRate(e) })).concat(bankTransactions.map(b => ({ date: b.dateTransaction, description: b.description || 'Frais Bancaires', montantTTC: b.montant || 0, montantHT: (b.montant || 0) / 1.10, montantTVA: (b.montant || 0) - ((b.montant || 0) / 1.10), taux: 10 })))
       },
       soldeTva,
       isCredit: soldeTva < 0,
@@ -1553,3 +1549,7 @@ export class AccountingService {
   }
 
 }
+
+
+
+
