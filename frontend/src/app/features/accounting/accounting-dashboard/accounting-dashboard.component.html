@@ -175,6 +175,32 @@
                                 </div>
                             </div>
 
+                            <!-- Reconciliation & Audit Box (Direct bank statement verification) -->
+                            <div class="p-5 bg-slate-50 border border-slate-100 rounded-xl mt-4">
+                                <h4 class="text-sm font-bold text-slate-700 mb-2.5 flex items-center gap-1.5">
+                                    <mat-icon class="text-slate-500 text-base">account_balance</mat-icon>
+                                    Vérification & Rapprochement (Relevé vs Système)
+                                </h4>
+                                <p class="text-xs text-slate-500 mb-4 leading-relaxed">
+                                    Conformément à vos règles, la TVA ci-dessus est calculée uniquement sur les flux <strong>rapprochés</strong> (liés à des factures ou fiches de dépenses).
+                                    Les opérations non rapprochées suivantes sur la période sont exclues de ce bilan et reportées :
+                                </p>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                                    <div class="p-3 bg-white border border-slate-100 rounded-lg">
+                                        <span class="text-slate-500 block mb-0.5">Entrées non rapprochées</span>
+                                        <span class="font-bold text-slate-800 text-sm">{{ tvaBilanData().reconciliationSummary?.nonReconciledCredits | number:'1.2-2' }} MAD</span>
+                                    </div>
+                                    <div class="p-3 bg-white border border-slate-100 rounded-lg">
+                                        <span class="text-slate-500 block mb-0.5">Sorties non rapprochées</span>
+                                        <span class="font-bold text-slate-800 text-sm">{{ tvaBilanData().reconciliationSummary?.nonReconciledDebits | number:'1.2-2' }} MAD</span>
+                                    </div>
+                                    <div class="p-3 bg-white border border-slate-100 rounded-lg">
+                                        <span class="text-slate-500 block mb-0.5">Transactions en attente</span>
+                                        <span class="font-bold text-slate-800 text-sm">{{ tvaBilanData().reconciliationSummary?.nonReconciledCount || 0 }} opérations</span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Export buttons side by side -->
                             <div class="flex gap-4 pt-4 border-t border-gray-100">
                                 <button type="button" mat-stroked-button color="primary" class="rounded-lg py-4 flex items-center gap-2" (click)="onExportTvaPdf()" [disabled]="isLoading()">

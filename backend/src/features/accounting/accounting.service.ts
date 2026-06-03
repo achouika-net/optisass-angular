@@ -1263,7 +1263,7 @@ export class AccountingService {
     }
   }
 
-  async getTvaBilan(dto: ExportSageDto) {
+    async getTvaBilan(dto: ExportSageDto) {
     const { startDate, endDate, centreId } = dto;
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
@@ -1275,28 +1275,42 @@ export class AccountingService {
       centreFilter.centreId = centreId;
     }
 
-    const [payments, expenses, bankTransactions] = await Promise.all([
+    // Fetch payments, expenses, bank fees, and non-reconciled transactions
+    const [payments, expenses, bankTransactions, nonReconciledTx] = await Promise.all([
+      // Reconciled payments (statut: ENCAISSE and linked to a bank transaction)
       this.prisma.paiement.findMany({
         where: {
           date: { gte: start, lte: end },
           statut: 'ENCAISSE',
+          transactionBancaireId: { not: null },
           ...(centreId && centreId !== 'ALL' && centreId !== '' ? { facture: { centreId } } : {})
         },
         include: { facture: true }
       }),
+      // Reconciled expenses (statut: PAYEE/PAYE and linked to a bank transaction)
       this.prisma.depense.findMany({
         where: {
           date: { gte: start, lte: end },
           statut: { in: ['VALIDEE', 'PAYEE', 'PAYE', 'ENCAISSE'] },
+          transactionBancaireId: { not: null },
           ...centreFilter
         },
         include: { factureFournisseur: true }
       }),
+      // All bank fees on this period (FRAIS_BANCAIRES) - charges réelles du mois
       this.prisma.transactionBancaire.findMany({
         where: {
           dateTransaction: { gte: start, lte: end },
           typeTransaction: 'FRAIS_BANCAIRES',
           type: 'DEBIT',
+          ...(centreId && centreId !== 'ALL' && centreId !== '' ? { releveBancaire: { compteBancaire: { centreId } } } : {})
+        }
+      }),
+      // Non-reconciled transactions for the period (to show comparison)
+      this.prisma.transactionBancaire.findMany({
+        where: {
+          dateTransaction: { gte: start, lte: end },
+          statutRapprochement: 'NON_RAPPROCHE',
           ...(centreId && centreId !== 'ALL' && centreId !== '' ? { releveBancaire: { compteBancaire: { centreId } } } : {})
         }
       })
@@ -1382,6 +1396,10 @@ export class AccountingService {
     const totalTvaRecuperable = totalExpensesTVA + totalBankFeesTVA;
     const soldeTva = totalSalesTVA - totalTvaRecuperable;
 
+    // Calculate non-reconciled summary
+    const nonReconciledCredits = nonReconciledTx.filter(t => t.type === 'CREDIT').reduce((sum, t) => sum + (t.montant || 0), 0);
+    const nonReconciledDebits = nonReconciledTx.filter(t => t.type === 'DEBIT').reduce((sum, t) => sum + (t.montant || 0), 0);
+
     return {
       period: { startDate, endDate },
       sales: {
@@ -1413,7 +1431,12 @@ export class AccountingService {
         }))
       },
       soldeTva,
-      isCredit: soldeTva < 0
+      isCredit: soldeTva < 0,
+      reconciliationSummary: {
+        nonReconciledCredits,
+        nonReconciledDebits,
+        nonReconciledCount: nonReconciledTx.length
+      }
     };
   }
 
