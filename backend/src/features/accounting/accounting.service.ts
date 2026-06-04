@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+﻿import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ExportSageDto } from './dto/export-sage.dto';
 
@@ -15,11 +15,11 @@ export class AccountingService {
   private readonly CONFIG = {
     RECEIVABLE_ACCOUNT: '3421', // Clients
     SALES_REVENUE_ACCOUNT: '7111', // Ventes
-    SALES_TAX_ACCOUNT: '4455', // TVA Collectée
+    SALES_TAX_ACCOUNT: '4455', // TVA CollectÃ©e
     CASH_ACCOUNT: '5161', // Caisse
     PAYABLE_ACCOUNT: '4411', // Fournisseurs
     EXPENSE_ACCOUNT: '6111', // Achats
-    INPUT_TAX_ACCOUNT: '3455', // TVA Déductible
+    INPUT_TAX_ACCOUNT: '3455', // TVA DÃ©ductible
   };
 
   private formatDateDDMMYY(date: Date | string): string {
@@ -90,7 +90,7 @@ export class AccountingService {
       this.prisma.depense.findMany({
         where: {
           date: { gte: start, lte: end },
-          statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
+          statut: { in: ['VALIDEE', 'VALIDÃ‰', 'PAYEE', 'PAYE'] },
           centreId: centreId, // BUG-007: Mandatory filter
         },
         include: { fournisseur: true },
@@ -117,7 +117,7 @@ export class AccountingService {
       );
       if (tva > 0) {
         lines.push(
-          `${lineNumber++}\t${dateStr}\t${this.CONFIG.SALES_TAX_ACCOUNT}\t${ref}\tTVA Collectée\tC\t${tva.toFixed(2)}`,
+          `${lineNumber++}\t${dateStr}\t${this.CONFIG.SALES_TAX_ACCOUNT}\t${ref}\tTVA CollectÃ©e\tC\t${tva.toFixed(2)}`,
         );
       }
     });
@@ -149,7 +149,7 @@ export class AccountingService {
       );
       if (tva > 0) {
         lines.push(
-          `${lineNumber++}\t${dateStr}\t${this.CONFIG.INPUT_TAX_ACCOUNT}\t${ref}\tTVA Déductible\tD\t${tva.toFixed(2)}`,
+          `${lineNumber++}\t${dateStr}\t${this.CONFIG.INPUT_TAX_ACCOUNT}\t${ref}\tTVA DÃ©ductible\tD\t${tva.toFixed(2)}`,
         );
       }
       lines.push(
@@ -235,7 +235,7 @@ export class AccountingService {
           },
           select: { quantiteActuelle: true, prixAchatHT: true },
         }),
-        // 6. Bank fees (agios, frais, prélèvements)
+        // 6. Bank fees (agios, frais, prÃ©lÃ¨vements)
         this.prisma.transactionBancaire.findMany({
           where: {
             dateTransaction: { lte: end },
@@ -368,7 +368,7 @@ export class AccountingService {
         .font('Helvetica')
         .fillColor('#666')
         .text(
-          `Période : ${this.formatDateDisplay(start)} au ${this.formatDateDisplay(end)}`,
+          `PÃ©riode : ${this.formatDateDisplay(start)} au ${this.formatDateDisplay(end)}`,
           { align: 'center' },
         );
       doc.moveDown(2);
@@ -405,7 +405,7 @@ export class AccountingService {
       // --- ACTIF CONTENT ---
       const actifItems = [
         {
-          label: 'ACTIF IMMOBILISÉ',
+          label: 'ACTIF IMMOBILISÃ‰',
           value: balance.actif.immobilisations,
           bold: true,
           bg: '#f1f5f9',
@@ -420,14 +420,14 @@ export class AccountingService {
           indent: true,
         },
         {
-          label: '  Créances clients',
+          label: '  CrÃ©ances clients',
           value: balance.actif.creances,
           indent: true,
         },
-        { label: '  Autres créances', value: 0, indent: true },
+        { label: '  Autres crÃ©ances', value: 0, indent: true },
         { label: '', value: null, spacer: true },
         {
-          label: 'TRÉSORERIE - ACTIF',
+          label: 'TRÃ‰SORERIE - ACTIF',
           value: balance.actif.tresorerie,
           bold: true,
           bg: '#f1f5f9',
@@ -596,7 +596,7 @@ export class AccountingService {
         .fontSize(8)
         .fillColor('#94a3b8')
         .text(
-          `Généré le ${new Date().toLocaleDateString('fr-FR')}`,
+          `GÃ©nÃ©rÃ© le ${new Date().toLocaleDateString('fr-FR')}`,
           margin,
           780,
           { align: 'center' },
@@ -612,7 +612,7 @@ export class AccountingService {
 
   /**
    * Generates a CSV Trial Balance (Balance des Comptes)
-   * Format: Compte;Intitulé;Débit;Crédit;Solde
+   * Format: Compte;IntitulÃ©;DÃ©bit;CrÃ©dit;Solde
    */
   async generateTrialBalanceCsv(dto: ExportSageDto): Promise<string> {
     this.logger.log(`Generating Trial Balance CSV: ${JSON.stringify(dto)}`);
@@ -646,7 +646,7 @@ export class AccountingService {
       this.prisma.depense.findMany({
         where: {
           date: { lte: end },
-          statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
+          statut: { in: ['VALIDEE', 'VALIDÃ‰', 'PAYEE', 'PAYE'] },
           centreId: cid,
         },
         select: { montant: true },
@@ -692,7 +692,7 @@ export class AccountingService {
       },
       {
         code: this.CONFIG.CASH_ACCOUNT,
-        label: 'Trésorerie (Caisse/Banque)',
+        label: 'TrÃ©sorerie (Caisse/Banque)',
         debit: totalEncaissements,
         credit: totalTTCAchats,
       },
@@ -706,7 +706,7 @@ export class AccountingService {
       }, // Assuming paid
       {
         code: this.CONFIG.SALES_TAX_ACCOUNT,
-        label: 'État - TVA Facturée',
+        label: 'Ã‰tat - TVA FacturÃ©e',
         debit: 0,
         credit: totalTVAVentes,
       },
@@ -720,7 +720,7 @@ export class AccountingService {
       },
       {
         code: this.CONFIG.INPUT_TAX_ACCOUNT,
-        label: 'État - TVA Récupérable',
+        label: 'Ã‰tat - TVA RÃ©cupÃ©rable',
         debit: totalTVAAchats,
         credit: 0,
       },
@@ -735,7 +735,7 @@ export class AccountingService {
     ];
 
     // 4. Generate CSV with BOM for Excel UTF-8 support
-    const header = '\uFEFFCompte;Intitulé;Débit;Crédit;Solde\n';
+    const header = '\uFEFFCompte;IntitulÃ©;DÃ©bit;CrÃ©dit;Solde\n';
 
     const formatCsvNumber = (num: number) => num.toFixed(2).replace('.', ',');
 
@@ -782,7 +782,7 @@ export class AccountingService {
       this.prisma.depense.findMany({
         where: {
           date: { gte: start, lte: end },
-          statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
+          statut: { in: ['VALIDEE', 'VALIDÃ‰', 'PAYEE', 'PAYE'] },
           centreId: cid,
         },
         include: { fournisseur: true, factureFournisseur: true },
@@ -843,7 +843,7 @@ export class AccountingService {
       doc
         .fontSize(10)
         .font('Helvetica')
-        .text(`Période du ${formatDate(start)} au ${formatDate(end)}`, {
+        .text(`PÃ©riode du ${formatDate(start)} au ${formatDate(end)}`, {
           align: 'center',
         });
       doc.moveDown(1.5);
@@ -959,7 +959,7 @@ export class AccountingService {
         'LIBELLE',
         'Client',
         'Date Fac',
-        'N° Facture',
+        'NÂ° Facture',
         'Montant TTC',
         'Montant HT',
         'Taux TVA',
@@ -984,7 +984,7 @@ export class AccountingService {
         // Stamp Duty (Droits de Timbre) - 0.25% on Cash Payments
         // LF 2026 maintains standard practice: 0.25% on cash transactions
         let timbre = 0;
-        if (p.mode === 'ESPECES' || p.mode === 'ESPÈCES' || p.mode === 'CASH') {
+        if (p.mode === 'ESPECES' || p.mode === 'ESPÃˆCES' || p.mode === 'CASH') {
           timbre = ttc * 0.0025;
         }
 
@@ -1030,7 +1030,7 @@ export class AccountingService {
 
       // --- DEPENSES ---
       const purchaseHeaders = [
-        'Facture n°',
+        'Facture nÂ°',
         'Date Fac',
         'I.F',
         'Fournisseur',
@@ -1040,7 +1040,7 @@ export class AccountingService {
         'Taux',
         'TVA',
         'Mode',
-        'Pièce',
+        'PiÃ¨ce',
         'Date Paie',
       ];
       const purchaseWidths = [60, 60, 60, 100, 120, 70, 70, 40, 60, 60, 60, 60];
@@ -1098,7 +1098,7 @@ export class AccountingService {
         .fontSize(16)
         .font('Helvetica-Bold')
         .fillColor('#000')
-        .text('RÉCAPITULATIF', 30, 40, { align: 'center', width: 780 });
+        .text('RÃ‰CAPITULATIF', 30, 40, { align: 'center', width: 780 });
       doc.moveDown(2);
 
       // AGGREGATION LOGIC
@@ -1275,41 +1275,37 @@ export class AccountingService {
       centreFilter.centreId = centreId;
     }
 
-    const [payments, expenses, bankTransactions, nonReconciledTx, carteDirectTx] = await Promise.all([
-      // Reconciled payments (statut: ENCAISSE and linked to a bank transaction)
-      this.prisma.paiement.findMany({
-        where: {
-          transactionBancaire: {
-            dateTransaction: { gte: start, lte: end }
-          },
-          statut: 'ENCAISSE',
-          transactionBancaireId: { not: null },
-          ...(centreId && centreId !== 'ALL' && centreId !== '' ? { facture: { centreId } } : {})
-        },
-        include: { facture: true, transactionBancaire: true }
-      }),
-      // Reconciled expenses (statut: PAYEE/PAYE and linked to a bank transaction)
-      this.prisma.depense.findMany({
-        where: {
-          transactionBancaire: {
-            dateTransaction: { gte: start, lte: end }
-          },
-          statut: { in: ['VALIDEE', 'PAYEE', 'PAYE', 'ENCAISSE'] },
-          transactionBancaireId: { not: null },
-          ...centreFilter
-        },
-        include: { factureFournisseur: true, transactionBancaire: true }
-      }),
-      // All bank fees on this period (FRAIS_BANCAIRES) - charges réelles du mois
+    // -----------------------------------------------------------------------
+    // APPROACH: Bank-transaction-based TVA bilan (1 line per bank statement entry)
+    // This prevents duplicates when multiple paiement records share 1 bank tx.
+    // -----------------------------------------------------------------------
+    const [creditTx, allDebitTx, nonReconciledTx] = await Promise.all([
+      // All RAPPROCHE CREDIT bank transactions in period (=actual encaissements)
       this.prisma.transactionBancaire.findMany({
         where: {
           dateTransaction: { gte: start, lte: end },
-          typeTransaction: 'FRAIS_BANCAIRES',
-          type: 'DEBIT',
+          type: 'CREDIT',
+          statutRapprochement: 'RAPPROCHE',
           ...(centreId && centreId !== 'ALL' && centreId !== '' ? { releveBancaire: { compteBancaire: { centreId } } } : {})
+        },
+        include: {
+          paiements: { include: { facture: true } }
         }
       }),
-      // Non-reconciled transactions for the period (to show comparison)
+      // All RAPPROCHE DEBIT bank transactions in period (unified: expenses + bank fees)
+      // Processed in one pass to avoid double-counting when a FRAIS_BANCAIRES tx has linked depenses
+      this.prisma.transactionBancaire.findMany({
+        where: {
+          dateTransaction: { gte: start, lte: end },
+          type: 'DEBIT',
+          statutRapprochement: 'RAPPROCHE',
+          ...(centreId && centreId !== 'ALL' && centreId !== '' ? { releveBancaire: { compteBancaire: { centreId } } } : {})
+        },
+        include: {
+          depenses: { include: { factureFournisseur: true } }
+        }
+      }),
+      // Non-reconciled transactions for the period (for comparison summary)
       this.prisma.transactionBancaire.findMany({
         where: {
           dateTransaction: { gte: start, lte: end },
@@ -1317,44 +1313,57 @@ export class AccountingService {
           ...(centreId && centreId !== 'ALL' && centreId !== '' ? { releveBancaire: { compteBancaire: { centreId } } } : {})
         }
       })
-      ,
-      // CARTE batch CREDIT bank transactions reconciled without a linked paiement
-      // (CD AP / CD CMI terminal settlements auto-reconciled)
-      this.prisma.transactionBancaire.findMany({
-        where: {
-          dateTransaction: { gte: start, lte: end },
-          type: 'CREDIT',
-          typeTransaction: 'CARTE',
-          statutRapprochement: 'RAPPROCHE',
-          paiements: { none: {} },
-          ...(centreId && centreId !== 'ALL' && centreId !== '' ? { releveBancaire: { compteBancaire: { centreId } } } : {})
-        }
-      })
     ]);
 
-    const getPaymentTvaRate = (p: any): number => {
-      if (p.facture?.totalTTC && p.facture?.totalHT) {
-        const tva = p.facture.totalTTC - p.facture.totalHT;
-        if (p.facture.totalHT > 0) return Math.round((tva / p.facture.totalHT) * 100);
+    // Helper: determine TVA rate from linked paiements (take first paiement with facture)
+    const getTvaRateFromPaiements = (paiements: any[]): number => {
+      for (const p of (paiements || [])) {
+        if (p.facture?.totalTTC && p.facture?.totalHT && p.facture.totalHT > 0) {
+          const tva = p.facture.totalTTC - p.facture.totalHT;
+          return Math.round((tva / p.facture.totalHT) * 100);
+        }
       }
-      return 20;
+      return 20; // default 20%
     };
 
-    const getExpenseTvaRate = (e: any): number => {
-      if (e.factureFournisseur?.montantHT && e.factureFournisseur?.montantTVA) {
-        return Math.round((e.factureFournisseur.montantTVA / e.factureFournisseur.montantHT) * 100);
+    // Helper: determine TVA rate from linked depenses
+    const getTvaRateFromDepenses = (depenses: any[]): number => {
+      for (const e of (depenses || [])) {
+        if (e.factureFournisseur?.montantHT && e.factureFournisseur?.montantTVA) {
+          return Math.round((e.factureFournisseur.montantTVA / e.factureFournisseur.montantHT) * 100);
+        }
       }
-      return 20;
+      return 20; // default 20%
     };
 
+    // Helper: get best description for a credit bank transaction
+    const getCreditDescription = (tx: any): string => {
+      if (tx.paiements && tx.paiements.length > 0) {
+        const nums = tx.paiements.map((p: any) => p.facture?.numero || p.reference || '').filter(Boolean);
+        if (nums.length > 0) return nums.slice(0, 2).join(', ');
+      }
+      return tx.description || 'Encaissement';
+    };
+
+    // Helper: get best description for a debit bank transaction
+    const getDebitDescription = (tx: any): string => {
+      if (tx.depenses && tx.depenses.length > 0) {
+        const refs = tx.depenses.map((e: any) => e.factureFournisseur?.numeroFacture || e.description || '').filter(Boolean);
+        if (refs.length > 0) return refs.slice(0, 2).join(', ');
+      }
+      return tx.description || 'Depense';
+    };
+
+    // ---- TVA COLLECTEE (Ventes / Encaissements) ----
     const salesByRate: Record<number, { ht: number; tva: number; ttc: number }> = {};
     let totalSalesTTC = 0;
     let totalSalesHT = 0;
     let totalSalesTVA = 0;
+    const salesDetails: any[] = [];
 
-    payments.forEach(p => {
-      const rate = getPaymentTvaRate(p);
-      const ttc = p.montant || 0;
+    creditTx.forEach(tx => {
+      const rate = getTvaRateFromPaiements(tx.paiements);
+      const ttc = tx.montant || 0;
       const ht = ttc / (1 + rate / 100);
       const tva = ttc - ht;
 
@@ -1366,70 +1375,89 @@ export class AccountingService {
       totalSalesTTC += ttc;
       totalSalesHT += ht;
       totalSalesTVA += tva;
+
+      salesDetails.push({
+        date: tx.dateTransaction,
+        description: getCreditDescription(tx),
+        montantTTC: ttc,
+        montantHT: ht,
+        montantTVA: tva,
+        taux: rate
+      });
     });
 
-    // Process CARTE batch CREDIT bank transactions (without linked paiement) as sales
-    carteDirectTx.forEach(bt => {
-      const rate = 20; // Default to 20% TVA for credit card batches
-      const ttc = bt.montant || 0;
-      const ht = ttc / (1 + rate / 100);
-      const tva = ttc - ht;
-
-      if (!salesByRate[rate]) salesByRate[rate] = { ht: 0, tva: 0, ttc: 0 };
-      salesByRate[rate].ttc += ttc;
-      salesByRate[rate].ht += ht;
-      salesByRate[rate].tva += tva;
-
-      totalSalesTTC += ttc;
-      totalSalesHT += ht;
-      totalSalesTVA += tva;
-    });
-
+    // ---- TVA DEDUCTIBLE (Achats / Decaissements + Frais Bancaires) ----
+    // Single unified loop over ALL RAPPROCHE DEBIT transactions.
+    // TVA rate determined by typeTransaction:
+    //   FRAIS_BANCAIRES (commissions, agios, 'operation au debit') -> 10%
+    //   Others (normal expense payments) -> rate from linked depense or 20% default
     const expensesByRate: Record<number, { ht: number; tva: number; ttc: number }> = {};
     let totalExpensesTTC = 0;
     let totalExpensesHT = 0;
     let totalExpensesTVA = 0;
-
-    expenses.forEach(e => {
-      const rate = getExpenseTvaRate(e);
-      const ttc = e.montant || 0;
-      const ht = ttc / (1 + rate / 100);
-      const tva = ttc - ht;
-
-      if (!expensesByRate[rate]) expensesByRate[rate] = { ht: 0, tva: 0, ttc: 0 };
-      expensesByRate[rate].ttc += ttc;
-      expensesByRate[rate].ht += ht;
-      expensesByRate[rate].tva += tva;
-
-      totalExpensesTTC += ttc;
-      totalExpensesHT += ht;
-      totalExpensesTVA += tva;
-    });
-
     let totalBankFeesTTC = 0;
     let totalBankFeesHT = 0;
     let totalBankFeesTVA = 0;
+    const expensesDetails: any[] = [];
 
-    bankTransactions.forEach(bt => {
-      const ttc = bt.montant || 0;
-      const ht = ttc / 1.10;
-      const tva = ttc - ht;
+    // Descriptions that indicate this is a bank fee (10% TVA)
+    const isBankFeeDescription = (desc: string): boolean => {
+      const d = (desc || '').toLowerCase();
+      return d.includes('commission') || d.includes('agios') || d.includes('frais') ||
+             d.includes('timbre') || d.includes('operation au debit') || d.includes('au debit') ||
+             d.includes('incident') || d.includes('penalite') || d.includes('cotisation');
+    };
 
-      const rate = 10;
+    allDebitTx.forEach(tx => {
+      const ttc = tx.montant || 0;
+      const isBankFee = tx.typeTransaction === 'FRAIS_BANCAIRES' || isBankFeeDescription(tx.description || '');
+
+      let rate: number;
+      let ht: number;
+      let tva: number;
+      let description: string;
+
+      if (isBankFee) {
+        // Bank fee: always 10% TVA
+        rate = 10;
+        ht = ttc / 1.10;
+        tva = ttc - ht;
+        description = tx.description || 'Frais Bancaires';
+
+        totalBankFeesTTC += ttc;
+        totalBankFeesHT += ht;
+        totalBankFeesTVA += tva;
+      } else {
+        // Normal expense: determine rate from linked depenses
+        rate = getTvaRateFromDepenses(tx.depenses || []);
+        ht = ttc / (1 + rate / 100);
+        tva = ttc - ht;
+        description = getDebitDescription(tx);
+
+        totalExpensesTTC += ttc;
+        totalExpensesHT += ht;
+        totalExpensesTVA += tva;
+      }
+
       if (!expensesByRate[rate]) expensesByRate[rate] = { ht: 0, tva: 0, ttc: 0 };
       expensesByRate[rate].ttc += ttc;
       expensesByRate[rate].ht += ht;
       expensesByRate[rate].tva += tva;
 
-      totalBankFeesTTC += ttc;
-      totalBankFeesHT += ht;
-      totalBankFeesTVA += tva;
+      expensesDetails.push({
+        date: tx.dateTransaction,
+        description,
+        montantTTC: ttc,
+        montantHT: ht,
+        montantTVA: tva,
+        taux: rate
+      });
     });
 
     const totalTvaRecuperable = totalExpensesTVA + totalBankFeesTVA;
     const soldeTva = totalSalesTVA - totalTvaRecuperable;
 
-    // Calculate non-reconciled summary
+    // Non-reconciled summary
     const nonReconciledCredits = nonReconciledTx.filter(t => t.type === 'CREDIT').reduce((sum, t) => sum + (t.montant || 0), 0);
     const nonReconciledDebits = nonReconciledTx.filter(t => t.type === 'DEBIT').reduce((sum, t) => sum + (t.montant || 0), 0);
 
@@ -1440,7 +1468,7 @@ export class AccountingService {
         totalHT: totalSalesHT,
         totalTVA: totalSalesTVA,
         byRate: Object.entries(salesByRate).map(([rate, val]) => ({ rate: parseInt(rate), ...val })),
-          details: payments.map(p => ({ date: p.transactionBancaire?.dateTransaction || p.date, description: p.facture?.numero || 'Paiement', montantTTC: p.montant || 0, montantHT: (p.montant || 0) / (1 + getPaymentTvaRate(p)/100), montantTVA: (p.montant || 0) - ((p.montant || 0) / (1 + getPaymentTvaRate(p)/100)), taux: getPaymentTvaRate(p) })).concat(carteDirectTx.map(c => ({ date: c.dateTransaction, description: c.description || 'Paiement Carte (TPE/CMI)', montantTTC: c.montant || 0, montantHT: (c.montant || 0) / 1.20, montantTVA: (c.montant || 0) - ((c.montant || 0) / 1.20), taux: 20 })))
+        details: salesDetails
       },
       expenses: {
         totalTTC: totalExpensesTTC + totalBankFeesTTC,
@@ -1457,7 +1485,7 @@ export class AccountingService {
           totalTVA: totalBankFeesTVA
         },
         byRate: Object.entries(expensesByRate).map(([rate, val]) => ({ rate: parseInt(rate), ...val })),
-        details: expenses.map(e => ({ date: e.transactionBancaire?.dateTransaction || e.date, description: e.factureFournisseur?.numeroFacture || e.description || 'Depense', montantTTC: e.montant || 0, montantHT: (e.montant || 0) / (1 + getExpenseTvaRate(e)/100), montantTVA: (e.montant || 0) - ((e.montant || 0) / (1 + getExpenseTvaRate(e)/100)), taux: getExpenseTvaRate(e) })).concat(bankTransactions.map(b => ({ date: b.dateTransaction, description: b.description || 'Frais Bancaires', montantTTC: b.montant || 0, montantHT: (b.montant || 0) / 1.10, montantTVA: (b.montant || 0) - ((b.montant || 0) / 1.10), taux: 10 })))
+        details: expensesDetails
       },
       soldeTva,
       isCredit: soldeTva < 0,
@@ -1489,11 +1517,11 @@ export class AccountingService {
     csv += `TOTAL TVA DEDUCTIBLE;;;${data.expenses.totalTVA.toFixed(2)};${data.expenses.totalTTC.toFixed(2)}\n\n`;
 
     // Solde
-    csv += `SOLDE TVA (TVA due / Cr�dit de TVA);;;${data.soldeTva.toFixed(2)};${data.isCredit ? 'Cr�dit de TVA' : 'TVA due'}\n\n`;
+    csv += `SOLDE TVA (TVA due / Crï¿½dit de TVA);;;${data.soldeTva.toFixed(2)};${data.isCredit ? 'Crï¿½dit de TVA' : 'TVA due'}\n\n`;
 
     // Detailed transactions breakdown list
     csv += 'DETAILS DES OPERATIONS (TVA COLLECTEE)\n';
-    csv += 'Date;Description/R�f;Taux;Base HT;Montant TVA;Total TTC\n';
+    csv += 'Date;Description/Rï¿½f;Taux;Base HT;Montant TVA;Total TTC\n';
     data.sales.details.forEach((d) => {
       const dateStr = d.date ? new Date(d.date).toLocaleDateString('fr-FR') : '';
       csv += `${dateStr};${d.description || ''};	ext{${d.taux}}%;	ext{${d.montantHT.toFixed(2)}};	ext{${d.montantTVA.toFixed(2)}};	ext{${d.montantTTC.toFixed(2)}}\n`;
@@ -1501,7 +1529,7 @@ export class AccountingService {
     csv += '\n';
 
     csv += 'DETAILS DES OPERATIONS (TVA DEDUCTIBLE)\n';
-    csv += 'Date;Description/R�f;Taux;Base HT;Montant TVA;Total TTC\n';
+    csv += 'Date;Description/Rï¿½f;Taux;Base HT;Montant TVA;Total TTC\n';
     data.expenses.details.forEach((d) => {
       const dateStr = d.date ? new Date(d.date).toLocaleDateString('fr-FR') : '';
       csv += `${dateStr};	ext{${d.description || ''}};	ext{${d.taux}}%;	ext{${d.montantHT.toFixed(2)}};	ext{${d.montantTVA.toFixed(2)}};	ext{${d.montantTTC.toFixed(2)}}\n`;
@@ -1599,7 +1627,7 @@ export class AccountingService {
       doc.rect(40, y, 515, 20).fill('#e2e8f0');
       doc.fillColor('#334155').fontSize(9).font('Helvetica-Bold');
       doc.text('Date', 50, y + 6);
-      doc.text('Description / R�f', 120, y + 6);
+      doc.text('Description / Rï¿½f', 120, y + 6);
       doc.text('Taux', 290, y + 6);
       doc.text('Base HT', 340, y + 6);
       doc.text('TVA', 420, y + 6);
@@ -1614,7 +1642,7 @@ export class AccountingService {
           doc.rect(40, y, 515, 20).fill('#e2e8f0');
           doc.fillColor('#334155').fontSize(9).font('Helvetica-Bold');
           doc.text('Date', 50, y + 6);
-          doc.text('Description / R�f', 120, y + 6);
+          doc.text('Description / Rï¿½f', 120, y + 6);
           doc.text('Taux', 290, y + 6);
           doc.text('Base HT', 340, y + 6);
           doc.text('TVA', 420, y + 6);
@@ -1644,7 +1672,7 @@ export class AccountingService {
       doc.rect(40, y, 515, 20).fill('#e2e8f0');
       doc.fillColor('#334155').fontSize(9).font('Helvetica-Bold');
       doc.text('Date', 50, y + 6);
-      doc.text('Description / R�f', 120, y + 6);
+      doc.text('Description / Rï¿½f', 120, y + 6);
       doc.text('Taux', 290, y + 6);
       doc.text('Base HT', 340, y + 6);
       doc.text('TVA', 420, y + 6);
@@ -1659,7 +1687,7 @@ export class AccountingService {
           doc.rect(40, y, 515, 20).fill('#e2e8f0');
           doc.fillColor('#334155').fontSize(9).font('Helvetica-Bold');
           doc.text('Date', 50, y + 6);
-          doc.text('Description / R�f', 120, y + 6);
+          doc.text('Description / Rï¿½f', 120, y + 6);
           doc.text('Taux', 290, y + 6);
           doc.text('Base HT', 340, y + 6);
           doc.text('TVA', 420, y + 6);
