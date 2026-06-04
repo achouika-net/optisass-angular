@@ -85,7 +85,12 @@ export class BanqueReleveComponent implements OnInit {
       });
     }
     if (statut) {
-      items = items.filter((p: any) => p.statut === statut);
+      items = items.filter((p: any) => {
+        if (statut === 'REMIS_EN_BANQUE') {
+          return p.statut === 'REMIS_EN_BANQUE' || (p.statut === 'ENCAISSE' && ['CARTE', 'CARTE_BANCAIRE', 'CB', 'TPE', 'VIREMENT'].includes(p.mode) && !p.transactionBancaireId);
+        }
+        return p.statut === statut;
+      });
     }
     return items;
   });
@@ -106,11 +111,15 @@ export class BanqueReleveComponent implements OnInit {
       });
     }
     if (statut) {
-      items = items.filter((d: any) => d.statut === statut);
+      items = items.filter((d: any) => {
+        if (statut === 'REMIS_EN_BANQUE') {
+          return d.statut === 'REMIS_EN_BANQUE' || ['VALIDEE', 'A_PAYER', 'EN_ATTENTE'].includes(d.statut);
+        }
+        return d.statut === statut;
+      });
     }
     return items;
   });
-
   recapMois = computed<any[]>(() => {
     const txs = this.filteredTransactions();
     const recap: any = {};
