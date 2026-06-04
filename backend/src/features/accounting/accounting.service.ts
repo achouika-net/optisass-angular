@@ -1471,20 +1471,20 @@ export class AccountingService {
 
   async generateTvaCsv(dto: ExportSageDto): Promise<string> {
     const data = await this.getTvaBilan(dto);
-    let csv = '\ufeffBilan TVA P�riodique (R�gime des encaissements)\n';
-    csv += `P�riode du : ${dto.startDate} au ${dto.endDate}\n\n`;
+    let csv = '\ufeffBilan TVA Periodique (Regime des encaissements)\n';
+    csv += `Periode du : ${dto.startDate} au ${dto.endDate}\n\n`;
     
     csv += 'SECTION;Taux;Base HT;Montant TVA;Total TTC\n';
     
     // Sales
     data.sales.byRate.forEach((r) => {
-      csv += `TVA Collect�e (Ventes);${r.rate}%;${r.ht.toFixed(2)};${r.tva.toFixed(2)};${r.ttc.toFixed(2)}\n`;
+      csv += `TVA Collecteee (Ventes);${r.rate}%;${r.ht.toFixed(2)};${r.tva.toFixed(2)};${r.ttc.toFixed(2)}\n`;
     });
     csv += `TOTAL TVA COLLECTEE;;;${data.sales.totalTVA.toFixed(2)};${data.sales.totalTTC.toFixed(2)}\n\n`;
 
     // Expenses
     data.expenses.byRate.forEach((r) => {
-      csv += `TVA D�ductible;${r.rate}%;${r.ht.toFixed(2)};${r.tva.toFixed(2)};${r.ttc.toFixed(2)}\n`;
+      csv += `TVA Deductible;${r.rate}%;${r.ht.toFixed(2)};${r.tva.toFixed(2)};${r.ttc.toFixed(2)}\n`;
     });
     csv += `TOTAL TVA DEDUCTIBLE;;;${data.expenses.totalTVA.toFixed(2)};${data.expenses.totalTTC.toFixed(2)}\n\n`;
 
@@ -1515,27 +1515,27 @@ export class AccountingService {
     const doc = new PDFDocument({ margin: 40, size: 'A4', bufferPages: true });
 
     try {
-      doc.fillColor('#1e293b').fontSize(20).text('Bilan TVA P�riodique', { align: 'center' });
-      doc.fontSize(10).fillColor('#64748b').text(`R�gime des encaissements - P�riode du ${dto.startDate} au ${dto.endDate}`, { align: 'center' });
+      doc.fillColor('#1e293b').fontSize(20).text('Bilan TVA Periodique', { align: 'center' });
+      doc.fontSize(10).fillColor('#64748b').text(`Regime des encaissements - Periode du ${dto.startDate} au ${dto.endDate}`, { align: 'center' });
       doc.moveDown(2);
 
       // Synthesis card
       doc.rect(40, 100, 515, 70).fillAndStroke('#f8fafc', '#cbd5e1');
-      doc.fillColor('#1e293b').fontSize(11).text('R�SUM� GLOBAL', 50, 110);
+      doc.fillColor('#1e293b').fontSize(11).text('RESUME GLOBAL', 50, 110);
       
-      doc.fontSize(9).fillColor('#64748b').text('Total TVA Collect�e (Ventes) :', 50, 130);
+      doc.fontSize(9).fillColor('#64748b').text('Total TVA Collecteeee (Ventes) :', 50, 130);
       doc.fillColor('#0f766e').text(`${data.sales.totalTVA.toFixed(2)} MAD`, 220, 130);
 
-      doc.fillColor('#64748b').text('Total TVA R�cup�rable (Achats & Frais) :', 50, 145);
+      doc.fillColor('#64748b').text('Total TVA Recuperable (Achats & Frais) :', 50, 145);
       doc.fillColor('#b91c1c').text(`${data.expenses.totalTVA.toFixed(2)} MAD`, 220, 145);
 
-      const statusText = data.isCredit ? 'Cr�dit de TVA (� r�cup�rer)' : 'TVA Net � payer (due)';
+      const statusText = data.isCredit ? 'Credit de TVA (a recuperer)' : 'TVA Net a payer (due)';
       doc.fillColor('#1e293b').fontSize(10).text(`${statusText} :`, 300, 130);
       doc.fontSize(12).fillColor(data.isCredit ? '#0f766e' : '#b91c1c').text(`${Math.abs(data.soldeTva).toFixed(2)} MAD`, 300, 145);
 
       // Section Tables
       let yPos = 190;
-      doc.fillColor('#1e293b').fontSize(12).text('D�TAILS DES TAXES COLLECT�ES (VENTES)', 40, yPos);
+      doc.fillColor('#1e293b').fontSize(12).text('DETAILS DES TAXES COLLECTEES (VENTES)', 40, yPos);
       yPos += 20;
 
       // Table Header
@@ -1564,7 +1564,7 @@ export class AccountingService {
 
       // Expenses table
       yPos += 35;
-      doc.fillColor('#1e293b').fontSize(12).text('D�TAILS DES TAXES D�DUCTIBLES (ACHATS & FRAIS)', 40, yPos);
+      doc.fillColor('#1e293b').fontSize(12).text('DETAILS DES TAXES DEDUCTIBLES (ACHATS & FRAIS)', 40, yPos);
       yPos += 20;
 
       doc.rect(40, yPos, 515, 20).fill('#e2e8f0');
@@ -1592,7 +1592,7 @@ export class AccountingService {
 
       // Page 2: Details of Collected VAT (Sales)
       doc.addPage();
-      doc.fillColor('#1e293b').fontSize(14).font('Helvetica-Bold').text('D�tails des Op�rations - TVA Collect�e (Ventes)', 40, 40);
+      doc.fillColor('#1e293b').fontSize(14).font('Helvetica-Bold').text('Details des Operations - TVA Collecteee (Ventes)', 40, 40);
       doc.moveDown(1);
       
       let y = 70;
@@ -1637,7 +1637,7 @@ export class AccountingService {
 
       // Page 3: Details of Deductible VAT (Expenses)
       doc.addPage();
-      doc.fillColor('#1e293b').fontSize(14).font('Helvetica-Bold').text('D�tails des Op�rations - TVA D�ductible (Achats & Frais)', 40, 40);
+      doc.fillColor('#1e293b').fontSize(14).font('Helvetica-Bold').text('Details des Operations - TVA Deductible (Achats & Frais)', 40, 40);
       doc.moveDown(1);
       
       y = 70;
